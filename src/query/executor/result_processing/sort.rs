@@ -210,7 +210,7 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
     ///
     /// Choose the sorting method based on the amount of data:
     /// - The amount of data is less than parallel_threshold: Single-threaded sorting
-    /// Large amount of data: Using the Scatter-Gather parallel sorting algorithm
+    /// - Large amount of data: Using the Scatter-Gather parallel sorting algorithm
     fn execute_sort(&mut self, data_set: &mut DataSet) -> DBResult<()> {
         if self.sort_keys.is_empty() || data_set.rows.is_empty() {
             return Ok(());

@@ -251,10 +251,10 @@ impl HeuristicFunction {
     /// Calculate the heuristic value.
     ///
     /// # Arguments
-    /// * `current` – The value of the current node.
-    /// * `target` – The value of the target node.
-    /// `current_props` – Properties of the current node.
-    /// `target_props` – Properties of the target node
+    /// - * `current` – The value of the current node.
+    /// - * `target` – The value of the target node.
+    /// - `current_props` – Properties of the current node.
+    /// - `target_props` – Properties of the target node
     ///
     /// # Returns
     /// Heuristic estimates (which must meet the requirement of admissibility: not overestimating the actual cost)

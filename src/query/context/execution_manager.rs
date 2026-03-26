@@ -8,9 +8,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// Query Execution Manager
 ///
 /// Manage critical information during the execution of queries, including:
-/// Execute the plan.
+/// - Execute the plan.
 /// - Was it terminated?
-/// Other management functions related to the execution of tasks.
+/// - Other management functions related to the execution of tasks.
 pub struct QueryExecutionManager {
     /// Execution Plan
     plan: Option<Box<ExecutionPlan>>,

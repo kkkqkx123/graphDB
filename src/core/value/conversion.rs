@@ -104,9 +104,9 @@ impl Value {
     ///
     /// 参考 Nebula-Graph 设计：
     /// - 空值和 Null 返回 Null
-    /// The floating-point number is returned directly.
-    /// Converting integers to floating-point numbers
-    /// String parsing to a floating-point number; if the parsing fails, return Null.
+    /// - The floating-point number is returned directly.
+    /// - Converting integers to floating-point numbers
+    /// - String parsing to a floating-point number; if the parsing fails, return Null.
     pub fn to_float(&self) -> Value {
         match self {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),

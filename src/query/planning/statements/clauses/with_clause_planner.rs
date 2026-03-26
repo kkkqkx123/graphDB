@@ -223,11 +223,11 @@ impl WithClausePlanner {
     /// Extract the context of the WITH clause from the sentence.
     ///
     /// The improved implementation includes:
-    /// Extract the complete information of the WITH clause from Stmt::With.
-    /// Constructing the YieldClauseContext
+    /// - Extract the complete information of the WITH clause from Stmt::With.
+    /// - Constructing the YieldClauseContext
     /// - Handling ORDER BY and pagination
-    /// Collecting information about aliases
-    /// Handling aggregate expressions and grouping keys
+    /// - Collecting information about aliases
+    /// - Handling aggregate expressions and grouping keys
     fn extract_with_context(stmt: &Stmt) -> Result<WithClauseContext, PlannerError> {
         use crate::core::YieldColumn;
         use crate::query::parser::ast::Stmt;

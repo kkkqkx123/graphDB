@@ -142,7 +142,7 @@ impl TraversalDirectionOptimizer {
     pub fn new(cost_calculator: Arc<CostCalculator>) -> Self {
         Self {
             cost_calculator,
-            super_node_threshold: 1000.0,   // Default super node threshold
+            super_node_threshold: 1000.0, // Default super node threshold
             degree_equality_threshold: 0.1, // A difference of 10% is considered equivalent (i.e., the two values are considered to be the same).
         }
     }

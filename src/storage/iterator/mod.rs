@@ -9,7 +9,7 @@
 //! Attention:
 //! - Use the core::result::iterator module for query result iterators.
 //! - Combined iterator operations (filter, map, take, skip) should use the Rust standard iterator
-//! or the implementation in the core::result::combinators module
+//! - or the implementation in the core::result::combinators module
 
 pub mod predicate;
 pub mod storage_iter;

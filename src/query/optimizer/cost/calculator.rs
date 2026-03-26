@@ -402,8 +402,8 @@ impl CostCalculator {
     ///
     /// # 参数
     /// - `input_rows`: 输入行数
-    /// `agg_functions`: The number of aggregate functions
-    /// `group_by_keys`: The number of keys used in the GROUP BY clause (used to estimate the cost of hash operations)
+    /// - `agg_functions`: The number of aggregate functions
+    /// - `group_by_keys`: The number of keys used in the GROUP BY clause (used to estimate the cost of hash operations)
     pub fn calculate_aggregate_cost(
         &self,
         input_rows: u64,
@@ -558,7 +558,7 @@ impl CostCalculator {
     ///
     /// Adjust the I/O overhead based on the size of the effective cache:
     /// - If the number of data pages accessed is < effective_cache_pages: Most of the pages are already in the cache.
-    /// Otherwise: Some operations require disk I/O (input/output).
+    /// - Otherwise: Some operations require disk I/O (input/output).
     fn calculate_io_cost(&self, rows: u64) -> f64 {
         // Assume there are 100 lines on each page.
         let pages = (rows / 100).max(1);

@@ -193,6 +193,9 @@ mod tests {
             .apply(&mut ctx, &get_neighbors_node)
             .expect("应用规则失败");
 
-        assert!(result.is_some(), "The merging of the GetNeighbors and Project nodes should succeed.");
+        assert!(
+            result.is_some(),
+            "The merging of the GetNeighbors and Project nodes should succeed."
+        );
     }
 }

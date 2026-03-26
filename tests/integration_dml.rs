@@ -1,11 +1,11 @@
 //! 数据操作语言(DML)集成测试
 //!
 //! Test scope:
-//! INSERT – Insert data
-//! CREATE – Create data
-//! UPDATE – Update the data
+//! - INSERT – Insert data
+//! - CREATE – Create data
+//! - UPDATE – Update the data
 //! - DELETE – Delete the data
-//! MERGE – Merge the data
+//! - MERGE – Merge the data
 //! - SET – Set properties
 //! - REMOVE - Remove the attribute.
 

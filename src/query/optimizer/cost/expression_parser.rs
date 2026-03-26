@@ -370,10 +370,10 @@ impl ExpressionParser {
     /// Estimating the number of iterations of the Loop node
     ///
     /// Try to parse the number of iterations from the conditional string. The following patterns are supported:
-    /// Digital direct value: “10” → 10
+    /// - Digital direct value: "10" → 10
     /// - 范围表达式："1..10" 或 "range(1, 10)" -> 9
-    /// Comparison expressions: “i < 10”, “i <= 10” → 10
-    /// Set size: "Items" – Use the set size to make an estimate.
+    /// - Comparison expressions: "i < 10", "i <= 10" → 10
+    /// - Set size: "Items" – Use the set size to make an estimate.
     ///
     /// If the content cannot be parsed, use the default values configured in the system.
     pub fn parse_loop_iterations(&self, condition: &str) -> Option<u32> {

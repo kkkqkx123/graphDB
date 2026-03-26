@@ -16,7 +16,8 @@ use crate::transaction::types::{
 fn create_test_db() -> (Arc<redb::Database>, TempDir) {
     let temp_dir = TempDir::new().expect("Failed to create temporary directory");
     let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create test database"),
+        redb::Database::create(temp_dir.path().join("test.db"))
+            .expect("Failed to create test database"),
     );
     (db, temp_dir)
 }
@@ -28,7 +29,9 @@ fn test_transaction_context_writable_creation() {
     let timeout = Duration::from_secs(30);
     let durability = DurabilityLevel::Immediate;
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(txn_id, timeout, durability, write_txn, None);
 
@@ -59,7 +62,9 @@ fn test_transaction_context_state_transitions() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -84,7 +89,9 @@ fn test_transaction_context_invalid_state_transition() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -116,7 +123,9 @@ fn test_transaction_context_timeout() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_millis(100);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -142,7 +151,9 @@ fn test_transaction_context_remaining_time() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_millis(200);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -171,7 +182,9 @@ fn test_transaction_context_modified_tables() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -198,7 +211,9 @@ fn test_transaction_context_operation_log() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -239,7 +254,9 @@ fn test_transaction_context_can_execute() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -266,7 +283,9 @@ fn test_transaction_context_can_execute_expired() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_millis(50);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -294,7 +313,9 @@ fn test_transaction_context_info() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -321,7 +342,9 @@ fn test_transaction_context_take_write_txn() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -361,7 +384,9 @@ fn test_transaction_context_with_write_txn() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -419,7 +444,9 @@ fn test_transaction_context_writable_with_read_txn() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -442,7 +469,9 @@ fn test_transaction_context_with_write_txn_expired() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_millis(50);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -471,7 +500,9 @@ fn test_transaction_context_with_write_txn_invalid_state() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -503,7 +534,9 @@ fn test_savepoint_creation() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -531,7 +564,9 @@ fn test_multiple_savepoints() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -562,7 +597,9 @@ fn test_rollback_to_savepoint() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -589,7 +626,9 @@ fn test_rollback_to_nonexistent_savepoint() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -614,7 +653,9 @@ fn test_release_savepoint() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -642,7 +683,9 @@ fn test_release_nonexistent_savepoint() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -667,7 +710,9 @@ fn test_savepoint_with_operations() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("Failed to create write transaction");
+    let write_txn = db
+        .begin_write()
+        .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,

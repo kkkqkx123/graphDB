@@ -527,7 +527,10 @@ mod tests {
         assert_eq!(forward + backward, 4);
         // Person出度(5) < Company入度(50)，应该给Person更多深度
         // In other words, the value of `forward_depth` should be larger.
-        assert!(forward >= backward, "The end with the smaller degree should be assigned more depth.");
+        assert!(
+            forward >= backward,
+            "The end with the smaller degree should be assigned more depth."
+        );
     }
 
     #[test]
@@ -542,7 +545,10 @@ mod tests {
         let (forward, backward) = optimizer.calculate_depth_allocation(&context);
 
         // If the degree value is 2 < degree value is 8, the starting point should be given more “depth” (in terms of certain parameters, such as depth of field, complexity, or significance).
-        assert!(forward > backward, "Endpoints with smaller degrees should be assigned more depth.");
+        assert!(
+            forward > backward,
+            "Endpoints with smaller degrees should be assigned more depth."
+        );
         assert_eq!(forward + backward, 6);
     }
 

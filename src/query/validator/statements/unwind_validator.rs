@@ -251,22 +251,22 @@ impl UnwindValidator {
     /// Element type deduction is supported for the following types of expressions:
     /// - `[1, 2, 3]` - 列表字面量 → 元素类型可推导（Integer）
     /// - `range(1, 10)` - 函数调用 → 返回类型已知但元素类型 Unknown
-    /// The variable reference cannot be determined at compile time (DataType::Empty → Unknown).
+    /// - The variable reference cannot be determined at compile time (DataType::Empty → Unknown).
     /// - `vertex.tags` - 属性访问 → 编译期无法确定（DataType::Empty → Unknown）
     ///
     /// # Handling Unknown types
     ///
     /// When `list_type == ValueType::Unknown`:
-    /// ✓ Verification passed (no errors were reported), allowing the query to continue.
-    /// - ✓ The type of the output column is set to “Unknown”.
-    /// ✓ The executor determines the actual type of the value based on the actual value during runtime.
+    /// - ✓ Verification passed (no errors were reported), allowing the query to continue.
+    /// - ✓ The type of the output column is set to "Unknown".
+    /// - ✓ The executor determines the actual type of the value based on the actual value during runtime.
     ///
     /// # Runtime processing flow
     ///
     /// 1. `ExpressionEvaluator::evaluate(expr, context)` 获得实际 Value
     /// 2. `extract_list(value)` 根据 Value 的实际类型处理：
     /// - Value::List → Extract all elements
-    /// Value::Int/String/… → Wrapped in a single-element list
+    /// - Value::Int/String/… → Wrapped in a single-element list
     /// - If the value is `Null`, an empty list is returned.
     /// 3. Each expanded element is assigned a specific type, and the output is a dataset containing data of that specific type.
     ///

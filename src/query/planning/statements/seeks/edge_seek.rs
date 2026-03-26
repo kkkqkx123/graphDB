@@ -5,7 +5,7 @@
 //! Applicable scenarios:
 //! - MATCH ()-[e:KNOWS]->() WHERE e.since > 2020
 //! - MATCH (a)-[e]->(b) WHERE e.weight > 5
-//! Start the search from the edge index.
+//! - Start the search from the edge index.
 
 use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{SeekResult, SeekStrategyContext, SeekStrategyType};

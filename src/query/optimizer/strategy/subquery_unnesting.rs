@@ -229,19 +229,17 @@ impl SubqueryUnnestingOptimizer {
     /// Check whether the condition is a simple equality comparison.
     fn is_simple_equality_condition(&self, expr: &Expression) -> bool {
         match expr {
-            Expression::Binary { op, left, right } => {
-                match op {
-                    BinaryOperator::Equal => {
-                        self.is_simple_expression(left.as_ref())
-                            && self.is_simple_expression(right.as_ref())
-                    }
-                    BinaryOperator::And => {
-                        self.is_simple_equality_condition(left.as_ref())
-                            && self.is_simple_equality_condition(right.as_ref())
-                    }
-                    _ => false,
+            Expression::Binary { op, left, right } => match op {
+                BinaryOperator::Equal => {
+                    self.is_simple_expression(left.as_ref())
+                        && self.is_simple_expression(right.as_ref())
                 }
-            }
+                BinaryOperator::And => {
+                    self.is_simple_equality_condition(left.as_ref())
+                        && self.is_simple_equality_condition(right.as_ref())
+                }
+                _ => false,
+            },
             _ => false,
         }
     }
@@ -283,10 +281,7 @@ impl SubqueryUnnestingOptimizer {
     }
 
     /// Estimate the cost of applying the PatternApply method
-    fn estimate_pattern_apply_cost(
-        &self,
-        subquery_rows: u64,
-    ) -> f64 {
+    fn estimate_pattern_apply_cost(&self, subquery_rows: u64) -> f64 {
         // Simplified estimation: nested loops that execute subqueries each time
         // Assuming an average of 100 rows in the left table
         let left_rows = 100.0;
@@ -294,10 +289,7 @@ impl SubqueryUnnestingOptimizer {
     }
 
     /// Estimating the cost of a HashJoin operation
-    fn estimate_hash_join_cost(
-        &self,
-        subquery_rows: u64,
-    ) -> f64 {
+    fn estimate_hash_join_cost(&self, subquery_rows: u64) -> f64 {
         // Simplified estimation: hash connections
         let right_rows = subquery_rows as f64;
         let left_rows = 100.0;
@@ -342,8 +334,7 @@ impl SubqueryUnnestingOptimizer {
                 let left_key_expr = self.replace_all_variables(original_expr, &left_var);
                 let left_key_meta = ExpressionMeta::new(left_key_expr);
                 let left_key_id = expr_ctx.register_expression(left_key_meta);
-                let left_key_contextual =
-                    ContextualExpression::new(left_key_id, expr_ctx.clone());
+                let left_key_contextual = ContextualExpression::new(left_key_id, expr_ctx.clone());
                 hash_keys.push(left_key_contextual);
 
                 let right_key_expr = self.replace_all_variables(original_expr, &right_var);

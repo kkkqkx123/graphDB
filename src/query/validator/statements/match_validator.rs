@@ -175,8 +175,7 @@ impl MatchValidator {
                     ));
                 }
             }
-            Pattern::Edge(_edge_pattern) => {
-            }
+            Pattern::Edge(_edge_pattern) => {}
             Pattern::Path(path_pattern) => {
                 if path_pattern.elements.is_empty() {
                     return Err(ValidationError::new(
@@ -231,10 +230,8 @@ impl MatchValidator {
                         self.aliases.insert(var.clone(), AliasType::Edge);
                     }
                 }
-                Pattern::Path(_path) => {
-                }
-                Pattern::Variable(_var) => {
-                }
+                Pattern::Path(_path) => {}
+                Pattern::Variable(_var) => {}
             }
         }
         Ok(())
@@ -748,7 +745,7 @@ impl StatementValidator for MatchValidator {
         &self.outputs
     }
 
-        fn is_global_statement(&self) -> bool {
+    fn is_global_statement(&self) -> bool {
         // "MATCH" is not a global statement; it is necessary to select a domain (a specific "space") in advance.
         false
     }

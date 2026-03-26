@@ -119,7 +119,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     ///
     /// # Back
     /// - Returns on success ()
-    /// Return an error when something goes wrong (for example, if the required space does not exist).
+    /// - Return an error when something goes wrong (for example, if the required space does not exist).
     pub fn use_space(&mut self, space_name: &str) -> CoreResult<()> {
         let space_id = self.db.schema_api.use_space(space_name)?;
         self.space_id = Some(space_id);
@@ -183,7 +183,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     ///
     /// # 参数
     /// - `query` - 查询语句字符串
-    /// `params` – Query parameters
+    /// - `params` – Query parameters
     ///
     /// # 返回
     /// - 成功时返回查询结果

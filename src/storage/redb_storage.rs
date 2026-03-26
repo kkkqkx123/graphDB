@@ -944,7 +944,10 @@ mod tests {
 
         let result = RedbStorage::new_with_path(db_path.clone());
 
-        assert!(result.is_err(), "Opening a damaged database should result in an error.");
+        assert!(
+            result.is_err(),
+            "Opening a damaged database should result in an error."
+        );
 
         if let Err(StorageError::DbError(msg)) = result {
             assert!(
@@ -963,7 +966,10 @@ mod tests {
             panic!("Should return StorageError::DbError");
         }
 
-        assert!(db_path.exists(), "Database files should not be automatically deleted");
+        assert!(
+            db_path.exists(),
+            "Database files should not be automatically deleted"
+        );
     }
 
     #[test]

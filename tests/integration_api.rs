@@ -2,7 +2,7 @@
 //!
 //! Test scope:
 //! - api::session - session management, client session, query management
-//! `api::service` – Authentication, authorization, query processing, and statistical management.
+//! - `api::service` – Authentication, authorization, query processing, and statistical management.
 //! - api::mod - service startup, query execution
 
 mod common;

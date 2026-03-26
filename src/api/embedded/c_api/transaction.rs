@@ -354,7 +354,7 @@ pub unsafe extern "C" fn graphdb_txn_rollback(txn: *mut graphdb_txn_t) -> c_int 
 ///
 /// # 返回
 /// - Success: Savepoint ID
-/// Failure: -1
+/// - Failure: -1
 ///
 /// # Safety
 /// - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
@@ -398,7 +398,7 @@ pub unsafe extern "C" fn graphdb_txn_savepoint(
 ///
 /// # 参数
 /// - `txn`: 事务句柄
-/// `savepoint_id`: ID of the savepoint
+/// - `savepoint_id`: ID of the savepoint
 ///
 /// # 返回
 /// - 成功: GRAPHDB_OK

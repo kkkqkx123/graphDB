@@ -314,8 +314,8 @@ impl SchemaValidator {
     ///
     /// Parameters:
     /// - expr: The VID expression
-    /// `vid_type`: The VID type defined by the Space standard.
-    /// Role: Description of the VID role (e.g., “source”, “destination”, “vertex”)
+    /// - `vid_type`: The VID type defined by the Space standard.
+    /// - Role: Description of the VID role (e.g., "source", "destination", "vertex")
     ///
     /// Please provide the text you would like to have translated.
     /// - Ok(()) 验证通过

@@ -85,7 +85,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     /// - `storage`: 存储客户端
     /// - `stats_manager`: 统计信息管理器
     /// - `optimizer_engine`: 优化器引擎（全局实例）
-    /// `plan_cache_config`: Queries the configuration of the plan cache.
+    /// - `plan_cache_config`: Queries the configuration of the plan cache.
     pub fn with_optimizer_and_cache(
         storage: Arc<Mutex<S>>,
         stats_manager: Arc<StatsManager>,

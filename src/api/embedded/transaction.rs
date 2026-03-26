@@ -139,10 +139,10 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     ///
     /// # Return
     /// - Returns query results on success
-    /// Return an error when something goes wrong.
+    /// - Return an error when something goes wrong.
     ///
     /// # Error
-    /// Returns an error if the transaction has been committed or rolled back
+    /// - Returns an error if the transaction has been committed or rolled back
     pub fn execute(&self, query: &str) -> CoreResult<QueryResult> {
         self.check_active()?;
 
@@ -310,11 +310,11 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     /// Find a saved point by its name
     ///
     /// # 参数
-    /// “name” – The name of the save point.
+    /// "name" – The name of the save point.
     ///
     /// # 返回
     /// - 找到时返回 Some(SavepointId)
-    /// Return `None` when not found.
+    /// - Return `None` when not found.
     pub fn find_savepoint(&self, name: &str) -> Option<SavepointId> {
         if !self.is_active() {
             return None;

@@ -2,12 +2,12 @@
 //!
 //! Implement the StatementPlanner interface to handle the complete planning of MATCH queries.
 //! It integrates the following functions:
-//! Node and edge pattern matching (supports multiple paths)
-//! WHERE condition filtering
-//! - RETURN Projection
-//! ORDER BY: Sorting
-//! “LIMIT/SKIP” – Pagination options
-//! Selection of intelligent scanning strategies (index scanning, attribute scanning, full table scanning)
+//!   Node and edge pattern matching (supports multiple paths)
+//!   WHERE condition filtering
+//!   - RETURN Projection
+//!   ORDER BY: Sorting
+//!   "LIMIT/SKIP" – Pagination options
+//!   Selection of intelligent scanning strategies (index scanning, attribute scanning, full table scanning)
 
 use crate::core::types::ContextualExpression;
 use crate::core::YieldColumn;

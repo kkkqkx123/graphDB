@@ -204,7 +204,10 @@ mod tests {
         let mut ctx = RewriteContext::new();
         let result = rule.apply(&mut ctx, &top_node).expect("应用规则失败");
 
-        assert!(result.is_some(), "The merging of the two Filter nodes should be successful.");
+        assert!(
+            result.is_some(),
+            "The merging of the two Filter nodes should be successful."
+        );
 
         let transform_result = result.expect("Failed to apply rewrite rule");
         assert!(transform_result.erase_curr);

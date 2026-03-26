@@ -250,8 +250,14 @@ mod tests {
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
-            assert!(find_path_stmt.shortest, "It should be the query for the shortest path.");
-            assert!(find_path_stmt.weight_expression.is_none(), "Expression with no right to be evaluated (or expressed)");
+            assert!(
+                find_path_stmt.shortest,
+                "It should be the query for the shortest path."
+            );
+            assert!(
+                find_path_stmt.weight_expression.is_none(),
+                "Expression with no right to be evaluated (or expressed)"
+            );
         } else {
             panic!("Expectations for the FindPath statement");
         }
@@ -271,7 +277,10 @@ mod tests {
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
-            assert!(find_path_stmt.shortest, "It should be the shortest path query.");
+            assert!(
+                find_path_stmt.shortest,
+                "It should be the shortest path query."
+            );
             assert_eq!(
                 find_path_stmt.weight_expression,
                 Some("weight".to_string()),
@@ -296,7 +305,10 @@ mod tests {
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
-            assert!(find_path_stmt.shortest, "It should be the query for the shortest path.");
+            assert!(
+                find_path_stmt.shortest,
+                "It should be the query for the shortest path."
+            );
             assert_eq!(
                 find_path_stmt.weight_expression,
                 Some("ranking".to_string()),
@@ -321,7 +333,10 @@ mod tests {
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
-            assert!(!find_path_stmt.shortest, "It should refer to all path queries.");
+            assert!(
+                !find_path_stmt.shortest,
+                "It should refer to all path queries."
+            );
         } else {
             panic!("Expectations for the FindPath statement");
         }
@@ -341,8 +356,15 @@ mod tests {
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
-            assert!(find_path_stmt.shortest, "It should be the query for the shortest path.");
-            assert_eq!(find_path_stmt.max_steps, Some(5), "There should be a maximum number of steps, which is 5.");
+            assert!(
+                find_path_stmt.shortest,
+                "It should be the query for the shortest path."
+            );
+            assert_eq!(
+                find_path_stmt.max_steps,
+                Some(5),
+                "There should be a maximum number of steps, which is 5."
+            );
         } else {
             panic!("Expectation for the FindPath statement");
         }
@@ -362,8 +384,14 @@ mod tests {
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
-            assert!(find_path_stmt.with_loop, "Self-loop edges should be allowed.");
-            assert!(!find_path_stmt.with_cycle, "By default, loops are not allowed.");
+            assert!(
+                find_path_stmt.with_loop,
+                "Self-loop edges should be allowed."
+            );
+            assert!(
+                !find_path_stmt.with_cycle,
+                "By default, loops are not allowed."
+            );
         } else {
             panic!("Expectation for the FindPath statement");
         }
@@ -383,7 +411,10 @@ mod tests {
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
-            assert!(!find_path_stmt.with_loop, "By default, self-looping edges are not allowed.");
+            assert!(
+                !find_path_stmt.with_loop,
+                "By default, self-looping edges are not allowed."
+            );
             assert!(find_path_stmt.with_cycle, "The loop should be allowed.");
         } else {
             panic!("The expectation for the FindPath statement");
@@ -404,7 +435,10 @@ mod tests {
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
-            assert!(find_path_stmt.with_loop, "Self-loop edges should be allowed.");
+            assert!(
+                find_path_stmt.with_loop,
+                "Self-loop edges should be allowed."
+            );
             assert!(find_path_stmt.with_cycle, "The circuit should be allowed to operate (i.e., its operation should be permitted).");
         } else {
             panic!("The expectation for the FindPath statement");

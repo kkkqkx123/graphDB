@@ -619,9 +619,9 @@ impl TransactionContext {
         }
 
         let guard = self.write_txn.lock();
-        let txn = guard
-            .as_ref()
-            .ok_or(TransactionError::Internal("Write transaction not available".to_string()))?;
+        let txn = guard.as_ref().ok_or(TransactionError::Internal(
+            "Write transaction not available".to_string(),
+        ))?;
 
         f(txn).map_err(|e| TransactionError::Internal(e.to_string()))
     }
@@ -706,7 +706,9 @@ impl TransactionContext {
 
         let guard = self.write_txn.lock();
         if guard.is_none() {
-            return Err(TransactionError::Internal("Write transaction not available".to_string()));
+            return Err(TransactionError::Internal(
+                "Write transaction not available".to_string(),
+            ));
         }
 
         Ok(WriteTxnGuard { guard })

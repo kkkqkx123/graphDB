@@ -194,7 +194,7 @@ impl<S: StorageClient> SchemaApi<S> {
     ///
     /// # 参数
     /// - `space_id`: 空间 ID
-    /// **Name**: Index name
+    /// - **Name**: Index name
     /// - `target`: index target (label or edge type)
     pub fn create_index(&self, space_id: u64, name: &str, target: IndexTarget) -> CoreResult<()> {
         let space_name = self.get_space_name_by_id(space_id)?;

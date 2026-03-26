@@ -16,7 +16,8 @@ use crate::transaction::types::{
 fn create_test_manager() -> (TransactionManager, Arc<redb::Database>, TempDir) {
     let temp_dir = TempDir::new().expect("Failed to create temporary directory");
     let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create test database"),
+        redb::Database::create(temp_dir.path().join("test.db"))
+            .expect("Failed to create test database"),
     );
 
     let config = crate::transaction::types::TransactionManagerConfig {
@@ -43,11 +44,15 @@ fn test_begin_write_transaction() {
     let (manager, _db, _temp) = create_test_manager();
 
     let options = TransactionOptions::default();
-    let txn_id = manager.begin_transaction(options).expect("Failed to begin transaction");
+    let txn_id = manager
+        .begin_transaction(options)
+        .expect("Failed to begin transaction");
 
     assert!(manager.is_transaction_active(txn_id));
 
-    let context = manager.get_context(txn_id).expect("Failed to get transaction context");
+    let context = manager
+        .get_context(txn_id)
+        .expect("Failed to get transaction context");
     assert_eq!(context.id, txn_id);
     assert_eq!(context.state(), TransactionState::Active);
     assert!(!context.read_only);
@@ -64,7 +69,9 @@ fn test_begin_readonly_transaction() {
 
     assert!(manager.is_transaction_active(txn_id));
 
-    let context = manager.get_context(txn_id).expect("Failed to get transaction context");
+    let context = manager
+        .get_context(txn_id)
+        .expect("Failed to get transaction context");
     assert_eq!(context.id, txn_id);
     assert!(context.read_only);
 }
@@ -77,9 +84,13 @@ fn test_begin_transaction_with_timeout() {
         .with_timeout(Duration::from_secs(60))
         .with_durability(DurabilityLevel::None);
 
-    let txn_id = manager.begin_transaction(options).expect("Failed to begin transaction");
+    let txn_id = manager
+        .begin_transaction(options)
+        .expect("Failed to begin transaction");
 
-    let context = manager.get_context(txn_id).expect("Failed to get transaction context");
+    let context = manager
+        .get_context(txn_id)
+        .expect("Failed to get transaction context");
     assert!(context.remaining_time() > Duration::from_secs(50));
 }
 
@@ -93,7 +104,9 @@ fn test_commit_transaction() {
 
     assert!(manager.is_transaction_active(txn_id));
 
-    manager.commit_transaction(txn_id).expect("Failed to commit transaction");
+    manager
+        .commit_transaction(txn_id)
+        .expect("Failed to commit transaction");
 
     assert!(!manager.is_transaction_active(txn_id));
 
@@ -117,7 +130,9 @@ fn test_abort_transaction() {
 
     assert!(manager.is_transaction_active(txn_id));
 
-    manager.abort_transaction(txn_id).expect("Failed to abort transaction");
+    manager
+        .abort_transaction(txn_id)
+        .expect("Failed to abort transaction");
 
     assert!(!manager.is_transaction_active(txn_id));
 
@@ -188,7 +203,9 @@ fn test_commit_already_committed_transaction() {
         .begin_transaction(TransactionOptions::default())
         .expect("Failed to begin transaction");
 
-    manager.commit_transaction(txn_id).expect("First commit failed");
+    manager
+        .commit_transaction(txn_id)
+        .expect("First commit failed");
 
     // Second commit should fail
     let result = manager.commit_transaction(txn_id);
@@ -206,7 +223,9 @@ fn test_abort_already_aborted_transaction() {
         .begin_transaction(TransactionOptions::default())
         .expect("开始事务失败");
 
-    manager.abort_transaction(txn_id).expect("First abort failed");
+    manager
+        .abort_transaction(txn_id)
+        .expect("First abort failed");
 
     // Second abort should fail
     let result = manager.abort_transaction(txn_id);
@@ -296,7 +315,9 @@ fn test_sequential_write_transactions() {
     let txn2 = manager
         .begin_transaction(TransactionOptions::default())
         .expect("Failed to begin second transaction");
-    manager.abort_transaction(txn2).expect("Failed to abort second transaction");
+    manager
+        .abort_transaction(txn2)
+        .expect("Failed to abort second transaction");
 
     // Third transaction
     let txn3 = manager
@@ -328,7 +349,9 @@ fn test_transaction_timeout() {
 
     let options = TransactionOptions::new().with_timeout(Duration::from_millis(50));
 
-    let txn_id = manager.begin_transaction(options).expect("Failed to begin transaction");
+    let txn_id = manager
+        .begin_transaction(options)
+        .expect("Failed to begin transaction");
 
     // Wait for transaction timeout
     std::thread::sleep(Duration::from_millis(100));
@@ -364,14 +387,18 @@ fn test_list_active_transactions() {
     assert_eq!(active_txns.len(), 2);
 
     // Commit one transaction
-    manager.commit_transaction(txn1).expect("Failed to commit transaction");
+    manager
+        .commit_transaction(txn1)
+        .expect("Failed to commit transaction");
 
     // List active transactions again
     let active_txns = manager.list_active_transactions();
     assert_eq!(active_txns.len(), 1);
 
     // Cleanup
-    manager.commit_transaction(txn2).expect("Failed to commit transaction");
+    manager
+        .commit_transaction(txn2)
+        .expect("Failed to commit transaction");
 }
 
 #[test]
@@ -390,7 +417,9 @@ fn test_get_transaction_info() {
     assert_eq!(info.state, TransactionState::Active);
     assert!(!info.is_read_only);
 
-    manager.commit_transaction(txn_id).expect("Failed to commit transaction");
+    manager
+        .commit_transaction(txn_id)
+        .expect("Failed to commit transaction");
 }
 
 #[test]
@@ -403,7 +432,8 @@ fn test_max_concurrent_transactions() {
 
     let temp_dir = TempDir::new().expect("Failed to create temporary directory");
     let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create test database"),
+        redb::Database::create(temp_dir.path().join("test.db"))
+            .expect("Failed to create test database"),
     );
 
     let manager = TransactionManager::new(db, config);
@@ -482,7 +512,9 @@ fn test_transaction_stats() {
     );
 
     // Commit transaction
-    manager.commit_transaction(txn1).expect("Failed to commit transaction");
+    manager
+        .commit_transaction(txn1)
+        .expect("Failed to commit transaction");
 
     assert_eq!(
         stats
@@ -502,7 +534,9 @@ fn test_transaction_stats() {
         .begin_transaction(TransactionOptions::default())
         .expect("Failed to begin transaction");
 
-    manager.abort_transaction(txn2).expect("Failed to abort transaction");
+    manager
+        .abort_transaction(txn2)
+        .expect("Failed to abort transaction");
 
     assert_eq!(
         stats
@@ -516,7 +550,8 @@ fn test_transaction_stats() {
 fn test_cleanup_expired_transactions() {
     let temp_dir = TempDir::new().expect("Failed to create temporary directory");
     let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create test database"),
+        redb::Database::create(temp_dir.path().join("test.db"))
+            .expect("Failed to create test database"),
     );
 
     let config = crate::transaction::types::TransactionManagerConfig {

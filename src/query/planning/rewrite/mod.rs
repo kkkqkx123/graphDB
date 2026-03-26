@@ -32,10 +32,10 @@
 //!
 //! ## Elimination rules
 //! Operations to eliminate redundancy, including:
-//! Permanent filter rule (`EliminateFilterRule`)
+//! - Permanent filter rule (`EliminateFilterRule`)
 //! - RemoveNoopProjectRule: This rule removes any unnecessary or redundant project-related operations.
-//! Unnecessary deduplication (`DedupEliminationRule`)
-//! Redundant sorting (`EliminateSortRule`) – When the input is already sorted.
+//! - Unnecessary deduplication (`DedupEliminationRule`)
+//! - Redundant sorting (`EliminateSortRule`) – When the input is already sorted.
 //!
 //! ## LIMIT Pushdown Rule (limit_pushdown)
 //! Push down the LIMIT/TOPN operations.

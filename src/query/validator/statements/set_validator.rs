@@ -3,13 +3,13 @@
 //! Verify the validity of SET/GET/SHOW statements
 //!
 //! This document has been restructured in accordance with the new trait + enumeration validator framework.
-//! The StatementValidator trait has been implemented to unify the interface.
-//! 2. All original functions have been retained.
-//! SET variable validation
-//! SET Tag/Edge property validation
+//! - The StatementValidator trait has been implemented to unify the interface.
+//! - 2. All original functions have been retained.
+//! - SET variable validation
+//! - SET Tag/Edge property validation
 //! - SET priority verification
-//! Expression validation
-//! 3. Use AstContext to manage contexts in a unified manner.
+//! - Expression validation
+//! - 3. Use AstContext to manage contexts in a unified manner.
 
 use std::collections::HashMap;
 use std::sync::Arc;

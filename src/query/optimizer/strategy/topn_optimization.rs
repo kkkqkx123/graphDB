@@ -216,12 +216,12 @@ impl SortEliminationOptimizer {
     /// Check whether it is possible to convert this into TopN nodes.
     ///
     /// # 参数
-    /// `sort_items`: Functions to sort items
+    /// - `sort_items`: Functions to sort items
     /// - `limit`: The value of the `limit` parameter
-    /// `input_rows`: The number of input rows
+    /// - `input_rows`: The number of input rows
     ///
     /// # 返回
-    /// If conversion is possible, return (TopN cost, original sorting cost).
+    /// - If conversion is possible, return (TopN cost, original sorting cost).
     pub fn check_topn_conversion_cost(
         &self,
         sort_items: &[SortItem],

@@ -164,7 +164,10 @@ mod tests {
             .apply(&mut ctx, &get_vertices_node)
             .expect("应用规则失败");
 
-        assert!(result.is_some(), "The merger of the GetVertices and Dedup nodes should succeed.");
+        assert!(
+            result.is_some(),
+            "The merger of the GetVertices and Dedup nodes should succeed."
+        );
 
         // Validation results
         let transform_result = result.expect("Failed to apply rewrite rule");
@@ -173,7 +176,10 @@ mod tests {
 
         // Verify that the new GetVertices node has the dedup flag set.
         if let PlanNodeEnum::GetVertices(ref new_gv) = transform_result.new_nodes[0] {
-            assert!(new_gv.dedup(), "The new GetVertices node should have the dedup flag set.");
+            assert!(
+                new_gv.dedup(),
+                "The new GetVertices node should have the dedup flag set."
+            );
         } else {
             panic!("The “GetVertices” node");
         }

@@ -106,7 +106,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         let executor = AllPathsExecutor::new(
             ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
             AllPathsConfig {
-                left_start_ids: Vec::new(),  // Please provide the text you would like to have translated.
+                left_start_ids: Vec::new(), // Please provide the text you would like to have translated.
                 right_start_ids: Vec::new(), // Please provide the text you would like to have translated.
                 max_hops: node.max_hop(),
                 edge_types: Some(node.edge_types().to_vec()),

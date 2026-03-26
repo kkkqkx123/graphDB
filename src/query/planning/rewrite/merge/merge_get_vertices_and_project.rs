@@ -188,6 +188,9 @@ mod tests {
             .apply(&mut ctx, &get_vertices_node)
             .expect("应用规则失败");
 
-        assert!(result.is_some(), "The merging of the GetVertices and Project nodes should succeed.");
+        assert!(
+            result.is_some(),
+            "The merging of the GetVertices and Project nodes should succeed."
+        );
     }
 }

@@ -4,15 +4,15 @@
 //!
 //! ## Design Specifications
 //!
-//! “Expression” is a unified type of expression that combines the characteristics of the following sources:
+//! "Expression" is a unified type of expression that combines the characteristics of the following sources:
 //! - **AST at the Parser Layer**: Provides `Span` information for error localization.
-//! **Core layer expressions**: Provide serialization support and aggregate functions.
+//! - **Core layer expressions**: Provide serialization support and aggregate functions.
 //!
 //! ## Type Characteristics
 //!
 //! – **Location information**: The optional `Span` field is used for error reporting.
 //! - **Aggregate functions**: The `Aggregate` variant is supported for aggregate queries.
-//! **Serialization support**: Serialization/deserialization is supported via `serde`.
+//! - **Serialization support**: Serialization/deserialization is supported via `serde`.
 //!
 //! ## Explanation of the Variants
 //!

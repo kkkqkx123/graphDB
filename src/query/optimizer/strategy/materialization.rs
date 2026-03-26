@@ -1,18 +1,18 @@
 //! CTE (Common Table Expression) Materialization Optimizer Module
 //!
-//! “Analysis-based optimization strategy for CTE materialization” – Determines whether to materialize a CTE (Common Table Expression) in memory or not.
+//! "Analysis-based optimization strategy for CTE materialization" – Determines whether to materialize a CTE (Common Table Expression) in memory or not.
 //!
 //! ## Optimization Strategies
 //!
-//! Materialize the CTE (Common Table Expression) that will be referenced multiple times to avoid duplicate calculations.
+//! - Materialize the CTE (Common Table Expression) that will be referenced multiple times to avoid duplicate calculations.
 //! - 仅物化确定性的 CTE（不含 rand(), now() 等）
-//! Decisions are made based on the reference count and the size of the result set.
+//! - Decisions are made based on the reference count and the size of the result set.
 //!
 //! ## Applicable Conditions
 //!
-//! The number of citations for CTE is greater than 1.
-//! 2. CTE 不包含非确定性函数（如 rand(), now()）
-//! 3. The estimated number of rows for CTE is less than 10,000.
+//! - The number of citations for CTE is greater than 1.
+//! - 2. CTE 不包含非确定性函数（如 rand(), now()）
+//! - 3. The estimated number of rows for CTE is less than 10,000.
 //! 4. The complexity of CTE (Common Table Expression) is less than 80.
 //!
 //! ## Usage Examples

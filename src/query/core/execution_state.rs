@@ -6,24 +6,24 @@
 use std::fmt;
 
 /// Query execution status - Top-level execution process status
-    ///
-    /// Indicates the lifecycle status of the entire query execution, which is used for query process management.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-    pub enum QueryExecutionState {
-        /// The query has been created and is waiting to be executed.
-        #[default]
-        Pending,
-        /// The query is currently being executed.
-        Running,
-        /// The query execution has been completed.
-        Completed,
-        /// The query execution failed.
-        Failed,
-        /// The query has been cancelled.
-        Cancelled,
-        /// Query execution timed out.
-        Timeout,
-    }
+///
+/// Indicates the lifecycle status of the entire query execution, which is used for query process management.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum QueryExecutionState {
+    /// The query has been created and is waiting to be executed.
+    #[default]
+    Pending,
+    /// The query is currently being executed.
+    Running,
+    /// The query execution has been completed.
+    Completed,
+    /// The query execution failed.
+    Failed,
+    /// The query has been cancelled.
+    Cancelled,
+    /// Query execution timed out.
+    Timeout,
+}
 
 impl QueryExecutionState {
     /// Check whether the status is terminal.

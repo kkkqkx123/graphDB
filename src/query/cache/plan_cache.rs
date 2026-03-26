@@ -194,11 +194,11 @@ impl QueryPlanCache {
     /// Obtaining the cached plan
     ///
     /// # Parameters
-    /// `query`: The text of the query
+    /// - `query`: The text of the query
     ///
     /// # Back
     /// - `Some(Arc<CachedPlan>)`: 缓存的计划
-    /// “None”: No results were found, or there was a hash collision.
+    /// - "None": No results were found, or there was a hash collision.
     pub fn get(&self, query: &str) -> Option<Arc<CachedPlan>> {
         let key = PlanCacheKey::from_query(query);
         let ttl = Duration::from_secs(self.config.ttl_seconds);
@@ -242,8 +242,8 @@ impl QueryPlanCache {
     ///
     /// # 参数
     /// - `query`: 查询文本
-    /// Execute the plan.
-    /// `param_positions`: Information about the positions of the parameters
+    /// - Execute the plan.
+    /// - `param_positions`: Information about the positions of the parameters
     pub fn put(&self, query: &str, plan: ExecutionPlan, param_positions: Vec<ParamPosition>) {
         let key = PlanCacheKey::from_query(query);
         let query_bytes = query.len();

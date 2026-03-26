@@ -55,7 +55,9 @@ impl TransactionManager {
     ) -> Result<TransactionId, TransactionError> {
         // Check if shutdown
         if self.shutdown_flag.load(Ordering::SeqCst) != 0 {
-            return Err(TransactionError::Internal("Transaction manager is shutdown".to_string()));
+            return Err(TransactionError::Internal(
+                "Transaction manager is shutdown".to_string(),
+            ));
         }
 
         // Check concurrent transaction count limit

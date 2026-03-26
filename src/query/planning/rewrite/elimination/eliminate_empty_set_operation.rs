@@ -1,8 +1,8 @@
 //! Optimization rules for set operations on the empty set
 //!
 //! Optimizing the handling of the empty set in set operations:
-//! - Minus: If the value for “minus” is empty, the main input should be returned directly.
-//! **Intersect:** If either of the inputs is empty, return the empty set.
+//! - Minus: If the value for "minus" is empty, the main input should be returned directly.
+//! - **Intersect:** If either of the inputs is empty, return the empty set.
 //!
 //! # Conversion example
 //!

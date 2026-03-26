@@ -164,7 +164,10 @@ mod tests {
             .apply(&mut ctx, &get_neighbors_node)
             .expect("应用规则失败");
 
-        assert!(result.is_some(), "The merging of the GetNeighbors and Dedup nodes should succeed.");
+        assert!(
+            result.is_some(),
+            "The merging of the GetNeighbors and Dedup nodes should succeed."
+        );
 
         // Verification results
         let transform_result = result.expect("Failed to apply rewrite rule");
@@ -173,7 +176,10 @@ mod tests {
 
         // Verify that the new GetNeighbors node has the dedup flag set.
         if let PlanNodeEnum::GetNeighbors(ref new_gn) = transform_result.new_nodes[0] {
-            assert!(new_gn.dedup(), "The new GetNeighbors node should have the dedup flag set.");
+            assert!(
+                new_gn.dedup(),
+                "The new GetNeighbors node should have the dedup flag set."
+            );
         } else {
             panic!("The “GetNeighbors” node");
         }

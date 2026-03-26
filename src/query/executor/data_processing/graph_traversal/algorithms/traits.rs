@@ -46,12 +46,12 @@ pub trait PathFindingAlgorithm {
     /// # 参数
     /// - `start_ids`: 起始顶点ID列表
     /// - `end_ids`: 目标顶点ID列表
-    /// `edge_types`: Filter by edge type
-    /// `max_depth`: The maximum depth of the search.
+    /// - `edge_types`: Filter by edge type
+    /// - `max_depth`: The maximum depth of the search.
     /// - `limit`: 返回路径数量限制
     ///
     /// # 返回
-    /// List of all found paths
+    /// - List of all found paths
     fn find_all_paths(
         &mut self,
         start_ids: &[Value],
@@ -72,11 +72,11 @@ pub trait TraversalAlgorithm {
     /// # 参数
     /// - `start_ids`: 起始顶点ID列表
     /// - `edge_types`: 边类型过滤
-    /// `max_depth`: The maximum depth of the traversal.
-    /// `limit`: Returns the limit on the number of vertices.
+    /// - `max_depth`: The maximum depth of the traversal.
+    /// - `limit`: Returns the limit on the number of vertices.
     ///
     /// # 返回
-    /// List of vertices that have been traversed
+    /// - List of vertices that have been traversed
     fn traverse(
         &mut self,
         start_ids: &[Value],

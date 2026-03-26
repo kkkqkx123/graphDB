@@ -1,16 +1,16 @@
 //! Aggregation Operation Executor Module
 //!
 //! Executors related to aggregate operations, including:
-//! `GroupBy` (Grouping and Aggregation)
-//! Aggregate (overall aggregation)
-//! Having (filtered after grouping)
+//! - `GroupBy` (Grouping and Aggregation)
+//! - Aggregate (overall aggregation)
+//! - Having (filtered after grouping)
 //!
 //! CPU-intensive operations are parallelized using Rayon.
 //!
 //! Refer to the implementation of AggregateExecutor in nebula-graph:
 //! - Use AggData to manage the aggregation status.
-//! Use the AggFunctionManager to manage aggregate functions.
-//! Unified handling of NULL and empty values
+//! - Use the AggFunctionManager to manage aggregate functions.
+//! - Unified handling of NULL and empty values
 
 use parking_lot::Mutex;
 use rayon::prelude::*;

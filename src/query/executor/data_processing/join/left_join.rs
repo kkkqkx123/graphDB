@@ -397,7 +397,7 @@ mod tests {
         let config = LeftJoinConfig {
             id: 1,
             hash_keys: vec![ctx_expr1.clone()], // The id column in the left table serves as the key.
-            probe_keys: vec![ctx_expr1],        // The id column in the right table serves as the key.
+            probe_keys: vec![ctx_expr1], // The id column in the right table serves as the key.
             left_var: "left".to_string(),
             right_var: "right".to_string(),
             col_names: vec!["id".to_string(), "name".to_string(), "age".to_string()],

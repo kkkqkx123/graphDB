@@ -350,10 +350,10 @@ int graphdb_batch_inserter_create(struct graphdb_session_t *session,
  * - 失败: 错误码
  *
  * # Safety
- * The `batch` must be a valid batch operation handle created using the `graphdb_batch_inserter_create` function.
+ * - The `batch` must be a valid batch operation handle created using the `graphdb_batch_inserter_create` function.
  * - `tag_name` must be a valid pointer to a UTF-8 string ending in null
- * If `properties` is not `null`, it must point to at least `prop_count` valid `graphdb_value_t` elements.
- * The caller must ensure that the associated session is still valid when calling this function.
+ * - If `properties` is not `null`, it must point to at least `prop_count` valid `graphdb_value_t` elements.
+ * - The caller must ensure that the associated session is still valid when calling this function.
  */
 int graphdb_batch_add_vertex(struct graphdb_batch_t *batch,
                              int64_t vid,
@@ -379,7 +379,7 @@ int graphdb_batch_add_vertex(struct graphdb_batch_t *batch,
  *
  * # Safety
  * - `batch` 必须是通过 `graphdb_batch_inserter_create` 创建的有效批量操作句柄
- * The `edge_type` must be a valid pointer to a UTF-8 string that ends with `null`.
+ * - The `edge_type` must be a valid pointer to a UTF-8 string that ends with `null`.
  * - 如果 `properties` 不为 null,则必须指向至少 `prop_count` 个有效的 `graphdb_value_t` 元素
  * - 调用者必须确保在调用此函数时,关联的会话仍然有效
  */
@@ -1532,7 +1532,7 @@ int graphdb_txn_rollback(struct graphdb_txn_t *txn);
  *
  * # 返回
  * - Success: Savepoint ID
- * Failure: -1
+ * - Failure: -1
  *
  * # Safety
  * - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
@@ -1547,7 +1547,7 @@ int64_t graphdb_txn_savepoint(struct graphdb_txn_t *txn,
  *
  * # 参数
  * - `txn`: 事务句柄
- * `savepoint_id`: ID of the savepoint
+ * - `savepoint_id`: ID of the savepoint
  *
  * # 返回
  * - 成功: GRAPHDB_OK

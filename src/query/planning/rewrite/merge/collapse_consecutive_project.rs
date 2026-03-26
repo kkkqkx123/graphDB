@@ -233,7 +233,10 @@ mod tests {
         let mut ctx = RewriteContext::new();
         let result = rule.apply(&mut ctx, &parent_node).expect("应用规则失败");
 
-        assert!(result.is_some(), "The consecutive Project nodes should be merged successfully.");
+        assert!(
+            result.is_some(),
+            "The consecutive Project nodes should be merged successfully."
+        );
 
         // Verification results
         let transform_result = result.expect("Failed to apply rewrite rule");

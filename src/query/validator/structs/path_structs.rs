@@ -54,8 +54,8 @@ pub struct NodeInfo {
     pub labels: Vec<String>,
     pub props: Option<Expression>,
     pub anonymous: bool,
-    pub filter: Option<Expression>,           // Node filtering criteria
-    pub tids: Vec<i32>,                       // List of tag IDs
+    pub filter: Option<Expression>, // Node filtering criteria
+    pub tids: Vec<i32>,             // List of tag IDs
     pub label_props: Vec<Option<Expression>>, // Tag attributes
 }
 

@@ -511,7 +511,7 @@ pub mod tests {
         match result {
             ExecutionResult::Values(values) => {
                 if let Some(Value::DataSet(dataset)) = values.first() {
-                    assert_eq!(dataset.rows.len(),1); // 1 * 1 * 1 = 1
+                    assert_eq!(dataset.rows.len(), 1); // 1 * 1 * 1 = 1
                     assert_eq!(
                         dataset.rows[0],
                         vec![

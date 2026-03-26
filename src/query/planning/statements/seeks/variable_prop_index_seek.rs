@@ -5,7 +5,7 @@
 //! Applicable scenarios:
 //! - MATCH (v:Person) WHERE v.name = $varName
 //! - MATCH (v:Person) WHERE v.age > $minAge
-//! Variable binding in parameterized queries
+//! - Variable binding in parameterized queries
 
 use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{IndexInfo, SeekResult, SeekStrategyContext, SeekStrategyType};

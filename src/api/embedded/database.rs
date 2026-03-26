@@ -146,7 +146,7 @@ impl<S: StorageClient + Clone + 'static> GraphDatabase<S> {
     ///
     /// # 参数
     /// - `query` - 查询语句字符串
-    /// `params` – Query parameters
+    /// - `params` – Query parameters
     ///
     /// # 返回
     /// - 成功时返回查询结果

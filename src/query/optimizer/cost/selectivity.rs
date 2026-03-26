@@ -164,7 +164,7 @@ impl SelectivityEstimator {
     pub fn estimate_greater_than_selectivity(&self, value: Option<f64>) -> f64 {
         match value {
             Some(v) if v < 0.0 => 0.9, // When comparing values, it is generally preferable to choose the option that represents the majority of the data. In this case, since “greater than a negative value” indicates a positive value, that option would correspond to the majority of the data points in the dataset.
-            Some(0.0) => 0.95,         // When the value is greater than zero, it usually indicates that the majority of the data falls into that category.
+            Some(0.0) => 0.95, // When the value is greater than zero, it usually indicates that the majority of the data falls into that category.
             _ => defaults::COMPARISON,
         }
     }

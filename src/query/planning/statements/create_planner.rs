@@ -507,7 +507,10 @@ mod tests {
         let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
-        assert!(result.is_ok(), "The CREATE PATH command with attributes should succeed.");
+        assert!(
+            result.is_ok(),
+            "The CREATE PATH command with attributes should succeed."
+        );
     }
 
     #[test]
@@ -524,7 +527,10 @@ mod tests {
         let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
-        assert!(result.is_ok(), "The多边al CREATE PATH operation should succeed.");
+        assert!(
+            result.is_ok(),
+            "The多边al CREATE PATH operation should succeed."
+        );
     }
 
     #[test]
@@ -541,7 +547,10 @@ mod tests {
         let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
-        assert!(result.is_ok(), "The single-node CREATE operation should succeed.");
+        assert!(
+            result.is_ok(),
+            "The single-node CREATE operation should succeed."
+        );
     }
 
     #[test]
@@ -558,7 +567,10 @@ mod tests {
         let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
-        assert!(result.is_err(), "A CREATE PATH command without any tags should fail.");
+        assert!(
+            result.is_err(),
+            "A CREATE PATH command without any tags should fail."
+        );
     }
 
     #[test]
@@ -575,6 +587,9 @@ mod tests {
         let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
-        assert!(result.is_ok(), "The creation of a bidirectional edge using the “CREATE PATH” command should succeed.");
+        assert!(
+            result.is_ok(),
+            "The creation of a bidirectional edge using the “CREATE PATH” command should succeed."
+        );
     }
 }
