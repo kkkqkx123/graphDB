@@ -19,7 +19,11 @@ use graphdb::query::planning::rewrite::{
 #[test]
 fn test_rule_registry_default() {
     let registry = RuleRegistry::default();
-    assert_eq!(registry.len(), 39, "The default registry should contain 39 rules");
+    assert_eq!(
+        registry.len(),
+        39,
+        "The default registry should contain 39 rules"
+    );
     assert!(!registry.is_empty(), "The registry should not be empty");
 }
 
@@ -51,14 +55,25 @@ fn test_rule_registry_add() {
 
     registry.add(RewriteRuleEnum::EliminateFilter(EliminateFilterRule::new()));
 
-    assert_eq!(registry.len(), 1, "Adding a rule should result in a length of 1");
-    assert!(!registry.is_empty(), "Should not be empty after adding a rule");
+    assert_eq!(
+        registry.len(),
+        1,
+        "Adding a rule should result in a length of 1"
+    );
+    assert!(
+        !registry.is_empty(),
+        "Should not be empty after adding a rule"
+    );
 }
 
 #[test]
 fn test_rule_registry_clear() {
     let mut registry = RuleRegistry::default();
-    assert_eq!(registry.len(), 39, "The default registry should have 39 rules");
+    assert_eq!(
+        registry.len(),
+        39,
+        "The default registry should have 39 rules"
+    );
 
     registry.clear();
     assert_eq!(registry.len(), 0, "The length should be 0 after clearing");
@@ -133,7 +148,10 @@ fn test_rewrite_rule_names() {
     let mut expected_sorted = expected_names.clone();
     expected_sorted.sort();
 
-    assert_eq!(actual_names, expected_sorted, "The list of rule names should match");
+    assert_eq!(
+        actual_names, expected_sorted,
+        "The list of rule names should match"
+    );
 }
 
 #[test]
@@ -229,7 +247,11 @@ fn test_elimination_rules_count() {
         })
         .collect();
 
-    assert_eq!(elimination_rules.len(), 7, "There should be 7 elimination rules");
+    assert_eq!(
+        elimination_rules.len(),
+        7,
+        "There should be 7 elimination rules"
+    );
 }
 
 #[test]
@@ -279,7 +301,11 @@ fn test_predicate_pushdown_rules_count() {
         })
         .collect();
 
-    assert_eq!(predicate_pushdown_rules.len(), 11, "There should be 11 predicate inference rules");
+    assert_eq!(
+        predicate_pushdown_rules.len(),
+        11,
+        "There should be 11 predicate inference rules"
+    );
 }
 
 #[test]
@@ -301,7 +327,11 @@ fn test_projection_pushdown_rules_count() {
         })
         .collect();
 
-    assert_eq!(projection_pushdown_rules.len(), 6, "There should be 6 projective extrapolation rules");
+    assert_eq!(
+        projection_pushdown_rules.len(),
+        6,
+        "There should be 6 projective extrapolation rules"
+    );
 }
 
 #[test]
@@ -323,7 +353,11 @@ fn test_limit_pushdown_rules_count() {
         })
         .collect();
 
-    assert_eq!(limit_pushdown_rules.len(), 6, "There should be 6 LIMIT pushdown rules");
+    assert_eq!(
+        limit_pushdown_rules.len(),
+        6,
+        "There should be 6 LIMIT pushdown rules"
+    );
 }
 
 #[test]
@@ -335,7 +369,11 @@ fn test_aggregate_rules_count() {
         .filter(|rule| matches!(rule, RewriteRuleEnum::PushFilterDownAggregate(_)))
         .collect();
 
-    assert_eq!(aggregate_rules.len(), 1, "There should be 1 aggregation optimization rule");
+    assert_eq!(
+        aggregate_rules.len(),
+        1,
+        "There should be 1 aggregation optimization rule"
+    );
 }
 
 // ==================== Rule Uniqueness Test ====================

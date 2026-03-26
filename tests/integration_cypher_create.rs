@@ -325,7 +325,10 @@ fn test_schema_auto_inference_float() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "Floating point attribute parsing should succeed");
+    assert!(
+        result.is_ok(),
+        "Floating point attribute parsing should succeed"
+    );
 
     // Verify that the Schema Inference recognizes salary as a DOUBLE type.
 }
@@ -347,7 +350,10 @@ fn test_schema_auto_inference_mixed_types() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "Mixed type attribute parsing should succeed");
+    assert!(
+        result.is_ok(),
+        "Mixed type attribute parsing should succeed"
+    );
 
     // Verify that Schema Inference correctly recognizes the type of each attribute
 }
@@ -370,8 +376,14 @@ fn test_cypher_vs_ngql_create_node() {
     println!("NGQL解析结果: {:?}", ngql_result);
 
     // Both should be successfully parsed
-    assert!(cypher_result.is_ok(), "Cypher syntax should parse successfully");
-    assert!(ngql_result.is_ok(), "The NGQL syntax should parse successfully");
+    assert!(
+        cypher_result.is_ok(),
+        "Cypher syntax should parse successfully"
+    );
+    assert!(
+        ngql_result.is_ok(),
+        "The NGQL syntax should parse successfully"
+    );
 }
 
 #[test]
@@ -390,6 +402,9 @@ fn test_cypher_vs_ngql_create_edge() {
     println!("NGQL解析结果: {:?}", ngql_result);
 
     // Cypher syntax should parse successfully
-    assert!(cypher_result.is_ok(), "Cypher syntax should parse successfully");
+    assert!(
+        cypher_result.is_ok(),
+        "Cypher syntax should parse successfully"
+    );
     // NGQL syntax to record the result is sufficient
 }

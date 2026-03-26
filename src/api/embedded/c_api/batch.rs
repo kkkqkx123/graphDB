@@ -219,11 +219,11 @@ pub unsafe extern "C" fn graphdb_batch_inserter_create(
 /// Adding Vertices
 ///
 /// # 参数
-/// `batch`: A handle for batch operations
+/// - `batch`: A handle for batch operations
 /// - `vid`: vertex ID
 /// - `tag_name`: tag name (UTF-8 encoding)
-/// “properties”: An array of properties.
-/// `prop_count`: The number of properties
+/// - `properties`: An array of properties.
+/// - `prop_count`: The number of properties
 ///
 /// # 返回
 /// - 成功: GRAPHDB_OK
@@ -298,10 +298,10 @@ pub unsafe extern "C" fn graphdb_batch_add_vertex(
 ///
 /// # 参数
 /// - `batch`: 批量操作句柄
-/// `src_vid`: ID of the source vertex
-/// `dst_vid`: ID of the target vertex
-/// `edge_type`: The name of the edge type (encoded in UTF-8)
-/// rank: Ranking
+/// - `src_vid`: ID of the source vertex
+/// - `dst_vid`: ID of the target vertex
+/// - `edge_type`: The name of the edge type (encoded in UTF-8)
+/// - `rank`: Ranking
 /// - `properties`: 属性数组
 /// - `prop_count`: 属性数量
 ///

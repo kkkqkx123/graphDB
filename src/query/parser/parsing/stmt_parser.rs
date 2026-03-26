@@ -151,19 +151,7 @@ impl StmtParser {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Profile)?;
 
-        // Explanation of the "FORMAT" clause (optional):  
-The "FORMAT" clause is an optional parameter in certain programming languages or contexts that allows you to specify how data should be displayed or formatted. It provides more control over the appearance of the output, such as the style of fonts, the alignment of text, the number of decimal places in numbers, or the format of dates and times.  
-
-For example, in Python, you might use the "format" function to format a string with a specific format string:  
-```python
-name = "John Doe"
-age = 30
-output = f"{name} is {age} years old."
-print(output)  # Output: John Doe is 30 years old.
-```  
-In this example, the `{name}` and `{age}` placeholders are replaced with the actual values of `name` and `age`, and the output string is formatted according to the specified format (`f"{name} is {age} years old."`).  
-
-The specific format of the "FORMAT" clause can vary depending on the language or context in use. It may include various format specifiers, such as `%d` for integers, `%f` for floating-point numbers, `%s` for strings, `%A` for uppercase letters, `%a` for lowercase letters, etc.
+        // 解析可选的 FORMAT 子句
         let format = if ctx.match_token(TokenKind::Format) {
             ctx.expect_token(TokenKind::Assign)?;
             let format_name = ctx.expect_identifier()?;

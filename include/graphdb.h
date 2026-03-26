@@ -37,57 +37,57 @@
 #define GRAPHDB_HOOK_DELETE 3
 
 /**
- * 等值查询默认选择性（假设10个不同值）
+ * Default selectivity for equivalent queries (assuming 10 different values)
  */
 #define EQUALITY 0.1
 
 /**
- * 范围查询默认选择性（假设选择1/3的数据）
+ * The default selectivity for range queries is such that approximately one-third of the data is selected.
  */
 #define RANGE 0.333
 
 /**
- * 小于/大于查询默认选择性
+ * The default selectivity for the “less than/greater than” query
  */
 #define COMPARISON 0.333
 
 /**
- * 不等查询默认选择性
+ * The default selectivity of inequality queries
  */
 #define NOT_EQUAL 0.9
 
 /**
- * IS NULL 查询选择性（通常很少为null）
+ * The selectivity of IS NULL queries (which usually rarely return a value of NULL)
  */
 #define IS_NULL 0.05
 
 /**
- * IS NOT NULL 查询选择性
+ * The selectivity of the IS NOT NULL query
  */
 #define IS_NOT_NULL 0.95
 
 /**
- * IN 查询默认选择性（假设3个值）
+ * The default selectivity of an IN query (assuming 3 values)
  */
 #define IN_LIST 0.3
 
 /**
- * EXISTS 查询选择性
+ * The SELECTIVE nature of the EXISTS query
  */
 #define EXISTS 0.5
 
 /**
- * 布尔AND操作的选择性惩罚
+ * The selective penalty of the Boolean AND operation
  */
 #define AND_CORRELATION 0.9
 
 /**
- * 布尔OR操作的选择性惩罚
+ * The selective penalty for the Boolean OR operation
  */
 #define OR_CORRELATION 0.9
 
 /**
- * 索引键类型标记
+ * Index key type identifier
  */
 #define KEY_TYPE_VERTEX_REVERSE 1
 
@@ -148,7 +148,7 @@ typedef enum graphdb_value_type_t {
 } graphdb_value_type_t;
 
 /**
- * C 函数上下文结构（不透明指针）
+ * C Function Context Structure (Opaque Pointers)
  */
 typedef struct CFunctionContext CFunctionContext;
 
@@ -339,11 +339,11 @@ int graphdb_batch_inserter_create(struct graphdb_session_t *session,
  * Adding Vertices
  *
  * # 参数
- * `batch`: A handle for batch operations
+ * - `batch`: A handle for batch operations
  * - `vid`: vertex ID
  * - `tag_name`: tag name (UTF-8 encoding)
- * “properties”: An array of properties.
- * `prop_count`: The number of properties
+ * - `properties`: An array of properties.
+ * - `prop_count`: The number of properties
  *
  * # 返回
  * - 成功: GRAPHDB_OK
@@ -366,10 +366,10 @@ int graphdb_batch_add_vertex(struct graphdb_batch_t *batch,
  *
  * # 参数
  * - `batch`: 批量操作句柄
- * `src_vid`: ID of the source vertex
- * `dst_vid`: ID of the target vertex
- * `edge_type`: The name of the edge type (encoded in UTF-8)
- * rank: Ranking
+ * - `src_vid`: ID of the source vertex
+ * - `dst_vid`: ID of the target vertex
+ * - `edge_type`: The name of the edge type (encoded in UTF-8)
+ * - `rank`: Ranking
  * - `properties`: 属性数组
  * - `prop_count`: 属性数量
  *

@@ -393,11 +393,6 @@ fn test_get_transaction_info() {
     manager.commit_transaction(txn_id).expect("Failed to commit transaction");
 }
 
-    // Transaction info should not exist after commit
-    let info = manager.get_transaction_info(txn_id);
-    assert!(info.is_none());
-}
-
 #[test]
 fn test_max_concurrent_transactions() {
     let config = crate::transaction::types::TransactionManagerConfig {

@@ -85,8 +85,6 @@ impl Planner for WithPlanner {
         let arg_node = ArgumentNode::new(next_node_id(), "with_input");
         let mut current_node = PlanNodeEnum::Argument(arg_node.clone());
 
-        // Translate the given text into English:  
-“Convert the returned items into projection columns.”
         let yield_columns: Vec<YieldColumn> = with_stmt
             .items
             .iter()

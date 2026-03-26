@@ -85,8 +85,6 @@ impl Planner for ReturnPlanner {
         let arg_node = ArgumentNode::new(next_node_id(), "return_input");
         let mut current_node = PlanNodeEnum::Argument(arg_node.clone());
 
-        // Translate the given text into English:  
-“Convert the returned items into projection columns.”
         let yield_columns: Vec<YieldColumn> = return_stmt
             .items
             .iter()

@@ -247,8 +247,6 @@ impl DdlParser {
                 if_not_exists,
             }))
         } else if ctx.match_token(TokenKind::Index) {
-            // Explanation of CREATE INDEX (backward compatible with old syntax):  
-The `CREATE INDEX` statement is used to create an index in a database. This statement is backward compatible with older SQL syntax, meaning that it can also be used with databases that support the older version of the SQL standard. An index is a data structure that allows for faster retrieval of data from a table by organizing the data in a way that improves the search efficiency. By creating an index on a column or a combination of columns, the database engine can quickly locate the desired records when a query is executed, reducing the amount of time required to retrieve the results.
             let mut if_not_exists = false;
             if ctx.match_token(TokenKind::If) {
                 ctx.expect_token(TokenKind::Not)?;
@@ -278,7 +276,6 @@ The `CREATE INDEX` statement is used to create an index in a database. This stat
                 if_not_exists,
             }))
         } else if ctx.match_token(TokenKind::Tag) {
-            // Analysis of CREATE TAG INDEX
             ctx.expect_token(TokenKind::Index)?;
             let mut if_not_exists = false;
             if ctx.match_token(TokenKind::If) {
@@ -309,7 +306,6 @@ The `CREATE INDEX` statement is used to create an index in a database. This stat
                 if_not_exists,
             }))
         } else if ctx.match_token(TokenKind::Edge) {
-            // Analysis of CREATE EDGE INDEX
             ctx.expect_token(TokenKind::Index)?;
             let mut if_not_exists = false;
             if ctx.match_token(TokenKind::If) {
@@ -348,15 +344,12 @@ The `CREATE INDEX` statement is used to create an index in a database. This stat
         }
     }
 
-    /// Analysis of the DROP statement
+    /// Parse the DROP statement
     pub fn parse_drop_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Drop)?;
 
         let target = if ctx.match_token(TokenKind::Space) {
-            DropTarget::Space(ctx.expect_identifier()?)
-        } else if ctx.match_token(TokenKind::Tag) {
-            // Analysis of IF EXISTS (located after the TAG)
             let mut if_exists = false;
             if ctx.match_token(TokenKind::If) {
                 ctx.expect_token(TokenKind::Exists)?;
@@ -372,9 +365,9 @@ The `CREATE INDEX` statement is used to create an index in a database. This stat
                 if_exists,
             }));
         } else if ctx.check_token(TokenKind::Edge) {
-            ctx.next_token(); // Consuming EDGE data (or services)
+            ctx.next_token();
             if ctx.check_token(TokenKind::Index) {
-                ctx.next_token(); // Consumption Index
+                ctx.next_token();
                 let index_name = ctx.expect_identifier()?;
                 let space_name = if ctx.match_token(TokenKind::On) {
                     Some(ctx.expect_identifier()?)
@@ -386,7 +379,6 @@ The `CREATE INDEX` statement is used to create an index in a database. This stat
                     index_name,
                 }
             } else {
-                // Analysis of the IF EXISTS statement (used after EDGE)
                 let mut if_exists = false;
                 if ctx.match_token(TokenKind::If) {
                     ctx.expect_token(TokenKind::Exists)?;
@@ -414,8 +406,6 @@ The `CREATE INDEX` statement is used to create an index in a database. This stat
                 index_name,
             }
         } else if ctx.match_token(TokenKind::User) {
-            // Explanation of "DROP USER":  
-The "DROP USER" statement is a SQL command used to remove a user from a database. Once executed, the specified user will no longer be able to access the database or any of its tables, views, procedures, functions, or triggers. Additionally, all data associated with that user (such as stored procedures, triggers, or user-defined functions) will also be deleted. It is important to note that this command is irreversible and should only be used with caution, especially when the user no longer needs access to the database or when there is no possibility of recovering the user's data.
             let mut if_exists = false;
             if ctx.match_token(TokenKind::If) {
                 ctx.expect_token(TokenKind::Exists)?;

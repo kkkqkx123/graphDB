@@ -431,7 +431,10 @@ fn test_update_vertex_indexes() {
         &Value::String("Alice".to_string()),
     );
     let vertex_ids = retrieved.expect("索引查询应该成功");
-    assert!(vertex_ids.contains(&vertex_id), "The index should contain the vertex ID");
+    assert!(
+        vertex_ids.contains(&vertex_id),
+        "The index should contain the vertex ID"
+    );
 }
 
 #[test]
@@ -479,7 +482,10 @@ fn test_update_edge_indexes() {
         &Value::String("2024-01-01".to_string()),
     );
     let src_ids = retrieved.expect("索引查询应该成功");
-    assert!(src_ids.contains(&src), "The index should contain the source vertex ID");
+    assert!(
+        src_ids.contains(&src),
+        "The index should contain the source vertex ID"
+    );
 }
 
 #[test]
@@ -577,7 +583,10 @@ fn test_delete_edge_indexes() {
         &Value::String("2024-01-01".to_string()),
     );
     let src_ids = retrieved.expect("索引查询应该成功");
-    assert!(!src_ids.contains(&src), "The index should not contain the source vertex IDs of deleted edges.");
+    assert!(
+        !src_ids.contains(&src),
+        "The index should not contain the source vertex IDs of deleted edges."
+    );
 }
 
 // ==================== Index Query Test ====================
@@ -631,7 +640,11 @@ fn test_index_exact_query() {
     );
     let vertex_ids = retrieved.expect("索引精确查询应该成功");
     assert_count(&vertex_ids, 1, "匹配的顶点");
-    assert_eq!(vertex_ids[0], Value::Int(1), "should return Alice's vertex ID");
+    assert_eq!(
+        vertex_ids[0],
+        Value::Int(1),
+        "should return Alice's vertex ID"
+    );
 }
 
 #[test]
@@ -676,8 +689,14 @@ fn test_index_query_multiple_matches() {
         get_storage(&storage).lookup_index("test_space", "person_age_idx", &Value::Int(30));
     let vertex_ids = retrieved.expect("索引查询应该成功");
     assert_count(&vertex_ids, 2, "匹配的顶点");
-    assert!(vertex_ids.contains(&Value::Int(1)), "Should contain vertex 1");
-    assert!(vertex_ids.contains(&Value::Int(2)), "Should contain vertex 2");
+    assert!(
+        vertex_ids.contains(&Value::Int(1)),
+        "Should contain vertex 1"
+    );
+    assert!(
+        vertex_ids.contains(&Value::Int(2)),
+        "Should contain vertex 2"
+    );
 }
 
 #[test]
@@ -867,8 +886,14 @@ fn test_composite_index() {
     );
     let vertex_ids = retrieved.expect("复合索引查询应该成功");
     assert_count(&vertex_ids, 2, "匹配的顶点（两个 Alice）");
-    assert!(vertex_ids.contains(&Value::Int(1)), "Should contain vertex 1");
-    assert!(vertex_ids.contains(&Value::Int(2)), "Should contain vertex 2");
+    assert!(
+        vertex_ids.contains(&Value::Int(1)),
+        "Should contain vertex 1"
+    );
+    assert!(
+        vertex_ids.contains(&Value::Int(2)),
+        "Should contain vertex 2"
+    );
 }
 
 // ==================== IndexSelector 集成测试 ====================
@@ -1001,7 +1026,10 @@ fn test_index_range_query_with_boundaries() {
     let retrieved =
         get_storage(&storage).lookup_index("test_space", "person_age_idx", &Value::Int(25));
     let vertex_ids = retrieved.expect("索引查询应该成功");
-    assert!(vertex_ids.contains(&Value::Int(2)), ">= 25 should contain 25");
+    assert!(
+        vertex_ids.contains(&Value::Int(2)),
+        ">= 25 should contain 25"
+    );
 
     // Test > (without bounds): age > 25, should return 30, 35, 40
     // Note: current storage layer implementations may not support boundary control, verify basic functionality here
@@ -1064,8 +1092,14 @@ fn test_scan_type_unique() {
     );
     let vertex_ids = retrieved.expect("索引查询应该成功");
     assert_count(&vertex_ids, 2, "匹配的 Alice");
-    assert!(vertex_ids.contains(&Value::Int(1)), "Should contain vertex 1");
-    assert!(vertex_ids.contains(&Value::Int(3)), "The vertex with index 3 should also be included.");
+    assert!(
+        vertex_ids.contains(&Value::Int(1)),
+        "Should contain vertex 1"
+    );
+    assert!(
+        vertex_ids.contains(&Value::Int(3)),
+        "The vertex with index 3 should also be included."
+    );
 }
 
 #[test]
@@ -1105,7 +1139,10 @@ fn test_scan_type_range() {
     let retrieved =
         get_storage(&storage).lookup_index("test_space", "person_age_idx", &Value::Int(30));
     let vertex_ids = retrieved.expect("范围查询应该成功");
-    assert!(vertex_ids.contains(&Value::Int(30)), "The age should be 30.");
+    assert!(
+        vertex_ids.contains(&Value::Int(30)),
+        "The age should be 30."
+    );
 }
 
 #[test]

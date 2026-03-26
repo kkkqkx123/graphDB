@@ -17,9 +17,7 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 /// Merge the expression context into the AST to avoid passing it separately in the ParserResult and QueryContext.
 #[derive(Debug, Clone)]
 pub struct Ast {
-    /// Please provide the text you would like to have translated.
     pub stmt: Stmt,
-    /// Expression context
     pub expr_context: Arc<ExpressionAnalysisContext>,
 }
 
@@ -796,8 +794,6 @@ pub enum ShowTarget {
     Stats,
 }
 
-/// The “EXPLAIN” format type is used to provide detailed information about the execution of a SQL query. When a SQL statement is executed, the database system generates various statistics and logs that can be used to analyze how the query was processed. The “EXPLAIN” statement allows users to view these statistics and logs in a structured manner, which helps in understanding the query’s behavior, identifying potential performance issues, and optimizing the query for better performance.
-In summary, the “EXPLAIN” format type is used to obtain insights into the way a SQL query is executed by the database system, which can be useful for debugging, optimizing queries, and improving database performance.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum ExplainFormat {
     #[default]
@@ -805,7 +801,6 @@ pub enum ExplainFormat {
     Dot,
 }
 
-/// The “EXPLAIN” statement is used in SQL databases to provide a detailed explanation of the query that was executed. It shows the steps that the database followed to process the query and the results that were obtained. This information can be very useful for troubleshooting issues, understanding the performance of the query, or optimizing the query to improve its efficiency. The “EXPLAIN” statement can be used on both select and update queries. When executed, it returns a result set that contains information about the table columns that were accessed, the join operations that were performed, the filtering conditions that were applied, and any subqueries that were used in the query. By analyzing this information, developers and database administrators can identify potential problems and make necessary adjustments to improve the query’s performance.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExplainStmt {
     pub span: Span,
@@ -871,9 +866,9 @@ pub struct FindPathStmt {
     pub offset: Option<usize>,
     pub yield_clause: Option<YieldClause>,
     pub weight_expression: Option<String>,
-    pub heuristic_expressi// Is self-looping allowed?
-    pub with_loop: bool,  // Is it allowed for loops (repeated visits to the same vertex within the path)?
-    pub with_cycle: bool, // 是否允许回路（路径中重复访问顶点）
+    pub heuristic_expression: Option<String>,
+    pub with_loop: bool,
+    pub with_cycle: bool,
 }
 
 /// INSERT statement

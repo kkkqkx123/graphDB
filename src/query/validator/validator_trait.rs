@@ -449,17 +449,7 @@ pub trait StatementValidator {
         // Default implementation: Building the basic ValidationInfo
         let mut info = ValidationInfo::new();
 
-        // Translate the following text:
-
-**"You are a professional translator. Translate the following text:
-
-**"You are a professional translator. Translate the following content:
-
-**Text to translate:**
-**"Convert the information in the input and output columns into validation information."**
-
-**Translation:**
-**"Convert the data in the input and output columns into validation data."**
+        // Convert the information in the input and output columns into validation information.
         for input in self.inputs() {
             info.add_alias(input.name.clone(), AliasType::Variable);
         }

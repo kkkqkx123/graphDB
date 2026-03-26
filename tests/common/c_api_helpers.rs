@@ -86,8 +86,15 @@ impl CApiTestSession {
             )
         };
 
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32, "Failed to create a session.");
-        assert!(!session.is_null(), "The session handle should not be empty.");
+        assert_eq!(
+            rc,
+            graphdb_error_code_t::GRAPHDB_OK as i32,
+            "Failed to create a session."
+        );
+        assert!(
+            !session.is_null(),
+            "The session handle should not be empty."
+        );
 
         Self { session }
     }
@@ -127,8 +134,15 @@ impl CApiTestTransaction {
             )
         };
 
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32, "Failed to start the transaction.");
-        assert!(!txn.is_null(), "The transaction handle should not be empty.");
+        assert_eq!(
+            rc,
+            graphdb_error_code_t::GRAPHDB_OK as i32,
+            "Failed to start the transaction."
+        );
+        assert!(
+            !txn.is_null(),
+            "The transaction handle should not be empty."
+        );
 
         Self { txn }
     }
@@ -142,7 +156,11 @@ impl CApiTestTransaction {
     pub fn commit(self) {
         let rc =
             unsafe { graphdb::api::embedded::c_api::transaction::graphdb_txn_commit(self.txn) };
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32, "The transaction failed to be committed.");
+        assert_eq!(
+            rc,
+            graphdb_error_code_t::GRAPHDB_OK as i32,
+            "The transaction failed to be committed."
+        );
         // Prevent the component from being released again when the “Drop” event occurs.
         std::mem::forget(self);
     }
@@ -151,7 +169,11 @@ impl CApiTestTransaction {
     pub fn rollback(self) {
         let rc =
             unsafe { graphdb::api::embedded::c_api::transaction::graphdb_txn_rollback(self.txn) };
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32, "Rolling back the transaction failed.");
+        assert_eq!(
+            rc,
+            graphdb_error_code_t::GRAPHDB_OK as i32,
+            "Rolling back the transaction failed."
+        );
         // Prevent the object from being released again when the “Drop” event occurs.
         std::mem::forget(self);
     }
@@ -189,7 +211,11 @@ impl CApiTestResult {
             )
         };
 
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32, "The query failed to be executed.");
+        assert_eq!(
+            rc,
+            graphdb_error_code_t::GRAPHDB_OK as i32,
+            "The query failed to be executed."
+        );
         assert!(!result.is_null(), "The result handle should not be empty.");
 
         Self { result }
@@ -241,7 +267,10 @@ impl CApiTestBatch {
             graphdb_error_code_t::GRAPHDB_OK as i32,
             "Failed to create the batch inserter."
         );
-        assert!(!batch.is_null(), "The batch operation handle should not be empty.");
+        assert!(
+            !batch.is_null(),
+            "The batch operation handle should not be empty."
+        );
 
         Self { batch }
     }

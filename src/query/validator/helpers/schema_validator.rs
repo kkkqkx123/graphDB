@@ -1,17 +1,17 @@
 //! Schema validation tool module
 //!
-//! Provide a complete Schema validation function that meets the standards of NebulaGraph’s SchemaUtil.
+//! Provide a complete Schema validation function that meets the standards of NebulaGraph's SchemaUtil.
 //! Schema-level validation for DML statements (INSERT, UPDATE, DELETE)
 //!
 //! This document has been updated in accordance with the new validator framework.
 //! 1. All original functions have been retained.
-//! Attribute existence verification
-//! Attribute type validation
-//! Empty value check
-//! Fill in default values
-//! VID type validation
-//! Expression evaluation
-//! Automatic Schema creation
+//! - Attribute existence verification
+//! - Attribute type validation
+//! - Empty value check
+//! - Fill in default values
+//! - VID type validation
+//! - Expression evaluation
+//! - Automatic Schema creation
 //! 2. Integration support for the new verification system has been added.
 //! 3. Use Arc to manage SchemaManager in order to support the new system.
 

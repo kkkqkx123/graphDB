@@ -70,6 +70,7 @@ impl ExpressionParser {
         }
 
         // 尝试解析 collect 函数（通常用于聚合）
+        let expr_lower = expr.to_lowercase();
         if expr_lower.starts_with("collect(") || expr_lower.contains(".collect()") {
             // collect 函数的结果大小取决于输入数据，使用保守估计
             return Some(self.config.default_unwind_list_size * 2.0);
@@ -390,12 +391,12 @@ impl ExpressionParser {
 
         // 尝试解析 range(start, end) 或 range(start, end, step)
         if condition.starts_with("range(") && condition.ends_with(")") {
-            return self.parse_range_function_u32(condition);
+            return self.parse_range_function(condition).map(|v| v as u32);
         }
 
         // 尝试解析比较表达式：i < 10, i <= 10, count > 5 等
         if let Some(iterations) = self.parse_comparison_expression(condition) {
-            return Some(iterations);
+            return Some(iterations as u32);
         }
 
         // 尝试解析列表/集合大小：[a,b,c] 或 {a,b,c}
@@ -458,28 +459,6 @@ impl ExpressionParser {
         None
     }
 
-    /// Analysis of the range function (which returns a u32 value)
-    fn parse_range_function_u32(&self, expr: &str) -> Option<u32> {
-        let inner = &expr[6..expr.len() - 1]; // 去掉 "range(" 和 ")"
-        let args: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
-
-        if args.len() >= 2 {
-            let start: i64 = args[0].parse().ok()?;
-            let end: i64 = args[1].parse().ok()?;
-            let step: i64 = if args.len() >= 3 {
-                args[2].parse().ok()?
-            } else {
-                1
-            };
-
-            if step != 0 && end > start {
-                let count = (end - start) / step;
-                return Some(count.max(1) as u32);
-            }
-        }
-        None
-    }
-
     /// Analyzing the range expression
     fn parse_range_expression(&self, expr: &str) -> Option<f64> {
         if let Some(pos) = expr.find("..") {
@@ -536,7 +515,7 @@ impl ExpressionParser {
     }
 
     /// Analyzing comparative expressions (such as "i < 10", "count <= 100")
-    fn parse_range_expression(&self, expr: &str) -> Option<f64> {
+    fn parse_comparison_expression(&self, expr: &str) -> Option<f64> {
         // Matching patterns: var < num, var <= num, var > num, var >= num
         // 匹配模式：var < num, var <= num, var > num, var >= num
         let operators = [("<", 0u32), ("<=", 0u32), (">", 0u32), (">=", 0u32)];

@@ -183,7 +183,10 @@ fn test_validator_use_statement() {
 
     // USE statement validation
     let result = validator.validate(stmt.ast, query_context);
-    assert!(result.success, "The USE statement should validate successfully");
+    assert!(
+        result.success,
+        "The USE statement should validate successfully"
+    );
 }
 
 // ==================== Planner Integration Testing ====================

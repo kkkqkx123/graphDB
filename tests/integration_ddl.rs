@@ -1143,7 +1143,10 @@ fn test_show_create_space_parser() {
 
     let result = parser.parse();
     // Current implementations support SHOW CREATE SPACE/TAG/EDGE/INDEX
-    assert!(result.is_ok(), "SHOW CREATE SPACE should parse successfully!");
+    assert!(
+        result.is_ok(),
+        "SHOW CREATE SPACE should parse successfully!"
+    );
 
     let stmt = result.expect("SHOW CREATE SPACE语句解析应该成功");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW CREATE");
@@ -1157,7 +1160,10 @@ fn test_show_create_index_parser() {
 
     let result = parser.parse();
     // Current implementations support SHOW CREATE SPACE/TAG/EDGE/INDEX
-    assert!(result.is_ok(), "SHOW CREATE INDEX should parse successfully!");
+    assert!(
+        result.is_ok(),
+        "SHOW CREATE INDEX should parse successfully!"
+    );
 
     let stmt = result.expect("SHOW CREATE INDEX语句解析应该成功");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW CREATE");

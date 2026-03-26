@@ -164,8 +164,8 @@ impl SubqueryUnnestingOptimizer {
         }
 
         // 4. Comparison of costs (simplified version)
-        let original_cost = self.estimate_pattern_apply_cost(pattern_apply, estimated_rows);
-        let unnested_cost = self.estimate_hash_join_cost(pattern_apply, estimated_rows);
+        let original_cost = self.estimate_pattern_apply_cost(estimated_rows);
+        let unnested_cost = self.estimate_hash_join_cost(estimated_rows);
 
         if unnested_cost < original_cost {
             UnnestDecision::ShouldUnnest {
@@ -337,7 +337,8 @@ impl SubqueryUnnestingOptimizer {
         let mut probe_keys = Vec::new();
 
         for key_col in &key_cols {
-            if let Some(original_expr) = key_col.expression() {
+            if let Some(original_meta) = key_col.expression() {
+                let original_expr = original_meta.inner();
                 let left_key_expr = self.replace_all_variables(original_expr, &left_var);
                 let left_key_meta = ExpressionMeta::new(left_key_expr);
                 let left_key_id = expr_ctx.register_expression(left_key_meta);

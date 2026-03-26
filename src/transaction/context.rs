@@ -172,7 +172,6 @@ impl TransactionContext {
     pub fn transition_to(&self, new_state: TransactionState) -> Result<(), TransactionError> {
         let current = self.state.load();
 
-        /// Validate if state transition is valid
         let valid_transition = matches!(
             (current, new_state),
             (
@@ -342,7 +341,6 @@ impl TransactionContext {
             .cloned()
             .ok_or(TransactionError::SavepointNotFound(id))?;
 
-        /// Get operation logs to rollback (from savepoint index to current log end)
         let logs_to_rollback = {
             let logs = self.operation_logs.read();
             if savepoint_info.operation_log_index >= logs.len() {
@@ -354,15 +352,12 @@ impl TransactionContext {
 
         drop(manager);
 
-        /// First execute data rollback
         if !logs_to_rollback.is_empty() {
             self.execute_rollback_logs(&logs_to_rollback)?;
         }
 
-        /// After data rollback succeeds, truncate operation logs
         self.truncate_operation_log(savepoint_info.operation_log_index);
 
-        /// Remove all savepoints after this savepoint
         let mut manager = self.savepoint_manager.write();
         let savepoints_to_remove: Vec<SavepointId> = manager
             .savepoints
@@ -380,7 +375,6 @@ impl TransactionContext {
 
     /// Execute rollback for operation logs
     fn execute_rollback_logs(&self, logs: &[OperationLog]) -> Result<(), TransactionError> {
-        /// Execute rollback operations in reverse order
         for log in logs.iter().rev() {
             match log {
                 OperationLog::InsertVertex {

@@ -948,15 +948,15 @@ mod tests {
 
         if let Err(StorageError::DbError(msg)) = result {
             assert!(
-                msg.contains("打开数据库失败"),
-                "The error message should state "Failed to open the database"."
+                msg.contains("Failed to open the database"),
+                "The error message should state \"Failed to open the database\"."
             );
             assert!(
-                msg.contains(db_path.to_str().expect("路径转换为字符串失败")),
+                msg.contains(db_path.to_str().expect("Failed to convert path to string")),
                 "The error message should include the path to the database."
             );
             assert!(
-                msg.contains("如需恢复，请手动删除数据库文件后重试"),
+                msg.contains("Please manually delete the database file and retry"),
                 "The error message should include tips for recovery."
             );
         } else {

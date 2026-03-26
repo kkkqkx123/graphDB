@@ -215,14 +215,26 @@ fn test_flexi_logger_integration() {
             })
             .collect();
 
-        assert!(!log_files.is_empty(), "There should be at least one log file");
+        assert!(
+            !log_files.is_empty(),
+            "There should be at least one log file"
+        );
 
         // Read the first log file
         let log_file = &log_files[0];
         let content = fs::read_to_string(log_file.path()).expect("读取日志文件失败");
-        assert!(content.contains("基本日志写入测试"), "The log shall contain the message log");
-        assert!(content.contains("警告日志测试"), "Logs should contain warning logs");
-        assert!(content.contains("错误日志测试"), "Logs should contain error logs");
+        assert!(
+            content.contains("基本日志写入测试"),
+            "The log shall contain the message log"
+        );
+        assert!(
+            content.contains("警告日志测试"),
+            "Logs should contain warning logs"
+        );
+        assert!(
+            content.contains("错误日志测试"),
+            "Logs should contain error logs"
+        );
     }
 
     // ========== Test 2: Log Level Filtering ==========
@@ -527,7 +539,10 @@ fn test_log_timestamp_format() {
         })
         .collect();
 
-    assert!(!log_files.is_empty(), "There should be at least one log file.");
+    assert!(
+        !log_files.is_empty(),
+        "There should be at least one log file."
+    );
 
     // Read the first log file.
     let log_file = &log_files[0];
@@ -538,7 +553,10 @@ fn test_log_timestamp_format() {
     println!("日志内容:\n{}", content);
 
     // Verify the content of the log files.
-    assert!(content.contains("时间戳格式测试日志"), "The log should contain the test messages.");
+    assert!(
+        content.contains("时间戳格式测试日志"),
+        "The log should contain the test messages."
+    );
 
     // 验证时间戳格式：YYYY-MM-DD HH:MM:SS.mmm
     let timestamp_regex = regex::Regex::new(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}")

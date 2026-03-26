@@ -41,8 +41,7 @@ pub struct ValidatedMatch {
 pub struct MatchValidator {
     /// Input column
     inputs: Vec<ColumnDef>,
-    /// Translate the following text into English:
-**Translate the following text into English:**
+    /// Output column
     outputs: Vec<ColumnDef>,
     /// Verified result
     validated_result: Option<ValidatedMatch>,
@@ -112,7 +111,7 @@ impl MatchValidator {
     pub fn validate_match_statement(
         &mut self,
         match_stmt: &MatchStmt,
-    ) ->// 1. The verification mode is not empty.> {
+    ) -> Result<(), ValidationError> {
         // 1. 验证模式不为空
         if match_stmt.patterns.is_empty() {
             return Err(ValidationError::new(
@@ -168,8 +167,7 @@ impl MatchValidator {
     /// Verify a single pattern
     fn validate_pattern(&mut self, pattern: &Pattern, idx: usize) -> Result<(), ValidationError> {
         match pattern {
-            Patt// Verification node mode: Anonymous nodes must have a specified tag.
-                // 验证节点模式：匿名节点必须指定标签
+            Pattern::Node(node_pattern) => {
                 if node_pattern.variable.is_none() && node_pattern.labels.is_empty() {
                     return Err(ValidationError::new(
                         format!("第 {} 个模式: 匿名节点必须指定标签", idx + 1),
@@ -177,12 +175,9 @@ impl MatchValidator {
                     ));
                 }
             }
-            Patt// Edge pattern validation: Anonymous edges are allowed, and all edge types will be automatically matched.
-                // Refer to the implementation of nebula-graph; it is not mandatory to specify the type of edges.有边类型
-                // 参考 nebula-graph 实现，不强制要求指定边类型
+            Pattern::Edge(_edge_pattern) => {
             }
-            Patt// Verify path pattern: The path cannot be empty.
-                // 验证路径模式：路径不能为空
+            Pattern::Path(path_pattern) => {
                 if path_pattern.elements.is_empty() {
                     return Err(ValidationError::new(
                         format!("第 {} 个模式: 路径不能为空", idx + 1),
@@ -190,8 +185,7 @@ impl MatchValidator {
                     ));
                 }
             }
-            Patt// Variable pattern: Check whether a variable has been defined.
-                // 变量模式：检查变量是否已定义
+            Pattern::Variable(var_pattern) => {
                 if !self.aliases.contains_key(&var_pattern.name) {
                     return Err(ValidationError::new(
                         format!(
@@ -203,9 +197,7 @@ impl MatchValidator {
                     ));
                 }
 
-                // 获取变量类型信息
-                if l// Verify whether the variable type is valid (it must not be a runtime variable).
-                    // 验证变量类型是否有效（不能是运行时变量）
+                if let Some(alias_type) = self.aliases.get(&var_pattern.name) {
                     if matches!(alias_type, AliasType::Runtime) {
                         return Err(ValidationError::new(
                             format!(
@@ -239,11 +231,9 @@ impl MatchValidator {
                         self.aliases.insert(var.clone(), AliasType::Edge);
                     }
                 }
-                Patt// PathPattern does not support the binding of variable names.
-                    // PathPattern 不支持变量名绑定
+                Pattern::Path(_path) => {
                 }
-                Patt// VariablePattern is a reference to a variable, not its definition; it is therefore skipped during the first scan.
-                    // VariablePattern 是变量引用，不是定义，在第一遍扫描中跳过
+                Pattern::Variable(_var) => {
                 }
             }
         }
@@ -254,8 +244,7 @@ impl MatchValidator {
     fn validate_where_clause(
         &mut self,
         where_expr: &ContextualExpression,
-    ) ->// Verify using the expression validation strategy.
-        // 使用表达式验证策略进行验证
+    ) -> Result<(), ValidationError> {
         let strategy = ExpressionValidationStrategy::new();
         let context = WhereClauseContext {
             filter: Some(where_expr.clone()),
@@ -272,8 +261,7 @@ impl MatchValidator {
     fn validate_return_clause(
         &mut self,
         return_clause: &ReturnClause,
-    ) ->// Check whether it is empty (unless it is RETURN *).
-        // 检查是否为空（除非是 RETURN *）
+    ) -> Result<(), ValidationError> {
         if return_clause.items.is_empty() {
             return Err(ValidationError::new(
                 "RETURN 子句必须包含至少一个返回项".to_string(),
@@ -281,22 +269,18 @@ impl MatchValidator {
             ));
         }
 
-        // 验证每个返回项
         for (idx, item) in return_clause.items.iter().enumerate() {
             match item {
-                Retu// Verify the expression { expression, alias } => {
-                    // 验证表达式
+                ReturnItem::Expression { expression, alias } => {
                     self.validate_return_expression(expression, idx)?;
 
-                    // 验证别名（如果存在）
                     if let Some(ref alias_name) = alias {
                         if alias_name.is_empty() {
                             return Err(ValidationError::new(
                                 format!("第 {} 个返回项的别名不能为空", idx + 1),
                                 ValidationErrorType::SemanticError,
                             ));
-                        // Add the aliases to the mapping.
-                        // 将别名添加到映射
+                        }
                         self.aliases.insert(alias_name.clone(), AliasType::Runtime);
                     }
                 }
@@ -346,8 +330,7 @@ impl MatchValidator {
             ));
         }
 
-        for // Verify the sorting expressionitems.iter().enumerate() {
-            // 验证排序表达式
+        for (idx, item) in order_by.items.iter().enumerate() {
             if item.expression.expression().is_none() {
                 return Err(ValidationError::new(
                     format!("第 {} 个排序表达式无效", idx + 1),
@@ -355,7 +338,6 @@ impl MatchValidator {
                 ));
             }
 
-            // 验证变量是否已定义
             let variables = item.expression.get_variables();
             for var_name in variables {
                 if !self.aliases.contains_key(&var_name) {
@@ -409,7 +391,7 @@ impl MatchValidator {
         _skip_expression: Option<&ContextualExpression>,
         _limit_expression: Option<&ContextualExpression>,
         context: &PaginationContext,
-    ) ->// Verify the value of “skip”.tionError> {
+    ) -> Result<(), ValidationError> {
         // 验证 skip 值
         if context.skip < 0 {
             return Err(ValidationError::new(
@@ -564,8 +546,7 @@ impl MatchValidator {
         last_aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         for (alias, alias_type) in last_aliases {
-            if c// Check whether the types of inspection are consistent.as) {
-                // 检查类型是否一致
+            if cur_aliases.contains_key(alias) {
                 if cur_aliases.get(alias) != Some(alias_type) {
                     return Err(ValidationError::new(
                         format!("别名 '{}' 的类型不一致", alias),
@@ -580,8 +561,7 @@ impl MatchValidator {
     }
 
     /// Build the output.
-    pub // Construct the output columnmut self, paths: &[Path]) -> Result<(), ValidationError> {
-        // 构建输出列
+    pub fn build_output(&mut self, paths: &[Path]) -> Result<(), ValidationError> {
         for path in paths.iter() {
             for node_info in &path.node_infos {
                 if !node_info.alias.is_empty() {
@@ -667,7 +647,7 @@ impl StatementValidator for MatchValidator {
         &mut self,
         ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
-    ) ->// 1. Check whether additional space is needed.dationError> {
+    ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
         if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
@@ -768,8 +748,8 @@ impl StatementValidator for MatchValidator {
         &self.outputs
     }
 
-    fn i// “MATCH” is not a global statement; it is necessary to select a domain (a specific “space”) in advance.
-        // MATCH 不是全局语句，需要预先选择空间
+        fn is_global_statement(&self) -> bool {
+        // "MATCH" is not a global statement; it is necessary to select a domain (a specific "space") in advance.
         false
     }
 

@@ -152,17 +152,6 @@ impl Default for PlanRewriter {
 }
 
 /// Create a default plan rewriter.
-///
-/// Translate the following text:
-"You are a professional translator. Translate the following text:
-
-'TYou are a professional translator. Translate the following text:
-
-'You are a professional translator.'"
-
-Into English:
-
-"You are a professional translator."
 pub fn create_default_rewriter() -> PlanRewriter {
     PlanRewriter::default()
 }

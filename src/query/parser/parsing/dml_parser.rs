@@ -422,8 +422,6 @@ impl DmlParser {
             ctx.expect_token(TokenKind::RParen)?;
         }
 
-        // Explanation of IF NOT EXISTS (optional):  
-`IF NOT EXISTS` is a conditional statement in SQL that checks whether a specified row or record exists in a table. If the record does not exist, the statement will execute the code block that follows it; otherwise, it will skip that block. This clause is often used in scenarios where you want to perform an action only if a certain condition is not met (i.e., when the record is missing). It provides a way to handle missing data or ensure that certain operations are not performed on non-existent records, which can prevent errors or incorrect results.
         let mut if_not_exists = false;
         if ctx.match_token(TokenKind::If) {
             ctx.expect_token(TokenKind::Not)?;
@@ -431,27 +429,22 @@ impl DmlParser {
             if_not_exists = true;
         }
 
-        // Analysis of the VALUES keyword
         if ctx.check_token(TokenKind::Values) {
-            ctx.next_token(); // Consumption values
+            ctx.next_token();
         }
 
-        // Analyzing the boundary value list
         let mut edges = vec![];
         loop {
-            // Parse from src to dst
             let src = self.parse_expression(ctx)?;
             ctx.expect_token(TokenKind::Arrow)?;
             let dst = self.parse_expression(ctx)?;
 
-            // Analysis of the optional rank
             let rank = if ctx.match_token(TokenKind::At) {
                 Some(self.parse_expression(ctx)?)
             } else {
                 None
             };
 
-            // Parse the list of attribute values
             let mut values = vec![];
             if ctx.match_token(TokenKind::Colon) {
                 ctx.expect_token(TokenKind::LParen)?;
@@ -486,7 +479,7 @@ impl DmlParser {
         }))
     }
 
-    /// Analyzing the MERGE statement
+    /// Parse the MERGE statement
     pub fn parse_merge_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Merge)?;
@@ -513,7 +506,7 @@ impl DmlParser {
         }))
     }
 
-    /// Analyzing the expression
+    /// Parse the expression
     fn parse_expression(
         &mut self,
         ctx: &mut ParseContext,
@@ -522,7 +515,7 @@ impl DmlParser {
         expr_parser.parse_expression_with_context(ctx, ctx.expression_context_clone())
     }
 
-    /// Analyzing the Cypher-style CREATE data statement (the CREATE token has already been consumed)
+    /// Parse the Cypher-style CREATE data statement (the CREATE token has already been consumed)
     /// Support for grammar:
     ///   CREATE (n:Label {prop: value})
     ///   CREATE (a)-[:Type {prop: value}]->(b)
@@ -554,22 +547,20 @@ impl DmlParser {
         }))
     }
 
-    /// Analyzing the schema in the CREATE statement
+    /// Parse the schema in the CREATE statement
     fn parse_create_pattern(
         &mut self,
         ctx: &mut ParseContext,
     ) -> Result<crate::query::parser::ast::pattern::Pattern, ParseError> {
         use crate::query::parser::ast::pattern::*;
 
-        // Analyze the starting node.
         let start_node = self.parse_node_pattern(ctx)?;
 
-        // Check whether there is a border mode (using Arrow or LeftArrow).
+        // Check whether there is an edge pattern (using Arrow or LeftArrow).
         if ctx.check_token(TokenKind::Arrow) || ctx.check_token(TokenKind::LeftArrow) {
             let edge = self.parse_edge_pattern(ctx)?;
             let end_node = self.parse_node_pattern(ctx)?;
 
-            // Constructing path patterns
             let span = ctx.merge_span(start_node.span.start, end_node.span.end);
             let elements = vec![
                 PathElement::Node(start_node),
@@ -578,12 +569,11 @@ impl DmlParser {
             ];
             Ok(Pattern::Path(PathPattern { span, elements }))
         } else {
-            // Only node mode
             Ok(Pattern::Node(start_node))
         }
     }
 
-    /// 解析节点模式: (var:Label {prop: value})
+    /// Parse node pattern: (var:Label {prop: value})
     fn parse_node_pattern(
         &mut self,
         ctx: &mut ParseContext,
@@ -600,7 +590,6 @@ impl DmlParser {
             None
         };
 
-        // List of optional tags
         let mut labels = Vec::new();
         if ctx.match_token(TokenKind::Colon) {
             loop {
@@ -611,7 +600,6 @@ impl DmlParser {
             }
         }
 
-        // Optional attribute mapping
         let properties = if ctx.match_token(TokenKind::LBrace) {
             let props = self.parse_property_map(ctx)?;
             ctx.expect_token(TokenKind::RBrace)?;
@@ -634,7 +622,7 @@ impl DmlParser {
         })
     }
 
-    /// 解析边模式: -[:Type {prop: value}]-> 或 <-[:Type {prop: value}]-
+    /// Parse edge pattern: -[:Type {prop: value}]-> or <-[:Type {prop: value}]-
     fn parse_edge_pattern(
         &mut self,
         ctx: &mut ParseContext,
@@ -643,38 +631,27 @@ impl DmlParser {
 
         let start_span = ctx.current_span();
 
-        // Determine the direction (using Arrow, LeftArrow, RightArrow)
         let direction = if ctx.match_token(TokenKind::LeftArrow) {
-            // <- Start indicates the beginning.
             EdgeDirection::In
-        } else if ctx.match_token(TokenKind::Arrow) {
-            // -> Outside
-            EdgeDirection::Out
-        } else if ctx.match_token(TokenKind::RightArrow) {
-            // Or another arrow.
+        } else if ctx.match_token(TokenKind::Arrow) || ctx.match_token(TokenKind::RightArrow) {
             EdgeDirection::Out
         } else {
-            // Default bidirectional functionality
             EdgeDirection::Both
         };
 
-        // 解析边类型和属性 [:Type {prop: value}]
         ctx.expect_token(TokenKind::LBracket)?;
 
-        // Optional variable names
         let variable = if ctx.current_token().kind.is_identifier() {
             Some(ctx.expect_identifier()?)
         } else {
             None
         };
 
-        // Optional edge types
         let mut edge_types = Vec::new();
         if ctx.match_token(TokenKind::Colon) {
             edge_types.push(ctx.expect_identifier()?);
         }
 
-        // Optional attribute mapping
         let properties = if ctx.match_token(TokenKind::LBrace) {
             let props = self.parse_property_map(ctx)?;
             ctx.expect_token(TokenKind::RBrace)?;
@@ -699,7 +676,7 @@ impl DmlParser {
         })
     }
 
-    /// 解析属性映射: {prop1: value1, prop2: value2}
+    /// Parse property map: {prop1: value1, prop2: value2}
     fn parse_property_map(
         &mut self,
         ctx: &mut ParseContext,
@@ -730,7 +707,6 @@ impl DmlParser {
             }
         }
 
-        // Create a Map expression and register it with the context.
         let expr = CoreExpression::Map(properties);
         let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.expression_context().register_expression(expr_meta);

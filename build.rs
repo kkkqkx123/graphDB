@@ -21,8 +21,12 @@ fn generate_c_header() {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
     let output_path = PathBuf::from(&crate_dir).join("include").join("graphdb.h");
 
-    std::fs::create_dir_all(output_path.parent().expect("Output path should have a parent directory"))
-        .expect("Failed to create include directory");
+    std::fs::create_dir_all(
+        output_path
+            .parent()
+            .expect("Output path should have a parent directory"),
+    )
+    .expect("Failed to create include directory");
 
     // Attempt to generate header file using cbindgen
     match try_cbindgen(&crate_dir, &output_path) {

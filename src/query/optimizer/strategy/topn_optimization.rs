@@ -23,7 +23,7 @@
 //! use std::sync::Arc;
 //!
 //! let optimizer = SortEliminationOptimizer::new(cost_calculator);
-//! let decision = optimizer.optimize_sort(&sort_context);
+//! let decision = optimizer.optimize(&sort_context);
 //! ```
 
 use std::sync::Arc;
@@ -252,7 +252,7 @@ impl SortEliminationOptimizer {
     pub fn get_optimization_advice(&self, context: &SortContext) -> Vec<String> {
         let mut advice = Vec::new();
 
-        match self.optimize_sort(context) {
+        match self.optimize(context) {
             SortEliminationDecision::ConvertToTopN {
                 reason,
                 topn_cost,
@@ -358,10 +358,9 @@ mod tests {
 
     #[test]
     fn test_check_topn_conversion_cost_limit_too_small() {
-        // If the value of `Limit` is 0, `None` should be returned.er();
+        let optimizer = create_test_optimizer();
         let sort_items = vec![SortItem::asc("name".to_string())];
 
-        // If the value of “Limit” is 0, “None” should be returned.
         let result = optimizer.check_topn_conversion_cost(&sort_items, 0, 1000);
         assert_eq!(result, None);
     }

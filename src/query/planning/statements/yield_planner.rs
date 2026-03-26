@@ -83,8 +83,6 @@ impl Planner for YieldPlanner {
         let arg_node = ArgumentNode::new(next_node_id(), "yield_input");
         let mut current_node = PlanNodeEnum::Argument(arg_node.clone());
 
-        // Translate the given text into English:  
-“Convert the returned items into projection columns.”
         let yield_columns: Vec<YieldColumn> = yield_stmt
             .items
             .iter()

@@ -171,7 +171,7 @@ impl CostCalculator {
     /// # 参数
     /// - `start_nodes`: 起始节点数量
     /// - `edge_type`: 边类型（可选）
-    /// “steps”: The number of iterations (or steps) in a process.
+    /// - `steps`: The number of iterations (or steps) in a process.
     pub fn calculate_traverse_cost(
         &self,
         start_nodes: u64,
@@ -254,7 +254,7 @@ impl CostCalculator {
     ///
     /// # 参数
     /// - `input_rows`: 输入行数
-    /// columns: The number of columns to be projected.
+    /// - `columns`: The number of columns to be projected.
     pub fn calculate_project_cost(&self, input_rows: u64, columns: usize) -> f64 {
         input_rows as f64 * columns as f64 * self.config.cpu_operator_cost
     }
@@ -321,14 +321,14 @@ impl CostCalculator {
     ///
     /// Based on the actual implementation of SortExecutor:
     /// - 小数据量：单线程标准排序 O(n log n)
-    /// Large amounts of data: Scatter-Gather parallel sorting
+    /// - Large amounts of data: Scatter-Gather parallel sorting
     /// - 有 LIMIT 且数据量大：使用 Top-N 算法 O(n log k)
-    /// Exceeding the memory threshold: External sorting
+    /// - Exceeding the memory threshold: External sorting
     ///
     /// # 参数
     /// - `input_rows`: 输入行数
-    /// `sort_columns`: The columns to be sorted.
-    /// `limit`: An optional LIMIT value (used for Top-N optimization)
+    /// - `sort_columns`: The columns to be sorted.
+    /// - `limit`: An optional LIMIT value (used for Top-N optimization)
     pub fn calculate_sort_cost(
         &self,
         input_rows: u64,

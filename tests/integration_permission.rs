@@ -27,8 +27,14 @@ fn test_permission_manager_creation() {
     let pm = PermissionManager::new();
 
     // The root user should automatically become the “God” role.
-    assert!(pm.is_god("root"), "The root user should be considered the “God” character.");
-    assert!(pm.is_admin("root"), "The root user should have the Admin role.");
+    assert!(
+        pm.is_god("root"),
+        "The root user should be considered the “God” character."
+    );
+    assert!(
+        pm.is_admin("root"),
+        "The root user should have the Admin role."
+    );
 }
 
 #[test]
@@ -42,7 +48,11 @@ fn test_grant_and_revoke_role() {
 
     // Verify that the role has been granted.
     let role = pm.get_role("user1", space_id);
-    assert_eq!(role, Some(RoleType::User), "The User role should be obtained.");
+    assert_eq!(
+        role,
+        Some(RoleType::User),
+        "The User role should be obtained."
+    );
 
     // Revoke the role
     pm.revoke_role("user1", space_id).expect("撤销角色应该成功");
@@ -89,7 +99,11 @@ fn test_list_space_users() {
 
     // Testing the list_space_users method
     let space_users = pm.list_space_users(space_id);
-    assert_eq!(space_users.len(), 3, "There should be 3 users in the Space.");
+    assert_eq!(
+        space_users.len(),
+        3,
+        "There should be 3 users in the Space."
+    );
 
     // Verify that the list contains the correct users.
     let usernames: Vec<String> = space_users.iter().map(|(name, _)| name.clone()).collect();

@@ -54,10 +54,10 @@ impl Value {
     ///
     /// Refer to the design of Nebula-Graph:
     /// - 空值和 Null 返回 Null
-    /// Integers are returned directly.
-    /// Floating-point numbers are truncated to integers; in the event of an overflow, the boundary values are returned.
-    /// String parsing to an integer; if the conversion fails, return Null.
-    /// Converting boolean values to 1/0
+    /// - Integers are returned directly.
+    /// - Floating-point numbers are truncated to integers; in the event of an overflow, the boundary values are returned.
+    /// - String parsing to an integer; if the conversion fails, return Null.
+    /// - Converting boolean values to 1/0
     pub fn to_int(&self) -> Value {
         match self {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),

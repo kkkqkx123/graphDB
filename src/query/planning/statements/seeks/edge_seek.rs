@@ -1,4 +1,4 @@
-//! 邊查找策略 (邊 searching for a strategy)
+//! Edge search strategy
 //!
 //! A search strategy that starts from the edge mode, used for MATCH operations where the search begins from an edge.
 //!
@@ -12,7 +12,7 @@ use super::seek_strategy_base::{SeekResult, SeekStrategyContext, SeekStrategyTyp
 use crate::core::{StorageError, Value};
 use crate::storage::StorageClient;
 
-/// Border mode information
+/// Edge pattern information
 #[derive(Debug, Clone, PartialEq)]
 pub struct EdgePattern {
     pub edge_types: Vec<String>,
@@ -22,7 +22,7 @@ pub struct EdgePattern {
     pub properties: Vec<(String, Value)>,
 }
 
-/// Side direction
+/// 边方向
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EdgeDirection {
     Outgoing, // ->
@@ -31,8 +31,6 @@ pub enum EdgeDirection {
 }
 
 impl EdgeDirection {
-    /// Translate the following text into a string:  
-"Please provide the text you would like to have translated into a string."
     pub fn as_str(&self) -> &'static str {
         match self {
             EdgeDirection::Outgoing => "OUT",
@@ -55,7 +53,7 @@ impl std::str::FromStr for EdgeDirection {
     }
 }
 
-/// 边查找策略 (邊查找邊制定策略)
+/// Edge search strategy
 #[derive(Debug, Clone)]
 pub struct EdgeSeek {
     pub edge_pattern: EdgePattern,
@@ -67,29 +65,29 @@ impl EdgeSeek {
     }
 
     /// Evaluating whether a border matches a pattern
-    fn e// Check the edge type.n(&self, edge: &crate::core::Edge) -> bool {
-        // 检查边类型
+    fn edge_matches_pattern(&self, edge: &crate::core::Edge) -> bool {
+        // Check edge type
         if !self.edge_pattern.edge_types.is_empty()
             && !self.edge_pattern.edge_types.contains(&edge.edge_type)
         {
             return false;
         }
 
-        // 检查源顶点ID
+        // Check source vertex ID
         if let Some(ref src_vid) = self.edge_pattern.src_vid {
             if *edge.src != *src_vid {
                 return false;
             }
         }
 
-        // 检查目标顶点ID
+        // Check destination vertex ID
         if let Some(ref dst_vid) = self.edge_pattern.dst_vid {
             if *edge.dst != *dst_vid {
                 return false;
             }
         }
 
-        // 检查属性
+        // Check properties
         for (prop_name, prop_value) in &self.edge_pattern.properties {
             let found = edge
                 .get_property(prop_name)
@@ -113,24 +111,21 @@ impl SeekStrategy for EdgeSeek {
         let mut edge_ids = Vec::new();
         let mut rows_scanned = 0;
 
-        let space_name = "default"; // 实际应从 context 获取
+        let space_name = "default";
 
-        // 策略1: 如果有明确的边类型，使用边类型扫描
+        // Strategy 1: Use edge type scan if edge types are specified
         if !self.edge_pattern.edge_types.is_empty() {
             for edge_type in &self.edge_pattern.edge_types {
                 let edges = storage.scan_edges_by_type(space_name, edge_type)?;
                 rows_scanned += edges.len();
 
                 for edge in edges {
-                    if s// Use the unique identifier of the edge: src->dst@edge_type
-                        // 使用边的唯一标识: src->dst@edge_type
-                        let edge_id = format!("{}->{}@{}", edge.src, edge.dst, edge.edge_type);
-                        edge_ids.push(Value::String(edge_id));
-                    }
+                    let edge_id = format!("{}->{}@{}", edge.src, edge.dst, edge.edge_type);
+                    edge_ids.push(Value::String(edge_id));
                 }
             }
-        } el// Strategy 2: Scan all edges of the entire table
-            // 策略2: 全表扫描所有边
+        } else {
+            // Strategy 2: Scan all edges in the table
             let edges = storage.scan_all_edges(space_name)?;
             rows_scanned = edges.len();
 
@@ -142,18 +137,18 @@ impl SeekStrategy for EdgeSeek {
             }
         }
 
-        // 去重
+        // Remove duplicates
         edge_ids.sort();
         edge_ids.dedup();
 
         Ok(SeekResult {
-            vertex_ids: edge_ids, // 这里存储的是边ID
+            vertex_ids: edge_ids,
             strategy_used: SeekStrategyType::EdgeSeek,
             rows_scanned,
         })
     }
 
-    fn s// As long as the border mode is available, support is provided.StrategyContext) -> bool {
+    fn supports(&self, _context: &SeekStrategyContext) -> bool {
         // 只要有边模式就支持
         true
     }
