@@ -158,7 +158,9 @@ impl ObjectPoolConfig {
                 return Err("memory_budget must be greater than 0 when pool is enabled".to_string());
             }
             if self.default_pool_size == 0 {
-                return Err("default_pool_size must be greater than 0 when pool is enabled".to_string());
+                return Err(
+                    "default_pool_size must be greater than 0 when pool is enabled".to_string(),
+                );
             }
 
             for (type_name, type_config) in &self.type_configs {
@@ -234,7 +236,7 @@ impl<S: StorageClient + 'static> ExecutorObjectPool<S> {
         if let Err(e) = config.validate() {
             log::warn!("Invalid object pool config: {}", e);
         }
-        
+
         let memory_budget = config.memory_budget;
         Self {
             config,

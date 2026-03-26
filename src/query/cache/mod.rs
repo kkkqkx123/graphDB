@@ -14,12 +14,14 @@
 
 // Submodule
 pub mod cte_cache;
+pub mod global_manager;
 pub mod plan_cache;
+pub mod warmup;
 
 // Reexport the plan cache type.
 pub use plan_cache::{
-    CachedPlan, ParamPosition, ParameterizedQueryHandler, PlanCacheConfig, PlanCacheKey,
-    PlanCacheStats, QueryPlanCache,
+    CachePriority, CachedPlan, ParamPosition, ParameterizedQueryHandler, PlanCacheConfig,
+    PlanCacheKey, PlanCacheStats, QueryPlanCache,
 };
 
 // Re-export the CTE cache type
@@ -27,6 +29,12 @@ pub use cte_cache::{
     CteCacheConfig, CteCacheDecision, CteCacheDecisionMaker, CteCacheEntry, CteCacheManager,
     CteCacheStats,
 };
+
+// Re-export the global cache manager type
+pub use global_manager::{CacheAllocations, GlobalCacheManager, GlobalCacheStats};
+
+// Re-export the warmup module type
+pub use warmup::{CacheWarmer, QueryStats, WarmupConfig, WarmupError, WarmupResult};
 
 use std::sync::Arc;
 
@@ -39,6 +47,8 @@ pub struct CacheManager {
     plan_cache: Arc<QueryPlanCache>,
     /// CTE result caching
     cte_cache: Arc<CteCacheManager>,
+    /// Global cache manager (optional)
+    global_manager: Option<Arc<GlobalCacheManager>>,
 }
 
 impl CacheManager {
@@ -47,6 +57,7 @@ impl CacheManager {
         Self {
             plan_cache: Arc::new(QueryPlanCache::default()),
             cte_cache: Arc::new(CteCacheManager::default()),
+            global_manager: None,
         }
     }
 
@@ -55,6 +66,19 @@ impl CacheManager {
         Self {
             plan_cache: Arc::new(QueryPlanCache::new(plan_config)),
             cte_cache: Arc::new(CteCacheManager::with_config(cte_config)),
+            global_manager: None,
+        }
+    }
+
+    /// Create with global cache manager
+    pub fn with_global_manager(global_manager: Arc<GlobalCacheManager>) -> Self {
+        let plan_cache = global_manager.plan_cache();
+        let cte_cache = global_manager.cte_cache();
+
+        Self {
+            plan_cache,
+            cte_cache,
+            global_manager: Some(global_manager),
         }
     }
 
@@ -68,18 +92,31 @@ impl CacheManager {
         self.cte_cache.clone()
     }
 
+    /// Get the global cache manager if available
+    pub fn global_manager(&self) -> Option<Arc<GlobalCacheManager>> {
+        self.global_manager.clone()
+    }
+
     /// Get the total memory usage (in bytes).
     pub fn total_memory_usage(&self) -> usize {
-        let plan_stats = self.plan_cache.stats();
-        let cte_stats = self.cte_cache.get_stats();
+        if let Some(global) = &self.global_manager {
+            global.total_memory_usage()
+        } else {
+            let plan_stats = self.plan_cache.stats();
+            let cte_stats = self.cte_cache.get_stats();
 
-        plan_stats.estimated_memory_bytes() + cte_stats.current_memory
+            plan_stats.estimated_memory_bytes() + cte_stats.current_memory
+        }
     }
 
     /// Clear all caches.
     pub fn clear_all(&self) {
         self.plan_cache.clear();
         self.cte_cache.clear();
+
+        if let Some(global) = &self.global_manager {
+            global.clear_all();
+        }
     }
 
     /// Obtain a summary of cache statistics.
@@ -93,6 +130,20 @@ impl CacheManager {
             cte_cache_entries: cte_stats.entry_count,
             cte_cache_hit_rate: cte_stats.hit_rate(),
             total_memory_bytes: plan_stats.estimated_memory_bytes() + cte_stats.current_memory,
+        }
+    }
+
+    /// Check memory pressure and trigger eviction if needed
+    pub fn check_memory_pressure(&self) {
+        if let Some(global) = &self.global_manager {
+            global.check_memory_pressure();
+        }
+    }
+
+    /// Update memory usage statistics
+    pub fn update_memory_usage(&self) {
+        if let Some(global) = &self.global_manager {
+            global.update_memory_usage();
         }
     }
 }
@@ -149,8 +200,18 @@ mod tests {
     fn test_cache_manager_with_config() {
         let plan_config = PlanCacheConfig {
             max_entries: 500,
-            ttl_seconds: 1800,
+            memory_budget: 25 * 1024 * 1024,
             enable_parameterized: true,
+            ttl_config: plan_cache::TtlConfig {
+                base_ttl_seconds: 1800,
+                adaptive: true,
+                min_ttl_seconds: 300,
+                max_ttl_seconds: 86400,
+            },
+            priority_config: plan_cache::PriorityConfig {
+                enable_priority: true,
+                track_execution_time: true,
+            },
         };
 
         let cte_config = CteCacheConfig {
@@ -160,6 +221,8 @@ mod tests {
             max_row_count: 50_000,
             entry_ttl_seconds: 1800,
             enabled: true,
+            adaptive: true,
+            enable_priority: true,
         };
 
         let manager = CacheManager::with_config(plan_config, cte_config);

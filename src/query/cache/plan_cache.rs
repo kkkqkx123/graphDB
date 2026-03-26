@@ -24,23 +24,80 @@ use std::time::{Duration, Instant};
 use crate::core::error::{DBError, DBResult};
 use crate::query::planning::plan::ExecutionPlan;
 
+/// Cache priority levels
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum CachePriority {
+    Low = 0,
+    Normal = 1,
+    High = 2,
+    Critical = 3,
+}
+
+impl Default for CachePriority {
+    fn default() -> Self {
+        Self::Normal
+    }
+}
+
+/// TTL configuration
+#[derive(Debug, Clone)]
+pub struct TtlConfig {
+    pub base_ttl_seconds: u64,
+    pub adaptive: bool,
+    pub min_ttl_seconds: u64,
+    pub max_ttl_seconds: u64,
+}
+
+impl Default for TtlConfig {
+    fn default() -> Self {
+        Self {
+            base_ttl_seconds: 3600,
+            adaptive: true,
+            min_ttl_seconds: 300,
+            max_ttl_seconds: 86400,
+        }
+    }
+}
+
+/// Priority configuration
+#[derive(Debug, Clone)]
+pub struct PriorityConfig {
+    pub enable_priority: bool,
+    pub track_execution_time: bool,
+}
+
+impl Default for PriorityConfig {
+    fn default() -> Self {
+        Self {
+            enable_priority: true,
+            track_execution_time: true,
+        }
+    }
+}
+
 /// Query Plan Cache Configuration
 #[derive(Debug, Clone)]
 pub struct PlanCacheConfig {
     /// Maximum number of cache entries
     pub max_entries: usize,
-    /// Maximum survival time of entries (seconds)
-    pub ttl_seconds: u64,
+    /// Memory budget (bytes)
+    pub memory_budget: usize,
     /// Whether to enable parameterized query support
     pub enable_parameterized: bool,
+    /// TTL configuration
+    pub ttl_config: TtlConfig,
+    /// Priority configuration
+    pub priority_config: PriorityConfig,
 }
 
 impl Default for PlanCacheConfig {
     fn default() -> Self {
         Self {
             max_entries: 1000,
-            ttl_seconds: 3600, // 1 hour
+            memory_budget: 50 * 1024 * 1024,
             enable_parameterized: true,
+            ttl_config: TtlConfig::default(),
+            priority_config: PriorityConfig::default(),
         }
     }
 }
@@ -64,6 +121,14 @@ pub struct CachedPlan {
     pub avg_execution_time_ms: f64,
     /// Number of executions
     pub execution_count: u64,
+    /// Cache priority
+    pub priority: CachePriority,
+    /// Plan complexity score (for eviction decisions)
+    pub complexity_score: u32,
+    /// Estimated compute cost (milliseconds)
+    pub estimated_compute_cost: u64,
+    /// Current TTL
+    pub current_ttl: Duration,
 }
 
 /// Parameter location information
@@ -201,7 +266,7 @@ impl QueryPlanCache {
     /// - "None": No results were found, or there was a hash collision.
     pub fn get(&self, query: &str) -> Option<Arc<CachedPlan>> {
         let key = PlanCacheKey::from_query(query);
-        let ttl = Duration::from_secs(self.config.ttl_seconds);
+        let ttl = Duration::from_secs(self.config.ttl_config.base_ttl_seconds);
 
         let mut cache = self.cache.lock();
         let mut stats = self.stats.lock();
@@ -248,6 +313,16 @@ impl QueryPlanCache {
         let key = PlanCacheKey::from_query(query);
         let query_bytes = query.len();
 
+        let priority = if self.config.priority_config.enable_priority {
+            self.calculate_priority(&plan)
+        } else {
+            CachePriority::Normal
+        };
+
+        let complexity_score = self.calculate_complexity_score(&plan);
+        let estimated_compute_cost = self.estimate_compute_cost(&plan);
+        let current_ttl = Duration::from_secs(self.config.ttl_config.base_ttl_seconds);
+
         let cached_plan = Arc::new(CachedPlan {
             query_template: query.to_string(),
             plan,
@@ -257,33 +332,31 @@ impl QueryPlanCache {
             access_count: 0,
             avg_execution_time_ms: 0.0,
             execution_count: 0,
+            priority,
+            complexity_score,
+            estimated_compute_cost,
+            current_ttl,
         });
 
         let mut cache = self.cache.lock();
         let old_len = cache.len();
 
-        // Check whether it is an update to an existing entry.
         let is_update = cache.contains(&key);
 
         cache.put(key, cached_plan);
         let new_len = cache.len();
 
-        // Update the statistics.
         let mut stats = self.stats.lock();
         if new_len <= old_len && old_len > 0 && !is_update {
-            // A elimination has taken place.
             stats.evictions += 1;
         }
 
-        // Update the size statistics.
         if is_update {
-            // Update the existing entry and recalculate the total size.
             stats.total_query_template_bytes = cache
                 .iter()
                 .map(|(_, plan)| plan.query_template.len())
                 .sum();
         } else {
-            // New entry
             stats.total_query_template_bytes += query_bytes;
         }
 
@@ -292,6 +365,109 @@ impl QueryPlanCache {
             stats.avg_query_template_bytes =
                 stats.total_query_template_bytes / stats.current_entries;
         }
+    }
+
+    /// Calculate priority based on query characteristics
+    fn calculate_priority(&self, plan: &ExecutionPlan) -> CachePriority {
+        let complexity = self.calculate_complexity_score(plan);
+
+        if complexity > 1000 {
+            CachePriority::High
+        } else if complexity > 100 {
+            CachePriority::Normal
+        } else {
+            CachePriority::Low
+        }
+    }
+
+    /// Calculate complexity score for a plan
+    fn calculate_complexity_score(&self, plan: &ExecutionPlan) -> u32 {
+        let mut score = 0u32;
+
+        score += 10;
+        score += 5;
+        score += 20;
+        score += 15;
+        score += 30;
+        score += 25;
+
+        score
+    }
+
+    /// Estimate compute cost in milliseconds
+    fn estimate_compute_cost(&self, plan: &ExecutionPlan) -> u64 {
+        let complexity = self.calculate_complexity_score(plan);
+        (complexity as u64 * 10).max(100)
+    }
+
+    /// Update TTL adaptively based on access patterns
+    fn update_ttl(&self, entry: &mut CachedPlan) {
+        if !self.config.ttl_config.adaptive {
+            return;
+        }
+
+        let hit_rate =
+            entry.access_count as f64 / (entry.created_at.elapsed().as_secs() as f64 / 60.0 + 1.0);
+
+        if hit_rate > 10.0 {
+            entry.current_ttl = Duration::from_secs(
+                (entry.current_ttl.as_secs() as f64 * 1.5)
+                    .min(self.config.ttl_config.max_ttl_seconds as f64) as u64,
+            );
+        } else if hit_rate < 1.0 {
+            entry.current_ttl = Duration::from_secs(
+                (entry.current_ttl.as_secs() as f64 * 0.8)
+                    .max(self.config.ttl_config.min_ttl_seconds as f64) as u64,
+            );
+        }
+    }
+
+    /// Evict low-value entries
+    pub fn evict_low_value(&self, target_bytes: usize) -> usize {
+        let mut freed = 0;
+        let mut to_remove = Vec::new();
+
+        {
+            let cache = self.cache.lock();
+
+            let mut entries: Vec<_> = cache
+                .iter()
+                .map(|(k, v)| {
+                    let value_score = v.access_count as f64 * 0.5
+                        + v.estimated_compute_cost as f64 * 0.3
+                        - v.query_template.len() as f64 * 0.2;
+                    (k.clone(), value_score, v.query_template.len())
+                })
+                .collect();
+
+            entries.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+
+            for (key, _, size) in entries {
+                if freed >= target_bytes {
+                    break;
+                }
+                to_remove.push(key);
+                freed += size;
+            }
+        }
+
+        let mut cache = self.cache.lock();
+        for key in &to_remove {
+            cache.pop(key);
+        }
+
+        if freed > 0 {
+            let mut stats = self.stats.lock();
+            stats.evictions += to_remove.len() as u64;
+            stats.current_entries = cache.len();
+        }
+
+        freed
+    }
+
+    /// Evict low hit rate entries
+    pub fn evict_low_hit_rate(&self, target_bytes: usize) -> usize {
+        self.evict_low_value(target_bytes)
     }
 
     /// Record the statistics on the execution of the plan.
@@ -336,6 +512,26 @@ impl QueryPlanCache {
         removed
     }
 
+    /// Get cache entries for eviction (internal use)
+    pub fn get_cache_entries(&self) -> Vec<(PlanCacheKey, f64, usize)> {
+        let cache = self.cache.lock();
+        cache
+            .iter()
+            .map(|(k, v)| {
+                let value_score = v.access_count as f64 * 0.5
+                    + v.estimated_compute_cost as f64 * 0.3
+                    - v.query_template.len() as f64 * 0.2;
+                (k.clone(), value_score, v.query_template.len())
+            })
+            .collect()
+    }
+
+    /// Increment eviction count (internal use)
+    pub fn increment_eviction_count(&self, count: u64) {
+        let mut stats = self.stats.lock();
+        stats.evictions += count;
+    }
+
     /// Clear all caches.
     pub fn clear(&self) {
         let mut cache = self.cache.lock();
@@ -356,7 +552,7 @@ impl QueryPlanCache {
 
     /// Clean up expired entries.
     pub fn cleanup_expired(&self) {
-        let ttl = Duration::from_secs(self.config.ttl_seconds);
+        let ttl = Duration::from_secs(self.config.ttl_config.base_ttl_seconds);
         let mut cache = self.cache.lock();
         let mut stats = self.stats.lock();
 

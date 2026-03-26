@@ -21,6 +21,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use super::plan_cache::CachePriority;
+
 /// CTE cache entries
 #[derive(Debug, Clone)]
 pub struct CteCacheEntry {
@@ -42,11 +44,25 @@ pub struct CteCacheEntry {
     pub cte_hash: String,
     /// CTE definition text
     pub cte_definition: String,
+    /// Cache priority
+    pub priority: CachePriority,
+    /// Compute cost (milliseconds)
+    pub compute_cost_ms: u64,
+    /// Access frequency (per minute)
+    pub access_frequency: f64,
+    /// Dependent tables (for invalidation detection)
+    pub dependent_tables: Vec<String>,
 }
 
 impl CteCacheEntry {
     /// Creating a new cache entry
-    pub fn new(cte_hash: String, cte_definition: String, data: Vec<u8>, row_count: u64) -> Self {
+    pub fn new(
+        cte_hash: String,
+        cte_definition: String,
+        data: Vec<u8>,
+        row_count: u64,
+        compute_cost_ms: u64,
+    ) -> Self {
         let data_size = data.len();
         Self {
             data: Arc::new(data),
@@ -58,14 +74,33 @@ impl CteCacheEntry {
             reuse_probability: 0.5,
             cte_hash,
             cte_definition,
+            priority: CachePriority::Normal,
+            compute_cost_ms,
+            access_frequency: 0.0,
+            dependent_tables: Vec::new(),
         }
+    }
+
+    /// Calculate cache value score (for eviction decisions)
+    pub fn value_score(&self) -> f64 {
+        let frequency_score = self.access_frequency * 0.4;
+        let cost_score = (self.compute_cost_ms as f64 / 1000.0) * 0.3;
+        let priority_score = (self.priority as i32 as f64) * 0.2;
+        let size_penalty = (self.data_size as f64 / 1024.0 / 1024.0) * 0.1;
+
+        frequency_score + cost_score + priority_score - size_penalty
     }
 
     /// Recorded visits
     pub fn record_access(&mut self) {
         self.last_accessed = Instant::now();
         self.access_count += 1;
-        // Update reuse probability: the more visits, the higher the reuse probability
+
+        let elapsed_minutes = self.created_at.elapsed().as_secs_f64() / 60.0;
+        if elapsed_minutes > 0.0 {
+            self.access_frequency = self.access_count as f64 / elapsed_minutes;
+        }
+
         self.reuse_probability = (self.reuse_probability * 0.7 + 0.3).min(0.95);
     }
 
@@ -153,17 +188,23 @@ pub struct CteCacheConfig {
     pub entry_ttl_seconds: u64,
     /// Enable caching
     pub enabled: bool,
+    /// Whether to enable adaptive
+    pub adaptive: bool,
+    /// Whether to enable priority
+    pub enable_priority: bool,
 }
 
 impl Default for CteCacheConfig {
     fn default() -> Self {
         Self {
-            max_size: 64 * 1024 * 1024,       // 64MB
-            max_entry_size: 10 * 1024 * 1024, // 10MB
-            min_row_count: 100,               // At least 100 lines
-            max_row_count: 100_000,           // Up to 100,000 lines.
-            entry_ttl_seconds: 3600,          // 1 hour
+            max_size: 64 * 1024 * 1024,
+            max_entry_size: 10 * 1024 * 1024,
+            min_row_count: 100,
+            max_row_count: 100_000,
+            entry_ttl_seconds: 3600,
             enabled: true,
+            adaptive: true,
+            enable_priority: true,
         }
     }
 }
@@ -172,24 +213,28 @@ impl CteCacheConfig {
     /// Create a small memory configuration.
     pub fn low_memory() -> Self {
         Self {
-            max_size: 16 * 1024 * 1024,      // 16MB
-            max_entry_size: 5 * 1024 * 1024, // 5MB
+            max_size: 16 * 1024 * 1024,
+            max_entry_size: 5 * 1024 * 1024,
             min_row_count: 50,
             max_row_count: 50_000,
-            entry_ttl_seconds: 1800, // 30 minutes
+            entry_ttl_seconds: 1800,
             enabled: true,
+            adaptive: true,
+            enable_priority: true,
         }
     }
 
     /// Creating a large memory configuration
     pub fn high_memory() -> Self {
         Self {
-            max_size: 256 * 1024 * 1024,      // 256MB
-            max_entry_size: 50 * 1024 * 1024, // 50MB
+            max_size: 256 * 1024 * 1024,
+            max_entry_size: 50 * 1024 * 1024,
             min_row_count: 100,
             max_row_count: 500_000,
-            entry_ttl_seconds: 7200, // 2 hours
+            entry_ttl_seconds: 7200,
             enabled: true,
+            adaptive: true,
+            enable_priority: true,
         }
     }
 
@@ -324,13 +369,23 @@ impl CteCacheManager {
 
     /// Store the data in the cache.
     pub fn put(&self, cte_definition: &str, data: Vec<u8>, row_count: u64) -> Option<String> {
+        self.put_with_cost(cte_definition, data, row_count, 100)
+    }
+
+    /// Store the data in the cache with compute cost.
+    pub fn put_with_cost(
+        &self,
+        cte_definition: &str,
+        data: Vec<u8>,
+        row_count: u64,
+        compute_cost_ms: u64,
+    ) -> Option<String> {
         let config = self.config.read();
 
         if !config.enabled {
             return None;
         }
 
-        // Check the data size.
         if data.len() > config.max_entry_size {
             let mut stats = self.stats.write();
             stats.rejected_count += 1;
@@ -339,7 +394,6 @@ impl CteCacheManager {
 
         drop(config);
 
-        // Make sure there is enough space.
         self.evict_if_needed();
 
         let cte_hash = Self::compute_hash(cte_definition);
@@ -348,23 +402,69 @@ impl CteCacheManager {
             cte_definition.to_string(),
             data,
             row_count,
+            compute_cost_ms,
         );
 
         let entry_size = entry.data_size;
         let mut cache = self.cache.write();
 
-        // Update memory usage
         *self.current_memory.write() += entry_size;
 
-        // Insert the cache
         cache.insert(cte_hash.clone(), entry);
 
-        // Update the statistics.
         let mut stats = self.stats.write();
         stats.entry_count = cache.len();
         stats.current_memory = *self.current_memory.read();
 
         Some(cte_hash)
+    }
+
+    /// Evict low priority entries
+    pub fn evict_low_priority(&self, target_bytes: usize) -> usize {
+        let mut freed = 0;
+        let mut to_remove = Vec::new();
+
+        {
+            let cache = self.cache.read();
+
+            let mut entries: Vec<_> = cache
+                .iter()
+                .map(|(k, v)| {
+                    let value_score = v.value_score();
+                    (k.clone(), value_score, v.data_size, v.priority)
+                })
+                .collect();
+
+            entries.sort_by(|a, b| {
+                a.1.partial_cmp(&b.1)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+                    .then_with(|| a.3.cmp(&b.3))
+            });
+
+            for (key, _, size, _) in entries {
+                if freed >= target_bytes {
+                    break;
+                }
+                to_remove.push(key);
+                freed += size;
+            }
+        }
+
+        let mut cache = self.cache.write();
+        for key in &to_remove {
+            if let Some(entry) = cache.remove(key) {
+                *self.current_memory.write() -= entry.data_size;
+            }
+        }
+
+        if freed > 0 {
+            let mut stats = self.stats.write();
+            stats.evicted_count += to_remove.len() as u64;
+            stats.entry_count = cache.len();
+            stats.current_memory = *self.current_memory.read();
+        }
+
+        freed
     }
 
     /// Retrieve data from the cache.
@@ -420,9 +520,14 @@ impl CteCacheManager {
     /// Invalidate the cache entry
     pub fn invalidate(&self, cte_definition: &str) -> bool {
         let cte_hash = Self::compute_hash(cte_definition);
+        self.invalidate_by_hash(&cte_hash)
+    }
+
+    /// Invalidate cache entry by hash
+    pub fn invalidate_by_hash(&self, cte_hash: &str) -> bool {
         let mut cache = self.cache.write();
 
-        if let Some(entry) = cache.remove(&cte_hash) {
+        if let Some(entry) = cache.remove(cte_hash) {
             *self.current_memory.write() -= entry.data_size;
 
             let mut stats = self.stats.write();
@@ -432,6 +537,24 @@ impl CteCacheManager {
         } else {
             false
         }
+    }
+
+    /// Get cache entries for eviction (internal use)
+    pub fn get_cache_entries(&self) -> Vec<(String, f64, usize)> {
+        let cache = self.cache.read();
+        cache
+            .iter()
+            .map(|(k, v)| {
+                let value_score = v.value_score();
+                (k.clone(), value_score, v.data_size)
+            })
+            .collect()
+    }
+
+    /// Increment eviction count (internal use)
+    pub fn increment_evicted_count(&self, count: u64) {
+        let mut stats = self.stats.write();
+        stats.evicted_count += count;
     }
 
     /// Clear all caches.
@@ -571,10 +694,12 @@ pub struct CteCacheDecision {
     pub should_cache: bool,
     /// Reasons for decision-making
     pub reason: String,
-    /// 估计重用概率
+    /// Estimated reuse probability
     pub reuse_probability: f64,
     /// Estimated caching gains
     pub estimated_benefit: f64,
+    /// Suggested priority
+    pub suggested_priority: CachePriority,
 }
 
 /// CTE缓存决策器
@@ -615,9 +740,10 @@ impl CteCacheDecisionMaker {
         if !self.cache_manager.is_enabled() {
             return CteCacheDecision {
                 should_cache: false,
-                reason: "缓存已禁用".to_string(),
+                reason: "Cache disabled".to_string(),
                 reuse_probability: 0.0,
                 estimated_benefit: 0.0,
+                suggested_priority: CachePriority::Low,
             };
         }
 
@@ -626,30 +752,40 @@ impl CteCacheDecisionMaker {
         if reuse_prob < self.min_reuse_probability {
             return CteCacheDecision {
                 should_cache: false,
-                reason: format!("重用概率过低: {:.2}", reuse_prob),
+                reason: format!("Reuse probability too low: {:.2}", reuse_prob),
                 reuse_probability: reuse_prob,
                 estimated_benefit: 0.0,
+                suggested_priority: CachePriority::Low,
             };
         }
 
-        // Estimated Cache Benefit = Probability of Reuse * Computation Cost - Cache Overhead
-        let cache_overhead = estimated_rows as f64 * 0.001; // 假设每行缓存开销0.001ms
+        let cache_overhead = estimated_rows as f64 * 0.001;
         let estimated_benefit = reuse_prob * compute_cost - cache_overhead;
 
         if estimated_benefit < self.min_benefit {
             return CteCacheDecision {
                 should_cache: false,
-                reason: format!("估计收益过低: {:.2}", estimated_benefit),
+                reason: format!("Estimated benefit too low: {:.2}", estimated_benefit),
                 reuse_probability: reuse_prob,
                 estimated_benefit,
+                suggested_priority: CachePriority::Low,
             };
         }
 
+        let suggested_priority = if compute_cost > 1000.0 {
+            CachePriority::High
+        } else if compute_cost > 100.0 {
+            CachePriority::Normal
+        } else {
+            CachePriority::Low
+        };
+
         CteCacheDecision {
             should_cache: true,
-            reason: "收益分析通过".to_string(),
+            reason: "Benefit analysis passed".to_string(),
             reuse_probability: reuse_prob,
             estimated_benefit,
+            suggested_priority,
         }
     }
 }
@@ -671,6 +807,7 @@ mod tests {
             "SELECT * FROM t".to_string(),
             vec![1, 2, 3, 4, 5],
             10,
+            100,
         );
 
         assert_eq!(entry.row_count, 10);
@@ -709,12 +846,14 @@ mod tests {
     #[test]
     fn test_cte_cache_eviction() {
         let config = CteCacheConfig {
-            max_size: 100, // Very small cache
+            max_size: 100,
             max_entry_size: 50,
             min_row_count: 1,
             max_row_count: 1000,
             entry_ttl_seconds: 3600,
             enabled: true,
+            adaptive: true,
+            enable_priority: true,
         };
 
         let manager = CteCacheManager::with_config(config);
@@ -774,5 +913,21 @@ mod tests {
         stats.reset();
         assert_eq!(stats.hit_count, 0);
         assert_eq!(stats.miss_count, 0);
+    }
+
+    #[test]
+    fn test_cte_cache_config() {
+        let config = CteCacheConfig {
+            max_size: 32 * 1024 * 1024,
+            max_entry_size: 5 * 1024 * 1024,
+            min_row_count: 50,
+            max_row_count: 50_000,
+            entry_ttl_seconds: 1800,
+            enabled: true,
+            adaptive: true,
+            enable_priority: true,
+        };
+
+        assert_eq!(config.max_size, 32 * 1024 * 1024);
     }
 }
