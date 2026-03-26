@@ -150,6 +150,26 @@ impl ObjectPoolConfig {
             ..Default::default()
         }
     }
+
+    /// Validate configuration and return errors if invalid
+    pub fn validate(&self) -> Result<(), String> {
+        if self.enabled {
+            if self.memory_budget == 0 {
+                return Err("memory_budget must be greater than 0 when pool is enabled".to_string());
+            }
+            if self.default_pool_size == 0 {
+                return Err("default_pool_size must be greater than 0 when pool is enabled".to_string());
+            }
+
+            for (type_name, type_config) in &self.type_configs {
+                if type_config.max_size == 0 {
+                    return Err(format!("max_size for {} must be greater than 0", type_name));
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 /// Object pool: A cache for executor instances
@@ -211,6 +231,10 @@ impl PoolStats {
 impl<S: StorageClient + 'static> ExecutorObjectPool<S> {
     /// Create a new object pool.
     pub fn new(config: ObjectPoolConfig) -> Self {
+        if let Err(e) = config.validate() {
+            log::warn!("Invalid object pool config: {}", e);
+        }
+        
         let memory_budget = config.memory_budget;
         Self {
             config,

@@ -5,6 +5,7 @@
 use crate::core::error::QueryError;
 use crate::query::executor::base::{ExecutionContext, ExecutionResult, Executor};
 use crate::query::executor::factory::ExecutorFactory;
+use crate::query::executor::object_pool::ThreadSafeExecutorPool;
 use crate::query::planning::plan::ExecutionPlan;
 use crate::query::QueryContext;
 use crate::storage::StorageClient;
@@ -13,12 +14,27 @@ use std::sync::Arc;
 /// Plan Executor
 pub struct PlanExecutor<S: StorageClient + Send + 'static> {
     factory: ExecutorFactory<S>,
+    object_pool: Option<Arc<ThreadSafeExecutorPool<S>>>,
 }
 
 impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
     /// Create a new plan executor.
     pub fn new(factory: ExecutorFactory<S>) -> Self {
-        Self { factory }
+        Self {
+            factory,
+            object_pool: None,
+        }
+    }
+
+    /// Create a new plan executor with object pool.
+    pub fn with_object_pool(
+        factory: ExecutorFactory<S>,
+        object_pool: Arc<ThreadSafeExecutorPool<S>>,
+    ) -> Self {
+        Self {
+            factory,
+            object_pool: Some(object_pool),
+        }
     }
 
     /// Execute the execution plan.
@@ -52,15 +68,32 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
             Arc::new(crate::query::validator::context::ExpressionAnalysisContext::new());
         let execution_context = ExecutionContext::new(expr_context);
 
-        // Recursively construct the executor tree and execute it.
-        let mut executor = self
-            .factory
-            .create_executor(root_node, storage, &execution_context)?;
+        // Try to get executor from pool first
+        let executor_type = root_node.name();
+        let mut executor = if let Some(pool) = &self.object_pool {
+            if let Some(pooled_executor) = pool.acquire(executor_type) {
+                log::debug!("从对象池获取执行器: {}", executor_type);
+                pooled_executor
+            } else {
+                log::debug!("对象池未命中，创建新执行器: {}", executor_type);
+                self.factory
+                    .create_executor(root_node, storage, &execution_context)?
+            }
+        } else {
+            self.factory
+                .create_executor(root_node, storage, &execution_context)?
+        };
 
         // Root Executor
         let result = executor
             .execute()
             .map_err(|e| QueryError::ExecutionError(format!("Executor execution failed: {}", e)))?;
+
+        // Release executor back to pool
+        if let Some(pool) = &self.object_pool {
+            pool.release(executor_type, executor);
+            log::debug!("执行器已释放回对象池: {}", executor_type);
+        }
 
         // Return the execution result.
         Ok(result)

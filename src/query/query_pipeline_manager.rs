@@ -25,6 +25,7 @@ use crate::core::error::{DBError, DBResult, QueryError};
 use crate::core::{ErrorInfo, ErrorType, QueryMetrics, QueryPhase, QueryProfile, StatsManager};
 use crate::query::executor::base::ExecutionResult;
 use crate::query::executor::factory::ExecutorFactory;
+use crate::query::executor::object_pool::{ObjectPoolConfig, ThreadSafeExecutorPool};
 use crate::query::optimizer::OptimizerEngine;
 use crate::query::parser::Parser;
 use crate::query::planning::{ParameterizedQueryHandler, PlanCacheConfig, QueryPlanCache};
@@ -41,6 +42,7 @@ use std::time::Instant;
 /// Responsible for coordinating the overall query processing workflow, and utilizing optimization features by leveraging the `OptimizerEngine`.
 pub struct QueryPipelineManager<S: StorageClient + 'static> {
     executor_factory: ExecutorFactory<S>,
+    object_pool: Arc<ThreadSafeExecutorPool<S>>,
     stats_manager: Arc<StatsManager>,
     /// Optimizer engine (reference to the global instance)
     optimizer_engine: Arc<OptimizerEngine>,
@@ -65,6 +67,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         optimizer_engine: Arc<OptimizerEngine>,
     ) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
+        let object_pool = Arc::new(ThreadSafeExecutorPool::new(ObjectPoolConfig::default()));
         let plan_cache = Arc::new(QueryPlanCache::default());
         let param_handler = ParameterizedQueryHandler::default();
 
@@ -72,6 +75,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
         Self {
             executor_factory,
+            object_pool,
             stats_manager,
             optimizer_engine,
             plan_cache,
@@ -93,6 +97,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         plan_cache_config: PlanCacheConfig,
     ) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
+        let object_pool = Arc::new(ThreadSafeExecutorPool::new(ObjectPoolConfig::default()));
         let plan_cache = Arc::new(QueryPlanCache::new(plan_cache_config));
         let param_handler = ParameterizedQueryHandler::default();
 
@@ -100,6 +105,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
         Self {
             executor_factory,
+            object_pool,
             stats_manager,
             optimizer_engine,
             plan_cache,
@@ -122,10 +128,21 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         self.plan_cache.stats()
     }
 
-    /// Clear the query plan cache.
+    /// Clear query plan cache.
     pub fn clear_plan_cache(&self) {
         self.plan_cache.clear();
         log::info!("查询计划缓存已清空");
+    }
+
+    /// Obtain object pool statistics.
+    pub fn object_pool_stats(&self) -> crate::query::executor::object_pool::PoolStats {
+        self.object_pool.stats()
+    }
+
+    /// Clear object pool.
+    pub fn clear_object_pool(&self) {
+        self.object_pool.clear();
+        log::info!("对象池已清空");
     }
 
     pub fn execute_query(&mut self, query_text: &str) -> DBResult<ExecutionResult> {
@@ -481,7 +498,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         plan: crate::query::planning::plan::ExecutionPlan,
     ) -> DBResult<ExecutionResult> {
         use crate::query::executor::factory::executors::plan_executor::PlanExecutor;
-        let mut plan_executor = PlanExecutor::new(self.executor_factory.clone());
+        let mut plan_executor =
+            PlanExecutor::with_object_pool(self.executor_factory.clone(), self.object_pool.clone());
         plan_executor
             .execute_plan(query_context, plan)
             .map_err(|e| DBError::from(QueryError::pipeline_execution_error(e)))
