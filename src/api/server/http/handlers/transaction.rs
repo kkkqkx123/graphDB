@@ -7,7 +7,7 @@ use tokio::task;
 
 use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::storage::StorageClient;
-use crate::transaction::{DurabilityLevel, TransactionOptions};
+use crate::transaction::{DurabilityLevel, IsolationLevel, TransactionOptions};
 
 #[derive(Debug, Deserialize)]
 pub struct BeginTransactionRequest {
@@ -16,6 +16,12 @@ pub struct BeginTransactionRequest {
     pub read_only: bool,
     #[serde(default)]
     pub timeout_seconds: Option<u64>,
+    #[serde(default)]
+    pub query_timeout_seconds: Option<u64>,
+    #[serde(default)]
+    pub statement_timeout_seconds: Option<u64>,
+    #[serde(default)]
+    pub idle_timeout_seconds: Option<u64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -36,6 +42,10 @@ pub async fn begin<S: StorageClient + Clone + Send + Sync + 'static>(
             read_only: request.read_only,
             timeout: request.timeout_seconds.map(std::time::Duration::from_secs),
             durability: DurabilityLevel::Immediate,
+            isolation_level: IsolationLevel::default(),
+            query_timeout: request.query_timeout_seconds.map(std::time::Duration::from_secs),
+            statement_timeout: request.statement_timeout_seconds.map(std::time::Duration::from_secs),
+            idle_timeout: request.idle_timeout_seconds.map(std::time::Duration::from_secs),
         };
 
         match txn_manager.begin_transaction(options) {

@@ -15,6 +15,107 @@ pub type TransactionId = u64;
 /// Savepoint ID
 pub type SavepointId = u64;
 
+/// Transaction Isolation Level
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum IsolationLevel {
+    /// Repeatable Read - all statements in the transaction see a snapshot as of the start of the transaction
+    RepeatableRead,
+}
+
+impl Default for IsolationLevel {
+    fn default() -> Self {
+        Self::RepeatableRead
+    }
+}
+
+impl fmt::Display for IsolationLevel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            IsolationLevel::RepeatableRead => write!(f, "REPEATABLE READ"),
+        }
+    }
+}
+
+/// Retry Configuration
+#[derive(Debug, Clone, Copy)]
+pub struct RetryConfig {
+    /// Maximum number of retries
+    pub max_retries: u32,
+    /// Initial delay before first retry
+    pub initial_delay: Duration,
+    /// Backoff multiplier for exponential backoff
+    pub backoff_multiplier: f64,
+    /// Maximum delay between retries
+    pub max_delay: Duration,
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            max_retries: 3,
+            initial_delay: Duration::from_millis(100),
+            backoff_multiplier: 2.0,
+            max_delay: Duration::from_secs(10),
+        }
+    }
+}
+
+impl RetryConfig {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_max_retries(mut self, max_retries: u32) -> Self {
+        self.max_retries = max_retries;
+        self
+    }
+
+    pub fn with_initial_delay(mut self, delay: Duration) -> Self {
+        self.initial_delay = delay;
+        self
+    }
+
+    pub fn with_backoff_multiplier(mut self, multiplier: f64) -> Self {
+        self.backoff_multiplier = multiplier;
+        self
+    }
+
+    pub fn with_max_delay(mut self, delay: Duration) -> Self {
+        self.max_delay = delay;
+        self
+    }
+}
+
+/// Transaction Metrics
+#[derive(Debug)]
+pub struct TransactionMetrics {
+    /// Average transaction duration
+    pub avg_duration: Duration,
+    /// 50th percentile duration
+    pub p50_duration: Duration,
+    /// 95th percentile duration
+    pub p95_duration: Duration,
+    /// 99th percentile duration
+    pub p99_duration: Duration,
+    /// Long transactions (duration > 10s)
+    pub long_transactions: Vec<TransactionInfo>,
+    /// Total number of transactions
+    pub total_count: u64,
+}
+
+impl TransactionMetrics {
+    pub fn new() -> Self {
+        Self {
+            avg_duration: Duration::ZERO,
+            p50_duration: Duration::ZERO,
+            p95_duration: Duration::ZERO,
+            p99_duration: Duration::ZERO,
+            long_transactions: Vec::new(),
+            total_count: 0,
+        }
+    }
+}
+
 /// Savepoint Info
 #[derive(Debug, Clone)]
 pub struct SavepointInfo {
@@ -191,6 +292,14 @@ pub struct TransactionOptions {
     pub read_only: bool,
     /// Durability level
     pub durability: DurabilityLevel,
+    /// Isolation level
+    pub isolation_level: IsolationLevel,
+    /// Query timeout duration
+    pub query_timeout: Option<Duration>,
+    /// Statement timeout duration
+    pub statement_timeout: Option<Duration>,
+    /// Idle timeout duration
+    pub idle_timeout: Option<Duration>,
 }
 
 impl Default for TransactionOptions {
@@ -199,6 +308,10 @@ impl Default for TransactionOptions {
             timeout: None,
             read_only: false,
             durability: DurabilityLevel::Immediate,
+            isolation_level: IsolationLevel::default(),
+            query_timeout: None,
+            statement_timeout: None,
+            idle_timeout: None,
         }
     }
 }
@@ -224,6 +337,30 @@ impl TransactionOptions {
     /// Set durability level
     pub fn with_durability(mut self, durability: DurabilityLevel) -> Self {
         self.durability = durability;
+        self
+    }
+
+    /// Set isolation level
+    pub fn with_isolation_level(mut self, level: IsolationLevel) -> Self {
+        self.isolation_level = level;
+        self
+    }
+
+    /// Set query timeout
+    pub fn with_query_timeout(mut self, timeout: Duration) -> Self {
+        self.query_timeout = Some(timeout);
+        self
+    }
+
+    /// Set statement timeout
+    pub fn with_statement_timeout(mut self, timeout: Duration) -> Self {
+        self.statement_timeout = Some(timeout);
+        self
+    }
+
+    /// Set idle timeout
+    pub fn with_idle_timeout(mut self, timeout: Duration) -> Self {
+        self.idle_timeout = Some(timeout);
         self
     }
 }
@@ -320,6 +457,8 @@ pub struct TransactionInfo {
     pub start_time: Instant,
     pub elapsed: Duration,
     pub is_read_only: bool,
+    pub isolation_level: IsolationLevel,
+    pub query_count: u64,
     pub modified_tables: Vec<String>,
     pub savepoint_count: usize,
 }

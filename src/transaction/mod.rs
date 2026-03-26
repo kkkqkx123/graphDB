@@ -52,6 +52,16 @@ pub fn high_performance_write_options() -> TransactionOptions {
     TransactionOptions::new().with_durability(DurabilityLevel::None)
 }
 
+/// Create repeatable read transaction options
+pub fn repeatable_read_options() -> TransactionOptions {
+    TransactionOptions::new().with_isolation_level(IsolationLevel::RepeatableRead)
+}
+
+/// Create default retry configuration
+pub fn default_retry_config() -> RetryConfig {
+    RetryConfig::default()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

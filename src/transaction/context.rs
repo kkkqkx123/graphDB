@@ -4,6 +4,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
@@ -27,6 +28,18 @@ pub struct TransactionContext {
     timeout: Duration,
     /// Whether read-only
     pub read_only: bool,
+    /// Isolation level
+    pub isolation_level: IsolationLevel,
+    /// Query timeout duration
+    pub query_timeout: Option<Duration>,
+    /// Statement timeout duration
+    pub statement_timeout: Option<Duration>,
+    /// Idle timeout duration
+    pub idle_timeout: Option<Duration>,
+    /// Last activity timestamp
+    last_activity: AtomicCell<Instant>,
+    /// Query count
+    query_count: AtomicU64,
     /// redb write transaction (exists for read-write transactions)
     /// Using Option to take ownership on commit
     pub write_txn: Mutex<Option<redb::WriteTransaction>>,
@@ -104,15 +117,26 @@ impl TransactionContext {
         id: TransactionId,
         timeout: Duration,
         durability: DurabilityLevel,
+        isolation_level: IsolationLevel,
+        query_timeout: Option<Duration>,
+        statement_timeout: Option<Duration>,
+        idle_timeout: Option<Duration>,
         write_txn: redb::WriteTransaction,
         db: Option<Arc<redb::Database>>,
     ) -> Self {
+        let now = Instant::now();
         Self {
             id,
             state: AtomicCell::new(TransactionState::Active),
-            start_time: Instant::now(),
+            start_time: now,
             timeout,
             read_only: false,
+            isolation_level,
+            query_timeout,
+            statement_timeout,
+            idle_timeout,
+            last_activity: AtomicCell::new(now),
+            query_count: AtomicU64::new(0),
             write_txn: Mutex::new(Some(write_txn)),
             read_txn: None,
             durability,
@@ -128,15 +152,26 @@ impl TransactionContext {
     pub fn new_readonly(
         id: TransactionId,
         timeout: Duration,
+        isolation_level: IsolationLevel,
+        query_timeout: Option<Duration>,
+        statement_timeout: Option<Duration>,
+        idle_timeout: Option<Duration>,
         read_txn: redb::ReadTransaction,
         db: Option<Arc<redb::Database>>,
     ) -> Self {
+        let now = Instant::now();
         Self {
             id,
             state: AtomicCell::new(TransactionState::Active),
-            start_time: Instant::now(),
+            start_time: now,
             timeout,
             read_only: true,
+            isolation_level,
+            query_timeout,
+            statement_timeout,
+            idle_timeout,
+            last_activity: AtomicCell::new(now),
+            query_count: AtomicU64::new(0),
             write_txn: Mutex::new(None),
             read_txn: Some(read_txn),
             durability: DurabilityLevel::Immediate,
@@ -156,6 +191,65 @@ impl TransactionContext {
     /// Check if transaction has expired
     pub fn is_expired(&self) -> bool {
         self.start_time.elapsed() > self.timeout
+    }
+
+    /// Check if query timeout has been exceeded
+    pub fn is_query_timeout(&self) -> bool {
+        if let Some(query_timeout) = self.query_timeout {
+            self.start_time.elapsed() > query_timeout
+        } else {
+            false
+        }
+    }
+
+    /// Check if statement timeout has been exceeded
+    pub fn is_statement_timeout(&self, statement_start: Instant) -> bool {
+        if let Some(statement_timeout) = self.statement_timeout {
+            statement_start.elapsed() > statement_timeout
+        } else {
+            false
+        }
+    }
+
+    /// Check if idle timeout has been exceeded
+    pub fn is_idle_timeout(&self) -> bool {
+        if let Some(idle_timeout) = self.idle_timeout {
+            self.last_activity.load().elapsed() > idle_timeout
+        } else {
+            false
+        }
+    }
+
+    /// Check if any timeout has been exceeded
+    pub fn check_timeouts(&self) -> Result<(), TransactionError> {
+        if self.is_expired() {
+            return Err(TransactionError::TransactionTimeout);
+        }
+
+        if self.is_query_timeout() {
+            return Err(TransactionError::TransactionTimeout);
+        }
+
+        if self.is_idle_timeout() {
+            return Err(TransactionError::TransactionTimeout);
+        }
+
+        Ok(())
+    }
+
+    /// Update last activity timestamp
+    pub fn update_activity(&self) {
+        self.last_activity.store(Instant::now());
+    }
+
+    /// Increment query count
+    pub fn increment_query_count(&self) {
+        self.query_count.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Get query count
+    pub fn query_count(&self) -> u64 {
+        self.query_count.load(Ordering::Relaxed)
     }
 
     /// Get remaining time
@@ -217,6 +311,8 @@ impl TransactionContext {
             start_time: self.start_time,
             elapsed: self.start_time.elapsed(),
             is_read_only: self.read_only,
+            isolation_level: self.isolation_level,
+            query_count: self.query_count.load(Ordering::Relaxed),
             modified_tables: tables.clone(),
             savepoint_count: savepoints.savepoints.len(),
         }

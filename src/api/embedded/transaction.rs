@@ -8,7 +8,7 @@ use crate::api::embedded::session::Session;
 use crate::core::Value;
 use crate::storage::StorageClient;
 use crate::transaction::types::{SavepointId, SavepointInfo};
-use crate::transaction::{DurabilityLevel, TransactionOptions};
+use crate::transaction::{DurabilityLevel, IsolationLevel, TransactionOptions};
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -42,6 +42,14 @@ pub struct TransactionConfig {
     pub read_only: bool,
     /// Persistence level
     pub durability: DurabilityLevel,
+    /// Isolation level
+    pub isolation_level: IsolationLevel,
+    /// Query timeout
+    pub query_timeout: Option<Duration>,
+    /// Statement timeout
+    pub statement_timeout: Option<Duration>,
+    /// Idle timeout
+    pub idle_timeout: Option<Duration>,
 }
 
 impl Default for TransactionConfig {
@@ -50,6 +58,10 @@ impl Default for TransactionConfig {
             timeout: None,
             read_only: false,
             durability: DurabilityLevel::Immediate,
+            isolation_level: IsolationLevel::default(),
+            query_timeout: None,
+            statement_timeout: None,
+            idle_timeout: None,
         }
     }
 }
@@ -78,12 +90,40 @@ impl TransactionConfig {
         self
     }
 
+    /// Set isolation level
+    pub fn with_isolation_level(mut self, level: IsolationLevel) -> Self {
+        self.isolation_level = level;
+        self
+    }
+
+    /// Set query timeout
+    pub fn with_query_timeout(mut self, timeout: Duration) -> Self {
+        self.query_timeout = Some(timeout);
+        self
+    }
+
+    /// Set statement timeout
+    pub fn with_statement_timeout(mut self, timeout: Duration) -> Self {
+        self.statement_timeout = Some(timeout);
+        self
+    }
+
+    /// Set idle timeout
+    pub fn with_idle_timeout(mut self, timeout: Duration) -> Self {
+        self.idle_timeout = Some(timeout);
+        self
+    }
+
     /// Convert to internal TransactionOptions
     pub(crate) fn into_options(self) -> TransactionOptions {
         TransactionOptions {
             timeout: self.timeout,
             read_only: self.read_only,
             durability: self.durability,
+            isolation_level: self.isolation_level,
+            query_timeout: self.query_timeout,
+            statement_timeout: self.statement_timeout,
+            idle_timeout: self.idle_timeout,
         }
     }
 }

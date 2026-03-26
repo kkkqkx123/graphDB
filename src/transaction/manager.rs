@@ -4,6 +4,7 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 use dashmap::DashMap;
 use parking_lot::Mutex;
@@ -90,6 +91,10 @@ impl TransactionManager {
             Arc::new(TransactionContext::new_readonly(
                 txn_id,
                 timeout,
+                options.isolation_level,
+                options.query_timeout,
+                options.statement_timeout,
+                options.idle_timeout,
                 read_txn,
                 Some(db),
             ))
@@ -104,6 +109,10 @@ impl TransactionManager {
                 txn_id,
                 timeout,
                 options.durability,
+                options.isolation_level,
+                options.query_timeout,
+                options.statement_timeout,
+                options.idle_timeout,
                 write_txn,
                 Some(db),
             ))
@@ -441,6 +450,167 @@ impl TransactionManager {
     pub fn clear_rollback_executor_factory(&self) {
         let mut guard = self.rollback_executor_factory.lock();
         *guard = None;
+    }
+
+    /// Execute operation with retry mechanism
+    ///
+    /// # Arguments
+    /// * `options` - Transaction options
+    /// * `retry_config` - Retry configuration
+    /// * `f` - Operation to execute
+    ///
+    /// # Returns
+    /// * `Ok(R)` - Operation result
+    /// * `Err(TransactionError)` - Error on failure
+    ///
+    /// # Note
+    /// Only retryable errors will be retried (WriteTransactionConflict, TransactionTimeout)
+    pub fn execute_with_retry<F, R>(
+        &self,
+        options: TransactionOptions,
+        retry_config: RetryConfig,
+        f: F,
+    ) -> Result<R, TransactionError>
+    where
+        F: Fn(TransactionId) -> Result<R, TransactionError>,
+    {
+        let mut last_error = None;
+        let mut delay = retry_config.initial_delay;
+
+        for attempt in 0..=retry_config.max_retries {
+            let txn_id = self.begin_transaction(options.clone())?;
+
+            match f(txn_id) {
+                Ok(result) => {
+                    self.commit_transaction(txn_id)?;
+                    return Ok(result);
+                }
+                Err(e) => {
+                    self.abort_transaction(txn_id)?;
+                    last_error = Some(e.clone());
+
+                    // Check if error is retryable
+                    let is_retryable = matches!(
+                        e,
+                        TransactionError::WriteTransactionConflict
+                            | TransactionError::TransactionTimeout
+                    );
+
+                    if !is_retryable || attempt == retry_config.max_retries {
+                        return Err(e);
+                    }
+
+                    // Wait before retry
+                    std::thread::sleep(delay);
+
+                    // Exponential backoff
+                    delay = std::cmp::min(
+                        Duration::from_secs_f64(delay.as_secs_f64() * retry_config.backoff_multiplier),
+                        retry_config.max_delay,
+                    );
+                }
+            }
+        }
+
+        Err(last_error.unwrap_or(TransactionError::Internal(
+            "Retry failed".to_string(),
+        )))
+    }
+
+    /// Commit multiple transactions in batch
+    ///
+    /// # Arguments
+    /// * `txn_ids` - Transaction IDs to commit
+    ///
+    /// # Returns
+    /// * `Ok(())` - All transactions committed successfully
+    /// * `Err(TransactionError)` - Error on failure (all transactions will be rolled back)
+    ///
+    /// # Note
+    /// If any transaction fails to commit, all previously committed transactions will be rolled back
+    pub fn commit_batch(&self, txn_ids: Vec<TransactionId>) -> Result<(), TransactionError> {
+        let mut committed = Vec::new();
+
+        for txn_id in txn_ids {
+            match self.commit_transaction(txn_id) {
+                Ok(()) => committed.push(txn_id),
+                Err(e) => {
+                    // Rollback all previously committed transactions
+                    for committed_id in committed {
+                        let _ = self.abort_transaction(committed_id);
+                    }
+                    return Err(e);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Get transaction metrics
+    ///
+    /// # Returns
+    /// * `TransactionMetrics` - Transaction metrics
+    pub fn get_metrics(&self) -> TransactionMetrics {
+        let mut metrics = TransactionMetrics::new();
+
+        // Collect transaction durations
+        let durations: Vec<Duration> = self
+            .active_transactions
+            .iter()
+            .map(|entry| entry.value().start_time.elapsed())
+            .collect();
+
+        if durations.is_empty() {
+            return metrics;
+        }
+
+        // Calculate percentiles
+        let mut sorted_durations = durations.clone();
+        sorted_durations.sort();
+
+        metrics.p50_duration = sorted_durations[sorted_durations.len() * 50 / 100];
+        metrics.p95_duration = sorted_durations[sorted_durations.len() * 95 / 100];
+        metrics.p99_duration = sorted_durations[sorted_durations.len() * 99 / 100];
+
+        // Calculate average
+        let total: Duration = durations.iter().sum();
+        metrics.avg_duration = total / durations.len() as u32;
+
+        // Collect long transactions (duration > 10s)
+        metrics.long_transactions = self
+            .active_transactions
+            .iter()
+            .filter(|entry| entry.value().start_time.elapsed() > Duration::from_secs(10))
+            .map(|entry| entry.value().info())
+            .collect();
+
+        metrics.total_count = self.stats.total_transactions.load(Ordering::Relaxed);
+
+        metrics
+    }
+
+    /// Get all active transactions info
+    ///
+    /// # Returns
+    /// * `Vec<TransactionInfo>` - Active transactions info
+    pub fn get_active_transactions(&self) -> Vec<TransactionInfo> {
+        self.active_transactions
+            .iter()
+            .map(|entry| entry.value().info())
+            .collect()
+    }
+
+    /// Get long transactions (duration > 10s)
+    ///
+    /// # Returns
+    /// * `Vec<TransactionInfo>` - Long transactions info
+    pub fn get_long_transactions(&self) -> Vec<TransactionInfo> {
+        self.active_transactions
+            .iter()
+            .filter(|entry| entry.value().start_time.elapsed() > Duration::from_secs(10))
+            .map(|entry| entry.value().info())
+            .collect()
     }
 }
 
