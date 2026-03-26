@@ -9,7 +9,8 @@ use tempfile::TempDir;
 
 use crate::transaction::context::TransactionContext;
 use crate::transaction::types::{
-    DurabilityLevel, OperationLog, TransactionConfig, TransactionError, TransactionId, TransactionState,
+    DurabilityLevel, OperationLog, TransactionConfig, TransactionError, TransactionId,
+    TransactionState,
 };
 
 /// Create test database
@@ -51,12 +52,7 @@ fn test_transaction_context_writable_creation() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     assert_eq!(ctx.id, txn_id);
     assert_eq!(ctx.state(), TransactionState::Active);
@@ -74,12 +70,7 @@ fn test_transaction_context_readonly_creation() {
 
     let read_txn = db.begin_read().expect("Failed to create read transaction");
 
-    let ctx = TransactionContext::new_readonly(
-        txn_id,
-        config,
-        read_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_readonly(txn_id, config, read_txn, None);
 
     assert_eq!(ctx.id, txn_id);
     assert_eq!(ctx.state(), TransactionState::Active);
@@ -98,12 +89,7 @@ fn test_transaction_context_state_transitions() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Active -> Committing
     assert!(ctx.transition_to(TransactionState::Committing).is_ok());
@@ -126,12 +112,7 @@ fn test_transaction_context_invalid_state_transition() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Active -> Committed (invalid transition)
     let result = ctx.transition_to(TransactionState::Committed);
@@ -161,12 +142,7 @@ fn test_transaction_context_timeout() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Initially should not be expired
     assert!(!ctx.is_expired());
@@ -190,12 +166,7 @@ fn test_transaction_context_remaining_time() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Initial remaining time should be close to timeout
     let remaining = ctx.remaining_time();
@@ -222,12 +193,7 @@ fn test_transaction_context_modified_tables() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Record table modifications
     ctx.record_table_modification("vertices");
@@ -252,12 +218,7 @@ fn test_transaction_context_operation_log() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Initial operation log is empty
     assert_eq!(ctx.operation_log_len(), 0);
@@ -296,12 +257,7 @@ fn test_transaction_context_can_execute() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Active state can execute
     assert!(ctx.can_execute().is_ok());
@@ -326,12 +282,7 @@ fn test_transaction_context_can_execute_expired() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Wait for timeout
     std::thread::sleep(Duration::from_millis(100));
@@ -357,12 +308,7 @@ fn test_transaction_context_info() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Record some modifications
     ctx.record_table_modification("vertices");
@@ -387,12 +333,7 @@ fn test_transaction_context_take_write_txn() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Take write transaction
     let taken_txn = ctx.take_write_txn();
@@ -413,12 +354,7 @@ fn test_transaction_context_readonly_take_write_txn() {
 
     let read_txn = db.begin_read().expect("Failed to create read transaction");
 
-    let ctx = TransactionContext::new_readonly(
-        txn_id,
-        config,
-        read_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_readonly(txn_id, config, read_txn, None);
 
     // Read-only transaction cannot take write transaction
     let result = ctx.take_write_txn();
@@ -437,12 +373,7 @@ fn test_transaction_context_with_write_txn() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Execute with write transaction
     let result = ctx.with_write_txn(|_txn| Ok::<(), crate::core::StorageError>(()));
@@ -460,12 +391,7 @@ fn test_transaction_context_readonly_with_write_txn() {
 
     let read_txn = db.begin_read().expect("Failed to create read transaction");
 
-    let ctx = TransactionContext::new_readonly(
-        txn_id,
-        config,
-        read_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_readonly(txn_id, config, read_txn, None);
 
     // Read-only transaction cannot use with_write_txn
     let result = ctx.with_write_txn(|_txn| Ok::<(), crate::core::StorageError>(()));
@@ -487,12 +413,7 @@ fn test_transaction_context_with_read_txn() {
 
     let read_txn = db.begin_read().expect("Failed to create read transaction");
 
-    let ctx = TransactionContext::new_readonly(
-        txn_id,
-        config,
-        read_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_readonly(txn_id, config, read_txn, None);
 
     // Execute with read transaction
     let result = ctx.with_read_txn(|_txn| Ok::<(), crate::core::StorageError>(()));
@@ -512,12 +433,7 @@ fn test_transaction_context_writable_with_read_txn() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Write transaction cannot directly use with_read_txn
     let result = ctx.with_read_txn(|_txn| Ok::<(), crate::core::StorageError>(()));
@@ -538,12 +454,7 @@ fn test_transaction_context_with_write_txn_expired() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Wait for timeout
     std::thread::sleep(Duration::from_millis(100));
@@ -570,12 +481,7 @@ fn test_transaction_context_with_write_txn_invalid_state() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Correct state transition path: Active -> Committing -> Committed
     ctx.transition_to(TransactionState::Committing)
@@ -605,12 +511,7 @@ fn test_savepoint_creation() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Create savepoint
     let savepoint_id = ctx.create_savepoint(Some("sp1".to_string()));
@@ -636,12 +537,7 @@ fn test_multiple_savepoints() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Create multiple savepoints
     let sp1 = ctx.create_savepoint(Some("sp1".to_string()));
@@ -670,12 +566,7 @@ fn test_rollback_to_savepoint() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Create savepoint
     let savepoint_id = ctx.create_savepoint(Some("sp1".to_string()));
@@ -700,12 +591,7 @@ fn test_rollback_to_nonexistent_savepoint() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Try to rollback to nonexistent savepoint
     let result = ctx.rollback_to_savepoint(999);
@@ -728,12 +614,7 @@ fn test_release_savepoint() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Create savepoint
     let savepoint_id = ctx.create_savepoint(Some("sp1".to_string()));
@@ -759,12 +640,7 @@ fn test_release_nonexistent_savepoint() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Try to release nonexistent savepoint
     let result = ctx.release_savepoint(999);
@@ -787,12 +663,7 @@ fn test_savepoint_with_operations() {
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(
-        txn_id,
-        config,
-        write_txn,
-        None,
-    );
+    let ctx = TransactionContext::new_writable(txn_id, config, write_txn, None);
 
     // Create first savepoint
     let sp1 = ctx.create_savepoint(Some("sp1".to_string()));
