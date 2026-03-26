@@ -68,7 +68,7 @@ impl RuntimeContext {
         let storage = Arc::new(RedbStorage::new().expect("Failed to create RedbStorage"));
         let storage_env = Arc::new(StorageEnv {
             storage_engine: storage.clone(),
-            schema_manager: storage.schema_manager.clone(),
+            schema_manager: storage.state().schema_manager.clone(),
         });
 
         let plan_context = Arc::new(PlanContext {

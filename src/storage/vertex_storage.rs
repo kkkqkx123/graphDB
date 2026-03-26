@@ -1,13 +1,10 @@
 use crate::core::types::{InsertVertexInfo, TagInfo, UpdateInfo, UpdateOp};
 use crate::core::{StorageError, Value, Vertex};
 use crate::storage::index::{IndexDataManager, RedbIndexDataManager};
-use crate::storage::metadata::{
-    IndexMetadataManager, RedbIndexMetadataManager, RedbSchemaManager, SchemaManager,
-};
-use crate::storage::operations::{RedbReader, RedbWriter, VertexReader, VertexWriter};
+use crate::storage::metadata::{IndexMetadataManager, SchemaManager};
+use crate::storage::operations::{VertexReader, VertexWriter};
+use crate::storage::shared_state::{StorageInner, StorageSharedState};
 use crate::storage::Schema;
-use parking_lot::Mutex;
-use redb::Database;
 use std::sync::Arc;
 
 /// Vertex Storage Manager
@@ -15,11 +12,9 @@ use std::sync::Arc;
 /// Responsible for vertex additions, deletions and tag management
 #[derive(Clone)]
 pub struct VertexStorage {
-    reader: Arc<Mutex<RedbReader>>,
-    writer: Arc<Mutex<RedbWriter>>,
+    state: Arc<StorageSharedState>,
+    inner: Arc<StorageInner>,
     index_data_manager: RedbIndexDataManager,
-    schema_manager: Arc<RedbSchemaManager>,
-    index_metadata_manager: Arc<RedbIndexMetadataManager>,
 }
 
 impl std::fmt::Debug for VertexStorage {
@@ -31,31 +26,26 @@ impl std::fmt::Debug for VertexStorage {
 impl VertexStorage {
     /// Creating a New Vertex Store Instance
     pub fn new(
-        db: Arc<Database>,
-        reader: Arc<Mutex<RedbReader>>,
-        writer: Arc<Mutex<RedbWriter>>,
-        schema_manager: Arc<RedbSchemaManager>,
-        index_metadata_manager: Arc<RedbIndexMetadataManager>,
+        state: Arc<StorageSharedState>,
+        inner: Arc<StorageInner>,
+        index_data_manager: RedbIndexDataManager,
     ) -> Result<Self, StorageError> {
-        let index_data_manager = RedbIndexDataManager::new(db);
-
         Ok(Self {
-            reader,
-            writer,
+            state,
+            inner,
             index_data_manager,
-            schema_manager,
-            index_metadata_manager,
         })
     }
 
     /// Get a single vertex
     pub fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
-        self.reader.lock().get_vertex(space, id)
+        self.inner.reader.lock().get_vertex(space, id)
     }
 
     /// Scan all vertices
     pub fn scan_vertices(&self, space: &str) -> Result<Vec<Vertex>, StorageError> {
-        self.reader
+        self.inner
+            .reader
             .lock()
             .scan_vertices(space)
             .map(|r| r.into_vec())
@@ -67,7 +57,8 @@ impl VertexStorage {
         space: &str,
         tag: &str,
     ) -> Result<Vec<Vertex>, StorageError> {
-        self.reader
+        self.inner
+            .reader
             .lock()
             .scan_vertices_by_tag(space, tag)
             .map(|r| r.into_vec())
@@ -81,7 +72,8 @@ impl VertexStorage {
         prop: &str,
         value: &Value,
     ) -> Result<Vec<Vertex>, StorageError> {
-        self.reader
+        self.inner
+            .reader
             .lock()
             .scan_vertices_by_prop(space, tag, prop, value)
             .map(|r| r.into_vec())
@@ -95,13 +87,16 @@ impl VertexStorage {
         vertex: Vertex,
     ) -> Result<Value, StorageError> {
         let id = {
-            let mut writer = self.writer.lock();
+            let mut writer = self.inner.writer.lock();
             writer.insert_vertex(space, vertex.clone())?
         };
 
         // Update Index
         for tag in &vertex.tags {
-            let indexes = self.index_metadata_manager.list_tag_indexes(space_id)?;
+            let indexes = self
+                .state
+                .index_metadata_manager
+                .list_tag_indexes(space_id)?;
 
             for index in indexes {
                 if index.schema_name == tag.name {
@@ -129,7 +124,7 @@ impl VertexStorage {
 
     /// Update Vertex
     pub fn update_vertex(&self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
-        let mut writer = self.writer.lock();
+        let mut writer = self.inner.writer.lock();
         writer.update_vertex(space, vertex)
     }
 
@@ -141,7 +136,7 @@ impl VertexStorage {
         id: &Value,
     ) -> Result<(), StorageError> {
         {
-            let mut writer = self.writer.lock();
+            let mut writer = self.inner.writer.lock();
             writer.delete_vertex(space, id)?;
         }
 
@@ -158,7 +153,7 @@ impl VertexStorage {
         space: &str,
         vertices: Vec<Vertex>,
     ) -> Result<Vec<Value>, StorageError> {
-        let mut writer = self.writer.lock();
+        let mut writer = self.inner.writer.lock();
         writer.batch_insert_vertices(space, vertices)
     }
 
@@ -171,7 +166,7 @@ impl VertexStorage {
         tag_names: &[String],
     ) -> Result<usize, StorageError> {
         let deleted_count = {
-            let mut writer = self.writer.lock();
+            let mut writer = self.inner.writer.lock();
             writer.delete_tags(space, vertex_id, tag_names)?
         };
 
@@ -194,6 +189,7 @@ impl VertexStorage {
         // Get label information
         let tag_name = info.tag_name.clone();
         let _tag_info = self
+            .state
             .schema_manager
             .get_tag(space, &tag_name)?
             .ok_or_else(|| {
@@ -213,7 +209,12 @@ impl VertexStorage {
         };
 
         // Getting or creating vertices
-        let vertex = match self.reader.lock().get_vertex(space, &info.vertex_id)? {
+        let vertex = match self
+            .inner
+            .reader
+            .lock()
+            .get_vertex(space, &info.vertex_id)?
+        {
             Some(mut existing_vertex) => {
                 existing_vertex.tags.retain(|t| t.name != tag_name);
                 existing_vertex.tags.push(tag);
@@ -229,7 +230,7 @@ impl VertexStorage {
 
         // Insert vertex
         {
-            let mut writer = self.writer.lock();
+            let mut writer = self.inner.writer.lock();
             writer.update_vertex(space, vertex)?;
         }
 
@@ -256,7 +257,7 @@ impl VertexStorage {
             .delete_vertex_indexes(space_id, vertex_id)?;
 
         // Delete the vertex itself
-        let mut writer = self.writer.lock();
+        let mut writer = self.inner.writer.lock();
         writer.delete_vertex(space, vertex_id)?;
 
         Ok(true)
@@ -285,7 +286,7 @@ impl VertexStorage {
         op: &UpdateOp,
         value: &Value,
     ) -> Result<(), StorageError> {
-        if let Some(mut vertex) = self.reader.lock().get_vertex(space, vertex_id)? {
+        if let Some(mut vertex) = self.inner.reader.lock().get_vertex(space, vertex_id)? {
             for tag_data in &mut vertex.tags {
                 if tag_data.name == tag {
                     match op {
@@ -315,7 +316,7 @@ impl VertexStorage {
                     break;
                 }
             }
-            let mut writer = self.writer.lock();
+            let mut writer = self.inner.writer.lock();
             writer.update_vertex(space, vertex)?;
         }
         Ok(())
@@ -349,10 +350,14 @@ impl VertexStorage {
     ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
         use bincode::{config::standard, encode_to_vec};
 
-        if let Some(vertex) = self.reader.lock().get_vertex(space, id)? {
-            let tag_info = self.schema_manager.get_tag(space, tag)?.ok_or_else(|| {
-                StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag, space))
-            })?;
+        if let Some(vertex) = self.inner.reader.lock().get_vertex(space, id)? {
+            let tag_info = self
+                .state
+                .schema_manager
+                .get_tag(space, tag)?
+                .ok_or_else(|| {
+                    StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag, space))
+                })?;
             let schema = self.build_vertex_schema(&tag_info)?;
             let vertex_data = encode_to_vec(&vertex, standard())?;
             return Ok(Some((schema, vertex_data)));
@@ -369,12 +374,16 @@ impl VertexStorage {
         use bincode::{config::standard, encode_to_vec};
 
         let mut results = Vec::new();
-        let tag_info = self.schema_manager.get_tag(space, tag)?.ok_or_else(|| {
-            StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag, space))
-        })?;
+        let tag_info = self
+            .state
+            .schema_manager
+            .get_tag(space, tag)?
+            .ok_or_else(|| {
+                StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag, space))
+            })?;
         let schema = self.build_vertex_schema(&tag_info)?;
 
-        let vertices = self.reader.lock().scan_vertices(space)?;
+        let vertices = self.inner.reader.lock().scan_vertices(space)?;
         for vertex in vertices {
             if vertex.tags.iter().any(|t| t.name == tag) {
                 let vertex_data = encode_to_vec(&vertex, standard())?;

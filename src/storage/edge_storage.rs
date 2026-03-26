@@ -1,13 +1,10 @@
 use crate::core::types::{EdgeTypeInfo, InsertEdgeInfo};
 use crate::core::{Edge, EdgeDirection, StorageError, Value};
 use crate::storage::index::{IndexDataManager, RedbIndexDataManager};
-use crate::storage::metadata::{
-    IndexMetadataManager, RedbIndexMetadataManager, RedbSchemaManager, SchemaManager,
-};
-use crate::storage::operations::{EdgeReader, EdgeWriter, RedbReader, RedbWriter, VertexReader};
+use crate::storage::metadata::{IndexMetadataManager, SchemaManager};
+use crate::storage::operations::{EdgeReader, EdgeWriter, VertexReader};
+use crate::storage::shared_state::{StorageInner, StorageSharedState};
 use crate::storage::Schema;
-use parking_lot::Mutex;
-use redb::Database;
 use std::sync::Arc;
 
 /// Side Storage Manager
@@ -15,11 +12,9 @@ use std::sync::Arc;
 /// Responsible for edge additions, deletions, deletions and hanging edge detection and repair.
 #[derive(Clone)]
 pub struct EdgeStorage {
-    reader: Arc<Mutex<RedbReader>>,
-    writer: Arc<Mutex<RedbWriter>>,
+    state: Arc<StorageSharedState>,
+    inner: Arc<StorageInner>,
     index_data_manager: RedbIndexDataManager,
-    schema_manager: Arc<RedbSchemaManager>,
-    index_metadata_manager: Arc<RedbIndexMetadataManager>,
 }
 
 impl std::fmt::Debug for EdgeStorage {
@@ -31,20 +26,14 @@ impl std::fmt::Debug for EdgeStorage {
 impl EdgeStorage {
     /// Creating a new edge store instance
     pub fn new(
-        db: Arc<Database>,
-        reader: Arc<Mutex<RedbReader>>,
-        writer: Arc<Mutex<RedbWriter>>,
-        schema_manager: Arc<RedbSchemaManager>,
-        index_metadata_manager: Arc<RedbIndexMetadataManager>,
+        state: Arc<StorageSharedState>,
+        inner: Arc<StorageInner>,
+        index_data_manager: RedbIndexDataManager,
     ) -> Result<Self, StorageError> {
-        let index_data_manager = RedbIndexDataManager::new(db);
-
         Ok(Self {
-            reader,
-            writer,
+            state,
+            inner,
             index_data_manager,
-            schema_manager,
-            index_metadata_manager,
         })
     }
 
@@ -56,7 +45,10 @@ impl EdgeStorage {
         dst: &Value,
         edge_type: &str,
     ) -> Result<Option<Edge>, StorageError> {
-        self.reader.lock().get_edge(space, src, dst, edge_type)
+        self.inner
+            .reader
+            .lock()
+            .get_edge(space, src, dst, edge_type)
     }
 
     /// Get the edges of the node
@@ -66,7 +58,8 @@ impl EdgeStorage {
         node_id: &Value,
         direction: EdgeDirection,
     ) -> Result<Vec<Edge>, StorageError> {
-        self.reader
+        self.inner
+            .reader
             .lock()
             .get_node_edges(space, node_id, direction)
             .map(|r| r.into_vec())
@@ -83,7 +76,8 @@ impl EdgeStorage {
     where
         F: Fn(&Edge) -> bool,
     {
-        self.reader
+        self.inner
+            .reader
             .lock()
             .get_node_edges_filtered(space, node_id, direction, filter)
             .map(|r| r.into_vec())
@@ -95,7 +89,8 @@ impl EdgeStorage {
         space: &str,
         edge_type: &str,
     ) -> Result<Vec<Edge>, StorageError> {
-        self.reader
+        self.inner
+            .reader
             .lock()
             .scan_edges_by_type(space, edge_type)
             .map(|r| r.into_vec())
@@ -103,7 +98,8 @@ impl EdgeStorage {
 
     /// Scan all edges
     pub fn scan_all_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError> {
-        self.reader
+        self.inner
+            .reader
             .lock()
             .scan_all_edges(space)
             .map(|r| r.into_vec())
@@ -112,12 +108,15 @@ impl EdgeStorage {
     /// insertion side
     pub fn insert_edge(&self, space: &str, space_id: u64, edge: Edge) -> Result<(), StorageError> {
         {
-            let mut writer = self.writer.lock();
+            let mut writer = self.inner.writer.lock();
             writer.insert_edge(space, edge.clone())?;
         }
 
         // Update Index
-        let indexes = self.index_metadata_manager.list_edge_indexes(space_id)?;
+        let indexes = self
+            .state
+            .index_metadata_manager
+            .list_edge_indexes(space_id)?;
 
         for index in indexes {
             if index.schema_name == edge.edge_type {
@@ -153,12 +152,15 @@ impl EdgeStorage {
         edge_type: &str,
     ) -> Result<(), StorageError> {
         {
-            let mut writer = self.writer.lock();
+            let mut writer = self.inner.writer.lock();
             writer.delete_edge(space, src, dst, edge_type)?;
         }
 
         // Delete Index
-        let indexes = self.index_metadata_manager.list_edge_indexes(space_id)?;
+        let indexes = self
+            .state
+            .index_metadata_manager
+            .list_edge_indexes(space_id)?;
         let index_names: Vec<String> = indexes
             .into_iter()
             .filter(|idx| idx.schema_name == edge_type)
@@ -172,7 +174,7 @@ impl EdgeStorage {
 
     /// Batch insertion of edges
     pub fn batch_insert_edges(&self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
-        let mut writer = self.writer.lock();
+        let mut writer = self.inner.writer.lock();
         for edge in edges {
             writer.insert_edge(space, edge)?;
         }
@@ -186,15 +188,18 @@ impl EdgeStorage {
         space_id: u64,
         vertex_id: &Value,
     ) -> Result<(), StorageError> {
-        let edges = self.reader.lock().scan_all_edges(space)?;
+        let edges = self.inner.reader.lock().scan_all_edges(space)?;
 
         for edge in edges {
             if *edge.src == *vertex_id || *edge.dst == *vertex_id {
                 {
-                    let mut writer = self.writer.lock();
+                    let mut writer = self.inner.writer.lock();
                     writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type)?;
                 }
-                let indexes = self.index_metadata_manager.list_edge_indexes(space_id)?;
+                let indexes = self
+                    .state
+                    .index_metadata_manager
+                    .list_edge_indexes(space_id)?;
                 let index_names: Vec<String> = indexes
                     .into_iter()
                     .filter(|idx| idx.schema_name == edge.edge_type)
@@ -225,6 +230,7 @@ impl EdgeStorage {
         let props = info.props.clone();
 
         let _edge_type_info = self
+            .state
             .schema_manager
             .get_edge_type(space, &edge_name)?
             .ok_or_else(|| {
@@ -252,7 +258,7 @@ impl EdgeStorage {
 
         // insertion side
         {
-            let mut writer = self.writer.lock();
+            let mut writer = self.inner.writer.lock();
             writer.insert_edge(space, edge)?;
         }
 
@@ -278,16 +284,19 @@ impl EdgeStorage {
         rank: i64,
     ) -> Result<bool, StorageError> {
         // Scan to find matching edges
-        let edges = self.reader.lock().scan_all_edges(space)?;
+        let edges = self.inner.reader.lock().scan_all_edges(space)?;
         let mut deleted = false;
 
         for edge in edges {
             if *edge.src == *src && *edge.dst == *dst && edge.ranking == rank {
                 {
-                    let mut writer = self.writer.lock();
+                    let mut writer = self.inner.writer.lock();
                     writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type)?;
                 }
-                let indexes = self.index_metadata_manager.list_edge_indexes(space_id)?;
+                let indexes = self
+                    .state
+                    .index_metadata_manager
+                    .list_edge_indexes(space_id)?;
                 let index_names: Vec<String> = indexes
                     .into_iter()
                     .filter(|idx| idx.schema_name == edge.edge_type)
@@ -310,11 +319,21 @@ impl EdgeStorage {
     /// Find Hanging Edge
     pub fn find_dangling_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError> {
         let mut dangling_edges = Vec::new();
-        let edges = self.reader.lock().scan_all_edges(space)?;
+        let edges = self.inner.reader.lock().scan_all_edges(space)?;
 
         for edge in edges {
-            let src_exists = self.reader.lock().get_vertex(space, &edge.src)?.is_some();
-            let dst_exists = self.reader.lock().get_vertex(space, &edge.dst)?.is_some();
+            let src_exists = self
+                .inner
+                .reader
+                .lock()
+                .get_vertex(space, &edge.src)?
+                .is_some();
+            let dst_exists = self
+                .inner
+                .reader
+                .lock()
+                .get_vertex(space, &edge.dst)?
+                .is_some();
 
             if !src_exists || !dst_exists {
                 dangling_edges.push(edge);
@@ -331,10 +350,13 @@ impl EdgeStorage {
 
         for edge in dangling_edges {
             {
-                let mut writer = self.writer.lock();
+                let mut writer = self.inner.writer.lock();
                 writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type)?;
             }
-            let indexes = self.index_metadata_manager.list_edge_indexes(space_id)?;
+            let indexes = self
+                .state
+                .index_metadata_manager
+                .list_edge_indexes(space_id)?;
             let index_names: Vec<String> = indexes
                 .into_iter()
                 .filter(|idx| idx.schema_name == edge.edge_type)
@@ -380,8 +402,14 @@ impl EdgeStorage {
     ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
         use bincode::{config::standard, encode_to_vec};
 
-        if let Some(edge) = self.reader.lock().get_edge(space, src, dst, edge_type)? {
+        if let Some(edge) = self
+            .inner
+            .reader
+            .lock()
+            .get_edge(space, src, dst, edge_type)?
+        {
             let edge_type_info = self
+                .state
                 .schema_manager
                 .get_edge_type(space, edge_type)?
                 .ok_or_else(|| {
@@ -407,6 +435,7 @@ impl EdgeStorage {
 
         let mut results = Vec::new();
         let edge_type_info = self
+            .state
             .schema_manager
             .get_edge_type(space, edge_type)?
             .ok_or_else(|| {
@@ -417,7 +446,11 @@ impl EdgeStorage {
             })?;
         let schema = self.build_edge_schema(&edge_type_info)?;
 
-        let edges = self.reader.lock().scan_edges_by_type(space, edge_type)?;
+        let edges = self
+            .inner
+            .reader
+            .lock()
+            .scan_edges_by_type(space, edge_type)?;
         for edge in edges {
             let edge_data = encode_to_vec(&edge, standard())?;
             results.push((schema.clone(), edge_data));

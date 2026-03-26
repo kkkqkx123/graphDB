@@ -3,8 +3,8 @@
 //! Manages the state and resources of a single transaction
 
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use bincode::{config::standard, decode_from_slice, encode_to_vec};

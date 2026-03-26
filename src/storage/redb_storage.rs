@@ -10,6 +10,7 @@ use crate::storage::metadata::{
     IndexMetadataManager, RedbIndexMetadataManager, RedbSchemaManager, SchemaManager,
 };
 use crate::storage::operations::{RedbReader, RedbWriter};
+use crate::storage::shared_state::{StorageInner, StorageSharedState};
 use crate::storage::user_storage::UserStorage;
 use crate::storage::vertex_storage::VertexStorage;
 use crate::storage::Schema;
@@ -24,15 +25,10 @@ use std::sync::Arc;
 /// As a unified interface for the storage layer, it coordinates the various sub-modules to perform specific data operations.
 #[derive(Clone)]
 pub struct RedbStorage {
-    reader: Arc<Mutex<RedbReader>>,
-    writer: Arc<Mutex<RedbWriter>>,
+    state: Arc<StorageSharedState>,
+    inner: Arc<StorageInner>,
     index_data_manager: RedbIndexDataManager,
-    pub schema_manager: Arc<RedbSchemaManager>,
-    pub index_metadata_manager: Arc<RedbIndexMetadataManager>,
-    db: Arc<Database>,
     db_path: PathBuf,
-    current_txn_context: Arc<Mutex<Option<Arc<TransactionContext>>>>,
-    // submodule
     vertex_storage: VertexStorage,
     edge_storage: EdgeStorage,
     user_storage: UserStorage,
@@ -83,43 +79,41 @@ impl RedbStorage {
         let index_metadata_manager = Arc::new(RedbIndexMetadataManager::new(db.clone()));
 
         let reader = RedbReader::new(db.clone())?;
-        let reader = Arc::new(Mutex::new(reader));
-        let writer = Arc::new(Mutex::new(RedbWriter::new(db.clone())?));
+        let writer = RedbWriter::new(db.clone())?;
+
+        let state = Arc::new(StorageSharedState::new(
+            db.clone(),
+            schema_manager.clone(),
+            index_metadata_manager.clone(),
+        ));
+
+        let inner = Arc::new(StorageInner::new(reader, writer));
 
         let index_data_manager = RedbIndexDataManager::new(db.clone());
 
         // Create a sub-module
-        let vertex_storage = VertexStorage::new(
-            db.clone(),
-            reader.clone(),
-            writer.clone(),
-            schema_manager.clone(),
-            index_metadata_manager.clone(),
-        )?;
+        let vertex_storage =
+            VertexStorage::new(state.clone(), inner.clone(), index_data_manager.clone())?;
 
-        let edge_storage = EdgeStorage::new(
-            db.clone(),
-            reader.clone(),
-            writer.clone(),
-            schema_manager.clone(),
-            index_metadata_manager.clone(),
-        )?;
+        let edge_storage =
+            EdgeStorage::new(state.clone(), inner.clone(), index_data_manager.clone())?;
 
         let user_storage = UserStorage::new();
 
         Ok(Self {
-            reader,
-            writer,
+            state,
+            inner,
             index_data_manager,
-            schema_manager,
-            index_metadata_manager,
-            db,
             db_path: path,
-            current_txn_context: Arc::new(Mutex::new(None)),
             vertex_storage,
             edge_storage,
             user_storage,
         })
+    }
+
+    /// Get shared state reference
+    pub fn state(&self) -> &StorageSharedState {
+        &self.state
     }
 
     /// Initialize the database tables
@@ -182,35 +176,36 @@ impl RedbStorage {
 
     /// Obtain a database instance
     pub fn get_db(&self) -> &Arc<Database> {
-        &self.db
+        &self.state.db
     }
 
     /// Obtain the reader.
-    pub fn get_reader(&self) -> &Arc<Mutex<RedbReader>> {
-        &self.reader
+    pub fn get_reader(&self) -> &Mutex<RedbReader> {
+        &self.inner.reader
     }
 
     /// Obtain the writer
     pub fn get_writer(&self) -> Arc<Mutex<RedbWriter>> {
-        self.writer.clone()
+        self.inner.writer.clone()
     }
 
     /// Setting up the transaction context
     pub fn set_transaction_context(&self, context: Option<Arc<TransactionContext>>) {
-        *self.current_txn_context.lock() = context.clone();
+        *self.inner.current_txn_context.lock() = context.clone();
 
         if let Some(ctx) = &context {
-            self.reader
+            self.inner
+                .reader
                 .lock()
                 .set_transaction_context(Some(ctx.clone()));
         } else {
-            self.reader.lock().set_transaction_context(None);
+            self.inner.reader.lock().set_transaction_context(None);
         }
     }
 
     /// Obtaining the transaction context
     pub fn get_transaction_context(&self) -> Option<Arc<TransactionContext>> {
-        self.current_txn_context.lock().clone()
+        self.inner.current_txn_context.lock().clone()
     }
 
     /// Analyzing vertex IDs
@@ -223,7 +218,7 @@ impl RedbStorage {
 
     /// Obtain the space_id
     fn get_space_id_internal(&self, space: &str) -> Result<u64, StorageError> {
-        if let Some(space_info) = self.schema_manager.get_space(space)? {
+        if let Some(space_info) = self.state.schema_manager.get_space(space)? {
             Ok(space_info.space_id)
         } else {
             Err(StorageError::DbError(format!(
@@ -365,27 +360,27 @@ impl StorageClient for RedbStorage {
 
     // ==================== Space Operations ====================
     fn create_space(&mut self, space: &SpaceInfo) -> Result<bool, StorageError> {
-        self.schema_manager.create_space(space)
+        self.state.schema_manager.create_space(space)
     }
 
     fn drop_space(&mut self, space: &str) -> Result<bool, StorageError> {
-        self.schema_manager.drop_space(space)
+        self.state.schema_manager.drop_space(space)
     }
 
     fn get_space(&self, space: &str) -> Result<Option<SpaceInfo>, StorageError> {
-        self.schema_manager.get_space(space)
+        self.state.schema_manager.get_space(space)
     }
 
     fn get_space_by_id(&self, space_id: u64) -> Result<Option<SpaceInfo>, StorageError> {
-        self.schema_manager.get_space_by_id(space_id)
+        self.state.schema_manager.get_space_by_id(space_id)
     }
 
     fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError> {
-        self.schema_manager.list_spaces()
+        self.state.schema_manager.list_spaces()
     }
 
     fn get_space_id(&self, space_name: &str) -> Result<u64, StorageError> {
-        if let Some(space) = self.schema_manager.get_space(space_name)? {
+        if let Some(space) = self.state.schema_manager.get_space(space_name)? {
             Ok(space.space_id)
         } else {
             Err(StorageError::DbError(format!(
@@ -396,7 +391,7 @@ impl StorageClient for RedbStorage {
     }
 
     fn space_exists(&self, space_name: &str) -> bool {
-        matches!(self.schema_manager.get_space(space_name), Ok(Some(_)))
+        matches!(self.state.schema_manager.get_space(space_name), Ok(Some(_)))
     }
 
     fn clear_space(&mut self, space: &str) -> Result<bool, StorageError> {
@@ -422,14 +417,20 @@ impl StorageClient for RedbStorage {
         }
 
         // Clear all tag indexes for this space
-        let tag_indexes = self.index_metadata_manager.list_tag_indexes(space_id)?;
+        let tag_indexes = self
+            .state
+            .index_metadata_manager
+            .list_tag_indexes(space_id)?;
         for index in tag_indexes {
             self.index_data_manager
                 .clear_tag_index(space_id, &index.name)?;
         }
 
         // Clear all edge indexes for this space
-        let edge_indexes = self.index_metadata_manager.list_edge_indexes(space_id)?;
+        let edge_indexes = self
+            .state
+            .index_metadata_manager
+            .list_edge_indexes(space_id)?;
         for index in edge_indexes {
             self.index_data_manager
                 .clear_edge_index(space_id, &index.name)?;
@@ -445,6 +446,7 @@ impl StorageClient for RedbStorage {
     ) -> Result<bool, StorageError> {
         // Get existing space info
         let mut space_info = self
+            .state
             .schema_manager
             .get_space_by_id(space_id)?
             .ok_or_else(|| StorageError::DbError(format!("Space ID '{}' not found", space_id)))?;
@@ -453,14 +455,14 @@ impl StorageClient for RedbStorage {
         space_info.comment = Some(comment);
 
         // Save updated space info
-        self.schema_manager.update_space(&space_info)?;
+        self.state.schema_manager.update_space(&space_info)?;
 
         Ok(true)
     }
 
     // ==================== Tag Operations ====================
     fn create_tag(&mut self, space: &str, tag: &TagInfo) -> Result<bool, StorageError> {
-        self.schema_manager.create_tag(space, tag)
+        self.state.schema_manager.create_tag(space, tag)
     }
 
     fn alter_tag(
@@ -471,9 +473,13 @@ impl StorageClient for RedbStorage {
         deletions: Vec<String>,
     ) -> Result<bool, StorageError> {
         // Get existing tag info
-        let mut tag_info = self.schema_manager.get_tag(space, tag)?.ok_or_else(|| {
-            StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag, space))
-        })?;
+        let mut tag_info = self
+            .state
+            .schema_manager
+            .get_tag(space, tag)?
+            .ok_or_else(|| {
+                StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag, space))
+            })?;
 
         // Remove specified properties
         tag_info.properties.retain(|p| !deletions.contains(&p.name));
@@ -487,26 +493,26 @@ impl StorageClient for RedbStorage {
         }
 
         // Update tag
-        self.schema_manager.update_tag(space, &tag_info)?;
+        self.state.schema_manager.update_tag(space, &tag_info)?;
 
         Ok(true)
     }
 
     fn get_tag(&self, space: &str, tag: &str) -> Result<Option<TagInfo>, StorageError> {
-        self.schema_manager.get_tag(space, tag)
+        self.state.schema_manager.get_tag(space, tag)
     }
 
     fn drop_tag(&mut self, space: &str, tag: &str) -> Result<bool, StorageError> {
-        self.schema_manager.drop_tag(space, tag)
+        self.state.schema_manager.drop_tag(space, tag)
     }
 
     fn list_tags(&self, space: &str) -> Result<Vec<TagInfo>, StorageError> {
-        self.schema_manager.list_tags(space)
+        self.state.schema_manager.list_tags(space)
     }
 
     // ==================== EdgeType Operations ====================
     fn create_edge_type(&mut self, space: &str, edge: &EdgeTypeInfo) -> Result<bool, StorageError> {
-        self.schema_manager.create_edge_type(space, edge)
+        self.state.schema_manager.create_edge_type(space, edge)
     }
 
     fn alter_edge_type(
@@ -518,6 +524,7 @@ impl StorageClient for RedbStorage {
     ) -> Result<bool, StorageError> {
         // Get existing edge type info
         let mut edge_info = self
+            .state
             .schema_manager
             .get_edge_type(space, edge_type)?
             .ok_or_else(|| {
@@ -541,7 +548,9 @@ impl StorageClient for RedbStorage {
         }
 
         // Update edge type
-        self.schema_manager.update_edge_type(space, &edge_info)?;
+        self.state
+            .schema_manager
+            .update_edge_type(space, &edge_info)?;
 
         Ok(true)
     }
@@ -551,36 +560,42 @@ impl StorageClient for RedbStorage {
         space: &str,
         edge_type: &str,
     ) -> Result<Option<EdgeTypeInfo>, StorageError> {
-        self.schema_manager.get_edge_type(space, edge_type)
+        self.state.schema_manager.get_edge_type(space, edge_type)
     }
 
     fn drop_edge_type(&mut self, space: &str, edge_type: &str) -> Result<bool, StorageError> {
-        self.schema_manager.drop_edge_type(space, edge_type)
+        self.state.schema_manager.drop_edge_type(space, edge_type)
     }
 
     fn list_edge_types(&self, space: &str) -> Result<Vec<EdgeTypeInfo>, StorageError> {
-        self.schema_manager.list_edge_types(space)
+        self.state.schema_manager.list_edge_types(space)
     }
 
     // ==================== Index Operations ====================
     fn create_tag_index(&mut self, space: &str, info: &Index) -> Result<bool, StorageError> {
         let space_id = self.get_space_id_internal(space)?;
-        self.index_metadata_manager.create_tag_index(space_id, info)
+        self.state
+            .index_metadata_manager
+            .create_tag_index(space_id, info)
     }
 
     fn drop_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
         let space_id = self.get_space_id_internal(space)?;
-        self.index_metadata_manager.drop_tag_index(space_id, index)
+        self.state
+            .index_metadata_manager
+            .drop_tag_index(space_id, index)
     }
 
     fn get_tag_index(&self, space: &str, index: &str) -> Result<Option<Index>, StorageError> {
         let space_id = self.get_space_id_internal(space)?;
-        self.index_metadata_manager.get_tag_index(space_id, index)
+        self.state
+            .index_metadata_manager
+            .get_tag_index(space_id, index)
     }
 
     fn list_tag_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError> {
         let space_id = self.get_space_id_internal(space)?;
-        self.index_metadata_manager.list_tag_indexes(space_id)
+        self.state.index_metadata_manager.list_tag_indexes(space_id)
     }
 
     fn rebuild_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
@@ -588,6 +603,7 @@ impl StorageClient for RedbStorage {
 
         // Get index info
         let index_info = self
+            .state
             .index_metadata_manager
             .get_tag_index(space_id, index)?
             .ok_or_else(|| StorageError::DbError(format!("Index '{}' does not exist", index)))?;
@@ -621,23 +637,30 @@ impl StorageClient for RedbStorage {
 
     fn create_edge_index(&mut self, space: &str, info: &Index) -> Result<bool, StorageError> {
         let space_id = self.get_space_id_internal(space)?;
-        self.index_metadata_manager
+        self.state
+            .index_metadata_manager
             .create_edge_index(space_id, info)
     }
 
     fn drop_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
         let space_id = self.get_space_id_internal(space)?;
-        self.index_metadata_manager.drop_edge_index(space_id, index)
+        self.state
+            .index_metadata_manager
+            .drop_edge_index(space_id, index)
     }
 
     fn get_edge_index(&self, space: &str, index: &str) -> Result<Option<Index>, StorageError> {
         let space_id = self.get_space_id_internal(space)?;
-        self.index_metadata_manager.get_edge_index(space_id, index)
+        self.state
+            .index_metadata_manager
+            .get_edge_index(space_id, index)
     }
 
     fn list_edge_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError> {
         let space_id = self.get_space_id_internal(space)?;
-        self.index_metadata_manager.list_edge_indexes(space_id)
+        self.state
+            .index_metadata_manager
+            .list_edge_indexes(space_id)
     }
 
     fn rebuild_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
@@ -645,6 +668,7 @@ impl StorageClient for RedbStorage {
 
         // Obtain index information
         let index_info = self
+            .state
             .index_metadata_manager
             .get_edge_index(space_id, index)?
             .ok_or_else(|| StorageError::DbError(format!("索引 '{}' 不存在", index)))?;
@@ -763,6 +787,7 @@ impl StorageClient for RedbStorage {
         let space_id = self.get_space_id_internal(space)?;
 
         if let Some(index) = self
+            .state
             .index_metadata_manager
             .get_tag_index(space_id, index_name)?
         {
@@ -773,6 +798,7 @@ impl StorageClient for RedbStorage {
         }
 
         if let Some(index) = self
+            .state
             .index_metadata_manager
             .get_edge_index(space_id, index_name)?
         {
@@ -835,19 +861,20 @@ impl StorageClient for RedbStorage {
 
     fn get_storage_stats(&self) -> crate::storage::storage_client::StorageStats {
         let total_spaces = self
+            .state
             .schema_manager
             .list_spaces()
-            .map(|s| s.len())
+            .map(|s: Vec<_>| s.len())
             .unwrap_or(0);
         let mut total_tags = 0;
         let mut total_edge_types = 0;
 
-        let spaces = self.schema_manager.list_spaces().unwrap_or_default();
+        let spaces = self.state.schema_manager.list_spaces().unwrap_or_default();
         for space in spaces {
-            if let Ok(tags) = self.schema_manager.list_tags(&space.space_name) {
+            if let Ok(tags) = self.state.schema_manager.list_tags(&space.space_name) {
                 total_tags += tags.len();
             }
-            if let Ok(edge_types) = self.schema_manager.list_edge_types(&space.space_name) {
+            if let Ok(edge_types) = self.state.schema_manager.list_edge_types(&space.space_name) {
                 total_edge_types += edge_types.len();
             }
         }

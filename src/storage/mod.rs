@@ -8,6 +8,7 @@ pub mod redb_storage;
 pub mod redb_types;
 pub mod runtime_context;
 pub mod schema;
+pub mod shared_state;
 pub mod storage_client;
 pub mod types;
 pub mod user_storage;

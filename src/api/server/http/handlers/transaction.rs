@@ -43,9 +43,15 @@ pub async fn begin<S: StorageClient + Clone + Send + Sync + 'static>(
             timeout: request.timeout_seconds.map(std::time::Duration::from_secs),
             durability: DurabilityLevel::Immediate,
             isolation_level: IsolationLevel::default(),
-            query_timeout: request.query_timeout_seconds.map(std::time::Duration::from_secs),
-            statement_timeout: request.statement_timeout_seconds.map(std::time::Duration::from_secs),
-            idle_timeout: request.idle_timeout_seconds.map(std::time::Duration::from_secs),
+            query_timeout: request
+                .query_timeout_seconds
+                .map(std::time::Duration::from_secs),
+            statement_timeout: request
+                .statement_timeout_seconds
+                .map(std::time::Duration::from_secs),
+            idle_timeout: request
+                .idle_timeout_seconds
+                .map(std::time::Duration::from_secs),
         };
 
         match txn_manager.begin_transaction(options) {

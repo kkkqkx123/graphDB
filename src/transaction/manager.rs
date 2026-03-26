@@ -24,7 +24,8 @@ pub struct TransactionManager {
     /// Configuration
     config: TransactionManagerConfig,
     /// Active transactions table - Using DashMap instead of RwLock<HashMap> for better concurrent performance
-    active_transactions: Arc<DashMap<TransactionId, Arc<TransactionContext>>>,
+    /// DashMap internally uses Arc for values, no need for extra Arc wrapper
+    active_transactions: DashMap<TransactionId, Arc<TransactionContext>>,
     /// Transaction ID generator
     id_generator: AtomicU64,
     /// Statistics
@@ -41,7 +42,7 @@ impl TransactionManager {
         Self {
             db,
             config,
-            active_transactions: Arc::new(DashMap::new()),
+            active_transactions: DashMap::new(),
             id_generator: AtomicU64::new(1),
             stats: Arc::new(TransactionStats::new()),
             shutdown_flag: AtomicU64::new(0),
@@ -505,16 +506,16 @@ impl TransactionManager {
 
                     // Exponential backoff
                     delay = std::cmp::min(
-                        Duration::from_secs_f64(delay.as_secs_f64() * retry_config.backoff_multiplier),
+                        Duration::from_secs_f64(
+                            delay.as_secs_f64() * retry_config.backoff_multiplier,
+                        ),
                         retry_config.max_delay,
                     );
                 }
             }
         }
 
-        Err(last_error.unwrap_or(TransactionError::Internal(
-            "Retry failed".to_string(),
-        )))
+        Err(last_error.unwrap_or(TransactionError::Internal("Retry failed".to_string())))
     }
 
     /// Commit multiple transactions in batch
