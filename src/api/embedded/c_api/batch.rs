@@ -1,6 +1,6 @@
 //! C API Batch Operation Module
 //!
-//! Provide batch operation function, support batch insert, batch update and batch delete
+//! Provides batch operation functions, supporting batch insert, batch update, and batch delete
 
 use crate::api::embedded::c_api::error::{graphdb_error_code_t, set_last_error_message};
 use crate::api::embedded::c_api::session::GraphDbSessionHandle;
@@ -11,7 +11,7 @@ use crate::storage::StorageClient;
 use std::collections::HashMap;
 use std::ffi::{c_char, c_int, CStr, CString};
 
-/// Batch action item type
+// Batch action item type
 enum BatchItem {
     Vertex(Vertex),
     Edge(Edge),
@@ -20,21 +20,21 @@ enum BatchItem {
 /// Internal Structure of Batch Operation Handles
 ///
 /// Note: This structure holds the session pointer, but does not own the session.
-/// The caller must ensure that the session is not closed until the bulk operation handle is released.
+/// The caller must ensure that the session is not closed until the batch operation handle is released.
 pub struct GraphDbBatchHandle {
     /// Associated session pointer (used to verify session validity)
     session_ptr: *mut GraphDbSessionHandle,
     /// Batch size
     batch_size: usize,
-    /// buffer
+    /// Buffer
     buffer: Vec<BatchItem>,
     /// Number of inserted vertices
     vertices_inserted: usize,
     /// Number of inserted edges
     edges_inserted: usize,
-    /// error message
+    /// Error messages
     errors: Vec<String>,
-    /// final error
+    /// Final error
     pub(crate) last_error: Option<CString>,
 }
 
@@ -53,7 +53,7 @@ impl GraphDbBatchHandle {
         }
     }
 
-    /// Flush Vertex Buffer
+    /// Flush vertex buffer
     fn flush_vertices(&mut self) -> Result<(), String> {
         // Separate vertices and edges
         let mut vertices = Vec::new();
@@ -79,12 +79,12 @@ impl GraphDbBatchHandle {
         let result = {
             let session = self
                 .get_session()
-                .ok_or_else(|| "会话无效或已关闭".to_string())?;
+                .ok_or_else(|| "Session invalid or closed".to_string())?;
 
             let space_name = session
                 .inner
                 .space_name()
-                .ok_or_else(|| "未选择图空间".to_string())?;
+                .ok_or_else(|| "No graph space selected".to_string())?;
 
             // Calling the storage layer's batch insertion interface
             let mut storage = session.inner.storage();
@@ -97,14 +97,14 @@ impl GraphDbBatchHandle {
                 Ok(())
             }
             Err(e) => {
-                let err_msg = format!("批量插入顶点失败: {}", e);
+                let err_msg = format!("Batch insert vertices failed: {}", e);
                 self.errors.push(err_msg.clone());
                 Err(err_msg)
             }
         }
     }
 
-    /// Refresh Side Buffer
+    /// Flush edge buffer
     fn flush_edges(&mut self) -> Result<(), String> {
         // Separate edges and vertices
         let mut edges = Vec::new();
@@ -117,7 +117,7 @@ impl GraphDbBatchHandle {
             }
         }
 
-        // Putting vertices back into the buffer
+        // Put vertices back into the buffer
         self.buffer.extend(remaining);
 
         if edges.is_empty() {
@@ -130,12 +130,12 @@ impl GraphDbBatchHandle {
         let result = {
             let session = self
                 .get_session()
-                .ok_or_else(|| "会话无效或已关闭".to_string())?;
+                .ok_or_else(|| "Session invalid or closed".to_string())?;
 
             let space_name = session
                 .inner
                 .space_name()
-                .ok_or_else(|| "未选择图空间".to_string())?;
+                .ok_or_else(|| "No graph space selected".to_string())?;
 
             // Calling the storage layer's batch insertion interface
             let mut storage = session.inner.storage();
@@ -148,7 +148,7 @@ impl GraphDbBatchHandle {
                 Ok(())
             }
             Err(e) => {
-                let err_msg = format!("批量插入边失败: {}", e);
+                let err_msg = format!("Batch insert edges failed: {}", e);
                 self.errors.push(err_msg.clone());
                 Err(err_msg)
             }
@@ -157,24 +157,24 @@ impl GraphDbBatchHandle {
 
     /// Performs a batch insert, flushing all buffered data
     fn execute(&mut self) -> Result<(), String> {
-        // Refresh the apex first.
+        // Flush vertices first.
         self.flush_vertices()?;
 
-        // Refresh side
+        // Flush edges
         self.flush_edges()?;
 
         Ok(())
     }
 }
 
-/// Creating a Batch Inserter
+/// Create a batch inserter
 ///
 /// # Parameters
 /// - `session`: session handle
 /// - `batch_size`: batch size
 /// - `batch`: output parameter, batch operation handle
 ///
-/// # Return
+/// # Returns
 /// Success: GRAPHDB_OK
 /// Failure: Error code
 ///
@@ -184,7 +184,7 @@ impl GraphDbBatchHandle {
 /// - `batch` must be a valid pointer to store the batch handle
 /// - The created batch handle holds a session pointer but does not own the session
 /// - The caller must ensure the session is not closed before the batch handle is freed
-/// - The caller is responsible for freeing the batch handle using `graphdb_batch_inserter_free` when done
+/// - The caller is responsible for freeing the batch handle using `graphdb_batch_free` when done
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_batch_inserter_create(
     session: *mut graphdb_session_t,
@@ -218,16 +218,16 @@ pub unsafe extern "C" fn graphdb_batch_inserter_create(
 
 /// Adding Vertices
 ///
-/// # 参数
+/// # Parameters
 /// - `batch`: A handle for batch operations
 /// - `vid`: vertex ID
 /// - `tag_name`: tag name (UTF-8 encoding)
 /// - `properties`: An array of properties.
 /// - `prop_count`: The number of properties
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
 ///
 /// # Safety
 /// - The `batch` must be a valid batch operation handle created using the `graphdb_batch_inserter_create` function.
@@ -280,7 +280,7 @@ pub unsafe extern "C" fn graphdb_batch_add_vertex(
 
         handle.buffer.push(BatchItem::Vertex(vertex));
 
-        // If the batch size is reached, the content will be automatically refreshed.
+        // If the batch size is reached, the content will be automatically flushed.
         if handle.buffer.len() >= handle.batch_size {
             if let Err(e) = handle.flush_vertices() {
                 let error_msg = e.to_string();
@@ -294,26 +294,26 @@ pub unsafe extern "C" fn graphdb_batch_add_vertex(
     }
 }
 
-/// Add borders
+/// Add edges
 ///
-/// # 参数
-/// - `batch`: 批量操作句柄
+/// # Parameters
+/// - `batch`: Batch operation handle
 /// - `src_vid`: ID of the source vertex
 /// - `dst_vid`: ID of the target vertex
 /// - `edge_type`: The name of the edge type (encoded in UTF-8)
 /// - `rank`: Ranking
-/// - `properties`: 属性数组
-/// - `prop_count`: 属性数量
+/// - `properties`: Array of properties
+/// - `prop_count`: Number of properties
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
 ///
 /// # Safety
-/// - `batch` 必须是通过 `graphdb_batch_inserter_create` 创建的有效批量操作句柄
+/// - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
 /// - The `edge_type` must be a valid pointer to a UTF-8 string that ends with `null`.
-/// - 如果 `properties` 不为 null,则必须指向至少 `prop_count` 个有效的 `graphdb_value_t` 元素
-/// - 调用者必须确保在调用此函数时,关联的会话仍然有效
+/// - If `properties` is not null, it must point to at least `prop_count` valid `graphdb_value_t` elements
+/// - Caller must ensure the associated session is still valid when calling this function
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_batch_add_edge(
     batch: *mut graphdb_batch_t,
@@ -366,7 +366,7 @@ pub unsafe extern "C" fn graphdb_batch_add_edge(
 
         handle.buffer.push(BatchItem::Edge(edge));
 
-        // If the batch size is reached, the content will be automatically refreshed.
+        // If the batch size is reached, the content will be automatically flushed.
         if handle.buffer.len() >= handle.batch_size {
             if let Err(e) = handle.flush_edges() {
                 let error_msg = e.to_string();
@@ -382,17 +382,17 @@ pub unsafe extern "C" fn graphdb_batch_add_edge(
 
 /// Perform batch insert operations.
 ///
-/// # 参数
-/// - `batch`: 批量操作句柄
+/// # Parameters
+/// - `batch`: Batch operation handle
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
 ///
 /// # Safety
-/// - `batch` 必须是通过 `graphdb_batch_inserter_create` 创建的有效批量操作句柄
-/// - 调用者必须确保在调用此函数时,关联的会话仍然有效
-/// This function triggers the actual database write operations, which may involve I/O (Input/Output) operations.
+/// - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
+/// - Caller must ensure the associated session is still valid when calling this function
+/// - This function triggers the actual database write operations, which may involve I/O (Input/Output) operations.
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_batch_flush(batch: *mut graphdb_batch_t) -> c_int {
     if batch.is_null() {
@@ -421,15 +421,15 @@ pub unsafe extern "C" fn graphdb_batch_flush(batch: *mut graphdb_batch_t) -> c_i
 
 /// Get the number of buffered vertices.
 ///
-/// # 参数
-/// - `batch`: 批量操作句柄
+/// # Parameters
+/// - `batch`: Batch operation handle
 ///
-/// # 返回
+/// # Returns
 /// Number of buffered vertices
 ///
 /// # Safety
-/// - `batch` 必须是通过 `graphdb_batch_inserter_create` 创建的有效批量操作句柄
-/// - 调用者必须确保在调用此函数时,关联的会话仍然有效
+/// - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
+/// - Caller must ensure the associated session is still valid when calling this function
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_batch_buffered_vertices(batch: *mut graphdb_batch_t) -> c_int {
     if batch.is_null() {
@@ -473,7 +473,7 @@ pub unsafe extern "C" fn graphdb_batch_buffered_edges(batch: *mut graphdb_batch_
     }
 }
 
-/// Release the batch operation handle
+/// Free the batch operation handle
 ///
 /// # Arguments
 /// - `batch`: Batch operation handle
@@ -542,7 +542,7 @@ mod tests {
         // Make sure the database file does not exist.
         if db_path.exists() {
             std::fs::remove_file(&db_path).ok();
-            // Waiting for the file system to complete the deletion operation.
+            // Wait for the file system to complete the deletion operation.
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
 
@@ -552,7 +552,7 @@ mod tests {
 
         let rc = unsafe { graphdb_open(path_cstring.as_ptr(), &mut db) };
         if rc != graphdb_error_code_t::GRAPHDB_OK as c_int {
-            panic!("打开数据库失败，错误码: {}, 路径: {:?}", rc, db_path);
+            panic!("Failed to open database, error code: {}, path: {:?}", rc, db_path);
         }
         assert!(!db.is_null());
 

@@ -2,57 +2,56 @@
 
 ## Summary
 
-- **Total Errors**: 0
-- **Total Warnings**: 9
-- **Total Issues**: 9
-- **Unique Error Patterns**: 0
+- **Total Errors**: 1
+- **Total Warnings**: 1
+- **Total Issues**: 2
+- **Unique Error Patterns**: 1
 - **Unique Warning Patterns**: 1
-- **Files with Issues**: 4
+- **Files with Issues**: 3
 
 ## Error Statistics
 
-**Total Errors**: 0
+**Total Errors**: 1
+
+### Error Type Breakdown
+
+- **error**: 1 errors
+
+### Files with Errors (Top 10)
+
+- `src\api\embedded\c_api\batch.rs`: 1 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 9
+**Total Warnings**: 1
 
 ### Warning Type Breakdown
 
-- **warning**: 9 warnings
+- **warning**: 1 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\query\executor\data_processing\graph_traversal\mod.rs`: 4 warnings
-- `src\query\planning\statements\match_statement_planner.rs`: 3 warnings
-- `src\api\embedded\c_api\batch.rs`: 1 warnings
-- `src\query\cache\plan_cache.rs`: 1 warnings
+- `src\api\embedded\c_api\mod.rs`: 1 warnings
 
-## Detailed Warning Categorization
+## Detailed Error Categorization
 
-### warning: doc list item without indentation
+### error: expected `;`, found doc comment `/// Batch action item type`: unexpected token
 
-**Total Occurrences**: 9  
-**Unique Files**: 4
-
-#### `src\query\executor\data_processing\graph_traversal\mod.rs`: 4 occurrences
-
-- Line 6: doc list item without indentation
-- Line 7: doc list item without indentation
-- Line 8: doc list item without indentation
-- ... 1 more occurrences in this file
-
-#### `src\query\planning\statements\match_statement_planner.rs`: 3 occurrences
-
-- Line 8: doc list item without indentation
-- Line 9: doc list item without indentation
-- Line 10: doc list item without indentation
+**Total Occurrences**: 1  
+**Unique Files**: 1
 
 #### `src\api\embedded\c_api\batch.rs`: 1 occurrences
 
-- Line 395: doc list item without indentation
+- Line 14: expected `;`, found doc comment `/// Batch action item type`: unexpected token
 
-#### `src\query\cache\plan_cache.rs`: 1 occurrences
+## Detailed Warning Categorization
 
-- Line 301: doc list item without indentation
+### warning: unused import: `batch::*`
+
+**Total Occurrences**: 1  
+**Unique Files**: 1
+
+#### `src\api\embedded\c_api\mod.rs`: 1 occurrences
+
+- Line 16: unused import: `batch::*`
 

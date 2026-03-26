@@ -1,13 +1,13 @@
 //! Graph Traversal Executor Module
 //!
 //! Include all executors related to graph traversal, including:
-//!   Step-by-step expansion
+//!   - Step-by-step expansion
 //!   - ExpandAll (full path extension)
-//!   Complete traversal
-//!   ShortestPath
-//!   AllPaths – Added
+//!   - Complete traversal
+//!   - ShortestPath
+//!   - AllPaths – Added
 //!   - MultiShortestPath – Added
-//!   Subgraph extraction
+//!   - Subgraph extraction
 
 // Algorithm module – Decouples the implementation of algorithms from the execution process
 pub mod algorithms;

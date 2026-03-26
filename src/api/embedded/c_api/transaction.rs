@@ -1,6 +1,6 @@
 //! C API Transaction Management Module
 //!
-//! Provide transaction management functionality, including transaction start, commit, rollback and savepoints
+//! Provides transaction management functionality, including transaction start, commit, rollback, and savepoints
 
 use crate::api::core::TransactionHandle;
 use crate::api::embedded::c_api::error::{
@@ -52,7 +52,7 @@ impl Drop for GraphDbTxnHandle {
     }
 }
 
-/// Commencement of business
+/// Begin a transaction
 ///
 /// # Parameters
 /// - `session`: session handle
@@ -104,13 +104,13 @@ pub unsafe extern "C" fn graphdb_txn_begin(
 
 /// Starting a read-only transaction
 ///
-/// # 参数
-/// - `session`: 会话句柄
-/// - `txn`: 输出参数，事务句柄
+/// # Parameters
+/// - `session`: Session handle
+/// - `txn`: Output parameter, transaction handle
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
 ///
 /// # Safety
 /// - `session` must be a valid session handle created by `graphdb_session_create`
@@ -159,14 +159,14 @@ pub unsafe extern "C" fn graphdb_txn_begin_readonly(
 
 /// Executing queries in a transaction
 ///
-/// # 参数
-/// `txn`: Transaction handle
-/// - `query`: query statement (UTF-8 encoding)
-/// - `result`: output parameter, result set handle
+/// # Parameters
+/// - `txn`: Transaction handle
+/// - `query`: Query statement (UTF-8 encoding)
+/// - `result`: Output parameter, result set handle
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
 ///
 /// # Safety
 /// - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
@@ -233,14 +233,14 @@ pub unsafe extern "C" fn graphdb_txn_execute(
     }
 }
 
-/// Submission of transactions
+/// Commit transactions
 ///
-/// # 参数
-/// - `txn`: 事务句柄
+/// # Parameters
+/// - `txn`: Transaction handle
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
 ///
 /// # Safety
 /// - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
@@ -293,12 +293,12 @@ pub unsafe extern "C" fn graphdb_txn_commit(txn: *mut graphdb_txn_t) -> c_int {
 
 /// Rolling back transactions
 ///
-/// # 参数
-/// - `txn`: 事务句柄
+/// # Parameters
+/// - `txn`: Transaction handle
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
 ///
 /// # Safety
 /// - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
@@ -346,13 +346,13 @@ pub unsafe extern "C" fn graphdb_txn_rollback(txn: *mut graphdb_txn_t) -> c_int 
     }
 }
 
-/// Creating a save point
+/// Creating a savepoint
 ///
-/// # 参数
-/// - `txn`: 事务句柄
-/// - `name`: name of the repository (UTF-8 encoding)
+/// # Parameters
+/// - `txn`: Transaction handle
+/// - `name`: Name of the savepoint (UTF-8 encoding)
 ///
-/// # 返回
+/// # Returns
 /// - Success: Savepoint ID
 /// - Failure: -1
 ///
@@ -394,15 +394,15 @@ pub unsafe extern "C" fn graphdb_txn_savepoint(
     }
 }
 
-/// Release the save point.
+/// Release the savepoint.
 ///
-/// # 参数
-/// - `txn`: 事务句柄
+/// # Parameters
+/// - `txn`: Transaction handle
 /// - `savepoint_id`: ID of the savepoint
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
 ///
 /// # Safety
 /// - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
@@ -443,15 +443,15 @@ pub unsafe extern "C" fn graphdb_txn_release_savepoint(
     }
 }
 
-/// Roll back to the saved point.
+/// Roll back to the savepoint.
 ///
-/// # 参数
-/// - `txn`: 事务句柄
-/// - `savepoint_id`: 保存点 ID
+/// # Parameters
+/// - `txn`: Transaction handle
+/// - `savepoint_id`: Savepoint ID
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
 ///
 /// # Safety
 /// - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
@@ -492,14 +492,14 @@ pub unsafe extern "C" fn graphdb_txn_rollback_to_savepoint(
     }
 }
 
-/// Release the transaction handle
+/// Free the transaction handle
 ///
-/// # 参数
-/// - `txn`: 事务句柄
+/// # Parameters
+/// - `txn`: Transaction handle
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
 ///
 /// # Safety
 /// - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
@@ -547,7 +547,7 @@ mod tests {
 
         let rc = unsafe { graphdb_open(path_cstring.as_ptr(), &mut db) };
         if rc != graphdb_error_code_t::GRAPHDB_OK as c_int {
-            panic!("打开数据库失败，错误码: {}, 路径: {:?}", rc, db_path);
+            panic!("Failed to open database, error code: {}, path: {:?}", rc, db_path);
         }
         assert!(!db.is_null());
 

@@ -312,14 +312,14 @@ typedef struct graphdb_txn_t {
 } graphdb_txn_t;
 
 /**
- * Creating a Batch Inserter
+ * Create a batch inserter
  *
  * # Parameters
  * - `session`: session handle
  * - `batch_size`: batch size
  * - `batch`: output parameter, batch operation handle
  *
- * # Return
+ * # Returns
  * Success: GRAPHDB_OK
  * Failure: Error code
  *
@@ -329,7 +329,7 @@ typedef struct graphdb_txn_t {
  * - `batch` must be a valid pointer to store the batch handle
  * - The created batch handle holds a session pointer but does not own the session
  * - The caller must ensure the session is not closed before the batch handle is freed
- * - The caller is responsible for freeing the batch handle using `graphdb_batch_inserter_free` when done
+ * - The caller is responsible for freeing the batch handle using `graphdb_batch_free` when done
  */
 int graphdb_batch_inserter_create(struct graphdb_session_t *session,
                                   int batch_size,
@@ -338,16 +338,16 @@ int graphdb_batch_inserter_create(struct graphdb_session_t *session,
 /**
  * Adding Vertices
  *
- * # 参数
+ * # Parameters
  * - `batch`: A handle for batch operations
  * - `vid`: vertex ID
  * - `tag_name`: tag name (UTF-8 encoding)
  * - `properties`: An array of properties.
  * - `prop_count`: The number of properties
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
  *
  * # Safety
  * - The `batch` must be a valid batch operation handle created using the `graphdb_batch_inserter_create` function.
@@ -362,26 +362,26 @@ int graphdb_batch_add_vertex(struct graphdb_batch_t *batch,
                              uintptr_t prop_count);
 
 /**
- * Add borders
+ * Add edges
  *
- * # 参数
- * - `batch`: 批量操作句柄
+ * # Parameters
+ * - `batch`: Batch operation handle
  * - `src_vid`: ID of the source vertex
  * - `dst_vid`: ID of the target vertex
  * - `edge_type`: The name of the edge type (encoded in UTF-8)
  * - `rank`: Ranking
- * - `properties`: 属性数组
- * - `prop_count`: 属性数量
+ * - `properties`: Array of properties
+ * - `prop_count`: Number of properties
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
  *
  * # Safety
- * - `batch` 必须是通过 `graphdb_batch_inserter_create` 创建的有效批量操作句柄
+ * - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
  * - The `edge_type` must be a valid pointer to a UTF-8 string that ends with `null`.
- * - 如果 `properties` 不为 null,则必须指向至少 `prop_count` 个有效的 `graphdb_value_t` 元素
- * - 调用者必须确保在调用此函数时,关联的会话仍然有效
+ * - If `properties` is not null, it must point to at least `prop_count` valid `graphdb_value_t` elements
+ * - Caller must ensure the associated session is still valid when calling this function
  */
 int graphdb_batch_add_edge(struct graphdb_batch_t *batch,
                            int64_t src_vid,
@@ -394,32 +394,32 @@ int graphdb_batch_add_edge(struct graphdb_batch_t *batch,
 /**
  * Perform batch insert operations.
  *
- * # 参数
- * - `batch`: 批量操作句柄
+ * # Parameters
+ * - `batch`: Batch operation handle
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
  *
  * # Safety
- * - `batch` 必须是通过 `graphdb_batch_inserter_create` 创建的有效批量操作句柄
- * - 调用者必须确保在调用此函数时,关联的会话仍然有效
- * This function triggers the actual database write operations, which may involve I/O (Input/Output) operations.
+ * - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
+ * - Caller must ensure the associated session is still valid when calling this function
+ * - This function triggers the actual database write operations, which may involve I/O (Input/Output) operations.
  */
 int graphdb_batch_flush(struct graphdb_batch_t *batch);
 
 /**
  * Get the number of buffered vertices.
  *
- * # 参数
- * - `batch`: 批量操作句柄
+ * # Parameters
+ * - `batch`: Batch operation handle
  *
- * # 返回
+ * # Returns
  * Number of buffered vertices
  *
  * # Safety
- * - `batch` 必须是通过 `graphdb_batch_inserter_create` 创建的有效批量操作句柄
- * - 调用者必须确保在调用此函数时,关联的会话仍然有效
+ * - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
+ * - Caller must ensure the associated session is still valid when calling this function
  */
 int graphdb_batch_buffered_vertices(struct graphdb_batch_t *batch);
 
@@ -439,7 +439,7 @@ int graphdb_batch_buffered_vertices(struct graphdb_batch_t *batch);
 int graphdb_batch_buffered_edges(struct graphdb_batch_t *batch);
 
 /**
- * Release the batch operation handle
+ * Free the batch operation handle
  *
  * # Arguments
  * - `batch`: Batch operation handle
@@ -1427,7 +1427,7 @@ void *graphdb_update_hook(struct graphdb_session_t *session,
                           void *user_data);
 
 /**
- * Commencement of business
+ * Begin a transaction
  *
  * # Parameters
  * - `session`: session handle
@@ -1448,13 +1448,13 @@ int graphdb_txn_begin(struct graphdb_session_t *session, struct graphdb_txn_t **
 /**
  * Starting a read-only transaction
  *
- * # 参数
- * - `session`: 会话句柄
- * - `txn`: 输出参数，事务句柄
+ * # Parameters
+ * - `session`: Session handle
+ * - `txn`: Output parameter, transaction handle
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
  *
  * # Safety
  * - `session` must be a valid session handle created by `graphdb_session_create`
@@ -1467,14 +1467,14 @@ int graphdb_txn_begin_readonly(struct graphdb_session_t *session, struct graphdb
 /**
  * Executing queries in a transaction
  *
- * # 参数
- * `txn`: Transaction handle
- * - `query`: query statement (UTF-8 encoding)
- * - `result`: output parameter, result set handle
+ * # Parameters
+ * - `txn`: Transaction handle
+ * - `query`: Query statement (UTF-8 encoding)
+ * - `result`: Output parameter, result set handle
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
  *
  * # Safety
  * - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
@@ -1488,14 +1488,14 @@ int graphdb_txn_execute(struct graphdb_txn_t *txn,
                         struct graphdb_result_t **result);
 
 /**
- * Submission of transactions
+ * Commit transactions
  *
- * # 参数
- * - `txn`: 事务句柄
+ * # Parameters
+ * - `txn`: Transaction handle
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
  *
  * # Safety
  * - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
@@ -1508,12 +1508,12 @@ int graphdb_txn_commit(struct graphdb_txn_t *txn);
 /**
  * Rolling back transactions
  *
- * # 参数
- * - `txn`: 事务句柄
+ * # Parameters
+ * - `txn`: Transaction handle
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
  *
  * # Safety
  * - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
@@ -1524,13 +1524,13 @@ int graphdb_txn_commit(struct graphdb_txn_t *txn);
 int graphdb_txn_rollback(struct graphdb_txn_t *txn);
 
 /**
- * Creating a save point
+ * Creating a savepoint
  *
- * # 参数
- * - `txn`: 事务句柄
- * - `name`: name of the repository (UTF-8 encoding)
+ * # Parameters
+ * - `txn`: Transaction handle
+ * - `name`: Name of the savepoint (UTF-8 encoding)
  *
- * # 返回
+ * # Returns
  * - Success: Savepoint ID
  * - Failure: -1
  *
@@ -1543,15 +1543,15 @@ int64_t graphdb_txn_savepoint(struct graphdb_txn_t *txn,
                               const char *name);
 
 /**
- * Release the save point.
+ * Release the savepoint.
  *
- * # 参数
- * - `txn`: 事务句柄
+ * # Parameters
+ * - `txn`: Transaction handle
  * - `savepoint_id`: ID of the savepoint
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
  *
  * # Safety
  * - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
@@ -1562,15 +1562,15 @@ int graphdb_txn_release_savepoint(struct graphdb_txn_t *txn,
                                   int64_t savepoint_id);
 
 /**
- * Roll back to the saved point.
+ * Roll back to the savepoint.
  *
- * # 参数
- * - `txn`: 事务句柄
- * - `savepoint_id`: 保存点 ID
+ * # Parameters
+ * - `txn`: Transaction handle
+ * - `savepoint_id`: Savepoint ID
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
  *
  * # Safety
  * - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
@@ -1581,14 +1581,14 @@ int graphdb_txn_rollback_to_savepoint(struct graphdb_txn_t *txn,
                                       int64_t savepoint_id);
 
 /**
- * Release the transaction handle
+ * Free the transaction handle
  *
- * # 参数
- * - `txn`: 事务句柄
+ * # Parameters
+ * - `txn`: Transaction handle
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
  *
  * # Safety
  * - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`

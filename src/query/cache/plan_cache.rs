@@ -296,9 +296,9 @@ impl QueryPlanCache {
 
     /// Record the statistics on the execution of the plan.
     ///
-    /// # 参数
-    /// - `query`: 查询文本
-    /// `execution_time_ms`: Execution time (in milliseconds)
+    /// # Parameter
+    /// - `query`: query content
+    /// - `execution_time_ms`: Execution time (in milliseconds)
     pub fn record_execution(&self, query: &str, execution_time_ms: f64) {
         let key = PlanCacheKey::from_query(query);
 
