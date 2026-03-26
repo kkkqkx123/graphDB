@@ -1,10 +1,10 @@
 //! 数据控制语言(DCL)集成测试
 //!
-//! 测试范围:
-//! - CREATE USER - 创建用户
-//! - ALTER USER - 修改用户
-//! - DROP USER - 删除用户
-//! - CHANGE PASSWORD - 修改密码
+//! Test scope:
+//! CREATE USER – Create a user
+//! ALTER USER – Modifies a user account
+//! DROP USER – Deletes a user.
+//! CHANGE PASSWORD – Change your password.
 
 mod common;
 
@@ -16,7 +16,7 @@ use graphdb::query::parser::Parser;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
 use std::sync::Arc;
 
-// ==================== CREATE USER 语句测试 ====================
+// ==================== Test of the CREATE USER statement =====================
 
 #[test]
 fn test_create_user_parser_basic() {
@@ -143,7 +143,7 @@ fn test_create_user_duplicate() {
     assert!(result2.is_ok() || result2.is_err());
 }
 
-// ==================== ALTER USER 语句测试 ====================
+// ==================== Testing the ALTER USER statement ====================
 
 #[test]
 fn test_alter_user_parser_basic() {
@@ -231,7 +231,7 @@ fn test_alter_user_nonexistent() {
     assert!(result.is_ok() || result.is_err());
 }
 
-// ==================== DROP USER 语句测试 ====================
+// ==================== Testing of the DROP USER statement ====================
 
 #[test]
 fn test_drop_user_parser_basic() {
@@ -445,7 +445,7 @@ fn test_change_password_wrong_old_password() {
     assert!(result.is_ok() || result.is_err());
 }
 
-// ==================== DCL 综合测试 ====================
+// ==================== DCL Comprehensive Test ====================
 
 #[test]
 fn test_dcl_user_lifecycle() {
@@ -520,9 +520,9 @@ fn test_dcl_if_not_exists_if_exists() {
 
     let queries = [
         "CREATE USER IF NOT EXISTS testuser WITH PASSWORD 'password'",
-        "CREATE USER IF NOT EXISTS testuser WITH PASSWORD 'password'", // 重复创建
+        "CREATE USER IF NOT EXISTS testuser WITH PASSWORD 'password'", // Re-create
         "DROP USER IF EXISTS testuser",
-        "DROP USER IF EXISTS testuser", // 重复删除
+        "DROP USER IF EXISTS testuser", // Repeated deletions…
     ];
 
     for (i, query) in queries.iter().enumerate() {
@@ -549,14 +549,14 @@ fn test_dcl_error_handling() {
     );
 
     let invalid_queries = vec![
-        "CREATE USER",                          // 缺少用户名和密码
-        "CREATE USER testuser",                 // 缺少密码
-        "CREATE USER WITH PASSWORD 'password'", // 缺少用户名
-        "ALTER USER",                           // 缺少用户名和密码
-        "ALTER USER testuser",                  // 缺少密码
-        "DROP USER",                            // 缺少用户名
-        "CHANGE PASSWORD",                      // 缺少密码
-        "CHANGE PASSWORD 'oldpassword'",        // 缺少新密码
+        "CREATE USER",                          // The username and password are missing.
+        "CREATE USER testuser",                 // The password is missing.
+        "CREATE USER WITH PASSWORD 'password'", // The username is missing.
+        "ALTER USER",                           // The username and password are missing.
+        "ALTER USER testuser",                  // The password is missing.
+        "DROP USER",                            // The username is missing.
+        "CHANGE PASSWORD",                      // The password is missing.
+        "CHANGE PASSWORD 'oldpassword'",        // The new password is missing.
     ];
 
     for query in invalid_queries {
@@ -795,7 +795,7 @@ fn test_describe_user_execution() {
     }
 }
 
-// ==================== SHOW USERS 语句测试 ====================
+// ==================== Testing the “SHOW USERS” statement ====================
 
 #[test]
 fn test_show_users_parser_basic() {
@@ -840,7 +840,7 @@ fn test_show_users_execution() {
     }
 }
 
-// ==================== SHOW ROLES 语句测试 ====================
+// ==================== Testing of the “SHOW ROLES” statement ====================
 
 #[test]
 fn test_show_roles_parser_basic() {
@@ -902,7 +902,7 @@ fn test_show_roles_execution() {
     }
 }
 
-// ==================== 新DCL语句综合测试 ====================
+// ==================== Comprehensive Testing of New DCL Statements =====================
 
 #[test]
 fn test_new_dcl_statements_lifecycle() {

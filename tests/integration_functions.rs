@@ -1,12 +1,12 @@
-//! 内置函数集成测试
+//! Integrated testing of built-in functions
 //!
-//! 测试范围:
-//! - 图相关函数: id, tags, labels, properties, type, src, dst, rank
-//! - 容器操作函数: head, last, tail, size, range, keys
-//! - 路径函数: nodes, relationships
-//! - 数学函数: bit_and, bit_or, bit_xor, asin, acos, atan, cbrt, hypot
-//! - 字符串函数: split
-//! - 实用函数: coalesce, hash
+//! Test scope:
+//! Image-related functions: id, tags, labels, properties, type, src, dst, rank
+//! Container operation functions: head, last, tail, size, range, keys
+//! Path function: nodes, relationships
+//! Mathematical functions: bit_and, bit_or, bit_xor, asin, acos, atan, cbrt, hypot
+//! String function: split
+//! Practical functions: coalesce, hash
 
 mod common;
 
@@ -15,7 +15,7 @@ use graphdb::core::{List, NullType, Value};
 use graphdb::query::executor::expression::functions::FunctionRegistry;
 use std::collections::HashMap;
 
-/// 创建测试用的顶点
+/// Create vertices for testing purposes.
 fn create_test_vertex(vid: i64, tags: Vec<(&str, HashMap<&str, Value>)>) -> Vertex {
     let tags: Vec<Tag> = tags
         .into_iter()
@@ -28,7 +28,7 @@ fn create_test_vertex(vid: i64, tags: Vec<(&str, HashMap<&str, Value>)>) -> Vert
     Vertex::new(Value::Int(vid), tags)
 }
 
-/// 创建测试用的边
+/// Create edges for testing purposes.
 fn create_test_edge(
     src: i64,
     dst: i64,
@@ -47,7 +47,7 @@ fn create_test_edge(
     )
 }
 
-/// 创建测试用的路径
+/// Create a path for testing purposes.
 fn create_test_path() -> Path {
     let v1 = create_test_vertex(
         1,
@@ -92,7 +92,7 @@ fn create_test_path() -> Path {
     path
 }
 
-// ==================== 图相关函数测试 ====================
+// ==================== Testing of functions related to graphics ====================
 
 #[test]
 fn test_id_function() {
@@ -118,7 +118,7 @@ fn test_tags_function() {
     if let Value::List(list) = result.expect("tags函数应该成功") {
         assert_eq!(list.values.len(), 2);
     } else {
-        panic!("期望返回列表类型");
+        panic!("The expected return type is a list.");
     }
 }
 
@@ -134,7 +134,7 @@ fn test_labels_function() {
         assert_eq!(list.values.len(), 1);
         assert_eq!(list.values[0], Value::String("Person".to_string()));
     } else {
-        panic!("期望返回列表类型");
+        panic!("The expected return value is of the list type.");
     }
 }
 
@@ -160,7 +160,7 @@ fn test_properties_vertex_function() {
         assert_eq!(map.get("name"), Some(&Value::String("Alice".to_string())));
         assert_eq!(map.get("age"), Some(&Value::Int(30)));
     } else {
-        panic!("期望返回映射类型");
+        panic!("The expected return type is a map.");
     }
 }
 
@@ -207,7 +207,7 @@ fn test_rank_function() {
     assert_eq!(result.expect("rank函数应该成功"), Value::Int(42));
 }
 
-// ==================== 容器操作函数测试 ====================
+// ==================== Testing of Container Operation Functions ====================
 
 #[test]
 fn test_head_function() {
@@ -248,7 +248,7 @@ fn test_tail_function() {
         assert_eq!(list.values[0], Value::Int(2));
         assert_eq!(list.values[1], Value::Int(3));
     } else {
-        panic!("期望返回列表类型");
+        panic!("The expected return type is a list.");
     }
 }
 
@@ -286,7 +286,7 @@ fn test_range_function() {
         assert_eq!(list.values[0], Value::Int(1));
         assert_eq!(list.values[4], Value::Int(5));
     } else {
-        panic!("期望返回列表类型");
+        panic!("The expected return type is a list.");
     }
 }
 
@@ -303,7 +303,7 @@ fn test_range_with_step_function() {
         assert_eq!(list.values[1], Value::Int(2));
         assert_eq!(list.values[5], Value::Int(10));
     } else {
-        panic!("期望返回列表类型");
+        panic!("The expected return type is a list.");
     }
 }
 
@@ -323,11 +323,11 @@ fn test_keys_map_function() {
         assert!(list.values.contains(&Value::String("name".to_string())));
         assert!(list.values.contains(&Value::String("age".to_string())));
     } else {
-        panic!("期望返回列表类型");
+        panic!("The expected return type is a list.");
     }
 }
 
-// ==================== 路径函数测试 ====================
+// ==================== Path Function Testing ====================
 
 #[test]
 fn test_nodes_function() {
@@ -340,7 +340,7 @@ fn test_nodes_function() {
     if let Value::List(list) = result.expect("nodes函数应该成功") {
         assert_eq!(list.values.len(), 3);
     } else {
-        panic!("期望返回列表类型");
+        panic!("The expected return type is a list.");
     }
 }
 
@@ -355,11 +355,11 @@ fn test_relationships_function() {
     if let Value::List(list) = result.expect("relationships函数应该成功") {
         assert_eq!(list.values.len(), 2);
     } else {
-        panic!("期望返回列表类型");
+        panic!("The expected return value is of the list type.");
     }
 }
 
-// ==================== 数学函数测试 ====================
+// ==================== Testing of Mathematical Functions ====================
 
 #[test]
 fn test_bit_and_function() {
@@ -398,7 +398,7 @@ fn test_asin_function() {
     if let Value::Float(val) = result.expect("asin函数应该成功") {
         assert!((val - std::f64::consts::PI / 6.0).abs() < 1e-10);
     } else {
-        panic!("期望返回浮点类型");
+        panic!("The expectation is to receive a value of the floating-point type.");
     }
 }
 
@@ -412,7 +412,7 @@ fn test_acos_function() {
     if let Value::Float(val) = result.expect("acos函数应该成功") {
         assert!((val - std::f64::consts::PI / 3.0).abs() < 1e-10);
     } else {
-        panic!("期望返回浮点类型");
+        panic!("The expectation is to receive a value of the floating-point type.");
     }
 }
 
@@ -426,7 +426,7 @@ fn test_atan_function() {
     if let Value::Float(val) = result.expect("atan函数应该成功") {
         assert!((val - std::f64::consts::PI / 4.0).abs() < 1e-10);
     } else {
-        panic!("期望返回浮点类型");
+        panic!("The expectation is to receive a value of the floating-point type.");
     }
 }
 
@@ -440,7 +440,7 @@ fn test_cbrt_function() {
     if let Value::Float(val) = result.expect("cbrt函数应该成功") {
         assert!((val - 3.0).abs() < 1e-10);
     } else {
-        panic!("期望返回浮点类型");
+        panic!("The expectation is to receive a value of the floating-point type.");
     }
 }
 
@@ -454,11 +454,11 @@ fn test_hypot_function() {
     if let Value::Float(val) = result.expect("hypot函数应该成功") {
         assert!((val - 5.0).abs() < 1e-10);
     } else {
-        panic!("期望返回浮点类型");
+        panic!("The expectation is to receive a value of the floating-point type.");
     }
 }
 
-// ==================== 字符串函数测试 ====================
+// ==================== Testing of String Functions ====================
 
 #[test]
 fn test_split_function() {
@@ -479,11 +479,11 @@ fn test_split_function() {
         assert_eq!(list.values[1], Value::String("world".to_string()));
         assert_eq!(list.values[2], Value::String("test".to_string()));
     } else {
-        panic!("期望返回列表类型");
+        panic!("The expected return value is of the list type.");
     }
 }
 
-// ==================== 实用函数测试 ====================
+// ==================== Testing of Practical Functions ====================
 
 #[test]
 fn test_coalesce_function() {
@@ -546,7 +546,7 @@ fn test_hash_int_function() {
     );
 }
 
-// ==================== NULL 处理测试 ====================
+// ==================== NULL Handling Test ====================
 
 #[test]
 fn test_null_handling() {
@@ -598,7 +598,7 @@ fn test_null_handling() {
     );
 }
 
-// ==================== 边界情况测试 ====================
+// ==================== Boundary Case Testing ====================
 
 #[test]
 fn test_empty_list_operations() {
@@ -628,7 +628,7 @@ fn test_empty_list_operations() {
     if let Value::List(list) = result.expect("tail函数应该成功") {
         assert!(list.values.is_empty());
     } else {
-        panic!("期望返回列表类型");
+        panic!("The expected return type is a list.");
     }
 
     // size(空列表) 应该返回 0
@@ -650,7 +650,7 @@ fn test_empty_path() {
     if let Value::List(list) = result.expect("nodes函数应该成功") {
         assert_eq!(list.values.len(), 1);
     } else {
-        panic!("期望返回列表类型");
+        panic!("The expected return type is a list.");
     }
 
     // relationships(空路径) 应该返回空列表
@@ -660,7 +660,7 @@ fn test_empty_path() {
     if let Value::List(list) = result.expect("relationships函数应该成功") {
         assert!(list.values.is_empty());
     } else {
-        panic!("期望返回列表类型");
+        panic!("The expected return type is a list.");
     }
 }
 
@@ -685,11 +685,11 @@ fn test_single_element_list() {
     if let Value::List(list) = result.expect("tail函数应该成功") {
         assert!(list.values.is_empty());
     } else {
-        panic!("期望返回列表类型");
+        panic!("The expected return type is a list.");
     }
 }
 
-// ==================== 新增日期时间函数测试 ====================
+// ==================== Additional tests for date and time functions ====================
 
 #[test]
 fn test_time_function() {
@@ -760,7 +760,7 @@ fn test_timestamp_function() {
     ));
 }
 
-// ==================== 新增图相关函数测试 ====================
+// ==================== Testing of functions related to new images =====================
 
 #[test]
 fn test_startnode_function() {
@@ -788,28 +788,28 @@ fn test_endnode_function() {
     ));
 }
 
-// ==================== 新增数学函数测试 ====================
+// ==================== Added tests for new mathematical functions ====================
 
 #[test]
 fn test_sign_function() {
     let registry = FunctionRegistry::new();
 
-    // 正数
+    // Positive numbers
     let result = registry.execute("sign", &[Value::Int(42)]);
     assert!(result.is_ok());
     assert_eq!(result.expect("sign函数应该成功"), Value::Int(1));
 
-    // 负数
+    // negative numbers
     let result = registry.execute("sign", &[Value::Int(-42)]);
     assert!(result.is_ok());
     assert_eq!(result.expect("sign函数应该成功"), Value::Int(-1));
 
-    // 零
+    // Zero
     let result = registry.execute("sign", &[Value::Int(0)]);
     assert!(result.is_ok());
     assert_eq!(result.expect("sign函数应该成功"), Value::Int(0));
 
-    // 浮点数
+    // Floating-point number
     let result = registry.execute("sign", &[Value::Float(-2.5_f64)]);
     assert!(result.is_ok());
     assert_eq!(result.expect("sign函数应该成功"), Value::Int(-1));
@@ -825,7 +825,7 @@ fn test_rand_function() {
     if let Value::Float(val) = result.expect("rand函数应该成功") {
         assert!((0.0..1.0).contains(&val));
     } else {
-        panic!("期望返回浮点类型");
+        panic!("The expectation is to receive a value of the floating-point type.");
     }
 }
 
@@ -833,27 +833,27 @@ fn test_rand_function() {
 fn test_rand32_function() {
     let registry = FunctionRegistry::new();
 
-    // 无参数
+    // No parameters
     let result = registry.execute("rand32", &[]);
     assert!(result.is_ok());
     assert!(matches!(result.expect("rand32函数应该成功"), Value::Int(_)));
 
-    // 有范围
+    // There is a range.
     let result = registry.execute("rand32", &[Value::Int(100)]);
     assert!(result.is_ok());
     if let Value::Int(val) = result.expect("rand32函数应该成功") {
         assert!((0..100).contains(&val));
     } else {
-        panic!("期望返回整数类型");
+        panic!("The expected return value is of the integer type.");
     }
 
-    // 指定最小最大值
+    // Specify the minimum and maximum values.
     let result = registry.execute("rand32", &[Value::Int(10), Value::Int(20)]);
     assert!(result.is_ok());
     if let Value::Int(val) = result.expect("rand32函数应该成功") {
         assert!((10..20).contains(&val));
     } else {
-        panic!("期望返回整数类型");
+        panic!("Expect to return an integer type");
     }
 }
 
@@ -920,7 +920,7 @@ fn test_radians_function() {
     );
 }
 
-// ==================== 新增字符串函数测试 ====================
+// ==================== New string function test ====================
 
 #[test]
 fn test_lpad_function() {
@@ -984,7 +984,7 @@ fn test_concat_ws_function() {
 fn test_strcasecmp_function() {
     let registry = FunctionRegistry::new();
 
-    // 相等
+    // equivalent
     let result = registry.execute(
         "strcasecmp",
         &[
@@ -995,7 +995,7 @@ fn test_strcasecmp_function() {
     assert!(result.is_ok());
     assert_eq!(result.expect("strcasecmp函数应该成功"), Value::Int(0));
 
-    // 小于
+    // less than
     let result = registry.execute(
         "strcasecmp",
         &[
@@ -1006,7 +1006,7 @@ fn test_strcasecmp_function() {
     assert!(result.is_ok());
     assert_eq!(result.expect("strcasecmp函数应该成功"), Value::Int(-1));
 
-    // 大于
+    // more than
     let result = registry.execute(
         "strcasecmp",
         &[
@@ -1018,7 +1018,7 @@ fn test_strcasecmp_function() {
     assert_eq!(result.expect("strcasecmp函数应该成功"), Value::Int(1));
 }
 
-// ==================== 新增容器函数测试 ====================
+// ==================== New container function test ====================
 
 #[test]
 fn test_toset_function() {
@@ -1048,11 +1048,11 @@ fn test_reverse_list_function() {
         assert_eq!(list.values[1], Value::Int(2));
         assert_eq!(list.values[2], Value::Int(1));
     } else {
-        panic!("期望返回列表类型");
+        panic!("Expected return list type");
     }
 }
 
-// ==================== 新增JSON函数测试 ====================
+// ==================== New JSON function test ====================
 
 #[test]
 fn test_json_extract_function() {
@@ -1067,7 +1067,7 @@ fn test_json_extract_function() {
     );
 }
 
-// ==================== 新增地理空间函数测试 ====================
+// ==================== New geospatial function test ====================
 
 #[test]
 fn test_st_point_function() {
@@ -1101,7 +1101,7 @@ fn test_st_distance_function() {
     if let Value::Float(distance) = result.expect("st_distance函数应该成功") {
         assert!(distance > 1000.0 && distance < 1100.0);
     } else {
-        panic!("期望返回浮点类型");
+        panic!("Expect to return a floating point type");
     }
 }
 
@@ -1157,13 +1157,13 @@ fn test_st_astext_function() {
     );
 }
 
-// ==================== 函数存在性测试 ====================
+// ==================== Function Existence Tests ====================
 
 #[test]
 fn test_all_functions_registered() {
     let registry = FunctionRegistry::new();
 
-    // 图相关函数
+    // Graph Related Functions
     assert!(registry.contains("id"));
     assert!(registry.contains("tags"));
     assert!(registry.contains("labels"));
@@ -1175,7 +1175,7 @@ fn test_all_functions_registered() {
     assert!(registry.contains("startnode"));
     assert!(registry.contains("endnode"));
 
-    // 容器操作函数
+    // Container Manipulation Functions
     assert!(registry.contains("head"));
     assert!(registry.contains("last"));
     assert!(registry.contains("tail"));
@@ -1184,11 +1184,11 @@ fn test_all_functions_registered() {
     assert!(registry.contains("keys"));
     assert!(registry.contains("reverse"));
 
-    // 路径函数
+    // path function
     assert!(registry.contains("nodes"));
     assert!(registry.contains("relationships"));
 
-    // 数学函数
+    // math function
     assert!(registry.contains("bit_and"));
     assert!(registry.contains("bit_or"));
     assert!(registry.contains("bit_xor"));
@@ -1207,27 +1207,27 @@ fn test_all_functions_registered() {
     assert!(registry.contains("log2"));
     assert!(registry.contains("radians"));
 
-    // 字符串函数
+    // string function
     assert!(registry.contains("split"));
     assert!(registry.contains("lpad"));
     assert!(registry.contains("rpad"));
     assert!(registry.contains("concat_ws"));
     assert!(registry.contains("strcasecmp"));
 
-    // 实用函数
+    // utility function
     assert!(registry.contains("coalesce"));
     assert!(registry.contains("hash"));
     assert!(registry.contains("json_extract"));
 
-    // 日期时间函数
+    // datetime function
     assert!(registry.contains("time"));
     assert!(registry.contains("datetime"));
     assert!(registry.contains("timestamp"));
 
-    // 类型转换函数
+    // type conversion function
     assert!(registry.contains("toset"));
 
-    // 地理空间函数
+    // Geospatial functions
     assert!(registry.contains("st_point"));
     assert!(registry.contains("st_distance"));
     assert!(registry.contains("st_isvalid"));

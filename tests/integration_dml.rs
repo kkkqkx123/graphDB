@@ -1,13 +1,13 @@
 //! 数据操作语言(DML)集成测试
 //!
-//! 测试范围:
-//! - INSERT - 插入数据
-//! - CREATE - 创建数据
-//! - UPDATE - 更新数据
-//! - DELETE - 删除数据
-//! - MERGE - 合并数据
-//! - SET - 设置属性
-//! - REMOVE - 移除属性
+//! Test scope:
+//! INSERT – Insert data
+//! CREATE – Create data
+//! UPDATE – Update the data
+//! - DELETE – Delete the data
+//! MERGE – Merge the data
+//! - SET – Set properties
+//! - REMOVE - Remove the attribute.
 
 mod common;
 
@@ -19,7 +19,7 @@ use graphdb::query::parser::Parser;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
 use std::sync::Arc;
 
-// ==================== INSERT 语句测试 ====================
+// ==================== Testing the INSERT statement =====================
 
 #[test]
 fn test_insert_parser_vertex() {
@@ -107,7 +107,7 @@ fn test_insert_parser_invalid_syntax() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_err(), "无效语法应该返回错误");
+    assert!(result.is_err(), "Invalid syntax should trigger an error.");
 }
 
 #[test]
@@ -148,7 +148,7 @@ fn test_insert_execution_edge() {
     assert!(result.is_ok() || result.is_err());
 }
 
-// ==================== CREATE 语句测试 ====================
+// ==================== CREATE Statement Test ====================
 
 #[test]
 fn test_create_parser_vertex() {
@@ -218,7 +218,7 @@ fn test_create_execution_edge() {
     assert!(result.is_ok() || result.is_err());
 }
 
-// ==================== UPDATE 语句测试 ====================
+// ==================== Testing of the UPDATE statement ====================
 
 #[test]
 fn test_update_parser_vertex() {
@@ -330,7 +330,7 @@ fn test_update_execution_edge() {
     assert!(result.is_ok() || result.is_err());
 }
 
-// ==================== DELETE 语句测试 ====================
+// ==================== Testing of the DELETE statement ====================
 
 #[test]
 fn test_delete_parser_vertex() {
@@ -450,7 +450,7 @@ fn test_delete_execution_edge() {
     assert!(result.is_ok() || result.is_err());
 }
 
-// ==================== 新增 DML 功能测试 ====================
+// ==================== Additional testing for DML functionality ====================
 
 #[test]
 fn test_insert_if_not_exists_parser() {
@@ -615,7 +615,7 @@ fn test_delete_tag_multiple_vertices_parser() {
     assert_eq!(stmt.ast.stmt.kind(), "DELETE");
 }
 
-// ==================== MERGE 语句测试 ====================
+// ==================== MERGE Statement Test ====================
 
 #[test]
 fn test_merge_parser_basic() {
@@ -676,7 +676,7 @@ fn test_merge_execution_basic() {
     assert!(result.is_ok() || result.is_err());
 }
 
-// ==================== SET 语句测试 ====================
+// ==================== SET Statement Test ====================
 
 #[test]
 fn test_set_parser_basic() {
@@ -741,7 +741,7 @@ fn test_set_execution_basic() {
     assert!(result.is_ok() || result.is_err());
 }
 
-// ==================== REMOVE 语句测试 ====================
+// ==================== REMOVE Statement Testing ====================
 
 #[test]
 fn test_remove_parser_property() {
@@ -830,7 +830,7 @@ fn test_remove_execution_property() {
     assert!(result.is_ok() || result.is_err());
 }
 
-// ==================== DML 综合测试 ====================
+// ==================== Comprehensive DML Testing =====================
 
 #[test]
 fn test_dml_crud_operations() {
@@ -897,10 +897,10 @@ fn test_dml_error_handling() {
     );
 
     let invalid_queries = vec![
-        "INSERT VERTEX Person(name, age) VALUES 1:'Alice', 30", // 无效语法
-        "UPDATE SET age = 26",                                  // 缺少顶点ID
-        "DELETE VERTEX",                                        // 缺少顶点ID
-        "SET = 26",                                             // 缺少变量
+        "INSERT VERTEX Person(name, age) VALUES 1:'Alice', 30", // Invalid grammar
+        "UPDATE SET age = 26",                                  // The vertex ID is missing.
+        "DELETE VERTEX",                                        // The vertex ID is missing.
+        "SET = 26",                                             // The variable is missing.
     ];
 
     for query in invalid_queries {
@@ -935,7 +935,7 @@ fn test_dml_transaction_like_operations() {
     }
 }
 
-// ==================== 索引优化规则测试 ====================
+// ==================== Testing of Index Optimization Rules ====================
 
 #[test]
 fn test_index_scan_with_limit() {

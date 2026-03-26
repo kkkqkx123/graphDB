@@ -1,6 +1,6 @@
-//! 测试数据生成模块
+//! Test data generation module
 //!
-//! 提供各种测试数据的生成函数
+//! Provide various test data generation functions
 
 #![allow(dead_code)]
 
@@ -8,7 +8,7 @@ use graphdb::core::vertex_edge_path::{Edge, Tag, Vertex};
 use graphdb::core::Value;
 use std::collections::HashMap;
 
-/// 创建简单顶点（只有一个标签）
+/// Create simple vertices (with only one label)
 pub fn create_simple_vertex(vid: i64, _tag_name: &str, name: &str, age: i64) -> Vertex {
     let mut props = HashMap::new();
     props.insert("name".to_string(), Value::String(name.to_string()));
@@ -17,20 +17,20 @@ pub fn create_simple_vertex(vid: i64, _tag_name: &str, name: &str, age: i64) -> 
     create_vertex(Value::Int(vid), vec![tag])
 }
 
-/// 创建顶点
+/// create a vertex
 pub fn create_vertex(vid: Value, tags: Vec<Tag>) -> Vertex {
     Vertex::new(vid, tags)
 }
 
-/// 创建边
+/// create an edge
 pub fn create_edge(src: Value, dst: Value, edge_type: &str) -> Edge {
     Edge::new(src, dst, edge_type.to_string(), 0, HashMap::new())
 }
 
-/// 社交网络测试数据集
-/// 返回 (顶点列表, 边列表)
+/// Social networks test dataset
+/// Return (vertex list, edge list)
 pub fn social_network_dataset() -> (Vec<Vertex>, Vec<Edge>) {
-    // 创建4个Person顶点
+    // Create 4 Person Vertices
     let vertices = vec![
         create_simple_vertex(1, "Person", "Alice", 30),
         create_simple_vertex(2, "Person", "Bob", 25),
@@ -38,7 +38,7 @@ pub fn social_network_dataset() -> (Vec<Vertex>, Vec<Edge>) {
         create_simple_vertex(4, "Person", "David", 28),
     ];
 
-    // 创建KNOWS关系边
+    // Create a KNOWS relationship edge
     let edges = vec![
         create_edge(Value::Int(1), Value::Int(2), "KNOWS"),
         create_edge(Value::Int(1), Value::Int(3), "KNOWS"),

@@ -1,14 +1,14 @@
-//! C API 集成测试
+//! C API Integration Testing
 //!
-//! 测试范围:
-//! - 数据库生命周期管理
-//! - 会话管理
-//! - 查询执行
-//! - 结果处理
-//! - 事务管理
-//! - 预编译语句
-//! - 批量操作
-//! - 错误处理
+//! Test scope:
+//! Database Lifecycle Management
+//! Session management
+//! Query execution
+//! Result processing
+//! Transaction Management
+//! Precompiled statements
+//! Batch operations
+//! Error handling
 
 mod common;
 
@@ -21,7 +21,7 @@ use common::c_api_helpers::{
     CApiTestBatch, CApiTestDatabase, CApiTestResult, CApiTestSession, CApiTestTransaction,
 };
 
-// ==================== 数据库生命周期测试 ====================
+// ==================== Database Lifecycle Testing ====================
 
 #[test]
 fn test_c_api_database_open_close() {
@@ -30,7 +30,7 @@ fn test_c_api_database_open_close() {
 
     assert!(!db.is_null());
 
-    // 数据库会在 Drop 时自动关闭
+    // The database will be automatically closed when the “Drop” command is executed.
 }
 
 #[test]
@@ -59,11 +59,11 @@ fn test_c_api_database_multiple_open_close() {
     assert!(!test_db1.handle().is_null());
     assert!(!test_db2.handle().is_null());
 
-    // 验证两个数据库句柄不同
+    // Verify that the two database handles are different.
     assert_ne!(test_db1.handle(), test_db2.handle());
 }
 
-// ==================== 会话管理测试 ====================
+// ==================== Session Management Test ====================
 
 #[test]
 fn test_c_api_session_create_close() {
@@ -78,13 +78,13 @@ fn test_c_api_session_autocommit() {
     let test_db = CApiTestDatabase::new();
     let session = CApiTestSession::from_db(&test_db);
 
-    // 默认自动提交
+    // Default automatic submission
     let autocommit = unsafe {
         graphdb::api::embedded::c_api::session::graphdb_session_get_autocommit(session.handle())
     };
     assert!(autocommit);
 
-    // 关闭自动提交
+    // Turn off automatic submission.
     let rc = unsafe {
         graphdb::api::embedded::c_api::session::graphdb_session_set_autocommit(
             session.handle(),
@@ -116,11 +116,11 @@ fn test_c_api_session_multiple_sessions() {
     let session1 = CApiTestSession::from_db(&test_db);
     let session2 = CApiTestSession::from_db(&test_db);
 
-    // 验证两个会话句柄不同
+    // Verify that the two session handles are different.
     assert_ne!(session1.handle(), session2.handle());
 }
 
-// ==================== 查询执行测试 ====================
+// ==================== Query Execution Test ====================
 
 #[test]
 fn test_c_api_execute_simple_query() {
@@ -138,7 +138,7 @@ fn test_c_api_execute_simple_query() {
         )
     };
 
-    // 打印错误信息用于调试
+    // Printing error messages is used for debugging purposes.
     if rc != graphdb_error_code_t::GRAPHDB_OK as i32 {
         let error_msg = graphdb::api::embedded::c_api::error::graphdb_get_last_error_message();
         if !error_msg.is_null() {
@@ -154,7 +154,7 @@ fn test_c_api_execute_simple_query() {
     assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32);
     assert!(!result.is_null());
 
-    // 清理结果
+    // Cleanup results
     unsafe {
         graphdb::api::embedded::c_api::result::graphdb_result_free(result);
     }
@@ -183,7 +183,7 @@ fn test_c_api_execute_null_params() {
     assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as i32);
 }
 
-// ==================== 结果处理测试 ====================
+// ==================== Result Processing Test ====================
 
 #[test]
 fn test_c_api_result_metadata() {
@@ -202,15 +202,15 @@ fn test_c_api_result_metadata() {
     };
     assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32);
 
-    // 获取列数
+    // Get the number of columns
     let col_count = unsafe { graphdb::api::embedded::c_api::result::graphdb_column_count(result) };
     assert!(col_count >= 0);
 
-    // 获取行数
+    // Get the number of rows
     let row_count = unsafe { graphdb::api::embedded::c_api::result::graphdb_row_count(result) };
     assert!(row_count >= 0);
 
-    // 清理结果
+    // Cleanup results
     unsafe {
         graphdb::api::embedded::c_api::result::graphdb_result_free(result);
     }
@@ -233,11 +233,11 @@ fn test_c_api_result_column_name() {
     };
     assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32);
 
-    // 获取列数
+    // Get the number of columns
     let col_count = unsafe { graphdb::api::embedded::c_api::result::graphdb_column_count(result) };
 
     if col_count > 0 {
-        // 获取第一列的名称
+        // Get the name of the first column.
         let col_name =
             unsafe { graphdb::api::embedded::c_api::result::graphdb_column_name(result, 0) };
 
@@ -246,14 +246,14 @@ fn test_c_api_result_column_name() {
             let name_str = name.to_str().expect("列名无效");
             assert!(!name_str.is_empty());
 
-            // 释放列名字符串
+            // Release the column name string.
             unsafe {
                 graphdb::api::embedded::c_api::database::graphdb_free_string(col_name);
             }
         }
     }
 
-    // 清理结果
+    // Clean-up results
     unsafe {
         graphdb::api::embedded::c_api::result::graphdb_result_free(result);
     }
@@ -274,7 +274,7 @@ fn test_c_api_result_null_params() {
     assert!(name.is_null());
 }
 
-// ==================== 事务管理测试 ====================
+// ==================== Transaction Management Testing ====================
 
 #[test]
 fn test_c_api_transaction_begin_commit() {
@@ -283,20 +283,20 @@ fn test_c_api_transaction_begin_commit() {
 
     let mut txn: *mut graphdb::api::embedded::c_api::types::graphdb_txn_t = ptr::null_mut();
 
-    // 开始事务
+    // Start a transaction
     let rc = unsafe {
         graphdb::api::embedded::c_api::transaction::graphdb_txn_begin(session.handle(), &mut txn)
     };
     assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32);
     assert!(!txn.is_null());
 
-    // 打印事务句柄的地址（用于调试）
+    // Print the address of the transaction handler (for debugging purposes)
     eprintln!("事务句柄地址: {:?}", txn);
 
-    // 提交事务
+    // Submit the transaction
     let rc = unsafe { graphdb::api::embedded::c_api::transaction::graphdb_txn_commit(txn) };
 
-    // 打印错误信息用于调试
+    // Printing error messages is used for debugging.
     if rc != graphdb_error_code_t::GRAPHDB_OK as i32 {
         let error_msg = graphdb::api::embedded::c_api::error::graphdb_get_last_error_message();
         if !error_msg.is_null() {
@@ -311,7 +311,7 @@ fn test_c_api_transaction_begin_commit() {
 
     assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32);
 
-    // 清理事务句柄
+    // Clean up transaction handlers
     unsafe {
         graphdb::api::embedded::c_api::transaction::graphdb_txn_free(txn);
     }
@@ -324,18 +324,18 @@ fn test_c_api_transaction_begin_rollback() {
 
     let mut txn: *mut graphdb::api::embedded::c_api::types::graphdb_txn_t = ptr::null_mut();
 
-    // 开始事务
+    // Start a transaction
     let rc = unsafe {
         graphdb::api::embedded::c_api::transaction::graphdb_txn_begin(session.handle(), &mut txn)
     };
     assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32);
     assert!(!txn.is_null());
 
-    // 回滚事务
+    // Roll back a transaction
     let rc = unsafe { graphdb::api::embedded::c_api::transaction::graphdb_txn_rollback(txn) };
     assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32);
 
-    // 清理事务句柄
+    // Clean up transaction handlers
     unsafe {
         graphdb::api::embedded::c_api::transaction::graphdb_txn_free(txn);
     }
@@ -349,7 +349,7 @@ fn test_c_api_transaction_with_wrapper() {
     let txn = CApiTestTransaction::from_session(&session);
     assert!(!txn.handle().is_null());
 
-    // 提交事务
+    // Submit the transaction
     txn.commit();
 }
 
@@ -361,7 +361,7 @@ fn test_c_api_transaction_rollback_with_wrapper() {
     let txn = CApiTestTransaction::from_session(&session);
     assert!(!txn.handle().is_null());
 
-    // 回滚事务
+    // Roll back a transaction
     txn.rollback();
 }
 
@@ -376,7 +376,7 @@ fn test_c_api_transaction_null_params() {
     assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as i32);
 }
 
-// ==================== 批量操作测试 ====================
+// ==================== Batch Operation Testing ====================
 
 #[test]
 fn test_c_api_batch_inserter_create_free() {
@@ -385,7 +385,7 @@ fn test_c_api_batch_inserter_create_free() {
 
     let mut batch: *mut graphdb::api::embedded::c_api::types::graphdb_batch_t = ptr::null_mut();
 
-    // 创建批量插入器
+    // Create a batch inserter
     let rc = unsafe {
         graphdb::api::embedded::c_api::batch::graphdb_batch_inserter_create(
             session.handle(),
@@ -396,7 +396,7 @@ fn test_c_api_batch_inserter_create_free() {
     assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32);
     assert!(!batch.is_null());
 
-    // 释放批量插入器
+    // Release the batch inserter.
     let rc = unsafe { graphdb::api::embedded::c_api::batch::graphdb_batch_free(batch) };
     assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32);
 }
@@ -435,7 +435,7 @@ fn test_c_api_batch_buffered_counts_null() {
     assert_eq!(count, -1);
 }
 
-// ==================== 错误处理测试 ====================
+// ==================== Error Handling Tests ====================
 
 #[test]
 fn test_c_api_error_string() {
@@ -487,12 +487,12 @@ fn test_c_api_errmsg() {
         graphdb::api::embedded::c_api::error::graphdb_errmsg(buffer.as_mut_ptr(), buffer.len())
     };
 
-    // 验证返回的长度合理
+    // Verify that the returned length is reasonable.
     assert!(len >= 0);
     assert!((len as usize) < buffer.len());
 }
 
-// ==================== 内存管理测试 ====================
+// ==================== Memory Management Tests ====================
 
 #[test]
 fn test_c_api_free_string() {
@@ -501,7 +501,7 @@ fn test_c_api_free_string() {
 
     assert!(!ptr.is_null());
 
-    // 释放字符串
+    // Release the string
     unsafe {
         graphdb::api::embedded::c_api::database::graphdb_free_string(ptr);
     }
@@ -514,32 +514,32 @@ fn test_c_api_free() {
 
     assert!(!ptr.is_null());
 
-    // 释放内存
+    // Free up memory
     unsafe {
         graphdb::api::embedded::c_api::database::graphdb_free(ptr);
     }
 }
 
-// ==================== 集成场景测试 ====================
+// ==================== Integrated Scenario Testing ====================
 
 #[test]
 fn test_c_api_full_workflow() {
     let test_db = CApiTestDatabase::new();
     let session = CApiTestSession::from_db(&test_db);
 
-    // 执行查询
+    // Please provide the text you would like to have translated.
     let result = CApiTestResult::from_query(&session, "SHOW SPACES");
 
-    // 验证结果
+    // Verification results
     assert!(result.column_count() >= 0);
     assert!(result.row_count() >= 0);
 
-    // 开始事务
+    // Commencement of business
     let txn = CApiTestTransaction::from_session(&session);
 
-    // 提交事务
+    // Submission of transactions
     txn.commit();
-    // 所有资源会在 Drop 时自动清理
+    // All resources are automatically cleaned up at Drop
 }
 
 #[test]
@@ -550,12 +550,12 @@ fn test_c_api_concurrent_sessions() {
     let session2 = CApiTestSession::from_db(&test_db);
     let session3 = CApiTestSession::from_db(&test_db);
 
-    // 验证三个会话都有效
+    // Verify that all three sessions are valid
     assert!(!session1.handle().is_null());
     assert!(!session2.handle().is_null());
     assert!(!session3.handle().is_null());
 
-    // 验证会话句柄都不同
+    // Verify that the session handles are different
     assert_ne!(session1.handle(), session2.handle());
     assert_ne!(session2.handle(), session3.handle());
     assert_ne!(session1.handle(), session3.handle());

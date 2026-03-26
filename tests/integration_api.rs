@@ -1,9 +1,9 @@
-//! API模块集成测试
+//! API Module Integration Testing
 //!
-//! 测试范围:
-//! - api::session - 会话管理、客户端会话、查询管理
-//! - api::service - 认证、权限、查询处理、统计管理
-//! - api::mod - 服务启动、查询执行
+//! Test scope:
+//! - api::session - session management, client session, query management
+//! `api::service` – Authentication, authorization, query processing, and statistical management.
+//! - api::mod - service startup, query execution
 
 mod common;
 
@@ -21,7 +21,7 @@ use graphdb::core::{MetricType, QueryMetrics, RoleType, StatsManager};
 use graphdb::query::{QueryManager, QueryStatus};
 use graphdb::storage::DefaultStorage;
 
-// ==================== 会话管理测试 ====================
+// ==================== Session Management Test ====================
 
 #[tokio::test]
 async fn test_session_manager_creation() {
@@ -31,7 +31,7 @@ async fn test_session_manager_creation() {
         DEFAULT_SESSION_IDLE_TIMEOUT,
     );
 
-    // 验证初始状态
+    // Validating the initial state
     assert_eq!(session_manager.list_sessions().await.len(), 0);
 }
 
@@ -43,7 +43,7 @@ async fn test_create_and_find_session() {
         DEFAULT_SESSION_IDLE_TIMEOUT,
     );
 
-    // 创建会话
+    // Create a session
     let session = session_manager
         .create_session("testuser".to_string(), "127.0.0.1".to_string())
         .await
@@ -51,13 +51,13 @@ async fn test_create_and_find_session() {
 
     assert_eq!(session.user(), "testuser");
 
-    // 查找会话
+    // Find Sessions
     let found_session = session_manager
         .find_session(session.id())
         .expect("未找到会话");
     assert_eq!(found_session.user(), "testuser");
 
-    // 查找不存在的会话
+    // Trying to find a session that does not exist.
     assert!(session_manager.find_session(999999).is_none());
 }
 
@@ -75,13 +75,13 @@ async fn test_remove_session() {
         .expect("创建会话失败");
     let session_id = session.id();
 
-    // 验证会话存在
+    // Verify Session Existence
     assert!(session_manager.find_session(session_id).is_some());
 
-    // 移除会话
+    // Remove the session.
     session_manager.remove_session(session_id).await;
 
-    // 验证会话已移除
+    // Verify that the session has been removed
     assert!(session_manager.find_session(session_id).is_none());
 }
 
@@ -93,7 +93,7 @@ async fn test_max_connections_limit() {
         DEFAULT_SESSION_IDLE_TIMEOUT,
     );
 
-    // 创建3个会话（达到上限）
+    // Create 3 sessions (to reach the maximum limit).
     for i in 0..3 {
         let _ = session_manager
             .create_session(format!("user{}", i), "127.0.0.1".to_string())
@@ -101,10 +101,10 @@ async fn test_max_connections_limit() {
             .expect("创建会话失败");
     }
 
-    // 验证已达到最大连接数
+    // Verify that the maximum number of connections has been reached
     assert!(session_manager.is_out_of_connections().await);
 
-    // 尝试创建第4个会话应该失败
+    // Trying to create the fourth session should fail.
     let result = session_manager.create_session("user4".to_string(), "127.0.0.1".to_string());
     assert!(result.await.is_err());
 }
@@ -117,7 +117,7 @@ async fn test_list_sessions() {
         DEFAULT_SESSION_IDLE_TIMEOUT,
     );
 
-    // 创建多个会话
+    // Creating Multiple Sessions
     let session1 = session_manager
         .create_session("user1".to_string(), "127.0.0.1".to_string())
         .await
@@ -127,12 +127,12 @@ async fn test_list_sessions() {
         .await
         .expect("创建会话失败");
 
-    // 获取会话列表
+    // Obtain the session list
     let sessions = session_manager.list_sessions();
     let sessions = sessions.await;
     assert_eq!(sessions.len(), 2);
 
-    // 验证会话信息
+    // Verify session information
     let session_info = session_manager
         .get_session_info(session1.id())
         .await
@@ -148,7 +148,7 @@ async fn test_kill_session() {
         DEFAULT_SESSION_IDLE_TIMEOUT,
     );
 
-    // 创建会话并设置为Admin角色
+    // Create a session and set it to the Admin role.
     let session = session_manager
         .create_session("admin".to_string(), "127.0.0.1".to_string())
         .await
@@ -156,19 +156,19 @@ async fn test_kill_session() {
     session.set_role(0, RoleType::Admin);
     let _session_id = session.id();
 
-    // 创建另一个用户会话
+    // Create another user session
     let target_session = session_manager
         .create_session("user1".to_string(), "127.0.0.1".to_string())
         .await
         .expect("创建会话失败");
     let target_id = target_session.id();
 
-    // Admin可以终止其他用户的会话
+    // The admin can terminate the sessions of other users.
     let result = session_manager.kill_session(target_id, "admin", true);
     assert!(result.await.is_ok());
     assert!(session_manager.find_session(target_id).is_none());
 
-    // 非Admin用户不能终止其他用户的会话
+    // Non-Admin users cannot terminate another user's session
     let other_session = session_manager
         .create_session("user2".to_string(), "127.0.0.1".to_string())
         .await
@@ -179,7 +179,7 @@ async fn test_kill_session() {
     assert!(result.await.is_err());
 }
 
-// ==================== 客户端会话测试 ====================
+// ==================== Client Session Testing ====================
 
 #[test]
 fn test_client_session_properties() {
@@ -210,7 +210,7 @@ async fn test_client_session_space_management() {
 
     let client_session = ClientSession::new(session);
 
-    // 设置Space
+    // Setting Space
     let space = SpaceInfo {
         name: "test_space".to_string(),
         id: 1,
@@ -242,10 +242,10 @@ fn test_client_session_roles() {
 
     let client_session = ClientSession::new(session);
 
-    // 初始没有角色
+    // There were no characters initially.
     assert!(!client_session.is_admin());
 
-    // 设置Admin角色
+    // Setting up the Admin role
     client_session.set_role(1, RoleType::Admin);
     assert!(client_session.is_admin());
     assert!(matches!(
@@ -253,7 +253,7 @@ fn test_client_session_roles() {
         Some(RoleType::Admin)
     ));
 
-    // 设置User角色
+    // Setting up the User role
     client_session.set_role(2, RoleType::User);
     assert!(matches!(
         client_session.role_with_space(2),
@@ -273,7 +273,7 @@ fn test_client_session_queries() {
 
     let client_session = ClientSession::new(session);
 
-    // 添加查询
+    // Add Query
     client_session.add_query(1, "SELECT * FROM users".to_string());
     client_session.add_query(2, "INSERT INTO users VALUES (...)".to_string());
 
@@ -282,12 +282,12 @@ fn test_client_session_queries() {
     assert!(!client_session.find_query(3));
     assert_eq!(client_session.active_queries_count(), 2);
 
-    // 删除查询
+    // Delete the query.
     client_session.delete_query(1);
     assert!(!client_session.find_query(1));
     assert_eq!(client_session.active_queries_count(), 1);
 
-    // 终止所有查询
+    // Terminate all queries
     client_session.mark_all_queries_killed();
     assert_eq!(client_session.active_queries_count(), 0);
 }
@@ -304,22 +304,22 @@ fn test_client_session_idle_time() {
 
     let client_session = ClientSession::new(session);
 
-    // 等待一小段时间
+    // Wait for a short while.
     std::thread::sleep(Duration::from_millis(10));
     let idle_time = client_session.idle_seconds();
 
-    // 重置空闲时间
+    // Reset Idle Time
     client_session.charge();
     assert!(client_session.idle_seconds() <= idle_time);
 }
 
-// ==================== 查询管理器测试 ====================
+// ==================== Query Manager Test ====================
 
 #[test]
 fn test_query_manager_creation() {
     let query_manager = QueryManager::new();
 
-    // 初始状态应该为空
+    // The initial state should be empty
     let queries = query_manager.get_all_queries();
     assert!(queries.is_empty());
 }
@@ -328,7 +328,7 @@ fn test_query_manager_creation() {
 async fn test_register_and_get_query() {
     let query_manager = QueryManager::new();
 
-    // 注册查询
+    // Registration Inquiry
     let query_id = query_manager.register_query(
         1,
         "testuser".to_string(),
@@ -336,14 +336,14 @@ async fn test_register_and_get_query() {
         "SELECT * FROM users".to_string(),
     );
 
-    // 获取查询信息
+    // Getting Query Information
     let query_info = query_manager.get_query(query_id).expect("获取查询失败");
     assert_eq!(query_info.session_id, 1);
     assert_eq!(query_info.user_name, "testuser");
     assert_eq!(query_info.query_text, "SELECT * FROM users");
     assert_eq!(query_info.status, QueryStatus::Running);
 
-    // 获取不存在的查询
+    // Trying to retrieve a query that does not exist.
     assert!(query_manager.get_query(9999).is_none());
 }
 
@@ -358,13 +358,13 @@ async fn test_query_status_transitions() {
         "SELECT * FROM users".to_string(),
     );
 
-    // 标记为完成
+    // Marked as completed
     query_manager.finish_query(query_id).expect("标记完成失败");
     let query_info = query_manager.get_query(query_id).expect("获取查询失败");
     assert_eq!(query_info.status, QueryStatus::Finished);
     assert!(query_info.duration_ms.is_some());
 
-    // 注册新查询并标记为失败
+    // Register a new query and mark it as a failure.
     let query_id2 =
         query_manager.register_query(1, "testuser".to_string(), None, "INVALID QUERY".to_string());
 
@@ -384,7 +384,7 @@ async fn test_kill_query() {
         "SELECT * FROM users".to_string(),
     );
 
-    // 终止查询
+    // Termination of inquiries
     query_manager.kill_query(query_id).expect("终止查询失败");
 
     let query_info = query_manager.get_query(query_id).expect("获取查询失败");
@@ -395,12 +395,12 @@ async fn test_kill_query() {
 fn test_get_queries_by_session() {
     let query_manager = QueryManager::new();
 
-    // 为不同会话注册查询
+    // Register queries for different sessions
     query_manager.register_query(1, "user1".to_string(), None, "SELECT * FROM t1".to_string());
     query_manager.register_query(1, "user1".to_string(), None, "SELECT * FROM t2".to_string());
     query_manager.register_query(2, "user2".to_string(), None, "SELECT * FROM t3".to_string());
 
-    // 获取所有查询并按会话过滤
+    // Get all queries and filter by session
     let all_queries = query_manager.get_all_queries();
     let session1_queries: Vec<_> = all_queries.iter().filter(|q| q.session_id == 1).collect();
     assert_eq!(session1_queries.len(), 2);
@@ -408,7 +408,7 @@ fn test_get_queries_by_session() {
     let session2_queries: Vec<_> = all_queries.iter().filter(|q| q.session_id == 2).collect();
     assert_eq!(session2_queries.len(), 1);
 
-    // 获取不存在的会话查询
+    // Attempting to retrieve a session that does not exist.
     let session3_queries: Vec<_> = all_queries.iter().filter(|q| q.session_id == 3).collect();
     assert!(session3_queries.is_empty());
 }
@@ -444,23 +444,23 @@ async fn test_get_running_queries() {
     let query_id2 =
         query_manager.register_query(1, "user1".to_string(), None, "SELECT * FROM t2".to_string());
 
-    // 完成第一个查询
+    // Complete the first query
     query_manager.finish_query(query_id1).expect("标记完成失败");
 
-    // 获取正在运行的查询
+    // Obtain the queries that are currently running.
     let running_queries = query_manager.get_running_queries();
     assert_eq!(running_queries.len(), 1);
     assert_eq!(running_queries[0].query_id, query_id2);
 }
 
-// ==================== 认证器测试 ====================
+// ==================== Certifier Testing ====================
 
 #[test]
 fn test_password_authenticator_creation() {
     let config = graphdb::config::AuthConfig::default();
     let authenticator = PasswordAuthenticator::new_default(config);
 
-    // 验证默认用户可以认证
+    // Verify that the default user can be authenticated.
     let result = authenticator.authenticate("root", "root");
     assert!(result.is_ok());
 }
@@ -479,19 +479,19 @@ fn test_authenticate_failure() {
     let config = graphdb::config::AuthConfig::default();
     let authenticator = PasswordAuthenticator::new_default(config);
 
-    // 错误密码
+    // incorrect password
     let result = authenticator.authenticate("root", "wrong_password");
     assert!(result.is_err());
 
-    // 不存在的用户
+    // Non-existent user
     let result = authenticator.authenticate("nonexistent", "password");
     assert!(result.is_err());
 
-    // 空用户名
+    // empty username
     let result = authenticator.authenticate("", "password");
     assert!(result.is_err());
 
-    // 空密码
+    // empty password
     let result = authenticator.authenticate("root", "");
     assert!(result.is_err());
 }
@@ -512,36 +512,36 @@ fn test_custom_user_verifier() {
         config,
     );
 
-    // 自定义用户验证
+    // Customized User Authentication
     let result = authenticator.authenticate("testuser", "testpass");
     assert!(result.is_ok());
 
-    // 错误密码
+    // incorrect password
     let result = authenticator.authenticate("testuser", "wrong");
     assert!(result.is_err());
 }
 
-// ==================== 权限管理器测试 ====================
+// ==================== Permission Manager Test ====================
 
 #[test]
 fn test_permission_manager_creation() {
     let permission_manager = PermissionManager::new();
 
-    // root用户默认是Admin
+    // The root user is Admin by default
     assert!(permission_manager.is_admin("root"));
     assert!(!permission_manager.is_admin("nonexistent"));
 }
 
 #[test]
 fn test_role_type_permissions() {
-    // Admin拥有所有权限
+    // Admin has all privileges
     assert!(RoleType::Admin.has_permission(Permission::Read));
     assert!(RoleType::Admin.has_permission(Permission::Write));
     assert!(RoleType::Admin.has_permission(Permission::Delete));
     assert!(RoleType::Admin.has_permission(Permission::Schema));
     assert!(RoleType::Admin.has_permission(Permission::Admin));
 
-    // User只有读写删权限
+    // User only has read/write/delete privileges
     assert!(RoleType::User.has_permission(Permission::Read));
     assert!(RoleType::User.has_permission(Permission::Write));
     assert!(RoleType::User.has_permission(Permission::Delete));
@@ -553,26 +553,26 @@ fn test_role_type_permissions() {
 fn test_grant_and_revoke_role() {
     let permission_manager = PermissionManager::new();
 
-    // 授予User角色
+    // Granting the User role
     permission_manager
         .grant_role("testuser", 1, RoleType::User)
         .expect("授权失败");
 
-    // 验证角色
+    // Verify Roles
     let role = permission_manager.get_role("testuser", 1);
     assert!(matches!(role, Some(RoleType::User)));
 
-    // 验证权限检查
+    // Verify Permission Checking
     permission_manager
         .check_permission("testuser", 1, Permission::Read)
         .expect("权限检查失败");
 
-    // User没有Schema权限
+    // User has no Schema privileges
     assert!(permission_manager
         .check_permission("testuser", 1, Permission::Schema)
         .is_err());
 
-    // 撤销角色
+    // Withdrawal of roles
     permission_manager
         .revoke_role("testuser", 1)
         .expect("撤销角色失败");
@@ -583,7 +583,7 @@ fn test_grant_and_revoke_role() {
 fn test_admin_permissions() {
     let permission_manager = PermissionManager::new();
 
-    // root默认是Admin
+    // root is Admin by default
     permission_manager
         .check_permission("root", 0, Permission::Admin)
         .expect("Admin权限检查失败");
@@ -599,12 +599,12 @@ fn test_admin_permissions() {
 fn test_custom_permissions() {
     let permission_manager = PermissionManager::new();
 
-    // 先授予用户角色（使用Guest角色，只有Read权限）
+    // Grant the user role first (using the Guest role, with Read access only)
     permission_manager
         .grant_role("testuser", 1, RoleType::Guest)
         .expect("授予角色失败");
 
-    // 授予额外的自定义权限（显式授予Read和Write）
+    // Granting additional custom permissions (explicitly granting Read and Write)
     permission_manager
         .grant_permission("testuser", 1, Permission::Read)
         .expect("授予权限失败");
@@ -612,42 +612,42 @@ fn test_custom_permissions() {
         .grant_permission("testuser", 1, Permission::Write)
         .expect("授予权限失败");
 
-    // 验证自定义权限（使用has_permission检查细粒度权限）
+    // Validate custom permissions (use has_permission to check fine-grained permissions)
     assert!(permission_manager.has_permission("testuser", 1, Permission::Read));
     assert!(permission_manager.has_permission("testuser", 1, Permission::Write));
 
-    // 未授予的权限（Guest角色没有Delete权限，也没有显式授予）
+    // Ungranted permissions (the Guest role does not have Delete permissions and is not explicitly granted)
     assert!(!permission_manager.has_permission("testuser", 1, Permission::Delete));
 
-    // 撤销权限
+    // Revocation of authority
     permission_manager
         .revoke_permission("testuser", 1, Permission::Write)
         .expect("撤销权限失败");
     assert!(!permission_manager.has_permission("testuser", 1, Permission::Write));
 }
 
-// ==================== 统计管理器测试 ====================
+// ==================== Statistical Manager Test ====================
 
 #[test]
 fn test_stats_manager_creation() {
     let _stats_manager = StatsManager::new();
 
-    // 初始状态
-    // 统计管理器刚创建时没有指标值
+    // initial state
+    // Statistics Manager has no indicator values when it is first created
 }
 
 #[test]
 fn test_metric_operations() {
     let stats_manager = StatsManager::new();
 
-    // 增加指标值
+    // Increased value of indicators
     stats_manager.add_value(MetricType::NumQueries);
     stats_manager.add_value(MetricType::NumQueries);
 
-    // 减少指标值
+    // Reduction in the value of indicators
     stats_manager.dec_value(MetricType::NumActiveQueries);
 
-    // 批量增加
+    // Batch increase
     stats_manager.add_value_with_amount(MetricType::NumQueries, 5);
 }
 
@@ -655,11 +655,11 @@ fn test_metric_operations() {
 fn test_space_metrics() {
     let stats_manager = StatsManager::new();
 
-    // 添加Space指标
+    // Add Space Indicator
     stats_manager.add_space_metric("test_space", MetricType::NumActiveQueries);
     stats_manager.add_space_metric("test_space", MetricType::NumActiveQueries);
 
-    // 减少Space指标
+    // Reduction of Space indicators
     stats_manager.dec_space_metric("test_space", MetricType::NumActiveQueries);
 }
 
@@ -669,7 +669,7 @@ fn test_query_metrics() {
 
     use std::time::Duration;
 
-    // 记录查询指标
+    // Records search indicators
     let mut metrics = QueryMetrics::new();
     metrics.record_parse_time(Duration::from_micros(100));
     metrics.record_execute_time(Duration::from_micros(500));
@@ -716,7 +716,7 @@ async fn test_graph_service_creation() {
 
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
-    // 验证服务创建成功
+    // Verify that the service was created successfully
     assert!(
         !graph_service
             .get_session_manager()
@@ -736,11 +736,11 @@ async fn test_graph_service_authentication() {
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
-    // 成功认证
+    // Successful certification
     let session = graph_service.authenticate("root", "root");
     assert!(session.await.is_ok());
 
-    // 失败认证
+    // Failure to Certify
     let session = graph_service.authenticate("root", "wrong");
     assert!(session.await.is_err());
 }
@@ -756,23 +756,23 @@ async fn test_graph_service_signout() {
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
-    // 认证并获取会话
+    // Authentication and session acquisition
     let session = graph_service
         .authenticate("root", "root")
         .await
         .expect("认证失败");
     let session_id = session.id();
 
-    // 验证会话存在
+    // Verify Session Existence
     assert!(graph_service
         .get_session_manager()
         .find_session(session_id)
         .is_some());
 
-    // 登出
+    // appear (in a newspaper etc)
     graph_service.signout(session_id).await;
 
-    // 验证会话已移除
+    // Verify that the session has been removed
     assert!(graph_service
         .get_session_manager()
         .find_session(session_id)
@@ -790,16 +790,16 @@ async fn test_graph_service_execute_query() {
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
-    // 认证并获取会话
+    // Authentication and session acquisition
     let session = graph_service
         .authenticate("root", "root")
         .await
         .expect("认证失败");
     let session_id = session.id();
 
-    // 执行查询
+    // perform a search
     let _result = graph_service.execute(session_id, "SHOW SPACES");
-    // 查询可能成功或失败，但不应该panic
+    // The query may succeed or fail, but should not be panic
 }
 
 #[tokio::test]
@@ -813,7 +813,7 @@ async fn test_graph_service_invalid_session() {
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
-    // 使用无效的会话ID执行查询
+    // Execute a query with an invalid session ID
     let result = graph_service.execute(999999, "SHOW SPACES");
     assert!(result.is_err());
 }
@@ -829,17 +829,17 @@ async fn test_graph_service_list_sessions() {
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
-    // 初始没有会话
+    // Initially no session
     let sessions = graph_service.list_sessions();
     assert_eq!(sessions.await.len(), 0);
 
-    // 创建会话
+    // Creating a session
     let _session = graph_service
         .authenticate("root", "root")
         .await
         .expect("认证失败");
 
-    // 验证会话列表
+    // Validating session lists
     let sessions = graph_service.list_sessions();
     let sessions = sessions.await;
     assert_eq!(sessions.len(), 1);
@@ -857,18 +857,18 @@ async fn test_graph_service_kill_session() {
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
-    // 创建两个会话
+    // Create two sessions
     let admin_session = graph_service
         .authenticate("root", "root")
         .await
         .expect("认证失败");
     let admin_session_id = admin_session.id();
 
-    // root默认是Admin，可以终止会话
+    // root is Admin by default and can terminate the session
     let result = graph_service.kill_session(admin_session_id, "root");
     assert!(result.await.is_ok());
 
-    // 验证会话已终止
+    // Verify that the session has been terminated
     assert!(graph_service
         .get_session_manager()
         .find_session(admin_session_id)
@@ -888,23 +888,23 @@ async fn test_full_session_lifecycle() {
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
-    // 1. 认证创建会话
+    // 1. Authentication creation session
     let session = graph_service
         .authenticate("root", "root")
         .await
         .expect("认证失败");
     let session_id = session.id();
 
-    // 2. 验证会话存在
+    // 2. Verify session existence
     assert!(graph_service
         .get_session_manager()
         .find_session(session_id)
         .is_some());
 
-    // 3. 执行查询
+    // 3. Execution of queries
     let _ = graph_service.execute(session_id, "SHOW SPACES");
 
-    // 4. 获取会话信息
+    // 4. Obtaining session information
     let session_info = graph_service.get_session_info(session_id);
     let session_info = session_info.await;
     assert!(session_info.is_some());
@@ -913,10 +913,10 @@ async fn test_full_session_lifecycle() {
         "root"
     );
 
-    // 5. 登出
+    // 5. Log out
     graph_service.signout(session_id).await;
 
-    // 6. 验证会话已移除
+    // 6. It has been verified that the session has been removed.
     assert!(graph_service
         .get_session_manager()
         .find_session(session_id)
@@ -935,7 +935,7 @@ async fn test_concurrent_session_operations() {
 
     let mut handles = JoinSet::new();
 
-    // 并发创建会话
+    // Concurrent session creation
     for i in 0..10 {
         let manager = Arc::clone(&session_manager);
         handles.spawn(async move {
@@ -948,21 +948,21 @@ async fn test_concurrent_session_operations() {
         });
     }
 
-    // 等待所有任务完成
+    // Wait for all tasks to be completed.
     let mut session_ids = vec![];
     while let Some(result) = handles.join_next().await {
         session_ids.push(result.expect("任务失败"));
     }
 
-    // 验证所有会话都创建成功
+    // Verify that all sessions were created successfully.
     assert_eq!(session_ids.len(), 10);
 
-    // 验证可以查找到所有会话
+    // Verification ensures that all sessions can be found.
     for session_id in &session_ids {
         assert!(session_manager.find_session(*session_id).is_some());
     }
 
-    // 验证会话列表
+    // Verify the session list
     let sessions = session_manager.list_sessions();
     let sessions = sessions.await;
     assert_eq!(sessions.len(), 10);
@@ -975,7 +975,7 @@ fn test_query_manager_concurrent_operations() {
     let query_manager = Arc::new(QueryManager::new());
     let mut handles = vec![];
 
-    // 并发注册查询
+    // Concurrent registration and query operations
     for i in 0..10 {
         let manager = Arc::clone(&query_manager);
         let handle = thread::spawn(move || {
@@ -989,24 +989,24 @@ fn test_query_manager_concurrent_operations() {
         handles.push(handle);
     }
 
-    // 等待所有线程完成，带超时
+    // Wait for all threads to complete, with a timeout option.
     let mut query_ids = vec![];
     for handle in handles {
         let result = handle.join();
         match result {
             Ok(id) => query_ids.push(id),
-            Err(_) => panic!("线程panic"),
+            Err(_) => panic!("Thread panic"),
         }
     }
 
-    // 验证所有查询都注册成功
+    // Verify that all queries have been successfully registered.
     assert_eq!(query_ids.len(), 10);
 
-    // 验证可以查找到所有查询
+    // Verification ensures that all queries can be found.
     let all_queries = query_manager.get_all_queries();
     assert_eq!(all_queries.len(), 10);
 
-    // 验证运行中的查询
+    // Verify the queries that are currently running.
     let running_queries = query_manager.get_running_queries();
     assert_eq!(running_queries.len(), 10);
 }

@@ -1,6 +1,6 @@
-//! C API 集成测试辅助工具
+//! C API Integration Testing Assistant Tool
 //!
-//! 提供 C API 测试的公共函数和结构体
+//! Provide public functions and structures for testing the C API.
 
 #![allow(dead_code)]
 
@@ -13,18 +13,18 @@ use graphdb::api::embedded::c_api::error::graphdb_error_code_t;
 
 static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-/// C API 测试数据库包装器
+/// C API for testing database wrappers
 ///
-/// 使用 RAII 模式管理数据库生命周期，确保测试后正确清理资源
+/// Use the RAII (Resource Acquisition Is Initialization) pattern to manage the database lifecycle, ensuring that resources are properly cleaned up after testing.
 pub struct CApiTestDatabase {
     db: *mut graphdb::api::embedded::c_api::types::graphdb_t,
     temp_dir: TempDir,
 }
 
 impl CApiTestDatabase {
-    /// 创建新的测试数据库
+    /// Create a new test database.
     ///
-    /// 使用临时目录创建独立的数据库文件，确保测试隔离
+    /// Use a temporary directory to create independent database files to ensure the isolation of the tests.
     pub fn new() -> Self {
         let temp_dir = TempDir::new().expect("创建临时目录失败");
         let counter = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -45,12 +45,12 @@ impl CApiTestDatabase {
             rc,
             db_path
         );
-        assert!(!db.is_null(), "数据库句柄不应为空");
+        assert!(!db.is_null(), "The database handle should not be empty.");
 
         Self { db, temp_dir }
     }
 
-    /// 获取数据库句柄
+    /// Obtaining a database handle
     pub fn handle(&self) -> *mut graphdb::api::embedded::c_api::types::graphdb_t {
         self.db
     }
@@ -66,15 +66,15 @@ impl Drop for CApiTestDatabase {
     }
 }
 
-/// C API 测试会话包装器
+/// C API Test Session Wrapper
 ///
-/// 使用 RAII 模式管理会话生命周期
+/// Managing the session lifecycle using the RAII (Resource Acquisition Is Initialization) pattern
 pub struct CApiTestSession {
     session: *mut graphdb::api::embedded::c_api::types::graphdb_session_t,
 }
 
 impl CApiTestSession {
-    /// 从数据库创建会话
+    /// Create a session from the database.
     pub fn from_db(db: &CApiTestDatabase) -> Self {
         let mut session: *mut graphdb::api::embedded::c_api::types::graphdb_session_t =
             ptr::null_mut();
@@ -86,13 +86,13 @@ impl CApiTestSession {
             )
         };
 
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32, "创建会话失败");
-        assert!(!session.is_null(), "会话句柄不应为空");
+        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32, "Failed to create a session.");
+        assert!(!session.is_null(), "The session handle should not be empty.");
 
         Self { session }
     }
 
-    /// 获取会话句柄
+    /// Obtaining the session handle
     pub fn handle(&self) -> *mut graphdb::api::embedded::c_api::types::graphdb_session_t {
         self.session
     }
@@ -108,15 +108,15 @@ impl Drop for CApiTestSession {
     }
 }
 
-/// C API 测试事务包装器
+/// C API Test Transaction Wrapper
 ///
-/// 使用 RAII 模式管理事务生命周期
+/// Managing the transaction lifecycle using the RAII pattern
 pub struct CApiTestTransaction {
     txn: *mut graphdb::api::embedded::c_api::types::graphdb_txn_t,
 }
 
 impl CApiTestTransaction {
-    /// 从会话创建事务
+    /// Create a transaction from the session
     pub fn from_session(session: &CApiTestSession) -> Self {
         let mut txn: *mut graphdb::api::embedded::c_api::types::graphdb_txn_t = ptr::null_mut();
 
@@ -127,32 +127,32 @@ impl CApiTestTransaction {
             )
         };
 
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32, "开始事务失败");
-        assert!(!txn.is_null(), "事务句柄不应为空");
+        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32, "Failed to start the transaction.");
+        assert!(!txn.is_null(), "The transaction handle should not be empty.");
 
         Self { txn }
     }
 
-    /// 获取事务句柄
+    /// Obtaining the transaction handle
     pub fn handle(&self) -> *mut graphdb::api::embedded::c_api::types::graphdb_txn_t {
         self.txn
     }
 
-    /// 提交事务
+    /// Commit a transaction
     pub fn commit(self) {
         let rc =
             unsafe { graphdb::api::embedded::c_api::transaction::graphdb_txn_commit(self.txn) };
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32, "提交事务失败");
-        // 防止 Drop 时再次释放
+        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32, "The transaction failed to be committed.");
+        // Prevent the component from being released again when the “Drop” event occurs.
         std::mem::forget(self);
     }
 
-    /// 回滚事务
+    /// Roll back a transaction
     pub fn rollback(self) {
         let rc =
             unsafe { graphdb::api::embedded::c_api::transaction::graphdb_txn_rollback(self.txn) };
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32, "回滚事务失败");
-        // 防止 Drop 时再次释放
+        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32, "Rolling back the transaction failed.");
+        // Prevent the object from being released again when the “Drop” event occurs.
         std::mem::forget(self);
     }
 }
@@ -167,15 +167,15 @@ impl Drop for CApiTestTransaction {
     }
 }
 
-/// C API 测试结果包装器
+/// C API Test Results Wrapper
 ///
-/// 使用 RAII 模式管理结果集生命周期
+/// Manage the lifecycle of result sets using the RAII (Resource Acquisition Is Initialization) pattern.
 pub struct CApiTestResult {
     result: *mut graphdb::api::embedded::c_api::types::graphdb_result_t,
 }
 
 impl CApiTestResult {
-    /// 从会话执行查询创建结果
+    /// Create results from executing queries within the conversation.
     pub fn from_query(session: &CApiTestSession, query: &str) -> Self {
         let query_cstring = CString::new(query).expect("查询字符串无效");
         let mut result: *mut graphdb::api::embedded::c_api::types::graphdb_result_t =
@@ -189,18 +189,18 @@ impl CApiTestResult {
             )
         };
 
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32, "执行查询失败");
-        assert!(!result.is_null(), "结果句柄不应为空");
+        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32, "The query failed to be executed.");
+        assert!(!result.is_null(), "The result handle should not be empty.");
 
         Self { result }
     }
 
-    /// 获取列数
+    /// Get the number of columns
     pub fn column_count(&self) -> i32 {
         unsafe { graphdb::api::embedded::c_api::result::graphdb_column_count(self.result) }
     }
 
-    /// 获取行数
+    /// Get the number of rows
     pub fn row_count(&self) -> i32 {
         unsafe { graphdb::api::embedded::c_api::result::graphdb_row_count(self.result) }
     }
@@ -216,15 +216,15 @@ impl Drop for CApiTestResult {
     }
 }
 
-/// C API 测试批量操作包装器
+/// C API Test for Batch Operation Wrapper
 ///
-/// 使用 RAII 模式管理批量操作生命周期
+/// Using the RAII (Resource Acquisition Is Initialization) pattern to manage the lifecycle of batch operations
 pub struct CApiTestBatch {
     batch: *mut graphdb::api::embedded::c_api::types::graphdb_batch_t,
 }
 
 impl CApiTestBatch {
-    /// 从会话创建批量插入器
+    /// Create a batch inserter from the session
     pub fn from_session(session: &CApiTestSession, batch_size: i32) -> Self {
         let mut batch: *mut graphdb::api::embedded::c_api::types::graphdb_batch_t = ptr::null_mut();
 
@@ -239,14 +239,14 @@ impl CApiTestBatch {
         assert_eq!(
             rc,
             graphdb_error_code_t::GRAPHDB_OK as i32,
-            "创建批量插入器失败"
+            "Failed to create the batch inserter."
         );
-        assert!(!batch.is_null(), "批量操作句柄不应为空");
+        assert!(!batch.is_null(), "The batch operation handle should not be empty.");
 
         Self { batch }
     }
 
-    /// 获取批量操作句柄
+    /// Obtain batch operation handles
     pub fn handle(&self) -> *mut graphdb::api::embedded::c_api::types::graphdb_batch_t {
         self.batch
     }

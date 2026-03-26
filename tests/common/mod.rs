@@ -1,6 +1,6 @@
-//! 集成测试共享工具模块
+//! Integration Testing Shared Tool Module
 //!
-//! 提供测试基础设施和辅助函数，供所有集成测试使用
+//! Provide test infrastructure and helper functions for all integration tests
 
 #![allow(dead_code)]
 
@@ -15,17 +15,17 @@ use parking_lot::Mutex;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-/// 测试存储实例包装器
+/// Test Storage Instance Wrapper
 ///
-/// 使用项目目录下的临时文件夹确保每个测试有独立的存储环境，
-/// 测试结束后自动清理临时目录
+/// Ensure that each test has a separate storage environment using a temporary folder in the project directory.
+/// Automatic cleanup of temporary directories after testing
 pub struct TestStorage {
     storage: Arc<Mutex<RedbStorage>>,
     temp_path: PathBuf,
 }
 
 impl TestStorage {
-    /// 创建新的测试存储实例
+    /// Creating a New Test Storage Instance
     pub fn new() -> DBResult<Self> {
         let temp_dir = tempfile::tempdir()?;
         let db_path = temp_dir.path().join("test.db");
@@ -37,7 +37,7 @@ impl TestStorage {
         })
     }
 
-    /// 获取存储实例引用
+    /// Getting a Reference to a Storage Instance
     pub fn storage(&self) -> Arc<Mutex<RedbStorage>> {
         self.storage.clone()
     }
@@ -45,7 +45,7 @@ impl TestStorage {
 
 impl Drop for TestStorage {
     fn drop(&mut self) {
-        // 尝试清理临时目录，忽略错误
+        // Try to clean up the temporary directory and ignore the error
         let _ = std::fs::remove_dir_all(&self.temp_path);
     }
 }

@@ -1,11 +1,11 @@
-//! 索引系统集成测试
+//! Indexing System Integration Testing
 //!
-//! 测试范围：
-//! - Tag 索引元数据管理（创建、删除、查询、列出）
-//! - Edge 索引元数据管理（创建、删除、查询、列出）
-//! - 索引数据管理（更新、删除、查询）
-//! - 索引查询（精确查询、范围查询）
-//! - 索引缓存
+//! Test range:
+//! - Tag index metadata management (create, delete, query, list)
+//! - Edge index metadata management (create, delete, query, list)
+//! - Indexed data management (updates, deletions, queries)
+//! - Index queries (exact queries, range queries)
+//! - index cache
 
 mod common;
 
@@ -27,7 +27,7 @@ fn get_storage(
     storage.lock()
 }
 
-// ==================== Tag 索引元数据管理测试 ====================
+// ==================== Tag Indexing Metadata Management Test ====================
 
 #[test]
 fn test_create_tag_index_metadata() {
@@ -57,7 +57,7 @@ fn test_create_tag_index_metadata() {
 
     let result = get_storage(&storage).create_tag_index("test_space", &index);
     let created = result.expect("创建索引应该成功");
-    assert!(created, "索引应该被创建");
+    assert!(created, "The index should be created");
 
     let retrieved = get_storage(&storage).get_tag_index("test_space", "person_name_idx");
     let index_opt = retrieved.expect("获取索引应该成功");
@@ -99,7 +99,7 @@ fn test_create_tag_index_duplicate() {
 
     let result = get_storage(&storage).create_tag_index("test_space", &index);
     let created = result.expect("创建重复索引应该返回 false");
-    assert!(!created, "重复索引创建应该返回 false");
+    assert!(!created, "Duplicate index creation should return false");
 }
 
 #[test]
@@ -132,7 +132,7 @@ fn test_drop_tag_index_metadata() {
 
     let result = get_storage(&storage).drop_tag_index("test_space", "person_name_idx");
     let dropped = result.expect("删除索引应该成功");
-    assert!(dropped, "索引应该被删除");
+    assert!(dropped, "Indexes should be deleted");
 
     let retrieved = get_storage(&storage).get_tag_index("test_space", "person_name_idx");
     let index_opt = retrieved.expect("获取索引应该成功");
@@ -186,11 +186,11 @@ fn test_list_tag_indexes() {
     let index_names: Vec<&str> = indexes.iter().map(|i| i.name.as_str()).collect();
     assert!(
         index_names.contains(&"person_name_idx"),
-        "应该包含 person_name_idx"
+        "Should contain person_name_idx"
     );
     assert!(
         index_names.contains(&"person_age_idx"),
-        "应该包含 person_age_idx"
+        "Should contain person_age_idx"
     );
 }
 
@@ -277,7 +277,7 @@ fn test_create_edge_index_metadata() {
 
     let result = get_storage(&storage).create_edge_index("test_space", &index);
     let created = result.expect("创建索引应该成功");
-    assert!(created, "索引应该被创建");
+    assert!(created, "The index should be created");
 
     let retrieved = get_storage(&storage).get_edge_index("test_space", "knows_since_idx");
     let index_opt = retrieved.expect("获取索引应该成功");
@@ -319,7 +319,7 @@ fn test_drop_edge_index_metadata() {
 
     let result = get_storage(&storage).drop_edge_index("test_space", "knows_since_idx");
     let dropped = result.expect("删除索引应该成功");
-    assert!(dropped, "索引应该被删除");
+    assert!(dropped, "Indexes should be deleted");
 
     let retrieved = get_storage(&storage).get_edge_index("test_space", "knows_since_idx");
     let index_opt = retrieved.expect("获取索引应该成功");
@@ -377,11 +377,11 @@ fn test_list_edge_indexes() {
     let index_names: Vec<&str> = indexes.iter().map(|i| i.name.as_str()).collect();
     assert!(
         index_names.contains(&"knows_since_idx"),
-        "应该包含 knows_since_idx"
+        "Should contain knows_since_idx"
     );
     assert!(
         index_names.contains(&"knows_weight_idx"),
-        "应该包含 knows_weight_idx"
+        "Should contain knows_weight_idx"
     );
 }
 
@@ -431,7 +431,7 @@ fn test_update_vertex_indexes() {
         &Value::String("Alice".to_string()),
     );
     let vertex_ids = retrieved.expect("索引查询应该成功");
-    assert!(vertex_ids.contains(&vertex_id), "索引应该包含顶点 ID");
+    assert!(vertex_ids.contains(&vertex_id), "The index should contain the vertex ID");
 }
 
 #[test]
@@ -479,7 +479,7 @@ fn test_update_edge_indexes() {
         &Value::String("2024-01-01".to_string()),
     );
     let src_ids = retrieved.expect("索引查询应该成功");
-    assert!(src_ids.contains(&src), "索引应该包含源顶点 ID");
+    assert!(src_ids.contains(&src), "The index should contain the source vertex ID");
 }
 
 #[test]
@@ -528,7 +528,7 @@ fn test_delete_vertex_indexes() {
     let vertex_ids = retrieved.expect("索引查询应该成功");
     assert!(
         !vertex_ids.contains(&vertex_id),
-        "索引不应该包含已删除的顶点 ID"
+        "The index should not contain deleted vertex IDs."
     );
 }
 
@@ -577,10 +577,10 @@ fn test_delete_edge_indexes() {
         &Value::String("2024-01-01".to_string()),
     );
     let src_ids = retrieved.expect("索引查询应该成功");
-    assert!(!src_ids.contains(&src), "索引不应该包含已删除边的源顶点 ID");
+    assert!(!src_ids.contains(&src), "The index should not contain the source vertex IDs of deleted edges.");
 }
 
-// ==================== 索引查询测试 ====================
+// ==================== Index Query Test ====================
 
 #[test]
 fn test_index_exact_query() {
@@ -631,7 +631,7 @@ fn test_index_exact_query() {
     );
     let vertex_ids = retrieved.expect("索引精确查询应该成功");
     assert_count(&vertex_ids, 1, "匹配的顶点");
-    assert_eq!(vertex_ids[0], Value::Int(1), "应该返回 Alice 的顶点 ID");
+    assert_eq!(vertex_ids[0], Value::Int(1), "should return Alice's vertex ID");
 }
 
 #[test]
@@ -676,8 +676,8 @@ fn test_index_query_multiple_matches() {
         get_storage(&storage).lookup_index("test_space", "person_age_idx", &Value::Int(30));
     let vertex_ids = retrieved.expect("索引查询应该成功");
     assert_count(&vertex_ids, 2, "匹配的顶点");
-    assert!(vertex_ids.contains(&Value::Int(1)), "应该包含顶点 1");
-    assert!(vertex_ids.contains(&Value::Int(2)), "应该包含顶点 2");
+    assert!(vertex_ids.contains(&Value::Int(1)), "Should contain vertex 1");
+    assert!(vertex_ids.contains(&Value::Int(2)), "Should contain vertex 2");
 }
 
 #[test]
@@ -725,7 +725,7 @@ fn test_index_query_no_match() {
     assert_count(&vertex_ids, 0, "匹配的顶点");
 }
 
-// ==================== 索引状态测试 ====================
+// ==================== Index Status Test ====================
 
 #[test]
 fn test_index_status_active() {
@@ -763,7 +763,7 @@ fn test_index_status_active() {
     assert_eq!(
         retrieved_index.status,
         IndexStatus::Active,
-        "新创建的索引应该是 Active 状态"
+        "The newly created index should be Active"
     );
 }
 
@@ -801,10 +801,10 @@ fn test_unique_index() {
     assert_some(&index_opt);
 
     let retrieved_index = index_opt.expect("索引应该存在");
-    assert!(retrieved_index.is_unique, "索引应该是唯一索引");
+    assert!(retrieved_index.is_unique, "Indexes should be unique");
 }
 
-// ==================== 复合索引测试 ====================
+// ==================== Compound Index Test ====================
 
 #[test]
 fn test_composite_index() {
@@ -867,12 +867,12 @@ fn test_composite_index() {
     );
     let vertex_ids = retrieved.expect("复合索引查询应该成功");
     assert_count(&vertex_ids, 2, "匹配的顶点（两个 Alice）");
-    assert!(vertex_ids.contains(&Value::Int(1)), "应该包含顶点 1");
-    assert!(vertex_ids.contains(&Value::Int(2)), "应该包含顶点 2");
+    assert!(vertex_ids.contains(&Value::Int(1)), "Should contain vertex 1");
+    assert!(vertex_ids.contains(&Value::Int(2)), "Should contain vertex 2");
 }
 
 // ==================== IndexSelector 集成测试 ====================
-// 注意：此测试暂时禁用，因为使用了不存在的 API
+// Note: This test is temporarily disabled because it uses a non-existent API
 // #[test]
 // fn test_index_selector_chooses_optimal_index() {
 //     use graphdb::core::types::operators::BinaryOperator;
@@ -888,7 +888,7 @@ fn test_composite_index() {
 //     let tag_info = person_tag_info();
 //     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
 //
-//     // 创建两个索引：name 和 age
+//     // Create two indexes: name and age
 //     let name_index = Index::new(
 //         1,
 //         "person_name_idx".to_string(),
@@ -918,7 +918,7 @@ fn test_composite_index() {
 //     assert_ok(get_storage(&storage).create_tag_index("test_space", &name_index));
 //     assert_ok(get_storage(&storage).create_tag_index("test_space", &age_index));
 //
-//     // 测试等值查询：name = 'Alice'，应该选择 name 索引
+//     // Test the equivalent query: name = 'Alice', should select the name index
 //     let filter = Some(Expression::Binary {
 //         left: Box::new(Expression::Variable("name".to_string())),
 //         op: BinaryOperator::Equal,
@@ -932,7 +932,7 @@ fn test_composite_index() {
 //     let selected = candidate.expect("应该选择一个索引");
 //     assert_eq!(selected.index.id, 1, "等值查询 name 应该选择 name 索引");
 //
-//     // 测试范围查询：age > 25，应该选择 age 索引
+//     // Test range query: age > 25, should select the age index
 //     let filter = Some(Expression::Binary {
 //         left: Box::new(Expression::Variable("age".to_string())),
 //         op: BinaryOperator::GreaterThan,
@@ -945,7 +945,7 @@ fn test_composite_index() {
 //     assert_eq!(selected.index.id, 2, "范围查询 age 应该选择 age 索引");
 // }
 
-// ==================== 范围查询边界控制测试 ====================
+// ==================== Scope Query Boundary Control Test ====================
 
 #[test]
 fn test_index_range_query_with_boundaries() {
@@ -971,7 +971,7 @@ fn test_index_range_query_with_boundaries() {
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
-    // 插入测试数据：年龄 20, 25, 30, 35, 40
+    // Insert test data: Age 20, 25, 30, 35, 40
     let vertices = vec![
         (Value::Int(1), Value::Int(20)),
         (Value::Int(2), Value::Int(25)),
@@ -988,7 +988,7 @@ fn test_index_range_query_with_boundaries() {
         assert_ok(get_storage(&storage).insert_vertex("test_space", vertex));
     }
 
-    // 测试 >= (包含边界): age >= 25，应该返回 25, 30, 35, 40
+    // Test >= (with boundaries): age >= 25, should return 25, 30, 35, 40
     let _limit = IndexLimit {
         column: "age".to_string(),
         begin_value: Some("25".to_string()),
@@ -997,21 +997,21 @@ fn test_index_range_query_with_boundaries() {
         include_end: false,
         scan_type: ScanType::Range,
     };
-    // 注意：这里使用存储层的范围查询能力
+    // Note: the range query capability of the storage layer is used here
     let retrieved =
         get_storage(&storage).lookup_index("test_space", "person_age_idx", &Value::Int(25));
     let vertex_ids = retrieved.expect("索引查询应该成功");
-    assert!(vertex_ids.contains(&Value::Int(2)), ">= 25 应该包含 25");
+    assert!(vertex_ids.contains(&Value::Int(2)), ">= 25 should contain 25");
 
-    // 测试 > (不包含边界): age > 25，应该返回 30, 35, 40
-    // 注意：当前存储层实现可能不支持边界控制，这里验证基本功能
+    // Test > (without bounds): age > 25, should return 30, 35, 40
+    // Note: current storage layer implementations may not support boundary control, verify basic functionality here
     let retrieved =
         get_storage(&storage).lookup_index("test_space", "person_age_idx", &Value::Int(30));
     let vertex_ids = retrieved.expect("索引查询应该成功");
-    assert!(vertex_ids.contains(&Value::Int(3)), "应该包含 30");
+    assert!(vertex_ids.contains(&Value::Int(3)), "Should contain 30");
 }
 
-// ==================== 扫描类型测试 ====================
+// ==================== Scan Type Test ====================
 
 #[test]
 fn test_scan_type_unique() {
@@ -1041,11 +1041,11 @@ fn test_scan_type_unique() {
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
-    // 插入数据
+    // insert data
     let vertices = vec![
         (Value::Int(1), Value::String("Alice".to_string())),
         (Value::Int(2), Value::String("Bob".to_string())),
-        (Value::Int(3), Value::String("Alice".to_string())), // 重复的 Alice
+        (Value::Int(3), Value::String("Alice".to_string())), // Repeated Alice
     ];
 
     for (vid, name) in &vertices {
@@ -1056,7 +1056,7 @@ fn test_scan_type_unique() {
         assert_ok(get_storage(&storage).insert_vertex("test_space", vertex));
     }
 
-    // 等值查询应该返回所有匹配的顶点
+    // Equivalent queries should return all matching vertices
     let retrieved = get_storage(&storage).lookup_index(
         "test_space",
         "person_name_idx",
@@ -1064,8 +1064,8 @@ fn test_scan_type_unique() {
     );
     let vertex_ids = retrieved.expect("索引查询应该成功");
     assert_count(&vertex_ids, 2, "匹配的 Alice");
-    assert!(vertex_ids.contains(&Value::Int(1)), "应该包含顶点 1");
-    assert!(vertex_ids.contains(&Value::Int(3)), "应该包含顶点 3");
+    assert!(vertex_ids.contains(&Value::Int(1)), "Should contain vertex 1");
+    assert!(vertex_ids.contains(&Value::Int(3)), "The vertex with index 3 should also be included.");
 }
 
 #[test]
@@ -1092,7 +1092,7 @@ fn test_scan_type_range() {
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
-    // 插入不同年龄的数据
+    // Insert data for different ages
     for age in [20, 25, 30, 35, 40] {
         let mut props = std::collections::HashMap::new();
         props.insert("age".to_string(), Value::Int(age));
@@ -1101,11 +1101,11 @@ fn test_scan_type_range() {
         assert_ok(get_storage(&storage).insert_vertex("test_space", vertex));
     }
 
-    // 验证范围查询的基本功能
+    // Basic functions of the validation range query
     let retrieved =
         get_storage(&storage).lookup_index("test_space", "person_age_idx", &Value::Int(30));
     let vertex_ids = retrieved.expect("范围查询应该成功");
-    assert!(vertex_ids.contains(&Value::Int(30)), "应该包含年龄 30");
+    assert!(vertex_ids.contains(&Value::Int(30)), "The age should be 30.");
 }
 
 #[test]
@@ -1136,7 +1136,7 @@ fn test_scan_type_full() {
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
-    // 插入多条数据
+    // Insert multiple pieces of data
     for i in 1..=5 {
         let mut props = std::collections::HashMap::new();
         props.insert("name".to_string(), Value::String(format!("Person{}", i)));
@@ -1145,7 +1145,7 @@ fn test_scan_type_full() {
         assert_ok(get_storage(&storage).insert_vertex("test_space", vertex));
     }
 
-    // 全扫描应该返回所有数据
+    // A full scan should return all the data.
     let retrieved = get_storage(&storage).scan_vertices("test_space");
     let vertices = retrieved.expect("全扫描应该成功");
     assert_count(&vertices, 5, "顶点");

@@ -1,12 +1,12 @@
-//! 阶段三：查询引擎组件集成测试
+//! Phase III: Query Engine Component Integration Testing
 //!
-//! 测试范围:
-//! - query::parser - SQL/NGQL解析、AST生成
-//! - query::validator - 语义验证、类型推导
-//! - query::planner - 执行计划生成
-//! - query::optimizer - 计划优化、规则应用
-//! - query::executor - 执行器调度、结果返回
-//! - query::query_pipeline_manager - 完整查询流程
+//! Test Range.
+//! - query::parser - SQL/NGQL parsing, AST generation
+//! - query::validator - semantic validation, type derivation
+//! - query::planner - execution plan generation
+//! - query::optimizer - plan optimization, rule application
+//! - query::executor - executor scheduling, result return
+//! - query::query_pipeline_manager - full query pipeline
 
 mod common;
 
@@ -24,26 +24,26 @@ use graphdb::query::QueryContext;
 use graphdb::storage::StorageClient;
 use std::sync::Arc;
 
-/// 创建测试用的查询上下文
+/// Creating a query context for testing
 fn create_test_query_context() -> Arc<QueryContext> {
     let request_context = Arc::new(QueryRequestContext::new("TEST".to_string()));
     Arc::new(QueryContext::new(request_context))
 }
 
-// ==================== Parser 集成测试 ====================
+// ==================== Parser Integration Testing ====================
 
 #[test]
 fn test_parser_match_statement_basic() {
-    // 注意：解析器使用 (:Label) 语法，标签前需要冒号
-    // 解析器期望变量名后跟冒号和标签
+    // Note: The parser uses the (:Label) syntax, which requires a colon before the label.
+    // The parser expects variable names to be followed by a colon and a label
     let query = "MATCH (n:Person) RETURN n";
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    // 当前解析器可能有语法限制，我们接受成功或失败
-    // 主要是为了测试解析器不会崩溃
+    // The current parser may have syntactic limitations and we accept success or failure
+    // Mainly to test that the parser doesn't crash
     println!("MATCH解析结果: {:?}", result);
-    // 只要解析器返回了结果（无论成功或失败），就算测试通过
+    // As long as the parser returns a result (either success or failure), the test passes!
     let _ = result;
 }
 
@@ -54,7 +54,7 @@ fn test_parser_go_statement() {
 
     let result = parser.parse();
     println!("GO解析结果: {:?}", result);
-    // 解析器应该能处理GO语句
+    // The parser should be able to handle GO statements
     let _ = result;
 }
 
@@ -65,13 +65,13 @@ fn test_parser_use_statement() {
 
     let result = parser.parse();
     println!("USE解析结果: {:?}", result);
-    // USE语句应该能成功解析
+    // The USE statement should parse successfully
     let _ = result;
 }
 
 #[test]
 fn test_parser_create_tag() {
-    // 尝试不同的CREATE TAG语法变体
+    // Trying out different variants of the CREATE TAG syntax
     let queries = vec![
         "CREATE TAG test_tag(name: STRING)",
         "CREATE TAG IF NOT EXISTS test_tag(name STRING)",
@@ -81,7 +81,7 @@ fn test_parser_create_tag() {
         let mut parser = Parser::new(query);
         let result = parser.parse();
         println!("'{}' 解析结果: {:?}", query, result);
-        // 记录结果但不强制要求成功
+        // Record results without mandating success
         let _ = result;
     }
 }
@@ -94,7 +94,7 @@ fn test_parser_show_statements() {
         let mut parser = Parser::new(query);
         let result = parser.parse();
         println!("'{}' 解析结果: {:?}", query, result);
-        // SHOW语句通常应该能成功解析
+        // The SHOW statement should usually parse successfully!
         let _ = result;
     }
 }
@@ -115,9 +115,9 @@ fn test_parser_invalid_syntax() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    // 无效语法应该返回错误
+    // Invalid syntax should return an error
     println!("无效语法解析结果: {:?}", result);
-    assert!(result.is_err(), "无效语法应该返回错误");
+    assert!(result.is_err(), "Invalid syntax should return an error");
 }
 
 // ==================== Validator 集成测试 ====================
@@ -125,7 +125,7 @@ fn test_parser_invalid_syntax() {
 #[test]
 fn test_validator_creation() {
     let validator = Validator::create(StatementType::Match);
-    // 验证器创建成功
+    // Validator created successfully
     let _ = validator;
 }
 
@@ -134,26 +134,26 @@ fn test_validator_match_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    // 创建图空间和Schema
+    // Creating a Graph Space and Schema
     let space_info = common::storage_helpers::create_test_space("validator_test_space");
     {
         let mut storage_guard = storage.lock();
         assert_ok(storage_guard.create_space(&space_info));
     }
 
-    // 解析查询
+    // parse query
     let query = "USE validator_test_space; MATCH (n:Person) RETURN n";
     let mut parser = Parser::new(query);
     let stmt = assert_ok(parser.parse());
 
-    // 创建验证器并验证（使用新的API）
+    // Create validator and validate (using new API)
     let mut validator = Validator::create_from_stmt(&stmt.ast.stmt).expect("创建验证器失败");
     let query_context = create_test_query_context();
 
-    // 验证查询
+    // validation queries
     let result = validator.validate(stmt.ast, query_context);
-    // 验证结果取决于具体实现，可能成功或返回特定错误
-    assert!(result.success, "验证应该成功");
+    // The result of the validation depends on the specific implementation and may succeed or return a specific error
+    assert!(result.success, "Validation should succeed");
 }
 
 #[test]
@@ -162,13 +162,13 @@ fn test_validator_go_statement() {
     let mut parser = Parser::new(query);
     let stmt = assert_ok(parser.parse());
 
-    // 创建验证器并验证（使用新的API）
+    // Create validator and validate (using new API)
     let mut validator = Validator::create_from_stmt(&stmt.ast.stmt).expect("创建验证器失败");
     let query_context = create_test_query_context();
 
-    // GO语句验证
+    // GO statement validation
     let result = validator.validate(stmt.ast, query_context);
-    assert!(result.success, "GO语句验证应该成功");
+    assert!(result.success, "GO statement validation should succeed");
 }
 
 #[test]
@@ -177,21 +177,21 @@ fn test_validator_use_statement() {
     let mut parser = Parser::new(query);
     let stmt = assert_ok(parser.parse());
 
-    // 创建验证器并验证（使用新的API）
+    // Create validator and validate (using new API)
     let mut validator = Validator::create_from_stmt(&stmt.ast.stmt).expect("创建验证器失败");
     let query_context = create_test_query_context();
 
-    // USE语句验证
+    // USE statement validation
     let result = validator.validate(stmt.ast, query_context);
-    assert!(result.success, "USE语句验证应该成功");
+    assert!(result.success, "The USE statement should validate successfully");
 }
 
-// ==================== Planner 集成测试 ====================
+// ==================== Planner Integration Testing ====================
 
 #[test]
 fn test_planner_config_creation() {
     let config = PlannerConfig::default();
-    // 配置创建成功
+    // Configuration created successfully
     let _ = config;
 }
 
@@ -200,19 +200,19 @@ fn test_planner_match_statement() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    // 创建图空间
+    // Creating a graph space
     let space_info = common::storage_helpers::create_test_space("planner_test_space");
     {
         let mut storage_guard = storage.lock();
         assert_ok(storage_guard.create_space(&space_info));
     }
 
-    // 解析查询
+    // parse query
     let query = "MATCH (n:Person) RETURN n";
     let mut parser = Parser::new(query);
     let result = parser.parse();
 
-    // 如果解析失败，跳过此测试
+    // If parsing fails, skip this test
     if result.is_err() {
         println!("MATCH解析失败，跳过规划器测试: {:?}", result.err());
         return;
@@ -220,11 +220,11 @@ fn test_planner_match_statement() {
 
     let _stmt = result.expect("Failed to parse query");
 
-    // 创建查询上下文（使用新的API）
+    // Creating query contexts (using the new API)
     let _query_context = create_test_query_context();
 
-    // 计划生成测试 - 简化版本，只验证创建成功
-    // 测试通过到达此处即表示成功
+    // Scheduled Generation Tests - Simplified version that only verifies successful creation
+    // The test passes and is successful when it reaches this point
 }
 
 // ==================== QueryPipelineManager 集成测试 ====================
@@ -240,7 +240,7 @@ fn test_pipeline_manager_creation() {
         stats_manager,
         Arc::new(OptimizerEngine::default()),
     );
-    // 管道管理器创建成功
+    // Pipeline Manager Created Successfully
 }
 
 #[test]
@@ -255,12 +255,12 @@ fn test_pipeline_manager_create_tag() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    // 执行创建标签查询（使用支持的语法）
-    // 注意：由于类型名是关键字，CREATE TAG可能无法解析
+    // Execute create tag query (using supported syntax)
+    // Note: Since the type name is a keyword, CREATE TAG may not be resolved
     let query = "CREATE TAG pipeline_test_tag(name: STRING, age: INT)";
     let result = pipeline_manager.execute_query(query);
 
-    // 执行可能成功或失败，取决于具体实现
+    // Implementation may succeed or fail, depending on the specific implementation
     println!("CREATE TAG执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
@@ -271,7 +271,7 @@ fn test_pipeline_manager_use_space() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
 
-    // 先创建空间
+    // Create the space first
     {
         let mut storage_guard = storage.lock();
         let space_info = common::storage_helpers::create_test_space("use_test_space");
@@ -284,14 +284,14 @@ fn test_pipeline_manager_use_space() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    // 执行USE查询
+    // Execute USE query
     let query = "USE use_test_space";
     let result = pipeline_manager.execute_query(query);
 
     assert!(result.is_ok() || result.is_err());
 }
 
-// ==================== 完整查询流程集成测试 ====================
+// ==================== Integrated Testing of the Complete Query Process ====================
 
 #[test]
 fn test_complete_query_flow_show_spaces() {
@@ -305,18 +305,18 @@ fn test_complete_query_flow_show_spaces() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    // 执行完整流程：SHOW SPACES
+    // Perform the complete process: SHOW SPACES
     let query = "SHOW SPACES";
     let result = pipeline_manager.execute_query(query);
 
-    // 查询执行应该完成（成功或失败取决于实现）
+    // The query execution should be completed (whether successfully or not depends on the implementation).
     match result {
         Ok(_exec_result) => {
-            // 验证执行结果
-            // 执行结果类型根据实际实现验证
+            // Verify the execution results.
+            // The type of the result to be returned should be verified based on the actual implementation.
         }
         Err(e) => {
-            // 某些错误是可接受的，取决于实现状态
+            // Certain errors are acceptable, depending on the current state of implementation.
             println!("查询执行返回错误: {:?}", e);
         }
     }
@@ -334,13 +334,13 @@ fn test_complete_query_flow_with_metrics() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    // 执行带指标收集的查询
+    // Execute the query that includes data collection with indicators.
     let query = "SHOW SPACES";
     let result = pipeline_manager.execute_query_with_metrics(query);
 
     match result {
         Ok((_exec_result, _metrics)) => {
-            // 验证执行结果和指标
+            // Verify the execution results and indicators.
         }
         Err(e) => {
             println!("带指标的查询执行返回错误: {:?}", e);
@@ -360,22 +360,22 @@ fn test_query_flow_create_and_desc_tag() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    // 创建标签
+    // Create tags
     let create_query = "CREATE TAG desc_test_tag(name: STRING)";
     let create_result = pipeline_manager.execute_query(create_query);
 
-    // 描述标签
+    // Describe the label.
     let desc_query = "DESC TAG desc_test_tag";
     let desc_result = pipeline_manager.execute_query(desc_query);
 
-    // 两个操作都应该完成
+    // Both operations should be completed.
     println!("CREATE TAG结果: {:?}", create_result);
     println!("DESC TAG结果: {:?}", desc_result);
     assert!(create_result.is_ok() || create_result.is_err());
     assert!(desc_result.is_ok() || desc_result.is_err());
 }
 
-// ==================== 错误处理集成测试 ====================
+// ==================== Integrated Testing for Error Handling ====================
 
 #[test]
 fn test_query_error_invalid_syntax() {
@@ -389,12 +389,12 @@ fn test_query_error_invalid_syntax() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    // 执行语法错误的查询
+    // Translate the query that contains grammar errors.
     let query = "INVALID SYNTAX HERE";
     let result = pipeline_manager.execute_query(query);
 
-    // 应该返回错误
-    assert!(result.is_err(), "无效语法应该返回错误");
+    // An error should be returned.
+    assert!(result.is_err(), "Invalid syntax should result in an error.");
 }
 
 #[test]
@@ -409,15 +409,15 @@ fn test_query_error_nonexistent_space() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    // 尝试使用不存在空间
+    // Try to use a space that doesn’t exist.
     let query = "USE nonexistent_space_xyz";
     let result = pipeline_manager.execute_query(query);
 
-    // 可能返回错误，取决于实现
+    // Errors may occur, depending on the implementation.
     assert!(result.is_ok() || result.is_err());
 }
 
-// ==================== 性能测试 ====================
+// ==================== Performance Testing ====================
 
 #[test]
 fn test_query_pipeline_performance() {
@@ -431,7 +431,7 @@ fn test_query_pipeline_performance() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    // 执行多次查询测试性能
+    // Perform multiple queries to test the performance.
     let query = "SHOW SPACES";
     let iterations = 10;
 
@@ -441,11 +441,11 @@ fn test_query_pipeline_performance() {
     }
 }
 
-// ==================== 并发测试（简化版） ====================
+// ==================== Concurrent Testing (Simplified Version) ====================
 
 #[test]
 fn test_sequential_query_execution() {
-    // 由于QueryPipelineManager不是Send，我们使用顺序执行测试
+    // Since QueryPipelineManager does not belong to the Send category, we execute the tests in a sequential manner.
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -456,7 +456,7 @@ fn test_sequential_query_execution() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    // 顺序执行多个查询
+    // Executing multiple queries in sequence
     for i in 0..5 {
         let query = "SHOW SPACES";
         let result = pipeline_manager.execute_query(query);

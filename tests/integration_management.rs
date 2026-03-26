@@ -1,17 +1,17 @@
-//! 管理和辅助语句集成测试
+//! Managing and assisting statement integration testing
 //!
-//! 测试范围:
-//! - USE - 使用图空间
-//! - SHOW - 显示信息 (SPACES, TAGS, EDGES, HOSTS, PARTS, SESSIONS, QUERIES, CONFIGS)
-//! - EXPLAIN - 查询计划 (支持 FORMAT = TABLE/DOT)
-//! - PROFILE - 性能分析 (支持 FORMAT = TABLE/DOT)
-//! - GROUP BY - 分组语句
-//! - KILL QUERY - 终止查询
-//! - UPDATE CONFIGS - 更新配置
-//! - RETURN - 返回结果
-//! - WITH - 中间结果处理
-//! - UNWIND - 展开列表
-//! - PIPE - 管道操作
+//! Test Range.
+//! - USE - Using the graph space
+//! - SHOW - Show information (SPACES, TAGS, EDGES, HOSTS, PARTS, SESSIONS, QUERIES, CONFIGS)
+//! - EXPLAIN - query plan (supports FORMAT = TABLE/DOT)
+//! - PROFILE - Performance Analysis (FORMAT = TABLE/DOT supported)
+//! - GROUP BY - grouping statement
+//! - KILL QUERY - terminates the query
+//! - UPDATE CONFIGS - Update Configuration
+//! - RETURN - return result
+//! - WITH - Intermediate Results Handling
+//! - UNWIND - Expand List
+//! - PIPE - Pipeline Operation
 
 mod common;
 
@@ -746,12 +746,12 @@ fn test_management_error_handling() {
     );
 
     let invalid_queries = vec![
-        "USE",              // 缺少空间名
-        "SHOW",             // 缺少对象
-        "EXPLAIN",          // 缺少查询
-        "RETURN",           // 缺少表达式
-        "UNWIND",           // 缺少列表和变量
-        "GO FROM 1 OVER |", // PIPE语法错误
+        "USE",              // Lack of space names
+        "SHOW",             // Missing objects
+        "EXPLAIN",          // Missing query
+        "RETURN",           // Missing expressions
+        "UNWIND",           // Missing lists and variables
+        "GO FROM 1 OVER |", // PIPE syntax error
     ];
 
     for query in invalid_queries {
@@ -930,7 +930,7 @@ fn test_group_by_multiple_items() {
     assert_eq!(stmt.ast.stmt.kind(), "GROUP BY");
 }
 
-// ==================== 会话管理语句测试 ====================
+// ==================== Session Management Statement Test ====================
 
 #[test]
 fn test_show_sessions() {
@@ -976,7 +976,7 @@ fn test_kill_query() {
     assert_eq!(stmt.ast.stmt.kind(), "KILL QUERY");
 }
 
-// ==================== 配置管理语句测试 ====================
+// ==================== Configuration Management Statement Test ====================
 
 #[test]
 fn test_show_configs() {
@@ -1042,7 +1042,7 @@ fn test_update_configs_with_module() {
     assert_eq!(stmt.ast.stmt.kind(), "UPDATE CONFIGS");
 }
 
-// ==================== 新功能综合测试 ====================
+// ==================== Comprehensive test of new features ====================
 
 #[test]
 fn test_new_management_features() {
@@ -1074,7 +1074,7 @@ fn test_new_management_features() {
     }
 }
 
-// ==================== 变量赋值语句测试 ====================
+// ==================== Variable Assignment Statement Test ====================
 
 #[test]
 fn test_assignment_statement() {
@@ -1088,7 +1088,7 @@ fn test_assignment_statement() {
     assert_eq!(stmt.ast.stmt.kind(), "ASSIGNMENT");
 }
 
-// ==================== 集合操作语句测试 ====================
+// ==================== 集合操作语句测试
 
 #[test]
 fn test_union_statement() {

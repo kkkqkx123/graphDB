@@ -1,10 +1,10 @@
-//! 日志系统集成测试
+//! Log System Integration Testing
 //!
-//! 测试范围:
-//! - 日志配置加载和验证
-//! - 日志文件创建和写入
-//! - 日志轮转功能
-//! - 日志级别过滤
+//! Test Range.
+//! - Log configuration loading and validation
+//! - Log file creation and writing
+//! - Log rotation function
+//! - Log Level Filtering
 
 mod common;
 
@@ -14,7 +14,7 @@ use std::time::Duration;
 
 use graphdb::config::Config;
 
-/// 测试日志配置默认值
+/// Test Log Configuration Defaults
 #[test]
 fn test_log_config_defaults() {
     let config = Config::default();
@@ -26,7 +26,7 @@ fn test_log_config_defaults() {
     assert_eq!(config.log.max_files, 5);
 }
 
-/// 测试日志配置序列化和反序列化
+/// Test Log Configuration Serialization and Deserialization
 #[test]
 fn test_log_config_serialization() {
     let config = Config {
@@ -53,17 +53,17 @@ fn test_log_config_serialization() {
         monitoring: graphdb::config::MonitoringConfig::default(),
     };
 
-    // 序列化为 TOML
+    // Serialization to TOML
     let toml_str = toml::to_string_pretty(&config).expect("序列化配置失败");
 
-    // 验证 TOML 包含日志配置
+    // Verifying TOML Include Logging Configuration
     assert!(toml_str.contains("level = \"debug\""));
     assert!(toml_str.contains("dir = \"test_logs\""));
     assert!(toml_str.contains("file = \"test_graphdb\""));
     assert!(toml_str.contains("max_file_size = 52428800"));
     assert!(toml_str.contains("max_files = 3"));
 
-    // 反序列化
+    // deserialization
     let loaded_config: Config = toml::from_str(&toml_str).expect("反序列化配置失败");
     assert_eq!(loaded_config.log.level, "debug");
     assert_eq!(loaded_config.log.dir, "test_logs");
@@ -72,7 +72,7 @@ fn test_log_config_serialization() {
     assert_eq!(loaded_config.log.max_files, 3);
 }
 
-/// 测试日志目录创建
+/// Test Log Directory Creation
 #[test]
 fn test_log_directory_creation() {
     let temp_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -80,19 +80,19 @@ fn test_log_directory_creation() {
         .join("test-logs")
         .join(format!("dir_test_{}", std::process::id()));
 
-    // 确保目录不存在
+    // Make sure the catalog does not exist
     let _ = fs::remove_dir_all(&temp_dir);
     assert!(!temp_dir.exists());
 
-    // 创建目录
+    // Create a catalog
     fs::create_dir_all(&temp_dir).expect("创建日志目录失败");
     assert!(temp_dir.exists());
 
-    // 清理
+    // clear up
     let _ = fs::remove_dir_all(&temp_dir);
 }
 
-/// 测试日志配置从文件加载
+/// Test log configuration loaded from file
 #[test]
 fn test_log_config_from_file() {
     let temp_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -100,11 +100,11 @@ fn test_log_config_from_file() {
         .join("test-logs")
         .join(format!("config_test_{}", std::process::id()));
 
-    // 清理并创建目录
+    // Clean up and create a catalog
     let _ = fs::remove_dir_all(&temp_dir);
     fs::create_dir_all(&temp_dir).expect("创建测试目录失败");
 
-    // 创建测试配置文件
+    // Creating Test Profiles
     let config_content = r#"
 [database]
 host = "127.0.0.1"
@@ -153,22 +153,22 @@ min_iteration_rounds = 1
     let config_path = temp_dir.join("test_config.toml");
     fs::write(&config_path, config_content).expect("写入配置文件失败");
 
-    // 加载配置
+    // Load Configuration
     let config = Config::load(&config_path).expect("加载配置失败");
 
-    // 验证日志配置
+    // Verify Logging Configuration
     assert_eq!(config.log.level, "debug");
     assert_eq!(config.log.dir, "custom_logs");
     assert_eq!(config.log.file, "custom_graphdb");
     assert_eq!(config.log.max_file_size, 52428800);
     assert_eq!(config.log.max_files, 3);
 
-    // 清理
+    // clear up
     let _ = fs::remove_dir_all(&temp_dir);
 }
 
-/// 集成测试：验证 flexi_logger 功能
-/// 注意：由于 flexi_logger 使用全局 logger，所有功能在一个测试中验证
+/// Integration test: verifying flexi_logger functionality
+/// Note: Since flexi_logger uses a global logger, all functionality is verified in a single test
 #[test]
 fn test_flexi_logger_integration() {
     use flexi_logger::{Cleanup, Criterion, FileSpec, Logger, Naming, WriteMode};
@@ -178,11 +178,11 @@ fn test_flexi_logger_integration() {
         .join("test-logs")
         .join(format!("integration_test_{}", std::process::id()));
 
-    // 清理并创建测试目录
+    // Clean up and create a test directory
     let _ = fs::remove_dir_all(&temp_dir);
     fs::create_dir_all(&temp_dir).expect("创建测试目录失败");
 
-    // ========== 测试 1: 基本日志写入 ==========
+    // ========== Test 1: Basic Log Write ==========
     {
         let test_dir = temp_dir.join("basic");
         fs::create_dir_all(&test_dir).expect("创建测试目录失败");
@@ -202,10 +202,10 @@ fn test_flexi_logger_integration() {
         log::warn!("警告日志测试");
         log::error!("错误日志测试");
 
-        // 等待日志写入
+        // Waiting for logs to be written
         std::thread::sleep(Duration::from_millis(500));
 
-        // 查找生成的日志文件（flexi_logger 可能使用 rCURRENT 后缀）
+        // Find generated log files (flexi_logger may use rCURRENT suffix)
         let log_files: Vec<_> = fs::read_dir(&test_dir)
             .expect("读取目录失败")
             .filter_map(|e| e.ok())
@@ -215,24 +215,24 @@ fn test_flexi_logger_integration() {
             })
             .collect();
 
-        assert!(!log_files.is_empty(), "应该至少有一个日志文件");
+        assert!(!log_files.is_empty(), "There should be at least one log file");
 
-        // 读取第一个日志文件
+        // Read the first log file
         let log_file = &log_files[0];
         let content = fs::read_to_string(log_file.path()).expect("读取日志文件失败");
-        assert!(content.contains("基本日志写入测试"), "日志应包含信息日志");
-        assert!(content.contains("警告日志测试"), "日志应包含警告日志");
-        assert!(content.contains("错误日志测试"), "日志应包含错误日志");
+        assert!(content.contains("基本日志写入测试"), "The log shall contain the message log");
+        assert!(content.contains("警告日志测试"), "Logs should contain warning logs");
+        assert!(content.contains("错误日志测试"), "Logs should contain error logs");
     }
 
-    // ========== 测试 2: 日志级别过滤 ==========
+    // ========== Test 2: Log Level Filtering ==========
     {
         let test_dir = temp_dir.join("level_filter");
         fs::create_dir_all(&test_dir).expect("创建测试目录失败");
 
-        // 注意：由于全局 logger 已经设置，这里使用不同的方式测试
-        // 实际上 flexi_logger 不支持在同一进程中重新初始化
-        // 所以我们只验证配置可以被正确加载
+        // Note: Since the global logger has already been set up, this is tested in a different way here
+        // Actually flexi_logger does not support reinitialization in the same process
+        // So let's just verify that the configuration can be loaded correctly
 
         let config = Config {
             database: graphdb::config::DatabaseConfig::default(),
@@ -249,12 +249,12 @@ fn test_flexi_logger_integration() {
             monitoring: graphdb::config::MonitoringConfig::default(),
         };
 
-        // 验证配置正确
+        // Verify that the configuration is correct
         assert_eq!(config.log.level, "warn");
         assert!(config.log.dir.contains("level_filter"));
     }
 
-    // ========== 测试 3: 日志轮转配置验证 ==========
+    // ========== Test 3: Log Rotation Configuration Validation ==========
     {
         let test_dir = temp_dir.join("rotation");
         fs::create_dir_all(&test_dir).expect("创建测试目录失败");
@@ -275,11 +275,11 @@ fn test_flexi_logger_integration() {
             monitoring: graphdb::config::MonitoringConfig::default(),
         };
 
-        // 验证轮转配置
+        // Verifying Rotation Configuration
         assert_eq!(config.log.max_file_size, 10 * 1024 * 1024);
         assert_eq!(config.log.max_files, 3);
 
-        // 验证 flexi_logger 的轮转配置可以正确构建
+        // Verify that the rotation configuration of flexi_logger can be built correctly
         let file_spec = FileSpec::default()
             .basename(&config.log.file)
             .directory(&config.log.dir);
@@ -292,10 +292,10 @@ fn test_flexi_logger_integration() {
                 Naming::Numbers,
                 Cleanup::KeepLogFiles(config.log.max_files),
             );
-        // 注意：不实际启动 logger，因为全局 logger 已存在
+        // Note: You don't actually start the logger, because the global logger already exists.
     }
 
-    // ========== 测试 4: 异步写入配置验证 ==========
+    // ========== Test 4: Asynchronous Write Configuration Validation ==========
     {
         let test_dir = temp_dir.join("async");
         fs::create_dir_all(&test_dir).expect("创建测试目录失败");
@@ -315,7 +315,7 @@ fn test_flexi_logger_integration() {
             monitoring: graphdb::config::MonitoringConfig::default(),
         };
 
-        // 验证异步配置可以正确构建
+        // Verify that the asynchronous configuration can be built correctly
         let file_spec = FileSpec::default()
             .basename(&config.log.file)
             .directory(&config.log.dir);
@@ -324,10 +324,10 @@ fn test_flexi_logger_integration() {
             .expect("创建 logger 失败")
             .log_to_file(file_spec)
             .write_mode(WriteMode::Async);
-        // 注意：不实际启动 logger，因为全局 logger 已存在
+        // Note: You don't actually start the logger, because the global logger already exists.
     }
 
-    // ========== 测试 5: 日志清理策略配置验证 ==========
+    // ========== Test 5: Log Cleaning Policy Configuration Validation ==========
     {
         let test_dir = temp_dir.join("cleanup");
         fs::create_dir_all(&test_dir).expect("创建测试目录失败");
@@ -349,10 +349,10 @@ fn test_flexi_logger_integration() {
             monitoring: graphdb::config::MonitoringConfig::default(),
         };
 
-        // 验证清理配置
+        // Verify Cleanup Configuration
         assert_eq!(config.log.max_files, max_files);
 
-        // 验证 flexi_logger 的清理配置可以正确构建
+        // Verify that the flexi_logger cleanup configuration can be built correctly
         let file_spec = FileSpec::default()
             .basename(&config.log.file)
             .directory(&config.log.dir);
@@ -365,23 +365,23 @@ fn test_flexi_logger_integration() {
                 Naming::Numbers,
                 Cleanup::KeepLogFiles(config.log.max_files),
             );
-        // 注意：不实际启动 logger，因为全局 logger 已存在
+        // Note: You don't actually start the logger, because the global logger already exists.
     }
 
-    // 清理所有测试目录
+    // Clean up all test directories
     let _ = fs::remove_dir_all(&temp_dir);
 }
 
-/// 测试日志文件路径解析
+/// Test Log File Path Resolution
 #[test]
 fn test_log_file_path_resolution() {
     let config = Config::default();
 
-    // 验证日志目录和文件名组合
+    // Verify the combination of the log directory and file name.
     let expected_log_path = format!("{}/{}.log", config.log.dir, config.log.file);
     assert_eq!(expected_log_path, "logs/graphdb.log");
 
-    // 测试自定义配置
+    // Testing the custom configuration
     let custom_config = Config {
         database: graphdb::config::DatabaseConfig::default(),
         transaction: graphdb::config::TransactionConfig::default(),
@@ -400,14 +400,14 @@ fn test_log_file_path_resolution() {
     assert_eq!(custom_path, "/var/log/graphdb/app.log");
 }
 
-/// 测试日志文件大小配置
+/// Testing the configuration of the log file size.
 #[test]
 fn test_log_file_size_config() {
-    // 测试默认 100MB
+    // The default value for the test is 100MB.
     let config = Config::default();
     assert_eq!(config.log.max_file_size, 100 * 1024 * 1024);
 
-    // 测试自定义大小
+    // Testing custom sizes
     let custom_config = Config {
         database: graphdb::config::DatabaseConfig::default(),
         transaction: graphdb::config::TransactionConfig::default(),
@@ -422,7 +422,7 @@ fn test_log_file_size_config() {
     };
     assert_eq!(custom_config.log.max_file_size, 500 * 1024 * 1024);
 
-    // 测试小文件配置（用于测试）
+    // Testing the configuration of small files (for testing purposes)
     let small_config = Config {
         database: graphdb::config::DatabaseConfig::default(),
         transaction: graphdb::config::TransactionConfig::default(),
@@ -438,7 +438,7 @@ fn test_log_file_size_config() {
     assert_eq!(small_config.log.max_file_size, 1024);
 }
 
-/// 测试日志级别配置验证
+/// Verification of test log level configuration
 #[test]
 fn test_log_level_validation() {
     let valid_levels = vec!["trace", "debug", "info", "warn", "error"];
@@ -460,8 +460,8 @@ fn test_log_level_validation() {
     }
 }
 
-/// 测试日志时间戳格式
-/// 验证日志输出包含时间戳，并且时间戳格式正确
+/// Test log timestamp format
+/// Verify that the log output contains timestamps, and that the timestamp format is correct.
 #[test]
 fn test_log_timestamp_format() {
     use flexi_logger::{
@@ -473,14 +473,14 @@ fn test_log_timestamp_format() {
         .join("test-logs")
         .join(format!("timestamp_test_{}", std::process::id()));
 
-    // 清理并创建测试目录
+    // Clean up and create a test directory.
     let _ = fs::remove_dir_all(&temp_dir);
     fs::create_dir_all(&temp_dir).expect("创建测试目录失败");
 
     let test_dir = temp_dir.join("timestamp");
     fs::create_dir_all(&test_dir).expect("创建测试目录失败");
 
-    // 自定义日志格式化函数，与实际日志系统保持一致
+    // Custom log formatting functions that are consistent with the actual log system.
     fn log_format(
         w: &mut dyn std::io::Write,
         now: &mut DeferredNow,
@@ -496,7 +496,7 @@ fn test_log_timestamp_format() {
         )
     }
 
-    // 使用自定义格式（包含时间戳）初始化 logger
+    // Initialize the logger using a custom format (including a timestamp).
     let _logger = Logger::try_with_str("info")
         .expect("创建 logger 失败")
         .log_to_file(
@@ -509,15 +509,15 @@ fn test_log_timestamp_format() {
         .start()
         .expect("启动 logger 失败");
 
-    // 写入测试日志
+    // Write to the test log
     log::info!("时间戳格式测试日志");
     log::warn!("警告日志时间戳测试");
     log::error!("错误日志时间戳测试");
 
-    // 等待日志写入
+    // Waiting for the log to be written.
     std::thread::sleep(Duration::from_millis(500));
 
-    // 查找生成的日志文件
+    // Find the generated log file.
     let log_files: Vec<_> = fs::read_dir(&test_dir)
         .expect("读取目录失败")
         .filter_map(|e| e.ok())
@@ -527,18 +527,18 @@ fn test_log_timestamp_format() {
         })
         .collect();
 
-    assert!(!log_files.is_empty(), "应该至少有一个日志文件");
+    assert!(!log_files.is_empty(), "There should be at least one log file.");
 
-    // 读取第一个日志文件
+    // Read the first log file.
     let log_file = &log_files[0];
     let content = fs::read_to_string(log_file.path()).expect("读取日志文件失败");
 
-    // 打印日志内容以便调试
+    // Print the log content for debugging purposes.
     println!("日志文件路径: {:?}", log_file.path());
     println!("日志内容:\n{}", content);
 
-    // 验证日志内容
-    assert!(content.contains("时间戳格式测试日志"), "日志应包含测试消息");
+    // Verify the content of the log files.
+    assert!(content.contains("时间戳格式测试日志"), "The log should contain the test messages.");
 
     // 验证时间戳格式：YYYY-MM-DD HH:MM:SS.mmm
     let timestamp_regex = regex::Regex::new(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}")
@@ -548,12 +548,12 @@ fn test_log_timestamp_format() {
         "日志应包含时间戳，格式为 YYYY-MM-DD HH:MM:SS.mmm"
     );
 
-    // 验证日志级别标记
+    // Verify the log level labels.
     assert!(
         content.contains("[INFO]") || content.contains("[WARN]") || content.contains("[ERROR]"),
-        "日志应包含日志级别标记"
+        "The log should contain log level markers."
     );
 
-    // 清理
+    // Clean up
     let _ = fs::remove_dir_all(&temp_dir);
 }

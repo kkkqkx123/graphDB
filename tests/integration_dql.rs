@@ -1,13 +1,13 @@
 //! 数据查询语言(DQL)集成测试
 //!
-//! 测试范围:
-//! - MATCH - 模式匹配查询
-//! - GO - 图遍历查询
-//! - LOOKUP - 基于索引查找
-//! - FETCH - 获取数据
-//! - FIND PATH - 路径查找
-//! - SUBGRAPH - 子图查询
-//! - YIELD - 结果投影与过滤
+//! Test Range.
+//! - MATCH - Pattern Matching Query
+//! - GO - Graph Traversal Query
+//! - LOOKUP - index-based lookup
+//! - FETCH - Fetch Data
+//! - FIND PATH - Path Finding
+//! - SUBGRAPH - Subgraph Query
+//! - YIELD - Result projection and filtering
 
 mod common;
 
@@ -77,7 +77,7 @@ fn test_match_parser_invalid_syntax() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_err(), "无效语法应该返回错误");
+    assert!(result.is_err(), "Invalid syntax should return an error");
 }
 
 #[test]
@@ -134,7 +134,7 @@ fn test_go_parser_basic() {
 
 #[test]
 fn test_go_parser_with_steps() {
-    // 使用当前解析器支持的语法: GO <steps> FROM <vertices> OVER <edge>
+    // Use the syntax supported by the current parser: GO <steps> FROM <vertices> OVER <edge>.
     let query = "GO 2 FROM 1 OVER KNOWS";
     let mut parser = Parser::new(query);
 
@@ -171,20 +171,20 @@ fn test_go_parser_bidirect() {
 
 #[test]
 fn test_go_parser_with_where() {
-    // 使用当前解析器支持的语法: GO FROM <vertices> OVER <edge> WHERE <condition>
+    // Use the syntax supported by the current parser: GO FROM <vertices> OVER <edge> WHERE <condition>
     let query = "GO FROM 1 OVER KNOWS WHERE $^.age > 25";
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    // WHERE 子句在 GO 语句中可能有限制，测试解析是否返回结果
+    // WHERE clauses may have limitations in the GO statement, testing whether parsing returns results
     println!("GO带WHERE解析结果: {:?}", result);
     let _ = result;
 }
 
 #[test]
 fn test_go_parser_with_yield() {
-    // 使用当前解析器支持的语法: GO FROM <vertices> OVER <edge> YIELD <items>
-    // 简化表达式，避免使用 $^ 引用
+    // Use the syntax supported by the current parser: GO FROM <vertices> OVER <edge> YIELD <items>
+    // Simplify expressions and avoid $^ references
     let query = "GO FROM 1 OVER KNOWS YIELD name, age";
     let mut parser = Parser::new(query);
 
@@ -197,7 +197,7 @@ fn test_go_parser_with_yield() {
 
 #[test]
 fn test_go_parser_complex() {
-    // 简化复杂查询，使用当前解析器支持的语法
+    // Simplify complex queries, using syntax supported by the current parser
     let query = "GO 2 FROM 1 OVER KNOWS REVERSELY YIELD $^.name, $^.age";
     let mut parser = Parser::new(query);
 
@@ -262,7 +262,7 @@ fn test_lookup_parser_basic() {
 
 #[test]
 fn test_lookup_parser_with_yield() {
-    // LOOKUP 语句的 YIELD 子句支持可能有限，测试基础功能
+    // Support for the YIELD clause of the LOOKUP statement may be limited, test base functionality
     let query = "LOOKUP ON Person WHERE Person.age > 25";
     let mut parser = Parser::new(query);
 
@@ -275,7 +275,7 @@ fn test_lookup_parser_with_yield() {
 
 #[test]
 fn test_lookup_parser_complex_condition() {
-    // 简化复杂条件查询
+    // Simplify complex conditional queries
     let query = "LOOKUP ON Person WHERE Person.age > 25";
     let mut parser = Parser::new(query);
 
@@ -288,7 +288,7 @@ fn test_lookup_parser_complex_condition() {
 
 #[test]
 fn test_lookup_parser_edge() {
-    // LOOKUP ON EDGE 语法测试
+    // LOOKUP ON EDGE Syntax Test
     let query = "LOOKUP ON KNOWS WHERE KNOWS.since > '2020-01-01'";
     let mut parser = Parser::new(query);
 
@@ -458,14 +458,14 @@ fn test_find_path_parser_noloop() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    // NOLOOP现在是默认选项，所以不再需要显式指定，解析会失败
+    // NOLOOP is now the default option, so it no longer needs to be explicitly specified, parsing will fail
     assert!(
         result.is_err(),
         "FIND NOLOOP PATH解析应该失败，因为NOLOOP是默认选项: {:?}",
         result.err()
     );
 
-    // 测试不带NOLOOP的路径查找
+    // Testing pathfinding without NOLOOP
     let query2 = "FIND PATH FROM 1 TO 4 OVER KNOWS";
     let mut parser2 = Parser::new(query2);
     let result2 = parser2.parse();
@@ -562,11 +562,11 @@ fn test_find_path_execution_shortest() {
     assert!(result.is_ok() || result.is_err());
 }
 
-// ==================== SUBGRAPH 语句测试 ====================
+// ==================== SUBGRAPH statement test ====================
 
 #[test]
 fn test_subgraph_parser_basic() {
-    // 使用当前解析器支持的语法: GET SUBGRAPH FROM <vertices>
+    // Use the syntax supported by the current parser: GET SUBGRAPH FROM <vertices
     let query = "GET SUBGRAPH FROM 1";
     let mut parser = Parser::new(query);
 
@@ -583,7 +583,7 @@ fn test_subgraph_parser_basic() {
 
 #[test]
 fn test_subgraph_parser_multiple_vertices() {
-    // 使用当前解析器支持的语法
+    // Use the syntax supported by the current parser
     let query = "GET SUBGRAPH FROM 1, 2, 3";
     let mut parser = Parser::new(query);
 
@@ -600,7 +600,7 @@ fn test_subgraph_parser_multiple_vertices() {
 
 #[test]
 fn test_subgraph_parser_with_steps() {
-    // 使用当前解析器支持的语法: GET SUBGRAPH STEP <n> FROM <vertices>
+    // Use the current syntax supported by the parser: GET SUBGRAPH STEP <n> FROM <vertices>
     let query = "GET SUBGRAPH STEP 2 FROM 1";
     let mut parser = Parser::new(query);
 
@@ -617,7 +617,7 @@ fn test_subgraph_parser_with_steps() {
 
 #[test]
 fn test_subgraph_parser_with_over() {
-    // 使用当前解析器支持的语法: GET SUBGRAPH FROM <vertices> OVER <edge>
+    // Use the syntax supported by the current parser: GET SUBGRAPH FROM <vertices> OVER <edge>.
     let query = "GET SUBGRAPH FROM 1 OVER KNOWS";
     let mut parser = Parser::new(query);
 
@@ -692,10 +692,10 @@ fn test_dql_error_handling() {
     );
 
     let invalid_queries = vec![
-        "MATCH (n:Person",                        // 缺少右括号
-        "GO FROM OVER KNOWS",                     // 缺少顶点ID
-        "LOOKUP ON WHERE Person.name == 'Alice'", // 缺少标签
-        "FETCH PROP ON",                          // 缺少标签和ID
+        "MATCH (n:Person",                        // Missing right brackets
+        "GO FROM OVER KNOWS",                     // Missing vertex ID
+        "LOOKUP ON WHERE Person.name == 'Alice'", // Missing labels
+        "FETCH PROP ON",                          // Missing tags and IDs
     ];
 
     for query in invalid_queries {
@@ -704,7 +704,7 @@ fn test_dql_error_handling() {
     }
 }
 
-// ==================== 悬挂边相关测试 ====================
+// ==================== Hanging Edge Related Tests ====================
 
 #[test]
 fn test_go_with_dangling_edges() {
@@ -718,8 +718,8 @@ fn test_go_with_dangling_edges() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    // 测试GO语句在存在悬挂边时的行为
-    // GO语句应该返回悬挂边的属性，但点的属性为空
+    // Testing the behavior of GO statements in the presence of hanging edges
+    // The GO statement should return the properties of the hanging edge, but the properties of the point are empty
     let query = "GO FROM 1 OVER KNOWS YIELD target.name, edge.since";
     let result = pipeline_manager.execute_query(query);
 
@@ -739,7 +739,7 @@ fn test_go_dangling_edge_returns_edge_props() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    // 测试GO语句返回悬挂边的属性
+    // Test GO statement to return properties of hanging edges
     let query = "GO FROM 1 OVER KNOWS YIELD edge.since, edge.strength";
     let result = pipeline_manager.execute_query(query);
 
@@ -759,7 +759,7 @@ fn test_match_no_dangling_edges() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    // MATCH语句不应返回悬挂边
+    // The MATCH statement should not return a hanging edge
     let query = "MATCH (n:Person)-[KNOWS]->(m:Person) RETURN n, m";
     let result = pipeline_manager.execute_query(query);
 
@@ -838,18 +838,18 @@ fn test_dangling_edge_detection_and_repair() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    // 使用锁访问存储方法
+    // Accessing Storage Methods with Locks
     let mut storage_guard = storage.lock();
 
-    // 测试悬挂边检测功能
+    // Test hanging edge detection function
     let dangling_result = storage_guard.find_dangling_edges("test_space");
     println!("悬挂边检测结果: {:?}", dangling_result);
 
-    // 测试悬挂边修复功能
+    // Testing Hanging Edge Repair Function
     let repair_result = storage_guard.repair_dangling_edges("test_space");
     println!("悬挂边修复结果: {:?}", repair_result);
 
-    // 验证结果
+    // Verification results
     assert!(dangling_result.is_ok() || dangling_result.is_err());
     assert!(repair_result.is_ok() || repair_result.is_err());
 }
@@ -861,16 +861,16 @@ fn test_dangling_edge_workflow() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    // 使用锁访问存储方法
+    // Accessing Storage Methods with Locks
     let mut storage_guard = storage.lock();
 
-    // 1. 创建测试空间 - 使用正确的SpaceInfo结构
+    // 1. Creating a test space - using the correct SpaceInfo structure
     let space_info = graphdb::core::types::SpaceInfo::new("dangling_test".to_string());
 
     let create_result = storage_guard.create_space(&space_info);
     println!("创建空间结果: {:?}", create_result);
 
-    // 2. 创建一个顶点
+    // 2. Create a vertex
     use std::collections::HashMap;
     let mut tag_props = HashMap::new();
     tag_props.insert(
@@ -889,7 +889,7 @@ fn test_dangling_edge_workflow() {
     let insert_result = storage_guard.insert_vertex("dangling_test", vertex);
     println!("插入顶点结果: {:?}", insert_result);
 
-    // 3. 创建一条指向不存在顶点的边（悬挂边）
+    // 3. Create an edge pointing to a vertex that does not exist (hanging edge)
     let mut props = HashMap::new();
     props.insert(
         "since".to_string(),
@@ -898,7 +898,7 @@ fn test_dangling_edge_workflow() {
 
     let edge = graphdb::core::Edge::new(
         graphdb::core::Value::Int(1),
-        graphdb::core::Value::Int(999), // 不存在的顶点
+        graphdb::core::Value::Int(999), // Non-existent vertices
         "KNOWS".to_string(),
         0, // rank
         props,
@@ -907,25 +907,25 @@ fn test_dangling_edge_workflow() {
     let edge_result = storage_guard.insert_edge("dangling_test", edge);
     println!("插入悬挂边结果: {:?}", edge_result);
 
-    // 4. 检测悬挂边
+    // 4. Detection of overhanging edges
     let dangling = storage_guard.find_dangling_edges("dangling_test");
     println!("检测到的悬挂边: {:?}", dangling);
 
-    // 5. 修复悬挂边
+    // 5. Fix the hanging edges.
     let repaired = storage_guard.repair_dangling_edges("dangling_test");
     println!("修复的悬挂边数量: {:?}", repaired);
 
-    // 验证结果
+    // Verification results
     assert!(create_result.is_ok() || create_result.is_err());
     assert!(insert_result.is_ok() || insert_result.is_err());
     assert!(edge_result.is_ok() || edge_result.is_err());
 }
 
-// ==================== YIELD 语句测试 ====================
+// ==================== Testing of the YIELD statement =====================
 
 #[test]
 fn test_yield_with_where_basic() {
-    // 使用当前解析器支持的语法，简化 YIELD 子句
+    // Simplify the YIELD clause using the syntax supported by the current parser.
     let query = "GO FROM 1 OVER KNOWS YIELD name, age";
     let mut parser = Parser::new(query);
 
@@ -938,7 +938,7 @@ fn test_yield_with_where_basic() {
 
 #[test]
 fn test_yield_with_where_complex() {
-    // 简化复杂查询
+    // Simplify complex queries
     let query = "GO FROM 1 OVER KNOWS YIELD name, age";
     let mut parser = Parser::new(query);
 
@@ -951,7 +951,7 @@ fn test_yield_with_where_complex() {
 
 #[test]
 fn test_yield_with_limit() {
-    // YIELD 带 LIMIT 可能在 GO 语句中不支持，测试基础 YIELD
+    // The use of “YIELD” with the “LIMIT” option may not be supported in GO statements. It’s advisable to first test the basic functionality of the “YIELD” command.
     let query = "GO FROM 1 OVER KNOWS YIELD name";
     let mut parser = Parser::new(query);
 
@@ -964,7 +964,7 @@ fn test_yield_with_limit() {
 
 #[test]
 fn test_yield_with_skip_limit() {
-    // SKIP 在 YIELD 中可能不支持，测试基础 YIELD
+    // The “SKIP” option may not be supported within the “YIELD” function; it’s advisable to test the basic functionality of the “YIELD” function first.
     let query = "GO FROM 1 OVER KNOWS YIELD name";
     let mut parser = Parser::new(query);
 
@@ -977,7 +977,7 @@ fn test_yield_with_skip_limit() {
 
 #[test]
 fn test_yield_with_where_limit() {
-    // 简化查询，使用基础 YIELD
+    // Simplify the query by using the basic YIELD formula.
     let query = "GO FROM 1 OVER KNOWS YIELD name, age";
     let mut parser = Parser::new(query);
 
@@ -990,24 +990,24 @@ fn test_yield_with_where_limit() {
 
 #[test]
 fn test_yield_standalone() {
-    // 独立 YIELD 语句测试
+    // Independent YIELD statement test
     let query = "YIELD 1 + 1 AS result";
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    // 独立 YIELD 可能不被支持，只打印结果
+    // The “independent YIELD” option may not be supported; only the results will be printed.
     println!("独立YIELD解析结果: {:?}", result);
     let _ = result;
 }
 
 #[test]
 fn test_yield_standalone_with_where() {
-    // 独立 YIELD 带 WHERE 测试
+    // Independent YIELD with a WHERE clause for testing
     let query = "YIELD 1 + 1 AS result WHERE result > 0";
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    // 独立 YIELD 可能不被支持，只打印结果
+    // The independent YIELD option may not be supported; only the results will be printed.
     println!("独立YIELD带WHERE解析结果: {:?}", result);
     let _ = result;
 }

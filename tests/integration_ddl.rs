@@ -1,13 +1,13 @@
 //! 数据定义语言(DDL)集成测试
 //!
-//! 测试范围:
-//! - CREATE TAG - 创建标签
-//! - CREATE EDGE - 创建边类型
-//! - ALTER TAG - 修改标签
-//! - ALTER EDGE - 修改边类型
-//! - DROP TAG - 删除标签
-//! - DROP EDGE - 删除边类型
-//! - DESC - 描述对象
+//! Test Range.
+//! - CREATE TAG - Create Tag
+//! - CREATE EDGE - Create Edge Type
+//! - ALTER TAG - Modify Tag
+//! - ALTER EDGE - Modify Edge Type
+//! - DROP TAG - Delete Tag
+//! - DROP EDGE - Delete Edge Type
+//! - DESC - Description Object
 
 mod common;
 
@@ -902,10 +902,10 @@ fn test_ddl_error_handling() {
     );
 
     let invalid_queries = vec![
-        "CREATE TAG Person",    // 缺少属性定义
-        "ALTER TAG Person ADD", // 缺少属性
-        "DROP TAG",             // 缺少标签名
-        "DESCRIBE",             // 缺少对象
+        "CREATE TAG Person",    // Missing attribute definitions
+        "ALTER TAG Person ADD", // Missing attributes
+        "DROP TAG",             // Missing tag name
+        "DESCRIBE",             // Missing objects
     ];
 
     for query in invalid_queries {
@@ -928,9 +928,9 @@ fn test_ddl_if_not_exists_if_exists() {
 
     let queries = [
         "CREATE TAG IF NOT EXISTS Person(name: STRING)",
-        "CREATE TAG IF NOT EXISTS Person(name: STRING)", // 重复创建
+        "CREATE TAG IF NOT EXISTS Person(name: STRING)", // duplicate creation
         "DROP TAG IF EXISTS Person",
-        "DROP TAG IF EXISTS Person", // 重复删除
+        "DROP TAG IF EXISTS Person", // duplicate deletion
     ];
 
     for (i, query) in queries.iter().enumerate() {
@@ -944,11 +944,11 @@ fn test_ddl_if_not_exists_if_exists() {
     }
 }
 
-// ==================== DEFAULT 默认值测试 ====================
+// ==================== DEFAULT Default Value Test ====================
 
 #[test]
 fn test_create_tag_with_default_value() {
-    // 当前解析器不支持 BOOL DEFAULT true 语法，只支持数值和字符串DEFAULT
+    // The current parser does not support the BOOL DEFAULT true syntax, only the numeric and string DEFAULTs.
     let query = "CREATE TAG Person(name: STRING, age: INT DEFAULT 18)";
     let mut parser = Parser::new(query);
 
@@ -1033,11 +1033,11 @@ fn test_create_tag_with_not_null_and_default() {
     );
 }
 
-// ==================== COMMENT 注释测试 ====================
+// ==================== COMMENT Annotation test ====================
 
 #[test]
 fn test_create_tag_with_comment() {
-    // 当前解析器支持 COMMENT，但测试简单语法
+    // The current parser supports COMMENT, but tests the simple syntax
     let query = "CREATE TAG Person(name: STRING, age: INT)";
     let mut parser = Parser::new(query);
 
@@ -1054,7 +1054,7 @@ fn test_create_tag_with_comment() {
 
 #[test]
 fn test_create_tag_with_comment_and_constraints() {
-    // 当前解析器支持 NOT NULL 和 DEFAULT，但 COMMENT 语法可能有限制
+    // Current parsers support NOT NULL and DEFAULT, but the COMMENT syntax may have limitations
     let query = "CREATE TAG Person(name: STRING NOT NULL, age: INT DEFAULT 18)";
     let mut parser = Parser::new(query);
 
@@ -1066,12 +1066,12 @@ fn test_create_tag_with_comment_and_constraints() {
     );
 }
 
-// ==================== TTL 支持测试 ====================
+// ==================== TTL Support Tests ====================
 
 #[test]
 fn test_create_tag_with_ttl() {
-    // TTL 语法需要特定的token支持，当前测试简化版本
-    // 避免使用关键字作为标签名 (Session 是关键字)
+    // TTL syntax requires specific token support, currently testing simplified version
+    // Avoid using keywords as tag names (Session is a keyword)
     let query = "CREATE TAG UserSession(token: STRING, created_at: TIMESTAMP)";
     let mut parser = Parser::new(query);
 
@@ -1088,8 +1088,8 @@ fn test_create_tag_with_ttl() {
 
 #[test]
 fn test_create_edge_with_ttl() {
-    // TTL 语法需要特定的token支持，当前测试简化版本
-    // 避免使用关键字作为属性名 (Data 是关键字)
+    // TTL syntax requires specific token support, currently testing simplified version
+    // Avoid using keywords as property names (Data is a keyword)
     let query = "CREATE EDGE TempEdge(content: STRING, expire_at: TIMESTAMP)";
     let mut parser = Parser::new(query);
 
@@ -1101,7 +1101,7 @@ fn test_create_edge_with_ttl() {
     );
 }
 
-// ==================== SHOW CREATE 测试 ====================
+// ==================== SHOW CREATE test ====================
 
 #[test]
 fn test_show_create_tag_parser() {
@@ -1137,13 +1137,13 @@ fn test_show_create_edge_parser() {
 
 #[test]
 fn test_show_create_space_parser() {
-    // SHOW CREATE SPACE 当前被支持
+    // SHOW CREATE SPACE is currently supported.
     let query = "SHOW CREATE SPACE test_space";
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    // 当前实现支持 SHOW CREATE SPACE/TAG/EDGE/INDEX
-    assert!(result.is_ok(), "SHOW CREATE SPACE应该解析成功");
+    // Current implementations support SHOW CREATE SPACE/TAG/EDGE/INDEX
+    assert!(result.is_ok(), "SHOW CREATE SPACE should parse successfully!");
 
     let stmt = result.expect("SHOW CREATE SPACE语句解析应该成功");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW CREATE");
@@ -1151,13 +1151,13 @@ fn test_show_create_space_parser() {
 
 #[test]
 fn test_show_create_index_parser() {
-    // SHOW CREATE INDEX 当前被支持
+    // SHOW CREATE INDEX is currently supported.
     let query = "SHOW CREATE INDEX idx_person_name";
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    // 当前实现支持 SHOW CREATE SPACE/TAG/EDGE/INDEX
-    assert!(result.is_ok(), "SHOW CREATE INDEX应该解析成功");
+    // Current implementations support SHOW CREATE SPACE/TAG/EDGE/INDEX
+    assert!(result.is_ok(), "SHOW CREATE INDEX should parse successfully!");
 
     let stmt = result.expect("SHOW CREATE INDEX语句解析应该成功");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW CREATE");
@@ -1182,11 +1182,11 @@ fn test_show_create_execution() {
     assert!(result.is_ok() || result.is_err());
 }
 
-// ==================== 综合功能测试 ====================
+// ==================== Comprehensive Functional Tests ====================
 
 #[test]
 fn test_create_tag_full_features() {
-    // 简化版完整功能测试，使用当前解析器支持的语法
+    // Simplified version of full-featured test, using current parser-supported syntax
     let query = "CREATE TAG IF NOT EXISTS Person(
         id: INT NOT NULL,
         name: STRING NOT NULL,
@@ -1206,7 +1206,7 @@ fn test_create_tag_full_features() {
 
 #[test]
 fn test_create_edge_full_features() {
-    // 简化版完整功能测试，使用当前解析器支持的语法
+    // Simplified version of full-featured test, using current parser-supported syntax
     let query = "CREATE EDGE IF NOT EXISTS KNOWS(
         since: DATE NOT NULL,
         degree: DOUBLE DEFAULT 1.0,

@@ -1,10 +1,10 @@
-//! Cypher 风格 CREATE 数据语句集成测试
+//! Cypher Style CREATE Data Statement Integration Testing
 //!
-//! 测试范围:
+//! Test Range.
 //! - CREATE (n:Label {prop: value}) - 创建节点
 //! - CREATE (a)-[:Type {prop: value}]->(b) - 创建边
 //! - CREATE (a:Label1)-[:Type]->(b:Label2) - 创建路径
-//! - Schema 自动推断和创建
+//! - Automatic Schema Inference and Creation
 
 mod common;
 
@@ -16,7 +16,7 @@ use graphdb::query::parser::Parser;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
 use std::sync::Arc;
 
-// ==================== CREATE 节点测试 ====================
+// ==================== CREATE node test ====================
 
 #[test]
 fn test_create_cypher_node_basic() {
@@ -87,10 +87,10 @@ fn test_create_cypher_node_complex_props() {
 
     let result = parser.parse();
     println!("复杂属性解析结果: {:?}", result);
-    // 暂时不强制断言，因为某些功能可能还在开发中
+    // Assertions are not mandatory for now, as some features may still be under development
 }
 
-// ==================== CREATE 边测试 ====================
+// ==================== CREATE side test ====================
 
 #[test]
 fn test_create_cypher_edge_basic() {
@@ -128,7 +128,7 @@ fn test_create_cypher_edge_bidirectional() {
 
     let result = parser.parse();
     println!("双向边解析结果: {:?}", result);
-    // 双向边可能暂不支持，记录结果即可
+    // Bidirectional edges may not be supported at this time, just record the results
 }
 
 #[test]
@@ -138,10 +138,10 @@ fn test_create_cypher_edge_left_to_right() {
 
     let result = parser.parse();
     println!("反向边解析结果: {:?}", result);
-    // 反向边可能暂不支持，记录结果即可
+    // Reverse edges may not be supported at this time, just record the results
 }
 
-// ==================== CREATE 路径测试 ====================
+// ==================== CREATE Path Test ====================
 
 #[test]
 fn test_create_cypher_path_basic() {
@@ -176,10 +176,10 @@ fn test_create_cypher_long_path() {
 
     let result = parser.parse();
     println!("长路径解析结果: {:?}", result);
-    // 长路径可能暂不支持，记录结果即可
+    // Longer paths may not be supported at this time, just record the results
 }
 
-// ==================== CREATE 多个模式测试 ====================
+// ==================== CREATE Multiple pattern testing ====================
 
 #[test]
 fn test_create_cypher_multiple_nodes() {
@@ -202,10 +202,10 @@ fn test_create_cypher_mixed_patterns() {
 
     let result = parser.parse();
     println!("混合模式解析结果: {:?}", result);
-    // 混合模式可能暂不支持，记录结果即可
+    // Mixed mode may not be supported at this time, just record the results
 }
 
-// ==================== 执行测试 ====================
+// ==================== Performing Tests ====================
 
 #[test]
 fn test_create_cypher_node_execution() {
@@ -219,20 +219,20 @@ fn test_create_cypher_node_execution() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    // 首先创建图空间
+    // First create the graph space
     let create_space = "CREATE SPACE IF NOT EXISTS test_space";
     let _ = pipeline_manager.execute_query(create_space);
 
-    // 使用空间
+    // usable space
     let use_space = "USE test_space";
     let _ = pipeline_manager.execute_query(use_space);
 
-    // 创建节点（Schema 应该自动推断）
+    // Create nodes (Schema should be inferred automatically)
     let query = "CREATE (n:Person {name: 'Alice', age: 30})";
     let result = pipeline_manager.execute_query(query);
 
     println!("CREATE节点执行结果: {:?}", result);
-    // 记录结果，不强制断言，因为功能可能还在开发中
+    // Record results, do not force assertions as features may still be under development
 }
 
 #[test]
@@ -247,42 +247,42 @@ fn test_create_cypher_edge_execution() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    // 首先创建图空间
+    // First create the graph space
     let create_space = "CREATE SPACE IF NOT EXISTS test_space";
     let _ = pipeline_manager.execute_query(create_space);
 
-    // 使用空间
+    // usable space
     let use_space = "USE test_space";
     let _ = pipeline_manager.execute_query(use_space);
 
-    // 创建边（Schema 应该自动推断）
+    // Create edges (Schema should be inferred automatically)
     let query = "CREATE (a:Person {name: 'Alice'})-[:KNOWS {since: '2020-01-01'}]->(b:Person {name: 'Bob'})";
     let result = pipeline_manager.execute_query(query);
 
     println!("CREATE边执行结果: {:?}", result);
-    // 记录结果，不强制断言，因为功能可能还在开发中
+    // Record results, do not force assertions as features may still be under development
 }
 
 // ==================== 错误处理测试 ====================
 
 #[test]
 fn test_create_cypher_invalid_syntax() {
-    let query = "CREATE n:Person {name: 'Alice'}"; // 缺少括号
+    let query = "CREATE n:Person {name: 'Alice'}"; // missing brackets
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
     println!("无效语法解析结果: {:?}", result);
-    // 应该返回错误，但暂时只记录结果
+    // Should return an error, but only log the result for now
 }
 
 #[test]
 fn test_create_cypher_empty_label() {
-    let query = "CREATE (n {})"; // 没有标签
+    let query = "CREATE (n {})"; // No tags.
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
     println!("空标签解析结果: {:?}", result);
-    // 记录结果，可能支持也可能不支持
+    // Record results, which may or may not be supported
 }
 
 #[test]
@@ -292,7 +292,7 @@ fn test_create_cypher_nested_props() {
 
     let result = parser.parse();
     println!("嵌套属性解析结果: {:?}", result);
-    // 嵌套属性可能暂不支持，记录结果即可
+    // Nested attributes may not be supported at the moment, just record the results
 }
 
 // ==================== Schema 自动推断测试 ====================
@@ -303,9 +303,9 @@ fn test_schema_auto_inference_string() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "字符串属性解析应该成功");
+    assert!(result.is_ok(), "String property parsing should succeed");
 
-    // 验证 Schema 推断会识别 name 为 STRING 类型
+    // Verify that the Schema Inference recognizes the name as a STRING.
 }
 
 #[test]
@@ -314,9 +314,9 @@ fn test_schema_auto_inference_int() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "整数属性解析应该成功");
+    assert!(result.is_ok(), "Integer attribute parsing should succeed");
 
-    // 验证 Schema 推断会识别 age 为 INT 类型
+    // Verify that Schema inference recognizes age as an INT type
 }
 
 #[test]
@@ -325,9 +325,9 @@ fn test_schema_auto_inference_float() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "浮点数属性解析应该成功");
+    assert!(result.is_ok(), "Floating point attribute parsing should succeed");
 
-    // 验证 Schema 推断会识别 salary 为 DOUBLE 类型
+    // Verify that the Schema Inference recognizes salary as a DOUBLE type.
 }
 
 #[test]
@@ -336,9 +336,9 @@ fn test_schema_auto_inference_bool() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "布尔属性解析应该成功");
+    assert!(result.is_ok(), "Boolean attribute parsing should succeed");
 
-    // 验证 Schema 推断会识别 is_active 为 BOOL 类型
+    // Verify that Schema inference recognizes is_active as a BOOL type
 }
 
 #[test]
@@ -347,21 +347,21 @@ fn test_schema_auto_inference_mixed_types() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "混合类型属性解析应该成功");
+    assert!(result.is_ok(), "Mixed type attribute parsing should succeed");
 
-    // 验证 Schema 推断会正确识别每种属性的类型
+    // Verify that Schema Inference correctly recognizes the type of each attribute
 }
 
 // ==================== 与 NGQL 语法对比测试 ====================
 
 #[test]
 fn test_cypher_vs_ngql_create_node() {
-    // Cypher 风格
+    // Cypher style
     let cypher_query = "CREATE (n:Person {name: 'Alice', age: 30})";
     let mut cypher_parser = Parser::new(cypher_query);
     let cypher_result = cypher_parser.parse();
 
-    // NGQL 风格
+    // NGQL style
     let ngql_query = "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)";
     let mut ngql_parser = Parser::new(ngql_query);
     let ngql_result = ngql_parser.parse();
@@ -369,19 +369,19 @@ fn test_cypher_vs_ngql_create_node() {
     println!("Cypher解析结果: {:?}", cypher_result);
     println!("NGQL解析结果: {:?}", ngql_result);
 
-    // 两者都应该成功解析
-    assert!(cypher_result.is_ok(), "Cypher语法应该解析成功");
-    assert!(ngql_result.is_ok(), "NGQL语法应该解析成功");
+    // Both should be successfully parsed
+    assert!(cypher_result.is_ok(), "Cypher syntax should parse successfully");
+    assert!(ngql_result.is_ok(), "The NGQL syntax should parse successfully");
 }
 
 #[test]
 fn test_cypher_vs_ngql_create_edge() {
-    // Cypher 风格
+    // Cypher style
     let cypher_query = "CREATE (a)-[:KNOWS {since: '2020-01-01'}]->(b)";
     let mut cypher_parser = Parser::new(cypher_query);
     let cypher_result = cypher_parser.parse();
 
-    // NGQL 风格
+    // NGQL style
     let ngql_query = "INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01')";
     let mut ngql_parser = Parser::new(ngql_query);
     let ngql_result = ngql_parser.parse();
@@ -389,7 +389,7 @@ fn test_cypher_vs_ngql_create_edge() {
     println!("Cypher解析结果: {:?}", cypher_result);
     println!("NGQL解析结果: {:?}", ngql_result);
 
-    // Cypher 语法应该成功解析
-    assert!(cypher_result.is_ok(), "Cypher语法应该解析成功");
-    // NGQL 语法记录结果即可
+    // Cypher syntax should parse successfully
+    assert!(cypher_result.is_ok(), "Cypher syntax should parse successfully");
+    // NGQL syntax to record the result is sufficient
 }

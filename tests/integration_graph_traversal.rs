@@ -1,11 +1,11 @@
-//! 图遍历集成测试
+//! Graph Traversal Integrated Testing
 //!
-//! 测试范围：
-//! - 最短路径算法执行器创建和配置
-//! - 多源最短路径算法
-//! - 子图查询执行器
-//! - 算法上下文和配置
-//! - 路径数据结构
+//! Test scope:
+//! The executor for the shortest path algorithm is created and configured.
+//! Multi-source shortest path algorithm
+//! Subgraph query executor
+//! Algorithm context and configuration
+//! Path data structure
 
 mod common;
 
@@ -20,11 +20,11 @@ use graphdb::query::validator::context::ExpressionAnalysisContext;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-// ==================== 算法上下文测试 ====================
+// ==================== Algorithm Context Testing ====================
 
 #[test]
 fn test_algorithm_context_creation() {
-    // 测试算法上下文创建
+    // Creating a context for testing algorithms
     let context = AlgorithmContext::new()
         .with_max_depth(Some(10))
         .with_limit(100)
@@ -64,7 +64,7 @@ fn test_algorithm_stats() {
     assert_eq!(stats.execution_time_ms, 50);
 }
 
-// ==================== 多源最短路径执行器测试 ====================
+// ==================== Multi-source Shortest Path Executor Test ====================
 
 #[test]
 fn test_multi_shortest_path_executor_creation() {
@@ -110,7 +110,7 @@ fn test_multi_shortest_path_with_edge_filter() {
     );
 
     assert_eq!(executor.id(), 1);
-    // 验证执行器创建成功，带边类型过滤
+    // Verification that the executor was created successfully, with filtering by edge type.
 }
 
 #[test]
@@ -133,10 +133,10 @@ fn test_multi_shortest_path_bidirectional_direction() {
     );
 
     assert_eq!(executor.id(), 1);
-    // 验证双向边方向设置成功
+    // The bidirectional edge direction setting was successfully verified.
 }
 
-// ==================== 子图查询执行器测试 ====================
+// ==================== Subgraph Query Executor Test ====================
 
 #[test]
 fn test_subgraph_config_default() {
@@ -205,10 +205,10 @@ fn test_subgraph_executor_multiple_start_vids() {
     );
 
     assert_eq!(executor.id(), 1);
-    // 验证多起点创建成功
+    // Verification that the creation of multiple starting points was successful.
 }
 
-// ==================== 路径数据结构测试 ====================
+// ==================== Testing of Path Data Structures ====================
 
 #[test]
 fn test_path_creation() {
@@ -258,7 +258,7 @@ fn test_vertex_with_tags() {
     assert_eq!(vertex.tags[0].name, "Person");
 }
 
-// ==================== 边数据结构测试 ====================
+// ==================== Testing of Edge Data Structures ====================
 
 #[test]
 fn test_edge_creation() {
@@ -293,7 +293,7 @@ fn test_edge_with_properties() {
     assert!(edge.props.contains_key("since"));
 }
 
-// ==================== 边界条件测试 ====================
+// ==================== Boundary Condition Testing ====================
 
 #[test]
 fn test_multi_shortest_path_empty_start() {
@@ -315,7 +315,7 @@ fn test_multi_shortest_path_empty_start() {
     );
 
     assert_eq!(executor.id(), 1);
-    // 验证空起点情况下执行器仍能创建
+    // Verify that the actuator can still be created even when the starting point is empty.
 }
 
 #[test]
@@ -338,7 +338,7 @@ fn test_multi_shortest_path_empty_end() {
     );
 
     assert_eq!(executor.id(), 1);
-    // 验证空终点情况下执行器仍能创建
+    // Verify that the actuator can still be created even when the destination point is empty.
 }
 
 #[test]
@@ -351,13 +351,13 @@ fn test_subgraph_empty_start() {
     let executor = SubgraphExecutor::new(
         1,
         storage.clone(),
-        vec![], // 空起点
+        vec![], // Empty starting point
         config,
         Arc::new(ExpressionAnalysisContext::new()),
     );
 
     assert_eq!(executor.id(), 1);
-    // 验证空起点情况下执行器仍能创建
+    // Verify that the actuator can still be created even when the starting point is empty.
 }
 
 #[test]
@@ -365,7 +365,7 @@ fn test_subgraph_zero_steps() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let config = SubgraphConfig::new(0); // 0步
+    let config = SubgraphConfig::new(0); // 0 steps
 
     let executor = SubgraphExecutor::new(
         1,
@@ -376,7 +376,7 @@ fn test_subgraph_zero_steps() {
     );
 
     assert_eq!(executor.id(), 1);
-    // 验证0步配置下执行器仍能创建
+    // Verify that the executor can still be created even with the configuration in step 0 set to its default values.
 }
 
 #[test]
@@ -393,26 +393,26 @@ fn test_algorithm_context_with_max_depth_zero() {
     assert_eq!(context.max_depth, Some(0));
 }
 
-// ==================== with_loop 选项测试 ====================
+// ==================== Testing of the “with_loop” option =====================
 
 #[test]
 fn test_algorithm_context_with_loop() {
-    // 测试默认情况下 with_loop 为 false
+    // By default, the value of `with_loop` is `false` during testing.
     let context_default = AlgorithmContext::new();
     assert!(!context_default.with_loop);
 
-    // 测试设置 with_loop 为 true
+    // The test setting has with_loop set to true.
     let context_with_loop = AlgorithmContext::new().with_loop(true);
     assert!(context_with_loop.with_loop);
 
-    // 测试设置 with_loop 为 false
+    // The test setting has with_loop set to false.
     let context_no_loop = AlgorithmContext::new().with_loop(false);
     assert!(!context_no_loop.with_loop);
 }
 
 #[test]
 fn test_algorithm_context_with_loop_and_other_options() {
-    // 测试 with_loop 与其他选项组合
+    // Testing the combination of `with_loop` with other options
     let context = AlgorithmContext::new()
         .with_max_depth(Some(10))
         .with_limit(100)
@@ -434,7 +434,7 @@ fn test_expand_executor_with_loop() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    // 创建默认执行器（with_loop = false）
+    // Create a default executor (with_loop = false)
     let executor_default = ExpandExecutor::new(
         1,
         storage.clone(),
@@ -445,7 +445,7 @@ fn test_expand_executor_with_loop() {
     );
     assert!(!executor_default.with_loop);
 
-    // 创建允许自环边的执行器
+    // Create an executor that allows the execution of self-looping edges.
     let executor_with_loop = ExpandExecutor::new(
         2,
         storage.clone(),
@@ -465,7 +465,7 @@ fn test_all_paths_executor_with_loop() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    // 创建默认执行器（with_loop = false）
+    // Create the default executor (with_loop = false)
     let executor_default = AllPathsExecutor::new(
         graphdb::query::executor::base::ExecutorConfig::new(
             1,
@@ -482,7 +482,7 @@ fn test_all_paths_executor_with_loop() {
     );
     assert!(!executor_default.with_loop);
 
-    // 创建允许自环边的执行器
+    // Create an executor that allows the execution of self-looping edges.
     let executor_with_loop = AllPathsExecutor::new(
         graphdb::query::executor::base::ExecutorConfig::new(
             2,
@@ -501,7 +501,7 @@ fn test_all_paths_executor_with_loop() {
     assert!(executor_with_loop.with_loop);
 }
 
-// ==================== 带权最短路径集成测试 ====================
+// ==================== Integrated Testing of the Shortest Path with Weighting =====================
 
 #[test]
 fn test_weighted_shortest_path_executor_creation() {
@@ -513,7 +513,7 @@ fn test_weighted_shortest_path_executor_creation() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    // 创建带权最短路径执行器
+    // Create an executor for finding the shortest path with weights
     let executor = ShortestPathExecutor::new(
         graphdb::query::executor::base::ExecutorConfig::new(
             100,
@@ -543,7 +543,7 @@ fn test_weighted_shortest_path_with_ranking() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    // 使用ranking作为权重
+    // Use “ranking” as the weight.
     let executor = ShortestPathExecutor::new(
         graphdb::query::executor::base::ExecutorConfig::new(
             101,
@@ -572,7 +572,7 @@ fn test_weighted_shortest_path_astar() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    // 使用A*算法，带启发式函数
+    // Using the A* algorithm, with an heuristic function
     let executor = ShortestPathExecutor::new(
         graphdb::query::executor::base::ExecutorConfig::new(
             102,
@@ -596,7 +596,7 @@ fn test_weighted_shortest_path_astar() {
 fn test_weighted_path_query_parser_integration() {
     use graphdb::query::parser::Parser;
 
-    // 测试带权路径查询语句解析
+    // Testing the parsing of authorized path query statements
     let query = "FIND SHORTEST PATH FROM 1 TO 2 OVER connect WEIGHT weight";
     let mut parser = Parser::new(query);
     let result = parser.parse();
@@ -615,7 +615,7 @@ fn test_weighted_path_query_parser_integration() {
 fn test_weighted_path_query_with_ranking_parser() {
     use graphdb::query::parser::Parser;
 
-    // 测试使用ranking作为权重的查询语句解析
+    // Test the parsing of query statements that use “ranking” as a weighting factor.
     let query = "FIND SHORTEST PATH FROM 1 TO 2 OVER connect WEIGHT ranking";
     let mut parser = Parser::new(query);
     let result = parser.parse();
@@ -631,7 +631,7 @@ fn test_weighted_path_query_with_ranking_parser() {
 fn test_unweighted_path_query_parser() {
     use graphdb::query::parser::Parser;
 
-    // 测试无权路径查询语句解析
+    // Testing the parsing of query statements for unauthorized path access.
     let query = "FIND SHORTEST PATH FROM 1 TO 2 OVER connect";
     let mut parser = Parser::new(query);
     let result = parser.parse();

@@ -1,11 +1,11 @@
-//! 阶段二：核心类型与表达式集成测试
+//! Phase 2: Core Type and Expression Integration Testing
 //!
-//! 测试范围:
-//! - core::value - 值类型转换、比较、运算
-//! - core::types - 类型系统兼容性检查
-//! - expression::evaluator - 表达式求值、上下文访问
-//! - expression::functions - 内置函数注册与调用
-//! - expression::context - 上下文链、缓存管理
+//! Test Range.
+//! - core::value - value type conversions, comparisons, operations
+//! - core::types - type system compatibility checking
+//! - expression::evaluator - expression evaluation, context access
+//! - expression::functions - Built-in function registration and calling
+//! - expression::context - context chaining, cache management
 
 mod common;
 
@@ -22,7 +22,7 @@ use graphdb::query::executor::expression::{ExpressionContext, ExpressionEvaluato
 
 #[test]
 fn test_value_null_type_variants() {
-    // 测试所有 NullType 变体
+    // Test all NullType variants
     let null_variants = vec![
         NullType::Null,
         NullType::NaN,
@@ -40,7 +40,7 @@ fn test_value_null_type_variants() {
         assert_eq!(value.get_type(), DataType::Null);
     }
 
-    // 测试 is_bad 方法
+    // Testing the is_bad method
     assert!(NullType::BadData.is_bad());
     assert!(NullType::BadType.is_bad());
     assert!(NullType::ErrOverflow.is_bad());
@@ -48,7 +48,7 @@ fn test_value_null_type_variants() {
     assert!(!NullType::Null.is_bad());
     assert!(!NullType::NaN.is_bad());
 
-    // 测试 is_computational_error 方法
+    // Testing the is_computational_error method
     assert!(NullType::NaN.is_computational_error());
     assert!(NullType::DivByZero.is_computational_error());
     assert!(NullType::ErrOverflow.is_computational_error());
@@ -56,7 +56,7 @@ fn test_value_null_type_variants() {
 
 #[test]
 fn test_value_type_checking() {
-    // 基础类型检查
+    // Basic type checking
     assert_eq!(Value::Empty.get_type(), DataType::Empty);
     assert_eq!(Value::Null(NullType::Null).get_type(), DataType::Null);
     assert_eq!(Value::Bool(true).get_type(), DataType::Bool);
@@ -67,13 +67,13 @@ fn test_value_type_checking() {
         DataType::String
     );
 
-    // 数值类型检查
+    // Numeric type checking
     assert!(Value::Int(42).is_numeric());
     assert!(Value::Float(1.5_f64).is_numeric());
     assert!(!Value::String("42".to_string()).is_numeric());
     assert!(!Value::Bool(true).is_numeric());
 
-    // BadNull 检查
+    // BadNull Check
     assert!(Value::Null(NullType::BadData).is_bad_null());
     assert!(Value::Null(NullType::BadType).is_bad_null());
     assert!(!Value::Null(NullType::Null).is_bad_null());
@@ -81,11 +81,11 @@ fn test_value_type_checking() {
 
 #[test]
 fn test_value_boolean_conversion() {
-    // 布尔值直接返回
+    // Boolean values are returned directly
     assert_eq!(Value::Bool(true).to_bool(), Value::Bool(true));
     assert_eq!(Value::Bool(false).to_bool(), Value::Bool(false));
 
-    // 字符串转换
+    // string conversion
     assert_eq!(
         Value::String("true".to_string()).to_bool(),
         Value::Bool(true)
@@ -107,28 +107,28 @@ fn test_value_boolean_conversion() {
         Value::Null(NullType::Null)
     );
 
-    // 空值和 Null
+    // Empty and Null
     assert_eq!(Value::Empty.to_bool(), Value::Null(NullType::Null));
     assert_eq!(
         Value::Null(NullType::Null).to_bool(),
         Value::Null(NullType::Null)
     );
 
-    // 其他类型返回 BadData
+    // Other types return BadData
     assert_eq!(Value::Int(1).to_bool(), Value::Null(NullType::BadData));
 }
 
 #[test]
 fn test_value_integer_conversion() {
-    // 整数直接返回
+    // Integer direct return
     assert_eq!(Value::Int(42).to_int(), Value::Int(42));
     assert_eq!(Value::Int(-100).to_int(), Value::Int(-100));
 
-    // 浮点数转换（截断）
+    // Floating point conversion (truncation)
     assert_eq!(Value::Float(2.7_f64).to_int(), Value::Int(2));
     assert_eq!(Value::Float(-2.9).to_int(), Value::Int(-2));
 
-    // 边界值处理
+    // Boundary value processing
     assert_eq!(Value::Float(f64::NAN).to_int(), Value::Null(NullType::Null));
     assert_eq!(
         Value::Float(f64::INFINITY).to_int(),
@@ -139,7 +139,7 @@ fn test_value_integer_conversion() {
         Value::Null(NullType::Null)
     );
 
-    // 字符串解析
+    // string parsing
     assert_eq!(Value::String("42".to_string()).to_int(), Value::Int(42));
     assert_eq!(Value::String("-100".to_string()).to_int(), Value::Int(-100));
     assert_eq!(
@@ -147,20 +147,20 @@ fn test_value_integer_conversion() {
         Value::Null(NullType::Null)
     );
 
-    // 布尔值转换
+    // boolean conversion
     assert_eq!(Value::Bool(true).to_int(), Value::Int(1));
     assert_eq!(Value::Bool(false).to_int(), Value::Int(0));
 }
 
 #[test]
 fn test_value_float_conversion() {
-    // 浮点数直接返回
+    // Floating point numbers are returned directly
     assert_eq!(Value::Float(1.5_f64).to_float(), Value::Float(1.5_f64));
 
-    // 整数转换
+    // integer conversion
     assert_eq!(Value::Int(42).to_float(), Value::Float(42.0));
 
-    // 字符串解析
+    // string parsing
     assert_eq!(
         Value::String("1.5".to_string()).to_float(),
         Value::Float(1.5_f64)
@@ -174,14 +174,14 @@ fn test_value_float_conversion() {
         Value::Null(NullType::Null)
     );
 
-    // 布尔值转换
+    // boolean conversion
     assert_eq!(Value::Bool(true).to_float(), Value::Float(1.0));
     assert_eq!(Value::Bool(false).to_float(), Value::Float(0.0));
 }
 
 #[test]
 fn test_value_arithmetic_operations() {
-    // 加法
+    // addition
     assert_eq!(
         Value::Int(10)
             .add(&Value::Int(5))
@@ -207,7 +207,7 @@ fn test_value_arithmetic_operations() {
         Value::String("Hello, World".to_string())
     );
 
-    // 减法
+    // subtractive
     assert_eq!(
         Value::Int(10)
             .sub(&Value::Int(3))
@@ -221,7 +221,7 @@ fn test_value_arithmetic_operations() {
         Value::Float(7.0)
     );
 
-    // 乘法
+    // subtraction
     assert_eq!(
         Value::Int(6).mul(&Value::Int(7)).expect("整数乘法应该成功"),
         Value::Int(42)
@@ -233,7 +233,7 @@ fn test_value_arithmetic_operations() {
         Value::Float(12.0)
     );
 
-    // 除法
+    // division (math.)
     assert_eq!(
         Value::Int(10)
             .div(&Value::Int(2))
@@ -247,11 +247,11 @@ fn test_value_arithmetic_operations() {
         Value::Float(2.5)
     );
 
-    // 除零错误
+    // division error
     assert!(Value::Int(10).div(&Value::Int(0)).is_err());
     assert!(Value::Float(10.0).div(&Value::Float(0.0)).is_err());
 
-    // 取模
+    // take a mold
     assert_eq!(
         Value::Int(10)
             .rem(&Value::Int(3))
@@ -263,32 +263,32 @@ fn test_value_arithmetic_operations() {
 
 #[test]
 fn test_value_comparison() {
-    // 整数比较
+    // integer comparison
     assert!(Value::Int(10) > Value::Int(5));
     assert!(Value::Int(5) < Value::Int(10));
     assert_eq!(Value::Int(10), Value::Int(10));
 
-    // 浮点数比较（包含 NaN 处理）
+    // Floating Point Comparison (with NaN Handling)
     assert!(Value::Float(3.5_f64) > Value::Float(2.0));
     assert_eq!(Value::Float(f64::NAN), Value::Float(f64::NAN));
 
-    // 字符串比较
+    // string comparison
     assert!(Value::String("b".to_string()) > Value::String("a".to_string()));
     assert_eq!(
         Value::String("test".to_string()),
         Value::String("test".to_string())
     );
 
-    // 布尔值比较
+    // Boolean comparison
     assert!(Value::Bool(true) > Value::Bool(false));
 
-    // 不同类型比较（基于类型优先级）
+    // Comparison of different types (based on type priority)
     assert!(Value::Int(1) < Value::String("a".to_string()));
 }
 
 #[test]
 fn test_value_unary_operations() {
-    // 取反
+    // retrieve the opposite of what one intended
     assert_eq!(
         Value::Int(42).negate().expect("整数取反应该成功"),
         Value::Int(-42)
@@ -299,7 +299,7 @@ fn test_value_unary_operations() {
     );
     assert!(Value::String("test".to_string()).negate().is_err());
 
-    // 绝对值
+    // absolute value
     assert_eq!(
         Value::Int(-42).abs().expect("整数绝对值应该成功"),
         Value::Int(42)
@@ -310,7 +310,7 @@ fn test_value_unary_operations() {
     );
     assert!(Value::String("test".to_string()).abs().is_err());
 
-    // 长度
+    // lengths
     assert_eq!(
         Value::String("hello".to_string())
             .length()
@@ -398,12 +398,12 @@ fn test_value_complex_types() {
 fn test_value_hash_and_equality() {
     use std::collections::HashSet;
 
-    // 测试哈希一致性
+    // Testing Hash Consistency
     let value1 = Value::Int(42);
     let value2 = Value::Int(42);
     assert_eq!(value1.hash_value(), value2.hash_value());
 
-    // 测试浮点数哈希（包括特殊值）
+    // Testing floating point hashes (including special values)
     let nan1 = Value::Float(f64::NAN);
     let nan2 = Value::Float(f64::NAN);
     assert_eq!(nan1.hash_value(), nan2.hash_value());
@@ -412,11 +412,11 @@ fn test_value_hash_and_equality() {
     let neg_zero = Value::Float(-0.0);
     assert_eq!(pos_zero.hash_value(), neg_zero.hash_value());
 
-    // 测试在 HashSet 中使用
+    // Testing for use in a HashSet
     let mut set = HashSet::new();
     set.insert(Value::Int(1));
     set.insert(Value::Int(2));
-    set.insert(Value::Int(1)); // 重复
+    set.insert(Value::Int(1)); // repeatable
     assert_eq!(set.len(), 2);
 }
 
@@ -424,7 +424,7 @@ fn test_value_hash_and_equality() {
 
 #[test]
 fn test_datatype_variants() {
-    // 测试所有 DataType 变体
+    // Test all DataType variants
     let types = vec![
         DataType::Empty,
         DataType::Null,
@@ -455,36 +455,36 @@ fn test_datatype_variants() {
         DataType::Timestamp,
     ];
 
-    // 确保所有类型都可以被克隆和比较
+    // Ensure that all types can be cloned and compared
     for dtype in &types {
         let cloned = dtype.clone();
         assert_eq!(*dtype, cloned);
     }
 }
 
-// ==================== Expression 测试 ====================
+// ==================== Expression test ====================
 
 #[test]
 fn test_expression_literal_creation() {
-    // 整数字面量
+    // integer literal amount
     let expr = Expression::literal(42i64);
     match &expr {
         Expression::Literal(v) => assert_eq!(*v, Value::Int(42)),
-        _ => panic!("期望 Literal 表达式"),
+        _ => panic!("Expected Literal Expression"),
     }
 
-    // 字符串字面量
+    // String literal
     let expr = Expression::literal("hello".to_string());
     match &expr {
         Expression::Literal(v) => assert_eq!(*v, Value::String("hello".to_string())),
-        _ => panic!("期望 Literal 表达式"),
+        _ => panic!("Expected Literal Expression"),
     }
 
-    // 布尔字面量
+    // Boolean literals
     let expr = Expression::literal(true);
     match &expr {
         Expression::Literal(v) => assert_eq!(*v, Value::Bool(true)),
-        _ => panic!("期望 Literal 表达式"),
+        _ => panic!("The “Expected Literal Expression” refers to a situation where the system or a user expects a specific, literal value to be provided as an input. This expectation is based on the context, the rules of the system, or the requirements of the task at hand. If the provided value does not match the expected literal value, it may lead to errors or issues in the system’s functionality."),
     }
 }
 
@@ -493,7 +493,7 @@ fn test_expression_variable_creation() {
     let expr = Expression::variable("x");
     match &expr {
         Expression::Variable(name) => assert_eq!(name, "x"),
-        _ => panic!("期望 Variable 表达式"),
+        _ => panic!("Expected Variable Expression"),
     }
 }
 
@@ -511,7 +511,7 @@ fn test_expression_binary_creation() {
 
     match &expr {
         Expression::Binary { op, .. } => assert!(matches!(op, BinaryOperator::Add)),
-        _ => panic!("期望 Binary 表达式"),
+        _ => panic!("Expected Binary expression"),
     }
 }
 
@@ -527,7 +527,7 @@ fn test_expression_unary_creation() {
 
     match &expr {
         Expression::Unary { op, .. } => assert!(matches!(op, UnaryOperator::Not)),
-        _ => panic!("期望 Unary 表达式"),
+        _ => panic!("Expected a unary expression."),
     }
 }
 
@@ -537,17 +537,17 @@ fn test_expression_unary_creation() {
 fn test_evaluator_literal() {
     let mut ctx = DefaultExpressionContext::new();
 
-    // 整数
+    // Integer
     let expr = Expression::literal(42i64);
     let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("整数字面量求值应该成功");
     assert_eq!(result, Value::Int(42));
 
-    // 字符串
+    // String
     let expr = Expression::literal("test".to_string());
     let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("字符串字面量求值应该成功");
     assert_eq!(result, Value::String("test".to_string()));
 
-    // 布尔值
+    // Boolean value
     let expr = Expression::literal(true);
     let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("布尔字面量求值应该成功");
     assert_eq!(result, Value::Bool(true));
@@ -559,7 +559,7 @@ fn test_evaluator_variable() {
     ctx.set_variable("x".to_string(), Value::Int(100));
     ctx.set_variable("name".to_string(), Value::String("Alice".to_string()));
 
-    // 读取已设置变量
+    // Read the set variables
     let expr = Expression::variable("x");
     let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("变量求值应该成功");
     assert_eq!(result, Value::Int(100));
@@ -574,7 +574,7 @@ fn test_evaluator_binary_arithmetic() {
     use graphdb::core::types::BinaryOperator;
     let mut ctx = DefaultExpressionContext::new();
 
-    // 加法: 10 + 5
+    // Addition: 10 + 5
     let expr = Expression::Binary {
         left: Box::new(Expression::literal(10i64)),
         op: BinaryOperator::Add,
@@ -583,7 +583,7 @@ fn test_evaluator_binary_arithmetic() {
     let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("二元加法求值应该成功");
     assert_eq!(result, Value::Int(15));
 
-    // 减法: 20 - 8
+    // Subtraction: 20 - 8
     let expr = Expression::Binary {
         left: Box::new(Expression::literal(20i64)),
         op: BinaryOperator::Subtract,
@@ -592,7 +592,7 @@ fn test_evaluator_binary_arithmetic() {
     let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("二元减法求值应该成功");
     assert_eq!(result, Value::Int(12));
 
-    // 乘法: 6 * 7
+    // Multiplication: 6 * 7
     let expr = Expression::Binary {
         left: Box::new(Expression::literal(6i64)),
         op: BinaryOperator::Multiply,
@@ -601,7 +601,7 @@ fn test_evaluator_binary_arithmetic() {
     let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("二元乘法求值应该成功");
     assert_eq!(result, Value::Int(42));
 
-    // 除法: 20 / 4
+    // Division: 20 / 4
     let expr = Expression::Binary {
         left: Box::new(Expression::literal(20i64)),
         op: BinaryOperator::Divide,
@@ -616,7 +616,7 @@ fn test_evaluator_binary_comparison() {
     use graphdb::core::types::BinaryOperator;
     let mut ctx = DefaultExpressionContext::new();
 
-    // 等于: 5 == 5
+    // Equivalent to: 5 == 5
     let expr = Expression::Binary {
         left: Box::new(Expression::literal(5i64)),
         op: BinaryOperator::Equal,
@@ -625,7 +625,7 @@ fn test_evaluator_binary_comparison() {
     let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("二元相等比较求值应该成功");
     assert_eq!(result, Value::Bool(true));
 
-    // 不等于: 5 != 3
+    // Not equal to: 5 != 3
     let expr = Expression::Binary {
         left: Box::new(Expression::literal(5i64)),
         op: BinaryOperator::NotEqual,
@@ -634,7 +634,7 @@ fn test_evaluator_binary_comparison() {
     let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("二元不等比较求值应该成功");
     assert_eq!(result, Value::Bool(true));
 
-    // 大于: 10 > 5
+    // Greater than: 10 > 5
     let expr = Expression::Binary {
         left: Box::new(Expression::literal(10i64)),
         op: BinaryOperator::GreaterThan,
@@ -643,7 +643,7 @@ fn test_evaluator_binary_comparison() {
     let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("二元大于比较求值应该成功");
     assert_eq!(result, Value::Bool(true));
 
-    // 小于: 3 < 7
+    // Less than: 3 < 7
     let expr = Expression::Binary {
         left: Box::new(Expression::literal(3i64)),
         op: BinaryOperator::LessThan,
@@ -707,7 +707,7 @@ fn test_evaluator_unary() {
     let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("一元NOT求值应该成功");
     assert_eq!(result, Value::Bool(true));
 
-    // 负数: -42
+    // Negative number: -42
     let expr = Expression::Unary {
         op: UnaryOperator::Minus,
         operand: Box::new(Expression::literal(42i64)),
@@ -768,7 +768,7 @@ fn test_evaluator_batch_evaluation() {
 
 #[test]
 fn test_evaluator_can_evaluate() {
-    // 纯常量表达式可以求值
+    // Pure constant expressions can be evaluated.
     let const_expr = Expression::Binary {
         left: Box::new(Expression::literal(10i64)),
         op: graphdb::core::types::BinaryOperator::Add,
@@ -776,7 +776,7 @@ fn test_evaluator_can_evaluate() {
     };
     assert!(ExpressionEvaluator::can_evaluate(&const_expr));
 
-    // 包含变量的表达式需要上下文
+    // Expressions that contain variables require context.
     let var_expr = Expression::variable("x");
     assert!(!ExpressionEvaluator::can_evaluate(&var_expr));
 }
@@ -787,7 +787,7 @@ fn test_evaluator_can_evaluate() {
 fn test_function_registry_builtins() {
     let registry = FunctionRegistry::new();
 
-    // 测试数学函数
+    // Testing mathematical functions
     let result = registry
         .execute("abs", &[Value::Int(-42)])
         .expect("abs函数执行应该成功");
@@ -798,13 +798,13 @@ fn test_function_registry_builtins() {
         .expect("abs函数执行应该成功");
     assert_eq!(result, Value::Float(2.5_f64));
 
-    // 测试字符串函数
+    // Testing the string function
     let result = registry
         .execute("length", &[Value::String("hello".to_string())])
         .expect("length函数执行应该成功");
     assert_eq!(result, Value::Int(5));
 
-    // 测试类型转换函数
+    // Test type conversion function
     let result = registry
         .execute("to_int", &[Value::String("42".to_string())])
         .expect("to_int函数执行应该成功");
@@ -815,11 +815,11 @@ fn test_function_registry_builtins() {
 fn test_function_registry_errors() {
     let registry = FunctionRegistry::new();
 
-    // 未定义的函数
+    // Undefined function
     let result = registry.execute("undefined_func", &[Value::Int(1)]);
     assert!(result.is_err());
 
-    // 参数数量不匹配
+    // The number of parameters does not match.
     let result = registry.execute("abs", &[]);
     assert!(result.is_err());
 }
@@ -830,11 +830,11 @@ fn test_function_registry_errors() {
 fn test_basic_context_variables() {
     let mut ctx = DefaultExpressionContext::new();
 
-    // 设置变量
+    // Setting variables
     ctx.set_variable("x".to_string(), Value::Int(100));
     ctx.set_variable("y".to_string(), Value::String("test".to_string()));
 
-    // 获取变量
+    // Obtain the variable
     assert_eq!(ctx.get_variable("x"), Some(Value::Int(100)));
     assert_eq!(
         ctx.get_variable("y"),
@@ -847,10 +847,10 @@ fn test_basic_context_variables() {
 fn test_basic_context_functions() {
     let _ctx = DefaultExpressionContext::new();
 
-    // 通过全局注册表测试函数存在性和执行
+    // Testing the existence and execution of functions via the global registry
     let registry = FunctionRegistry::new();
 
-    // 测试 abs 函数
+    // Testing the abs function
     let result = registry.execute("abs", &[Value::Int(-42)]);
     assert!(result.is_ok());
     assert_eq!(
@@ -858,7 +858,7 @@ fn test_basic_context_functions() {
         Value::Int(42)
     );
 
-    // 测试 length 函数
+    // Testing the length function
     let result = registry.execute("length", &[Value::String("hello".to_string())]);
     assert!(result.is_ok());
     assert_eq!(
@@ -866,7 +866,7 @@ fn test_basic_context_functions() {
         Value::Int(5)
     );
 
-    // 未定义的函数应该返回错误
+    // An undefined function should return an error.
     let result = registry.execute("undefined_func", &[Value::Int(1)]);
     assert!(result.is_err());
 }
@@ -875,7 +875,7 @@ fn test_basic_context_functions() {
 fn test_basic_context_cache() {
     let mut ctx = DefaultExpressionContext::new();
 
-    // 设置和获取缓存值（通过变量模拟）
+    // Setting and retrieving cache values (simulated using variables)
     ctx.set_variable("cached_key1".to_string(), Value::Int(42));
     assert_eq!(ctx.get_variable("cached_key1"), Some(Value::Int(42)));
     assert_eq!(ctx.get_variable("nonexistent"), None);
@@ -889,20 +889,20 @@ fn test_context_parent_child() {
     let mut child = DefaultExpressionContext::new();
     child.set_variable("child_var".to_string(), Value::Int(200));
 
-    // 子上下文应该能访问自己的变量
+    // The child context should be able to access its own variables.
     assert_eq!(child.get_variable("child_var"), Some(Value::Int(200)));
-    // 父上下文应该能访问自己的变量
+    // The parent context should be able to access its own variables.
     assert_eq!(parent.get_variable("parent_var"), Some(Value::Int(100)));
 }
 
-// ==================== 复杂场景测试 ====================
+// ==================== Complex Scenario Testing ====================
 
 #[test]
 fn test_complex_arithmetic_expression() {
     use graphdb::core::types::BinaryOperator;
     let mut ctx = DefaultExpressionContext::new();
 
-    // 复杂表达式: (100 - 50) * 2 + 10 / 5 = 102
+    // Complex expression: (100 - 50) * 2 + 10 / 5 = 102
     let expr = Expression::Binary {
         left: Box::new(Expression::Binary {
             left: Box::new(Expression::Binary {
@@ -930,7 +930,7 @@ fn test_mixed_type_operations() {
     use graphdb::core::types::BinaryOperator;
     let mut ctx = DefaultExpressionContext::new();
 
-    // 整数和浮点数混合运算
+    // Mixed operations of integers and floating-point numbers
     let expr = Expression::Binary {
         left: Box::new(Expression::literal(10i64)),
         op: BinaryOperator::Add,
@@ -945,7 +945,7 @@ fn test_string_concatenation() {
     use graphdb::core::types::BinaryOperator;
     let mut ctx = DefaultExpressionContext::new();
 
-    // 字符串连接
+    // String concatenation
     let expr = Expression::Binary {
         left: Box::new(Expression::literal("Hello, ".to_string())),
         op: BinaryOperator::Add,
@@ -957,7 +957,7 @@ fn test_string_concatenation() {
 
 #[test]
 fn test_list_operations() {
-    // 创建列表值
+    // Create list values
     let list = Value::List(graphdb::core::List {
         values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
     });
@@ -965,7 +965,7 @@ fn test_list_operations() {
     assert_eq!(list.length().expect("列表长度计算应该成功"), Value::Int(3));
     assert_eq!(list.get_type(), DataType::List);
 
-    // 空列表
+    // Empty list
     let empty_list = Value::List(graphdb::core::List { values: vec![] });
     assert_eq!(
         empty_list.length().expect("空列表长度计算应该成功"),
@@ -977,7 +977,7 @@ fn test_list_operations() {
 fn test_map_operations() {
     use std::collections::HashMap;
 
-    // 创建 Map 值
+    // Create a Map value
     let mut map = HashMap::new();
     map.insert("name".to_string(), Value::String("Alice".to_string()));
     map.insert("age".to_string(), Value::Int(30));
@@ -992,7 +992,7 @@ fn test_map_operations() {
 
 #[test]
 fn test_value_memory_estimation() {
-    // 测试内存估算功能
+    // Testing the memory estimation function
     let int_val = Value::Int(42);
     assert!(int_val.estimated_size() > 0);
 
@@ -1019,7 +1019,7 @@ fn test_null_type_display() {
 
 #[test]
 fn test_default_values() {
-    // 测试默认值
+    // Test the default values.
     let default_null: NullType = Default::default();
     assert_eq!(default_null, NullType::Null);
 

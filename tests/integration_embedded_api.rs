@@ -1,13 +1,13 @@
-//! 嵌入式 API 集成测试
+//! Embedded API Integration Testing
 //!
-//! 测试范围:
-//! - api::embedded::database - 数据库打开、配置、会话创建
-//! - api::embedded::session - 会话管理、空间切换、查询执行
-//! - api::embedded::transaction - 事务管理、保存点
-//! - api::embedded::statement - 预编译语句、参数绑定
-//! - api::embedded::batch - 批量插入
-//! - api::embedded::config - 数据库配置
-//! - api::embedded::result - 查询结果处理
+//! Test Range.
+//! - api::embedded::database - database opening, configuration, session creation
+//! - api::embedded::session - session management, space switching, query execution
+//! - api::embedded::transaction - transaction management, savepoints
+//! - api::embedded::statement - precompiled statements, parameter binding
+//! - api::embedded::batch - batch insertion
+//! - api::embedded::config - database configuration
+//! - api::embedded::result - query result processing
 
 mod common;
 
@@ -22,7 +22,7 @@ use graphdb::api::embedded::{
 use graphdb::core::{Edge, Value, Vertex};
 use graphdb::storage::redb_storage::RedbStorage;
 
-/// 测试数据库包装器，保持临时目录有效
+/// Test the database wrapper to keep the temporary catalog valid
 struct TestDatabase {
     db: GraphDatabase<RedbStorage>,
     _temp_dir: tempfile::TempDir,
@@ -40,7 +40,7 @@ impl TestDatabase {
     }
 }
 
-/// 创建测试数据库（使用临时文件）
+/// Creating a test database (using temporary files)
 fn create_test_database() -> TestDatabase {
     TestDatabase::new()
 }
@@ -164,7 +164,7 @@ fn test_graph_database_space_management() {
     assert!(!spaces.contains(&"test_space".to_string()));
 }
 
-// ==================== Session 测试 ====================
+// ==================== Session Test ====================
 
 #[test]
 fn test_session_use_space() {
@@ -253,7 +253,7 @@ fn test_session_batch_inserter() {
     assert_eq!(inserter.batch_size(), 100);
 }
 
-// ==================== Transaction 测试 ====================
+// ==================== Transaction Testing ====================
 
 #[test]
 fn test_transaction_config_default() {
@@ -544,10 +544,10 @@ fn test_batch_error_create() {
     let error = BatchError::new(0, BatchItemType::Vertex, "测试错误");
     assert_eq!(error.index, 0);
     assert_eq!(error.item_type, BatchItemType::Vertex);
-    assert_eq!(error.error, "测试错误");
+    assert_eq!(error.error, "test error");
 }
 
-// ==================== QueryResult 测试 ====================
+// ==================== QueryResult test ====================
 
 #[test]
 fn test_query_result_empty() {

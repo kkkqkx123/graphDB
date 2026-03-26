@@ -1,10 +1,10 @@
-//! 计划重写模块集成测试
+//! Plan to rewrite module integration tests
 //!
-//! 测试范围:
-//! - rewrite::rule_enum - 静态分发规则枚举
-//! - rewrite::plan_rewriter - 计划重写器
-//! - rewrite::RuleRegistry - 规则注册表
-//! - 各种重写规则的集成测试
+//! Test Range.
+//! - rewrite::rule_enum - static distribution rule enumeration
+//! - rewrite::plan_rewriter - plan rewriter
+//! - rewrite::RuleRegistry - rule registry
+//! - Integration testing of various rewrite rules
 
 mod common;
 
@@ -19,8 +19,8 @@ use graphdb::query::planning::rewrite::{
 #[test]
 fn test_rule_registry_default() {
     let registry = RuleRegistry::default();
-    assert_eq!(registry.len(), 39, "默认注册表应包含 39 个规则");
-    assert!(!registry.is_empty(), "注册表不应为空");
+    assert_eq!(registry.len(), 39, "The default registry should contain 39 rules");
+    assert!(!registry.is_empty(), "The registry should not be empty");
 }
 
 #[test]
@@ -31,18 +31,18 @@ fn test_rule_registry_iter() {
     for rule in registry.iter() {
         count += 1;
         let name = rule.name();
-        assert!(!name.is_empty(), "规则名称不应为空");
-        assert!(name.ends_with("Rule"), "规则名称应以 'Rule' 结尾");
+        assert!(!name.is_empty(), "The name of the rule should not be empty");
+        assert!(name.ends_with("Rule"), "Rule names should end with 'Rule'");
     }
 
-    assert_eq!(count, 39, "应迭代所有 39 个规则");
+    assert_eq!(count, 39, "All 39 rules should be iterated");
 }
 
 #[test]
 fn test_rule_registry_new() {
     let registry = RuleRegistry::new();
-    assert_eq!(registry.len(), 0, "新注册表应为空");
-    assert!(registry.is_empty(), "新注册表应为空");
+    assert_eq!(registry.len(), 0, "The new registry should be empty");
+    assert!(registry.is_empty(), "The new registry should be empty");
 }
 
 #[test]
@@ -51,18 +51,18 @@ fn test_rule_registry_add() {
 
     registry.add(RewriteRuleEnum::EliminateFilter(EliminateFilterRule::new()));
 
-    assert_eq!(registry.len(), 1, "添加一个规则后长度应为 1");
-    assert!(!registry.is_empty(), "添加规则后不应为空");
+    assert_eq!(registry.len(), 1, "Adding a rule should result in a length of 1");
+    assert!(!registry.is_empty(), "Should not be empty after adding a rule");
 }
 
 #[test]
 fn test_rule_registry_clear() {
     let mut registry = RuleRegistry::default();
-    assert_eq!(registry.len(), 39, "默认注册表应有 39 个规则");
+    assert_eq!(registry.len(), 39, "The default registry should have 39 rules");
 
     registry.clear();
-    assert_eq!(registry.len(), 0, "清空后长度应为 0");
-    assert!(registry.is_empty(), "清空后应为空");
+    assert_eq!(registry.len(), 0, "The length should be 0 after clearing");
+    assert!(registry.is_empty(), "Empty should be empty");
 }
 
 #[test]
@@ -70,17 +70,17 @@ fn test_rule_registry_into_vec() {
     let registry = RuleRegistry::default();
     let rules = registry.into_vec();
 
-    assert_eq!(rules.len(), 39, "转换后的 Vec 应包含 39 个规则");
+    assert_eq!(rules.len(), 39, "The converted Vec should contain 39 rules");
 }
 
-// ==================== RewriteRule 集成测试 ====================
+// ==================== RewriteRule Integration Testing ====================
 
 #[test]
 fn test_rewrite_rule_names() {
     let registry = RuleRegistry::default();
 
     let expected_names = vec![
-        // 消除规则
+        // Elimination rules
         "EliminateFilterRule",
         "RemoveNoopProjectRule",
         "EliminateAppendVerticesRule",
@@ -89,7 +89,7 @@ fn test_rewrite_rule_names() {
         "EliminateEmptySetOperationRule",
         "DedupEliminationRule",
         "EliminateSortRule",
-        // 合并规则
+        // Consolidation rules
         "CombineFilterRule",
         "CollapseProjectRule",
         "CollapseConsecutiveProjectRule",
@@ -97,7 +97,7 @@ fn test_rewrite_rule_names() {
         "MergeGetVerticesAndDedupRule",
         "MergeGetNbrsAndProjectRule",
         "MergeGetNbrsAndDedupRule",
-        // 谓词下推规则
+        // predicate inference rule
         "PushFilterDownTraverseRule",
         "PushFilterDownExpandAllRule",
         "PushFilterDownNodeRule",
@@ -109,21 +109,21 @@ fn test_rewrite_rule_names() {
         "PushFilterDownCrossJoinRule",
         "PushFilterDownGetNbrsRule",
         "PushFilterDownAllPathsRule",
-        // 投影下推规则
+        // Projected push-down rules
         "PushProjectDownScanVerticesRule",
         "PushProjectDownScanEdgesRule",
         "PushProjectDownGetVerticesRule",
         "PushProjectDownGetEdgesRule",
         "PushProjectDownGetNeighborsRule",
         "PushProjectDownEdgeIndexScanRule",
-        // LIMIT 下推规则
+        // LIMIT push-down rule
         "PushLimitDownGetVerticesRule",
         "PushLimitDownGetEdgesRule",
         "PushLimitDownScanVerticesRule",
         "PushLimitDownScanEdgesRule",
         "PushLimitDownIndexScanRule",
         "PushTopNDownIndexScanRule",
-        // 聚合优化规则
+        // Aggregation Optimization Rules
         "PushFilterDownAggregateRule",
     ];
 
@@ -133,7 +133,7 @@ fn test_rewrite_rule_names() {
     let mut expected_sorted = expected_names.clone();
     expected_sorted.sort();
 
-    assert_eq!(actual_names, expected_sorted, "规则名称列表应匹配");
+    assert_eq!(actual_names, expected_sorted, "The list of rule names should match");
 }
 
 #[test]
@@ -141,7 +141,7 @@ fn test_rewrite_rule_pattern() {
     let rule = RewriteRuleEnum::EliminateFilter(EliminateFilterRule::new());
 
     let pattern = rule.pattern();
-    // 验证 pattern 方法可以正常调用
+    // Verify that the pattern method can be called correctly
     let _ = pattern;
 }
 
@@ -149,7 +149,7 @@ fn test_rewrite_rule_pattern() {
 fn test_rewrite_rule_trait_methods() {
     let rule = RewriteRuleEnum::EliminateFilter(EliminateFilterRule::new());
 
-    // 测试 RewriteRule trait 方法
+    // Testing the RewriteRule trait method
     let name = rule.name();
     assert_eq!(name, "EliminateFilterRule");
 
@@ -162,7 +162,7 @@ fn test_rewrite_rule_trait_methods() {
 #[test]
 fn test_plan_rewriter_new() {
     let rewriter = PlanRewriter::new();
-    // 验证重写器可以创建
+    // Verify that the rewriter can create
     let _ = rewriter;
 }
 
@@ -170,33 +170,33 @@ fn test_plan_rewriter_new() {
 fn test_plan_rewriter_from_registry() {
     let registry = RuleRegistry::default();
     let rewriter = PlanRewriter::from_registry(registry);
-    // 验证重写器可以从注册表创建
+    // Verify that the rewriter can be created from the registry
     let _ = rewriter;
 }
 
 #[test]
 fn test_plan_rewriter_default() {
     let rewriter = PlanRewriter::default();
-    // 验证重写器默认实现
+    // Validating the rewriter default implementation
     let _ = rewriter;
 }
 
 #[test]
 fn test_create_default_rewriter() {
     let rewriter = create_default_rewriter();
-    // 验证默认重写器创建函数
+    // Validating the Default Rewriter Creation Function
     let _ = rewriter;
 }
 
-// ==================== 静态分发性能测试 ====================
+// ==================== Static Distribution Performance Testing ====================
 
 #[test]
 fn test_static_dispatch_overhead() {
     let registry = RuleRegistry::default();
     let rules: Vec<_> = registry.iter().collect();
 
-    // 测试静态分发的性能
-    // 通过多次调用验证没有明显的性能问题
+    // Testing the performance of static distribution
+    // Verify that there are no significant performance issues through multiple calls
     let iterations = 1000;
 
     for _ in 0..iterations {
@@ -207,7 +207,7 @@ fn test_static_dispatch_overhead() {
     }
 }
 
-// ==================== 规则分类测试 ====================
+// ==================== Rule Classification Test ====================
 
 #[test]
 fn test_elimination_rules_count() {
@@ -229,7 +229,7 @@ fn test_elimination_rules_count() {
         })
         .collect();
 
-    assert_eq!(elimination_rules.len(), 7, "应有 7 个消除规则");
+    assert_eq!(elimination_rules.len(), 7, "There should be 7 elimination rules");
 }
 
 #[test]
@@ -252,7 +252,7 @@ fn test_merge_rules_count() {
         })
         .collect();
 
-    assert_eq!(merge_rules.len(), 7, "应有 7 个合并规则");
+    assert_eq!(merge_rules.len(), 7, "There should be 7 merger rules");
 }
 
 #[test]
@@ -279,7 +279,7 @@ fn test_predicate_pushdown_rules_count() {
         })
         .collect();
 
-    assert_eq!(predicate_pushdown_rules.len(), 11, "应有 11 个谓词下推规则");
+    assert_eq!(predicate_pushdown_rules.len(), 11, "There should be 11 predicate inference rules");
 }
 
 #[test]
@@ -301,7 +301,7 @@ fn test_projection_pushdown_rules_count() {
         })
         .collect();
 
-    assert_eq!(projection_pushdown_rules.len(), 6, "应有 6 个投影下推规则");
+    assert_eq!(projection_pushdown_rules.len(), 6, "There should be 6 projective extrapolation rules");
 }
 
 #[test]
@@ -323,7 +323,7 @@ fn test_limit_pushdown_rules_count() {
         })
         .collect();
 
-    assert_eq!(limit_pushdown_rules.len(), 6, "应有 6 个 LIMIT 下推规则");
+    assert_eq!(limit_pushdown_rules.len(), 6, "There should be 6 LIMIT pushdown rules");
 }
 
 #[test]
@@ -335,10 +335,10 @@ fn test_aggregate_rules_count() {
         .filter(|rule| matches!(rule, RewriteRuleEnum::PushFilterDownAggregate(_)))
         .collect();
 
-    assert_eq!(aggregate_rules.len(), 1, "应有 1 个聚合优化规则");
+    assert_eq!(aggregate_rules.len(), 1, "There should be 1 aggregation optimization rule");
 }
 
-// ==================== 规则唯一性测试 ====================
+// ==================== Rule Uniqueness Test ====================
 
 #[test]
 fn test_rule_names_unique() {
@@ -349,14 +349,14 @@ fn test_rule_names_unique() {
     names.sort();
     names.dedup();
 
-    assert_eq!(names.len(), 39, "所有规则名称应唯一");
+    assert_eq!(names.len(), 39, "All rule names should be unique");
 }
 
-// ==================== 宏生成代码验证测试 ====================
+// ==================== Macro Generation Code Verification Test ====================
 
 #[test]
 fn test_macro_generated_enum() {
-    // 验证宏生成的枚举包含所有预期的变体
+    // Verify that the enumeration generated by the macro contains all the expected variants
     let _ = RewriteRuleEnum::EliminateFilter(EliminateFilterRule::new());
     let _ = RewriteRuleEnum::RemoveNoopProject(RemoveNoopProjectRule::new());
     let _ = RewriteRuleEnum::CombineFilter(CombineFilterRule::new());
@@ -369,7 +369,7 @@ fn test_macro_generated_enum() {
 fn test_macro_generated_methods() {
     let rule = RewriteRuleEnum::EliminateFilter(EliminateFilterRule::new());
 
-    // 验证宏生成的所有方法都可以正常调用
+    // Verify that all methods generated by the macro can be called properly
     let name = rule.name();
     assert_eq!(name, "EliminateFilterRule");
 
