@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use crate::core::types::{ContextualExpression, SerializableExpression};
 use crate::define_plan_node;
+use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
     PlanNode, PlanNodeClonable,
@@ -241,6 +242,50 @@ impl PlanNodeClonable for SelectNode {
     }
 }
 
+impl MemoryEstimatable for SelectNode {
+    fn estimate_memory(&self) -> usize {
+        let base = std::mem::size_of::<SelectNode>();
+
+        // Estimate condition (ContextualExpression)
+        let condition_size = std::mem::size_of::<ContextualExpression>()
+            + std::mem::size_of::<Arc<ExpressionAnalysisContext>>();
+
+        // Estimate condition_serializable
+        let serializable_size = std::mem::size_of::<Option<SerializableExpression>>();
+        let serializable_data_size = if self.condition_serializable.is_some() {
+            std::mem::size_of::<SerializableExpression>()
+        } else {
+            0
+        };
+
+        // Estimate if_branch and else_branch Option<Box<PlanNodeEnum>>
+        let branch_size = std::mem::size_of::<Option<Box<PlanNodeEnum>>>() * 2;
+
+        // Estimate col_names
+        let col_names_size = std::mem::size_of::<Vec<String>>()
+            + self
+                .col_names
+                .iter()
+                .map(|s| std::mem::size_of::<String>() + s.len())
+                .sum::<usize>();
+
+        // Estimate output_var
+        let output_var_size = std::mem::size_of::<Option<String>>()
+            + self
+                .output_var
+                .as_ref()
+                .map(|s| std::mem::size_of::<String>() + s.len())
+                .unwrap_or(0);
+
+        base + condition_size
+            + serializable_size
+            + serializable_data_size
+            + branch_size
+            + col_names_size
+            + output_var_size
+    }
+}
+
 /// Loop node: A branch that is executed multiple times during runtime.
 #[derive(Debug)]
 pub struct LoopNode {
@@ -399,6 +444,50 @@ impl PlanNodeClonable for LoopNode {
 
     fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         self.clone_with_new_id(new_id)
+    }
+}
+
+impl MemoryEstimatable for LoopNode {
+    fn estimate_memory(&self) -> usize {
+        let base = std::mem::size_of::<LoopNode>();
+
+        // Estimate condition (ContextualExpression)
+        let condition_size = std::mem::size_of::<ContextualExpression>()
+            + std::mem::size_of::<Arc<ExpressionAnalysisContext>>();
+
+        // Estimate condition_serializable
+        let serializable_size = std::mem::size_of::<Option<SerializableExpression>>();
+        let serializable_data_size = if self.condition_serializable.is_some() {
+            std::mem::size_of::<SerializableExpression>()
+        } else {
+            0
+        };
+
+        // Estimate body Option<Box<PlanNodeEnum>>
+        let body_size = std::mem::size_of::<Option<Box<PlanNodeEnum>>>();
+
+        // Estimate col_names
+        let col_names_size = std::mem::size_of::<Vec<String>>()
+            + self
+                .col_names
+                .iter()
+                .map(|s| std::mem::size_of::<String>() + s.len())
+                .sum::<usize>();
+
+        // Estimate output_var
+        let output_var_size = std::mem::size_of::<Option<String>>()
+            + self
+                .output_var
+                .as_ref()
+                .map(|s| std::mem::size_of::<String>() + s.len())
+                .unwrap_or(0);
+
+        base + condition_size
+            + serializable_size
+            + serializable_data_size
+            + body_size
+            + col_names_size
+            + output_var_size
     }
 }
 

@@ -461,14 +461,18 @@ impl CteCacheManager {
             .iter()
             .map(|entry| {
                 let value_score = entry.1.value_score();
-                (entry.0.as_ref().clone(), value_score, entry.1.data_size, entry.1.priority)
+                (
+                    entry.0.as_ref().clone(),
+                    value_score,
+                    entry.1.data_size,
+                    entry.1.priority,
+                )
             })
             .collect();
 
         let mut entries_sorted = entries;
         entries_sorted.sort_by(|a, b| {
-            a.1
-                .partial_cmp(&b.1)
+            a.1.partial_cmp(&b.1)
                 .unwrap_or(std::cmp::Ordering::Equal)
                 .then_with(|| a.3.cmp(&b.3))
         });

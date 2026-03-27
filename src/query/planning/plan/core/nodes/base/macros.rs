@@ -287,6 +287,23 @@ macro_rules! define_plan_node {
         }
 
         impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::ZeroInputNode for $name {}
+
+        impl $crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable for $name {
+            fn estimate_memory(&self) -> usize {
+                let base = std::mem::size_of::<$name>();
+
+                // Estimate col_names vector
+                let col_names_size = $crate::query::planning::plan::core::nodes::base::memory_estimation::estimate_vec_string_memory(&self.col_names());
+
+                // Estimate output_var (access directly, not through method)
+                let output_var_size = std::mem::size_of::<Option<String>>() +
+                    self.output_var.as_ref()
+                        .map(|s| std::mem::size_of::<String>() + s.len())
+                        .unwrap_or(0);
+
+                base + col_names_size + output_var_size
+            }
+        }
     };
 
     // The MultipleInputNode branch
@@ -430,6 +447,29 @@ macro_rules! define_plan_node {
             }
             fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 self.clone_with_new_id(new_id)
+            }
+        }
+
+        impl $crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable for $name {
+            fn estimate_memory(&self) -> usize {
+                let base = std::mem::size_of::<$name>();
+
+                // Estimate col_names vector
+                let col_names_size = $crate::query::planning::plan::core::nodes::base::memory_estimation::estimate_vec_string_memory(&self.col_names());
+
+                // Estimate output_var (access directly, not through method)
+                let output_var_size = std::mem::size_of::<Option<String>>() +
+                    self.output_var.as_ref()
+                        .map(|s| std::mem::size_of::<String>() + s.len())
+                        .unwrap_or(0);
+
+                // Estimate input Option<Box<PlanNodeEnum>>
+                let input_size = std::mem::size_of::<Option<Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>>();
+
+                // Estimate deps Vec<PlanNodeEnum>
+                let deps_size = std::mem::size_of::<Vec<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>();
+
+                base + col_names_size + output_var_size + input_size + deps_size
             }
         }
     };
@@ -598,6 +638,29 @@ macro_rules! define_binary_input_node {
                 self.clone_with_new_id(new_id)
             }
         }
+
+        impl $crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable for $name {
+            fn estimate_memory(&self) -> usize {
+                let base = std::mem::size_of::<$name>();
+
+                // Estimate col_names vector
+                let col_names_size = $crate::query::planning::plan::core::nodes::base::memory_estimation::estimate_vec_string_memory(&self.col_names());
+
+                // Estimate output_var (access directly, not through method)
+                let output_var_size = std::mem::size_of::<Option<String>>() +
+                    self.output_var.as_ref()
+                        .map(|s| std::mem::size_of::<String>() + s.len())
+                        .unwrap_or(0);
+
+                // Estimate left and right Box<PlanNodeEnum>
+                let left_right_size = std::mem::size_of::<Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>() * 2;
+
+                // Estimate deps Vec<PlanNodeEnum>
+                let deps_size = std::mem::size_of::<Vec<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>();
+
+                base + col_names_size + output_var_size + left_right_size + deps_size
+            }
+        }
     };
 }
 
@@ -722,6 +785,29 @@ macro_rules! define_plan_node_with_deps {
             }
             fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 self.clone_with_new_id(new_id)
+            }
+        }
+
+        impl $crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable for $name {
+            fn estimate_memory(&self) -> usize {
+                let base = std::mem::size_of::<$name>();
+
+                // Estimate col_names vector
+                let col_names_size = $crate::query::planning::plan::core::nodes::base::memory_estimation::estimate_vec_string_memory(&self.col_names());
+
+                // Estimate output_var (access directly, not through method)
+                let output_var_size = std::mem::size_of::<Option<String>>() +
+                    self.output_var.as_ref()
+                        .map(|s| std::mem::size_of::<String>() + s.len())
+                        .unwrap_or(0);
+
+                // Estimate input Option<Box<PlanNodeEnum>>
+                let input_size = std::mem::size_of::<Option<Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>>();
+
+                // Estimate deps Vec<PlanNodeEnum>
+                let deps_size = std::mem::size_of::<Vec<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>();
+
+                base + col_names_size + output_var_size + input_size + deps_size
             }
         }
     };
@@ -937,6 +1023,29 @@ macro_rules! define_join_node {
             }
             fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 self.clone_with_new_id(new_id)
+            }
+        }
+
+        impl $crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable for $name {
+            fn estimate_memory(&self) -> usize {
+                let base = std::mem::size_of::<$name>();
+
+                // Estimate col_names vector
+                let col_names_size = $crate::query::planning::plan::core::nodes::base::memory_estimation::estimate_vec_string_memory(&self.col_names());
+
+                // Estimate output_var (access directly, not through method)
+                let output_var_size = std::mem::size_of::<Option<String>>() +
+                    self.output_var.as_ref()
+                        .map(|s| std::mem::size_of::<String>() + s.len())
+                        .unwrap_or(0);
+
+                // Estimate left and right Box<PlanNodeEnum>
+                let left_right_size = std::mem::size_of::<Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>() * 2;
+
+                // Estimate deps Vec<PlanNodeEnum>
+                let deps_size = std::mem::size_of::<Vec<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>();
+
+                base + col_names_size + output_var_size + left_right_size + deps_size
             }
         }
     };

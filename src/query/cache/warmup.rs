@@ -86,8 +86,7 @@ impl CacheWarmer {
             return Ok(());
         }
 
-        let _plan = self
-            .prepare_query(query)
+        self.prepare_query(query)
             .await
             .map_err(|e| WarmupError::QueryPrepareError(e.to_string()))?;
 
@@ -164,17 +163,9 @@ impl CacheWarmer {
 }
 
 /// Warmup configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct WarmupConfig {
     pub queries: Vec<String>,
-}
-
-impl Default for WarmupConfig {
-    fn default() -> Self {
-        Self {
-            queries: Vec::new(),
-        }
-    }
 }
 
 /// Warmup result

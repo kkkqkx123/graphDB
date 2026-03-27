@@ -4,6 +4,7 @@
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::define_plan_node_with_deps;
+use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
 
 define_plan_node_with_deps! {
     pub struct UnionNode {
@@ -389,6 +390,75 @@ impl crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleIn
     }
 }
 
+impl MemoryEstimatable for RollUpApplyNode {
+    fn estimate_memory(&self) -> usize {
+        let base = std::mem::size_of::<RollUpApplyNode>();
+
+        // Estimate left_input_var and right_input_var Option<String>
+        let input_var_size = std::mem::size_of::<Option<String>>() * 2
+            + self
+                .left_input_var
+                .as_ref()
+                .map(|s| std::mem::size_of::<String>() + s.len())
+                .unwrap_or(0)
+            + self
+                .right_input_var
+                .as_ref()
+                .map(|s| std::mem::size_of::<String>() + s.len())
+                .unwrap_or(0);
+
+        // Estimate compare_cols Vec<String>
+        let compare_cols_size = std::mem::size_of::<Vec<String>>()
+            + self
+                .compare_cols
+                .iter()
+                .map(|s| std::mem::size_of::<String>() + s.len())
+                .sum::<usize>();
+
+        // Estimate collect_col Option<String>
+        let collect_col_size = std::mem::size_of::<Option<String>>()
+            + self
+                .collect_col
+                .as_ref()
+                .map(|s| std::mem::size_of::<String>() + s.len())
+                .unwrap_or(0);
+
+        // Estimate col_names
+        let col_names_size = std::mem::size_of::<Vec<String>>()
+            + self
+                .col_names
+                .iter()
+                .map(|s| std::mem::size_of::<String>() + s.len())
+                .sum::<usize>();
+
+        // Estimate output_var
+        let output_var_size = std::mem::size_of::<Option<String>>()
+            + self
+                .output_var
+                .as_ref()
+                .map(|s| std::mem::size_of::<String>() + s.len())
+                .unwrap_or(0);
+
+        // Estimate left and right Box<PlanNodeEnum>
+        let left_right_size = std::mem::size_of::<
+            Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
+        >() * 2;
+
+        // Estimate deps Vec<PlanNodeEnum>
+        let deps_size = std::mem::size_of::<
+            Vec<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
+        >();
+
+        base + input_var_size
+            + compare_cols_size
+            + collect_col_size
+            + col_names_size
+            + output_var_size
+            + left_right_size
+            + deps_size
+    }
+}
+
 /// PatternApply node – Pattern matching application
 ///
 /// Receive two inputs from the left and right sides. Determine whether the data on the left side matches the pattern on the right side based on the key columns.
@@ -622,6 +692,66 @@ impl crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleIn
     }
 }
 
+impl MemoryEstimatable for PatternApplyNode {
+    fn estimate_memory(&self) -> usize {
+        let base = std::mem::size_of::<PatternApplyNode>();
+
+        // Estimate left_input_var and right_input_var Option<String>
+        let input_var_size = std::mem::size_of::<Option<String>>() * 2
+            + self
+                .left_input_var
+                .as_ref()
+                .map(|s| std::mem::size_of::<String>() + s.len())
+                .unwrap_or(0)
+            + self
+                .right_input_var
+                .as_ref()
+                .map(|s| std::mem::size_of::<String>() + s.len())
+                .unwrap_or(0);
+
+        // Estimate key_cols Vec<ContextualExpression>
+        let key_cols_size = std::mem::size_of::<Vec<crate::core::types::ContextualExpression>>()
+            + self.key_cols.len() * std::mem::size_of::<crate::core::types::ContextualExpression>();
+
+        // Estimate is_anti_predicate bool
+        let is_anti_size = std::mem::size_of::<bool>();
+
+        // Estimate col_names
+        let col_names_size = std::mem::size_of::<Vec<String>>()
+            + self
+                .col_names
+                .iter()
+                .map(|s| std::mem::size_of::<String>() + s.len())
+                .sum::<usize>();
+
+        // Estimate output_var
+        let output_var_size = std::mem::size_of::<Option<String>>()
+            + self
+                .output_var
+                .as_ref()
+                .map(|s| std::mem::size_of::<String>() + s.len())
+                .unwrap_or(0);
+
+        // Estimate left and right Box<PlanNodeEnum>
+        let left_right_size = std::mem::size_of::<
+            Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
+        >() * 2;
+
+        // Estimate deps Vec<PlanNodeEnum>
+        let deps_size = std::mem::size_of::<
+            Vec<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
+        >();
+
+        base + input_var_size
+            + key_cols_size
+            + is_anti_size
+            + col_names_size
+            + output_var_size
+            + left_right_size
+            + deps_size
+    }
+}
+
 define_plan_node_with_deps! {
     pub struct MaterializeNode {
     }
@@ -819,5 +949,44 @@ impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode
         self,
     ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Remove(self)
+    }
+}
+
+impl MemoryEstimatable for RemoveNode {
+    fn estimate_memory(&self) -> usize {
+        let base = std::mem::size_of::<RemoveNode>();
+
+        // Estimate remove_items Vec<(String, ContextualExpression)>
+        let remove_items_size = std::mem::size_of::<Vec<(String, ContextualExpression)>>()
+            + self.remove_items.len()
+                * (std::mem::size_of::<String>() + std::mem::size_of::<ContextualExpression>());
+
+        // Estimate col_names
+        let col_names_size = std::mem::size_of::<Vec<String>>()
+            + self
+                .col_names
+                .iter()
+                .map(|s| std::mem::size_of::<String>() + s.len())
+                .sum::<usize>();
+
+        // Estimate output_var
+        let output_var_size = std::mem::size_of::<Option<String>>()
+            + self
+                .output_var
+                .as_ref()
+                .map(|s| std::mem::size_of::<String>() + s.len())
+                .unwrap_or(0);
+
+        // Estimate input Box<PlanNodeEnum>
+        let input_size = std::mem::size_of::<
+            Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
+        >();
+
+        // Estimate deps Vec<PlanNodeEnum>
+        let deps_size = std::mem::size_of::<
+            Vec<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
+        >();
+
+        base + remove_items_size + col_names_size + output_var_size + input_size + deps_size
     }
 }

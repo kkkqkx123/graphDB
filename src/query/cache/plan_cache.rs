@@ -434,11 +434,15 @@ impl QueryPlanCache {
 
         let stats = self.stats.read();
         if !is_update {
-            stats.total_query_template_bytes.fetch_add(query_bytes, Ordering::Relaxed);
+            stats
+                .total_query_template_bytes
+                .fetch_add(query_bytes, Ordering::Relaxed);
         }
 
         let current_entries = self.cache.entry_count() as usize;
-        stats.current_entries.store(current_entries, Ordering::Relaxed);
+        stats
+            .current_entries
+            .store(current_entries, Ordering::Relaxed);
         if current_entries > 0 {
             let total_bytes = stats.total_query_template_bytes.load(Ordering::Relaxed);
             let mut avg_bytes = stats.avg_query_template_bytes.write();
@@ -480,6 +484,7 @@ impl QueryPlanCache {
     }
 
     /// Update TTL adaptively based on access patterns
+    #[allow(dead_code)]
     fn update_ttl(&self, entry: &mut CachedPlan) {
         if !self.config.ttl_config.adaptive {
             return;
@@ -538,7 +543,9 @@ impl QueryPlanCache {
 
         if removed {
             let stats = self.stats.read();
-            stats.current_entries.store(self.cache.entry_count() as usize, Ordering::Relaxed);
+            stats
+                .current_entries
+                .store(self.cache.entry_count() as usize, Ordering::Relaxed);
         }
 
         removed
@@ -575,7 +582,9 @@ impl QueryPlanCache {
     /// Obtain statistical information
     pub fn stats(&self) -> PlanCacheStats {
         let stats = self.stats.read();
-        stats.current_entries.store(self.cache.entry_count() as usize, Ordering::Relaxed);
+        stats
+            .current_entries
+            .store(self.cache.entry_count() as usize, Ordering::Relaxed);
         stats.clone()
     }
 

@@ -1,6 +1,6 @@
-//! Implementation of the space management node
+//! Implementation of space management node
 //!
-//! Provide definitions of the planning nodes related to graph space management.
+//! Provide definitions of planning nodes related to graph space management.
 
 use crate::define_plan_node;
 

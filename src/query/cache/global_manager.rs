@@ -11,7 +11,7 @@
 //! 4. Emergency eviction when memory pressure is high
 
 use parking_lot::RwLock;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use super::cte_cache::{CteCacheConfig, CteCacheManager, CteCacheStats};
@@ -112,7 +112,9 @@ impl GlobalCacheStats {
             self.total_budget as f64 / 1024.0 / 1024.0,
             self.memory_usage_ratio() * 100.0,
             self.evictions,
-            self.plan_cache_stats.current_entries.load(Ordering::Relaxed),
+            self.plan_cache_stats
+                .current_entries
+                .load(Ordering::Relaxed),
             self.plan_cache_stats.hit_rate() * 100.0,
             self.cte_cache_stats.entry_count,
             self.cte_cache_stats.hit_rate() * 100.0
@@ -306,6 +308,7 @@ impl Default for GlobalCacheManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::AtomicU64;
 
     #[test]
     fn test_allocations_default() {
