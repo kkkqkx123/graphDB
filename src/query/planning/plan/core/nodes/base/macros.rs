@@ -296,9 +296,10 @@ macro_rules! define_plan_node {
                 let col_names_size = $crate::query::planning::plan::core::nodes::base::memory_estimation::estimate_vec_string_memory(&self.col_names());
 
                 // Estimate output_var (access directly, not through method)
+                // Uses capacity() to reflect actual heap allocation
                 let output_var_size = std::mem::size_of::<Option<String>>() +
                     self.output_var.as_ref()
-                        .map(|s| std::mem::size_of::<String>() + s.len())
+                        .map(|s| std::mem::size_of::<String>() + s.capacity())
                         .unwrap_or(0);
 
                 base + col_names_size + output_var_size
@@ -458,9 +459,10 @@ macro_rules! define_plan_node {
                 let col_names_size = $crate::query::planning::plan::core::nodes::base::memory_estimation::estimate_vec_string_memory(&self.col_names());
 
                 // Estimate output_var (access directly, not through method)
+                // Uses capacity() to reflect actual heap allocation
                 let output_var_size = std::mem::size_of::<Option<String>>() +
                     self.output_var.as_ref()
-                        .map(|s| std::mem::size_of::<String>() + s.len())
+                        .map(|s| std::mem::size_of::<String>() + s.capacity())
                         .unwrap_or(0);
 
                 // Estimate input Option<Box<PlanNodeEnum>>
@@ -647,9 +649,10 @@ macro_rules! define_binary_input_node {
                 let col_names_size = $crate::query::planning::plan::core::nodes::base::memory_estimation::estimate_vec_string_memory(&self.col_names());
 
                 // Estimate output_var (access directly, not through method)
+                // Uses capacity() to reflect actual heap allocation
                 let output_var_size = std::mem::size_of::<Option<String>>() +
                     self.output_var.as_ref()
-                        .map(|s| std::mem::size_of::<String>() + s.len())
+                        .map(|s| std::mem::size_of::<String>() + s.capacity())
                         .unwrap_or(0);
 
                 // Estimate left and right Box<PlanNodeEnum>
@@ -796,9 +799,10 @@ macro_rules! define_plan_node_with_deps {
                 let col_names_size = $crate::query::planning::plan::core::nodes::base::memory_estimation::estimate_vec_string_memory(&self.col_names());
 
                 // Estimate output_var (access directly, not through method)
+                // Uses capacity() to reflect actual heap allocation
                 let output_var_size = std::mem::size_of::<Option<String>>() +
                     self.output_var.as_ref()
-                        .map(|s| std::mem::size_of::<String>() + s.len())
+                        .map(|s| std::mem::size_of::<String>() + s.capacity())
                         .unwrap_or(0);
 
                 // Estimate input Option<Box<PlanNodeEnum>>
@@ -1034,9 +1038,10 @@ macro_rules! define_join_node {
                 let col_names_size = $crate::query::planning::plan::core::nodes::base::memory_estimation::estimate_vec_string_memory(&self.col_names());
 
                 // Estimate output_var (access directly, not through method)
+                // Uses capacity() to reflect actual heap allocation
                 let output_var_size = std::mem::size_of::<Option<String>>() +
                     self.output_var.as_ref()
-                        .map(|s| std::mem::size_of::<String>() + s.len())
+                        .map(|s| std::mem::size_of::<String>() + s.capacity())
                         .unwrap_or(0);
 
                 // Estimate left and right Box<PlanNodeEnum>

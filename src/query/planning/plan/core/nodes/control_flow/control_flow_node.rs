@@ -262,11 +262,12 @@ impl MemoryEstimatable for SelectNode {
         let branch_size = std::mem::size_of::<Option<Box<PlanNodeEnum>>>() * 2;
 
         // Estimate col_names
+        // Uses capacity() to reflect actual heap allocation
         let col_names_size = std::mem::size_of::<Vec<String>>()
             + self
                 .col_names
                 .iter()
-                .map(|s| std::mem::size_of::<String>() + s.len())
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
                 .sum::<usize>();
 
         // Estimate output_var
@@ -274,7 +275,7 @@ impl MemoryEstimatable for SelectNode {
             + self
                 .output_var
                 .as_ref()
-                .map(|s| std::mem::size_of::<String>() + s.len())
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
                 .unwrap_or(0);
 
         base + condition_size
@@ -467,11 +468,12 @@ impl MemoryEstimatable for LoopNode {
         let body_size = std::mem::size_of::<Option<Box<PlanNodeEnum>>>();
 
         // Estimate col_names
+        // Uses capacity() to reflect actual heap allocation
         let col_names_size = std::mem::size_of::<Vec<String>>()
             + self
                 .col_names
                 .iter()
-                .map(|s| std::mem::size_of::<String>() + s.len())
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
                 .sum::<usize>();
 
         // Estimate output_var
@@ -479,7 +481,7 @@ impl MemoryEstimatable for LoopNode {
             + self
                 .output_var
                 .as_ref()
-                .map(|s| std::mem::size_of::<String>() + s.len())
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
                 .unwrap_or(0);
 
         base + condition_size

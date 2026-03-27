@@ -3,6 +3,8 @@
 //! This document defines the PlanNodeEnum enumeration, which includes all possible types of planning nodes.
 //! Use macros to generate template code in order to reduce repetition.
 
+use std::collections::HashSet;
+
 use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planning::plan::core::nodes::insert::insert_nodes::{
@@ -961,6 +963,8 @@ impl PlanNodeEnum {
 impl PlanNodeEnum {
     /// Estimate memory usage for this node (in bytes)
     /// This is a recursive estimation that includes all child nodes
+    /// Note: This method may count shared subtrees multiple times.
+    /// For deduplicated estimation, use `estimate_memory_dedup`.
     pub fn estimate_memory(&self) -> usize {
         let base_size = std::mem::size_of::<PlanNodeEnum>();
 
@@ -1176,6 +1180,273 @@ impl PlanNodeEnum {
                 }
                 if let Some(else_branch) = node.else_branch() {
                     total += Self::estimate_input_memory(else_branch.as_ref());
+                }
+                total
+            }
+        }
+    }
+
+    /// Estimate memory with deduplication for shared subtrees
+    /// This method uses a HashSet to track visited node IDs, ensuring each node
+    /// is only counted once even if referenced multiple times via Arc.
+    pub fn estimate_memory_dedup(&self) -> usize {
+        let mut visited = HashSet::new();
+        self.estimate_memory_internal(&mut visited)
+    }
+
+    /// Internal method for recursive estimation with deduplication
+    fn estimate_memory_internal(&self, visited: &mut HashSet<i64>) -> usize {
+        // Check if we've already visited this node
+        if !visited.insert(self.id()) {
+            return 0; // Already counted, only Arc overhead would be counted by caller
+        }
+
+        let base_size = std::mem::size_of::<PlanNodeEnum>();
+
+        match self {
+            // ZeroInputNode: Only the node structure itself
+            PlanNodeEnum::Start(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::CreateSpace(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DropSpace(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DescSpace(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::ShowSpaces(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::CreateTag(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::AlterTag(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DescTag(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DropTag(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::ShowTags(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::CreateEdge(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::AlterEdge(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DescEdge(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DropEdge(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::ShowEdges(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::CreateTagIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DropTagIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DescTagIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::ShowTagIndexes(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::CreateEdgeIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DropEdgeIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DescEdgeIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::ShowEdgeIndexes(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::RebuildTagIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::RebuildEdgeIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::CreateUser(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::AlterUser(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DropUser(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::ChangePassword(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::GrantRole(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::RevokeRole(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::SwitchSpace(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::AlterSpace(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::ClearSpace(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::ShowStats(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::InsertVertices(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::InsertEdges(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::IndexScan(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::ScanVertices(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::ScanEdges(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::EdgeIndexScan(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::GetVertices(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::GetEdges(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::GetNeighbors(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::ShortestPath(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::AllPaths(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::BFSShortest(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::MultiShortestPath(node) => base_size + estimate_node_memory(node),
+
+            // SingleInputNode: Node structure + child node
+            PlanNodeEnum::Project(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::Filter(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::Sort(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::Limit(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::TopN(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::Sample(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::Dedup(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::DataCollect(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::Aggregate(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::Unwind(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::Assign(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::PatternApply(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::RollUpApply(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::Remove(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::Materialize(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::Traverse(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.input().estimate_memory_internal(visited)
+            }
+
+            // BinaryInputNode: Node structure + two child nodes
+            PlanNodeEnum::InnerJoin(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.left_input().estimate_memory_internal(visited)
+                    + node.right_input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::LeftJoin(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.left_input().estimate_memory_internal(visited)
+                    + node.right_input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::CrossJoin(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.left_input().estimate_memory_internal(visited)
+                    + node.right_input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::HashInnerJoin(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.left_input().estimate_memory_internal(visited)
+                    + node.right_input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::HashLeftJoin(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.left_input().estimate_memory_internal(visited)
+                    + node.right_input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::FullOuterJoin(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.left_input().estimate_memory_internal(visited)
+                    + node.right_input().estimate_memory_internal(visited)
+            }
+
+            // MultipleInputNode: Node structure + multiple child nodes
+            PlanNodeEnum::Expand(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node
+                        .dependencies()
+                        .iter()
+                        .map(|dep| dep.estimate_memory_internal(visited))
+                        .sum::<usize>()
+            }
+            PlanNodeEnum::ExpandAll(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node
+                        .dependencies()
+                        .iter()
+                        .map(|dep| dep.estimate_memory_internal(visited))
+                        .sum::<usize>()
+            }
+            PlanNodeEnum::AppendVertices(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node
+                        .dependencies()
+                        .iter()
+                        .map(|dep| dep.estimate_memory_internal(visited))
+                        .sum::<usize>()
+            }
+            PlanNodeEnum::Union(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node
+                        .dependencies()
+                        .iter()
+                        .map(|dep| dep.estimate_memory_internal(visited))
+                        .sum::<usize>()
+            }
+            PlanNodeEnum::Minus(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node
+                        .dependencies()
+                        .iter()
+                        .map(|dep| dep.estimate_memory_internal(visited))
+                        .sum::<usize>()
+            }
+            PlanNodeEnum::Intersect(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node
+                        .dependencies()
+                        .iter()
+                        .map(|dep| dep.estimate_memory_internal(visited))
+                        .sum::<usize>()
+            }
+
+            // ControlFlowNode
+            PlanNodeEnum::Argument(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::Loop(node) => {
+                let mut total = base_size + estimate_node_memory(node);
+                if let Some(body) = node.body() {
+                    total += body.as_ref().estimate_memory_internal(visited);
+                }
+                total
+            }
+            PlanNodeEnum::PassThrough(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::Select(node) => {
+                let mut total = base_size + estimate_node_memory(node);
+                if let Some(if_branch) = node.if_branch() {
+                    total += if_branch.as_ref().estimate_memory_internal(visited);
+                }
+                if let Some(else_branch) = node.else_branch() {
+                    total += else_branch.as_ref().estimate_memory_internal(visited);
                 }
                 total
             }

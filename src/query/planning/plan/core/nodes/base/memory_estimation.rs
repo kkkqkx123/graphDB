@@ -10,25 +10,28 @@ pub trait MemoryEstimatable {
 }
 
 /// Helper function to estimate String memory
-pub fn estimate_string_memory(s: &str) -> usize {
-    std::mem::size_of::<String>() + s.len()
+/// Uses capacity() to reflect actual heap allocation
+pub fn estimate_string_memory(s: &String) -> usize {
+    std::mem::size_of::<String>() + s.capacity()
 }
 
 /// Helper function to estimate Option<String> memory
+/// Uses capacity() to reflect actual heap allocation
 pub fn estimate_option_string_memory(opt: &Option<String>) -> usize {
     std::mem::size_of::<Option<String>>()
         + opt
             .as_ref()
-            .map(|s| std::mem::size_of::<String>() + s.len())
+            .map(|s| std::mem::size_of::<String>() + s.capacity())
             .unwrap_or(0)
 }
 
 /// Helper function to estimate Vec<String> memory
+/// Uses capacity() for each string to reflect actual heap allocation
 pub fn estimate_vec_string_memory(vec: &[String]) -> usize {
     std::mem::size_of::<Vec<String>>()
         + vec
             .iter()
-            .map(|s| std::mem::size_of::<String>() + s.len())
+            .map(|s| std::mem::size_of::<String>() + s.capacity())
             .sum::<usize>()
 }
 

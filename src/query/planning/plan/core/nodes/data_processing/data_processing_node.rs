@@ -395,16 +395,17 @@ impl MemoryEstimatable for RollUpApplyNode {
         let base = std::mem::size_of::<RollUpApplyNode>();
 
         // Estimate left_input_var and right_input_var Option<String>
+        // Uses capacity() to reflect actual heap allocation
         let input_var_size = std::mem::size_of::<Option<String>>() * 2
             + self
                 .left_input_var
                 .as_ref()
-                .map(|s| std::mem::size_of::<String>() + s.len())
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
                 .unwrap_or(0)
             + self
                 .right_input_var
                 .as_ref()
-                .map(|s| std::mem::size_of::<String>() + s.len())
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
                 .unwrap_or(0);
 
         // Estimate compare_cols Vec<String>
@@ -412,7 +413,7 @@ impl MemoryEstimatable for RollUpApplyNode {
             + self
                 .compare_cols
                 .iter()
-                .map(|s| std::mem::size_of::<String>() + s.len())
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
                 .sum::<usize>();
 
         // Estimate collect_col Option<String>
@@ -420,7 +421,7 @@ impl MemoryEstimatable for RollUpApplyNode {
             + self
                 .collect_col
                 .as_ref()
-                .map(|s| std::mem::size_of::<String>() + s.len())
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
                 .unwrap_or(0);
 
         // Estimate col_names
@@ -428,7 +429,7 @@ impl MemoryEstimatable for RollUpApplyNode {
             + self
                 .col_names
                 .iter()
-                .map(|s| std::mem::size_of::<String>() + s.len())
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
                 .sum::<usize>();
 
         // Estimate output_var
@@ -436,7 +437,7 @@ impl MemoryEstimatable for RollUpApplyNode {
             + self
                 .output_var
                 .as_ref()
-                .map(|s| std::mem::size_of::<String>() + s.len())
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
                 .unwrap_or(0);
 
         // Estimate left and right Box<PlanNodeEnum>
@@ -697,16 +698,17 @@ impl MemoryEstimatable for PatternApplyNode {
         let base = std::mem::size_of::<PatternApplyNode>();
 
         // Estimate left_input_var and right_input_var Option<String>
+        // Uses capacity() to reflect actual heap allocation
         let input_var_size = std::mem::size_of::<Option<String>>() * 2
             + self
                 .left_input_var
                 .as_ref()
-                .map(|s| std::mem::size_of::<String>() + s.len())
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
                 .unwrap_or(0)
             + self
                 .right_input_var
                 .as_ref()
-                .map(|s| std::mem::size_of::<String>() + s.len())
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
                 .unwrap_or(0);
 
         // Estimate key_cols Vec<ContextualExpression>
@@ -721,7 +723,7 @@ impl MemoryEstimatable for PatternApplyNode {
             + self
                 .col_names
                 .iter()
-                .map(|s| std::mem::size_of::<String>() + s.len())
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
                 .sum::<usize>();
 
         // Estimate output_var
@@ -729,7 +731,7 @@ impl MemoryEstimatable for PatternApplyNode {
             + self
                 .output_var
                 .as_ref()
-                .map(|s| std::mem::size_of::<String>() + s.len())
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
                 .unwrap_or(0);
 
         // Estimate left and right Box<PlanNodeEnum>
@@ -957,16 +959,18 @@ impl MemoryEstimatable for RemoveNode {
         let base = std::mem::size_of::<RemoveNode>();
 
         // Estimate remove_items Vec<(String, ContextualExpression)>
+        // Note: This is a conservative estimate, actual String capacity may vary
         let remove_items_size = std::mem::size_of::<Vec<(String, ContextualExpression)>>()
             + self.remove_items.len()
                 * (std::mem::size_of::<String>() + std::mem::size_of::<ContextualExpression>());
 
         // Estimate col_names
+        // Uses capacity() to reflect actual heap allocation
         let col_names_size = std::mem::size_of::<Vec<String>>()
             + self
                 .col_names
                 .iter()
-                .map(|s| std::mem::size_of::<String>() + s.len())
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
                 .sum::<usize>();
 
         // Estimate output_var
@@ -974,7 +978,7 @@ impl MemoryEstimatable for RemoveNode {
             + self
                 .output_var
                 .as_ref()
-                .map(|s| std::mem::size_of::<String>() + s.len())
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
                 .unwrap_or(0);
 
         // Estimate input Box<PlanNodeEnum>
