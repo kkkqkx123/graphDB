@@ -140,6 +140,57 @@ pub struct CostModelConfig {
     ///
     /// The default value used when the number of branches cannot be determined. The default value is 2.
     pub default_select_branches: usize,
+
+    // ==================== Memory and expression cost parameters ====================
+    /// Cost per byte of memory usage
+    ///
+    /// 每字节内存使用成本（用于估算内存压力）。默认值 0.0001
+    pub memory_byte_cost: f64,
+
+    /// Memory pressure threshold (bytes)
+    ///
+    /// 内存压力阈值（超过此值增加成本惩罚）。默认值 100MB
+    pub memory_pressure_threshold: usize,
+
+    /// Memory pressure penalty factor
+    ///
+    /// 内存压力惩罚系数。默认值 2.0
+    pub memory_pressure_penalty: f64,
+
+    /// Simple expression (leaf node) cost
+    ///
+    /// 简单表达式（叶子节点）成本。默认值 0.001
+    pub simple_expression_cost: f64,
+
+    /// Function call base cost
+    ///
+    /// 函数调用基础成本。默认值 0.01
+    pub function_call_base_cost: f64,
+
+    /// Expression nesting cost per level
+    ///
+    /// 复杂表达式每层嵌套成本。默认值 0.005
+    pub expression_nesting_cost: f64,
+
+    /// Fixed-size type cost factor
+    ///
+    /// 固定大小类型处理成本系数。默认值 1.0
+    pub fixed_type_cost_factor: f64,
+
+    /// Variable-length type cost factor
+    ///
+    /// 变长类型处理成本系数。默认值 1.5
+    pub variable_type_cost_factor: f64,
+
+    /// Complex type cost factor
+    ///
+    /// 复杂类型处理成本系数。默认值 2.0
+    pub complex_type_cost_factor: f64,
+
+    /// Graph type cost factor
+    ///
+    /// 图类型处理成本系数。默认值 3.0
+    pub graph_type_cost_factor: f64,
 }
 
 impl Default for CostModelConfig {
@@ -170,6 +221,17 @@ impl Default for CostModelConfig {
             default_unwind_list_size: 3.0,
             default_loop_iterations: 3,
             default_select_branches: 2,
+            // Memory and expression cost parameters
+            memory_byte_cost: 0.0001,
+            memory_pressure_threshold: 100 * 1024 * 1024, // 100MB
+            memory_pressure_penalty: 2.0,
+            simple_expression_cost: 0.001,
+            function_call_base_cost: 0.01,
+            expression_nesting_cost: 0.005,
+            fixed_type_cost_factor: 1.0,
+            variable_type_cost_factor: 1.5,
+            complex_type_cost_factor: 2.0,
+            graph_type_cost_factor: 3.0,
         }
     }
 }

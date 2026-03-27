@@ -19,6 +19,8 @@
 
 use std::sync::Arc;
 
+use crate::core::types::expr::Expression;
+use crate::core::value::Value;
 use crate::query::optimizer::stats::StatisticsManager;
 
 use super::config::CostModelConfig;
@@ -552,6 +554,168 @@ impl CostCalculator {
         }
     }
 
+    // ==================== Expression Cost Calculation ====================
+
+    /// Calculate expression evaluation cost
+    ///
+    /// Based on expression complexity (node count) and memory usage
+    pub fn calculate_expression_cost(&self, expr: &Expression) -> f64 {
+        use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
+
+        let node_count = expr.node_count() as f64;
+        let memory_size = expr.estimate_memory() as f64;
+        let memory_factor = memory_size / 1000.0; // Cost per KB
+
+        if expr.is_simple() {
+            self.config.simple_expression_cost
+        } else {
+            node_count * self.config.cpu_operator_cost
+                + memory_factor * self.config.memory_byte_cost
+        }
+    }
+
+    /// Calculate filter cost with expression complexity
+    ///
+    /// Enhanced version that considers expression evaluation cost
+    pub fn calculate_filter_cost_with_expressions(
+        &self,
+        input_rows: u64,
+        conditions: &[Expression],
+    ) -> (f64, f64) {
+        let base_cost = self.calculate_filter_cost(input_rows, conditions.len());
+        let expression_cost: f64 = conditions
+            .iter()
+            .map(|e| self.calculate_expression_cost(e))
+            .sum();
+        let total_cost = base_cost + expression_cost * input_rows as f64;
+        (total_cost, expression_cost)
+    }
+
+    // ==================== Memory-Aware Cost Calculation ====================
+
+    /// Calculate memory-aware cost
+    ///
+    /// Adds memory usage cost and applies pressure penalty if threshold exceeded
+    pub fn calculate_memory_aware_cost(&self, base_cost: f64, memory_usage: usize) -> f64 {
+        let memory_cost = memory_usage as f64 * self.config.memory_byte_cost;
+
+        // Check memory pressure
+        if memory_usage > self.config.memory_pressure_threshold {
+            let pressure_factor =
+                memory_usage as f64 / self.config.memory_pressure_threshold as f64;
+            let penalty = pressure_factor * self.config.memory_pressure_penalty;
+            base_cost * penalty + memory_cost
+        } else {
+            base_cost + memory_cost
+        }
+    }
+
+    /// Estimate memory usage for aggregate operations
+    pub fn estimate_aggregate_memory(&self, input_rows: u64, group_by_keys: usize) -> usize {
+        // Estimate number of groups based on input rows and key count
+        let estimated_groups = (input_rows / 2_u64.pow(group_by_keys as u32).max(1)).max(10);
+        // Assume average row size of 64 bytes
+        estimated_groups as usize * 64
+    }
+
+    /// Estimate memory usage for sort operations
+    pub fn estimate_sort_memory(&self, input_rows: u64, _sort_columns: usize) -> usize {
+        // Sorting needs to buffer all input rows
+        input_rows as usize * 64 // Assume 64 bytes per row
+    }
+
+    /// Estimate memory usage for hash join operations
+    pub fn estimate_hash_join_memory(&self, left_rows: u64) -> usize {
+        // Hash table needs to store the smaller (left) table
+        left_rows as usize * 64 // Assume 64 bytes per row
+    }
+
+    /// Calculate aggregate cost with memory awareness
+    pub fn calculate_aggregate_cost_enhanced(
+        &self,
+        input_rows: u64,
+        agg_functions: usize,
+        group_by_keys: usize,
+    ) -> (f64, usize) {
+        let base_cost = self.calculate_aggregate_cost(input_rows, agg_functions, group_by_keys);
+        let memory_usage = self.estimate_aggregate_memory(input_rows, group_by_keys);
+        let total_cost = self.calculate_memory_aware_cost(base_cost, memory_usage);
+        (total_cost, memory_usage)
+    }
+
+    /// Calculate sort cost with memory awareness
+    pub fn calculate_sort_cost_enhanced(
+        &self,
+        input_rows: u64,
+        sort_columns: usize,
+        limit: Option<i64>,
+    ) -> (f64, usize) {
+        let base_cost = self.calculate_sort_cost(input_rows, sort_columns, limit);
+        let memory_usage = self.estimate_sort_memory(input_rows, sort_columns);
+        let total_cost = self.calculate_memory_aware_cost(base_cost, memory_usage);
+        (total_cost, memory_usage)
+    }
+
+    /// Calculate hash join cost with memory awareness
+    pub fn calculate_hash_join_cost_enhanced(
+        &self,
+        left_rows: u64,
+        right_rows: u64,
+    ) -> (f64, usize) {
+        let base_cost = self.calculate_hash_join_cost(left_rows, right_rows);
+        let memory_usage = self.estimate_hash_join_memory(left_rows);
+        let total_cost = self.calculate_memory_aware_cost(base_cost, memory_usage);
+        (total_cost, memory_usage)
+    }
+
+    // ==================== Data Type Cost Factors ====================
+
+    /// Get cost factor for a value type
+    ///
+    /// Returns the appropriate cost factor based on value type complexity
+    pub fn get_type_cost_factor(&self, value: &Value) -> f64 {
+        match value {
+            // Fixed-size types
+            Value::Empty
+            | Value::Null(_)
+            | Value::Bool(_)
+            | Value::Int(_)
+            | Value::Int8(_)
+            | Value::Int16(_)
+            | Value::Int32(_)
+            | Value::Int64(_)
+            | Value::UInt8(_)
+            | Value::UInt16(_)
+            | Value::UInt32(_)
+            | Value::UInt64(_)
+            | Value::Float(_) => self.config.fixed_type_cost_factor,
+
+            // Variable-length types
+            Value::String(_) | Value::FixedString { .. } | Value::Blob(_) => {
+                self.config.variable_type_cost_factor
+            }
+
+            // Complex types
+            Value::List(_)
+            | Value::Map(_)
+            | Value::Set(_)
+            | Value::Decimal128(_)
+            | Value::Geography(_)
+            | Value::Duration(_)
+            | Value::Date(_)
+            | Value::Time(_)
+            | Value::DateTime(_) => self.config.complex_type_cost_factor,
+
+            // Graph types
+            Value::Vertex(_) | Value::Edge(_) | Value::Path(_) => {
+                self.config.graph_type_cost_factor
+            }
+
+            // DataSet
+            Value::DataSet(_) => self.config.complex_type_cost_factor * 1.25,
+        }
+    }
+
     // ==================== Calculation of the Cost of Cache-Aware I/O Operations ====================
 
     /// Calculating the cost of I/O operations (taking caching into account)
@@ -667,5 +831,122 @@ mod tests {
         let calculator = CostCalculator::with_config(stats_manager, config);
 
         assert_eq!(calculator.config().random_page_cost, 1.1);
+    }
+
+    #[test]
+    fn test_memory_aware_cost() {
+        let stats_manager = Arc::new(StatisticsManager::new());
+        let calculator = CostCalculator::new(stats_manager);
+
+        // Test normal memory usage (below threshold)
+        let base_cost = 100.0;
+        let normal_memory = 1024 * 1024; // 1MB
+        let normal_cost = calculator.calculate_memory_aware_cost(base_cost, normal_memory);
+        // Memory cost for 1MB is: 1,048,576 * 0.0001 = 104.8576
+        // So total should be around 204.86
+        assert!(normal_cost > base_cost); // Should add memory cost
+
+        // Test high memory usage (above threshold)
+        let high_memory = 200 * 1024 * 1024; // 200MB (above 100MB threshold)
+        let high_cost = calculator.calculate_memory_aware_cost(base_cost, high_memory);
+        assert!(high_cost > normal_cost); // Should have penalty
+    }
+
+    #[test]
+    fn test_estimate_aggregate_memory() {
+        let stats_manager = Arc::new(StatisticsManager::new());
+        let calculator = CostCalculator::new(stats_manager);
+
+        // Test with no group by keys
+        let mem_no_groups = calculator.estimate_aggregate_memory(1000, 0);
+        assert!(mem_no_groups > 0);
+
+        // Test with multiple group by keys
+        let mem_with_groups = calculator.estimate_aggregate_memory(10000, 3);
+        assert!(mem_with_groups > 0);
+    }
+
+    #[test]
+    fn test_estimate_sort_memory() {
+        let stats_manager = Arc::new(StatisticsManager::new());
+        let calculator = CostCalculator::new(stats_manager);
+
+        let memory = calculator.estimate_sort_memory(1000, 2);
+        assert_eq!(memory, 1000 * 64); // 1000 rows * 64 bytes
+    }
+
+    #[test]
+    fn test_estimate_hash_join_memory() {
+        let stats_manager = Arc::new(StatisticsManager::new());
+        let calculator = CostCalculator::new(stats_manager);
+
+        let memory = calculator.estimate_hash_join_memory(500);
+        assert_eq!(memory, 500 * 64); // 500 rows * 64 bytes
+    }
+
+    #[test]
+    fn test_calculate_aggregate_cost_enhanced() {
+        let stats_manager = Arc::new(StatisticsManager::new());
+        let calculator = CostCalculator::new(stats_manager);
+
+        let (cost, memory) = calculator.calculate_aggregate_cost_enhanced(1000, 2, 1);
+        assert!(cost > 0.0);
+        assert!(memory > 0);
+    }
+
+    #[test]
+    fn test_calculate_sort_cost_enhanced() {
+        let stats_manager = Arc::new(StatisticsManager::new());
+        let calculator = CostCalculator::new(stats_manager);
+
+        let (cost, memory) = calculator.calculate_sort_cost_enhanced(1000, 2, None);
+        assert!(cost > 0.0);
+        assert_eq!(memory, 1000 * 64);
+    }
+
+    #[test]
+    fn test_calculate_hash_join_cost_enhanced() {
+        let stats_manager = Arc::new(StatisticsManager::new());
+        let calculator = CostCalculator::new(stats_manager);
+
+        let (cost, memory) = calculator.calculate_hash_join_cost_enhanced(100, 200);
+        assert!(cost > 0.0);
+        assert_eq!(memory, 100 * 64);
+    }
+
+    #[test]
+    fn test_get_type_cost_factor() {
+        let stats_manager = Arc::new(StatisticsManager::new());
+        let calculator = CostCalculator::new(stats_manager);
+
+        // Fixed-size types
+        assert_eq!(
+            calculator.get_type_cost_factor(&Value::Int(42)),
+            calculator.config.fixed_type_cost_factor
+        );
+        assert_eq!(
+            calculator.get_type_cost_factor(&Value::Bool(true)),
+            calculator.config.fixed_type_cost_factor
+        );
+
+        // Variable-length types
+        assert_eq!(
+            calculator.get_type_cost_factor(&Value::String("test".to_string())),
+            calculator.config.variable_type_cost_factor
+        );
+
+        // Complex types
+        assert_eq!(
+            calculator.get_type_cost_factor(&Value::List(crate::core::value::List::new())),
+            calculator.config.complex_type_cost_factor
+        );
+
+        // Graph types
+        use crate::core::vertex_edge_path::Vertex;
+        let vertex = Vertex::with_vid(crate::core::value::Value::Int(1));
+        assert_eq!(
+            calculator.get_type_cost_factor(&Value::Vertex(Box::new(vertex))),
+            calculator.config.graph_type_cost_factor
+        );
     }
 }

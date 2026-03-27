@@ -14,6 +14,10 @@ pub struct NodeCostEstimate {
     pub total_cost: f64,
     /// Estimated number of output lines
     pub output_rows: u64,
+    /// Estimated memory usage in bytes
+    pub memory_usage: usize,
+    /// Expression evaluation cost
+    pub expression_cost: f64,
 }
 
 impl NodeCostEstimate {
@@ -23,6 +27,25 @@ impl NodeCostEstimate {
             node_cost,
             total_cost,
             output_rows,
+            memory_usage: 0,
+            expression_cost: 0.0,
+        }
+    }
+
+    /// Create a new estimate with memory and expression cost.
+    pub fn with_memory_and_expression(
+        node_cost: f64,
+        total_cost: f64,
+        output_rows: u64,
+        memory_usage: usize,
+        expression_cost: f64,
+    ) -> Self {
+        Self {
+            node_cost,
+            total_cost,
+            output_rows,
+            memory_usage,
+            expression_cost,
         }
     }
 
@@ -32,6 +55,8 @@ impl NodeCostEstimate {
             node_cost,
             total_cost: node_cost,
             output_rows,
+            memory_usage: 0,
+            expression_cost: 0.0,
         }
     }
 
@@ -41,16 +66,22 @@ impl NodeCostEstimate {
             node_cost: 0.0,
             total_cost: 0.0,
             output_rows: 0,
+            memory_usage: 0,
+            expression_cost: 0.0,
         }
     }
 
     /// Combining the estimated results of multiple child nodes
     pub fn combine_children(children: &[Self], node_cost: f64, output_rows: u64) -> Self {
         let child_total_cost: f64 = children.iter().map(|e| e.total_cost).sum();
+        let total_memory: usize = children.iter().map(|e| e.memory_usage).sum();
+        let total_expression_cost: f64 = children.iter().map(|e| e.expression_cost).sum();
         Self {
             node_cost,
             total_cost: node_cost + child_total_cost,
             output_rows,
+            memory_usage: total_memory,
+            expression_cost: total_expression_cost,
         }
     }
 
@@ -85,6 +116,18 @@ mod tests {
         assert_eq!(estimate.node_cost, 10.0);
         assert_eq!(estimate.total_cost, 100.0);
         assert_eq!(estimate.output_rows, 50);
+        assert_eq!(estimate.memory_usage, 0);
+        assert_eq!(estimate.expression_cost, 0.0);
+    }
+
+    #[test]
+    fn test_node_cost_estimate_with_memory_and_expression() {
+        let estimate = NodeCostEstimate::with_memory_and_expression(10.0, 100.0, 50, 1024, 5.0);
+        assert_eq!(estimate.node_cost, 10.0);
+        assert_eq!(estimate.total_cost, 100.0);
+        assert_eq!(estimate.output_rows, 50);
+        assert_eq!(estimate.memory_usage, 1024);
+        assert_eq!(estimate.expression_cost, 5.0);
     }
 
     #[test]
@@ -93,6 +136,8 @@ mod tests {
         assert_eq!(estimate.node_cost, 10.0);
         assert_eq!(estimate.total_cost, 10.0);
         assert_eq!(estimate.output_rows, 50);
+        assert_eq!(estimate.memory_usage, 0);
+        assert_eq!(estimate.expression_cost, 0.0);
     }
 
     #[test]
@@ -101,17 +146,21 @@ mod tests {
         assert_eq!(estimate.node_cost, 0.0);
         assert_eq!(estimate.total_cost, 0.0);
         assert_eq!(estimate.output_rows, 0);
+        assert_eq!(estimate.memory_usage, 0);
+        assert_eq!(estimate.expression_cost, 0.0);
     }
 
     #[test]
     fn test_combine_children() {
-        let child1 = NodeCostEstimate::leaf(10.0, 100);
-        let child2 = NodeCostEstimate::leaf(20.0, 200);
+        let child1 = NodeCostEstimate::with_memory_and_expression(10.0, 10.0, 100, 512, 2.0);
+        let child2 = NodeCostEstimate::with_memory_and_expression(20.0, 20.0, 200, 1024, 3.0);
         let combined = NodeCostEstimate::combine_children(&[child1, child2], 5.0, 50);
 
         assert_eq!(combined.node_cost, 5.0);
         assert_eq!(combined.total_cost, 35.0); // 5 + 10 + 20
         assert_eq!(combined.output_rows, 50);
+        assert_eq!(combined.memory_usage, 1536); // 512 + 1024
+        assert_eq!(combined.expression_cost, 5.0); // 2.0 + 3.0
     }
 
     #[test]
