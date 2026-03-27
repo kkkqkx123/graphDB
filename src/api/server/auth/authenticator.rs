@@ -1,5 +1,4 @@
-use parking_lot::RwLock;
-use std::collections::HashMap;
+use dashmap::DashMap;
 use std::sync::Arc;
 
 use crate::config::AuthConfig;
@@ -25,8 +24,8 @@ pub struct PasswordAuthenticator {
     /// User Authentication Callbacks
     user_verifier: UserVerifier,
     config: AuthConfig,
-    /// Logging of user login attempts
-    login_attempts: Arc<RwLock<HashMap<String, LoginAttempt>>>,
+    /// Logging of user login attempts - using DashMap for high-performance concurrent access
+    login_attempts: Arc<DashMap<String, LoginAttempt>>,
 }
 
 impl PasswordAuthenticator {
@@ -37,7 +36,7 @@ impl PasswordAuthenticator {
         Self {
             user_verifier: Arc::new(user_verifier),
             config,
-            login_attempts: Arc::new(RwLock::new(HashMap::new())),
+            login_attempts: Arc::new(DashMap::new()),
         }
     }
 
@@ -66,24 +65,24 @@ impl PasswordAuthenticator {
             return;
         }
 
-        let mut attempts = self.login_attempts.write();
-
-        let attempt = attempts
-            .entry(username.to_string())
+        let username_key = username.to_string();
+        self.login_attempts
+            .entry(username_key.clone())
             .or_insert(LoginAttempt {
                 remaining_attempts: self.config.failed_login_attempts,
             });
 
         // Reduce the number of remaining attempts
-        if attempt.remaining_attempts > 0 {
-            attempt.remaining_attempts -= 1;
+        if let Some(mut attempt) = self.login_attempts.get_mut(&username_key) {
+            if attempt.remaining_attempts > 0 {
+                attempt.remaining_attempts -= 1;
+            }
         }
     }
 
     /// Reset logging of login attempts (called on successful login)
     fn reset_attempts(&self, username: &str) {
-        let mut attempts = self.login_attempts.write();
-        attempts.remove(username);
+        self.login_attempts.remove(username);
     }
 
     /// Verify user passwords
@@ -116,8 +115,8 @@ impl Authenticator for PasswordAuthenticator {
                 // Login failed, logging attempt
                 self.record_failed_attempt(username);
 
-                let attempts = self.login_attempts.read();
-                if let Some(attempt) = attempts.get(username) {
+                let username_key = username.to_string();
+                if let Some(attempt) = self.login_attempts.get(&username_key) {
                     if attempt.remaining_attempts > 0 {
                         return Err(AuthError::InvalidCredentials(attempt.remaining_attempts));
                     } else {

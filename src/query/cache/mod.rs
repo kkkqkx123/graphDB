@@ -12,6 +12,8 @@
 //! 3. Shared caching strategies (LRU, TTL, etc.)
 //! 4. Unified collection of statistics and indicators
 
+use std::sync::atomic::Ordering;
+
 // Submodule
 pub mod cte_cache;
 pub mod global_manager;
@@ -125,18 +127,11 @@ impl CacheManager {
         let cte_stats = self.cte_cache.get_stats();
 
         CacheStatsSummary {
-            plan_cache_entries: plan_stats.current_entries,
+            plan_cache_entries: plan_stats.current_entries.load(Ordering::Relaxed),
             plan_cache_hit_rate: plan_stats.hit_rate(),
             cte_cache_entries: cte_stats.entry_count,
             cte_cache_hit_rate: cte_stats.hit_rate(),
             total_memory_bytes: plan_stats.estimated_memory_bytes() + cte_stats.current_memory,
-        }
-    }
-
-    /// Check memory pressure and trigger eviction if needed
-    pub fn check_memory_pressure(&self) {
-        if let Some(global) = &self.global_manager {
-            global.check_memory_pressure();
         }
     }
 

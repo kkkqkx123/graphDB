@@ -15,9 +15,9 @@
 //! - Batch insert/update operations
 //! - Applications use Prepared Statements
 
-use lru::LruCache;
-use parking_lot::Mutex;
-use std::num::NonZeroUsize;
+use moka::sync::Cache;
+use parking_lot::RwLock;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -184,41 +184,62 @@ impl PlanCacheKey {
 }
 
 /// Query Plan Cache Statistics
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct PlanCacheStats {
     /// Number of hits
-    pub hits: u64,
+    pub hits: Arc<AtomicU64>,
     /// Number of missed hits
-    pub misses: u64,
+    pub misses: Arc<AtomicU64>,
     /// Number of eliminations
-    pub evictions: u64,
+    pub evictions: Arc<AtomicU64>,
     /// Number of expiration dates
-    pub expirations: u64,
+    pub expirations: Arc<AtomicU64>,
     /// Number of current cache entries
-    pub current_entries: usize,
+    pub current_entries: Arc<AtomicUsize>,
     /// Average query template size (bytes)
-    pub avg_query_template_bytes: usize,
+    pub avg_query_template_bytes: Arc<RwLock<usize>>,
     /// Total query template size (bytes)
-    pub total_query_template_bytes: usize,
+    pub total_query_template_bytes: Arc<AtomicUsize>,
+}
+
+impl Default for PlanCacheStats {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PlanCacheStats {
+    /// Create new statistics
+    pub fn new() -> Self {
+        Self {
+            hits: Arc::new(AtomicU64::new(0)),
+            misses: Arc::new(AtomicU64::new(0)),
+            evictions: Arc::new(AtomicU64::new(0)),
+            expirations: Arc::new(AtomicU64::new(0)),
+            current_entries: Arc::new(AtomicUsize::new(0)),
+            avg_query_template_bytes: Arc::new(RwLock::new(0)),
+            total_query_template_bytes: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+
     /// hit rate
     pub fn hit_rate(&self) -> f64 {
-        let total = self.hits + self.misses;
+        let hits = self.hits.load(Ordering::Relaxed);
+        let misses = self.misses.load(Ordering::Relaxed);
+        let total = hits + misses;
         if total == 0 {
             0.0
         } else {
-            self.hits as f64 / total as f64
+            hits as f64 / total as f64
         }
     }
 
     /// Estimate total memory footprint (based on average template size and number of entries)
     pub fn estimated_memory_bytes(&self) -> usize {
-        // Base overhead + estimated memory per entry
-        // Each entry contains approximately: CachedPlan structure + ExecutionPlan + query template string
-        const PER_ENTRY_OVERHEAD: usize = 1024; // Estimates of the overhead for structures and execution plans
-        self.total_query_template_bytes + (self.current_entries * PER_ENTRY_OVERHEAD)
+        const PER_ENTRY_OVERHEAD: usize = 1024;
+        let total_bytes = self.total_query_template_bytes.load(Ordering::Relaxed);
+        let entries = self.current_entries.load(Ordering::Relaxed);
+        total_bytes + (entries * PER_ENTRY_OVERHEAD)
     }
 }
 
@@ -226,17 +247,17 @@ impl PlanCacheStats {
 ///
 /// Provide a query plan cache in the style of a Prepared Statement
 pub struct QueryPlanCache {
-    /// Cache storage
-    cache: Mutex<LruCache<PlanCacheKey, Arc<CachedPlan>>>,
+    /// Cache storage - using moka for high-performance concurrent access
+    cache: Cache<PlanCacheKey, Arc<CachedPlan>>,
     /// Configuration
     config: PlanCacheConfig,
-    /// Statistical information
-    stats: Mutex<PlanCacheStats>,
+    /// Statistical information - using RwLock for read-heavy scenarios
+    stats: Arc<RwLock<PlanCacheStats>>,
 }
 
 impl std::fmt::Debug for QueryPlanCache {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let stats = self.stats.lock();
+        let stats = self.stats.read();
         f.debug_struct("QueryPlanCache")
             .field("config", &self.config)
             .field("stats", &*stats)
@@ -247,12 +268,15 @@ impl std::fmt::Debug for QueryPlanCache {
 impl QueryPlanCache {
     /// Create a new query plan cache.
     pub fn new(config: PlanCacheConfig) -> Self {
+        let cache = Cache::builder()
+            .max_capacity(config.max_entries as u64)
+            .time_to_live(Duration::from_secs(config.ttl_config.base_ttl_seconds))
+            .build();
+
         Self {
-            cache: Mutex::new(LruCache::new(
-                NonZeroUsize::new(config.max_entries).expect("缓存条目数必须大于0"),
-            )),
+            cache,
             config,
-            stats: Mutex::new(PlanCacheStats::default()),
+            stats: Arc::new(RwLock::new(PlanCacheStats::new())),
         }
     }
 
@@ -261,25 +285,14 @@ impl QueryPlanCache {
     /// # Parameters
     /// - `query`: The text of the query
     ///
-    /// # Back
-    /// - `Some(Arc<CachedPlan>)`: 缓存的计划
-    /// - "None": No results were found, or there was a hash collision.
+    /// # Returns
+    /// - `Some(Arc<CachedPlan>)`: Cached plan
+    /// - `None`: No results were found, or there was a hash collision.
     pub fn get(&self, query: &str) -> Option<Arc<CachedPlan>> {
         let key = PlanCacheKey::from_query(query);
-        let ttl = Duration::from_secs(self.config.ttl_config.base_ttl_seconds);
 
-        let mut cache = self.cache.lock();
-        let mut stats = self.stats.lock();
-
-        if let Some(plan) = cache.get(&key) {
-            // Check whether it has expired.
-            if plan.created_at.elapsed() > ttl {
-                // Expired; remove it and return None.
-                cache.pop(&key);
-                stats.expirations += 1;
-                stats.misses += 1;
-                return None;
-            }
+        if let Some(plan) = self.cache.get(&key) {
+            let stats = self.stats.read();
 
             // Hash collision detection: Verifying whether the query text matches a certain value.
             if plan.query_template != query {
@@ -290,24 +303,25 @@ impl QueryPlanCache {
                     query,
                     plan.query_template
                 );
-                stats.misses += 1;
+                stats.misses.fetch_add(1, Ordering::Relaxed);
                 return None;
             }
 
             // Update the access statistics.
-            stats.hits += 1;
-            return Some(plan.clone());
+            stats.hits.fetch_add(1, Ordering::Relaxed);
+            return Some(plan);
         }
 
-        stats.misses += 1;
+        let stats = self.stats.read();
+        stats.misses.fetch_add(1, Ordering::Relaxed);
         None
     }
 
     /// Put the plan in the cache.
     ///
-    /// # 参数
-    /// - `query`: 查询文本
-    /// - Execute the plan.
+    /// # Parameters
+    /// - `query`: Query text
+    /// - `plan`: Execution plan
     /// - `param_positions`: Information about the positions of the parameters
     pub fn put(&self, query: &str, plan: ExecutionPlan, param_positions: Vec<ParamPosition>) {
         let key = PlanCacheKey::from_query(query);
@@ -338,32 +352,20 @@ impl QueryPlanCache {
             current_ttl,
         });
 
-        let mut cache = self.cache.lock();
-        let old_len = cache.len();
+        let is_update = self.cache.contains_key(&key);
+        self.cache.insert(key, cached_plan);
 
-        let is_update = cache.contains(&key);
-
-        cache.put(key, cached_plan);
-        let new_len = cache.len();
-
-        let mut stats = self.stats.lock();
-        if new_len <= old_len && old_len > 0 && !is_update {
-            stats.evictions += 1;
+        let stats = self.stats.read();
+        if !is_update {
+            stats.total_query_template_bytes.fetch_add(query_bytes, Ordering::Relaxed);
         }
 
-        if is_update {
-            stats.total_query_template_bytes = cache
-                .iter()
-                .map(|(_, plan)| plan.query_template.len())
-                .sum();
-        } else {
-            stats.total_query_template_bytes += query_bytes;
-        }
-
-        stats.current_entries = new_len;
-        if stats.current_entries > 0 {
-            stats.avg_query_template_bytes =
-                stats.total_query_template_bytes / stats.current_entries;
+        let current_entries = self.cache.entry_count() as usize;
+        stats.current_entries.store(current_entries, Ordering::Relaxed);
+        if current_entries > 0 {
+            let total_bytes = stats.total_query_template_bytes.load(Ordering::Relaxed);
+            let mut avg_bytes = stats.avg_query_template_bytes.write();
+            *avg_bytes = total_bytes / current_entries;
         }
     }
 
@@ -381,7 +383,7 @@ impl QueryPlanCache {
     }
 
     /// Calculate complexity score for a plan
-    fn calculate_complexity_score(&self, plan: &ExecutionPlan) -> u32 {
+    fn calculate_complexity_score(&self, _plan: &ExecutionPlan) -> u32 {
         let mut score = 0u32;
 
         score += 10;
@@ -422,100 +424,52 @@ impl QueryPlanCache {
         }
     }
 
-    /// Evict low-value entries
-    pub fn evict_low_value(&self, target_bytes: usize) -> usize {
-        let mut freed = 0;
-        let mut to_remove = Vec::new();
-
-        {
-            let cache = self.cache.lock();
-
-            let mut entries: Vec<_> = cache
-                .iter()
-                .map(|(k, v)| {
-                    let value_score = v.access_count as f64 * 0.5
-                        + v.estimated_compute_cost as f64 * 0.3
-                        - v.query_template.len() as f64 * 0.2;
-                    (k.clone(), value_score, v.query_template.len())
-                })
-                .collect();
-
-            entries.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-
-            for (key, _, size) in entries {
-                if freed >= target_bytes {
-                    break;
-                }
-                to_remove.push(key);
-                freed += size;
-            }
-        }
-
-        let mut cache = self.cache.lock();
-        for key in &to_remove {
-            cache.pop(key);
-        }
-
-        if freed > 0 {
-            let mut stats = self.stats.lock();
-            stats.evictions += to_remove.len() as u64;
-            stats.current_entries = cache.len();
-        }
-
-        freed
-    }
-
-    /// Evict low hit rate entries
-    pub fn evict_low_hit_rate(&self, target_bytes: usize) -> usize {
-        self.evict_low_value(target_bytes)
-    }
-
     /// Record the statistics on the execution of the plan.
     ///
     /// # Parameter
-    /// - `query`: query content
+    /// - `query`: Query content
     /// - `execution_time_ms`: Execution time (in milliseconds)
     pub fn record_execution(&self, query: &str, execution_time_ms: f64) {
         let key = PlanCacheKey::from_query(query);
 
-        let mut cache = self.cache.lock();
-        if let Some(plan) = cache.get_mut(&key) {
-            // Use `Arc::make_mut` to obtain a mutable reference.
-            let plan_mut = Arc::make_mut(plan);
-            plan_mut.execution_count += 1;
-
-            // Update of the average execution time (Exponential Moving Average)
+        if let Some(plan) = self.cache.get(&key) {
+            // Update the average execution time (Exponential Moving Average)
             let alpha = 0.1; // Smoothing factor
-            plan_mut.avg_execution_time_ms =
-                plan_mut.avg_execution_time_ms * (1.0 - alpha) + execution_time_ms * alpha;
+            let new_avg = plan.avg_execution_time_ms * (1.0 - alpha) + execution_time_ms * alpha;
+
+            // Create updated plan with new stats
+            let updated_plan = Arc::new(CachedPlan {
+                execution_count: plan.execution_count + 1,
+                avg_execution_time_ms: new_avg,
+                ..(*plan).clone()
+            });
+
+            self.cache.insert(key, updated_plan);
         }
     }
 
     /// Check whether the query has been cached.
     pub fn contains(&self, query: &str) -> bool {
         let key = PlanCacheKey::from_query(query);
-        let cache = self.cache.lock();
-        cache.contains(&key)
+        self.cache.contains_key(&key)
     }
 
     /// Invalidate the cache entry
     pub fn invalidate(&self, query: &str) -> bool {
         let key = PlanCacheKey::from_query(query);
-        let mut cache = self.cache.lock();
-        let removed = cache.pop(&key).is_some();
+        let removed = self.cache.remove(&key).is_some();
 
         if removed {
-            let mut stats = self.stats.lock();
-            stats.current_entries = cache.len();
+            let stats = self.stats.read();
+            stats.current_entries.store(self.cache.entry_count() as usize, Ordering::Relaxed);
         }
 
         removed
     }
 
     /// Get cache entries for eviction (internal use)
-    pub fn get_cache_entries(&self) -> Vec<(PlanCacheKey, f64, usize)> {
-        let cache = self.cache.lock();
-        cache
+    pub fn get_cache_entries(&self) -> Vec<(Arc<PlanCacheKey>, f64, usize)> {
+        self.cache
             .iter()
             .map(|(k, v)| {
                 let value_score = v.access_count as f64 * 0.5
@@ -528,56 +482,40 @@ impl QueryPlanCache {
 
     /// Increment eviction count (internal use)
     pub fn increment_eviction_count(&self, count: u64) {
-        let mut stats = self.stats.lock();
-        stats.evictions += count;
+        let stats = self.stats.read();
+        stats.evictions.fetch_add(count, Ordering::Relaxed);
     }
 
     /// Clear all caches.
     pub fn clear(&self) {
-        let mut cache = self.cache.lock();
-        cache.clear();
+        self.cache.invalidate_all();
 
-        let mut stats = self.stats.lock();
-        stats.current_entries = 0;
-        stats.total_query_template_bytes = 0;
-        stats.avg_query_template_bytes = 0;
+        let stats = self.stats.read();
+        stats.current_entries.store(0, Ordering::Relaxed);
+        stats.total_query_template_bytes.store(0, Ordering::Relaxed);
     }
 
     /// Obtain statistical information
     pub fn stats(&self) -> PlanCacheStats {
-        let mut stats = self.stats.lock();
-        stats.current_entries = self.cache.lock().len();
+        let stats = self.stats.read();
+        stats.current_entries.store(self.cache.entry_count() as usize, Ordering::Relaxed);
         stats.clone()
     }
 
     /// Clean up expired entries.
+    /// Note: moka handles TTL automatically, so this is a no-op
     pub fn cleanup_expired(&self) {
-        let ttl = Duration::from_secs(self.config.ttl_config.base_ttl_seconds);
-        let mut cache = self.cache.lock();
-        let mut stats = self.stats.lock();
-
-        let expired_keys: Vec<_> = cache
-            .iter()
-            .filter(|(_, plan)| plan.created_at.elapsed() > ttl)
-            .map(|(k, _)| k.clone())
-            .collect();
-
-        for key in expired_keys {
-            cache.pop(&key);
-            stats.expirations += 1;
-        }
-
-        stats.current_entries = cache.len();
+        // moka handles TTL automatically, no manual cleanup needed
     }
 
     /// Get the number of cached entries
     pub fn len(&self) -> usize {
-        self.cache.lock().len()
+        self.cache.entry_count() as usize
     }
 
     /// Check whether the cache is empty.
     pub fn is_empty(&self) -> bool {
-        self.cache.lock().is_empty()
+        self.cache.entry_count() == 0
     }
 }
 
@@ -676,6 +614,7 @@ impl Default for ParameterizedQueryHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::Ordering;
 
     #[test]
     fn test_plan_cache_creation() {
@@ -699,8 +638,8 @@ mod tests {
         let cache = QueryPlanCache::default();
         let stats = cache.stats();
 
-        assert_eq!(stats.hits, 0);
-        assert_eq!(stats.misses, 0);
+        assert_eq!(stats.hits.load(Ordering::Relaxed), 0);
+        assert_eq!(stats.misses.load(Ordering::Relaxed), 0);
         assert_eq!(stats.hit_rate(), 0.0);
     }
 

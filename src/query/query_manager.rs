@@ -2,9 +2,9 @@
 //!
 //! Responsible for tracking and managing the queries that are currently in progress.
 
+use dashmap::DashMap;
 use log::{info, warn};
-use parking_lot::Mutex;
-use std::collections::HashMap;
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::core::error::{ManagerError, ManagerResult};
@@ -97,24 +97,21 @@ pub struct QueryStats {
 
 /// Query Manager
 pub struct QueryManager {
-    queries: Mutex<HashMap<i64, QueryInfo>>,
-    next_query_id: Mutex<i64>,
+    queries: DashMap<i64, QueryInfo>,
+    next_query_id: AtomicI64,
 }
 
 impl QueryManager {
     pub fn new() -> Self {
         Self {
-            queries: Mutex::new(HashMap::new()),
-            next_query_id: Mutex::new(1),
+            queries: DashMap::new(),
+            next_query_id: AtomicI64::new(1),
         }
     }
 
     /// Generate a new query ID.
     fn generate_query_id(&self) -> i64 {
-        let mut id = self.next_query_id.lock();
-        let query_id = *id;
-        *id += 1;
-        query_id
+        self.next_query_id.fetch_add(1, Ordering::SeqCst)
     }
 
     /// Register a new query
@@ -134,8 +131,7 @@ impl QueryManager {
             query_text.clone(),
         );
 
-        let mut queries = self.queries.lock();
-        queries.insert(query_id, query_info);
+        self.queries.insert(query_id, query_info);
 
         info!(
             "Query registered: id={}, session_id={}, query={}",
@@ -147,8 +143,7 @@ impl QueryManager {
 
     /// Complete the query.
     pub fn finish_query(&self, query_id: i64) -> ManagerResult<()> {
-        let mut queries = self.queries.lock();
-        if let Some(query) = queries.get_mut(&query_id) {
+        if let Some(mut query) = self.queries.get_mut(&query_id) {
             query.finish();
             info!(
                 "Query finished: id={}, duration={}ms",
@@ -166,8 +161,7 @@ impl QueryManager {
 
     /// The marker query failed.
     pub fn fail_query(&self, query_id: i64) -> ManagerResult<()> {
-        let mut queries = self.queries.lock();
-        if let Some(query) = queries.get_mut(&query_id) {
+        if let Some(mut query) = self.queries.get_mut(&query_id) {
             query.fail();
             warn!(
                 "Query failed: id={}, duration={}ms",
@@ -185,8 +179,7 @@ impl QueryManager {
 
     /// Terminate the query.
     pub fn kill_query(&self, query_id: i64) -> ManagerResult<()> {
-        let mut queries = self.queries.lock();
-        if let Some(query) = queries.get_mut(&query_id) {
+        if let Some(mut query) = self.queries.get_mut(&query_id) {
             query.kill();
             warn!("Query killed: id={}", query_id);
             Ok(())
@@ -200,48 +193,45 @@ impl QueryManager {
 
     /// Obtain the query information
     pub fn get_query(&self, query_id: i64) -> Option<QueryInfo> {
-        let queries = self.queries.lock();
-        queries.get(&query_id).cloned()
+        self.queries.get(&query_id).map(|v| v.clone())
     }
 
     /// Retrieve all queries
     pub fn get_all_queries(&self) -> Vec<QueryInfo> {
-        let queries = self.queries.lock();
-        queries.values().cloned().collect()
+        self.queries.iter().map(|v| v.value().clone()).collect()
     }
 
     /// Obtain the queries that are currently running.
     pub fn get_running_queries(&self) -> Vec<QueryInfo> {
-        let queries = self.queries.lock();
-        queries
-            .values()
-            .filter(|q| q.status == QueryStatus::Running)
-            .cloned()
+        self.queries
+            .iter()
+            .filter(|q| q.value().status == QueryStatus::Running)
+            .map(|v| v.value().clone())
             .collect()
     }
 
     /// Obtain query statistics
     pub fn get_stats(&self) -> QueryStats {
-        let queries = self.queries.lock();
+        let queries: Vec<_> = self.queries.iter().map(|v| v.value().clone()).collect();
         let total = queries.len() as u64;
         let running = queries
-            .values()
+            .iter()
             .filter(|q| q.status == QueryStatus::Running)
             .count() as u64;
         let finished = queries
-            .values()
+            .iter()
             .filter(|q| q.status == QueryStatus::Finished)
             .count() as u64;
         let failed = queries
-            .values()
+            .iter()
             .filter(|q| q.status == QueryStatus::Failed)
             .count() as u64;
         let killed = queries
-            .values()
+            .iter()
             .filter(|q| q.status == QueryStatus::Killed)
             .count() as u64;
 
-        let total_duration: i64 = queries.values().filter_map(|q| q.duration_ms).sum();
+        let total_duration: i64 = queries.iter().filter_map(|q| q.duration_ms).sum();
 
         let avg_duration = if total > 0 {
             total_duration / total as i64
@@ -266,20 +256,24 @@ impl QueryManager {
 
     /// Clean up the completed queries (retaining only the last N of them).
     pub fn cleanup_finished_queries(&self, keep_count: usize) {
-        let mut queries = self.queries.lock();
-        let mut finished_queries: Vec<_> = queries
+        let mut finished_queries: Vec<_> = self
+            .queries
             .iter()
-            .filter(|(_, q)| q.status != QueryStatus::Running)
-            .map(|(id, _)| *id)
+            .filter(|q| q.value().status != QueryStatus::Running)
+            .map(|q| *q.key())
             .collect();
 
         // Sort by start time, keeping the most recent items at the top.
-        finished_queries
-            .sort_by_key(|id| queries.get(id).map(|q| q.start_time).unwrap_or(UNIX_EPOCH));
+        finished_queries.sort_by_key(|id| {
+            self.queries
+                .get(id)
+                .map(|q| q.start_time)
+                .unwrap_or(UNIX_EPOCH)
+        });
 
         let to_remove = finished_queries.len().saturating_sub(keep_count);
         for id in finished_queries.into_iter().take(to_remove) {
-            queries.remove(&id);
+            self.queries.remove(&id);
         }
     }
 }

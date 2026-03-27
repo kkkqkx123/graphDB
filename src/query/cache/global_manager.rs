@@ -11,9 +11,8 @@
 //! 4. Emergency eviction when memory pressure is high
 
 use parking_lot::RwLock;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::time::Instant;
 
 use super::cte_cache::{CteCacheConfig, CteCacheManager, CteCacheStats};
 use super::plan_cache::{PlanCacheConfig, PlanCacheStats, QueryPlanCache};
@@ -73,14 +72,10 @@ pub struct GlobalCacheStats {
     pub total_budget: usize,
     /// Eviction count
     pub evictions: u64,
-    /// Emergency eviction count
-    pub emergency_evictions: u64,
     /// Plan cache statistics
     pub plan_cache_stats: PlanCacheStats,
     /// CTE cache statistics
     pub cte_cache_stats: CteCacheStats,
-    /// Last emergency eviction time
-    pub last_emergency_eviction: Option<Instant>,
 }
 
 impl GlobalCacheStats {
@@ -110,7 +105,6 @@ impl GlobalCacheStats {
              - Hit Rate: {:.2}%\n\
              - Memory Usage: {:.2} MB / {:.2} MB ({:.1}%)\n\
              - Evictions: {}\n\
-             - Emergency Evictions: {}\n\
              - Plan Cache: {} entries, {:.2}% hit rate\n\
              - CTE Cache: {} entries, {:.2}% hit rate",
             self.hit_rate() * 100.0,
@@ -118,8 +112,7 @@ impl GlobalCacheStats {
             self.total_budget as f64 / 1024.0 / 1024.0,
             self.memory_usage_ratio() * 100.0,
             self.evictions,
-            self.emergency_evictions,
-            self.plan_cache_stats.current_entries,
+            self.plan_cache_stats.current_entries.load(Ordering::Relaxed),
             self.plan_cache_stats.hit_rate() * 100.0,
             self.cte_cache_stats.entry_count,
             self.cte_cache_stats.hit_rate() * 100.0
@@ -144,8 +137,6 @@ pub struct GlobalCacheManager {
     current_usage: AtomicUsize,
     /// Statistics
     stats: RwLock<GlobalCacheStats>,
-    /// Emergency eviction flag
-    emergency_eviction: AtomicBool,
 }
 
 impl std::fmt::Debug for GlobalCacheManager {
@@ -209,7 +200,6 @@ impl GlobalCacheManager {
                 total_budget,
                 ..Default::default()
             }),
-            emergency_eviction: AtomicBool::new(false),
         }
     }
 
@@ -221,123 +211,6 @@ impl GlobalCacheManager {
     /// Get the CTE cache
     pub fn cte_cache(&self) -> Arc<CteCacheManager> {
         self.cte_cache.clone()
-    }
-
-    /// Check memory pressure and trigger eviction if needed
-    pub fn check_memory_pressure(&self) {
-        let usage = self.current_usage.load(Ordering::Relaxed);
-        let threshold = (self.total_budget as f64 * 0.9) as usize;
-
-        if usage > threshold {
-            self.emergency_evict();
-        }
-    }
-
-    /// Emergency eviction - evict caches by priority
-    fn emergency_evict(&self) {
-        if self.emergency_eviction.swap(true, Ordering::SeqCst) {
-            return;
-        }
-
-        let target = (self.total_budget as f64 * 0.7) as usize;
-        let evicted = self.evict_by_value_score(target);
-
-        let mut stats = self.stats.write();
-        stats.emergency_evictions += 1;
-        stats.last_emergency_eviction = Some(Instant::now());
-        self.emergency_eviction.store(false, Ordering::SeqCst);
-
-        log::warn!(
-            "Emergency cache eviction completed: {} bytes freed",
-            evicted
-        );
-    }
-
-    /// Evict entries by value score
-    fn evict_by_value_score(&self, target_bytes: usize) -> usize {
-        let mut freed = 0;
-
-        let cte_freed = self.evict_cte_by_value(target_bytes - freed);
-        freed += cte_freed;
-
-        if freed < target_bytes {
-            let plan_freed = self.evict_plan_by_value(target_bytes - freed);
-            freed += plan_freed;
-        }
-
-        freed
-    }
-
-    /// Evict CTE cache entries by value score
-    fn evict_cte_by_value(&self, target_bytes: usize) -> usize {
-        let stats = self.cte_cache.get_stats();
-        let current_memory = stats.current_memory;
-
-        if current_memory <= target_bytes {
-            return 0;
-        }
-
-        let to_free = current_memory - target_bytes;
-        let mut freed = 0;
-        let mut to_remove: Vec<String> = Vec::new();
-
-        let mut entries = self.cte_cache.get_cache_entries();
-        entries.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-
-        for (key, _, size) in entries {
-            if freed >= to_free {
-                break;
-            }
-            to_remove.push(key);
-            freed += size;
-        }
-
-        for key in &to_remove {
-            self.cte_cache.invalidate_by_hash(key);
-        }
-
-        if freed > 0 {
-            self.cte_cache
-                .increment_evicted_count(to_remove.len() as u64);
-        }
-
-        freed
-    }
-
-    /// Evict plan cache entries by value score
-    fn evict_plan_by_value(&self, target_bytes: usize) -> usize {
-        let stats = self.plan_cache.stats();
-        let current_memory = stats.estimated_memory_bytes();
-
-        if current_memory <= target_bytes {
-            return 0;
-        }
-
-        let to_free = current_memory - target_bytes;
-        let mut freed = 0;
-        let mut to_remove: Vec<super::plan_cache::PlanCacheKey> = Vec::new();
-
-        let mut entries = self.plan_cache.get_cache_entries();
-        entries.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-
-        for (key, _, size) in entries {
-            if freed >= to_free {
-                break;
-            }
-            to_remove.push(key);
-            freed += size;
-        }
-
-        for key in &to_remove {
-            self.plan_cache.invalidate(key.query_text());
-        }
-
-        if freed > 0 {
-            self.plan_cache
-                .increment_eviction_count(to_remove.len() as u64);
-        }
-
-        freed
     }
 
     /// Update current memory usage
@@ -352,9 +225,9 @@ impl GlobalCacheManager {
         stats.total_memory = total_memory;
         stats.plan_cache_stats = plan_stats.clone();
         stats.cte_cache_stats = cte_stats.clone();
-        stats.total_hits = plan_stats.hits + cte_stats.hit_count;
-        stats.total_misses = plan_stats.misses + cte_stats.miss_count;
-        stats.evictions = plan_stats.evictions + cte_stats.evicted_count;
+        stats.total_hits = plan_stats.hits.load(Ordering::Relaxed) + cte_stats.hit_count;
+        stats.total_misses = plan_stats.misses.load(Ordering::Relaxed) + cte_stats.miss_count;
+        stats.evictions = plan_stats.evictions.load(Ordering::Relaxed) + cte_stats.evicted_count;
     }
 
     /// Get statistics
@@ -493,11 +366,10 @@ mod tests {
             total_memory: 50 * 1024 * 1024,
             total_budget: 100 * 1024 * 1024,
             evictions: 10,
-            emergency_evictions: 2,
             plan_cache_stats: PlanCacheStats {
-                current_entries: 100,
-                hits: 600,
-                misses: 100,
+                current_entries: Arc::new(AtomicUsize::new(100)),
+                hits: Arc::new(AtomicU64::new(600)),
+                misses: Arc::new(AtomicU64::new(100)),
                 ..Default::default()
             },
             cte_cache_stats: CteCacheStats {
@@ -514,7 +386,6 @@ mod tests {
         let formatted = stats.format();
         assert!(formatted.contains("Hit Rate: 85.00%"));
         assert!(formatted.contains("Memory Usage: 50.00 MB / 100.00 MB"));
-        assert!(formatted.contains("Emergency Evictions: 2"));
     }
 
     #[test]

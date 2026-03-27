@@ -2,8 +2,7 @@
 //!
 //! Centralized management of all statistical information, with thread-safe access.
 
-use parking_lot::RwLock;
-use std::collections::HashMap;
+use dashmap::DashMap;
 use std::sync::Arc;
 
 use super::{EdgeTypeStatistics, PropertyStatistics, TagStatistics};
@@ -14,34 +13,34 @@ use super::{EdgeTypeStatistics, PropertyStatistics, TagStatistics};
 #[derive(Debug)]
 pub struct StatisticsManager {
     /// Tag statistics information (with tag names as keys)
-    tag_stats: Arc<RwLock<HashMap<String, TagStatistics>>>,
+    tag_stats: Arc<DashMap<String, TagStatistics>>,
     /// Mapping from Tag ID to Tag Name
-    tag_id_to_name: Arc<RwLock<HashMap<i32, String>>>,
+    tag_id_to_name: Arc<DashMap<i32, String>>,
     /// Type statistics information for edges
-    edge_stats: Arc<RwLock<HashMap<String, EdgeTypeStatistics>>>,
+    edge_stats: Arc<DashMap<String, EdgeTypeStatistics>>,
     /// Attribute statistics information
-    property_stats: Arc<RwLock<HashMap<String, PropertyStatistics>>>,
+    property_stats: Arc<DashMap<String, PropertyStatistics>>,
 }
 
 impl StatisticsManager {
     /// Create a new statistical information manager.
     pub fn new() -> Self {
         Self {
-            tag_stats: Arc::new(RwLock::new(HashMap::new())),
-            tag_id_to_name: Arc::new(RwLock::new(HashMap::new())),
-            edge_stats: Arc::new(RwLock::new(HashMap::new())),
-            property_stats: Arc::new(RwLock::new(HashMap::new())),
+            tag_stats: Arc::new(DashMap::new()),
+            tag_id_to_name: Arc::new(DashMap::new()),
+            edge_stats: Arc::new(DashMap::new()),
+            property_stats: Arc::new(DashMap::new()),
         }
     }
 
     /// Mapping of registered tag IDs to their corresponding names
     pub fn register_tag_id(&self, tag_id: i32, tag_name: String) {
-        self.tag_id_to_name.write().insert(tag_id, tag_name);
+        self.tag_id_to_name.insert(tag_id, tag_name);
     }
 
     /// Retrieve the tag name based on the tag ID.
     pub fn get_tag_name_by_id(&self, tag_id: i32) -> Option<String> {
-        self.tag_id_to_name.read().get(&tag_id).cloned()
+        self.tag_id_to_name.get(&tag_id).map(|v| v.clone())
     }
 
     /// Retrieve tag statistics based on the tag ID.
@@ -59,12 +58,12 @@ impl StatisticsManager {
 
     /// Obtain tag statistics information
     pub fn get_tag_stats(&self, tag_name: &str) -> Option<TagStatistics> {
-        self.tag_stats.read().get(tag_name).cloned()
+        self.tag_stats.get(tag_name).map(|v| v.clone())
     }
 
     /// Update the tag statistics information.
     pub fn update_tag_stats(&self, stats: TagStatistics) {
-        self.tag_stats.write().insert(stats.tag_name.clone(), stats);
+        self.tag_stats.insert(stats.tag_name.clone(), stats);
     }
 
     /// Obtain the number of vertices
@@ -76,14 +75,12 @@ impl StatisticsManager {
 
     /// Obtain statistical information about the types of edges.
     pub fn get_edge_stats(&self, edge_type: &str) -> Option<EdgeTypeStatistics> {
-        self.edge_stats.read().get(edge_type).cloned()
+        self.edge_stats.get(edge_type).map(|v| v.clone())
     }
 
     /// Update the statistics information on edge types.
     pub fn update_edge_stats(&self, stats: EdgeTypeStatistics) {
-        self.edge_stats
-            .write()
-            .insert(stats.edge_type.clone(), stats);
+        self.edge_stats.insert(stats.edge_type.clone(), stats);
     }
 
     /// Obtain the number of edges
@@ -103,7 +100,7 @@ impl StatisticsManager {
             Some(tag) => format!("{}.{}", tag, property_name),
             None => property_name.to_string(),
         };
-        self.property_stats.read().get(&key).cloned()
+        self.property_stats.get(&key).map(|v| v.clone())
     }
 
     /// Update attribute statistics information
@@ -112,25 +109,25 @@ impl StatisticsManager {
             Some(tag) => format!("{}.{}", tag, stats.property_name),
             None => stats.property_name.clone(),
         };
-        self.property_stats.write().insert(key, stats);
+        self.property_stats.insert(key, stats);
     }
 
     /// Clear all statistical information.
     pub fn clear_all(&self) {
-        self.tag_stats.write().clear();
-        self.tag_id_to_name.write().clear();
-        self.edge_stats.write().clear();
-        self.property_stats.write().clear();
+        self.tag_stats.clear();
+        self.tag_id_to_name.clear();
+        self.edge_stats.clear();
+        self.property_stats.clear();
     }
 
     /// Retrieve all tag names
     pub fn get_all_tags(&self) -> Vec<String> {
-        self.tag_stats.read().keys().cloned().collect()
+        self.tag_stats.iter().map(|k| k.key().clone()).collect()
     }
 
     /// Obtain the names of all edge types.
     pub fn get_all_edge_types(&self) -> Vec<String> {
-        self.edge_stats.read().keys().cloned().collect()
+        self.edge_stats.iter().map(|k| k.key().clone()).collect()
     }
 }
 
@@ -143,10 +140,10 @@ impl Default for StatisticsManager {
 impl Clone for StatisticsManager {
     fn clone(&self) -> Self {
         Self {
-            tag_stats: Arc::new(RwLock::new(self.tag_stats.read().clone())),
-            tag_id_to_name: Arc::new(RwLock::new(self.tag_id_to_name.read().clone())),
-            edge_stats: Arc::new(RwLock::new(self.edge_stats.read().clone())),
-            property_stats: Arc::new(RwLock::new(self.property_stats.read().clone())),
+            tag_stats: Arc::clone(&self.tag_stats),
+            tag_id_to_name: Arc::clone(&self.tag_id_to_name),
+            edge_stats: Arc::clone(&self.edge_stats),
+            property_stats: Arc::clone(&self.property_stats),
         }
     }
 }

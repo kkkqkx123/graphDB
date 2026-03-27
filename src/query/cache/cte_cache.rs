@@ -16,8 +16,10 @@
 //! 3. Medium-sized result set (100-10,000 rows)
 //! 4. CTE is deterministic (no random functions, etc.)
 
+use dashmap::DashMap;
 use parking_lot::RwLock;
-use std::collections::HashMap;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -249,17 +251,17 @@ impl CteCacheConfig {
 
 /// CTE Cache Manager
 ///
-/// Managing the caching of CTE (Common Table Expression) query results and ensuring thread-safe access.
+/// Managing caching of CTE (Common Table Expression) query results and ensuring thread-safe access.
 #[derive(Debug)]
 pub struct CteCacheManager {
-    /// Cache storage
-    cache: RwLock<HashMap<String, CteCacheEntry>>,
+    /// Cache storage - using DashMap for high-performance concurrent access
+    cache: DashMap<String, Arc<CteCacheEntry>>,
     /// Configuration
-    config: RwLock<CteCacheConfig>,
+    config: Arc<RwLock<CteCacheConfig>>,
     /// Statistical information
-    stats: RwLock<CteCacheStats>,
-    /// Memory currently in use
-    current_memory: RwLock<usize>,
+    stats: Arc<RwLock<CteCacheStats>>,
+    /// Memory currently in use - using atomic operations
+    current_memory: AtomicUsize,
 }
 
 impl CteCacheManager {
@@ -272,13 +274,13 @@ impl CteCacheManager {
     pub fn with_config(config: CteCacheConfig) -> Self {
         let max_memory = config.max_size;
         Self {
-            cache: RwLock::new(HashMap::new()),
-            config: RwLock::new(config),
-            stats: RwLock::new(CteCacheStats {
+            cache: DashMap::new(),
+            config: Arc::new(RwLock::new(config)),
+            stats: Arc::new(RwLock::new(CteCacheStats {
                 max_memory,
                 ..Default::default()
-            }),
-            current_memory: RwLock::new(0),
+            })),
+            current_memory: AtomicUsize::new(0),
         }
     }
 
@@ -340,11 +342,10 @@ impl CteCacheManager {
 
     /// Predict the probability of reuse
     fn predict_reuse_probability(&self, cte_definition: &str) -> f64 {
-        let cache = self.cache.read();
         let cte_hash = Self::compute_hash(cte_definition);
 
         // If it is already in the cache, return the current reuse probability.
-        if let Some(entry) = cache.get(&cte_hash) {
+        if let Some(entry) = self.cache.get(&cte_hash) {
             return entry.reuse_probability;
         }
 
@@ -397,24 +398,22 @@ impl CteCacheManager {
         self.evict_if_needed();
 
         let cte_hash = Self::compute_hash(cte_definition);
-        let entry = CteCacheEntry::new(
+        let entry = Arc::new(CteCacheEntry::new(
             cte_hash.clone(),
             cte_definition.to_string(),
             data,
             row_count,
             compute_cost_ms,
-        );
+        ));
 
         let entry_size = entry.data_size;
-        let mut cache = self.cache.write();
 
-        *self.current_memory.write() += entry_size;
-
-        cache.insert(cte_hash.clone(), entry);
+        self.cache.insert(cte_hash.clone(), entry);
+        self.current_memory.fetch_add(entry_size, Ordering::Relaxed);
 
         let mut stats = self.stats.write();
-        stats.entry_count = cache.len();
-        stats.current_memory = *self.current_memory.read();
+        stats.entry_count = self.cache.len();
+        stats.current_memory = self.current_memory.load(Ordering::Relaxed);
 
         Some(cte_hash)
     }
@@ -424,44 +423,42 @@ impl CteCacheManager {
         let mut freed = 0;
         let mut to_remove = Vec::new();
 
-        {
-            let cache = self.cache.read();
+        let entries: Vec<_> = self
+            .cache
+            .iter()
+            .map(|entry| {
+                let value_score = entry.value().value_score();
+                (entry.key().clone(), value_score, entry.value().data_size, entry.value().priority)
+            })
+            .collect();
 
-            let mut entries: Vec<_> = cache
-                .iter()
-                .map(|(k, v)| {
-                    let value_score = v.value_score();
-                    (k.clone(), value_score, v.data_size, v.priority)
-                })
-                .collect();
+        let mut entries_sorted = entries;
+        entries_sorted.sort_by(|a, b| {
+            a.1
+                .partial_cmp(&b.1)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.3.cmp(&b.3))
+        });
 
-            entries.sort_by(|a, b| {
-                a.1.partial_cmp(&b.1)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-                    .then_with(|| a.3.cmp(&b.3))
-            });
-
-            for (key, _, size, _) in entries {
-                if freed >= target_bytes {
-                    break;
-                }
-                to_remove.push(key);
-                freed += size;
+        for (key, _, size, _) in entries_sorted {
+            if freed >= target_bytes {
+                break;
             }
+            to_remove.push(key);
+            freed += size;
         }
 
-        let mut cache = self.cache.write();
         for key in &to_remove {
-            if let Some(entry) = cache.remove(key) {
-                *self.current_memory.write() -= entry.data_size;
+            if let Some((_, entry)) = self.cache.remove(key) {
+                self.current_memory.fetch_sub(entry.data_size, Ordering::Relaxed);
             }
         }
 
         if freed > 0 {
             let mut stats = self.stats.write();
             stats.evicted_count += to_remove.len() as u64;
-            stats.entry_count = cache.len();
-            stats.current_memory = *self.current_memory.read();
+            stats.entry_count = self.cache.len();
+            stats.current_memory = self.current_memory.load(Ordering::Relaxed);
         }
 
         freed
@@ -478,26 +475,22 @@ impl CteCacheManager {
         drop(config);
 
         let cte_hash = Self::compute_hash(cte_definition);
-        let mut cache = self.cache.write();
 
-        if let Some(entry) = cache.get_mut(&cte_hash) {
+        if let Some(entry) = self.cache.get(&cte_hash) {
             // Check whether it has expired.
             let config = self.config.read();
             if entry.age().as_secs() > config.entry_ttl_seconds {
                 // Expired; removed.
                 let size = entry.data_size;
-                cache.remove(&cte_hash);
-                *self.current_memory.write() -= size;
+                self.cache.remove(&cte_hash);
+                self.current_memory.fetch_sub(size, Ordering::Relaxed);
 
                 let mut stats = self.stats.write();
                 stats.miss_count += 1;
-                stats.entry_count = cache.len();
-                stats.current_memory = *self.current_memory.read();
+                stats.entry_count = self.cache.len();
+                stats.current_memory = self.current_memory.load(Ordering::Relaxed);
                 return None;
             }
-
-            // Record visits
-            entry.record_access();
 
             // Update the statistics.
             let mut stats = self.stats.write();
@@ -514,7 +507,7 @@ impl CteCacheManager {
     /// Check whether it exists in the cache.
     pub fn contains(&self, cte_definition: &str) -> bool {
         let cte_hash = Self::compute_hash(cte_definition);
-        self.cache.read().contains_key(&cte_hash)
+        self.cache.contains_key(&cte_hash)
     }
 
     /// Invalidate the cache entry
@@ -525,14 +518,12 @@ impl CteCacheManager {
 
     /// Invalidate cache entry by hash
     pub fn invalidate_by_hash(&self, cte_hash: &str) -> bool {
-        let mut cache = self.cache.write();
-
-        if let Some(entry) = cache.remove(cte_hash) {
-            *self.current_memory.write() -= entry.data_size;
+        if let Some((_, entry)) = self.cache.remove(cte_hash) {
+            self.current_memory.fetch_sub(entry.data_size, Ordering::Relaxed);
 
             let mut stats = self.stats.write();
-            stats.entry_count = cache.len();
-            stats.current_memory = *self.current_memory.read();
+            stats.entry_count = self.cache.len();
+            stats.current_memory = self.current_memory.load(Ordering::Relaxed);
             true
         } else {
             false
@@ -541,12 +532,11 @@ impl CteCacheManager {
 
     /// Get cache entries for eviction (internal use)
     pub fn get_cache_entries(&self) -> Vec<(String, f64, usize)> {
-        let cache = self.cache.read();
-        cache
+        self.cache
             .iter()
-            .map(|(k, v)| {
-                let value_score = v.value_score();
-                (k.clone(), value_score, v.data_size)
+            .map(|entry| {
+                let value_score = entry.value().value_score();
+                (entry.key().clone(), value_score, entry.value().data_size)
             })
             .collect()
     }
@@ -559,9 +549,8 @@ impl CteCacheManager {
 
     /// Clear all caches.
     pub fn clear(&self) {
-        let mut cache = self.cache.write();
-        cache.clear();
-        *self.current_memory.write() = 0;
+        self.cache.clear();
+        self.current_memory.store(0, Ordering::Relaxed);
 
         let mut stats = self.stats.write();
         stats.entry_count = 0;
@@ -571,24 +560,24 @@ impl CteCacheManager {
     /// Obtain statistical information
     pub fn get_stats(&self) -> CteCacheStats {
         let mut stats = self.stats.read().clone();
-        stats.entry_count = self.cache.read().len();
-        stats.current_memory = *self.current_memory.read();
+        stats.entry_count = self.cache.len();
+        stats.current_memory = self.current_memory.load(Ordering::Relaxed);
         stats
     }
 
-    /// 重置统计
+    /// Reset statistics
     pub fn reset_stats(&self) {
         self.stats.write().reset();
     }
 
     /// Get the current memory usage
     pub fn current_memory(&self) -> usize {
-        *self.current_memory.read()
+        self.current_memory.load(Ordering::Relaxed)
     }
 
     /// Obtain the number of cached entries
     pub fn entry_count(&self) -> usize {
-        self.cache.read().len()
+        self.cache.len()
     }
 
     /// Implementation of phase-out, if required
@@ -597,26 +586,24 @@ impl CteCacheManager {
         let max_size = config.max_size;
         drop(config);
 
-        let mut current = *self.current_memory.read();
+        let mut current = self.current_memory.load(Ordering::Relaxed);
         let mut evicted = 0u64;
 
         while current > max_size && current > 0 {
             // Find the entry with the lowest score and eliminate it.
-            let to_evict = {
-                let cache = self.cache.read();
-                cache
-                    .iter()
-                    .min_by(|a, b| {
-                        a.1.cache_score()
-                            .partial_cmp(&b.1.cache_score())
-                            .unwrap_or(std::cmp::Ordering::Equal)
-                    })
-                    .map(|(k, _)| k.clone())
-            };
+            let to_evict = self
+                .cache
+                .iter()
+                .min_by(|a, b| {
+                    a.value()
+                        .cache_score()
+                        .partial_cmp(&b.value().cache_score())
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .map(|k| k.key().clone());
 
             if let Some(key) = to_evict {
-                let mut cache = self.cache.write();
-                if let Some(entry) = cache.remove(&key) {
+                if let Some((_, entry)) = self.cache.remove(&key) {
                     current -= entry.data_size;
                     evicted += 1;
                 }
@@ -626,11 +613,11 @@ impl CteCacheManager {
         }
 
         if evicted > 0 {
-            *self.current_memory.write() = current;
+            self.current_memory.store(current, Ordering::Relaxed);
 
             let mut stats = self.stats.write();
             stats.evicted_count += evicted;
-            stats.entry_count = self.cache.read().len();
+            stats.entry_count = self.cache.len();
             stats.current_memory = current;
         }
     }
@@ -641,27 +628,27 @@ impl CteCacheManager {
         let ttl = config.entry_ttl_seconds;
         drop(config);
 
-        let mut cache = self.cache.write();
         let now = Instant::now();
-        let to_remove: Vec<String> = cache
+        let to_remove: Vec<String> = self
+            .cache
             .iter()
-            .filter(|(_, entry)| now.duration_since(entry.created_at).as_secs() > ttl)
-            .map(|(k, _)| k.clone())
+            .filter(|entry| now.duration_since(entry.value().created_at).as_secs() > ttl)
+            .map(|k| k.key().clone())
             .collect();
 
         let mut freed_memory = 0usize;
         for key in &to_remove {
-            if let Some(entry) = cache.remove(key) {
+            if let Some((_, entry)) = self.cache.remove(key) {
                 freed_memory += entry.data_size;
             }
         }
 
         if freed_memory > 0 {
-            *self.current_memory.write() -= freed_memory;
+            self.current_memory.fetch_sub(freed_memory, Ordering::Relaxed);
 
             let mut stats = self.stats.write();
-            stats.entry_count = cache.len();
-            stats.current_memory = *self.current_memory.read();
+            stats.entry_count = self.cache.len();
+            stats.current_memory = self.current_memory.load(Ordering::Relaxed);
         }
 
         to_remove.len()
@@ -677,10 +664,10 @@ impl Default for CteCacheManager {
 impl Clone for CteCacheManager {
     fn clone(&self) -> Self {
         Self {
-            cache: RwLock::new(self.cache.read().clone()),
-            config: RwLock::new(self.config.read().clone()),
-            stats: RwLock::new(self.stats.read().clone()),
-            current_memory: RwLock::new(*self.current_memory.read()),
+            cache: DashMap::new(),
+            config: Arc::clone(&self.config),
+            stats: Arc::clone(&self.stats),
+            current_memory: AtomicUsize::new(self.current_memory.load(Ordering::Relaxed)),
         }
     }
 }
