@@ -163,6 +163,7 @@ impl GlobalCacheManager {
         let plan_config = PlanCacheConfig {
             max_entries: 1000,
             memory_budget: plan_budget,
+            max_weight: None,
             enable_parameterized: true,
             ttl_config: super::plan_cache::TtlConfig {
                 base_ttl_seconds: 3600,
@@ -178,6 +179,7 @@ impl GlobalCacheManager {
 
         let cte_config = CteCacheConfig {
             max_size: cte_budget,
+            max_entries: Some(10000),
             max_entry_size: 10 * 1024 * 1024,
             min_row_count: 100,
             max_row_count: 100_000,

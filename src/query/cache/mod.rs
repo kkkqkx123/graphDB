@@ -196,6 +196,7 @@ mod tests {
         let plan_config = PlanCacheConfig {
             max_entries: 500,
             memory_budget: 25 * 1024 * 1024,
+            max_weight: None,
             enable_parameterized: true,
             ttl_config: plan_cache::TtlConfig {
                 base_ttl_seconds: 1800,
@@ -211,6 +212,7 @@ mod tests {
 
         let cte_config = CteCacheConfig {
             max_size: 32 * 1024 * 1024,
+            max_entries: Some(10000),
             max_entry_size: 5 * 1024 * 1024,
             min_row_count: 50,
             max_row_count: 50_000,

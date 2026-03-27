@@ -82,6 +82,9 @@ pub struct PlanCacheConfig {
     pub max_entries: usize,
     /// Memory budget (bytes)
     pub memory_budget: usize,
+    /// Maximum weight (bytes), takes precedence over max_entries
+    /// If None, use memory_budget
+    pub max_weight: Option<u64>,
     /// Whether to enable parameterized query support
     pub enable_parameterized: bool,
     /// TTL configuration
@@ -95,6 +98,7 @@ impl Default for PlanCacheConfig {
         Self {
             max_entries: 1000,
             memory_budget: 50 * 1024 * 1024,
+            max_weight: None,
             enable_parameterized: true,
             ttl_config: TtlConfig::default(),
             priority_config: PriorityConfig::default(),
@@ -129,6 +133,73 @@ pub struct CachedPlan {
     pub estimated_compute_cost: u64,
     /// Current TTL
     pub current_ttl: Duration,
+}
+
+impl CachedPlan {
+    /// Estimate memory usage (bytes)
+    pub fn estimate_memory(&self) -> usize {
+        let mut total = 0;
+
+        // Query template string (String struct + heap allocation)
+        total += std::mem::size_of::<String>();
+        total += self.query_template.capacity();
+
+        // Parameter position information (Vec struct + elements)
+        total += std::mem::size_of::<Vec<ParamPosition>>();
+        for pos in &self.param_positions {
+            total += std::mem::size_of::<ParamPosition>();
+            if let Some(ref name) = pos.name {
+                total += std::mem::size_of::<String>();
+                total += name.capacity();
+            }
+        }
+
+        // Execution plan (recursive estimation)
+        total += self.estimate_plan_memory(&self.plan);
+
+        // Other fields (basic types)
+        total += std::mem::size_of::<Instant>() * 2;
+        total += std::mem::size_of::<u64>() * 3;
+        total += std::mem::size_of::<f64>() * 2;
+        total += std::mem::size_of::<CachePriority>();
+        total += std::mem::size_of::<u32>();
+        total += std::mem::size_of::<Duration>();
+
+        total
+    }
+
+    /// Estimate memory usage for execution plan
+    fn estimate_plan_memory(&self, plan: &ExecutionPlan) -> usize {
+        let base_size = std::mem::size_of::<ExecutionPlan>();
+        let overhead = 1024;
+
+        // Estimate format string
+        let format_size = plan.format.len();
+
+        // Estimate root node if present
+        let root_size = if let Some(ref root) = plan.root {
+            self.estimate_node_memory(root)
+        } else {
+            0
+        };
+
+        base_size + overhead + format_size + root_size
+    }
+
+    /// Estimate memory usage for plan node
+    fn estimate_node_memory(&self, node: &crate::query::planning::plan::PlanNodeEnum) -> usize {
+        let base_size = std::mem::size_of::<crate::query::planning::plan::PlanNodeEnum>();
+        let overhead = 512;
+
+        // Recursively estimate children
+        let children_size: usize = node
+            .children()
+            .iter()
+            .map(|child| self.estimate_node_memory(child))
+            .sum();
+
+        base_size + overhead + children_size
+    }
 }
 
 /// Parameter location information
@@ -268,8 +339,14 @@ impl std::fmt::Debug for QueryPlanCache {
 impl QueryPlanCache {
     /// Create a new query plan cache.
     pub fn new(config: PlanCacheConfig) -> Self {
+        let max_weight = config.max_weight.unwrap_or(config.memory_budget as u64);
+
         let cache = Cache::builder()
-            .max_capacity(config.max_entries as u64)
+            .weigher(|_key, value: &Arc<CachedPlan>| -> u32 {
+                let arc_overhead = std::mem::size_of::<Arc<CachedPlan>>();
+                (value.estimate_memory() + arc_overhead) as u32
+            })
+            .max_capacity(max_weight)
             .time_to_live(Duration::from_secs(config.ttl_config.base_ttl_seconds))
             .build();
 
