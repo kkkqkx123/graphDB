@@ -2,11 +2,11 @@
 //!
 //! Provide a streaming API for building QueryContext, which simplifies the process of creating complex objects.
 
-use crate::core::types::CharsetInfo;
-use crate::core::types::SpaceInfo;
-use crate::query::context::{QueryExecutionManager, QueryResourceContext, QuerySpaceContext};
+use crate::core::types::{CharsetInfo, SpaceInfo};
+use crate::query::context::QueryExecutionManager;
 use crate::query::query_request_context::QueryRequestContext;
 use crate::query::QueryContext;
+use crate::utils::IdGenerator;
 use std::sync::Arc;
 
 /// QueryContext Builder
@@ -29,8 +29,9 @@ use std::sync::Arc;
 pub struct QueryContextBuilder {
     rctx: Option<Arc<QueryRequestContext>>,
     execution_manager: Option<QueryExecutionManager>,
-    resource_context: Option<QueryResourceContext>,
-    space_context: Option<QuerySpaceContext>,
+    id_gen: Option<IdGenerator>,
+    space_info: Option<SpaceInfo>,
+    charset_info: Option<Box<CharsetInfo>>,
 }
 
 impl QueryContextBuilder {
@@ -39,8 +40,9 @@ impl QueryContextBuilder {
         Self {
             rctx: Some(rctx),
             execution_manager: None,
-            resource_context: None,
-            space_context: None,
+            id_gen: None,
+            space_info: None,
+            charset_info: None,
         }
     }
 
@@ -50,37 +52,21 @@ impl QueryContextBuilder {
         self
     }
 
-    /// Setting the resource context
-    pub fn with_resource_context(mut self, resource_context: QueryResourceContext) -> Self {
-        self.resource_context = Some(resource_context);
-        self
-    }
-
-    /// Setting the spatial context
-    pub fn with_space_context(mut self, space_context: QuerySpaceContext) -> Self {
-        self.space_context = Some(space_context);
-        self
-    }
-
     /// Setting spatial information
     pub fn with_space_info(mut self, space_info: SpaceInfo) -> Self {
-        let mut space_context = self.space_context.unwrap_or_default();
-        space_context.set_space_info(space_info);
-        self.space_context = Some(space_context);
+        self.space_info = Some(space_info);
         self
     }
 
     /// Setting character set information
     pub fn with_charset_info(mut self, charset_info: CharsetInfo) -> Self {
-        let mut space_context = self.space_context.unwrap_or_default();
-        space_context.set_charset_info(charset_info);
-        self.space_context = Some(space_context);
+        self.charset_info = Some(Box::new(charset_info));
         self
     }
 
     /// Set the initial value for the ID
     pub fn with_start_id(mut self, start_id: i64) -> Self {
-        self.resource_context = Some(QueryResourceContext::with_config(start_id));
+        self.id_gen = Some(IdGenerator::new(start_id));
         self
     }
 
@@ -88,10 +74,11 @@ impl QueryContextBuilder {
     pub fn build(self) -> QueryContext {
         let rctx = self.rctx.expect("QueryRequestContext is required");
         let execution_manager = self.execution_manager.unwrap_or_default();
-        let resource_context = self.resource_context.unwrap_or_default();
-        let space_context = self.space_context.unwrap_or_default();
+        let id_gen = self.id_gen.unwrap_or_else(|| IdGenerator::new(0));
+        let space_info = self.space_info;
+        let charset_info = self.charset_info;
 
-        QueryContext::from_components(rctx, execution_manager, resource_context, space_context)
+        QueryContext::from_components(rctx, execution_manager, id_gen, space_info, charset_info)
     }
 }
 

@@ -6,7 +6,8 @@
 //! Note: This context is used for the compilation-time analysis phase (optimizers, type inference, etc.).
 //! For runtime evaluation, please use the `expression::evaluator::ExpressionContext` trait.
 
-use dashmap::DashMap;
+use parking_lot::RwLock;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::core::types::expr::contextual::ContextualExpression;
@@ -40,33 +41,39 @@ pub struct OptimizationFlags {
 ///
 /// Note: This context is used for the compilation-time analysis phase (optimizers, type inference, etc.).
 /// For runtime evaluation, please use the `expression::evaluator::ExpressionContext` trait.
-#[derive(Debug, Clone)]
+///
+/// # Optimization Note
+/// Uses `RwLock<HashMap>` instead of `DashMap` because:
+/// - This context is primarily used during compilation-time analysis (single-threaded or low contention)
+/// - `RwLock<HashMap>` has better read performance for the typical access patterns
+/// - Reduces dependency complexity and compile times
+#[derive(Debug)]
 pub struct ExpressionAnalysisContext {
     /// Expression Registry: Stores complete information about all expressions.
-    expressions: Arc<DashMap<ExpressionId, Arc<ExpressionMeta>>>,
+    expressions: Arc<RwLock<HashMap<ExpressionId, Arc<ExpressionMeta>>>>,
 
     /// Type information cache: Expression ID -> Derived type
-    type_cache: Arc<DashMap<ExpressionId, DataType>>,
+    type_cache: Arc<RwLock<HashMap<ExpressionId, DataType>>>,
 
     /// Constant folding result: Expression ID -> The calculated constant value
-    constant_cache: Arc<DashMap<ExpressionId, Value>>,
+    constant_cache: Arc<RwLock<HashMap<ExpressionId, Value>>>,
 
     /// Expression analysis results: Expression ID -> Analysis results
-    analysis_cache: Arc<DashMap<ExpressionId, ExpressionAnalysis>>,
+    analysis_cache: Arc<RwLock<HashMap<ExpressionId, ExpressionAnalysis>>>,
 
     /// Optimization flag: Expression ID -> Optimization status
-    optimization_flags: Arc<DashMap<ExpressionId, OptimizationFlags>>,
+    optimization_flags: Arc<RwLock<HashMap<ExpressionId, OptimizationFlags>>>,
 }
 
 impl ExpressionAnalysisContext {
     /// Create a new context for expression analysis.
     pub fn new() -> Self {
         Self {
-            expressions: Arc::new(DashMap::new()),
-            type_cache: Arc::new(DashMap::new()),
-            constant_cache: Arc::new(DashMap::new()),
-            analysis_cache: Arc::new(DashMap::new()),
-            optimization_flags: Arc::new(DashMap::new()),
+            expressions: Arc::new(RwLock::new(HashMap::new())),
+            type_cache: Arc::new(RwLock::new(HashMap::new())),
+            constant_cache: Arc::new(RwLock::new(HashMap::new())),
+            analysis_cache: Arc::new(RwLock::new(HashMap::new())),
+            optimization_flags: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -77,38 +84,39 @@ impl ExpressionAnalysisContext {
         let id = expr
             .id()
             .cloned()
-            .unwrap_or_else(|| ExpressionId::new(self.expressions.len() as u64));
+            .unwrap_or_else(|| ExpressionId::new(self.expressions.read().len() as u64));
 
-        self.expressions.insert(id.clone(), Arc::new(expr));
+        self.expressions.write().insert(id.clone(), Arc::new(expr));
         id
     }
 
     /// Obtain the expression
     pub fn get_expression(&self, id: &ExpressionId) -> Option<Arc<ExpressionMeta>> {
-        self.expressions.get(id).map(|r| r.clone())
+        self.expressions.read().get(id).cloned()
     }
 
     /// Set the expression type
     pub fn set_type(&self, id: &ExpressionId, data_type: DataType) {
-        self.type_cache.insert(id.clone(), data_type);
+        self.type_cache.write().insert(id.clone(), data_type);
         let mut flags = self
             .optimization_flags
+            .read()
             .get(id)
-            .map(|r| *r.value())
+            .copied()
             .unwrap_or_default();
         flags.typed = true;
-        self.optimization_flags.insert(id.clone(), flags);
+        self.optimization_flags.write().insert(id.clone(), flags);
     }
 
     /// Determine the type of the expression.
     pub fn get_type(&self, id: &ExpressionId) -> Option<DataType> {
-        self.type_cache.get(id).map(|r| r.clone())
+        self.type_cache.read().get(id).cloned()
     }
 
     /// Setting constant values
     pub fn set_constant(&self, id: &ExpressionId, value: Value) {
-        self.constant_cache.insert(id.clone(), value);
-        self.optimization_flags.insert(
+        self.constant_cache.write().insert(id.clone(), value);
+        self.optimization_flags.write().insert(
             id.clone(),
             OptimizationFlags {
                 typed: true,
@@ -120,64 +128,67 @@ impl ExpressionAnalysisContext {
 
     /// Obtain the constant value
     pub fn get_constant(&self, id: &ExpressionId) -> Option<Value> {
-        self.constant_cache.get(id).map(|r| r.clone())
+        self.constant_cache.read().get(id).cloned()
     }
 
     /// Set optimization flags
     pub fn set_optimization_flag(&self, id: &ExpressionId, flags: OptimizationFlags) {
-        self.optimization_flags.insert(id.clone(), flags);
+        self.optimization_flags.write().insert(id.clone(), flags);
     }
 
     /// Obtain the optimization markers.
     pub fn get_optimization_flags(&self, id: &ExpressionId) -> Option<OptimizationFlags> {
-        self.optimization_flags.get(id).map(|r| *r.value())
+        self.optimization_flags.read().get(id).copied()
     }
 
     /// Check whether the expression is a constant.
     pub fn is_constant(&self, id: &ExpressionId) -> bool {
-        self.constant_cache.contains_key(id)
+        self.constant_cache.read().contains_key(id)
     }
 
     /// Check whether the expression has already undergone type inference.
     pub fn is_typed(&self, id: &ExpressionId) -> bool {
         self.optimization_flags
+            .read()
             .get(id)
-            .map(|r| r.value().typed)
+            .map(|f| f.typed)
             .unwrap_or(false)
     }
 
     /// Check whether the expression has undergone constant folding.
     pub fn is_constant_folded(&self, id: &ExpressionId) -> bool {
         self.optimization_flags
+            .read()
             .get(id)
-            .map(|r| r.value().constant_folded)
+            .map(|f| f.constant_folded)
             .unwrap_or(false)
     }
 
     /// Check whether the expression has already undergone the elimination of common subexpressions.
     pub fn is_cse_eliminated(&self, id: &ExpressionId) -> bool {
         self.optimization_flags
+            .read()
             .get(id)
-            .map(|r| r.value().cse_eliminated)
+            .map(|f| f.cse_eliminated)
             .unwrap_or(false)
     }
 
     /// Obtain the number of registered expressions.
     pub fn expression_count(&self) -> usize {
-        self.expressions.len()
+        self.expressions.read().len()
     }
 
     /// Clear all caches (expressions and the registry will be retained).
     pub fn clear_caches(&self) {
-        self.type_cache.clear();
-        self.constant_cache.clear();
-        self.analysis_cache.clear();
-        self.optimization_flags.clear();
+        self.type_cache.write().clear();
+        self.constant_cache.write().clear();
+        self.analysis_cache.write().clear();
+        self.optimization_flags.write().clear();
     }
 
     /// Clear all data.
     pub fn clear_all(&self) {
-        self.expressions.clear();
+        self.expressions.write().clear();
         self.clear_caches();
     }
 
@@ -187,7 +198,7 @@ impl ExpressionAnalysisContext {
     /// `id`: Expression ID
     /// “analysis”: Results of the analysis
     pub fn set_analysis(&self, id: &ExpressionId, analysis: ExpressionAnalysis) {
-        self.analysis_cache.insert(id.clone(), analysis);
+        self.analysis_cache.write().insert(id.clone(), analysis);
     }
 
     /// Obtain the results of the expression analysis.
@@ -198,7 +209,7 @@ impl ExpressionAnalysisContext {
     /// # Return
     /// Analysis results (if any)
     pub fn get_analysis(&self, id: &ExpressionId) -> Option<ExpressionAnalysis> {
-        self.analysis_cache.get(id).map(|r| r.clone())
+        self.analysis_cache.read().get(id).cloned()
     }
 
     /// Check whether the expression has already been analyzed.
@@ -209,7 +220,7 @@ impl ExpressionAnalysisContext {
     /// # 返回
     /// “true” if the analysis has already been performed.
     pub fn is_analyzed(&self, id: &ExpressionId) -> bool {
-        self.analysis_cache.contains_key(id)
+        self.analysis_cache.read().contains_key(id)
     }
 
     // ==================== Expression Rewriting API ====================
@@ -370,6 +381,18 @@ impl ExpressionAnalysisContext {
     /// A convenient method for creating negative expressions
     pub fn not(&self, operand: &ContextualExpression) -> Option<ContextualExpression> {
         self.create_unary_expression(UnaryOperator::Not, operand)
+    }
+}
+
+impl Clone for ExpressionAnalysisContext {
+    fn clone(&self) -> Self {
+        Self {
+            expressions: Arc::new(RwLock::new(self.expressions.read().clone())),
+            type_cache: Arc::new(RwLock::new(self.type_cache.read().clone())),
+            constant_cache: Arc::new(RwLock::new(self.constant_cache.read().clone())),
+            analysis_cache: Arc::new(RwLock::new(self.analysis_cache.read().clone())),
+            optimization_flags: Arc::new(RwLock::new(self.optimization_flags.read().clone())),
+        }
     }
 }
 

@@ -12,13 +12,18 @@
 //! QueryContext now consists of multiple specialized contexts.
 //! QueryRequestContext: The context of the query request (session information, request parameters)
 //! QueryExecutionManager: The query execution manager (responsible for executing the plan and managing termination signals).
-//! QueryResourceContext: Context for querying resources (object pool, ID generator, symbol table)
-//! QuerySpaceContext: Query space context (space information, character set)
+//!
+//! # Optimization Note (2024-03-27)
+//! Previously used QueryResourceContext and QuerySpaceContext have been inlined into QueryContext
+//! to reduce indirection and simplify the architecture. These contexts had few fields and were
+//! always used together with QueryContext, making the separation unnecessary overhead.
 
 use std::sync::Arc;
 
-use crate::query::context::{QueryExecutionManager, QueryResourceContext, QuerySpaceContext};
+use crate::core::types::{CharsetInfo, SpaceInfo};
+use crate::query::context::QueryExecutionManager;
 use crate::query::query_request_context::QueryRequestContext;
+use crate::utils::IdGenerator;
 
 /// Query context
 ///
@@ -29,8 +34,8 @@ use crate::query::query_request_context::QueryRequestContext;
 ///
 /// The context of the query request is available (session information, request parameters).
 /// Possession of the Query Execution Manager (execution plan, termination flags)
-/// Possession of the context for the resources being queried (object pool, ID generator, symbol table)
-/// Possessing the context of the query space (space information, character set)
+/// ID generation for query execution
+/// Spatial information management (space info, character set)
 ///
 /// # Design changes
 ///
@@ -38,6 +43,7 @@ use crate::query::query_request_context::QueryRequestContext;
 /// Remove the `expr_context` field; the expression context is now stored in the Ast (Abstract Syntax Tree).
 /// Remove the Clone implementation and force the use of Arc<QueryContext>.
 /// Remove the `validation_info` field; the validation information is now only stored in the `ValidatedStatement`.
+/// Inlined resource_context and space_context fields directly into QueryContext (optimization).
 pub struct QueryContext {
     /// Query request context
     rctx: Arc<QueryRequestContext>,
@@ -45,11 +51,15 @@ pub struct QueryContext {
     /// Query Execution Manager
     execution_manager: QueryExecutionManager,
 
-    /// Query resource context
-    resource_context: QueryResourceContext,
+    // Inlined from QueryResourceContext
+    /// ID Generator for query execution
+    id_gen: IdGenerator,
 
-    /// Querying the context of the space
-    space_context: QuerySpaceContext,
+    // Inlined from QuerySpaceContext
+    /// Current space information
+    space_info: Option<SpaceInfo>,
+    /// Character set information
+    charset_info: Option<Box<CharsetInfo>>,
 }
 
 impl QueryContext {
@@ -58,8 +68,9 @@ impl QueryContext {
         Self {
             rctx,
             execution_manager: QueryExecutionManager::new(),
-            resource_context: QueryResourceContext::new(),
-            space_context: QuerySpaceContext::new(),
+            id_gen: IdGenerator::new(0),
+            space_info: None,
+            charset_info: None,
         }
     }
 
@@ -105,14 +116,16 @@ impl QueryContext {
     pub(crate) fn from_components(
         rctx: Arc<QueryRequestContext>,
         execution_manager: QueryExecutionManager,
-        resource_context: QueryResourceContext,
-        space_context: QuerySpaceContext,
+        id_gen: IdGenerator,
+        space_info: Option<SpaceInfo>,
+        charset_info: Option<Box<CharsetInfo>>,
     ) -> Self {
         Self {
             rctx,
             execution_manager,
-            resource_context,
-            space_context,
+            id_gen,
+            space_info,
+            charset_info,
         }
     }
 
@@ -154,43 +167,43 @@ impl QueryContext {
     }
 
     /// Obtaining character set information
-    pub fn charset_info(&self) -> Option<&crate::core::types::CharsetInfo> {
-        self.space_context.charset_info()
+    pub fn charset_info(&self) -> Option<&CharsetInfo> {
+        self.charset_info.as_ref().map(|ci| ci.as_ref())
     }
 
     /// Setting character set information
-    pub fn set_charset_info(&mut self, charset_info: crate::core::types::CharsetInfo) {
-        self.space_context.set_charset_info(charset_info);
+    pub fn set_charset_info(&mut self, charset_info: CharsetInfo) {
+        self.charset_info = Some(Box::new(charset_info));
     }
 
     /// Generate an ID.
     pub fn gen_id(&self) -> i64 {
-        self.resource_context.gen_id()
+        self.id_gen.id()
     }
 
     /// Retrieve the current ID value (without incrementing it).
     pub fn current_id(&self) -> i64 {
-        self.resource_context.current_id()
+        self.id_gen.current_value()
     }
 
     /// Obtain the current spatial information
-    pub fn space_info(&self) -> Option<&crate::core::types::SpaceInfo> {
-        self.space_context.space_info()
+    pub fn space_info(&self) -> Option<&SpaceInfo> {
+        self.space_info.as_ref()
     }
 
     /// Set the current space information
-    pub fn set_space_info(&mut self, space_info: crate::core::types::SpaceInfo) {
-        self.space_context.set_space_info(space_info);
+    pub fn set_space_info(&mut self, space_info: SpaceInfo) {
+        self.space_info = Some(space_info);
     }
 
     /// Obtain the ID of the current space.
     pub fn space_id(&self) -> Option<u64> {
-        self.space_context.space_id()
+        self.space_info.as_ref().map(|s| s.space_id)
     }
 
     /// Get the name of the current space.
     pub fn space_name(&self) -> Option<String> {
-        self.space_context.space_name()
+        self.space_info.as_ref().map(|s| s.space_name.clone())
     }
 
     /// Marked as terminated
@@ -221,8 +234,9 @@ impl QueryContext {
     /// Reset the query context
     pub fn reset(&mut self) {
         self.execution_manager.reset();
-        self.resource_context.reset();
-        self.space_context.reset();
+        self.id_gen.reset(0);
+        self.space_info = None;
+        self.charset_info = None;
         log::info!("查询上下文已重置");
     }
 
@@ -236,25 +250,11 @@ impl QueryContext {
         &mut self.execution_manager
     }
 
-    /// Obtain a reference to the context of the resource being queried.
-    pub fn resource_context(&self) -> &QueryResourceContext {
-        &self.resource_context
-    }
-
-    /// Obtain a variable reference to the context of the resource being queried.
-    pub fn resource_context_mut(&mut self) -> &mut QueryResourceContext {
-        &mut self.resource_context
-    }
-
-    /// Obtain a reference to the context of the query space.
-    pub fn space_context(&self) -> &QuerySpaceContext {
-        &self.space_context
-    }
-
-    /// Obtain a variable reference to the context of the query space
-    pub fn space_context_mut(&mut self) -> &mut QuerySpaceContext {
-        &mut self.space_context
-    }
+    // Note: resource_context() and space_context() methods have been removed
+    // as part of the optimization to inline these contexts into QueryContext.
+    // Use the direct accessor methods instead:
+    // - gen_id(), current_id() for resource operations
+    // - space_info(), space_id(), space_name(), charset_info() for space operations
 }
 
 impl std::fmt::Debug for QueryContext {
