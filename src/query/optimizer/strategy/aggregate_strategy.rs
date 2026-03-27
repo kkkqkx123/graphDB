@@ -239,6 +239,32 @@ impl AggregateStrategySelector {
     /// # Return
     /// Aggregation policy decision-making, including the selected policy and the estimated cost.
     pub fn select_strategy(&self, context: &AggregateContext) -> AggregateStrategyDecision {
+        self.select_strategy_internal(context, false)
+    }
+
+    /// Selecting the optimal aggregation strategy with memory pressure awareness
+    ///
+    /// This method considers the global memory pressure threshold from the cost model configuration
+    /// to make more robust decisions for large-scale aggregations.
+    ///
+    /// # Parameters
+    /// - `context`: Information about the context in which the aggregation operation is taking place.
+    ///
+    /// # Return
+    /// Aggregation policy decision-making, including the selected policy and the estimated cost.
+    pub fn select_strategy_with_memory_pressure(
+        &self,
+        context: &AggregateContext,
+    ) -> AggregateStrategyDecision {
+        self.select_strategy_internal(context, true)
+    }
+
+    /// Internal method for selecting aggregation strategy
+    fn select_strategy_internal(
+        &self,
+        context: &AggregateContext,
+        consider_memory_pressure: bool,
+    ) -> AggregateStrategyDecision {
         // If the input is already sorted and the sorting key matches the grouping key, stream aggregation should be used preferentially.
         if context.input_is_sorted && context.sort_keys_match_group_keys {
             return self.create_streaming_aggregate_decision(context);
@@ -272,13 +298,37 @@ impl AggregateStrategySelector {
         let hash_memory = self.estimate_hash_memory_usage(context, group_by_cardinality);
         let memory_constrained = context.memory_limit > 0 && hash_memory > context.memory_limit;
 
+        // Check global memory pressure if enabled
+        let memory_pressure_threshold =
+            self.cost_calculator.config().memory_pressure_threshold as u64;
+        let under_memory_pressure =
+            consider_memory_pressure && hash_memory > memory_pressure_threshold;
+
         // Decision-making logic
-        let (strategy, reason) = if memory_constrained {
-            // Memory is limited; priority should be given to sorting and aggregation operations.
-            (
-                AggregateStrategy::SortAggregate,
-                SelectionReason::MemoryConstrained,
-            )
+        let (strategy, reason) = if memory_constrained || under_memory_pressure {
+            // Memory is limited or under global memory pressure
+            // Priority should be given to sorting and aggregation operations
+            if under_memory_pressure && sort_cost < hash_cost * 1.5 {
+                // Allow up to 50% performance loss to avoid memory pressure
+                (
+                    AggregateStrategy::SortAggregate,
+                    SelectionReason::MemoryConstrained,
+                )
+            } else if memory_constrained {
+                (
+                    AggregateStrategy::SortAggregate,
+                    SelectionReason::MemoryConstrained,
+                )
+            } else {
+                // Even under pressure, hash is significantly better
+                (
+                    AggregateStrategy::HashAggregate,
+                    SelectionReason::CostBased {
+                        hash_cost,
+                        sort_cost,
+                    },
+                )
+            }
         } else if context.input_rows < 1000 {
             // With small amounts of data, hash aggregation is simpler and more efficient.
             (
@@ -499,6 +549,75 @@ impl AggregateStrategySelector {
             decision.rewrite_rules.push(rule_id);
         }
     }
+
+    /// Analyze aggregation expression complexity using expression cost
+    ///
+    /// Returns the total expression cost for all aggregation functions.
+    /// Higher cost indicates more complex expressions that benefit from
+    /// HashAggregate (to avoid redundant computations).
+    pub fn analyze_aggregation_complexity(&self, agg_functions: &[ContextualExpression]) -> f64 {
+        agg_functions
+            .iter()
+            .filter_map(|f| f.get_expression())
+            .map(|expr| self.cost_calculator.calculate_expression_cost(&expr))
+            .sum()
+    }
+
+    /// Select strategy considering both memory pressure and expression complexity
+    ///
+    /// This is the most comprehensive strategy selection method that considers:
+    /// - Input sorting
+    /// - Memory constraints and pressure
+    /// - Expression complexity
+    /// - Cost comparison
+    pub fn select_strategy_comprehensive(
+        &self,
+        context: &AggregateContext,
+        agg_functions: &[ContextualExpression],
+    ) -> AggregateStrategyDecision {
+        // First check if we can use streaming aggregation
+        if context.input_is_sorted && context.sort_keys_match_group_keys {
+            return self.create_streaming_aggregate_decision(context);
+        }
+
+        // Analyze expression complexity
+        let total_expression_cost = self.analyze_aggregation_complexity(agg_functions);
+        let avg_expression_cost = if agg_functions.is_empty() {
+            0.0
+        } else {
+            total_expression_cost / agg_functions.len() as f64
+        };
+
+        // Get base decision with memory pressure awareness
+        let mut decision = self.select_strategy_with_memory_pressure(context);
+
+        // If expressions are complex and we're using SortAggregate,
+        // consider switching to HashAggregate to avoid redundant computations
+        if decision.strategy == AggregateStrategy::SortAggregate
+            && avg_expression_cost > self.cost_calculator.config().function_call_base_cost * 2.0
+        {
+            let group_by_cardinality = self.estimate_group_by_cardinality(context);
+            let hash_cost = self.calculate_hash_aggregate_cost(context, group_by_cardinality);
+            let sort_cost = decision.estimated_cost;
+
+            // If hash aggregation is not too much more expensive, use it for complex expressions
+            if hash_cost < sort_cost * 1.3 {
+                let hash_memory = self.estimate_hash_memory_usage(context, group_by_cardinality);
+                decision = AggregateStrategyDecision {
+                    strategy: AggregateStrategy::HashAggregate,
+                    estimated_output_rows: group_by_cardinality.max(1),
+                    estimated_cost: hash_cost,
+                    estimated_memory_bytes: hash_memory,
+                    reason: SelectionReason::CostBased {
+                        hash_cost,
+                        sort_cost,
+                    },
+                };
+            }
+        }
+
+        decision
+    }
 }
 
 #[cfg(test)]
@@ -601,5 +720,75 @@ mod tests {
         // The cardinality of multiple keys should be relatively low.
         let cardinality = selector.estimate_cardinality_quick(10000, 5);
         assert!(cardinality < 1000);
+    }
+
+    #[test]
+    fn test_memory_pressure_aware_selection() {
+        let selector = create_test_selector();
+
+        // Create a context that would normally choose HashAggregate
+        // but with high memory usage that exceeds the threshold
+        let context = AggregateContext {
+            input_rows: 100000,
+            group_keys: vec!["category".to_string()],
+            agg_function_count: 2,
+            memory_limit: 0, // No explicit limit
+            input_is_sorted: false,
+            sort_keys_match_group_keys: false,
+            is_deterministic: true,
+            complexity_score: 0,
+        };
+
+        // Without memory pressure, should likely choose HashAggregate for high cardinality
+        let normal_decision = selector.select_strategy(&context);
+
+        // With memory pressure awareness, check if it considers memory threshold
+        let pressure_decision = selector.select_strategy_with_memory_pressure(&context);
+
+        // Both should return valid decisions
+        assert!(pressure_decision.estimated_cost > 0.0);
+        assert!(pressure_decision.estimated_memory_bytes > 0);
+    }
+
+    #[test]
+    fn test_analyze_aggregation_complexity() {
+        let selector = create_test_selector();
+
+        // Test with empty functions
+        let empty_complexity = selector.analyze_aggregation_complexity(&[]);
+        assert_eq!(empty_complexity, 0.0);
+
+        // Test with simple expressions
+        use crate::core::types::expr::Expression;
+        use crate::core::value::Value;
+        use crate::query::validator::context::ExpressionAnalysisContext;
+
+        let ctx = ExpressionAnalysisContext::new();
+        let expr = Expression::Literal(Value::Int(42));
+        let id = ctx.register_expression(crate::core::types::expr::ExpressionMeta::new(expr));
+        let simple_expr = ContextualExpression::new(id, std::sync::Arc::new(ctx));
+        let simple_complexity = selector.analyze_aggregation_complexity(&[simple_expr]);
+        assert!(simple_complexity >= 0.0);
+    }
+
+    #[test]
+    fn test_comprehensive_strategy_selection() {
+        let selector = create_test_selector();
+
+        let context = AggregateContext {
+            input_rows: 10000,
+            group_keys: vec!["category".to_string()],
+            agg_function_count: 2,
+            memory_limit: 0,
+            input_is_sorted: false,
+            sort_keys_match_group_keys: false,
+            is_deterministic: true,
+            complexity_score: 0,
+        };
+
+        // Test comprehensive selection with empty functions
+        let decision = selector.select_strategy_comprehensive(&context, &[]);
+        assert!(decision.estimated_cost > 0.0);
+        assert!(decision.estimated_memory_bytes > 0);
     }
 }

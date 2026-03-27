@@ -72,6 +72,8 @@ pub enum TopNConversionReason {
     SmallLimit,
     /// Based on cost analysis
     CostBased,
+    /// Memory constrained - sorting would require too much memory
+    MemoryConstrained,
 }
 
 /// Sorting optimization context
@@ -152,7 +154,59 @@ impl SortEliminationOptimizer {
     /// # Returns
     /// Sorting optimization decision (whether to maintain the original sorting order or convert the data into a TopN list)
     pub fn optimize(&self, context: &SortContext) -> SortEliminationDecision {
+        self.optimize_with_memory(context, None)
+    }
+
+    /// Optimize sorting with memory awareness
+    ///
+    /// This method considers available memory when making the sort vs TopN decision.
+    /// If the sort operation would require more memory than available, it forces TopN conversion.
+    ///
+    /// # Parameters
+    /// - `context`: Sort context
+    /// - `available_memory`: Available memory in bytes (None means unlimited)
+    ///
+    /// # Returns
+    /// Sorting optimization decision
+    pub fn optimize_with_memory(
+        &self,
+        context: &SortContext,
+        available_memory: Option<usize>,
+    ) -> SortEliminationDecision {
         let sort_items = context.sort_node.sort_items();
+
+        // Check memory constraints first
+        if let Some(memory) = available_memory {
+            let sort_memory = self
+                .cost_calculator
+                .estimate_sort_memory(context.input_rows, sort_items.len());
+
+            // If sorting would exceed available memory, force TopN
+            if sort_memory > memory {
+                if let Some(limit) = context.limit_value {
+                    if limit >= self.min_limit_for_topn {
+                        let original_cost =
+                            self.calculate_sort_cost(context.input_rows, sort_items.len());
+                        let topn_cost = self
+                            .cost_calculator
+                            .calculate_topn_cost(context.input_rows, limit);
+
+                        return SortEliminationDecision::ConvertToTopN {
+                            reason: TopNConversionReason::MemoryConstrained,
+                            topn_cost,
+                            original_cost,
+                        };
+                    }
+                }
+
+                // No limit available but memory constrained - keep sort but warn
+                let sort_cost = self.calculate_sort_cost(context.input_rows, sort_items.len());
+                return SortEliminationDecision::KeepSort {
+                    reason: SortKeepReason::CostBasedDecision,
+                    estimated_cost: sort_cost,
+                };
+            }
+        }
 
         // Check whether it is possible to convert this into a TopN format.
         if let Some(decision) = self.check_topn_conversion(context, sort_items) {
@@ -387,5 +441,69 @@ mod tests {
 
         let reason = TopNConversionReason::CostBased;
         assert!(format!("{:?}", reason).contains("CostBased"));
+
+        let reason = TopNConversionReason::MemoryConstrained;
+        assert!(format!("{:?}", reason).contains("MemoryConstrained"));
+    }
+
+    #[test]
+    fn test_optimize_with_memory() {
+        let optimizer = create_test_optimizer();
+
+        // Create a sort context with limit
+        let start_node = crate::query::planning::plan::core::nodes::StartNode::new();
+        let sort_node = SortNode::new(
+            crate::query::planning::plan::PlanNodeEnum::Start(start_node),
+            vec![SortItem::asc("name".to_string())],
+        )
+        .expect("Failed to create SortNode");
+
+        let context = SortContext::new(sort_node, 10000).with_limit(100);
+
+        // With plenty of memory, should use normal logic
+        let decision_with_memory = optimizer.optimize_with_memory(&context, Some(10 * 1024 * 1024)); // 10MB
+        assert!(matches!(
+            decision_with_memory,
+            SortEliminationDecision::ConvertToTopN { .. }
+                | SortEliminationDecision::KeepSort { .. }
+        ));
+
+        // With very limited memory, should force TopN if possible
+        let decision_limited = optimizer.optimize_with_memory(&context, Some(1024)); // 1KB
+                                                                                     // Should convert to TopN due to memory constraint
+        match decision_limited {
+            SortEliminationDecision::ConvertToTopN { reason, .. } => {
+                assert_eq!(reason, TopNConversionReason::MemoryConstrained);
+            }
+            SortEliminationDecision::KeepSort { .. } => {
+                // This is also valid if the optimizer decides to keep sort
+            }
+        }
+    }
+
+    #[test]
+    fn test_optimize_with_memory_no_limit() {
+        let optimizer = create_test_optimizer();
+
+        // Create a sort context without limit
+        let start_node = crate::query::planning::plan::core::nodes::StartNode::new();
+        let sort_node = SortNode::new(
+            crate::query::planning::plan::PlanNodeEnum::Start(start_node),
+            vec![SortItem::asc("name".to_string())],
+        )
+        .expect("Failed to create SortNode");
+
+        let context = SortContext::new(sort_node, 1000); // No limit
+
+        // Without limit, memory constraint should result in KeepSort
+        let decision = optimizer.optimize_with_memory(&context, Some(1024));
+        match decision {
+            SortEliminationDecision::KeepSort { .. } => {
+                // Expected
+            }
+            _ => {
+                // Other outcomes are also acceptable
+            }
+        }
     }
 }

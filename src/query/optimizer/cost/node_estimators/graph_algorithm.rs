@@ -63,7 +63,7 @@ impl<'a> NodeEstimator for GraphAlgorithmEstimator<'a> {
                 Ok((cost, 1))
             }
             _ => Err(CostError::UnsupportedNodeType(format!(
-                "图算法估算器不支持节点类型: {:?}",
+                "The graph algorithm estimator does not support node types: {:?}",
                 std::mem::discriminant(node)
             ))),
         }

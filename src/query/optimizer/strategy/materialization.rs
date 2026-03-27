@@ -76,6 +76,8 @@ pub enum NoMaterializeReason {
     TooLarge,
     /// The expression is too complex.
     TooComplex,
+    /// Memory cost is too high
+    MemoryCostTooHigh,
 }
 
 /// CTE (Common Table Expression) Materialization Optimizer
@@ -95,6 +97,10 @@ pub struct MaterializationOptimizer {
     max_result_rows: u64,
     /// Maximum expression complexity threshold
     max_complexity: u32,
+    /// Memory cost factor (cost per byte of materialization)
+    memory_cost_factor: f64,
+    /// Maximum memory cost ratio (memory_cost / recompute_cost)
+    max_memory_cost_ratio: f64,
 }
 
 impl MaterializationOptimizer {
@@ -111,7 +117,21 @@ impl MaterializationOptimizer {
             min_reference_count: 2,
             max_result_rows: 10000,
             max_complexity: 80,
+            memory_cost_factor: 0.0001, // Default: 0.0001 cost per byte
+            max_memory_cost_ratio: 0.5, // Memory cost should not exceed 50% of recompute cost
         }
+    }
+
+    /// Set memory cost factor
+    pub fn with_memory_cost_factor(mut self, factor: f64) -> Self {
+        self.memory_cost_factor = factor.max(0.0);
+        self
+    }
+
+    /// Set maximum memory cost ratio
+    pub fn with_max_memory_cost_ratio(mut self, ratio: f64) -> Self {
+        self.max_memory_cost_ratio = ratio.max(0.0);
+        self
     }
 
     /// Set a threshold for the minimum number of citations required
@@ -191,12 +211,28 @@ impl MaterializationOptimizer {
         let recompute_cost = self.estimate_recompute_cost(ref_info.reference_count, estimated_rows);
         let materialize_cost = self.estimate_materialize_cost(estimated_rows, complexity);
 
-        if materialize_cost < recompute_cost {
+        // 7. Check memory cost
+        let memory_cost = self.estimate_memory_cost(estimated_rows);
+        let total_materialize_cost = materialize_cost + memory_cost;
+        let memory_cost_ratio = if recompute_cost > 0.0 {
+            memory_cost / recompute_cost
+        } else {
+            0.0
+        };
+
+        // If memory cost is too high relative to recompute cost, don't materialize
+        if memory_cost_ratio > self.max_memory_cost_ratio {
+            return MaterializationDecision::DoNotMaterialize {
+                reason: NoMaterializeReason::MemoryCostTooHigh,
+            };
+        }
+
+        if total_materialize_cost < recompute_cost {
             MaterializationDecision::Materialize {
                 reason: MaterializeReason::CostBased,
                 reference_count: ref_info.reference_count,
                 estimated_rows,
-                materialize_cost,
+                materialize_cost: total_materialize_cost,
                 recompute_cost,
             }
         } else {
@@ -204,10 +240,17 @@ impl MaterializationOptimizer {
                 reason: MaterializeReason::MultipleReferences,
                 reference_count: ref_info.reference_count,
                 estimated_rows,
-                materialize_cost,
+                materialize_cost: total_materialize_cost,
                 recompute_cost,
             }
         }
+    }
+
+    /// Estimate memory cost for materialization
+    fn estimate_memory_cost(&self, estimated_rows: u64) -> f64 {
+        // Assume average row size of 64 bytes
+        let memory_bytes = estimated_rows * 64;
+        memory_bytes as f64 * self.memory_cost_factor
     }
 
     /// Check whether the node is deterministic.
@@ -542,5 +585,39 @@ mod tests {
 
         assert!(recompute_cost > 0.0);
         assert!(materialize_cost > 0.0);
+    }
+
+    #[test]
+    fn test_memory_cost_configuration() {
+        let reference_count_analyzer = ReferenceCountAnalyzer::new();
+        let expression_analyzer = ExpressionAnalyzer::new();
+        let stats_manager = StatisticsManager::new();
+        let optimizer = MaterializationOptimizer::new(
+            &reference_count_analyzer,
+            &expression_analyzer,
+            &stats_manager,
+        )
+        .with_memory_cost_factor(0.0002)
+        .with_max_memory_cost_ratio(0.3);
+
+        assert_eq!(optimizer.memory_cost_factor, 0.0002);
+        assert_eq!(optimizer.max_memory_cost_ratio, 0.3);
+    }
+
+    #[test]
+    fn test_estimate_memory_cost() {
+        let reference_count_analyzer = ReferenceCountAnalyzer::new();
+        let expression_analyzer = ExpressionAnalyzer::new();
+        let stats_manager = StatisticsManager::new();
+        let optimizer = MaterializationOptimizer::new(
+            &reference_count_analyzer,
+            &expression_analyzer,
+            &stats_manager,
+        );
+
+        // Test memory cost estimation
+        let memory_cost = optimizer.estimate_memory_cost(1000);
+        // 1000 rows * 64 bytes * 0.0001 = 6.4
+        assert!(memory_cost > 0.0);
     }
 }

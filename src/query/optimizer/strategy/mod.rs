@@ -18,9 +18,11 @@
 
 pub mod aggregate_strategy;
 pub mod bidirectional_traversal;
+pub mod expression_precomputation;
 pub mod index;
 pub mod join_order;
 pub mod materialization;
+pub mod memory_budget;
 pub mod subquery_unnesting;
 pub mod topn_optimization;
 pub mod traversal_direction;
@@ -61,6 +63,13 @@ pub use subquery_unnesting::{
 
 pub use materialization::{
     MaterializationDecision, MaterializationOptimizer, MaterializeReason, NoMaterializeReason,
+};
+
+pub use memory_budget::{MemoryBudgetAllocation, MemoryBudgetAllocator, OperatorImplementation};
+
+pub use expression_precomputation::{
+    ExpressionPrecomputationOptimizer, NoPrecomputeReason, PrecomputationCandidate,
+    PrecomputationDecision, PrecomputeReason,
 };
 
 // Re-export the CTE cache type from the cache module (for backward compatibility)

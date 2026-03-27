@@ -37,7 +37,7 @@ impl<'a> NodeEstimator for JoinEstimator<'a> {
 
         match node {
             PlanNodeEnum::HashInnerJoin(_) => {
-                // 内连接输出行数估算（假设选择性为 0.3）
+                // Estimation of output rows for internal connections (assuming selectivity of 0.3)
                 let output_rows = (left_rows.min(right_rows) as f64 * 0.3).max(1.0) as u64;
                 let cost = self
                     .cost_calculator
@@ -81,7 +81,7 @@ impl<'a> NodeEstimator for JoinEstimator<'a> {
                 Ok((cost, output_rows.max(1)))
             }
             _ => Err(CostError::UnsupportedNodeType(format!(
-                "连接估算器不支持节点类型: {:?}",
+                "The connection estimator does not support node type: {:?}",
                 std::mem::discriminant(node)
             ))),
         }
