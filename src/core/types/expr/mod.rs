@@ -72,6 +72,7 @@ mod def;
 mod display;
 pub mod expression;
 mod inspection;
+pub mod memory_estimation;
 pub mod serializable;
 mod traverse;
 mod type_deduce;

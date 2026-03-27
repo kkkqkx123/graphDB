@@ -15,6 +15,7 @@ pub mod dataset;
 pub mod date_time;
 pub mod decimal128;
 pub mod geography;
+pub mod memory_estimation;
 pub mod operations;
 pub mod types;
 

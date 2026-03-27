@@ -1,0 +1,103 @@
+//! Memory estimation for Value types
+//!
+//! This module provides memory estimation for the Value enum and related types.
+
+use crate::core::value::Value;
+use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
+
+impl MemoryEstimatable for Value {
+    fn estimate_memory(&self) -> usize {
+        let base_size = std::mem::size_of::<Value>();
+
+        match self {
+            // Fixed-size types: only base size
+            Value::Empty
+            | Value::Null(_)
+            | Value::Bool(_)
+            | Value::Int(_)
+            | Value::Int8(_)
+            | Value::Int16(_)
+            | Value::Int32(_)
+            | Value::Int64(_)
+            | Value::UInt8(_)
+            | Value::UInt16(_)
+            | Value::UInt32(_)
+            | Value::UInt64(_)
+            | Value::Float(_) => base_size,
+
+            // Variable-length string types: base + capacity
+            Value::String(s) => base_size + s.capacity(),
+            Value::FixedString { data, .. } => base_size + data.capacity(),
+
+            // Binary data: base + capacity
+            Value::Blob(b) => base_size + b.capacity(),
+
+            // Complex types with nested memory
+            Value::Decimal128(d) => base_size + std::mem::size_of_val(d),
+
+            // DateTime types (typically fixed size)
+            Value::Date(_) | Value::Time(_) | Value::DateTime(_) | Value::Duration(_) => base_size,
+
+            // Graph types (simplified estimation)
+            Value::Vertex(v) => base_size + std::mem::size_of_val(v.as_ref()),
+            Value::Edge(e) => base_size + std::mem::size_of_val(e),
+            Value::Path(p) => base_size + std::mem::size_of_val(p),
+
+            // Collection types (recursive)
+            Value::List(list) => {
+                base_size + list.iter().map(|v| v.estimate_memory()).sum::<usize>()
+            }
+            Value::Map(map) => {
+                base_size
+                    + map
+                        .iter()
+                        .map(|(k, v)| k.capacity() + v.estimate_memory())
+                        .sum::<usize>()
+            }
+            Value::Set(set) => base_size + set.iter().map(|v| v.estimate_memory()).sum::<usize>(),
+
+            // Geography type
+            Value::Geography(g) => base_size + std::mem::size_of_val(g),
+
+            // DataSet type
+            Value::DataSet(d) => base_size + std::mem::size_of_val(d),
+        }
+    }
+}
+
+/// Helper function to estimate memory for a slice of Values
+pub fn estimate_values_memory(values: &[Value]) -> usize {
+    values.iter().map(|v| v.estimate_memory()).sum()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_fixed_size_value() {
+        let v = Value::Int(42);
+        assert_eq!(v.estimate_memory(), std::mem::size_of::<Value>());
+    }
+
+    #[test]
+    fn test_string_value() {
+        let s = String::with_capacity(100);
+        let v = Value::String(s);
+        assert_eq!(v.estimate_memory(), std::mem::size_of::<Value>() + 100);
+    }
+
+    #[test]
+    fn test_list_value() {
+        let list = vec![
+            Value::Int(1),
+            Value::Int(2),
+            Value::String(String::with_capacity(10)),
+        ];
+        let v = Value::List(super::super::dataset::List::from(list));
+        let expected = std::mem::size_of::<Value>()
+            + std::mem::size_of::<Value>() * 2
+            + (std::mem::size_of::<Value>() + 10);
+        assert!(v.estimate_memory() >= expected);
+    }
+}
