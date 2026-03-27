@@ -109,38 +109,79 @@ impl Default for ObjectPoolConfig {
 impl ObjectPoolConfig {
     /// Minimal configuration for embedded/low-memory environments
     pub fn minimal() -> Self {
-        let mut config = Self::default();
-        config.memory_budget = 16 * 1024 * 1024;
-        config.default_pool_size = 5;
-        config.enable_warmup = false;
-        config.enable_adaptive = false;
+        let default_config = Self::default();
+        let mut type_configs = default_config.type_configs.clone();
 
-        for (_, type_config) in &mut config.type_configs {
-            type_config.max_size = type_config.max_size / 2;
+        for type_config in type_configs.values_mut() {
+            type_config.max_size /= 2;
             type_config.warmup_count = 0;
         }
 
-        config
+        Self {
+            enabled: true,
+            default_pool_size: 5,
+            memory_budget: 16 * 1024 * 1024,
+            enable_warmup: false,
+            type_configs,
+            enable_adaptive: false,
+            adaptive_interval_secs: default_config.adaptive_interval_secs,
+        }
     }
 
     /// High concurrency configuration for high-performance servers
     pub fn high_concurrency() -> Self {
-        let mut config = Self::default();
-        config.memory_budget = 256 * 1024 * 1024;
-        config.default_pool_size = 20;
-        config.enable_adaptive = true;
-        config.adaptive_interval_secs = 30;
+        let mut type_configs = HashMap::new();
 
-        if let Some(cfg) = config.type_configs.get_mut("FilterExecutor") {
-            cfg.max_size = 100;
-            cfg.warmup_count = 20;
-        }
-        if let Some(cfg) = config.type_configs.get_mut("ProjectExecutor") {
-            cfg.max_size = 100;
-            cfg.warmup_count = 20;
-        }
+        type_configs.insert(
+            "FilterExecutor".to_string(),
+            TypePoolConfig {
+                max_size: 100,
+                priority: PoolPriority::High,
+                warmup_count: 20,
+            },
+        );
+        type_configs.insert(
+            "ProjectExecutor".to_string(),
+            TypePoolConfig {
+                max_size: 100,
+                priority: PoolPriority::High,
+                warmup_count: 20,
+            },
+        );
+        type_configs.insert(
+            "ScanVerticesExecutor".to_string(),
+            TypePoolConfig {
+                max_size: 20,
+                priority: PoolPriority::Medium,
+                warmup_count: 5,
+            },
+        );
+        type_configs.insert(
+            "GetNeighborsExecutor".to_string(),
+            TypePoolConfig {
+                max_size: 20,
+                priority: PoolPriority::Medium,
+                warmup_count: 5,
+            },
+        );
+        type_configs.insert(
+            "AggregateExecutor".to_string(),
+            TypePoolConfig {
+                max_size: 5,
+                priority: PoolPriority::Low,
+                warmup_count: 2,
+            },
+        );
 
-        config
+        Self {
+            enabled: true,
+            default_pool_size: 20,
+            memory_budget: 256 * 1024 * 1024,
+            enable_warmup: true,
+            type_configs,
+            enable_adaptive: true,
+            adaptive_interval_secs: 30,
+        }
     }
 
     /// Disable object pool
@@ -325,8 +366,7 @@ impl<S: StorageClient + 'static> ExecutorObjectPool<S> {
 
         self.stats.total_acquires += 1;
 
-        let pool = self.pools.get_mut(executor_type);
-        if let Some(executors) = pool {
+        if let Some(executors) = self.pools.get_mut(executor_type) {
             if let Some(executor) = executors.pop() {
                 self.stats.cache_hits += 1;
 
@@ -366,11 +406,9 @@ impl<S: StorageClient + 'static> ExecutorObjectPool<S> {
 
         let size = self.estimate_size(&executor);
 
-        if self.current_memory + size > self.config.memory_budget {
-            if !self.evict_for_memory(size) {
-                self.stats.memory_discarded += 1;
-                return;
-            }
+        if self.current_memory + size > self.config.memory_budget && !self.evict_for_memory(size) {
+            self.stats.memory_discarded += 1;
+            return;
         }
 
         let max_size = self.get_max_size(executor_type);

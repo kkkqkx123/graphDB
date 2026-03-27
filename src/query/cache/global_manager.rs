@@ -385,7 +385,6 @@ mod tests {
                 max_memory: 40 * 1024 * 1024,
                 ..Default::default()
             },
-            ..Default::default()
         };
 
         let formatted = stats.format();

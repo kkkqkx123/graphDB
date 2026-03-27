@@ -156,7 +156,7 @@ impl Decimal128Value {
     /// division
     pub fn div(&self, other: &Self) -> Result<Self, String> {
         if other.inner == Decimal128::ZERO {
-            return Err("除零错误".to_string());
+            return Err("division error".to_string());
         }
         Ok(Self {
             inner: self.inner / other.inner,
@@ -166,7 +166,7 @@ impl Decimal128Value {
     /// modulo operation (math.)
     pub fn rem(&self, other: &Self) -> Result<Self, String> {
         if other.inner == Decimal128::ZERO {
-            return Err("除零错误".to_string());
+            return Err("division error".to_string());
         }
         Ok(Self {
             inner: self.inner % other.inner,

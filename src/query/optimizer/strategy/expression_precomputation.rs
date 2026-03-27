@@ -406,6 +406,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::mutable_key_type)]
     fn test_analyze_expressions() {
         let optimizer = create_test_optimizer();
         let mut expressions = HashMap::new();

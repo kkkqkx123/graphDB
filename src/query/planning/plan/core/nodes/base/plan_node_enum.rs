@@ -1159,7 +1159,7 @@ impl PlanNodeEnum {
                     + node
                         .dependencies()
                         .iter()
-                        .map(|dep| Self::estimate_input_memory(dep))
+                        .map(Self::estimate_input_memory)
                         .sum::<usize>()
             }
 

@@ -740,7 +740,7 @@ mod tests {
         };
 
         // Without memory pressure, should likely choose HashAggregate for high cardinality
-        let normal_decision = selector.select_strategy(&context);
+        let _normal_decision = selector.select_strategy(&context);
 
         // With memory pressure awareness, check if it considers memory threshold
         let pressure_decision = selector.select_strategy_with_memory_pressure(&context);

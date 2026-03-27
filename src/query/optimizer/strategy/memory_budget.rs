@@ -20,9 +20,7 @@
 use std::collections::HashMap;
 
 use crate::query::optimizer::cost::CostModelConfig;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
-    BinaryInputNode, SingleInputNode,
-};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planning::plan::core::nodes::PlanNodeEnum;
 
 /// Unique identifier for plan nodes
@@ -146,7 +144,7 @@ impl MemoryBudgetAllocator {
     /// Estimate memory requirement for a single node
     fn estimate_node_memory(&self, plan: &PlanNodeEnum) -> (usize, u32) {
         match plan {
-            PlanNodeEnum::Sort(node) => {
+            PlanNodeEnum::Sort(_node) => {
                 // Sorting needs to buffer all input rows
                 let rows = self.estimate_input_rows(plan);
                 let memory = rows * self.default_row_size;
@@ -356,7 +354,7 @@ mod tests {
     #[test]
     fn test_memory_pressure_threshold() {
         let config = CostModelConfig::default();
-        let allocator = MemoryBudgetAllocator::with_config(100 * 1024 * 1024, config.clone());
+        let allocator = MemoryBudgetAllocator::with_config(100 * 1024 * 1024, config);
         assert_eq!(
             allocator.memory_pressure_threshold(),
             config.memory_pressure_threshold

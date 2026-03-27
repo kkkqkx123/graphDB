@@ -133,29 +133,29 @@ impl ErrorCode {
     /// Retrieve the default error message.
     pub fn default_message(&self) -> &'static str {
         match self {
-            ErrorCode::Success => "成功",
-            ErrorCode::SyntaxError => "语法错误",
-            ErrorCode::ParseError => "解析错误",
-            ErrorCode::InvalidStatement => "无效语句",
-            ErrorCode::MissingParameter => "缺少必要参数",
-            ErrorCode::ExecutionError => "执行错误",
-            ErrorCode::Timeout => "执行超时",
-            ErrorCode::ResourceExhausted => "资源不足",
-            ErrorCode::Conflict => "并发冲突",
-            ErrorCode::Deadlock => "死锁检测",
-            ErrorCode::ValidationError => "验证错误",
-            ErrorCode::TypeError => "类型错误",
-            ErrorCode::InvalidInput => "无效输入",
-            ErrorCode::ConstraintViolation => "约束违反",
-            ErrorCode::PermissionDenied => "权限不足",
-            ErrorCode::Unauthorized => "未认证",
-            ErrorCode::Forbidden => "禁止访问",
-            ErrorCode::ResourceNotFound => "资源未找到",
-            ErrorCode::ResourceAlreadyExists => "资源已存在",
-            ErrorCode::ResourceUnavailable => "资源不可用",
-            ErrorCode::InternalError => "内部服务器错误",
-            ErrorCode::ServiceUnavailable => "服务不可用",
-            ErrorCode::Unknown => "未知错误",
+            ErrorCode::Success => "success",
+            ErrorCode::SyntaxError => "syntax error",
+            ErrorCode::ParseError => "parse error",
+            ErrorCode::InvalidStatement => "invalid statement",
+            ErrorCode::MissingParameter => "missing required parameter",
+            ErrorCode::ExecutionError => "execution error",
+            ErrorCode::Timeout => "execution timeout",
+            ErrorCode::ResourceExhausted => "resource exhausted",
+            ErrorCode::Conflict => "conflict",
+            ErrorCode::Deadlock => "deadlock detected",
+            ErrorCode::ValidationError => "validation error",
+            ErrorCode::TypeError => "type error",
+            ErrorCode::InvalidInput => "invalid input",
+            ErrorCode::ConstraintViolation => "constraint violation",
+            ErrorCode::PermissionDenied => "permission denied",
+            ErrorCode::Unauthorized => "unauthorized",
+            ErrorCode::Forbidden => "forbidden",
+            ErrorCode::ResourceNotFound => "resource not found",
+            ErrorCode::ResourceAlreadyExists => "resource already exists",
+            ErrorCode::ResourceUnavailable => "resource unavailable",
+            ErrorCode::InternalError => "internal server error",
+            ErrorCode::ServiceUnavailable => "service unavailable",
+            ErrorCode::Unknown => "unknown error",
         }
     }
 
@@ -321,7 +321,7 @@ mod tests {
 
     #[test]
     fn test_public_error() {
-        let err = PublicError::new(ErrorCode::ResourceNotFound, "用户不存在".to_string());
+        let err = PublicError::new(ErrorCode::ResourceNotFound, "user does not exist".to_string());
         assert_eq!(err.code, ErrorCode::ResourceNotFound);
         assert_eq!(err.message, "user does not exist");
 

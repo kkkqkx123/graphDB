@@ -147,7 +147,7 @@ impl FetchEdgesValidator {
     fn validate_edge_name(&self, edge_name: &str) -> Result<(), ValidationError> {
         if edge_name.is_empty() {
             return Err(ValidationError::new(
-                "必须指定边类型名称".to_string(),
+                "The name of the edge type must be specified.".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }

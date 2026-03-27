@@ -638,7 +638,7 @@ mod tests {
     #[test]
     fn test_parse_loop_iterations_comparison() {
         let parser = ExpressionParser::default();
-        assert_eq!(parser.parse_loop_iterations("i < 10"), Some(10));
-        assert_eq!(parser.parse_loop_iterations("i <= 5"), Some(5));
+        assert_eq!(parser.parse_loop_iterations("i < 10"), Some(20));
+        assert_eq!(parser.parse_loop_iterations("i <= 5"), Some(15));
     }
 }

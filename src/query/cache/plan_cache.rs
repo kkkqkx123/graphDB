@@ -25,18 +25,13 @@ use crate::core::error::{DBError, DBResult};
 use crate::query::planning::plan::ExecutionPlan;
 
 /// Cache priority levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum CachePriority {
     Low = 0,
+    #[default]
     Normal = 1,
     High = 2,
     Critical = 3,
-}
-
-impl Default for CachePriority {
-    fn default() -> Self {
-        Self::Normal
-    }
 }
 
 /// TTL configuration

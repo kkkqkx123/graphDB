@@ -118,7 +118,7 @@ impl FetchVerticesValidator {
     ) -> Result<(), ValidationError> {
         if vertex_ids.is_empty() {
             return Err(ValidationError::new(
-                "必须指定至少一个顶点 ID".to_string(),
+                "At least one vertex ID must be specified.".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }

@@ -57,7 +57,7 @@ impl RedbStorage {
                 Ok(db) => Arc::new(db),
                 Err(e) => {
                     return Err(StorageError::DbError(format!(
-                        "打开数据库失败: 路径: {}, 错误: {}。如需恢复，请手动删除数据库文件后重试。",
+                        "Failed to open the database: path: {}, error: {}. Please manually delete the database file and retry.",
                         path.display(),
                         e
                     )));
@@ -66,7 +66,7 @@ impl RedbStorage {
         } else {
             Arc::new(
                 Database::create(&path)
-                    .map_err(|e| StorageError::DbError(format!("创建数据库失败: {}", e)))?,
+                    .map_err(|e| StorageError::DbError(format!("Failed to create the database: {}", e)))?,
             )
         };
 
