@@ -468,28 +468,51 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         &mut self,
         plan: crate::query::planning::plan::ExecutionPlan,
     ) -> DBResult<crate::query::planning::plan::ExecutionPlan> {
-        // Optimize using the planner rewrite rule.
+        use crate::query::optimizer::OptimizationContext;
+        use crate::query::optimizer::strategy::{MaterializationOptimizer, StrategyChain};
         use crate::query::planning::rewrite::rewrite_plan;
 
+        // Create optimization context from OptimizerEngine
+        let ctx = OptimizationContext::from(&self.optimizer_engine);
+
+        // Optimize using the planner rewrite rule.
         let rewritten_plan = rewrite_plan(plan)
             .map_err(|e| DBError::from(QueryError::pipeline_optimization_error(e)))?;
 
-        // An analyzer that uses an optimizer analyzes the rewritten plan.
-        if let Some(ref root) = rewritten_plan.root {
-            // Reference count analysis – Identifying sub-plans that are referenced multiple times
-            let ref_analysis = self
-                .optimizer_engine
-                .reference_count_analyzer()
-                .analyze(root);
+        // Apply optimization strategies using StrategyChain
+        if let Some(root) = rewritten_plan.root {
+            // Create materialization optimizer
+            let ref_analyzer = ctx.reference_count_analyzer();
+            let expr_analyzer = ctx.expression_analyzer();
+            let stats_manager = ctx.stats_manager();
+            
+            let materialization_optimizer = MaterializationOptimizer::new(
+                &ref_analyzer,
+                &expr_analyzer,
+                stats_manager.as_ref(),
+            );
+
+            // Create strategy chain with materialization optimizer
+            let chain = StrategyChain::new()
+                .add_strategy(Box::new(materialization_optimizer));
+
+            // Apply strategies to the plan root
+            let optimized_root = chain.apply(root, &ctx)
+                .map_err(|e| DBError::from(QueryError::pipeline_optimization_error(e)))?;
+
+            // An analyzer that uses an optimizer analyzes the optimized plan.
+            let ref_analysis = ctx.reference_count_analyzer().analyze(&optimized_root);
             if ref_analysis.repeated_count() > 0 {
                 log::debug!(
                     "发现 {} 个被多次引用的子计划",
                     ref_analysis.repeated_count()
                 );
             }
-        }
 
-        Ok(rewritten_plan)
+            Ok(crate::query::planning::plan::ExecutionPlan::new(Some(optimized_root)))
+        } else {
+            Ok(rewritten_plan)
+        }
     }
 
     fn execute_plan(

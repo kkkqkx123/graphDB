@@ -24,6 +24,8 @@
 //! ```
 
 pub mod analysis;
+pub mod builder;
+pub mod context;
 pub mod cost;
 pub mod decision;
 pub mod engine;
@@ -31,6 +33,7 @@ pub mod stats;
 pub mod strategy;
 
 // Re-export the main types
+pub use builder::OptimizerEngineBuilder;
 pub use engine::OptimizerEngine;
 
 pub use stats::{
@@ -45,8 +48,10 @@ pub use cost::{CostAssigner, CostCalculator, CostModelConfig, SelectivityEstimat
 // Reexport the analysis module type.
 pub use analysis::{
     AnalysisOptions, ExpressionAnalysis, ExpressionAnalyzer, ReferenceCountAnalysis,
-    ReferenceCountAnalyzer,
+    ReferenceCountAnalyzer, UnifiedPlanAnalysis, UnifiedPlanAnalyzer,
 };
+
+pub use context::OptimizationContext;
 
 pub use strategy::{
     AggregateContext, AggregateSelectionReason, AggregateStrategy, AggregateStrategyDecision,

@@ -45,6 +45,10 @@ impl ExpandNode {
         self.direction
     }
 
+    pub fn set_direction(&mut self, direction: EdgeDirection) {
+        self.direction = direction;
+    }
+
     pub fn edge_types(&self) -> &[String] {
         &self.edge_types
     }

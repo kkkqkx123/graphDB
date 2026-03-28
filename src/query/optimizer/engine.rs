@@ -104,6 +104,26 @@ impl OptimizerEngine {
         // Create a CTE (Common Table Expression) for cache manager management.
         let cte_cache_manager = Arc::new(CteCacheManager::new());
 
+        Self::with_components(
+            expression_context,
+            stats_manager,
+            selectivity_feedback_manager,
+            cte_cache_manager,
+            cost_config,
+        )
+    }
+
+    /// Create an optimizer engine with all components (used by builder).
+    ///
+    /// This internal constructor allows to builder pattern to inject custom components
+    /// while maintaining backward compatibility with existing constructors.
+    pub(crate) fn with_components(
+        expression_context: Arc<ExpressionAnalysisContext>,
+        stats_manager: Arc<StatisticsManager>,
+        selectivity_feedback_manager: Arc<SelectivityFeedbackManager>,
+        cte_cache_manager: Arc<CteCacheManager>,
+        cost_config: CostModelConfig,
+    ) -> Self {
         // Create a cost calculator and a selective estimator.
         let cost_calculator = Arc::new(CostCalculator::with_config(
             stats_manager.clone(),
@@ -171,17 +191,17 @@ impl OptimizerEngine {
     }
 
     /// Obtain the Cost Calculator
-    pub fn cost_calculator(&self) -> &CostCalculator {
+    pub fn cost_calculator(&self) -> &Arc<CostCalculator> {
         &self.cost_calculator
     }
 
     /// Statistics Information Manager
-    pub fn stats_manager(&self) -> &StatisticsManager {
+    pub fn stats_manager(&self) -> &Arc<StatisticsManager> {
         &self.stats_manager
     }
 
     /// Obtaining a selective estimator
-    pub fn selectivity_estimator(&self) -> &SelectivityEstimator {
+    pub fn selectivity_estimator(&self) -> &Arc<SelectivityEstimator> {
         &self.selectivity_estimator
     }
 

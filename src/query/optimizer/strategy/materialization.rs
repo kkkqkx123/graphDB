@@ -30,8 +30,12 @@
 //! ```
 
 use crate::query::optimizer::analysis::{ExpressionAnalyzer, ReferenceCountAnalyzer};
+use crate::query::optimizer::context::OptimizationContext;
 use crate::query::optimizer::cost::StrategyThresholds;
 use crate::query::optimizer::stats::StatisticsManager;
+use crate::query::optimizer::strategy::trait_def::OptimizationStrategy;
+use crate::core::error::optimize::OptimizeResult;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planning::plan::core::nodes::{MaterializeNode, PlanNodeEnum};
 
 /// CTE (Common Table Expression) materialization decision
@@ -515,6 +519,54 @@ impl MaterializationOptimizer {
     ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         let materialize_node = MaterializeNode::new(cte_node)?;
         Ok(PlanNodeEnum::Materialize(materialize_node))
+    }
+}
+
+impl OptimizationStrategy for MaterializationOptimizer {
+    fn apply(&self, node: PlanNodeEnum, _ctx: &OptimizationContext) -> OptimizeResult<PlanNodeEnum> {
+        // Only optimize MaterializeNode
+        if let PlanNodeEnum::Materialize(ref materialize_node) = node {
+            let plan_root = materialize_node.input().clone();
+
+            // Use the underlying optimizer to make decision
+            let decision = self.should_materialize(&node, &plan_root);
+
+            match decision {
+                MaterializationDecision::Materialize {
+                    reason,
+                    reference_count,
+                    estimated_rows,
+                    materialize_cost,
+                    recompute_cost,
+                } => {
+                    log::debug!(
+                        "Materializing CTE: reason={:?}, refs={}, rows={}, cost={:.2} vs {:.2}",
+                        reason, reference_count, estimated_rows, materialize_cost, recompute_cost
+                    );
+                    // Keep the MaterializeNode as-is
+                    Ok(node)
+                }
+                MaterializationDecision::DoNotMaterialize {
+                    reason,
+                } => {
+                    log::debug!("Not materializing CTE: reason={:?}", reason);
+                    // Replace MaterializeNode with its input (inline the CTE)
+                    Ok(plan_root)
+                }
+            }
+        } else {
+            // Pass through non-MaterializeNode
+            Ok(node)
+        }
+    }
+
+    fn name(&self) -> &str {
+        "MaterializationOptimizer"
+    }
+
+    fn is_enabled(&self) -> bool {
+        // Materialization strategy is always enabled
+        true
     }
 }
 

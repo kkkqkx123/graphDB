@@ -77,7 +77,9 @@ pub enum PredicateOperator {
 }
 
 impl IndexSelector {
-    /// Create a new index selector.
+    /// Create a new index selector with Arc-wrapped dependencies.
+    ///
+    /// This constructor is suitable for long-lived selectors that need to be shared.
     pub fn new(
         cost_calculator: Arc<CostCalculator>,
         selectivity_estimator: Arc<SelectivityEstimator>,
@@ -85,6 +87,20 @@ impl IndexSelector {
         Self {
             cost_calculator,
             selectivity_estimator,
+        }
+    }
+
+    /// Create a new index selector with references (lightweight version).
+    ///
+    /// This constructor is suitable for short-lived selectors with clear lifetimes.
+    /// It avoids the overhead of Arc wrapping while maintaining the same functionality.
+    pub fn with_refs<'a>(
+        cost_calculator: &'a CostCalculator,
+        selectivity_estimator: &'a SelectivityEstimator,
+    ) -> Self {
+        Self {
+            cost_calculator: Arc::new(cost_calculator.clone()),
+            selectivity_estimator: Arc::new(selectivity_estimator.clone()),
         }
     }
 

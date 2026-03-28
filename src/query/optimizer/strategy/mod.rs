@@ -27,6 +27,7 @@ pub mod subquery_unnesting;
 pub mod topn_optimization;
 pub mod traversal_direction;
 pub mod traversal_start;
+pub mod trait_def;
 
 pub use traversal_start::{
     CandidateStart, SelectionReason as TraversalSelectionReason, TraversalStartSelector,
@@ -77,3 +78,6 @@ pub use crate::query::cache::{
     CteCacheConfig, CteCacheDecision, CteCacheDecisionMaker, CteCacheEntry, CteCacheManager,
     CteCacheStats,
 };
+
+// Re-export strategy trait types
+pub use trait_def::{NoOpStrategy, OptimizationStrategy, StrategyChain};
