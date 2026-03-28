@@ -5,9 +5,7 @@
 
 use std::sync::Arc;
 
-use crate::query::optimizer::analysis::{
-    ExpressionAnalysis, ExpressionAnalyzer, ReferenceCountAnalysis, ReferenceCountAnalyzer,
-};
+use crate::query::optimizer::analysis::{BatchPlanAnalysis, ExpressionAnalysis, ReferenceCountAnalysis};
 use crate::query::optimizer::cost::{
     CostCalculator, CostModelConfig, SelectivityEstimator,
 };
@@ -34,6 +32,8 @@ pub struct OptimizationContext {
     reference_count_analysis: Option<ReferenceCountAnalysis>,
     /// Cached expression analysis (computed once per optimization)
     expression_analysis: Option<ExpressionAnalysis>,
+    /// Cached batch plan analysis (computed once per optimization)
+    batch_plan_analysis: Option<BatchPlanAnalysis>,
 }
 
 impl OptimizationContext {
@@ -53,6 +53,7 @@ impl OptimizationContext {
             expression_context,
             reference_count_analysis: None,
             expression_analysis: None,
+            batch_plan_analysis: None,
         }
     }
 
@@ -101,20 +102,21 @@ impl OptimizationContext {
         self.expression_analysis.as_ref()
     }
 
-    /// Get reference count analyzer.
-    pub fn reference_count_analyzer(&self) -> ReferenceCountAnalyzer {
-        ReferenceCountAnalyzer::new()
+    /// Set the cached batch plan analysis.
+    pub fn set_batch_plan_analysis(&mut self, analysis: BatchPlanAnalysis) {
+        self.batch_plan_analysis = Some(analysis);
     }
 
-    /// Get expression analyzer.
-    pub fn expression_analyzer(&self) -> ExpressionAnalyzer {
-        ExpressionAnalyzer::new()
+    /// Get cached batch plan analysis.
+    pub fn batch_plan_analysis(&self) -> Option<&BatchPlanAnalysis> {
+        self.batch_plan_analysis.as_ref()
     }
 
     /// Clear all cached analysis results.
     pub fn clear_cache(&mut self) {
         self.reference_count_analysis = None;
         self.expression_analysis = None;
+        self.batch_plan_analysis = None;
     }
 }
 

@@ -10,21 +10,14 @@
 //! use std::sync::Arc;
 //!
 //! let selector = AggregateStrategySelector::new(cost_calculator);
-//! let decision = selector.select_strategy(
-//!     input_rows,
-//!     group_keys,
-//!     agg_functions,
-//!     memory_limit,
-//! );
+//! let decision = selector.select_strategy(&context);
 //! ```
 
 use std::sync::Arc;
 
 use crate::core::types::ContextualExpression;
-use crate::query::optimizer::analysis::ExpressionAnalyzer;
 use crate::query::optimizer::cost::CostCalculator;
 use crate::query::optimizer::decision::OptimizationDecision;
-use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// Aggregation policy type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -91,10 +84,6 @@ pub enum SelectionReason {
 #[derive(Debug)]
 pub struct AggregateStrategySelector {
     cost_calculator: Arc<CostCalculator>,
-    /// Expression analyzer, used to analyze the characteristics of aggregate expressions
-    expression_analyzer: ExpressionAnalyzer,
-    /// Expression context, used for caching analysis results
-    expression_context: Arc<ExpressionAnalysisContext>,
 }
 
 /// Contextual information for the selection of aggregation strategies
@@ -161,74 +150,7 @@ impl AggregateContext {
 impl AggregateStrategySelector {
     /// Create a new selector for aggregating policies.
     pub fn new(cost_calculator: Arc<CostCalculator>) -> Self {
-        Self {
-            cost_calculator,
-            expression_analyzer: ExpressionAnalyzer::new(),
-            expression_context: Arc::new(ExpressionAnalysisContext::new()),
-        }
-    }
-
-    /// Create an aggregate policy selector with an expression analyzer
-    pub fn with_analyzer(
-        cost_calculator: Arc<CostCalculator>,
-        expression_analyzer: ExpressionAnalyzer,
-    ) -> Self {
-        Self {
-            cost_calculator,
-            expression_analyzer,
-            expression_context: Arc::new(ExpressionAnalysisContext::new()),
-        }
-    }
-
-    /// Create an aggregate policy selector that includes the context of the expressions.
-    pub fn with_context(
-        cost_calculator: Arc<CostCalculator>,
-        expression_analyzer: ExpressionAnalyzer,
-        expression_context: Arc<ExpressionAnalysisContext>,
-    ) -> Self {
-        Self {
-            cost_calculator,
-            expression_analyzer,
-            expression_context,
-        }
-    }
-
-    /// Analyze aggregate expressions and create context.
-    ///
-    /// Use an expression analyzer to analyze the characteristics of aggregate expressions and create a complete aggregate context.
-    /// The analysis results will be cached in the ExpressionContext to avoid duplicate analyses.
-    pub fn analyze_and_create_context(
-        &self,
-        input_rows: u64,
-        group_keys: Vec<String>,
-        agg_function_count: usize,
-        ctx_expressions: &[ContextualExpression],
-    ) -> AggregateContext {
-        let mut context = AggregateContext::new(input_rows, group_keys, agg_function_count);
-
-        // Analyze all aggregate expressions.
-        for ctx_expr in ctx_expressions {
-            let expr_id = ctx_expr.id();
-            if let Some(analysis) = self.expression_context.get_analysis(expr_id) {
-                // Using the cached analysis results
-                if !analysis.is_deterministic {
-                    context.is_deterministic = false;
-                }
-                context.complexity_score += analysis.complexity_score;
-            } else {
-                // Analyze the expression and cache the result.
-                let analysis = self.expression_analyzer.analyze(ctx_expr);
-                self.expression_context
-                    .set_analysis(expr_id, analysis.clone());
-
-                if !analysis.is_deterministic {
-                    context.is_deterministic = false;
-                }
-                context.complexity_score += analysis.complexity_score;
-            }
-        }
-
-        context
+        Self { cost_calculator }
     }
 
     /// Selecting the optimal aggregation strategy

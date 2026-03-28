@@ -36,8 +36,8 @@
 use std::sync::Arc;
 
 use crate::query::optimizer::{
-    AggregateStrategySelector, CostCalculator, CostModelConfig, CteCacheManager,
-    ExpressionAnalyzer, MaterializationOptimizer, ReferenceCountAnalyzer, SelectivityEstimator,
+    AggregateStrategySelector, BatchPlanAnalyzer, CostCalculator, CostModelConfig, CteCacheManager,
+    MaterializationOptimizer, SelectivityEstimator,
     SelectivityFeedbackManager, SortEliminationOptimizer, StatisticsManager,
     SubqueryUnnestingOptimizer,
 };
@@ -65,10 +65,8 @@ pub struct OptimizerEngine {
     sort_elimination_optimizer: Arc<SortEliminationOptimizer>,
     /// Aggregation Policy Selector
     aggregate_strategy_selector: AggregateStrategySelector,
-    /// Expression Analyzer
-    expression_analyzer: ExpressionAnalyzer,
-    /// Reference Count Analyzer
-    reference_count_analyzer: ReferenceCountAnalyzer,
+    /// Batch plan analyzer (unified analysis)
+    batch_plan_analyzer: BatchPlanAnalyzer,
     /// Subquery de-correlating optimizer
     subquery_unnesting_optimizer: SubqueryUnnestingOptimizer,
     /// CTE (Common Table Expression) Materialization Optimizer
@@ -135,25 +133,18 @@ impl OptimizerEngine {
         let sort_elimination_optimizer =
             Arc::new(SortEliminationOptimizer::new(cost_calculator.clone()));
 
-        // Create an analyzer
-        let expression_analyzer = ExpressionAnalyzer::new();
-        let reference_count_analyzer = ReferenceCountAnalyzer::new();
+        // Create batch plan analyzer (unified analysis)
+        let batch_plan_analyzer = BatchPlanAnalyzer::new();
 
-        // Create an aggregate policy selector that uses an expression analyzer and a shared context.
-        let aggregate_strategy_selector = AggregateStrategySelector::with_context(
-            cost_calculator.clone(),
-            expression_analyzer.clone(),
-            expression_context.clone(),
-        );
+        // Create an aggregate policy selector
+        let aggregate_strategy_selector =
+            AggregateStrategySelector::new(cost_calculator.clone());
 
         // Create a subquery to de-associate the optimizer.
-        let subquery_unnesting_optimizer =
-            SubqueryUnnestingOptimizer::new(&expression_analyzer, &stats_manager);
+        let subquery_unnesting_optimizer = SubqueryUnnestingOptimizer::new(&stats_manager);
 
         // Creating a CTE (Common Table Expression) materialization optimizer
         let materialization_optimizer = MaterializationOptimizer::with_thresholds(
-            &reference_count_analyzer,
-            &expression_analyzer,
             &stats_manager,
             &cost_config.strategy_thresholds,
         );
@@ -167,8 +158,7 @@ impl OptimizerEngine {
             selectivity_estimator,
             sort_elimination_optimizer,
             aggregate_strategy_selector,
-            expression_analyzer,
-            reference_count_analyzer,
+            batch_plan_analyzer,
             subquery_unnesting_optimizer,
             materialization_optimizer,
             cost_config,
@@ -210,19 +200,14 @@ impl OptimizerEngine {
         &self.sort_elimination_optimizer
     }
 
-    /// Obtain an expression analyzer.
-    pub fn expression_analyzer(&self) -> &ExpressionAnalyzer {
-        &self.expression_analyzer
-    }
-
     /// Obtain the context of the expression.
     pub fn expression_context(&self) -> &Arc<ExpressionAnalysisContext> {
         &self.expression_context
     }
 
-    /// Obtain a reference count analyzer
-    pub fn reference_count_analyzer(&self) -> &ReferenceCountAnalyzer {
-        &self.reference_count_analyzer
+    /// Obtain batch plan analyzer
+    pub fn batch_plan_analyzer(&self) -> &BatchPlanAnalyzer {
+        &self.batch_plan_analyzer
     }
 
     /// Obtain the Aggregation Policy Selector
@@ -262,21 +247,15 @@ impl OptimizerEngine {
         // Re-create the sorting elimination optimizer, using a new cost calculator.
         self.sort_elimination_optimizer =
             Arc::new(SortEliminationOptimizer::new(self.cost_calculator.clone()));
-        // Re-create the analyzer
-        self.expression_analyzer = ExpressionAnalyzer::new();
-        self.reference_count_analyzer = ReferenceCountAnalyzer::new();
+        // Re-create batch plan analyzer
+        self.batch_plan_analyzer = BatchPlanAnalyzer::new();
         // Recreate the Aggregation Policy Selector
-        self.aggregate_strategy_selector = AggregateStrategySelector::with_analyzer(
-            self.cost_calculator.clone(),
-            self.expression_analyzer.clone(),
-        );
+        self.aggregate_strategy_selector =
+            AggregateStrategySelector::new(self.cost_calculator.clone());
         // Re-create the subquery to de-associate the optimizer.
-        self.subquery_unnesting_optimizer =
-            SubqueryUnnestingOptimizer::new(&self.expression_analyzer, &self.stats_manager);
+        self.subquery_unnesting_optimizer = SubqueryUnnestingOptimizer::new(&self.stats_manager);
         // Re-create the CTE (Common Table Expression) materialization optimizer
         self.materialization_optimizer = MaterializationOptimizer::with_thresholds(
-            &self.reference_count_analyzer,
-            &self.expression_analyzer,
             &self.stats_manager,
             &self.cost_config.strategy_thresholds,
         );

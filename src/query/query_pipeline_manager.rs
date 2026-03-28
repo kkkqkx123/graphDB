@@ -473,7 +473,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         use crate::query::planning::rewrite::rewrite_plan;
 
         // Create optimization context from OptimizerEngine
-        let ctx = OptimizationContext::from(&self.optimizer_engine);
+        let mut ctx = OptimizationContext::from(&self.optimizer_engine);
 
         // Optimize using the planner rewrite rule.
         let rewritten_plan = rewrite_plan(plan)
@@ -481,16 +481,14 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
         // Apply optimization strategies using StrategyChain
         if let Some(root) = rewritten_plan.root {
+            // Perform batch plan analysis
+            let batch_analyzer = self.optimizer_engine.batch_plan_analyzer();
+            let batch_analysis = batch_analyzer.analyze(&root);
+            ctx.set_batch_plan_analysis(batch_analysis);
+
             // Create materialization optimizer
-            let ref_analyzer = ctx.reference_count_analyzer();
-            let expr_analyzer = ctx.expression_analyzer();
             let stats_manager = ctx.stats_manager();
-            
-            let materialization_optimizer = MaterializationOptimizer::new(
-                &ref_analyzer,
-                &expr_analyzer,
-                stats_manager.as_ref(),
-            );
+            let materialization_optimizer = MaterializationOptimizer::new(stats_manager.as_ref());
 
             // Create strategy chain with materialization optimizer
             let chain = StrategyChain::new()
@@ -500,13 +498,14 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             let optimized_root = chain.apply(root, &ctx)
                 .map_err(|e| DBError::from(QueryError::pipeline_optimization_error(e)))?;
 
-            // An analyzer that uses an optimizer analyzes the optimized plan.
-            let ref_analysis = ctx.reference_count_analyzer().analyze(&optimized_root);
-            if ref_analysis.repeated_count() > 0 {
-                log::debug!(
-                    "发现 {} 个被多次引用的子计划",
-                    ref_analysis.repeated_count()
-                );
+            // Check for repeated subplans
+            if let Some(analysis) = ctx.batch_plan_analysis() {
+                if analysis.reference_count.repeated_count() > 0 {
+                    log::debug!(
+                        "发现 {} 个被多次引用的子计划",
+                        analysis.reference_count.repeated_count()
+                    );
+                }
             }
 
             Ok(crate::query::planning::plan::ExecutionPlan::new(Some(optimized_root)))

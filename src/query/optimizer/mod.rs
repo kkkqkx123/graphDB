@@ -47,8 +47,8 @@ pub use cost::{CostAssigner, CostCalculator, CostModelConfig, SelectivityEstimat
 
 // Reexport the analysis module type.
 pub use analysis::{
-    AnalysisOptions, ExpressionAnalysis, ExpressionAnalyzer, ReferenceCountAnalysis,
-    ReferenceCountAnalyzer, UnifiedPlanAnalysis, UnifiedPlanAnalyzer,
+    AggregatedExpressionAnalysis, AnalysisOptions, BatchPlanAnalysis, BatchPlanAnalyzer,
+    ExpressionAnalysis, ReferenceCountAnalysis,
 };
 
 pub use context::OptimizationContext;

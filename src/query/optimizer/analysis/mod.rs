@@ -30,11 +30,15 @@
 //! let expr_analysis = expr_analyzer.analyze(condition);
 //! ```
 
+pub mod batch;
 pub mod expression;
 pub mod fingerprint;
 pub mod reference_count;
 
 // Re-export the main types
+pub use batch::{
+    AggregatedExpressionAnalysis, BatchPlanAnalysis, BatchPlanAnalyzer,
+};
 pub use expression::{
     AnalysisMode, AnalysisOptions, ExpressionAnalysis, ExpressionAnalyzer, NondeterministicChecker,
 };

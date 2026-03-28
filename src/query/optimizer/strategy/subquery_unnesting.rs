@@ -1,6 +1,6 @@
 //! Subquery de-association optimization module
 //!
-//! “Analysis-based subquery deserialization optimization strategy” – This strategy converts simple PatternApply subqueries into HashInnerJoin operations.
+//! "Analysis-based subquery deserialization optimization strategy" – This strategy converts simple PatternApply subqueries into HashInnerJoin operations.
 //!
 //! ## Optimization Strategies
 //!
@@ -10,7 +10,7 @@
 //! ## Applicable Conditions
 //!
 //! The right input for PatternApply is a simple query (single-table scan + equality filtering).
-//! 2. 过滤条件是确定性的（不含 rand(), now() 等）
+//! 2. The filtering conditions are deterministic (excluding rand(), now(), etc.)
 //! 3. The complexity of the expressions should be less than 50 (avoid using complex expressions).
 //! 4. The subquery estimates that the number of rows is less than 1000 (based on statistical information).
 //!
@@ -20,22 +20,19 @@
 //! use graphdb::query::optimizer::strategy::SubqueryUnnestingOptimizer;
 //! use graphdb::query::optimizer::OptimizerEngine;
 //!
-//! let optimizer = SubqueryUnnestingOptimizer::new(
-//!     engine.expression_analyzer(),
-//!     engine.stats_manager(),
-//! );
-//! let decision = optimizer.should_unnest(&pattern_apply);
+//! let optimizer = SubqueryUnnestingOptimizer::new(engine.stats_manager());
+//! let decision = optimizer.should_unnest(&pattern_apply, &analysis);
 //! ```
 
+use crate::core::Expression;
 use crate::core::types::expr::ExpressionMeta;
 use crate::core::types::operators::BinaryOperator;
 use crate::core::types::ContextualExpression;
-use crate::core::Expression;
-use crate::query::optimizer::analysis::ExpressionAnalyzer;
+use crate::query::optimizer::analysis::BatchPlanAnalysis;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::optimizer::stats::StatisticsManager;
 use crate::query::planning::plan::core::nodes::PlanNodeEnum;
 use crate::query::planning::plan::core::nodes::{HashInnerJoinNode, PatternApplyNode};
-use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// Decentralized decision-making using subqueries
 #[derive(Debug, Clone, PartialEq)]
@@ -80,11 +77,9 @@ pub enum KeepReason {
 
 /// Subquery desaggregation optimizer
 ///
-/// Based on expression analysis and statistical information, a decision is made as to whether to convert PatternApply to HashInnerJoin.
+/// Based on batch plan analysis and statistical information, a decision is made as to whether to convert PatternApply to HashInnerJoin.
 #[derive(Debug, Clone)]
 pub struct SubqueryUnnestingOptimizer {
-    /// Expression Analyzer
-    expression_analyzer: ExpressionAnalyzer,
     /// Statistics Information Manager
     stats_manager: StatisticsManager,
     /// The maximum number of estimated rows allowed for a subquery
@@ -95,12 +90,8 @@ pub struct SubqueryUnnestingOptimizer {
 
 impl SubqueryUnnestingOptimizer {
     /// Create a new optimizer.
-    pub fn new(
-        expression_analyzer: &ExpressionAnalyzer,
-        stats_manager: &StatisticsManager,
-    ) -> Self {
+    pub fn new(stats_manager: &StatisticsManager) -> Self {
         Self {
-            expression_analyzer: expression_analyzer.clone(),
             stats_manager: stats_manager.clone(),
             max_subquery_rows: 1000,
             max_complexity: 50,
@@ -123,39 +114,37 @@ impl SubqueryUnnestingOptimizer {
     ///
     /// # Parameters
     /// `pattern_apply`: The PatternApply node
+    /// `analysis`: The batch plan analysis result
     ///
     /// # Decision
     /// De-associative decision-making
-    pub fn should_unnest(&self, pattern_apply: &PatternApplyNode) -> UnnestDecision {
-        // 1. Checking subqueries for simplicity (including determinism, complexity checking)
+    pub fn should_unnest(
+        &self,
+        pattern_apply: &PatternApplyNode,
+        analysis: &BatchPlanAnalysis,
+    ) -> UnnestDecision {
+        // 1. Check determinism from batch analysis
+        if !analysis.expression_summary.is_fully_deterministic {
+            return UnnestDecision::KeepPatternApply {
+                reason: KeepReason::NonDeterministic,
+            };
+        }
+
+        // 2. Check complexity from batch analysis
+        if analysis.expression_summary.total_complexity > self.max_complexity {
+            return UnnestDecision::KeepPatternApply {
+                reason: KeepReason::ComplexCondition,
+            };
+        }
+
+        // 3. Checking subqueries for simplicity
         if !self.is_simple_subquery(pattern_apply.right_input()) {
             return UnnestDecision::KeepPatternApply {
                 reason: KeepReason::TooComplex,
             };
         }
 
-        // 2. Check that the connection key is deterministic
-        // The key_cols are now Vec<ContextualExpression>, which can be analyzed using ExpressionAnalyzer
-        for key_col in pattern_apply.key_cols() {
-            // Checking certainty
-            let analysis = self.expression_analyzer.analyze(key_col);
-
-            // Checking certainty
-            if !analysis.is_deterministic {
-                return UnnestDecision::KeepPatternApply {
-                    reason: KeepReason::NonDeterministic,
-                };
-            }
-
-            // Checking complexity
-            if analysis.complexity_score > self.max_complexity {
-                return UnnestDecision::KeepPatternApply {
-                    reason: KeepReason::ComplexCondition,
-                };
-            }
-        }
-
-        // 3. Checking the number of estimated rows for subqueries
+        // 4. Checking the number of estimated rows for subqueries
         let estimated_rows = self.estimate_subquery_rows(pattern_apply.right_input());
         if estimated_rows > self.max_subquery_rows {
             return UnnestDecision::KeepPatternApply {
@@ -163,7 +152,7 @@ impl SubqueryUnnestingOptimizer {
             };
         }
 
-        // 4. Comparison of costs (simplified version)
+        // 5. Comparison of costs (simplified version)
         let original_cost = self.estimate_pattern_apply_cost(estimated_rows);
         let unnested_cost = self.estimate_hash_join_cost(estimated_rows);
 
@@ -191,18 +180,6 @@ impl SubqueryUnnestingOptimizer {
             PlanNodeEnum::Filter(n) => {
                 // Check if the filter condition is an equal comparison
                 let condition = n.condition();
-                // Checking certainty
-                let analysis = self.expression_analyzer.analyze(condition);
-
-                // Checking certainty
-                if !analysis.is_deterministic {
-                    return false;
-                }
-
-                // Checking complexity
-                if analysis.complexity_score > self.max_complexity {
-                    return false;
-                }
 
                 // Check if it is a simple comparison of equal values
                 if let Some(expr_meta) = condition.expression() {
@@ -361,7 +338,7 @@ impl SubqueryUnnestingOptimizer {
     /// This is used to convert the variables in the original expression when transforming PatternApply to HashInnerJoin.
     /// The placeholders (usually “_”) should be replaced with the variable names provided on the left and on the right.
     ///
-    /// # 参数
+    /// # Parameter
     /// `expr`: The expression that needs to be converted.
     /// `new_var`: The name of the new variable
     ///
@@ -408,7 +385,7 @@ impl SubqueryUnnestingOptimizer {
             Expression::Map(entries) => Expression::Map(
                 entries
                     .iter()
-                    .map(|(k, v)| (k.clone(), self.replace_all_variables(v, new_var)))
+                    .map(|(k, v): &(String, Expression)| (k.clone(), self.replace_all_variables(v, new_var)))
                     .collect(),
             ),
             Expression::Case {
@@ -531,27 +508,24 @@ mod tests {
 
     #[test]
     fn test_optimizer_creation() {
-        let expression_analyzer = ExpressionAnalyzer::new();
         let stats_manager = StatisticsManager::new();
-        let optimizer = SubqueryUnnestingOptimizer::new(&expression_analyzer, &stats_manager);
+        let optimizer = SubqueryUnnestingOptimizer::new(&stats_manager);
         assert_eq!(optimizer.max_subquery_rows, 1000);
         assert_eq!(optimizer.max_complexity, 50);
     }
 
     #[test]
     fn test_optimizer_with_config() {
-        let expression_analyzer = ExpressionAnalyzer::new();
         let stats_manager = StatisticsManager::new();
-        let _optimizer = SubqueryUnnestingOptimizer::new(&expression_analyzer, &stats_manager)
+        let _optimizer = SubqueryUnnestingOptimizer::new(&stats_manager)
             .with_max_rows(500)
             .with_max_complexity(30);
     }
 
     #[test]
     fn test_simple_expression_check() {
-        let expression_analyzer = ExpressionAnalyzer::new();
         let stats_manager = StatisticsManager::new();
-        let optimizer = SubqueryUnnestingOptimizer::new(&expression_analyzer, &stats_manager);
+        let optimizer = SubqueryUnnestingOptimizer::new(&stats_manager);
 
         let literal = Expression::Literal(crate::core::Value::Int(42));
         assert!(optimizer.is_simple_expression(&literal));
