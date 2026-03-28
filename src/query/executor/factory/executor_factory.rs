@@ -6,7 +6,11 @@
 use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::executor::factory::builders::Builders;
+use crate::query::executor::factory::builders::{
+    AdminBuilder, ControlFlowBuilder, DataAccessBuilder, DataModificationBuilder,
+    DataProcessingBuilder, JoinBuilder, SetOperationBuilder, TransformationBuilder,
+    TraversalBuilder,
+};
 use crate::query::executor::factory::validators::{RecursionDetector, SafetyValidator};
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::storage::StorageClient;
@@ -25,7 +29,6 @@ pub struct ExecutorFactory<S: StorageClient + Send + 'static> {
     pub(crate) recursion_detector: RecursionDetector,
     #[allow(dead_code)]
     pub(crate) safety_validator: SafetyValidator<S>,
-    pub(crate) builders: Builders<S>,
 }
 
 impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
@@ -34,14 +37,12 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         let config = ExecutorSafetyConfig::default();
         let recursion_detector = RecursionDetector::new(config.max_recursion_depth);
         let safety_validator = SafetyValidator::new(config.clone());
-        let builders = Builders::new();
 
         Self {
             storage: None,
             config,
             recursion_detector,
             safety_validator,
-            builders,
         }
     }
 
@@ -140,343 +141,219 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             }
 
             // Data Access Executor
-            PlanNodeEnum::ScanVertices(node) => self
-                .builders
-                .data_access()
-                .build_scan_vertices(node, storage, context),
-            PlanNodeEnum::ScanEdges(node) => self
-                .builders
-                .data_access()
-                .build_scan_edges(node, storage, context),
-            PlanNodeEnum::GetVertices(node) => self
-                .builders
-                .data_access()
-                .build_get_vertices(node, storage, context),
-            PlanNodeEnum::GetNeighbors(node) => self
-                .builders
-                .data_access()
-                .build_get_neighbors(node, storage, context),
-            PlanNodeEnum::EdgeIndexScan(node) => self
-                .builders
-                .data_access()
-                .build_edge_index_scan(node, storage, context),
-            PlanNodeEnum::GetEdges(node) => self
-                .builders
-                .data_access()
-                .build_get_edges(node, storage, context),
-            PlanNodeEnum::IndexScan(node) => self
-                .builders
-                .data_access()
-                .build_index_scan(node, storage, context),
+            PlanNodeEnum::ScanVertices(node) => {
+                DataAccessBuilder::build_scan_vertices(node, storage, context)
+            }
+            PlanNodeEnum::ScanEdges(node) => {
+                DataAccessBuilder::build_scan_edges(node, storage, context)
+            }
+            PlanNodeEnum::GetVertices(node) => {
+                DataAccessBuilder::build_get_vertices(node, storage, context)
+            }
+            PlanNodeEnum::GetNeighbors(node) => {
+                DataAccessBuilder::build_get_neighbors(node, storage, context)
+            }
+            PlanNodeEnum::EdgeIndexScan(node) => {
+                DataAccessBuilder::build_edge_index_scan(node, storage, context)
+            }
+            PlanNodeEnum::GetEdges(node) => {
+                DataAccessBuilder::build_get_edges(node, storage, context)
+            }
+            PlanNodeEnum::IndexScan(node) => {
+                DataAccessBuilder::build_index_scan(node, storage, context)
+            }
 
             // Data Modification Executor
-            PlanNodeEnum::InsertVertices(node) => self
-                .builders
-                .data_modification()
-                .build_insert_vertices(node, storage, context),
-            PlanNodeEnum::InsertEdges(node) => self
-                .builders
-                .data_modification()
-                .build_insert_edges(node, storage, context),
-            PlanNodeEnum::Remove(node) => self
-                .builders
-                .data_modification()
-                .build_remove(node, storage, context),
+            PlanNodeEnum::InsertVertices(node) => {
+                DataModificationBuilder::build_insert_vertices(node, storage, context)
+            }
+            PlanNodeEnum::InsertEdges(node) => {
+                DataModificationBuilder::build_insert_edges(node, storage, context)
+            }
+            PlanNodeEnum::Remove(node) => {
+                DataModificationBuilder::build_remove(node, storage, context)
+            }
 
             // Data Processing Executor
-            PlanNodeEnum::Filter(node) => self
-                .builders
-                .data_processing()
-                .build_filter(node, storage, context),
-            PlanNodeEnum::Project(node) => self
-                .builders
-                .data_processing()
-                .build_project(node, storage, context),
-            PlanNodeEnum::Limit(node) => self
-                .builders
-                .data_processing()
-                .build_limit(node, storage, context),
-            PlanNodeEnum::Sort(node) => self
-                .builders
-                .data_processing()
-                .build_sort(node, storage, context),
-            PlanNodeEnum::TopN(node) => self
-                .builders
-                .data_processing()
-                .build_topn(node, storage, context),
-            PlanNodeEnum::Sample(node) => self
-                .builders
-                .data_processing()
-                .build_sample(node, storage, context),
-            PlanNodeEnum::Aggregate(node) => self
-                .builders
-                .data_processing()
-                .build_aggregate(node, storage, context),
-            PlanNodeEnum::Dedup(node) => self
-                .builders
-                .data_processing()
-                .build_dedup(node, storage, context),
+            PlanNodeEnum::Filter(node) => {
+                DataProcessingBuilder::build_filter(node, storage, context)
+            }
+            PlanNodeEnum::Project(node) => {
+                DataProcessingBuilder::build_project(node, storage, context)
+            }
+            PlanNodeEnum::Limit(node) => DataProcessingBuilder::build_limit(node, storage, context),
+            PlanNodeEnum::Sort(node) => DataProcessingBuilder::build_sort(node, storage, context),
+            PlanNodeEnum::TopN(node) => DataProcessingBuilder::build_topn(node, storage, context),
+            PlanNodeEnum::Sample(node) => {
+                DataProcessingBuilder::build_sample(node, storage, context)
+            }
+            PlanNodeEnum::Aggregate(node) => {
+                DataProcessingBuilder::build_aggregate(node, storage, context)
+            }
+            PlanNodeEnum::Dedup(node) => DataProcessingBuilder::build_dedup(node, storage, context),
 
             // Connect the actuator.
-            PlanNodeEnum::InnerJoin(node) => self
-                .builders
-                .join()
-                .build_inner_join(node, storage, context),
-            PlanNodeEnum::HashInnerJoin(node) => self
-                .builders
-                .join()
-                .build_hash_inner_join(node, storage, context),
-            PlanNodeEnum::LeftJoin(node) => {
-                self.builders.join().build_left_join(node, storage, context)
+            PlanNodeEnum::InnerJoin(node) => JoinBuilder::build_inner_join(node, storage, context),
+            PlanNodeEnum::HashInnerJoin(node) => {
+                JoinBuilder::build_hash_inner_join(node, storage, context)
             }
-            PlanNodeEnum::HashLeftJoin(node) => self
-                .builders
-                .join()
-                .build_hash_left_join(node, storage, context),
-            PlanNodeEnum::FullOuterJoin(node) => self
-                .builders
-                .join()
-                .build_full_outer_join(node, storage, context),
-            PlanNodeEnum::CrossJoin(node) => self
-                .builders
-                .join()
-                .build_cross_join(node, storage, context),
+            PlanNodeEnum::LeftJoin(node) => JoinBuilder::build_left_join(node, storage, context),
+            PlanNodeEnum::HashLeftJoin(node) => {
+                JoinBuilder::build_hash_left_join(node, storage, context)
+            }
+            PlanNodeEnum::FullOuterJoin(node) => {
+                JoinBuilder::build_full_outer_join(node, storage, context)
+            }
+            PlanNodeEnum::CrossJoin(node) => JoinBuilder::build_cross_join(node, storage, context),
 
             // Set Operation Executor
-            PlanNodeEnum::Union(node) => self
-                .builders
-                .set_operation()
-                .build_union(node, storage, context),
-            PlanNodeEnum::Minus(node) => self
-                .builders
-                .set_operation()
-                .build_minus(node, storage, context),
-            PlanNodeEnum::Intersect(node) => self
-                .builders
-                .set_operation()
-                .build_intersect(node, storage, context),
+            PlanNodeEnum::Union(node) => SetOperationBuilder::build_union(node, storage, context),
+            PlanNodeEnum::Minus(node) => SetOperationBuilder::build_minus(node, storage, context),
+            PlanNodeEnum::Intersect(node) => {
+                SetOperationBuilder::build_intersect(node, storage, context)
+            }
 
             // Graph Traversal Executor
-            PlanNodeEnum::Expand(node) => self
-                .builders
-                .traversal()
-                .build_expand(node, storage, context),
-            PlanNodeEnum::ExpandAll(node) => self
-                .builders
-                .traversal()
-                .build_expand_all(node, storage, context),
-            PlanNodeEnum::Traverse(node) => self
-                .builders
-                .traversal()
-                .build_traverse(node, storage, context),
-            PlanNodeEnum::AllPaths(node) => self
-                .builders
-                .traversal()
-                .build_all_paths(node, storage, context),
-            PlanNodeEnum::ShortestPath(node) => self
-                .builders
-                .traversal()
-                .build_shortest_path(node, storage, context),
-            PlanNodeEnum::BFSShortest(node) => self
-                .builders
-                .traversal()
-                .build_bfs_shortest(node, storage, context),
-            PlanNodeEnum::MultiShortestPath(node) => self
-                .builders
-                .traversal()
-                .build_multi_shortest_path(node, storage, context),
+            PlanNodeEnum::Expand(node) => TraversalBuilder::build_expand(node, storage, context),
+            PlanNodeEnum::ExpandAll(node) => {
+                TraversalBuilder::build_expand_all(node, storage, context)
+            }
+            PlanNodeEnum::Traverse(node) => {
+                TraversalBuilder::build_traverse(node, storage, context)
+            }
+            PlanNodeEnum::AllPaths(node) => {
+                TraversalBuilder::build_all_paths(node, storage, context)
+            }
+            PlanNodeEnum::ShortestPath(node) => {
+                TraversalBuilder::build_shortest_path(node, storage, context)
+            }
+            PlanNodeEnum::BFSShortest(node) => {
+                TraversalBuilder::build_bfs_shortest(node, storage, context)
+            }
+            PlanNodeEnum::MultiShortestPath(node) => {
+                TraversalBuilder::build_multi_shortest_path(node, storage, context)
+            }
 
             // Data Conversion Executor
-            PlanNodeEnum::Unwind(node) => self
-                .builders
-                .transformation()
-                .build_unwind(node, storage, context),
-            PlanNodeEnum::Assign(node) => self
-                .builders
-                .transformation()
-                .build_assign(node, storage, context),
-            PlanNodeEnum::Materialize(node) => self
-                .builders
-                .transformation()
-                .build_materialize(node, storage, context),
-            PlanNodeEnum::AppendVertices(node) => self
-                .builders
-                .transformation()
-                .build_append_vertices(node, storage, context),
-            PlanNodeEnum::RollUpApply(node) => self
-                .builders
-                .transformation()
-                .build_rollup_apply(node, storage, context),
-            PlanNodeEnum::PatternApply(node) => self
-                .builders
-                .transformation()
-                .build_pattern_apply(node, storage, context),
+            PlanNodeEnum::Unwind(node) => {
+                TransformationBuilder::build_unwind(node, storage, context)
+            }
+            PlanNodeEnum::Assign(node) => {
+                TransformationBuilder::build_assign(node, storage, context)
+            }
+            PlanNodeEnum::Materialize(node) => {
+                TransformationBuilder::build_materialize(node, storage, context)
+            }
+            PlanNodeEnum::AppendVertices(node) => {
+                TransformationBuilder::build_append_vertices(node, storage, context)
+            }
+            PlanNodeEnum::RollUpApply(node) => {
+                TransformationBuilder::build_rollup_apply(node, storage, context)
+            }
+            PlanNodeEnum::PatternApply(node) => {
+                TransformationBuilder::build_pattern_apply(node, storage, context)
+            }
 
             // Control Flow Executor
             PlanNodeEnum::Loop(node) => self.build_loop_executor(node, storage, context),
             PlanNodeEnum::Select(node) => self.build_select_executor(node, storage, context),
-            PlanNodeEnum::Argument(node) => self
-                .builders
-                .control_flow()
-                .build_argument(node, storage, context),
-            PlanNodeEnum::PassThrough(node) => self
-                .builders
-                .control_flow()
-                .build_pass_through(node, storage, context),
-            PlanNodeEnum::DataCollect(node) => self
-                .builders
-                .control_flow()
-                .build_data_collect(node, storage, context),
+            PlanNodeEnum::Argument(node) => {
+                ControlFlowBuilder::build_argument(node, storage, context)
+            }
+            PlanNodeEnum::PassThrough(node) => {
+                ControlFlowBuilder::build_pass_through(node, storage, context)
+            }
+            PlanNodeEnum::DataCollect(node) => {
+                ControlFlowBuilder::build_data_collect(node, storage, context)
+            }
 
             // Manage Executor – Space Management
-            PlanNodeEnum::CreateSpace(node) => self
-                .builders
-                .admin()
-                .build_create_space(node, storage, context),
-            PlanNodeEnum::DropSpace(node) => self
-                .builders
-                .admin()
-                .build_drop_space(node, storage, context),
-            PlanNodeEnum::DescSpace(node) => self
-                .builders
-                .admin()
-                .build_desc_space(node, storage, context),
-            PlanNodeEnum::ShowSpaces(node) => self
-                .builders
-                .admin()
-                .build_show_spaces(node, storage, context),
+            PlanNodeEnum::CreateSpace(node) => {
+                AdminBuilder::build_create_space(node, storage, context)
+            }
+            PlanNodeEnum::DropSpace(node) => AdminBuilder::build_drop_space(node, storage, context),
+            PlanNodeEnum::DescSpace(node) => AdminBuilder::build_desc_space(node, storage, context),
+            PlanNodeEnum::ShowSpaces(node) => {
+                AdminBuilder::build_show_spaces(node, storage, context)
+            }
 
             // Manage Executor – Tag Management
-            PlanNodeEnum::CreateTag(node) => self
-                .builders
-                .admin()
-                .build_create_tag(node, storage, context),
-            PlanNodeEnum::AlterTag(node) => self
-                .builders
-                .admin()
-                .build_alter_tag(node, storage, context),
-            PlanNodeEnum::DescTag(node) => {
-                self.builders.admin().build_desc_tag(node, storage, context)
-            }
-            PlanNodeEnum::DropTag(node) => {
-                self.builders.admin().build_drop_tag(node, storage, context)
-            }
-            PlanNodeEnum::ShowTags(node) => self
-                .builders
-                .admin()
-                .build_show_tags(node, storage, context),
+            PlanNodeEnum::CreateTag(node) => AdminBuilder::build_create_tag(node, storage, context),
+            PlanNodeEnum::AlterTag(node) => AdminBuilder::build_alter_tag(node, storage, context),
+            PlanNodeEnum::DescTag(node) => AdminBuilder::build_desc_tag(node, storage, context),
+            PlanNodeEnum::DropTag(node) => AdminBuilder::build_drop_tag(node, storage, context),
+            PlanNodeEnum::ShowTags(node) => AdminBuilder::build_show_tags(node, storage, context),
 
             // Manage Executor – Edge Management
-            PlanNodeEnum::CreateEdge(node) => self
-                .builders
-                .admin()
-                .build_create_edge(node, storage, context),
-            PlanNodeEnum::AlterEdge(node) => self
-                .builders
-                .admin()
-                .build_alter_edge(node, storage, context),
-            PlanNodeEnum::DescEdge(node) => self
-                .builders
-                .admin()
-                .build_desc_edge(node, storage, context),
-            PlanNodeEnum::DropEdge(node) => self
-                .builders
-                .admin()
-                .build_drop_edge(node, storage, context),
-            PlanNodeEnum::ShowEdges(node) => self
-                .builders
-                .admin()
-                .build_show_edges(node, storage, context),
+            PlanNodeEnum::CreateEdge(node) => {
+                AdminBuilder::build_create_edge(node, storage, context)
+            }
+            PlanNodeEnum::AlterEdge(node) => AdminBuilder::build_alter_edge(node, storage, context),
+            PlanNodeEnum::DescEdge(node) => AdminBuilder::build_desc_edge(node, storage, context),
+            PlanNodeEnum::DropEdge(node) => AdminBuilder::build_drop_edge(node, storage, context),
+            PlanNodeEnum::ShowEdges(node) => AdminBuilder::build_show_edges(node, storage, context),
 
             // Manage Executor – Tag Index Management
-            PlanNodeEnum::CreateTagIndex(node) => self
-                .builders
-                .admin()
-                .build_create_tag_index(node, storage, context),
-            PlanNodeEnum::DropTagIndex(node) => self
-                .builders
-                .admin()
-                .build_drop_tag_index(node, storage, context),
-            PlanNodeEnum::DescTagIndex(node) => self
-                .builders
-                .admin()
-                .build_desc_tag_index(node, storage, context),
-            PlanNodeEnum::ShowTagIndexes(node) => self
-                .builders
-                .admin()
-                .build_show_tag_indexes(node, storage, context),
-            PlanNodeEnum::RebuildTagIndex(node) => self
-                .builders
-                .admin()
-                .build_rebuild_tag_index(node, storage, context),
+            PlanNodeEnum::CreateTagIndex(node) => {
+                AdminBuilder::build_create_tag_index(node, storage, context)
+            }
+            PlanNodeEnum::DropTagIndex(node) => {
+                AdminBuilder::build_drop_tag_index(node, storage, context)
+            }
+            PlanNodeEnum::DescTagIndex(node) => {
+                AdminBuilder::build_desc_tag_index(node, storage, context)
+            }
+            PlanNodeEnum::ShowTagIndexes(node) => {
+                AdminBuilder::build_show_tag_indexes(node, storage, context)
+            }
+            PlanNodeEnum::RebuildTagIndex(node) => {
+                AdminBuilder::build_rebuild_tag_index(node, storage, context)
+            }
 
             // Manage Executor – Edge Index Management
-            PlanNodeEnum::CreateEdgeIndex(node) => self
-                .builders
-                .admin()
-                .build_create_edge_index(node, storage, context),
-            PlanNodeEnum::DropEdgeIndex(node) => self
-                .builders
-                .admin()
-                .build_drop_edge_index(node, storage, context),
-            PlanNodeEnum::DescEdgeIndex(node) => self
-                .builders
-                .admin()
-                .build_desc_edge_index(node, storage, context),
-            PlanNodeEnum::ShowEdgeIndexes(node) => self
-                .builders
-                .admin()
-                .build_show_edge_indexes(node, storage, context),
-            PlanNodeEnum::RebuildEdgeIndex(node) => self
-                .builders
-                .admin()
-                .build_rebuild_edge_index(node, storage, context),
+            PlanNodeEnum::CreateEdgeIndex(node) => {
+                AdminBuilder::build_create_edge_index(node, storage, context)
+            }
+            PlanNodeEnum::DropEdgeIndex(node) => {
+                AdminBuilder::build_drop_edge_index(node, storage, context)
+            }
+            PlanNodeEnum::DescEdgeIndex(node) => {
+                AdminBuilder::build_desc_edge_index(node, storage, context)
+            }
+            PlanNodeEnum::ShowEdgeIndexes(node) => {
+                AdminBuilder::build_show_edge_indexes(node, storage, context)
+            }
+            PlanNodeEnum::RebuildEdgeIndex(node) => {
+                AdminBuilder::build_rebuild_edge_index(node, storage, context)
+            }
 
             // Manage Executor – User Management
-            PlanNodeEnum::CreateUser(node) => self
-                .builders
-                .admin()
-                .build_create_user(node, storage, context),
-            PlanNodeEnum::DropUser(node) => self
-                .builders
-                .admin()
-                .build_drop_user(node, storage, context),
-            PlanNodeEnum::AlterUser(node) => self
-                .builders
-                .admin()
-                .build_alter_user(node, storage, context),
-            PlanNodeEnum::ChangePassword(node) => self
-                .builders
-                .admin()
-                .build_change_password(node, storage, context),
-            PlanNodeEnum::GrantRole(node) => self
-                .builders
-                .admin()
-                .build_grant_role(node, storage, context),
-            PlanNodeEnum::RevokeRole(node) => self
-                .builders
-                .admin()
-                .build_revoke_role(node, storage, context),
+            PlanNodeEnum::CreateUser(node) => {
+                AdminBuilder::build_create_user(node, storage, context)
+            }
+            PlanNodeEnum::DropUser(node) => AdminBuilder::build_drop_user(node, storage, context),
+            PlanNodeEnum::AlterUser(node) => AdminBuilder::build_alter_user(node, storage, context),
+            PlanNodeEnum::ChangePassword(node) => {
+                AdminBuilder::build_change_password(node, storage, context)
+            }
+            PlanNodeEnum::GrantRole(node) => AdminBuilder::build_grant_role(node, storage, context),
+            PlanNodeEnum::RevokeRole(node) => {
+                AdminBuilder::build_revoke_role(node, storage, context)
+            }
 
             // Manage Executor – Space Management (Supplementary)
-            PlanNodeEnum::SwitchSpace(node) => self
-                .builders
-                .admin()
-                .build_switch_space(node, storage, context),
-            PlanNodeEnum::AlterSpace(node) => self
-                .builders
-                .admin()
-                .build_alter_space(node, storage, context),
-            PlanNodeEnum::ClearSpace(node) => self
-                .builders
-                .admin()
-                .build_clear_space(node, storage, context),
+            PlanNodeEnum::SwitchSpace(node) => {
+                AdminBuilder::build_switch_space(node, storage, context)
+            }
+            PlanNodeEnum::AlterSpace(node) => {
+                AdminBuilder::build_alter_space(node, storage, context)
+            }
+            PlanNodeEnum::ClearSpace(node) => {
+                AdminBuilder::build_clear_space(node, storage, context)
+            }
 
             // Management Executor – Query Management
-            PlanNodeEnum::ShowStats(node) => self
-                .builders
-                .admin()
-                .build_show_stats(node, storage, context),
+            PlanNodeEnum::ShowStats(node) => AdminBuilder::build_show_stats(node, storage, context),
         }
     }
 
@@ -510,7 +387,6 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 config,
                 recursion_detector: RecursionDetector::new(max_recursion_depth),
                 safety_validator,
-                builders: Builders::new(),
             };
 
             temp_factory.create_executor(body, storage.clone(), context)?
@@ -568,7 +444,6 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 config,
                 recursion_detector: RecursionDetector::new(max_recursion_depth),
                 safety_validator,
-                builders: Builders::new(),
             };
 
             temp_factory.create_executor(if_node, storage.clone(), context)?
@@ -585,7 +460,6 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                     config,
                     recursion_detector: RecursionDetector::new(max_recursion_depth),
                     safety_validator,
-                    builders: Builders::new(),
                 };
 
                 Some(temp_factory.create_executor(else_node, storage.clone(), context)?)
@@ -614,7 +488,6 @@ impl<S: StorageClient + 'static> Clone for ExecutorFactory<S> {
             config: self.config.clone(),
             recursion_detector: RecursionDetector::new(self.config.max_recursion_depth),
             safety_validator: SafetyValidator::new(self.config.clone()),
-            builders: Builders::new(),
         }
     }
 }

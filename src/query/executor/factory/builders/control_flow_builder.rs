@@ -38,7 +38,6 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
 
     /// Constructing a Loop Executor
     pub fn build_loop(
-        &self,
         node: &LoopNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -69,7 +68,6 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
 
     /// Building the Select Executor
     pub fn build_select(
-        &self,
         node: &SelectNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -107,7 +105,6 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
 
     /// Constructing an Argument Executor
     pub fn build_argument(
-        &self,
         node: &ArgumentNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -123,7 +120,6 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
 
     /// Constructing a PassThrough executor
     pub fn build_pass_through(
-        &self,
         node: &PassThroughNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -135,7 +131,6 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
 
     /// Building the DataCollect executor
     pub fn build_data_collect(
-        &self,
         node: &DataCollectNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,

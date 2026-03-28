@@ -36,7 +36,6 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
 
     /// Constructing the Expand executor
     pub fn build_expand(
-        &self,
         node: &ExpandNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -56,7 +55,6 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
 
     /// Building the ExpandAll executor
     pub fn build_expand_all(
-        &self,
         node: &ExpandAllNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -78,7 +76,6 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
 
     /// Building the Traverse executor
     pub fn build_traverse(
-        &self,
         node: &TraverseNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -98,7 +95,6 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
 
     /// Building the AllPaths executor
     pub fn build_all_paths(
-        &self,
         node: &AllPathsNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -118,7 +114,6 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
 
     /// Building the ShortestPath executor
     pub fn build_shortest_path(
-        &self,
         node: &ShortestPathNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -143,7 +138,6 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
 
     /// Building the BFSShortest executor
     pub fn build_bfs_shortest(
-        &self,
         node: &BFSShortestNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -170,7 +164,6 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
 
     /// Constructing the MultiShortestPath executor
     pub fn build_multi_shortest_path(
-        &self,
         node: &MultiShortestPathNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,

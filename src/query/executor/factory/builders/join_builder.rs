@@ -49,7 +49,6 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
 
     /// Constructing the InnerJoin executor
     pub fn build_inner_join(
-        &self,
         node: &InnerJoinNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -74,7 +73,6 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
 
     /// Constructing the HashInnerJoin executor
     pub fn build_hash_inner_join(
-        &self,
         node: &HashInnerJoinNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -99,7 +97,6 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
 
     /// Building the LeftJoin executor
     pub fn build_left_join(
-        &self,
         node: &LeftJoinNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -123,7 +120,6 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
 
     /// Constructing the HashLeftJoin executor
     pub fn build_hash_left_join(
-        &self,
         node: &HashLeftJoinNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -148,7 +144,6 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
 
     /// Constructing the FullOuterJoin executor
     pub fn build_full_outer_join(
-        &self,
         node: &FullOuterJoinNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -176,7 +171,6 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
 
     /// Building the CrossJoin executor
     pub fn build_cross_join(
-        &self,
         node: &CrossJoinNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,

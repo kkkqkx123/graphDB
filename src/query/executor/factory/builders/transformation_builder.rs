@@ -34,7 +34,6 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
 
     /// Building the Unwind executor
     pub fn build_unwind(
-        &self,
         node: &UnwindNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -59,7 +58,6 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
 
     /// Constructing the Assign executor
     pub fn build_assign(
-        &self,
         node: &AssignNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -84,7 +82,6 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
 
     /// Building the Materialize executor
     pub fn build_materialize(
-        &self,
         node: &MaterializeNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -101,7 +98,6 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
 
     /// Constructing the AppendVertices executor
     pub fn build_append_vertices(
-        &self,
         node: &AppendVerticesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -133,7 +129,6 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
 
     /// Constructing the RollUpApply executor
     pub fn build_rollup_apply(
-        &self,
         node: &RollUpApplyNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -173,7 +168,6 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
 
     /// Constructing the PatternApply executor
     pub fn build_pattern_apply(
-        &self,
         node: &PatternApplyNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,

@@ -28,7 +28,6 @@ impl<S: StorageClient + Send + 'static> SetOperationBuilder<S> {
 
     /// Building a Union executor
     pub fn build_union(
-        &self,
         node: &UnionNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -53,7 +52,6 @@ impl<S: StorageClient + Send + 'static> SetOperationBuilder<S> {
 
     /// Building the Minus executor
     pub fn build_minus(
-        &self,
         node: &MinusNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -77,7 +75,6 @@ impl<S: StorageClient + Send + 'static> SetOperationBuilder<S> {
 
     /// Constructing the Intersect executor
     pub fn build_intersect(
-        &self,
         node: &IntersectNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,

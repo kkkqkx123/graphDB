@@ -32,7 +32,6 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
 
     /// Building a Filter Executor
     pub fn build_filter(
-        &self,
         node: &FilterNode,
         storage: Arc<Mutex<S>>,
         _context: &ExecutionContext,
@@ -46,7 +45,6 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
 
     /// Building the Project Executor
     pub fn build_project(
-        &self,
         node: &ProjectNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -70,7 +68,6 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
 
     /// Building the Limit executor
     pub fn build_limit(
-        &self,
         node: &LimitNode,
         storage: Arc<Mutex<S>>,
         _context: &ExecutionContext,
@@ -88,7 +85,6 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
 
     /// Building the Sort executor
     pub fn build_sort(
-        &self,
         node: &SortNode,
         storage: Arc<Mutex<S>>,
         _context: &ExecutionContext,
@@ -124,7 +120,6 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
 
     /// Building a TopN executor
     pub fn build_topn(
-        &self,
         node: &TopNNode,
         storage: Arc<Mutex<S>>,
         _context: &ExecutionContext,
@@ -155,7 +150,6 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
 
     /// Building the Sample Executor
     pub fn build_sample(
-        &self,
         node: &SampleNode,
         storage: Arc<Mutex<S>>,
         _context: &ExecutionContext,
@@ -173,7 +167,6 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
 
     /// Building the Aggregate Executor
     pub fn build_aggregate(
-        &self,
         node: &AggregateNode,
         storage: Arc<Mutex<S>>,
         _context: &ExecutionContext,
@@ -206,7 +199,6 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
 
     /// Building a Dedup Executor
     pub fn build_dedup(
-        &self,
         node: &DedupNode,
         storage: Arc<Mutex<S>>,
         _context: &ExecutionContext,

@@ -321,7 +321,10 @@ mod tests {
 
     #[test]
     fn test_public_error() {
-        let err = PublicError::new(ErrorCode::ResourceNotFound, "user does not exist".to_string());
+        let err = PublicError::new(
+            ErrorCode::ResourceNotFound,
+            "user does not exist".to_string(),
+        );
         assert_eq!(err.code, ErrorCode::ResourceNotFound);
         assert_eq!(err.message, "user does not exist");
 

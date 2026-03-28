@@ -52,7 +52,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the CreateSpace executor
     pub fn build_create_space(
-        &self,
         node: &CreateSpaceNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -71,7 +70,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the DropSpace executor
     pub fn build_drop_space(
-        &self,
         node: &DropSpaceNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -87,7 +85,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the DescSpace executor
     pub fn build_desc_space(
-        &self,
         node: &DescSpaceNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -103,7 +100,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the ShowSpaces executor
     pub fn build_show_spaces(
-        &self,
         _node: &ShowSpacesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -117,7 +113,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the CreateTag executor
     pub fn build_create_tag(
-        &self,
         node: &CreateTagNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -137,7 +132,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the AlterTag executor
     pub fn build_alter_tag(
-        &self,
         node: &AlterTagNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -164,7 +158,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the DescTag executor
     pub fn build_desc_tag(
-        &self,
         node: &DescTagNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -181,7 +174,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the DropTag executor
     pub fn build_drop_tag(
-        &self,
         node: &DropTagNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -198,7 +190,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Constructing the ShowTags executor
     pub fn build_show_tags(
-        &self,
         _node: &ShowTagsNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -216,7 +207,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the CreateEdge executor
     pub fn build_create_edge(
-        &self,
         node: &CreateEdgeNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -239,7 +229,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the AlterEdge executor
     pub fn build_alter_edge(
-        &self,
         node: &AlterEdgeNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -268,7 +257,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the DescEdge executor
     pub fn build_desc_edge(
-        &self,
         node: &DescEdgeNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -285,7 +273,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the DropEdge executor
     pub fn build_drop_edge(
-        &self,
         node: &DropEdgeNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -302,7 +289,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Constructing the ShowEdges executor
     pub fn build_show_edges(
-        &self,
         _node: &ShowEdgesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -320,7 +306,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Construct the CreateTagIndex executor.
     pub fn build_create_tag_index(
-        &self,
         node: &CreateTagIndexNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -353,7 +338,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the DropTagIndex executor
     pub fn build_drop_tag_index(
-        &self,
         node: &DropTagIndexNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -370,7 +354,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Constructing the DescTagIndex executor
     pub fn build_desc_tag_index(
-        &self,
         node: &DescTagIndexNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -387,7 +370,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Constructing the ShowTagIndexes executor
     pub fn build_show_tag_indexes(
-        &self,
         _node: &ShowTagIndexesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -404,7 +386,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Constructing the RebuildTagIndex executor
     pub fn build_rebuild_tag_index(
-        &self,
         node: &RebuildTagIndexNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -423,7 +404,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Build the CreateEdgeIndex executor.
     pub fn build_create_edge_index(
-        &self,
         node: &CreateEdgeIndexNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -456,7 +436,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Constructing the DropEdgeIndex executor
     pub fn build_drop_edge_index(
-        &self,
         node: &DropEdgeIndexNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -473,7 +452,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Constructing the DescEdgeIndex executor
     pub fn build_desc_edge_index(
-        &self,
         node: &DescEdgeIndexNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -490,7 +468,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Constructing the ShowEdgeIndexes executor
     pub fn build_show_edge_indexes(
-        &self,
         _node: &ShowEdgeIndexesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -507,7 +484,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Constructing the RebuildEdgeIndex executor
     pub fn build_rebuild_edge_index(
-        &self,
         node: &RebuildEdgeIndexNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -526,7 +502,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Constructing the CreateUser executor
     pub fn build_create_user(
-        &self,
         node: &CreateUserNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -547,7 +522,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Constructing the AlterUser executor
     pub fn build_alter_user(
-        &self,
         node: &AlterUserNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -567,7 +541,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the DropUser executor
     pub fn build_drop_user(
-        &self,
         node: &DropUserNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -584,7 +557,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Constructing the ChangePassword executor
     pub fn build_change_password(
-        &self,
         node: &ChangePasswordNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -605,7 +577,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the GrantRole executor
     pub fn build_grant_role(
-        &self,
         node: &GrantRoleNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -630,7 +601,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the RevokeRole executor
     pub fn build_revoke_role(
-        &self,
         node: &RevokeRoleNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -647,7 +617,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the SwitchSpace executor
     pub fn build_switch_space(
-        &self,
         node: &SwitchSpaceNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -663,7 +632,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the AlterSpace executor
     pub fn build_alter_space(
-        &self,
         node: &AlterSpaceNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -689,7 +657,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the ClearSpace executor
     pub fn build_clear_space(
-        &self,
         node: &ClearSpaceNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -705,7 +672,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Building the ShowStats executor
     pub fn build_show_stats(
-        &self,
         node: &ShowStatsNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,

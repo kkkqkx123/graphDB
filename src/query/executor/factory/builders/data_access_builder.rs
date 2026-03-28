@@ -34,7 +34,6 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
 
     /// Building the ScanVertices executor
     pub fn build_scan_vertices(
-        &self,
         node: &ScanVerticesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -53,7 +52,6 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
 
     /// Building the ScanEdges executor
     pub fn build_scan_edges(
-        &self,
         node: &ScanEdgesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -71,7 +69,6 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
 
     /// Constructing the GetVertices executor
     pub fn build_get_vertices(
-        &self,
         node: &GetVerticesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -95,7 +92,6 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
 
     /// Constructing the GetNeighbors executor
     pub fn build_get_neighbors(
-        &self,
         node: &GetNeighborsNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -120,7 +116,6 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
 
     /// Building the EdgeIndexScan executor
     pub fn build_edge_index_scan(
-        &self,
         node: &EdgeIndexScanNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -150,7 +145,6 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
 
     /// Constructing the GetEdges executor
     pub fn build_get_edges(
-        &self,
         node: &GetEdgesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -172,7 +166,6 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
 
     /// Building the IndexScan executor (for scanning tag indexes)
     pub fn build_index_scan(
-        &self,
         node: &IndexScanNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,

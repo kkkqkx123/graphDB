@@ -1,11 +1,14 @@
 //! Actuator Factory Module
 //!
 //! Responsible for creating the corresponding executor instances based on the execution plan.
-//! The design follows a modular approach, with responsibilities being divided into multiple sub-modules.
-//! Parsers: These are programs responsible for interpreting various data elements such as vertex IDs, the direction of edges, and weight configurations.
-//! Validators: Components responsible for verifying plan nodes, performing recursive checks, and ensuring security.
-//! Constructors: These are responsible for creating various types of executors.
-//! Executors: These are the components responsible for executing the execution plan.
+//!
+//! ## Module Structure
+//!
+//! - `parsers`: Parse vertex IDs, edge directions, weight configurations
+//! - `validators`: Verify plan nodes, recursive checks, security validation
+//! - `builders`: Builder structs for each executor category
+//! - `executor_factory`: Main factory coordinating creation
+//! - `executors`: Plan execution components
 
 pub mod builders;
 pub mod executor_factory;

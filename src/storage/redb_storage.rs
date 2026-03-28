@@ -64,10 +64,9 @@ impl RedbStorage {
                 }
             }
         } else {
-            Arc::new(
-                Database::create(&path)
-                    .map_err(|e| StorageError::DbError(format!("Failed to create the database: {}", e)))?,
-            )
+            Arc::new(Database::create(&path).map_err(|e| {
+                StorageError::DbError(format!("Failed to create the database: {}", e))
+            })?)
         };
 
         // Initialize the tables only when a new database is created.

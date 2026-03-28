@@ -29,7 +29,6 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
 
     /// Constructing the InsertVertices executor
     pub fn build_insert_vertices(
-        &self,
         node: &InsertVerticesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -94,7 +93,6 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
 
     /// Constructing the InsertEdges executor
     pub fn build_insert_edges(
-        &self,
         node: &InsertEdgesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -154,7 +152,6 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
 
     /// Building the Remove Executor
     pub fn build_remove(
-        &self,
         node: &RemoveNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
