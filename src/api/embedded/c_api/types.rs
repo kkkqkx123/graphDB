@@ -77,7 +77,7 @@ pub struct graphdb_string_t {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct graphdb_value_t {
-    /// 值类型
+    /// Value types
     pub type_: graphdb_value_type_t,
     /// value data
     pub data: graphdb_value_data_t,
@@ -95,15 +95,15 @@ impl std::fmt::Debug for graphdb_value_t {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub union graphdb_value_data_t {
-    /// 布尔值
+    /// Boolean values
     pub boolean: bool,
-    /// 整数
+    /// Integer
     pub integer: i64,
-    /// 浮点数
+    /// Floating-point number
     pub floating: f64,
-    /// 字符串
+    /// String
     pub string: graphdb_string_t,
-    /// 二进制数据
+    /// Binary data
     pub blob: graphdb_blob_t,
     /// pointer on a gauge
     pub ptr: *mut c_void,

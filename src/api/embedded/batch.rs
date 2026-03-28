@@ -32,7 +32,7 @@ use crate::storage::StorageClient;
 ///
 // Perform batch insertion
 /// let result = inserter.execute()?;
-/// println!("插入了 {} 个顶点", result.vertices_inserted);
+/// println!("Inserted {} vertices", result.vertices_inserted);
 /// # Ok(())
 /// # }
 /// ```
@@ -111,11 +111,11 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
 
     /// Add Edge
     ///
-    /// # 参数
+    /// # Parameters
     /// - `edge` - the edge to be inserted
     ///
-    /// # 返回
-    /// - 返回自身，支持链式调用
+    /// # Back
+    /// Return itself, supporting chained calls.
     pub fn add_edge(&mut self, edge: Edge) -> &mut Self {
         self.edge_buffer.push(edge);
 
@@ -129,7 +129,7 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
 
     /// Adding multiple vertices
     ///
-    /// # 参数
+    /// # Parameters
     /// - `vertices` - a list of vertices to be inserted
     pub fn add_vertices(&mut self, vertices: Vec<Vertex>) -> &mut Self {
         for vertex in vertices {
@@ -140,7 +140,7 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
 
     /// Adding multiple edges
     ///
-    /// # 参数
+    /// # Parameters
     /// - `edges` - a list of edges to be inserted
     pub fn add_edges(&mut self, edges: Vec<Edge>) -> &mut Self {
         for edge in edges {
@@ -153,7 +153,7 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
     ///
     /// Flush all buffered data and return results
     ///
-    /// # 返回
+    /// # Return
     /// - Returns batch operation results on success
     /// - Return error on failure
     pub fn execute(mut self) -> CoreResult<BatchResult> {
@@ -176,7 +176,7 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
         let space_name = self
             .session
             .space_name()
-            .ok_or_else(|| CoreError::InvalidParameter("未选择图空间".to_string()))?;
+            .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
 
         // Remove vertices from the buffer
         let vertices_to_insert: Vec<Vertex> = std::mem::take(&mut self.vertex_buffer);
@@ -195,7 +195,7 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
                 self.total_inserted.errors.push(BatchError {
                     index: self.total_inserted.vertices_inserted,
                     item_type: BatchItemType::Vertex,
-                    error: format!("批量插入顶点失败: {}", e),
+                    error: format!("Batch vertex insertion failed: {}", e),
                 });
             }
         }
@@ -213,7 +213,7 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
         let space_name = self
             .session
             .space_name()
-            .ok_or_else(|| CoreError::InvalidParameter("未选择图空间".to_string()))?;
+            .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
 
         // Extract the edges from the buffer.
         let edges_to_insert: Vec<Edge> = std::mem::take(&mut self.edge_buffer);
@@ -232,7 +232,7 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
                 self.total_inserted.errors.push(BatchError {
                     index: self.total_inserted.edges_inserted,
                     item_type: BatchItemType::Edge,
-                    error: format!("批量插入边失败: {}", e),
+                    error: format!("Batch insertion of edges failed: {}", e),
                 });
             }
         }

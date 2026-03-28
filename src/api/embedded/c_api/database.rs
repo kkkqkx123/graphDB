@@ -303,7 +303,10 @@ mod tests {
 
         let rc = unsafe { graphdb_open(path_cstring.as_ptr(), &mut db) };
         if rc != graphdb_error_code_t::GRAPHDB_OK as c_int {
-            panic!("打开数据库失败，错误码: {}, 路径: {:?}", rc, db_path);
+            panic!(
+                "Failed to open database, error code: {}, path: {:?}",
+                rc, db_path
+            );
         }
         assert!(!db.is_null());
 

@@ -36,14 +36,14 @@ impl<S: StorageClient> SchemaApi<S> {
             .create_space(&space_info)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
-        log::info!("创建图空间成功: {}", name);
+        log::info!("Created graph space successfully: {}", name);
         Ok(())
     }
 
     /// Deletion of map space
     ///
-    /// # 参数
-    /// - `name`: 空间名称
+    /// # Parameters
+    /// - `name`: space name
     pub fn drop_space(&self, name: &str) -> CoreResult<()> {
         let mut storage = self.storage.lock();
         let result = storage
@@ -51,17 +51,20 @@ impl<S: StorageClient> SchemaApi<S> {
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
         if result {
-            log::info!("删除图空间成功: {}", name);
+            log::info!("Deleted graph space successfully: {}", name);
             Ok(())
         } else {
-            Err(CoreError::NotFound(format!("图空间 '{}' 不存在", name)))
+            Err(CoreError::NotFound(format!(
+                "Graph space '{}' does not exist",
+                name
+            )))
         }
     }
 
     /// Use of map space
     ///
-    /// # 参数
-    /// - `name`: 空间名称
+    /// # Parameters
+    /// - `name`: space name
     ///
     /// # Return
     /// Space ID
@@ -71,13 +74,13 @@ impl<S: StorageClient> SchemaApi<S> {
             .get_space_id(name)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
-        log::info!("使用图空间: {} (ID: {})", name, space_id);
+        log::info!("Using graph space: {} (ID: {})", name, space_id);
         Ok(space_id)
     }
 
     /// Creating Tags
     ///
-    /// # 参数
+    /// # Parameters
     /// `space_id`: Space ID
     /// - `name`: label name
     /// - `properties`: list of property definitions
@@ -102,11 +105,11 @@ impl<S: StorageClient> SchemaApi<S> {
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
         if result {
-            log::info!("创建标签成功: {} in space {}", name, space_id);
+            log::info!("Created tag successfully: {} in space {}", name, space_id);
             Ok(())
         } else {
             Err(CoreError::SchemaOperationFailed(format!(
-                "标签 '{}' 已存在",
+                "Tag '{}' already exists",
                 name
             )))
         }
@@ -114,9 +117,9 @@ impl<S: StorageClient> SchemaApi<S> {
 
     /// Delete Tags
     ///
-    /// # 参数
-    /// - `space_id`: 空间 ID
-    /// - `name`: 标签名称
+    /// # Parameters
+    /// - `space_id`: Space ID
+    /// - `name`: tag name
     pub fn drop_tag(&self, space_id: u64, name: &str) -> CoreResult<()> {
         let space_name = self.get_space_name_by_id(space_id)?;
 
@@ -126,19 +129,22 @@ impl<S: StorageClient> SchemaApi<S> {
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
         if result {
-            log::info!("删除标签成功: {} from space {}", name, space_id);
+            log::info!("Deleted tag successfully: {} from space {}", name, space_id);
             Ok(())
         } else {
-            Err(CoreError::NotFound(format!("标签 '{}' 不存在", name)))
+            Err(CoreError::NotFound(format!(
+                "Tag '{}' does not exist",
+                name
+            )))
         }
     }
 
     /// Creating Edge Types
     ///
-    /// # 参数
-    /// - `space_id`: 空间 ID
-    /// - `name`: name of side type
-    /// - `properties`: 属性定义列表
+    /// # Parameters
+    /// - `space_id`: space ID
+    /// - `name`: name of edge type
+    /// - `properties`: list of property definitions
     pub fn create_edge_type(
         &self,
         space_id: u64,
@@ -159,11 +165,15 @@ impl<S: StorageClient> SchemaApi<S> {
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
         if result {
-            log::info!("创建边类型成功: {} in space {}", name, space_id);
+            log::info!(
+                "Created edge type successfully: {} in space {}",
+                name,
+                space_id
+            );
             Ok(())
         } else {
             Err(CoreError::SchemaOperationFailed(format!(
-                "边类型 '{}' 已存在",
+                "Edge type '{}' already exists",
                 name
             )))
         }
@@ -171,9 +181,9 @@ impl<S: StorageClient> SchemaApi<S> {
 
     /// Delete Edge Type
     ///
-    /// # 参数
-    /// - `space_id`: 空间 ID
-    /// - `name`: 边类型名称
+    /// # Parameters
+    /// - `space_id`: Space ID
+    /// - `name`: name of edge type
     pub fn drop_edge_type(&self, space_id: u64, name: &str) -> CoreResult<()> {
         let space_name = self.get_space_name_by_id(space_id)?;
 
@@ -183,17 +193,24 @@ impl<S: StorageClient> SchemaApi<S> {
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
         if result {
-            log::info!("删除边类型成功: {} from space {}", name, space_id);
+            log::info!(
+                "Deleted edge type successfully: {} from space {}",
+                name,
+                space_id
+            );
             Ok(())
         } else {
-            Err(CoreError::NotFound(format!("边类型 '{}' 不存在", name)))
+            Err(CoreError::NotFound(format!(
+                "Edge type '{}' does not exist",
+                name
+            )))
         }
     }
 
     /// Creating Indexes
     ///
-    /// # 参数
-    /// - `space_id`: 空间 ID
+    /// # Parameters
+    /// - `space_id`: Space ID
     /// - **Name**: Index name
     /// - `target`: index target (label or edge type)
     pub fn create_index(&self, space_id: u64, name: &str, target: IndexTarget) -> CoreResult<()> {
@@ -211,8 +228,9 @@ impl<S: StorageClient> SchemaApi<S> {
                     .get_tag(&space_name, &tag_name)
                     .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
-                let tag_info = tag_info
-                    .ok_or_else(|| CoreError::NotFound(format!("标签 '{}' 不存在", tag_name)))?;
+                let tag_info = tag_info.ok_or_else(|| {
+                    CoreError::NotFound(format!("Tag '{}' does not exist", tag_name))
+                })?;
 
                 // Building Index Fields
                 let index_fields = self.build_index_fields(&fields, &tag_info.properties)?;
@@ -228,8 +246,9 @@ impl<S: StorageClient> SchemaApi<S> {
                     .get_edge_type(&space_name, &edge_name)
                     .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
-                let edge_info = edge_info
-                    .ok_or_else(|| CoreError::NotFound(format!("边类型 '{}' 不存在", edge_name)))?;
+                let edge_info = edge_info.ok_or_else(|| {
+                    CoreError::NotFound(format!("Edge type '{}' does not exist", edge_name))
+                })?;
 
                 // Building Index Fields
                 let index_fields = self.build_index_fields(&fields, &edge_info.properties)?;
@@ -274,11 +293,15 @@ impl<S: StorageClient> SchemaApi<S> {
         .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
         if result {
-            log::info!("创建索引成功: {} in space {:?}", name, space_id);
+            log::info!(
+                "Created index successfully: {} in space {:?}",
+                name,
+                space_id
+            );
             Ok(())
         } else {
             Err(CoreError::SchemaOperationFailed(format!(
-                "索引 '{}' 创建失败",
+                "Failed to create index '{}'",
                 name
             )))
         }
@@ -286,9 +309,9 @@ impl<S: StorageClient> SchemaApi<S> {
 
     /// Delete the index.
     ///
-    /// # 参数
-    /// - `space_id`: 空间 ID
-    /// - `name`: 索引名称
+    /// # Parameters
+    /// - `space_id`: Space ID
+    /// - `name`: index name
     pub fn drop_index(&self, space_id: u64, name: &str) -> CoreResult<()> {
         let space_name = self.get_space_name_by_id(space_id)?;
 
@@ -300,7 +323,11 @@ impl<S: StorageClient> SchemaApi<S> {
                 .drop_tag_index(&space_name, name)
                 .map_err(|e| CoreError::StorageError(e.to_string()))?;
             if result {
-                log::info!("删除标签索引成功: {} from space {}", name, space_id);
+                log::info!(
+                    "Deleted tag index successfully: {} from space {}",
+                    name,
+                    space_id
+                );
                 return Ok(());
             }
         }
@@ -311,20 +338,27 @@ impl<S: StorageClient> SchemaApi<S> {
                 .drop_edge_index(&space_name, name)
                 .map_err(|e| CoreError::StorageError(e.to_string()))?;
             if result {
-                log::info!("删除边索引成功: {} from space {}", name, space_id);
+                log::info!(
+                    "Deleted edge index successfully: {} from space {}",
+                    name,
+                    space_id
+                );
                 return Ok(());
             }
         }
 
-        Err(CoreError::NotFound(format!("索引 '{}' 不存在", name)))
+        Err(CoreError::NotFound(format!(
+            "Index '{}' does not exist",
+            name
+        )))
     }
 
     /// View the Schema
     ///
-    /// # 参数
-    /// - `space_id`: 空间 ID
+    /// # Parameters
+    /// - `space_id`: Space ID
     ///
-    /// # 返回
+    /// # Back
     /// The “Schema” describes a string.
     pub fn describe_schema(&self, space_id: u64) -> CoreResult<String> {
         let storage = self.storage.lock();
@@ -333,7 +367,7 @@ impl<S: StorageClient> SchemaApi<S> {
         let space_info = storage
             .get_space_by_id(space_id)
             .map_err(|e| CoreError::StorageError(e.to_string()))?
-            .ok_or_else(|| CoreError::NotFound(format!("空间 ID {} 不存在", space_id)))?;
+            .ok_or_else(|| CoreError::NotFound(format!("Space ID {} does not exist", space_id)))?;
 
         let space_name = &space_info.space_name;
 
@@ -356,17 +390,17 @@ impl<S: StorageClient> SchemaApi<S> {
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
         // Construct a descriptive string
-        let mut description = format!("图空间: {} (ID: {})\n", space_name, space_id);
-        description.push_str(&format!("VID 类型: {:?}\n", space_info.vid_type));
+        let mut description = format!("Graph space: {} (ID: {})", space_name, space_id);
+        description.push_str(&format!("VID Type: {:?}", space_info.vid_type));
         if let Some(ref comment) = space_info.comment {
-            description.push_str(&format!("注释: {}\n", comment));
+            description.push_str(&format!("Comment: {}", comment));
         }
         description.push('\n');
 
         // Tag information
-        description.push_str("标签:\n");
+        description.push_str("Tags:\n");
         if tags.is_empty() {
-            description.push_str("  (无)\n");
+            description.push_str("  (none)\n");
         } else {
             for tag in &tags {
                 description.push_str(&format!("  - {}\n", tag.tag_name));
@@ -383,9 +417,9 @@ impl<S: StorageClient> SchemaApi<S> {
         description.push('\n');
 
         // Edge type information
-        description.push_str("边类型:\n");
+        description.push_str("Edge types:\n");
         if edge_types.is_empty() {
-            description.push_str("  (无)\n");
+            description.push_str("  (none)\n");
         } else {
             for edge in &edge_types {
                 description.push_str(&format!("  - {}\n", edge.edge_type_name));
@@ -402,19 +436,19 @@ impl<S: StorageClient> SchemaApi<S> {
         description.push('\n');
 
         // Index information
-        description.push_str("索引:\n");
+        description.push_str("Indexes:\n");
         if tag_indexes.is_empty() && edge_indexes.is_empty() {
-            description.push_str("  (无)\n");
+            description.push_str("  (none)\n");
         } else {
             for idx in &tag_indexes {
-                description.push_str(&format!("  - {} (标签: {})\n", idx.name, idx.schema_name));
+                description.push_str(&format!("  - {} (tag: {})\n", idx.name, idx.schema_name));
             }
             for idx in &edge_indexes {
-                description.push_str(&format!("  - {} (边: {})\n", idx.name, idx.schema_name));
+                description.push_str(&format!("  - {} (edge: {})\n", idx.name, idx.schema_name));
             }
         }
 
-        log::info!("查看 Schema: space {}", space_id);
+        log::info!("Viewing Schema: space {}", space_id);
         Ok(description)
     }
 }
@@ -427,7 +461,7 @@ impl<S: StorageClient> SchemaApi<S> {
         let space_info = storage
             .get_space_by_id(space_id)
             .map_err(|e| CoreError::StorageError(e.to_string()))?
-            .ok_or_else(|| CoreError::NotFound(format!("空间 ID {} 不存在", space_id)))?;
+            .ok_or_else(|| CoreError::NotFound(format!("Space ID {} does not exist", space_id)))?;
         Ok(space_info.space_name)
     }
 
@@ -444,7 +478,7 @@ impl<S: StorageClient> SchemaApi<S> {
                 .iter()
                 .find(|p| &p.name == field_name)
                 .ok_or_else(|| {
-                    CoreError::InvalidParameter(format!("字段 '{}' 不存在", field_name))
+                    CoreError::InvalidParameter(format!("Field '{}' does not exist", field_name))
                 })?;
 
             // Create the corresponding Value type for the IndexField.
@@ -529,7 +563,7 @@ mod tests {
 
     fn create_mock_storage() -> Arc<Mutex<MockStorage>> {
         Arc::new(Mutex::new(
-            MockStorage::new().expect("创建 MockStorage 失败"),
+            MockStorage::new().expect("Failed to create MockStorage"),
         ))
     }
 

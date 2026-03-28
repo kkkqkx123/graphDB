@@ -133,7 +133,7 @@ impl TransactionConfig {
 /// Encapsulate transaction lifecycle management to ensure that transactions are properly committed or rolled back
 /// Supports savepoint functionality to allow partial rollback
 ///
-/// # 示例
+/// # Examples
 ///
 /// ```rust
 /// use graphdb::api::embedded::{GraphDatabase, DatabaseConfig};
@@ -200,13 +200,13 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
 
     /// Executing parameterized queries in a transaction
     ///
-    /// # 参数
-    /// - `query` - 查询语句字符串
+    /// # Parameters
+    /// - `query` - query statement string
     /// - `params` - query parameters
     ///
-    /// # 返回
-    /// - 成功时返回查询结果
-    /// - 失败时返回错误
+    /// # Back
+    /// - Returns query results on success
+    /// - Return error on failure
     pub fn execute_with_params(
         &self,
         query: &str,
@@ -228,9 +228,9 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
 
     /// Submission of transactions
     ///
-    /// # 返回
+    /// # Return
     /// Return () on success.
-    /// - 失败时返回错误
+    /// - Return error on failure
     ///
     /// # Note
     /// Cannot be reused after a transaction has been committed
@@ -247,11 +247,11 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
 
     /// Rolling back transactions
     ///
-    /// # 返回
-    /// - 成功时返回 ()
-    /// - 失败时返回错误
+    /// # Return
+    /// - Returns on success ()
+    /// - Return error on failure
     ///
-    /// # 注意
+    /// # Attention.
     /// Transaction rollback cannot be reused after
     pub fn rollback(mut self) -> CoreResult<()> {
         self.check_active()?;
@@ -268,14 +268,14 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     ///
     /// A save point allows the creation of a marker within a transaction, enabling rollback to that point without affecting the entire transaction.
     ///
-    /// # 参数
+    /// # Parameters
     /// `name` – Name of the save point (optional)
     ///
-    /// # 返回
+    /// # Return
     /// Return the save point ID when successful.
-    /// - 失败时返回错误
+    /// - Return error on failure
     ///
-    /// # 示例
+    /// # Examples
     ///
     /// ```rust
     /// use graphdb::api::embedded::GraphDatabase;
@@ -294,7 +294,7 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     // If necessary, it is possible to roll back to a previously saved state.
     /// txn.rollback_to_savepoint(sp)?;
     ///
-    /// // 提交事务
+    // Submission of transactions
     /// txn.commit()?;
     /// # Ok(())
     /// # }
@@ -313,12 +313,12 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     /// Roll back to the specified save point; all operations performed after that save point will be undone.
     /// However, the save point itself remains valid and can still be used.
     ///
-    /// # 参数
+    /// # Parameters
     /// `savepoint_id` – ID of the savepoint
     ///
-    /// # 返回
-    /// - 成功时返回 ()
-    /// - 失败时返回错误
+    /// # Return
+    /// - Returns on success ()
+    /// - Return error on failure
     pub fn rollback_to_savepoint(&self, savepoint_id: SavepointId) -> CoreResult<()> {
         self.check_active()?;
 
@@ -332,12 +332,12 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     ///
     /// Once a save point is released, it is no longer possible to revert back to that save point. However, no changes will be undone either.
     ///
-    /// # 参数
-    /// - `savepoint_id` - 保存点ID
+    /// # Parameters
+    /// - `savepoint_id` - savepoint ID
     ///
-    /// # 返回
-    /// - 成功时返回 ()
-    /// - 失败时返回错误
+    /// # Return
+    /// - Returns on success ()
+    /// - Return error on failure
     pub fn release_savepoint(&self, savepoint_id: SavepointId) -> CoreResult<()> {
         self.check_active()?;
 
@@ -349,11 +349,11 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
 
     /// Find a saved point by its name
     ///
-    /// # 参数
+    /// # Parameters
     /// "name" – The name of the save point.
     ///
-    /// # 返回
-    /// - 找到时返回 Some(SavepointId)
+    /// # Return
+    /// - Returns Some(SavepointId) when found
     /// - Return `None` when not found.
     pub fn find_savepoint(&self, name: &str) -> Option<SavepointId> {
         if !self.is_active() {
@@ -368,7 +368,7 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
 
     /// Retrieve all active save points.
     ///
-    /// # 返回
+    /// # Return
     /// List of active save point information
     pub fn list_savepoints(&self) -> Vec<SavepointInfo> {
         if !self.is_active() {
@@ -381,9 +381,9 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
 
     /// Obtaining transaction information
     ///
-    /// # 返回
+    /// # Return
     /// Return transaction information in case of success.
-    /// - 失败时返回错误
+    /// - Return error on failure
     pub fn info(&self) -> CoreResult<TransactionInfo> {
         let txn_manager = self.session.txn_manager();
         txn_manager
@@ -395,19 +395,19 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
                 elapsed_ms: info.elapsed.as_millis() as u64,
                 savepoint_count: info.savepoint_count,
             })
-            .ok_or_else(|| CoreError::TransactionFailed("事务未找到".to_string()))
+            .ok_or_else(|| CoreError::TransactionFailed("Transaction not found".to_string()))
     }
 
     /// Check whether the transaction is in an active state.
     fn check_active(&self) -> CoreResult<()> {
         if self.committed {
             return Err(CoreError::TransactionFailed(
-                "事务已提交，不能执行操作".to_string(),
+                "Transaction has been committed, cannot perform operations".to_string(),
             ));
         }
         if self.rolled_back {
             return Err(CoreError::TransactionFailed(
-                "事务已回滚，不能执行操作".to_string(),
+                "Transaction has been rolled back, cannot perform operations".to_string(),
             ));
         }
         Ok(())
@@ -462,7 +462,7 @@ pub struct TransactionInfo {
     pub id: u64,
     /// Transaction status
     pub state: String,
-    /// 是否只读
+    /// Read-only or not
     pub is_read_only: bool,
     /// Running time (milliseconds)
     pub elapsed_ms: u64,
@@ -471,7 +471,7 @@ pub struct TransactionInfo {
 }
 
 impl TransactionInfo {
-    /// 获取事务ID
+    /// Get Transaction ID
     pub fn id(&self) -> u64 {
         self.id
     }

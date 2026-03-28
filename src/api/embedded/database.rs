@@ -68,9 +68,9 @@ impl GraphDatabase<RedbStorage> {
 
     /// Create a memory database
     ///
-    /// # 返回
-    /// - 成功时返回 GraphDatabase 实例
-    /// - 失败时返回错误
+    /// # Back
+    /// - Returns the GraphDatabase instance on success
+    /// - Return error on failure
     pub fn open_in_memory() -> CoreResult<Self> {
         let config = DatabaseConfig::memory();
         Self::open_with_config(config)
@@ -78,22 +78,24 @@ impl GraphDatabase<RedbStorage> {
 
     /// Open the database using the configuration settings.
     ///
-    /// # 参数
+    /// # Parameters
     /// `config` – Database configuration
     ///
-    /// # 返回
-    /// - 成功时返回 GraphDatabase 实例
-    /// - 失败时返回错误
+    /// # Return
+    /// - Returns GraphDatabase instance on success
+    /// - Return error on failure
     pub fn open_with_config(config: DatabaseConfig) -> CoreResult<Self> {
         let storage = if config.is_memory() {
-            RedbStorage::new()
-                .map_err(|e| CoreError::StorageError(format!("初始化内存存储失败: {}", e)))?
+            RedbStorage::new().map_err(|e| {
+                CoreError::StorageError(format!("Failed to initialize memory store: {}", e))
+            })?
         } else {
             let path = config
                 .path()
-                .ok_or_else(|| CoreError::StorageError("数据库路径为空".to_string()))?;
-            RedbStorage::new_with_path(path.to_path_buf())
-                .map_err(|e| CoreError::StorageError(format!("初始化存储失败: {}", e)))?
+                .ok_or_else(|| CoreError::StorageError("Database path is empty".to_string()))?;
+            RedbStorage::new_with_path(path.to_path_buf()).map_err(|e| {
+                CoreError::StorageError(format!("Failed to initialize storage: {}", e))
+            })?
         };
 
         let storage = Arc::new(Mutex::new(storage));
@@ -119,9 +121,9 @@ impl GraphDatabase<RedbStorage> {
 impl<S: StorageClient + Clone + 'static> GraphDatabase<S> {
     /// Create a new session.
     ///
-    /// # 返回
+    /// # Return
     /// Return the Session instance upon successful completion.
-    /// - 失败时返回错误
+    /// - Return error on failure
     pub fn session(&self) -> CoreResult<Session<S>> {
         Ok(Session::new(self.inner.clone()))
     }
@@ -129,14 +131,14 @@ impl<S: StorageClient + Clone + 'static> GraphDatabase<S> {
     /// Perform simple queries (a convenient method)
     ///
     /// This method creates a temporary session to execute the query, which is suitable for simple, one-time query scenarios.
-    /// 对于复杂场景，建议使用 session() 创建会话。
+    /// For complex scenarios, it is recommended to use session() to create a session.
     ///
-    /// # 参数
+    /// # Parameters
     /// `query` – A string representing the query statement.
     ///
-    /// # 返回
+    /// # Return
     /// Return the query results when successful.
-    /// - 失败时返回错误
+    /// - Return error on failure
     pub fn execute(&self, query: &str) -> CoreResult<QueryResult> {
         let session = self.session()?;
         session.execute(query)
@@ -144,13 +146,13 @@ impl<S: StorageClient + Clone + 'static> GraphDatabase<S> {
 
     /// Executing parameterized queries (a convenient method)
     ///
-    /// # 参数
-    /// - `query` - 查询语句字符串
+    /// # Parameters
+    /// - `query` - query statement string
     /// - `params` – Query parameters
     ///
-    /// # 返回
-    /// - 成功时返回查询结果
-    /// - 失败时返回错误
+    /// # Return
+    /// - Returns query results on success
+    /// - Return error on failure
     pub fn execute_with_params(
         &self,
         query: &str,
@@ -162,13 +164,13 @@ impl<S: StorageClient + Clone + 'static> GraphDatabase<S> {
 
     /// Creating a graphical space (an easy method)
     ///
-    /// # 参数
+    /// # Parameters
     /// - `name' - space name
     /// `config` – Space configuration
     ///
-    /// # 返回
+    /// # Return
     /// - Returns on success ()
-    /// - 失败时返回错误
+    /// - Return error on failure
     pub fn create_space(&self, name: &str, space_config: SpaceConfig) -> CoreResult<()> {
         let session = self.session()?;
         session.create_space(name, space_config)
@@ -176,12 +178,12 @@ impl<S: StorageClient + Clone + 'static> GraphDatabase<S> {
 
     /// Deletion of map space (convenient method)
     ///
-    /// # 参数
-    /// - `name` - 空间名称
+    /// # Parameters
+    /// - `name' - space name
     ///
-    /// # 返回
-    /// - 成功时返回 ()
-    /// - 失败时返回错误
+    /// # Return
+    /// - Returns on success ()
+    /// - Return error on failure
     pub fn drop_space(&self, name: &str) -> CoreResult<()> {
         let session = self.session()?;
         session.drop_space(name)
@@ -205,7 +207,7 @@ impl<S: StorageClient + Clone + 'static> GraphDatabase<S> {
 
     /// Getting a reference to the storage client
     ///
-    /// # 返回
+    /// # Return
     /// - MutexGuard for Storage Clients
     pub fn storage(&self) -> parking_lot::MutexGuard<'_, S> {
         self.inner.storage.lock()
@@ -227,11 +229,12 @@ unsafe impl<S: StorageClient + Clone + 'static> Sync for GraphDatabase<S> {}
 impl GraphDatabase<MockStorage> {
     /// Create database for testing (using Mock storage)
     ///
-    /// 注意：此方法仅用于测试，实际使用时应使用 `GraphDatabase::open()`
+    /// Note: This method is for testing only, should use `GraphDatabase::open()` in production
     #[cfg(test)]
     pub fn open_test() -> CoreResult<Self> {
-        let storage = MockStorage::new()
-            .map_err(|e| CoreError::StorageError(format!("初始化Mock存储失败: {}", e)))?;
+        let storage = MockStorage::new().map_err(|e| {
+            CoreError::StorageError(format!("Failed to initialize Mock store: {}", e))
+        })?;
 
         let storage = Arc::new(Mutex::new(storage));
         let db = storage.lock().get_db().clone();

@@ -98,7 +98,7 @@ impl GraphSessionManager {
     /// Create a new session manager.
     ///
     /// This constructor does not automatically initiate background cleanup tasks.
-    /// 需要显式调用 `start_cleanup_task()` 来启动
+    /// Need to explicitly call `start_cleanup_task()` to start
     pub fn new(
         host_addr: String,
         max_connections: usize,
@@ -339,7 +339,7 @@ impl GraphSessionManager {
 
     /// Whether exceeds the max allowed connections
     pub async fn is_out_of_connections(&self) -> bool {
-        // DashMap 的 len() 是 O(1) 操作，无需加锁
+        // DashMap's len() is an O(1) operation, no lock required
         self.active_sessions.len() >= self.max_connections
     }
 
@@ -382,7 +382,7 @@ impl GraphSessionManager {
     /// Background task: Regularly clean up expired sessions.
     ///
     /// Check every 30 seconds and remove sessions that have exceeded the idle timeout period.
-    /// 可以通过 `stop_cleanup_task()` 方法停止
+    /// Can be stopped via the `stop_cleanup_task()` method
     async fn background_reclamation_task(self: Arc<Self>) {
         let mut interval = time::interval(Duration::from_secs(30));
 

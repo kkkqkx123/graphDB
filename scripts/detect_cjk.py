@@ -3,13 +3,13 @@
 检测文件中的 CJK (中日韩) 字符并生成报告。
 
 用法:
-    python detect_cjk.py <file_path> [--output <report_path>]
+    python detect_cjk.py <file_path|directory_path> [--output <report_path>] [--recursive]
 """
 
 import sys
 import argparse
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 from datetime import datetime
 
 
@@ -109,38 +109,103 @@ def find_cjk_in_file(file_path: Path) -> List[Tuple[int, str, List[str]]]:
     return results
 
 
+def find_cjk_in_directory(directory_path: Path, recursive: bool = False) -> Dict[Path, List[Tuple[int, str, List[str]]]]:
+    """
+    在目录中查找所有包含 CJK 字符的文件。
+    
+    返回: {文件路径: [(行号，行内容，[CJK 字符列表]), ...], ...}
+    """
+    results = {}
+    
+    try:
+        if recursive:
+            file_pattern = "**/*"
+        else:
+            file_pattern = "*"
+        
+        for file_path in directory_path.glob(file_pattern):
+            if file_path.is_file():
+                file_results = find_cjk_in_file(file_path)
+                if file_results:
+                    results[file_path] = file_results
+    
+    except PermissionError:
+        print(f"错误：无权限访问目录：{directory_path}")
+    except Exception as e:
+        print(f"错误：扫描目录时发生异常：{e}")
+    
+    return results
+
+
 def generate_report(file_path: Path, results: List[Tuple[int, str, List[str]]], 
-                    output_path: Path = None) -> str:
+                    output_path: Path = None, is_directory: bool = False) -> str:
     """
     生成 CJK 字符检测报告。
     """
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    report_lines = [
-        "=" * 80,
-        "CJK 字符检测报告",
-        "=" * 80,
-        "",
-        f"检测文件：{file_path.absolute()}",
-        f"检测时间：{timestamp}",
-        f"总行数：{sum(1 for _ in open(file_path, 'r', encoding='utf-8', errors='ignore')) if file_path.exists() else 'N/A'}",
-        f"包含 CJK 字符的行数：{len(results)}",
-        "",
-        "-" * 80,
-    ]
-    
-    if results:
-        report_lines.append("详细结果:")
-        report_lines.append("-" * 80)
-        report_lines.append("")
+    if is_directory:
+        total_files = len(results)
+        total_lines = sum(len(file_results) for file_results in results.values())
         
-        for line_num, line_content, cjk_chars in results:
-            report_lines.append(f"行 {line_num}:")
-            report_lines.append(f"  CJK 字符：{', '.join(f'U+{ord(c):04X}({c})' for c in cjk_chars)}")
-            report_lines.append(f"  内容：{line_content[:100]}{'...' if len(line_content) > 100 else ''}")
+        report_lines = [
+            "=" * 80,
+            "CJK 字符检测报告",
+            "=" * 80,
+            "",
+            f"检测目录：{file_path.absolute()}",
+            f"检测时间：{timestamp}",
+            f"包含 CJK 字符的文件数：{total_files}",
+            f"包含 CJK 字符的总行数：{total_lines}",
+            "",
+            "-" * 80,
+        ]
+        
+        if results:
+            report_lines.append("详细结果:")
+            report_lines.append("-" * 80)
             report_lines.append("")
+            
+            for file_path, file_results in sorted(results.items()):
+                relative_path = file_path.relative_to(file_path.parent if is_directory else file_path.parent.parent)
+                report_lines.append(f"文件：{relative_path}")
+                report_lines.append("-" * 80)
+                
+                for line_num, line_content, cjk_chars in file_results:
+                    report_lines.append(f"  行 {line_num}:")
+                    report_lines.append(f"    CJK 字符：{', '.join(f'U+{ord(c):04X}({c})' for c in cjk_chars)}")
+                    report_lines.append(f"    内容：{line_content[:100]}{'...' if len(line_content) > 100 else ''}")
+                    report_lines.append("")
+                
+                report_lines.append("")
+        else:
+            report_lines.append("未检测到 CJK 字符。")
     else:
-        report_lines.append("未检测到 CJK 字符。")
+        report_lines = [
+            "=" * 80,
+            "CJK 字符检测报告",
+            "=" * 80,
+            "",
+            f"检测文件：{file_path.absolute()}",
+            f"检测时间：{timestamp}",
+            f"总行数：{sum(1 for _ in open(file_path, 'r', encoding='utf-8', errors='ignore')) if file_path.exists() else 'N/A'}",
+            f"包含 CJK 字符的行数：{len(results)}",
+            "",
+            "-" * 80,
+        ]
+        
+        if results:
+            report_lines.append("详细结果:")
+            report_lines.append("-" * 80)
+            report_lines.append("")
+            
+            for line_num, line_content, cjk_chars in results:
+                report_lines.append(f"行 {line_num}:")
+                report_lines.append(f"  CJK 字符：{', '.join(f'U+{ord(c):04X}({c})' for c in cjk_chars)}")
+                report_lines.append(f"  内容：{line_content[:100]}{'...' if len(line_content) > 100 else ''}")
+                report_lines.append("")
+        else:
+            report_lines.append("未检测到 CJK 字符。")
     
     report_lines.append("-" * 80)
     report_lines.append("报告结束")
@@ -165,14 +230,14 @@ def main():
 示例:
     python detect_cjk.py src/main.rs
     python detect_cjk.py src/lib.rs --output reports/cjk_report.md
-    python detect_cjk.py . --recursive  (待实现)
+    python detect_cjk.py src/api --recursive --output reports/cjk_report.md
         """
     )
     
     parser.add_argument(
-        "file_path",
+        "path",
         type=Path,
-        help="要检测的文件路径"
+        help="要检测的文件路径或目录路径"
     )
     
     parser.add_argument(
@@ -182,28 +247,46 @@ def main():
         help="报告输出路径 (可选，默认输出到控制台)"
     )
     
+    parser.add_argument(
+        "--recursive", "-r",
+        action="store_true",
+        help="递归扫描目录（仅在路径为目录时有效）"
+    )
+    
     args = parser.parse_args()
     
-    if not args.file_path.exists():
-        print(f"错误：文件不存在：{args.file_path}")
+    if not args.path.exists():
+        print(f"错误：路径不存在：{args.path}")
         sys.exit(1)
     
-    if args.file_path.is_dir():
-        print("错误：当前版本仅支持单个文件检测，目录检测功能待实现。")
-        sys.exit(1)
+    is_directory = args.path.is_dir()
     
-    # 检测 CJK 字符
-    results = find_cjk_in_file(args.file_path)
-    
-    # 生成报告
-    if args.output:
-        generate_report(args.file_path, results, args.output)
+    if is_directory:
+        # 扫描目录
+        results = find_cjk_in_directory(args.path, args.recursive)
+        
+        # 生成报告
+        if args.output:
+            generate_report(args.path, results, args.output, is_directory=True)
+        else:
+            report = generate_report(args.path, results, is_directory=True)
+            print(report)
+        
+        # 返回状态码
+        sys.exit(0 if not results else 1)
     else:
-        report = generate_report(args.file_path, results)
-        print(report)
-    
-    # 返回状态码
-    sys.exit(0 if not results else 1)
+        # 扫描单个文件
+        results = find_cjk_in_file(args.path)
+        
+        # 生成报告
+        if args.output:
+            generate_report(args.path, results, args.output, is_directory=False)
+        else:
+            report = generate_report(args.path, results)
+            print(report)
+        
+        # 返回状态码
+        sys.exit(0 if not results else 1)
 
 
 if __name__ == "__main__":

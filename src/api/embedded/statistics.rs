@@ -51,7 +51,7 @@ impl SessionStatistics {
 
     /// Record Vertex Insertion
     ///
-    /// # 参数
+    /// # Parameters
     /// - `id` - the ID of the inserted vertex
     pub fn record_vertex_insert(&self, id: i64) {
         if id > 0 {
@@ -65,7 +65,7 @@ impl SessionStatistics {
 
     /// Record-side insertion
     ///
-    /// # 参数
+    /// # Parameters
     /// - `id` - the ID of the inserted side
     pub fn record_edge_insert(&self, id: i64) {
         if id > 0 {
@@ -99,7 +99,7 @@ impl SessionStatistics {
 
     /// Get the last inserted edge ID
     ///
-    /// 返回 None 表示没有记录
+    /// Returning None indicates that no records were found.
     pub fn last_insert_edge_id(&self) -> Option<i64> {
         if self.has_edge_id.load(Ordering::SeqCst) != 0 {
             Some(self.last_insert_edge_id.load(Ordering::SeqCst) as i64)
@@ -180,7 +180,7 @@ impl QueryStatistics {
 
     /// Created from query result metadata
     ///
-    /// # 参数
+    /// # Parameters
     /// - `metadata` - query result metadata
     pub fn from_metadata(metadata: &crate::api::core::ExecutionMetadata) -> Self {
         Self {

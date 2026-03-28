@@ -199,23 +199,23 @@ typedef struct graphdb_blob_t {
  */
 typedef union graphdb_value_data_t {
   /**
-   * 布尔值
+   * Boolean values
    */
   bool boolean;
   /**
-   * 整数
+   * Integer
    */
   int64_t integer;
   /**
-   * 浮点数
+   * Floating-point number
    */
   double floating;
   /**
-   * 字符串
+   * String
    */
   struct graphdb_string_t string;
   /**
-   * 二进制数据
+   * Binary data
    */
   struct graphdb_blob_t blob;
   /**
@@ -229,7 +229,7 @@ typedef union graphdb_value_data_t {
  */
 typedef struct graphdb_value_t {
   /**
-   * 值类型
+   * Value types
    */
   enum graphdb_value_type_t type_;
   /**

@@ -104,7 +104,7 @@ pub unsafe extern "C" fn graphdb_create_function(
 
         // Register for the session.
         if let Err(e) = handle.inner.register_custom_function(func) {
-            eprintln!("注册函数失败: {:?}", e);
+            eprintln!("Registration function failed: {:?}", e);
             return graphdb_error_code_t::GRAPHDB_ERROR as c_int;
         }
     }
@@ -173,7 +173,7 @@ pub unsafe extern "C" fn graphdb_create_aggregate(
 
         // Register for the session.
         if let Err(e) = handle.inner.register_custom_function(func) {
-            eprintln!("注册聚合函数失败: {:?}", e);
+            eprintln!("Registration of the aggregate function failed: {:?}", e);
             return graphdb_error_code_t::GRAPHDB_ERROR as c_int;
         }
     }

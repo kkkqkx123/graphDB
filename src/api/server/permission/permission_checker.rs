@@ -324,7 +324,7 @@ impl PermissionChecker {
 
     // ==================== Convenience methods (for external calls) ====================
 
-    /// 检查Space读取权限
+    /// Check the read permissions for Space.
     pub fn can_read_space(&self, session: &ClientSession, space_id: i64) -> PermissionResult<()> {
         self.check_permission(
             session,
@@ -340,7 +340,7 @@ impl PermissionChecker {
         self.check_permission(session, OperationType::WriteSpace, None, None, None)
     }
 
-    /// 检查Schema读取权限
+    /// Check Schema reading permissions
     pub fn can_read_schema(&self, session: &ClientSession, space_id: i64) -> PermissionResult<()> {
         self.check_permission(
             session,
@@ -351,7 +351,7 @@ impl PermissionChecker {
         )
     }
 
-    /// 检查Schema写入权限
+    /// Check the permissions for writing to the Schema.
     pub fn can_write_schema(&self, session: &ClientSession, space_id: i64) -> PermissionResult<()> {
         self.check_permission(
             session,
@@ -362,12 +362,12 @@ impl PermissionChecker {
         )
     }
 
-    /// 检查数据读取权限
+    /// Check data reading permissions.
     pub fn can_read_data(&self, session: &ClientSession, space_id: i64) -> PermissionResult<()> {
         self.check_permission(session, OperationType::ReadData, Some(space_id), None, None)
     }
 
-    /// 检查数据写入权限
+    /// Check data write permissions.
     pub fn can_write_data(&self, session: &ClientSession, space_id: i64) -> PermissionResult<()> {
         self.check_permission(
             session,
@@ -378,7 +378,7 @@ impl PermissionChecker {
         )
     }
 
-    /// 检查用户读取权限
+    /// Check user read permissions.
     pub fn can_read_user(
         &self,
         session: &ClientSession,
@@ -398,7 +398,7 @@ impl PermissionChecker {
         self.check_permission(session, OperationType::WriteUser, None, None, None)
     }
 
-    /// 检查角色写入权限
+    /// Check role write permissions.
     pub fn can_write_role(
         &self,
         session: &ClientSession,
@@ -415,7 +415,7 @@ impl PermissionChecker {
         )
     }
 
-    /// 检查修改密码权限
+    /// Check the permission to modify passwords.
     pub fn can_change_password(
         &self,
         session: &ClientSession,

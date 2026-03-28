@@ -152,10 +152,10 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
 
     /// Execute the query statement.
     ///
-    /// # 参数
+    /// # Parameters
     /// `query` – A string representing the query statement.
     ///
-    /// # 返回
+    /// # Back
     /// Return the query results when successful.
     /// - Return error on failure
     pub fn execute(&self, query: &str) -> CoreResult<QueryResult> {
@@ -181,13 +181,13 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
 
     /// Execute a parameterized query
     ///
-    /// # 参数
-    /// - `query` - 查询语句字符串
+    /// # Parameters
+    /// - `query` - query statement string
     /// - `params` – Query parameters
     ///
-    /// # 返回
-    /// - 成功时返回查询结果
-    /// - 失败时返回错误
+    /// # Return
+    /// - Returns query results on success
+    /// - Return error on failure
     pub fn execute_with_params(
         &self,
         query: &str,
@@ -207,9 +207,9 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
 
     /// Start a transaction
     ///
-    /// # 返回
+    /// # Return
     /// - Returns the transaction handle on success
-    /// - 失败时返回错误
+    /// - Return error on failure
     pub fn begin_transaction(&self) -> CoreResult<Transaction<'_, S>> {
         let options = TransactionOptions::default();
         let txn_id = self
@@ -224,14 +224,14 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
 
     /// Starting a Transaction with Configuration
     ///
-    /// # 参数
+    /// # Parameters
     /// - `config` - transaction configuration options
     ///
-    /// # 返回
-    /// - 成功时返回事务句柄
-    /// - 失败时返回错误
+    /// # Return
+    /// - Returns the transaction handle on success
+    /// - Return error on failure
     ///
-    /// # 示例
+    /// # Examples
     ///
     /// ```rust
     /// use graphdb::api::embedded::{GraphDatabase, TransactionConfig};
@@ -267,12 +267,12 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
 
     /// Performing operations in a transaction (autocommit/rollback)
     ///
-    /// # 参数
+    /// # Parameters
     /// - `f` - closure executed in a transaction
     ///
-    /// # 返回
+    /// # Return
     /// - Returns the closure's return value on success
-    /// - 失败时返回错误
+    /// - Return error on failure
     pub fn with_transaction<F, T>(&self, f: F) -> CoreResult<T>
     where
         F: FnOnce(&Transaction<'_, S>) -> CoreResult<T>,
@@ -293,13 +293,13 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
 
     /// Creating a graph space
     ///
-    /// # 参数
+    /// # Parameters
     /// - `name' - space name
     /// - `config' - space configuration
     ///
-    /// # 返回
-    /// - 成功时返回 ()
-    /// - 失败时返回错误
+    /// # Return
+    /// - Returns on success ()
+    /// - Return error on failure
     pub fn create_space(
         &self,
         name: &str,
@@ -310,12 +310,12 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
 
     /// Deletion of map space
     ///
-    /// # 参数
-    /// - `name` - 空间名称
+    /// # Parameters
+    /// - `name' - space name
     ///
-    /// # 返回
-    /// - 成功时返回 ()
-    /// - 失败时返回错误
+    /// # Return
+    /// - Returns on success ()
+    /// - Return error on failure
     pub fn drop_space(&self, name: &str) -> CoreResult<()> {
         self.db.schema_api.drop_space(name)
     }
@@ -357,13 +357,13 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
 
     /// Creating a Batch Inserter
     ///
-    /// # 参数
+    /// # Parameters
     /// - `batch_size` - batch size, automatically refreshes when this amount is reached
     ///
-    /// # 返回
+    /// # Return
     /// - Returns an instance of BatchInserter
     ///
-    /// # 示例
+    /// # Examples
     ///
     /// ```rust
     /// use graphdb::api::embedded::GraphDatabase;
@@ -397,7 +397,10 @@ impl<S: StorageClient + Clone + 'static> Drop for Session<S> {
         // No special cleanup is required when the session is discarded.
         // Because all transactions are managed through the Transaction object, and Transactions have their own Drop implementation
         // Just logging here for debugging purposes
-        log::debug!("Session 被释放，当前图空间: {:?}", self.space_name);
+        log::debug!(
+            "Session released, current graph space: {:?}",
+            self.space_name
+        );
     }
 }
 

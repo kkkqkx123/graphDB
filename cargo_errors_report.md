@@ -2,37 +2,45 @@
 
 ## Summary
 
-- **Total Errors**: 0
-- **Total Warnings**: 1
-- **Total Issues**: 1
-- **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 1
-- **Files with Issues**: 1
+- **Total Errors**: 8
+- **Total Warnings**: 0
+- **Total Issues**: 8
+- **Unique Error Patterns**: 6
+- **Unique Warning Patterns**: 0
+- **Files with Issues**: 2
 
 ## Error Statistics
 
-**Total Errors**: 0
+**Total Errors**: 8
+
+### Error Type Breakdown
+
+- **error**: 8 errors
+
+### Files with Errors (Top 10)
+
+- `src\api\core\schema_api.rs`: 7 errors
+- `src\api\server\batch\manager.rs`: 1 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 1
+**Total Warnings**: 0
 
-### Warning Type Breakdown
+## Detailed Error Categorization
 
-- **warning**: 1 warnings
+### error: invalid format string: expected `}` but string was terminated: expected `}` in format string
 
-### Files with Warnings (Top 10)
+**Total Occurrences**: 8  
+**Unique Files**: 2
 
-- `src\core\value\mod.rs`: 1 warnings
+#### `src\api\core\schema_api.rs`: 7 occurrences
 
-## Detailed Warning Categorization
+- Line 359: expected `,`, found `space`: expected `,`
+- Line 360: expected `,`, found `Type`: expected `,`
+- Line 362: expected `,`, found `:`: expected `,`
+- ... 4 more occurrences in this file
 
-### warning: module has the same name as its containing module
+#### `src\api\server\batch\manager.rs`: 1 occurrences
 
-**Total Occurrences**: 1  
-**Unique Files**: 1
-
-#### `src\core\value\mod.rs`: 1 occurrences
-
-- Line 27: module has the same name as its containing module
+- Line 145: invalid format string: expected `}` but string was terminated: expected `}` in format string
 

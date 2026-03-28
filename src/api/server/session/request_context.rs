@@ -226,7 +226,7 @@ impl RequestContext {
     /// Get graph space ID
     ///
     /// # Note
-    /// 此方法已废弃，请使用 `QueryContext::space_id()` 获取空间ID。
+    /// This method is deprecated, please use `QueryContext::space_id()` to get space ID.
     /// The RequestContext only holds the space_name and does not directly access the metadata service.
     ///
     /// # Alternative programs
@@ -234,7 +234,7 @@ impl RequestContext {
     /// ```rust,ignore
     /// let space_id = query_context.space_id();
     /// ```
-    #[deprecated(since = "0.1.0", note = "请使用 QueryContext::space_id() 替代")]
+    #[deprecated(since = "0.1.0", note = "Use QueryContext::space_id() instead")]
     pub fn space_id(&self) -> Option<i64> {
         None
     }
@@ -273,7 +273,7 @@ impl RequestContext {
         self.query_start_time.elapsed().as_millis() as u64
     }
 
-    /// 获取参数
+    /// Getting Parameters
     pub fn get_parameter(&self, param: &str) -> Option<Value> {
         self.request_params.parameters.get(param).cloned()
     }

@@ -1,6 +1,6 @@
 //! Configuration Management Module
 //!
-//! 提供嵌入式数据库的配置管理，从 embedded_api.rs 分离出来
+//! Provides configuration management for embedded database, separated from embedded_api.rs
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -43,7 +43,7 @@ pub struct DatabaseConfig {
     pub create_if_missing: bool,
 }
 
-/// 同步模式
+/// Synchronization Mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SyncMode {
     /// Complete synchronization: Every write operation is immediately synchronized to the disk (the safest method, but also the slowest).

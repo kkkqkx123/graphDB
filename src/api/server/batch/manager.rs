@@ -48,14 +48,13 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
 
     /// Adding Batch Items
     pub fn add_items(&self, batch_id: &str, items: Vec<BatchItem>) -> CoreResult<usize> {
-        let mut task = self
-            .tasks
-            .get_mut(batch_id)
-            .ok_or_else(|| CoreError::InvalidParameter(format!("批量任务不存在: {}", batch_id)))?;
+        let mut task = self.tasks.get_mut(batch_id).ok_or_else(|| {
+            CoreError::InvalidParameter(format!("Batch task does not exist: {}", batch_id))
+        })?;
 
         if task.status != BatchStatus::Created {
             return Err(CoreError::InvalidParameter(format!(
-                "批量任务状态不正确: {:?}",
+                "Incorrect batch task status: {:?}",
                 task.status
             )));
         }
@@ -70,27 +69,26 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
         batch_id: &str,
         space_name: &str,
     ) -> CoreResult<BatchResultData> {
-        let task = self
-            .tasks
-            .get(batch_id)
-            .ok_or_else(|| CoreError::InvalidParameter(format!("批量任务不存在: {}", batch_id)))?;
+        let task = self.tasks.get(batch_id).ok_or_else(|| {
+            CoreError::InvalidParameter(format!("Batch task does not exist: {}", batch_id))
+        })?;
 
         if task.status != BatchStatus::Created {
             return Err(CoreError::InvalidParameter(format!(
-                "批量任务状态不正确: {:?}",
+                "Incorrect batch task status: {:?}",
                 task.status
             )));
         }
 
         // Update status to running
         {
-            let mut task = self.tasks.get_mut(batch_id).expect("任务应该存在");
+            let mut task = self.tasks.get_mut(batch_id).expect("Task should exist");
             task.update_status(BatchStatus::Running);
         }
 
         // Get all buffered items
         let items = {
-            let mut task = self.tasks.get_mut(batch_id).expect("任务应该存在");
+            let mut task = self.tasks.get_mut(batch_id).expect("Task should exist");
             task.take_buffered_items()
         };
 
@@ -99,7 +97,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
 
         // Update task status and results
         {
-            let mut task = self.tasks.get_mut(batch_id).expect("任务应该存在");
+            let mut task = self.tasks.get_mut(batch_id).expect("Task should exist");
 
             match &result {
                 Ok(data) => {
@@ -131,10 +129,9 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
 
     /// Cancel Batch Tasks
     pub fn cancel_task(&self, batch_id: &str) -> CoreResult<()> {
-        let mut task = self
-            .tasks
-            .get_mut(batch_id)
-            .ok_or_else(|| CoreError::InvalidParameter(format!("批量任务不存在: {}", batch_id)))?;
+        let mut task = self.tasks.get_mut(batch_id).ok_or_else(|| {
+            CoreError::InvalidParameter(format!("Batch task does not exist: {}", batch_id))
+        })?;
 
         match task.status {
             BatchStatus::Created | BatchStatus::Running => {
@@ -142,7 +139,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
                 Ok(())
             }
             _ => Err(CoreError::InvalidParameter(format!(
-                "无法取消状态为 {:?} 的任务",
+                "Unable to cancel tasks with status {:?}",
                 task.status
             ))),
         }
@@ -150,9 +147,9 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
 
     /// Delete Batch Tasks
     pub fn remove_task(&self, batch_id: &str) -> CoreResult<()> {
-        self.tasks
-            .remove(batch_id)
-            .ok_or_else(|| CoreError::InvalidParameter(format!("批量任务不存在: {}", batch_id)))?;
+        self.tasks.remove(batch_id).ok_or_else(|| {
+            CoreError::InvalidParameter(format!("Batch task does not exist: {}", batch_id))
+        })?;
         Ok(())
     }
 
@@ -197,7 +194,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
                     result.errors.push(BatchErrorData {
                         index: 0,
                         item_type: BatchItemType::Vertex,
-                        error: format!("批量插入顶点失败: {}", e),
+                        error: format!("Batch insertion of vertices failed: {}", e),
                     });
                 }
             }
@@ -213,7 +210,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
                     result.errors.push(BatchErrorData {
                         index: 0,
                         item_type: BatchItemType::Edge,
-                        error: format!("批量插入边失败: {}", e),
+                        error: format!("Batch insertion of edges failed: {}", e),
                     });
                 }
             }

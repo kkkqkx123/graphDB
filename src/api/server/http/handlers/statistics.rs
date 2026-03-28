@@ -21,7 +21,7 @@ pub async fn session<S: StorageClient + Clone + Send + Sync + 'static>(
 
     let session = session_manager
         .find_session(session_id)
-        .ok_or_else(|| HttpError::NotFound(format!("会话不存在: {}", session_id)))?;
+        .ok_or_else(|| HttpError::NotFound(format!("Session does not exist: {}", session_id)))?;
 
     // Obtain session-related query statistics
     let session_queries = stats_manager.get_session_queries(session_id, 1000);
@@ -148,7 +148,7 @@ pub async fn database<S: StorageClient + Clone + Send + Sync + 'static>(
             storage.get_storage_stats()
         })
         .await
-        .map_err(|e| HttpError::internal(format!("获取存储统计失败: {:?}", e)))?
+        .map_err(|e| HttpError::internal(format!("Failed to get storage statistics: {:?}", e)))?
     };
 
     // Obtain statistics related to the query.
@@ -259,7 +259,7 @@ fn get_memory_info() -> (u64, u64) {
 }
 
 /// Obtain the percentage of CPU usage.
-/// 使用 sysinfo crate 实现跨平台支持
+/// Cross-platform support with sysinfo crate
 fn get_cpu_usage() -> f64 {
     use sysinfo::System;
 

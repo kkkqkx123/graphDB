@@ -93,7 +93,7 @@ pub async fn update<S: StorageClient + Clone + Send + Sync + 'static>(
     Ok(JsonResponse(serde_json::json!({
         "updated": updated,
         "requires_restart": requires_restart,
-        "message": "配置更新已接收，部分更改可能需要重启才能生效",
+        "message": "Configuration update received, some changes may require restart to take effect",
     })))
 }
 
@@ -126,9 +126,9 @@ pub async fn update_key<S: StorageClient + Clone + Send + Sync + 'static>(
         "value": request.value,
         "requires_restart": requires_restart,
         "message": if requires_restart {
-            "配置项已更新，但需要重启才能生效"
+            "Configuration item updated, but restart required to take effect"
         } else {
-            "配置项已更新"
+            "Configuration item updated"
         },
     })))
 }
@@ -145,7 +145,7 @@ pub async fn reset_key<S: StorageClient + Clone + Send + Sync + 'static>(
         "section": section,
         "key": key,
         "value": default_value,
-        "message": "配置已重置为默认值",
+        "message": "Configuration reset to default value",
     })))
 }
 

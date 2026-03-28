@@ -265,10 +265,10 @@ impl Row {
         &self.values
     }
 
-    /// 转换为 JSON 字符串
+    /// Translate from "Convert to JSON string" to English: "Convert to JSON string"
     pub fn to_json(&self) -> CoreResult<String> {
         serde_json::to_string_pretty(self)
-            .map_err(|e| CoreError::Internal(format!("JSON序列化失败: {}", e)))
+            .map_err(|e| CoreError::Internal(format!("JSON serialization failed: {}", e)))
     }
 }
 
@@ -296,17 +296,17 @@ impl StreamingQueryResult {
         Self { columns, metadata }
     }
 
-    /// 获取列名列表
+    /// Get the list of column names
     pub fn columns(&self) -> &[String] {
         &self.columns
     }
 
-    /// 获取元数据
+    /// Get metadata
     pub fn metadata(&self) -> &ResultMetadata {
         &self.metadata
     }
 
-    /// 获取列数
+    /// Get the number of columns
     pub fn column_count(&self) -> usize {
         self.columns.len()
     }

@@ -38,8 +38,8 @@ impl PermissionManager {
     pub fn new() -> Self {
         let user_roles = DashMap::new();
         let mut root_roles = HashMap::new();
-        // The root user acts as the “God” character (the global super administrator).
-        // 使用GOD_SPACE_ID(-1)表示全局角色，不绑定特定Space
+        // The root user acts as the "God" character (the global super administrator).
+        // Using GOD_SPACE_ID(-1) to represent global roles, not bound to specific Space
         root_roles.insert(GOD_SPACE_ID, RoleType::God);
         user_roles.insert("root".to_string(), root_roles);
 

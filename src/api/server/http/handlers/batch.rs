@@ -26,7 +26,10 @@ pub async fn create<S: StorageClient + Clone + Send + Sync + 'static>(
             status: task.status,
             created_at: task.created_at.to_rfc3339(),
         })),
-        Err(e) => Err(HttpError::InternalError(format!("创建批量任务失败: {}", e))),
+        Err(e) => Err(HttpError::InternalError(format!(
+            "Failed to create batch task: {}",
+            e
+        ))),
     }
 }
 
@@ -45,7 +48,10 @@ pub async fn status<S: StorageClient + Clone + Send + Sync + 'static>(
             created_at: task.created_at.to_rfc3339(),
             updated_at: task.updated_at.to_rfc3339(),
         })),
-        None => Err(HttpError::NotFound(format!("批量任务不存在: {}", batch_id))),
+        None => Err(HttpError::NotFound(format!(
+            "Batch task does not exist: {}",
+            batch_id
+        ))),
     }
 }
 
@@ -59,9 +65,9 @@ pub async fn add_items<S: StorageClient + Clone + Send + Sync + 'static>(
 
     match batch_manager.add_items(&batch_id, request.items) {
         Ok(accepted) => {
-            let task = batch_manager
-                .get_task(&batch_id)
-                .ok_or_else(|| HttpError::NotFound(format!("批量任务不存在: {}", batch_id)))?;
+            let task = batch_manager.get_task(&batch_id).ok_or_else(|| {
+                HttpError::NotFound(format!("Batch task does not exist: {}", batch_id))
+            })?;
 
             Ok(JsonResponse(AddBatchItemsResponse {
                 accepted,
@@ -69,7 +75,10 @@ pub async fn add_items<S: StorageClient + Clone + Send + Sync + 'static>(
                 total_buffered: task.progress.buffered,
             }))
         }
-        Err(e) => Err(HttpError::BadRequest(format!("添加批量项失败: {}", e))),
+        Err(e) => Err(HttpError::BadRequest(format!(
+            "Adding batch items failed: {}",
+            e
+        ))),
     }
 }
 
@@ -81,9 +90,9 @@ pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
     let batch_manager = state.server.get_batch_manager();
 
     // Retrieve task information in order to obtain the space_id.
-    let task = batch_manager
-        .get_task(&batch_id)
-        .ok_or_else(|| HttpError::NotFound(format!("批量任务不存在: {}", batch_id)))?;
+    let task = batch_manager.get_task(&batch_id).ok_or_else(|| {
+        HttpError::NotFound(format!("The batch task does not exist: {}", batch_id))
+    })?;
 
     // Query the `space_name` using the `space_id`.
     let space_name = {
@@ -93,19 +102,24 @@ pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
             Ok(Some(space_info)) => space_info.space_name,
             Ok(None) => {
                 return Err(HttpError::NotFound(format!(
-                    "图空间不存在: {}",
+                    "The graph space does not exist: {}",
                     task.space_id
                 )))
             }
-            Err(e) => return Err(HttpError::InternalError(format!("查询图空间失败: {}", e))),
+            Err(e) => {
+                return Err(HttpError::InternalError(format!(
+                    "Querying the graph space failed: {}",
+                    e
+                )))
+            }
         }
     };
 
     match batch_manager.execute_task(&batch_id, &space_name).await {
         Ok(result) => {
-            let task = batch_manager
-                .get_task(&batch_id)
-                .ok_or_else(|| HttpError::NotFound(format!("批量任务不存在: {}", batch_id)))?;
+            let task = batch_manager.get_task(&batch_id).ok_or_else(|| {
+                HttpError::NotFound(format!("Batch task does not exist: {}", batch_id))
+            })?;
 
             Ok(JsonResponse(ExecuteBatchResponse {
                 batch_id: batch_id.clone(),
@@ -114,7 +128,10 @@ pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
                 completed_at: Some(task.updated_at.to_rfc3339()),
             }))
         }
-        Err(e) => Err(HttpError::InternalError(format!("执行批量任务失败: {}", e))),
+        Err(e) => Err(HttpError::InternalError(format!(
+            "Failed to execute batch tasks: {}",
+            e
+        ))),
     }
 }
 
@@ -127,10 +144,13 @@ pub async fn cancel<S: StorageClient + Clone + Send + Sync + 'static>(
 
     match batch_manager.cancel_task(&batch_id) {
         Ok(()) => Ok(JsonResponse(serde_json::json!({
-            "message": "批量任务已取消",
+            "message": "Batch task cancelled",
             "batch_id": batch_id,
         }))),
-        Err(e) => Err(HttpError::BadRequest(format!("取消批量任务失败: {}", e))),
+        Err(e) => Err(HttpError::BadRequest(format!(
+            "Failed to cancel the batch task: {}",
+            e
+        ))),
     }
 }
 
@@ -143,9 +163,12 @@ pub async fn delete<S: StorageClient + Clone + Send + Sync + 'static>(
 
     match batch_manager.remove_task(&batch_id) {
         Ok(()) => Ok(JsonResponse(serde_json::json!({
-            "message": "批量任务已删除",
+            "message": "Batch task deleted",
             "batch_id": batch_id,
         }))),
-        Err(e) => Err(HttpError::NotFound(format!("删除批量任务失败: {}", e))),
+        Err(e) => Err(HttpError::NotFound(format!(
+            "Failed to delete batch tasks: {}",
+            e
+        ))),
     }
 }

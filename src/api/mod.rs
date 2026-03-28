@@ -55,7 +55,7 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
     println!("Configuration loaded: {:?}", config);
 
     info!(
-        "日志系统已初始化: {}/{}",
+        "Log system has been initialized: {}/{}",
         config.log_dir(),
         config.log_file()
     );

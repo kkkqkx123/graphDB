@@ -30,7 +30,7 @@ impl BusyHandler {
     /// ```rust
     /// use graphdb::api::embedded::BusyHandler;
     ///
-    /// let handler = BusyHandler::new(5000); // 5 秒超时
+    /// let handler = BusyHandler::new(5000); // 5 second timeout
     /// ```
     pub fn new(timeout_ms: u32) -> Self {
         Self {
@@ -102,7 +102,7 @@ impl BusyHandler {
 
     /// Calculation of waiting time (exponential retreat)
     ///
-    /// 公式：min(2^retry_count, 100) 毫秒
+    /// Formula: min(2^retry_count, 100) milliseconds
     fn calculate_wait_time(retry_count: u32) -> u64 {
         let base = 1u64;
         let max_wait = 100u64; // Maximum 100ms

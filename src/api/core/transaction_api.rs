@@ -34,7 +34,7 @@ impl TransactionApi {
 
     /// Submission of transactions
     ///
-    /// # 参数
+    /// # Parameters
     /// - `handle`: transaction handle
     pub fn commit(&self, handle: TransactionHandle) -> CoreResult<()> {
         self.txn_manager
@@ -44,8 +44,8 @@ impl TransactionApi {
 
     /// Rolling back (aborting) transactions
     ///
-    /// # 参数
-    /// - `handle`: 事务句柄
+    /// # Parameters
+    /// `handle`: Transaction handler
     pub fn rollback(&self, handle: TransactionHandle) -> CoreResult<()> {
         self.txn_manager
             .abort_transaction(handle.0)
@@ -54,10 +54,10 @@ impl TransactionApi {
 
     /// Getting Transaction Status
     ///
-    /// # 参数
-    /// - `handle`: 事务句柄
+    /// # Parameters
+    /// - `handle`: transaction handle
     ///
-    /// # 返回
+    /// # Return
     /// Transaction Status String
     pub fn get_status(&self, _handle: TransactionHandle) -> CoreResult<String> {
         // Temporarily return Active, actually need to query the transaction status
@@ -66,8 +66,8 @@ impl TransactionApi {
 
     /// Check if a transaction exists and is active
     ///
-    /// # 参数
-    /// - `handle`: 事务句柄
+    /// # Parameters
+    /// - `handle`: transaction handle
     pub fn is_active(&self, handle: TransactionHandle) -> bool {
         self.txn_manager.is_transaction_active(handle.0)
     }

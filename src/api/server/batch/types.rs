@@ -76,7 +76,7 @@ pub struct EdgeData {
     pub src_vid: serde_json::Value,
     /// Target Vertex ID
     pub dst_vid: serde_json::Value,
-    /// 属性
+    /// Attribute
     #[serde(default)]
     pub properties: HashMap<String, serde_json::Value>,
 }
@@ -86,7 +86,7 @@ pub struct EdgeData {
 pub struct CreateBatchRequest {
     /// Image Space ID
     pub space_id: u64,
-    /// 批量任务类型
+    /// Batch Task Type
     pub batch_type: BatchType,
     /// Batch size
     #[serde(default = "default_batch_size")]
@@ -100,7 +100,7 @@ fn default_batch_size() -> usize {
 /// Creating Batch Task Responses
 #[derive(Debug, Clone, Serialize)]
 pub struct CreateBatchResponse {
-    /// 批量任务ID
+    /// Batch Task ID
     pub batch_id: BatchId,
     /// Task status
     pub status: BatchStatus,
@@ -129,9 +129,9 @@ pub struct AddBatchItemsResponse {
 /// Perform batch task response
 #[derive(Debug, Clone, Serialize)]
 pub struct ExecuteBatchResponse {
-    /// 批量任务ID
+    /// Batch Task ID
     pub batch_id: BatchId,
-    /// 任务状态
+    /// Task Status
     pub status: BatchStatus,
     /// Implementation results
     pub result: BatchResultData,
@@ -165,13 +165,13 @@ pub struct BatchErrorData {
 /// Status responses for batch tasks
 #[derive(Debug, Clone, Serialize)]
 pub struct BatchStatusResponse {
-    /// 批量任务ID
+    /// Batch Task ID
     pub batch_id: BatchId,
-    /// 任务状态
+    /// Task Status
     pub status: BatchStatus,
     /// Progress information
     pub progress: BatchProgress,
-    /// 创建时间
+    /// Creation time
     pub created_at: String,
     /// Update time
     pub updated_at: String,
@@ -197,13 +197,13 @@ pub struct BatchProgress {
 pub struct BatchTask {
     /// Task ID
     pub id: BatchId,
-    /// 图空间ID
+    /// Figure Space ID
     pub space_id: u64,
-    /// Of course! Please provide the text you would like to have translated.
+    /// Batch Type
     pub batch_type: BatchType,
-    /// 批次大小
+    /// Batch size
     pub batch_size: usize,
-    /// 任务状态
+    /// Task Status
     pub status: BatchStatus,
     /// Buffered items
     pub buffered_items: Vec<BatchItem>,
@@ -211,9 +211,9 @@ pub struct BatchTask {
     pub progress: BatchProgress,
     /// Result
     pub result: Option<BatchResultData>,
-    /// 创建时间
+    /// Creation time
     pub created_at: chrono::DateTime<chrono::Utc>,
-    /// 更新时间
+    /// Update time
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 

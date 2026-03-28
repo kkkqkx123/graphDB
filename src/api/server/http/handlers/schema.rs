@@ -109,7 +109,7 @@ pub async fn list_spaces<S: StorageClient + Clone + Send + Sync + 'static>(
     // Returns an empty list for now, since SchemaApi doesn't have a list_spaces method.
     Ok(JsonResponse(serde_json::json!({
         "spaces": [],
-        "note": "此功能待实现",
+        "note": "This feature is pending implementation",
     })))
 }
 
@@ -143,7 +143,7 @@ pub async fn create_tag<S: StorageClient + Clone + Send + Sync + 'static>(
             Ok(id) => id,
             Err(_) => {
                 return Err(HttpError::NotFound(format!(
-                    "图空间 '{}' 不存在",
+                    "The graph space '{}' does not exist.",
                     space_name
                 )))
             }
@@ -189,7 +189,7 @@ pub async fn list_tags<S: StorageClient + Clone + Send + Sync + 'static>(
     Ok(JsonResponse(serde_json::json!({
         "tags": [],
         "space_name": space_name,
-        "note": "此功能待实现",
+        "note": "This feature is pending implementation",
     })))
 }
 
@@ -215,7 +215,7 @@ pub async fn create_edge_type<S: StorageClient + Clone + Send + Sync + 'static>(
             Ok(id) => id,
             Err(_) => {
                 return Err(HttpError::NotFound(format!(
-                    "图空间 '{}' 不存在",
+                    "The graph space '{}' does not exist.",
                     space_name
                 )))
             }
@@ -261,7 +261,7 @@ pub async fn list_edge_types<S: StorageClient + Clone + Send + Sync + 'static>(
     Ok(JsonResponse(serde_json::json!({
         "edge_types": [],
         "space_name": space_name,
-        "note": "此功能待实现",
+        "note": "This feature is pending implementation",
     })))
 }
 

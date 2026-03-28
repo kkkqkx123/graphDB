@@ -20,7 +20,7 @@ pub async fn register<S: StorageClient + Clone + Send + Sync + 'static>(
 
     if registry_guard.contains(&request.name) {
         return Err(HttpError::bad_request(format!(
-            "函数 '{}' 已存在",
+            "Function '{}' already exists",
             request.name
         )));
     }
@@ -41,7 +41,7 @@ pub async fn register<S: StorageClient + Clone + Send + Sync + 'static>(
         "parameters": request.parameters,
         "return_type": request.return_type,
         "status": "registered",
-        "message": "函数注册成功",
+        "message": "Function registered successfully",
     })))
 }
 
@@ -77,7 +77,10 @@ pub async fn info<S: StorageClient + Clone + Send + Sync + 'static>(
     let registry_guard = registry.lock();
 
     if !registry_guard.contains(&name) {
-        return Err(HttpError::not_found(format!("函数 '{}' 不存在", name)));
+        return Err(HttpError::not_found(format!(
+            "Function '{}' does not exist",
+            name
+        )));
     }
 
     let is_builtin = registry_guard.get_builtin(&name).is_some();
@@ -111,12 +114,15 @@ pub async fn unregister<S: StorageClient + Clone + Send + Sync + 'static>(
     let registry_guard = registry.lock();
 
     if !registry_guard.contains(&name) {
-        return Err(HttpError::not_found(format!("函数 '{}' 不存在", name)));
+        return Err(HttpError::not_found(format!(
+            "Function '{}' does not exist",
+            name
+        )));
     }
 
     if registry_guard.get_builtin(&name).is_some() {
         return Err(HttpError::bad_request(format!(
-            "内置函数 '{}' 不能注销",
+            "Built-in function '{}' cannot be logged out",
             name
         )));
     }
@@ -124,7 +130,7 @@ pub async fn unregister<S: StorageClient + Clone + Send + Sync + 'static>(
     drop(registry_guard);
 
     Ok(JsonResponse(serde_json::json!({
-        "message": "函数已注销",
+        "message": "Function unregistered",
         "name": name,
     })))
 }

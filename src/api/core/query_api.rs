@@ -170,7 +170,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
                 })
             }
             crate::query::executor::base::ExecutionResult::Result(core_result) => {
-                // 处理 CoreResult - 使用 col_names() 方法和 rows() 方法
+                // Handle CoreResult - use col_names() method and rows() method
                 let columns: Vec<String> = core_result.col_names().to_vec();
                 let mut rows = Vec::new();
 
