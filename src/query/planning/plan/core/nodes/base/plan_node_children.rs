@@ -1,6 +1,7 @@
 //! Implementation of PlanNode child node traversal
 
 use super::plan_node_enum::PlanNodeEnum;
+use super::plan_node_traits::{MultipleInputNode, SingleInputNode};
 
 impl PlanNodeEnum {
     /// Get all the child nodes of a node
@@ -130,14 +131,24 @@ impl PlanNodeEnum {
             ],
 
             // MultipleInputNode: It has multiple child nodes.
-            PlanNodeEnum::Expand(node) => node.dependencies().iter().collect(),
-            PlanNodeEnum::ExpandAll(node) => node.dependencies().iter().collect(),
-            PlanNodeEnum::AppendVertices(node) => node.dependencies().iter().collect(),
+            PlanNodeEnum::Expand(node) => node.inputs().iter().collect(),
+            PlanNodeEnum::ExpandAll(node) => node.inputs().iter().collect(),
+            PlanNodeEnum::AppendVertices(node) => node.inputs().iter().collect(),
 
             // UnionNode: 使用 dependencies() 获取所有子节点
             PlanNodeEnum::Union(node) => node.dependencies().iter().collect(),
-            PlanNodeEnum::Minus(node) => node.dependencies().iter().collect(),
-            PlanNodeEnum::Intersect(node) => node.dependencies().iter().collect(),
+            PlanNodeEnum::Minus(node) => {
+                vec![
+                    node.input(),
+                    node.minus_input(),
+                ]
+            }
+            PlanNodeEnum::Intersect(node) => {
+                vec![
+                    node.input(),
+                    node.intersect_input(),
+                ]
+            }
 
             // ControlFlowNode
             PlanNodeEnum::Argument(_) => vec![],

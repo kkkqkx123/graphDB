@@ -120,22 +120,22 @@ impl FingerprintCalculator {
                 self.hash_single_input(n, hasher);
             }
             PlanNodeEnum::Expand(n) => {
-                // ExpandNode 使用 MultipleInputNode，通过 dependencies() 访问子节点
-                for dep in n.dependencies() {
+                // ExpandNode 使用 MultipleInputNode，通过 inputs() 访问子节点
+                for dep in n.inputs() {
                     let fp = self.calculate_fingerprint(dep);
                     fp.hash(hasher);
                 }
             }
             PlanNodeEnum::ExpandAll(n) => {
-                // ExpandAllNode 使用 MultipleInputNode，通过 dependencies() 访问子节点
-                for dep in n.dependencies() {
+                // ExpandAllNode 使用 MultipleInputNode，通过 inputs() 访问子节点
+                for dep in n.inputs() {
                     let fp = self.calculate_fingerprint(dep);
                     fp.hash(hasher);
                 }
             }
             PlanNodeEnum::AppendVertices(n) => {
-                // AppendVerticesNode 使用 MultipleInputNode，通过 dependencies() 访问子节点
-                for dep in n.dependencies() {
+                // AppendVerticesNode 使用 MultipleInputNode，通过 inputs() 访问子节点
+                for dep in n.inputs() {
                     let fp = self.calculate_fingerprint(dep);
                     fp.hash(hasher);
                 }

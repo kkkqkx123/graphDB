@@ -404,22 +404,25 @@ impl BatchPlanAnalyzer {
 
             // Traversal nodes
             PlanNodeEnum::Expand(n) => n
-                .dependencies()
+                .inputs()
                 .iter()
                 .map(|dep| self.analyze_recursive(dep, context, Some(node_id)))
                 .sum(),
             PlanNodeEnum::ExpandAll(n) => n
-                .dependencies()
+                .inputs()
                 .iter()
                 .map(|dep| self.analyze_recursive(dep, context, Some(node_id)))
                 .sum(),
-            PlanNodeEnum::Traverse(n) => n
-                .dependencies()
-                .iter()
-                .map(|dep| self.analyze_recursive(dep, context, Some(node_id)))
-                .sum(),
+            PlanNodeEnum::Traverse(n) => {
+                // TraverseNode uses SingleInputNode trait, input() method panics when input is None
+                // Here, we directly access the deps field to traverse the child nodes.
+                n.dependencies()
+                    .iter()
+                    .map(|dep| self.analyze_recursive(dep, context, Some(node_id)))
+                    .sum()
+            }
             PlanNodeEnum::AppendVertices(n) => n
-                .dependencies()
+                .inputs()
                 .iter()
                 .map(|dep| self.analyze_recursive(dep, context, Some(node_id)))
                 .sum(),

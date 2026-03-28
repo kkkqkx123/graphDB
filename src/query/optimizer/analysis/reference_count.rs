@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 
 use crate::query::planning::plan::core::nodes::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::{MultipleInputNode, SingleInputNode};
 
 use super::fingerprint::FingerprintCalculator;
 
@@ -334,27 +335,27 @@ impl ReferenceCountAnalyzer {
                 total
             }
             PlanNodeEnum::Expand(n) => {
-                // ExpandNode 使用 MultipleInputNode，通过 dependencies() 访问子节点
+                // ExpandNode 使用 MultipleInputNode，通过 inputs() 访问子节点
                 let mut total = 1;
-                for dep in n.dependencies() {
+                for dep in n.inputs() {
                     let count = self.analyze_recursive(dep, context, Some(node_id));
                     total += count;
                 }
                 total
             }
             PlanNodeEnum::ExpandAll(n) => {
-                // ExpandAllNode 使用 MultipleInputNode，通过 dependencies() 访问子节点
+                // ExpandAllNode 使用 MultipleInputNode，通过 inputs() 访问子节点
                 let mut total = 1;
-                for dep in n.dependencies() {
+                for dep in n.inputs() {
                     let count = self.analyze_recursive(dep, context, Some(node_id));
                     total += count;
                 }
                 total
             }
             PlanNodeEnum::AppendVertices(n) => {
-                // AppendVerticesNode 使用 MultipleInputNode，通过 dependencies() 访问子节点
+                // AppendVerticesNode 使用 MultipleInputNode，通过 inputs() 访问子节点
                 let mut total = 1;
-                for dep in n.dependencies() {
+                for dep in n.inputs() {
                     let count = self.analyze_recursive(dep, context, Some(node_id));
                     total += count;
                 }
@@ -364,20 +365,14 @@ impl ReferenceCountAnalyzer {
             PlanNodeEnum::Argument(_) => 1,
             PlanNodeEnum::PassThrough(_) => 1,
             PlanNodeEnum::PatternApply(n) => {
-                let mut total = 1;
-                for dep in n.dependencies() {
-                    let count = self.analyze_recursive(dep, context, Some(node_id));
-                    total += count;
-                }
-                total
+                let left_count = self.analyze_recursive(n.left_input(), context, Some(node_id));
+                let right_count = self.analyze_recursive(n.right_input(), context, Some(node_id));
+                1 + left_count + right_count
             }
             PlanNodeEnum::RollUpApply(n) => {
-                let mut total = 1;
-                for dep in n.dependencies() {
-                    let count = self.analyze_recursive(dep, context, Some(node_id));
-                    total += count;
-                }
-                total
+                let left_count = self.analyze_recursive(n.left_input(), context, Some(node_id));
+                let right_count = self.analyze_recursive(n.right_input(), context, Some(node_id));
+                1 + left_count + right_count
             }
             PlanNodeEnum::Assign(n) => {
                 let mut total = 1;
@@ -388,20 +383,14 @@ impl ReferenceCountAnalyzer {
                 total
             }
             PlanNodeEnum::Minus(n) => {
-                let mut total = 1;
-                for dep in n.dependencies() {
-                    let count = self.analyze_recursive(dep, context, Some(node_id));
-                    total += count;
-                }
-                total
+                let main_count = self.analyze_recursive(n.input(), context, Some(node_id));
+                let minus_count = self.analyze_recursive(n.minus_input(), context, Some(node_id));
+                1 + main_count + minus_count
             }
             PlanNodeEnum::Intersect(n) => {
-                let mut total = 1;
-                for dep in n.dependencies() {
-                    let count = self.analyze_recursive(dep, context, Some(node_id));
-                    total += count;
-                }
-                total
+                let main_count = self.analyze_recursive(n.input(), context, Some(node_id));
+                let intersect_count = self.analyze_recursive(n.intersect_input(), context, Some(node_id));
+                1 + main_count + intersect_count
             }
 
             // Dual-input node
