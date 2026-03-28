@@ -64,28 +64,59 @@
 //!
 //! Please select the appropriate context type based on the usage scenario.
 
-// Submodule definition
-pub mod common_utils;
+// Submodule definition - organized by functionality
+
+// Analysis utilities
+pub mod analysis_utils;
+
+// Construction and building
 mod construction;
+
+// Context-aware expressions
 pub mod contextual;
+
+// Core expression definitions
 mod def;
+
+// Display formatting
 mod display;
+
+// Expression metadata
 pub mod expression;
+
+// Expression utilities
+pub mod expression_utils;
+
+// Grouping utilities
+pub mod group_utils;
+
+// Inspection utilities
 mod inspection;
+
+// Memory estimation
 pub mod memory_estimation;
+
+// Serialization support
 pub mod serializable;
+
+// Expression traversal
 mod traverse;
+
+// Type deduction
 mod type_deduce;
-pub mod utils;
+
+// Visitor pattern
 pub mod visitor;
 pub mod visitor_checkers;
 pub mod visitor_collectors;
 
-// Unified Export
+// Unified Export - Core types
 pub use contextual::ContextualExpression;
 pub use def::Expression;
 pub use expression::{ExpressionId, ExpressionMeta};
 pub use serializable::SerializableExpression;
+
+// Unified Export - Visitor pattern
 pub use visitor::ExpressionVisitor;
 pub use visitor_checkers::{ConstantChecker, PropertyContainsChecker};
 pub use visitor_collectors::{
@@ -93,10 +124,17 @@ pub use visitor_collectors::{
     PropertyPredicateCollector, VariableCollector,
 };
 
-// Re-export the tool type.
-pub use common_utils::{
-    extract_group_info, extract_property_refs, extract_string_from_expr,
-    generate_default_alias_from_contextual, is_constant, is_constant_expression,
+// Unified Export - Analysis utilities
+pub use analysis_utils::{
+    collect_variables, collect_variables_from_contextual, extract_aggregate_functions,
+    find_all, has_aggregate_function, is_constant, is_constant_expression, is_evaluable,
 };
-pub use utils::extract_group_suite;
-pub use utils::GroupSuite;
+
+// Unified Export - Expression utilities
+pub use expression_utils::{
+    extract_group_info, extract_property_refs, extract_string_from_expr,
+    generate_default_alias_from_contextual,
+};
+
+// Unified Export - Grouping utilities
+pub use group_utils::{extract_group_suite, GroupSuite};

@@ -1,16 +1,17 @@
-//! Memory estimation for Value types
+//! Memory Estimations for Value Types
 //!
 //! This module provides memory estimation for the Value enum and related types.
 
-use crate::core::value::Value;
 use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
+
+use super::value::Value;
 
 impl MemoryEstimatable for Value {
     fn estimate_memory(&self) -> usize {
         let base_size = std::mem::size_of::<Value>();
 
         match self {
-            // Fixed-size types: only base size
+            // Fixed-size types
             Value::Empty
             | Value::Null(_)
             | Value::Bool(_)
@@ -25,20 +26,20 @@ impl MemoryEstimatable for Value {
             | Value::UInt64(_)
             | Value::Float(_) => base_size,
 
-            // Variable-length string types: base + capacity
+            // Variable-length string types
             Value::String(s) => base_size + s.capacity(),
             Value::FixedString { data, .. } => base_size + data.capacity(),
 
-            // Binary data: base + capacity
+            // Binary data
             Value::Blob(b) => base_size + b.capacity(),
 
             // Complex types with nested memory
             Value::Decimal128(d) => base_size + std::mem::size_of_val(d),
 
-            // DateTime types (typically fixed size)
+            // DateTime types
             Value::Date(_) | Value::Time(_) | Value::DateTime(_) | Value::Duration(_) => base_size,
 
-            // Graph types (simplified estimation)
+            // Graph types
             Value::Vertex(v) => base_size + std::mem::size_of_val(v.as_ref()),
             Value::Edge(e) => base_size + std::mem::size_of_val(e),
             Value::Path(p) => base_size + std::mem::size_of_val(p),
@@ -89,12 +90,13 @@ mod tests {
 
     #[test]
     fn test_list_value() {
+        use super::list::List;
         let list = vec![
             Value::Int(1),
             Value::Int(2),
             Value::String(String::with_capacity(10)),
         ];
-        let v = Value::List(super::super::dataset::List::from(list));
+        let v = Value::List(List::from(list));
         let expected = std::mem::size_of::<Value>()
             + std::mem::size_of::<Value>() * 2
             + (std::mem::size_of::<Value>() + 10);

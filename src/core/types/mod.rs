@@ -1,4 +1,3 @@
-pub mod charset;
 pub mod cluster;
 pub mod data_modification;
 pub mod edge;
@@ -68,8 +67,8 @@ pub use self::tag::TagInfo;
 pub use self::metadata_version::{MetadataVersion, SchemaHistory, SchemaVersion};
 
 // Exporting types from split submodules
-pub use self::charset::CharsetInfo;
 pub use self::cluster::ClusterInfo;
+pub use self::space::CharsetInfo;
 pub use self::data_modification::{
     InsertEdgeInfo, InsertVertexInfo, UpdateInfo, UpdateOp, UpdateTarget,
 };
@@ -86,6 +85,9 @@ pub use self::graph_schema::{
     PropertyType, VertexType,
 };
 pub use self::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
+pub use self::query::{
+    ExecutionMode, PlanType, QueryHint, QueryOptions, QueryStats, QueryStatus, QueryType,
+};
 pub use self::span::{Position, Span, ToSpan};
 
 pub use EdgeTypeInfo as EdgeTypeSchema;

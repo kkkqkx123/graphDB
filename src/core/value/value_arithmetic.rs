@@ -1,7 +1,7 @@
 //! Value Calculation Module
 //!
 //! This module provides methods for arithmetic, logical, and bitwise operations on values.
-use super::types::Value;
+use super::value::Value;
 
 impl Value {
     /// Addition operation

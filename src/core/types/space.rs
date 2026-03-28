@@ -5,6 +5,13 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+/// Charset and collation information
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+pub struct CharsetInfo {
+    pub charset: String,
+    pub collation: String,
+}
+
 static SPACE_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 pub fn generate_space_id() -> u64 {

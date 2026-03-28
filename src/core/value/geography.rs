@@ -61,11 +61,6 @@ impl GeographyValue {
             && self.longitude >= min_lon
             && self.longitude <= max_lon
     }
-
-    /// Estimating the memory usage for calculating geographic values
-    pub fn estimated_size(&self) -> usize {
-        std::mem::size_of::<Self>()
-    }
 }
 
 impl Default for GeographyValue {

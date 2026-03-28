@@ -3,7 +3,7 @@
 //! Provide functions for path operations, including nodes and relationships.
 
 use crate::core::error::ExpressionError;
-use crate::core::value::dataset::List;
+use crate::core::value::list::List;
 use crate::core::value::NullType;
 use crate::core::Value;
 

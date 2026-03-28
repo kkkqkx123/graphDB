@@ -5,8 +5,6 @@ pub trait ResultIterator<'a, T: 'a>: Send + Sync + std::fmt::Debug {
 
     fn next(&mut self) -> DBResult<Option<Self::Row>>;
 
-    fn peek(&self) -> DBResult<Option<&Self::Row>>;
-
     fn size_hint(&self) -> (usize, Option<usize>);
 
     fn count(&mut self) -> DBResult<usize>

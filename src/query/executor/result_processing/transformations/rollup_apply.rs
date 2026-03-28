@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::value::dataset::List;
+use crate::core::value::list::List;
 use crate::core::{DataSet, Expression, Path, Value};
 use crate::query::executor::base::{
     BaseExecutor, ExecutionResult, Executor, ExecutorConfig, RollupApplyConfig,

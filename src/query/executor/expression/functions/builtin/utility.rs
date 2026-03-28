@@ -1,7 +1,7 @@
 //! Implementation of practical functions
 
 use crate::core::error::ExpressionError;
-use crate::core::value::dataset::List;
+use crate::core::value::list::List;
 use crate::core::value::NullType;
 use crate::core::Value;
 use serde_json::Value as JsonValue;

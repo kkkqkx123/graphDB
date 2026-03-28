@@ -1,27 +1,38 @@
 //! Value Module - Graph Database Value Type System
 //!
-//! This module provides the core value type system in the graph database, including:
-//! - 核心类型定义 (`types.rs`)
-//! - 日期时间类型 (`date_time.rs`)
-//! - 地理空间类型 (`geography.rs`)
-//! - 数据集类型 (`dataset.rs`)
-//! - 比较逻辑 (`comparison.rs`)
-//! - 算术运算 (`operations.rs`)
-//! - 类型转换 (`conversion.rs`)
+//! This module provides the core value type system in the graph database.
+//!
+//! ## Module Structure
+//!
+//! - `null` - NullType 定义
+//! - `value` - Value 枚举定义及基础方法
+//! - `value_compare` - 比较逻辑 (PartialEq, Eq, Ord, Hash)
+//! - `value_arithmetic` - 算术/逻辑/位运算
+//! - `value_convert` - 类型转换
+//! - `list` - 列表类型
+//! - `dataset` - 数据集类型
+//! - `date_time` - 日期时间类型
+//! - `decimal128` - Decimal128 高精度数值
+//! - `geography` - 地理空间类型
+//! - `memory` - 内存估算
 
-pub mod comparison;
-pub mod conversion;
 pub mod dataset;
 pub mod date_time;
 pub mod decimal128;
 pub mod geography;
-pub mod memory_estimation;
-pub mod operations;
-pub mod types;
+pub mod list;
+pub mod memory;
+pub mod null;
+pub mod value;
+pub mod value_arithmetic;
+pub mod value_compare;
+pub mod value_convert;
 
-// Re-export all public types and functions to maintain API compatibility
-pub use dataset::*;
-pub use date_time::*;
+// Re-export all public types
+pub use dataset::DataSet;
+pub use date_time::{DateValue, DateTimeValue, DurationValue, TimeValue};
 pub use decimal128::Decimal128Value;
-pub use geography::*;
-pub use types::*;
+pub use geography::GeographyValue;
+pub use list::List;
+pub use null::NullType;
+pub use value::Value;

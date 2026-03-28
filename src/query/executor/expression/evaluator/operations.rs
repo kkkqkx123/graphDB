@@ -1,10 +1,10 @@
 use crate::core::error::ExpressionError;
 use crate::core::types::operators::{BinaryOperator, UnaryOperator};
-use crate::core::value::dataset::List;
+use crate::core::value::list::List;
 /// Arithmetic and logical operations module
 ///
 /// This module is responsible for handling basic arithmetic operations, comparison operations, logical operations, and other fundamental operations involved in the evaluation of expressions.
-use crate::core::value::types::Value;
+use crate::core::value::value::Value;
 use crate::query::executor::expression::evaluator::collection_operations::CollectionOperationEvaluator;
 
 /// Binary operation evaluator

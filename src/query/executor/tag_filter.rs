@@ -2,7 +2,7 @@
 //!
 //! Provide an advanced filtering function for vertex labels that supports the evaluation of complex expressions.
 
-use crate::core::value::dataset::List;
+use crate::core::value::list::List;
 use crate::core::vertex_edge_path::Vertex;
 use crate::core::Expression;
 use crate::core::Value;

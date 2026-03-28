@@ -1,236 +1,65 @@
-//! Expression tool functions
+//! Expression Analysis Utility Functions
 //!
-//! Provide utility functions for expression analysis and transformation, as an alternative to the Visitor pattern.
-//!
-//! These functions use recursion and pattern matching, which makes them more concise and intuitive than the Visitor pattern.
+//! Provides functions for analyzing expressions, including:
+//! - Constant expression checking
+//! - Variable collection
+//! - Aggregate function detection
+//! - Runtime context requirement checking
+//! - Expression searching
 
-use crate::core::types::expr::{ContextualExpression, Expression};
+use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::expr::visitor_checkers::ConstantChecker;
+use crate::core::types::expr::Expression;
 use crate::core::types::operators::AggregateFunction;
 
-/// Group Package
-#[derive(Debug, Clone, Default)]
-pub struct GroupSuite {
-    /// Set of grouping keys
-    pub group_keys: Vec<Expression>,
-    /// Collection of group items
-    pub group_items: Vec<Expression>,
-    /// Collection of aggregate functions
-    pub aggregates: Vec<Expression>,
-}
-
-impl GroupSuite {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn add_group_key(&mut self, expression: Expression) {
-        if !self.group_keys.contains(&expression) {
-            self.group_keys.push(expression);
-        }
-    }
-
-    pub fn add_group_item(&mut self, expression: Expression) {
-        if !self.group_items.contains(&expression) {
-            self.group_items.push(expression);
-        }
-    }
-
-    pub fn add_aggregate(&mut self, expression: Expression) {
-        if !self.aggregates.contains(&expression) {
-            self.aggregates.push(expression);
-        }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.group_keys.is_empty() && self.group_items.is_empty() && self.aggregates.is_empty()
-    }
-
-    pub fn union(&mut self, other: &GroupSuite) {
-        for key in &other.group_keys {
-            self.add_group_key(key.clone());
-        }
-        for item in &other.group_items {
-            self.add_group_item(item.clone());
-        }
-        for agg in &other.aggregates {
-            self.add_aggregate(agg.clone());
-        }
-    }
-}
-
-/// Extract the grouping suite from the expression.
+/// Check if the context expression is a constant
 ///
-/// Used for GROUP BY optimization; identifies expressions and aggregate functions that can be used for grouping.
+/// Constant expressions do not contain any variable or property references
+/// and can be evaluated at compile time.
 ///
 /// # Parameters
-/// Expression to be analyzed
+/// - `ctx_expr`: Contextual expression
 ///
-/// # Return
-/// - `Ok(GroupSuite)`: 提取到的分组套件
-/// - `Err(String)`: 错误信息
-pub fn extract_group_suite(expression: &Expression) -> Result<GroupSuite, String> {
-    let mut group_suite = GroupSuite::new();
-    extract_group_suite_recursive(expression, &mut group_suite);
-    Ok(group_suite)
+/// # Returns
+/// Returns true if the expression does not contain any variable or property references.
+pub fn is_constant(ctx_expr: &ContextualExpression) -> bool {
+    let expr_meta = match ctx_expr.expression() {
+        Some(e) => e,
+        None => return true,
+    };
+    let expr = expr_meta.inner();
+    ConstantChecker::check(expr)
 }
 
-/// Auxiliary function for recursively extracting group packages
-fn extract_group_suite_recursive(expression: &Expression, group_suite: &mut GroupSuite) {
-    match expression {
-        Expression::Literal(value) => {
-            group_suite.add_group_key(Expression::Literal(value.clone()));
-        }
-        Expression::Variable(name) => {
-            group_suite.add_group_key(Expression::Variable(name.clone()));
-        }
-        Expression::Property { object, property } => {
-            let prop_expression = Expression::Property {
-                object: Box::new(object.as_ref().clone()),
-                property: property.clone(),
-            };
-            group_suite.add_group_key(prop_expression);
-            extract_group_suite_recursive(object, group_suite);
-        }
-        Expression::Binary { left, right, .. } => {
-            if is_groupable(left) {
-                group_suite.add_group_key(left.as_ref().clone());
-            }
-            if is_groupable(right) {
-                group_suite.add_group_key(right.as_ref().clone());
-            }
-            extract_group_suite_recursive(left, group_suite);
-            extract_group_suite_recursive(right, group_suite);
-        }
-        Expression::Unary { operand, .. } => {
-            if is_groupable(operand) {
-                group_suite.add_group_key(operand.as_ref().clone());
-            }
-            extract_group_suite_recursive(operand, group_suite);
-        }
-        Expression::Function { name, args } => {
-            let name_upper = name.to_uppercase();
-            if matches!(name_upper.as_str(), "ID" | "SRC" | "DST") && args.len() == 1 {
-                let func_expression = Expression::Function {
-                    name: name.clone(),
-                    args: args.clone(),
-                };
-                group_suite.add_group_key(func_expression);
-            }
-            for arg in args {
-                extract_group_suite_recursive(arg, group_suite);
-            }
-        }
-        Expression::Aggregate {
-            func,
-            arg,
-            distinct,
-        } => {
-            let agg_expression = Expression::Aggregate {
-                func: func.clone(),
-                arg: Box::new(arg.as_ref().clone()),
-                distinct: *distinct,
-            };
-            group_suite.add_aggregate(agg_expression);
-            extract_group_suite_recursive(arg, group_suite);
-        }
-        Expression::List(items) => {
-            for item in items {
-                extract_group_suite_recursive(item, group_suite);
-            }
-        }
-        Expression::Map(pairs) => {
-            for (_, expression) in pairs {
-                extract_group_suite_recursive(expression, group_suite);
-            }
-        }
-        Expression::Case {
-            test_expr,
-            conditions,
-            default,
-        } => {
-            if let Some(test) = test_expr {
-                extract_group_suite_recursive(test, group_suite);
-            }
-            for (cond, expr) in conditions {
-                extract_group_suite_recursive(cond, group_suite);
-                extract_group_suite_recursive(expr, group_suite);
-            }
-            if let Some(def) = default {
-                extract_group_suite_recursive(def, group_suite);
-            }
-        }
-        Expression::TypeCast { expression, .. } => {
-            extract_group_suite_recursive(expression, group_suite);
-        }
-        Expression::Subscript { collection, index } => {
-            extract_group_suite_recursive(collection, group_suite);
-            extract_group_suite_recursive(index, group_suite);
-        }
-        Expression::Range {
-            collection,
-            start,
-            end,
-        } => {
-            extract_group_suite_recursive(collection, group_suite);
-            if let Some(s) = start {
-                extract_group_suite_recursive(s, group_suite);
-            }
-            if let Some(e) = end {
-                extract_group_suite_recursive(e, group_suite);
-            }
-        }
-        Expression::Path(items) => {
-            for item in items {
-                extract_group_suite_recursive(item, group_suite);
-            }
-        }
-        Expression::Label(name) => {
-            group_suite.add_group_key(Expression::Label(name.clone()));
-        }
-        Expression::ListComprehension {
-            variable,
-            source,
-            filter,
-            map,
-        } => {
-            group_suite.add_group_key(Expression::Variable(variable.clone()));
-            extract_group_suite_recursive(source, group_suite);
-            if let Some(f) = filter {
-                extract_group_suite_recursive(f, group_suite);
-            }
-            if let Some(m) = map {
-                extract_group_suite_recursive(m, group_suite);
-            }
-        }
-        Expression::Parameter(name) => {
-            group_suite.add_group_key(Expression::Parameter(name.clone()));
-        }
-        _ => {}
-    }
-}
-
-/// Check whether the expression is a groupable expression.
-fn is_groupable(expression: &Expression) -> bool {
-    match expression {
-        Expression::Literal(_) => true,
-        Expression::Variable(_) => true,
-        Expression::Property { .. } => true,
-        Expression::Function { name, args } => {
-            let name_upper = name.to_uppercase();
-            matches!(name_upper.as_str(), "ID" | "SRC" | "DST") && args.len() == 1
-        }
-        _ => false,
-    }
-}
-
-/// Check whether an expression can be evaluated at compile time (static evaluability check).
+/// Check if an expression is a constant (based on Expression)
 ///
-/// Check whether the expression contains only constants, and no variables or elements that require runtime context (such as property access).
+/// Constant expressions do not contain any variable or property references
+/// and can be evaluated at compile time.
+///
+/// # Parameters
+/// - `expr`: Expression
+///
+/// # Returns
+/// Returns true if the expression does not contain any variable or property references.
+pub fn is_constant_expression(expr: &Expression) -> bool {
+    ConstantChecker::check(expr)
+}
+
+/// Check whether an expression can be evaluated at compile time
+///
+/// Checks whether the expression contains only constants, and no variables
+/// or elements that require runtime context (such as property access).
+///
+/// # Parameters
+/// - `expression`: Expression to check
+///
+/// # Returns
+/// Returns true if the expression can be evaluated at compile time.
 pub fn is_evaluable(expression: &Expression) -> bool {
     !requires_runtime_context(expression)
 }
 
-/// Check whether the expression requires a runtime context in order to be evaluated.
+/// Check whether the expression requires a runtime context to be evaluated
 fn requires_runtime_context(expression: &Expression) -> bool {
     match expression {
         Expression::Literal(_) => false,
@@ -282,7 +111,7 @@ fn requires_runtime_context(expression: &Expression) -> bool {
         } => {
             requires_runtime_context(source)
                 || filter.as_ref().is_some_and(|f| requires_runtime_context(f))
-                || map.as_ref().is_some_and(|m| requires_runtime_context(m))
+                || map.as_ref().is_some_and(|e| requires_runtime_context(e))
         }
         Expression::LabelTagProperty { tag, .. } => requires_runtime_context(tag),
         Expression::TagProperty { .. } => false,
@@ -303,42 +132,12 @@ fn requires_runtime_context(expression: &Expression) -> bool {
     }
 }
 
-/// Find all expressions in the expression that meet the specified matching conditions.
+/// Collect all variables in the expression
 ///
-/// # 参数
-/// Expression to be searched
-/// `predicate`: The function that determines the matching criteria.
+/// # Parameters
+/// - `expression`: Expression to analyze
 ///
-/// # 返回
-/// List of all matching expressions
-pub fn find_all<F>(expression: &Expression, predicate: F) -> Vec<Expression>
-where
-    F: Fn(&Expression) -> bool,
-{
-    let mut results = Vec::new();
-    find_all_recursive(expression, &predicate, &mut results);
-    results
-}
-
-/// Auxiliary function for recursive search of expressions
-fn find_all_recursive<F>(expression: &Expression, predicate: &F, results: &mut Vec<Expression>)
-where
-    F: Fn(&Expression) -> bool,
-{
-    if predicate(expression) {
-        results.push(expression.clone());
-    }
-    for child in expression.children() {
-        find_all_recursive(child, predicate, results);
-    }
-}
-
-/// Collect all the variables in the expression.
-///
-/// # 参数
-/// - `expression`: 要分析的表达式
-///
-/// # 返回
+/// # Returns
 /// List of all variable names
 pub fn collect_variables(expression: &Expression) -> Vec<String> {
     let mut variables = Vec::new();
@@ -348,13 +147,13 @@ pub fn collect_variables(expression: &Expression) -> Vec<String> {
     variables
 }
 
-/// Collect all the variables from the ContextualExpression.
+/// Collect all variables from a ContextualExpression
 ///
-/// # 参数
-/// Context expression to be analyzed
+/// # Parameters
+/// - `expression`: Contextual expression to analyze
 ///
-/// # 返回
-/// 所有变量名称的列表
+/// # Returns
+/// List of all variable names
 pub fn collect_variables_from_contextual(expression: &ContextualExpression) -> Vec<String> {
     match expression.get_expression() {
         Some(expr) => collect_variables(&expr),
@@ -362,7 +161,7 @@ pub fn collect_variables_from_contextual(expression: &ContextualExpression) -> V
     }
 }
 
-/// Auxiliary function for recursively collecting variables
+/// Recursive helper for collecting variables
 fn collect_variables_recursive(expression: &Expression, variables: &mut Vec<String>) {
     match expression {
         Expression::Variable(name) => {
@@ -460,13 +259,13 @@ fn collect_variables_recursive(expression: &Expression, variables: &mut Vec<Stri
     }
 }
 
-/// Check whether the expression contains any aggregate functions.
+/// Check whether the expression contains any aggregate functions
 ///
-/// # 参数
-/// The expression to be checked
+/// # Parameters
+/// - `expression`: Expression to check
 ///
-/// # 返回
-/// Return true if the aggregate function is included; otherwise, return false.
+/// # Returns
+/// Returns true if the expression contains an aggregate function.
 pub fn has_aggregate_function(expression: &Expression) -> bool {
     match expression {
         Expression::Aggregate { .. } => true,
@@ -519,12 +318,12 @@ pub fn has_aggregate_function(expression: &Expression) -> bool {
     }
 }
 
-/// Extract all aggregate functions from the expression.
+/// Extract all aggregate functions from the expression
 ///
-/// # 参数
-/// - `expression`: 要分析的表达式
+/// # Parameters
+/// - `expression`: Expression to analyze
 ///
-/// # 返回
+/// # Returns
 /// List of all aggregate functions
 pub fn extract_aggregate_functions(expression: &Expression) -> Vec<AggregateFunction> {
     let mut functions = Vec::new();
@@ -532,7 +331,7 @@ pub fn extract_aggregate_functions(expression: &Expression) -> Vec<AggregateFunc
     functions
 }
 
-/// Auxiliary function for recursively extracting aggregate functions
+/// Recursive helper for extracting aggregate functions
 fn extract_aggregate_functions_recursive(
     expression: &Expression,
     functions: &mut Vec<AggregateFunction>,
@@ -625,18 +424,121 @@ fn extract_aggregate_functions_recursive(
     }
 }
 
-#[cfg(test)]
-pub mod test_helpers {
-    use super::*;
-    use crate::core::types::expr::ContextualExpression;
-    use crate::core::types::expr::ExpressionMeta;
-    use crate::query::validator::context::ExpressionAnalysisContext;
-    use std::sync::Arc;
+/// Find all expressions in the expression that meet the specified matching conditions
+///
+/// # Parameters
+/// - `expression`: Expression to search
+/// - `predicate`: Function that determines the matching criteria
+///
+/// # Returns
+/// List of all matching expressions
+pub fn find_all<F>(expression: &Expression, predicate: F) -> Vec<Expression>
+where
+    F: Fn(&Expression) -> bool,
+{
+    let mut results = Vec::new();
+    find_all_recursive(expression, &predicate, &mut results);
+    results
+}
 
-    pub fn create_test_contextual_expression(expr: Expression) -> ContextualExpression {
-        let ctx = Arc::new(ExpressionAnalysisContext::new());
-        let meta = ExpressionMeta::new(expr);
-        let id = ctx.register_expression(meta);
-        ContextualExpression::new(id, ctx)
+/// Recursive helper for searching expressions
+fn find_all_recursive<F>(expression: &Expression, predicate: &F, results: &mut Vec<Expression>)
+where
+    F: Fn(&Expression) -> bool,
+{
+    if predicate(expression) {
+        results.push(expression.clone());
+    }
+    for child in expression.children() {
+        find_all_recursive(child, predicate, results);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::types::operators::BinaryOperator;
+
+    #[test]
+    fn test_is_constant_expression() {
+        let expr = Expression::Literal(crate::core::Value::Int(1));
+        assert!(is_constant_expression(&expr));
+
+        let expr = Expression::Variable("v".to_string());
+        assert!(!is_constant_expression(&expr));
+
+        let expr = Expression::Property {
+            object: Box::new(Expression::Variable("v".to_string())),
+            property: "a".to_string(),
+        };
+        assert!(!is_constant_expression(&expr));
+    }
+
+    #[test]
+    fn test_is_evaluable() {
+        let expr = Expression::Literal(crate::core::Value::Int(1));
+        assert!(is_evaluable(&expr));
+
+        let expr = Expression::Variable("v".to_string());
+        assert!(!is_evaluable(&expr));
+    }
+
+    #[test]
+    fn test_collect_variables() {
+        let expr = Expression::Binary {
+            op: BinaryOperator::Add,
+            left: Box::new(Expression::Variable("a".to_string())),
+            right: Box::new(Expression::Variable("b".to_string())),
+        };
+
+        let vars = collect_variables(&expr);
+        assert_eq!(vars.len(), 2);
+        assert!(vars.contains(&"a".to_string()));
+        assert!(vars.contains(&"b".to_string()));
+    }
+
+    #[test]
+    fn test_has_aggregate_function() {
+        let expr = Expression::Aggregate {
+            func: AggregateFunction::Count,
+            arg: Box::new(Expression::Variable("x".to_string())),
+            distinct: false,
+        };
+        assert!(has_aggregate_function(&expr));
+
+        let expr = Expression::Variable("x".to_string());
+        assert!(!has_aggregate_function(&expr));
+    }
+
+    #[test]
+    fn test_extract_aggregate_functions() {
+        let expr = Expression::Binary {
+            op: BinaryOperator::Add,
+            left: Box::new(Expression::Aggregate {
+                func: AggregateFunction::Count,
+                arg: Box::new(Expression::Variable("a".to_string())),
+                distinct: false,
+            }),
+            right: Box::new(Expression::Aggregate {
+                func: AggregateFunction::Sum,
+                arg: Box::new(Expression::Variable("b".to_string())),
+                distinct: false,
+            }),
+        };
+
+        let funcs = extract_aggregate_functions(&expr);
+        assert_eq!(funcs.len(), 2);
+    }
+
+    #[test]
+    fn test_find_all() {
+        let expr = Expression::Binary {
+            op: BinaryOperator::Add,
+            left: Box::new(Expression::Variable("a".to_string())),
+            right: Box::new(Expression::Variable("b".to_string())),
+        };
+
+        let vars = find_all(&expr, |e| matches!(e, Expression::Variable(_)));
+        assert_eq!(vars.len(), 2);
     }
 }

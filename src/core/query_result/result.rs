@@ -1,4 +1,3 @@
-use crate::core::query_result::iterator_enum::ResultIteratorEnum;
 use crate::core::value::Value;
 
 /// Result Status
@@ -38,14 +37,12 @@ impl Default for ResultMeta {
 /// - Zero-cost abstraction: compile-time optimizations, no runtime overheads
 /// - Type safety: compile-time type checking
 /// - Memory Safety: Rust Ownership System Guarantees
-/// - Efficient Iteration: Support for multiple iterator types
-/// - Use ResultIteratorEnum for static distribution to avoid the dynamic distribution overhead of Arc<dyn ResultIterator>.
+/// - Efficient Iteration: Support for multiple iterator types via rows() method
 #[derive(Debug, Clone)]
 pub struct Result {
     rows: Vec<Vec<Value>>,
     col_names: Vec<String>,
     meta: ResultMeta,
-    iterator: Option<ResultIteratorEnum>,
 }
 
 impl Result {
@@ -64,7 +61,6 @@ impl Result {
             rows: Vec::new(),
             col_names: Vec::new(),
             meta: ResultMeta::default(),
-            iterator: None,
         }
     }
 
@@ -85,7 +81,6 @@ impl Result {
                 state: ResultState::Completed,
                 ..Default::default()
             },
-            iterator: None,
         }
     }
 
@@ -101,7 +96,6 @@ impl Result {
                 state: ResultState::Completed,
                 ..Default::default()
             },
-            iterator: None,
         }
     }
 
@@ -144,10 +138,6 @@ impl Result {
 
     pub fn get_value(&self, row: usize, col: usize) -> Option<&Value> {
         self.rows.get(row).and_then(|r| r.get(col))
-    }
-
-    pub fn iterator(&self) -> Option<&ResultIteratorEnum> {
-        self.iterator.as_ref()
     }
 
     pub fn is_empty(&self) -> bool {

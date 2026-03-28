@@ -1,6 +1,7 @@
-use super::dataset::List;
+use super::list::List;
 use super::date_time::{DateTimeValue, DateValue, DurationValue, TimeValue};
-use super::types::{NullType, Value};
+use super::null::NullType;
+use super::value::Value;
 use crate::core::types::DataType;
 use chrono::{Datelike, Timelike};
 
@@ -623,7 +624,7 @@ impl From<std::collections::HashSet<Value>> for Value {
 
 impl From<(i64, &str)> for Value {
     fn from(value: (i64, &str)) -> Self {
-        Value::List(super::dataset::List::from(vec![
+        Value::List(List::from(vec![
             Value::Int(value.0),
             Value::String(value.1.to_string()),
         ]))
@@ -632,7 +633,7 @@ impl From<(i64, &str)> for Value {
 
 impl From<(i64, String)> for Value {
     fn from(value: (i64, String)) -> Self {
-        Value::List(super::dataset::List::from(vec![
+        Value::List(List::from(vec![
             Value::Int(value.0),
             Value::String(value.1),
         ]))

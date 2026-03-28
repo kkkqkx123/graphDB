@@ -1,7 +1,9 @@
 use super::dataset::DataSet;
 use super::date_time::{DateTimeValue, DateValue, DurationValue, TimeValue};
 use super::geography::GeographyValue;
-use super::types::{NullType, Value};
+use super::list::List;
+use super::null::NullType;
+use super::value::Value;
 use crate::core::DataType;
 use std::cmp::Ordering as CmpOrdering;
 use std::collections::HashMap;
@@ -383,7 +385,7 @@ impl Value {
     }
 
     // List Comparison Helper Functions
-    fn cmp_list(a: &super::dataset::List, b: &super::dataset::List) -> CmpOrdering {
+    fn cmp_list(a: &List, b: &List) -> CmpOrdering {
         // Compare lists by dictionary order
         let min_len = a.values.len().min(b.values.len());
         for i in 0..min_len {

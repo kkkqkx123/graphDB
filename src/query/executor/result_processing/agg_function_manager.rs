@@ -5,7 +5,7 @@
 
 use super::agg_data::AggData;
 use crate::core::error::{DBError, QueryError};
-use crate::core::value::dataset::List;
+use crate::core::value::list::List;
 use crate::core::value::{NullType, Value};
 use std::collections::HashMap;
 use std::sync::Arc;

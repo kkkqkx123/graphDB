@@ -166,10 +166,6 @@ impl<'a> crate::core::query_result::result_iterator::ResultIterator<'a, Vec<Valu
         }
     }
 
-    fn peek(&self) -> crate::core::DBResult<Option<&Self::Row>> {
-        self.rows.first().map(|r| Ok(Some(r))).unwrap_or(Ok(None))
-    }
-
     fn size_hint(&self) -> (usize, Option<usize>) {
         let remaining = self.rows.len().saturating_sub(self.index);
         (remaining, Some(remaining))
@@ -214,10 +210,6 @@ impl<'a> crate::core::query_result::result_iterator::ResultIterator<'a, Vec<Valu
         }
     }
 
-    fn peek(&self) -> crate::core::DBResult<Option<&Self::Row>> {
-        Ok(None)
-    }
-
     fn size_hint(&self) -> (usize, Option<usize>) {
         let remaining = self.vertices.len().saturating_sub(self.vertex_index);
         (remaining, Some(remaining))
@@ -253,10 +245,6 @@ impl<'a> crate::core::query_result::result_iterator::ResultIterator<'a, Vec<Valu
         } else {
             Ok(None)
         }
-    }
-
-    fn peek(&self) -> crate::core::DBResult<Option<&Self::Row>> {
-        self.props.first().map(|r| Ok(Some(r))).unwrap_or(Ok(None))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

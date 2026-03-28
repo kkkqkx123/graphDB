@@ -1,7 +1,7 @@
 //! Implementation of aggregate functions
 
 use crate::core::types::operators::AggregateFunction;
-use crate::core::value::dataset::List;
+use crate::core::value::list::List;
 use crate::core::Expression;
 use crate::core::{ExpressionError, Value};
 use serde::{Deserialize, Serialize};

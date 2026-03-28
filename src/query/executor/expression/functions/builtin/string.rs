@@ -185,7 +185,7 @@ define_binary_string_bool_fn!(
 );
 
 fn execute_split(args: &[Value]) -> Result<Value, ExpressionError> {
-    use crate::core::value::dataset::List;
+    use crate::core::value::list::List;
     if args.len() != 2 {
         return Err(ExpressionError::type_error("split函数需要2个参数"));
     }

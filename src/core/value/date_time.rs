@@ -15,11 +15,6 @@ pub struct DateValue {
 }
 
 impl DateValue {
-    /// Estimate the memory usage on the specified date.
-    pub fn estimated_size(&self) -> usize {
-        std::mem::size_of::<Self>()
-    }
-
     /// Add a duration
     pub fn add_duration(&mut self, duration: &DurationValue) {
         if duration.months != 0 {
@@ -153,12 +148,7 @@ pub struct TimeValue {
 }
 
 impl TimeValue {
-    /// Estimating the memory usage for a given amount of time
-    pub fn estimated_size(&self) -> usize {
-        std::mem::size_of::<Self>()
-    }
-
-    /// 添加持续时间
+    /// Add duration
     pub fn add_duration(&mut self, duration: &DurationValue) {
         let total_microseconds = duration.seconds * 1_000_000 + duration.microseconds as i64;
         let mut new_microseconds = self.microsec as i64 + total_microseconds;
@@ -188,7 +178,7 @@ impl TimeValue {
         self.sec = (total_time % 60) as u32;
     }
 
-    /// 减去持续时间
+    /// Subtract duration
     pub fn sub_duration(&mut self, duration: &DurationValue) {
         let neg_duration = DurationValue {
             seconds: -duration.seconds,
@@ -218,12 +208,7 @@ pub struct DateTimeValue {
 }
 
 impl DateTimeValue {
-    /// Estimating the memory usage for date and time processing
-    pub fn estimated_size(&self) -> usize {
-        std::mem::size_of::<Self>()
-    }
-
-    /// 添加持续时间
+    /// Add duration
     pub fn add_duration(&mut self, duration: &DurationValue) {
         let mut date = DateValue {
             year: self.year,
@@ -249,7 +234,7 @@ impl DateTimeValue {
         self.microsec = time.microsec;
     }
 
-    /// 减去持续时间
+    /// Subtract duration
     pub fn sub_duration(&mut self, duration: &DurationValue) {
         let mut date = DateValue {
             year: self.year,
@@ -309,10 +294,6 @@ pub struct DurationValue {
 }
 
 impl DurationValue {
-    /// Estimating the memory usage over a certain duration
-    pub fn estimated_size(&self) -> usize {
-        std::mem::size_of::<Self>()
-    }
 }
 
 impl std::fmt::Display for DurationValue {

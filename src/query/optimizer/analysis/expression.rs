@@ -646,7 +646,7 @@ mod tests {
                     object: Box::new(Expression::Variable("b".to_string())),
                     property: "y".to_string(),
                 },
-                Expression::Literal(Value::Null(crate::core::value::types::NullType::Null)),
+                Expression::Literal(Value::Null(crate::core::value::NullType::Null)),
             ],
         };
         let complex_meta = crate::core::types::expr::ExpressionMeta::new(complex);

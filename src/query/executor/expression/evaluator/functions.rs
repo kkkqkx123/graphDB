@@ -4,7 +4,7 @@
 
 use crate::core::error::{ExpressionError, ExpressionErrorType};
 use crate::core::types::operators::AggregateFunction;
-use crate::core::value::dataset::List;
+use crate::core::value::list::List;
 use crate::core::Value;
 
 /// Function evaluator

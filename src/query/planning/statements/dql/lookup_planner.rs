@@ -9,7 +9,7 @@
 //! Use IndexSelector to automatically select the optimal index.
 
 use crate::core::types::Index;
-use crate::core::value::types::NullType;
+use crate::core::value::NullType;
 use crate::core::Expression;
 use crate::query::parser::ast::{LookupStmt, Stmt};
 use crate::query::planning::plan::core::nodes::access::{IndexScanNode, ScanType};

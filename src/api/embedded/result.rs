@@ -245,7 +245,7 @@ impl Row {
     }
 
     /// Get List
-    pub fn get_list(&self, column: &str) -> Option<&crate::core::value::dataset::List> {
+    pub fn get_list(&self, column: &str) -> Option<&crate::core::value::list::List> {
         self.get(column).and_then(|v| match v {
             Value::List(list) => Some(list),
             _ => None,

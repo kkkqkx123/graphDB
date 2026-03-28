@@ -103,7 +103,7 @@ impl PropIndexSeek {
             collector.visit(expr);
 
             if collector.can_convert_to_in() {
-                use crate::core::value::dataset::List;
+                use crate::core::value::list::List;
                 predicates.push(PropertyPredicate {
                     property: collector
                         .property_name()
