@@ -16,6 +16,7 @@
 //! - `geography` - 地理空间类型
 //! - `memory` - 内存估算
 
+#[allow(non_snake_case)]
 pub mod dataset;
 pub mod date_time;
 pub mod decimal128;
@@ -23,16 +24,16 @@ pub mod geography;
 pub mod list;
 pub mod memory;
 pub mod null;
-pub mod value;
 pub mod value_arithmetic;
 pub mod value_compare;
 pub mod value_convert;
+pub mod value_def;
 
 // Re-export all public types
 pub use dataset::DataSet;
-pub use date_time::{DateValue, DateTimeValue, DurationValue, TimeValue};
+pub use date_time::{DateTimeValue, DateValue, DurationValue, TimeValue};
 pub use decimal128::Decimal128Value;
 pub use geography::GeographyValue;
 pub use list::List;
 pub use null::NullType;
-pub use value::Value;
+pub use value_def::Value;

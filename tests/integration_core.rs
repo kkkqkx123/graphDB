@@ -290,14 +290,14 @@ fn test_value_comparison() {
 fn test_value_unary_operations() {
     // retrieve the opposite of what one intended
     assert_eq!(
-        Value::Int(42).negate().expect("整数取反应该成功"),
+        Value::Int(42).neg().expect("整数取反应该成功"),
         Value::Int(-42)
     );
     assert_eq!(
-        Value::Float(2.5_f64).negate().expect("浮点数取反应该成功"),
+        Value::Float(2.5_f64).neg().expect("浮点数取反应该成功"),
         Value::Float(-2.5_f64)
     );
-    assert!(Value::String("test".to_string()).negate().is_err());
+    assert!(Value::String("test".to_string()).neg().is_err());
 
     // absolute value
     assert_eq!(

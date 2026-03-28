@@ -500,7 +500,7 @@ mod tests {
     #[test]
     fn test_has_aggregate_function() {
         let expr = Expression::Aggregate {
-            func: AggregateFunction::Count,
+            func: AggregateFunction::Count(None),
             arg: Box::new(Expression::Variable("x".to_string())),
             distinct: false,
         };
@@ -515,12 +515,12 @@ mod tests {
         let expr = Expression::Binary {
             op: BinaryOperator::Add,
             left: Box::new(Expression::Aggregate {
-                func: AggregateFunction::Count,
+                func: AggregateFunction::Count(None),
                 arg: Box::new(Expression::Variable("a".to_string())),
                 distinct: false,
             }),
             right: Box::new(Expression::Aggregate {
-                func: AggregateFunction::Sum,
+                func: AggregateFunction::Sum("b".to_string()),
                 arg: Box::new(Expression::Variable("b".to_string())),
                 distinct: false,
             }),

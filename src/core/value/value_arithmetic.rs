@@ -1,7 +1,7 @@
 //! Value Calculation Module
 //!
 //! This module provides methods for arithmetic, logical, and bitwise operations on values.
-use super::value::Value;
+use super::Value;
 
 impl Value {
     /// Addition operation
@@ -551,6 +551,34 @@ impl Value {
             UInt32(a) => Ok(UInt32(!a)),
             UInt64(a) => Ok(UInt64(!a)),
             _ => Err("只能对整数类型进行位取反运算".to_string()),
+        }
+    }
+
+    /// Absolute value operation
+    pub fn abs(&self) -> Result<Value, String> {
+        use Value::*;
+        match self {
+            Int(a) => Ok(Int(a.abs())),
+            Int8(a) => Ok(Int8(a.abs())),
+            Int16(a) => Ok(Int16(a.abs())),
+            Int32(a) => Ok(Int32(a.abs())),
+            Int64(a) => Ok(Int64(a.abs())),
+            UInt8(_) | UInt16(_) | UInt32(_) | UInt64(_) => Ok(self.clone()),
+            Float(a) => Ok(Float(a.abs())),
+            _ => Err("只能对数值类型进行绝对值运算".to_string()),
+        }
+    }
+
+    /// Length operation
+    pub fn length(&self) -> Result<Value, String> {
+        use Value::*;
+        match self {
+            String(s) => Ok(Int(s.len() as i64)),
+            FixedString { data, .. } => Ok(Int(data.len() as i64)),
+            List(l) => Ok(Int(l.values.len() as i64)),
+            Map(m) => Ok(Int(m.len() as i64)),
+            Set(s) => Ok(Int(s.len() as i64)),
+            _ => Err("只能对字符串、列表、映射或集合类型进行长度运算".to_string()),
         }
     }
 }

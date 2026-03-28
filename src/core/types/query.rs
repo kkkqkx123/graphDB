@@ -110,7 +110,10 @@ impl QueryStatus {
     pub fn is_final(&self) -> bool {
         matches!(
             self,
-            QueryStatus::Completed | QueryStatus::Failed | QueryStatus::Cancelled | QueryStatus::Timeout
+            QueryStatus::Completed
+                | QueryStatus::Failed
+                | QueryStatus::Cancelled
+                | QueryStatus::Timeout
         )
     }
 
@@ -133,7 +136,7 @@ impl QueryStatus {
 }
 
 /// Query execution statistics
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct QueryStats {
     /// Total execution time in milliseconds
     pub execution_time_ms: u64,
@@ -153,22 +156,6 @@ pub struct QueryStats {
     pub cache_hits: usize,
     /// Number of cache misses
     pub cache_misses: usize,
-}
-
-impl Default for QueryStats {
-    fn default() -> Self {
-        Self {
-            execution_time_ms: 0,
-            planning_time_ms: 0,
-            query_time_ms: 0,
-            rows_returned: 0,
-            rows_scanned: 0,
-            index_hits: 0,
-            memory_usage: 0,
-            cache_hits: 0,
-            cache_misses: 0,
-        }
-    }
 }
 
 impl QueryStats {

@@ -3,13 +3,23 @@
 
 #[cfg(test)]
 mod expression_strategy_tests {
-    use crate::core::types::expr::utils::test_helpers::create_test_contextual_expression;
+    use crate::core::types::expr::contextual::ContextualExpression;
+    use crate::core::types::expr::Expression;
+    use crate::core::types::expr::ExpressionMeta;
     use crate::core::types::YieldColumn;
-    use crate::core::Expression;
-    use crate::core::Value;
+    use crate::core::value::Value;
+    use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
     use crate::query::validator::strategies::expression_strategy::ExpressionValidationStrategy;
     use crate::query::validator::structs::*;
     use std::collections::HashMap;
+    use std::sync::Arc;
+
+    fn create_test_contextual_expression(expr: Expression) -> ContextualExpression {
+        let context = Arc::new(ExpressionAnalysisContext::new());
+        let meta = ExpressionMeta::new(expr);
+        let id = context.register_expression(meta);
+        ContextualExpression::new(id, context)
+    }
 
     #[test]
     fn test_expression_validation_strategy_creation() {

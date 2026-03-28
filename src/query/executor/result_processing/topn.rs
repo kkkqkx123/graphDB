@@ -420,7 +420,7 @@ impl<S: StorageClient> TopNExecutor<S> {
             let new_item = TopNItem {
                 sort_value,
                 _original_index: i,
-                row: row.clone(),
+                row: row.to_vec(),
             };
 
             if heap.len() < heap_size {
@@ -463,7 +463,7 @@ impl<S: StorageClient> TopNExecutor<S> {
             let new_item = TopNItemDesc {
                 sort_value,
                 _original_index: i,
-                row: row.clone(),
+                row: row.to_vec(),
             };
 
             if heap.len() < heap_size {

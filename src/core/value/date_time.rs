@@ -132,6 +132,13 @@ impl Default for DateValue {
     }
 }
 
+impl DateValue {
+    /// Estimate the memory usage of the date value
+    pub fn estimated_size(&self) -> usize {
+        std::mem::size_of::<Self>()
+    }
+}
+
 impl std::fmt::Display for DateValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:04}-{:02}-{:02}", self.year, self.month, self.day)
@@ -186,6 +193,13 @@ impl TimeValue {
             months: 0,
         };
         self.add_duration(&neg_duration);
+    }
+}
+
+impl TimeValue {
+    /// Estimate the memory usage of the time value
+    pub fn estimated_size(&self) -> usize {
+        std::mem::size_of::<Self>()
     }
 }
 
@@ -275,6 +289,13 @@ impl Default for DateTimeValue {
     }
 }
 
+impl DateTimeValue {
+    /// Estimate the memory usage of the datetime value
+    pub fn estimated_size(&self) -> usize {
+        std::mem::size_of::<Self>()
+    }
+}
+
 impl std::fmt::Display for DateTimeValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -294,6 +315,10 @@ pub struct DurationValue {
 }
 
 impl DurationValue {
+    /// Estimate the memory usage of the duration value
+    pub fn estimated_size(&self) -> usize {
+        std::mem::size_of::<Self>()
+    }
 }
 
 impl std::fmt::Display for DurationValue {

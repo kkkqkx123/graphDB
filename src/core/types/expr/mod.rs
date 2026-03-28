@@ -126,8 +126,8 @@ pub use visitor_collectors::{
 
 // Unified Export - Analysis utilities
 pub use analysis_utils::{
-    collect_variables, collect_variables_from_contextual, extract_aggregate_functions,
-    find_all, has_aggregate_function, is_constant, is_constant_expression, is_evaluable,
+    collect_variables, collect_variables_from_contextual, extract_aggregate_functions, find_all,
+    has_aggregate_function, is_constant, is_constant_expression, is_evaluable,
 };
 
 // Unified Export - Expression utilities

@@ -11,7 +11,7 @@ use std::hash::Hash;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
 pub struct DataSet {
     pub col_names: Vec<String>,
-    pub rows: Vec<Vec<super::types::Value>>,
+    pub rows: Vec<Vec<super::Value>>,
 }
 
 impl Default for DataSet {
@@ -37,7 +37,7 @@ impl DataSet {
     }
 
     /// Add a row
-    pub fn add_row(&mut self, row: Vec<super::types::Value>) {
+    pub fn add_row(&mut self, row: Vec<super::Value>) {
         self.rows.push(row);
     }
 
@@ -62,7 +62,7 @@ impl DataSet {
     }
 
     /// Get all values of specified column
-    pub fn get_column(&self, col_name: &str) -> Option<Vec<super::types::Value>> {
+    pub fn get_column(&self, col_name: &str) -> Option<Vec<super::Value>> {
         self.get_col_index(col_name).map(|index| {
             self.rows
                 .iter()
@@ -74,7 +74,7 @@ impl DataSet {
     /// Filter dataset
     pub fn filter<F>(&self, predicate: F) -> DataSet
     where
-        F: Fn(&Vec<super::types::Value>) -> bool,
+        F: Fn(&Vec<super::Value>) -> bool,
     {
         DataSet {
             col_names: self.col_names.clone(),
@@ -90,7 +90,7 @@ impl DataSet {
     /// Map dataset
     pub fn map<F>(&self, mapper: F) -> DataSet
     where
-        F: Fn(&Vec<super::types::Value>) -> Vec<super::types::Value>,
+        F: Fn(&Vec<super::Value>) -> Vec<super::Value>,
     {
         DataSet {
             col_names: self.col_names.clone(),
@@ -101,7 +101,7 @@ impl DataSet {
     /// Sort dataset
     pub fn sort_by<F>(&mut self, comparator: F)
     where
-        F: Fn(&Vec<super::types::Value>, &Vec<super::types::Value>) -> std::cmp::Ordering,
+        F: Fn(&Vec<super::Value>, &Vec<super::Value>) -> std::cmp::Ordering,
     {
         self.rows.sort_by(comparator);
     }
@@ -148,10 +148,10 @@ impl DataSet {
     /// Group dataset
     pub fn group_by<F, K>(&self, key_fn: F) -> Vec<(K, DataSet)>
     where
-        F: Fn(&Vec<super::types::Value>) -> K,
+        F: Fn(&Vec<super::Value>) -> K,
         K: std::hash::Hash + Eq + Clone,
     {
-        let mut groups: HashMap<K, Vec<Vec<super::types::Value>>> = HashMap::new();
+        let mut groups: HashMap<K, Vec<Vec<super::Value>>> = HashMap::new();
 
         for row in &self.rows {
             let key = key_fn(row);
@@ -173,7 +173,7 @@ impl DataSet {
     /// Aggregate dataset
     pub fn aggregate<F, R>(&self, aggregator: F) -> Vec<R>
     where
-        F: Fn(&Vec<super::types::Value>) -> R,
+        F: Fn(&Vec<super::Value>) -> R,
     {
         self.rows.iter().map(aggregator).collect()
     }
@@ -209,7 +209,7 @@ impl DataSet {
     /// Calculate intersection
     pub fn intersect(&self, other: &DataSet) -> DataSet {
         use std::collections::HashSet;
-        let other_set: HashSet<&Vec<super::types::Value>> = other.rows.iter().collect();
+        let other_set: HashSet<&Vec<super::Value>> = other.rows.iter().collect();
         DataSet {
             col_names: self.col_names.clone(),
             rows: self
@@ -224,7 +224,7 @@ impl DataSet {
     /// Calculate difference
     pub fn except(&self, other: &DataSet) -> DataSet {
         use std::collections::HashSet;
-        let other_set: HashSet<&Vec<super::types::Value>> = other.rows.iter().collect();
+        let other_set: HashSet<&Vec<super::Value>> = other.rows.iter().collect();
         DataSet {
             col_names: self.col_names.clone(),
             rows: self
@@ -262,7 +262,7 @@ impl DataSet {
     }
 
     /// Get unique values
-    pub fn distinct(&self, col_name: &str) -> Vec<super::types::Value> {
+    pub fn distinct(&self, col_name: &str) -> Vec<super::Value> {
         use std::collections::HashSet;
         if let Some(index) = self.get_col_index(col_name) {
             let mut unique = HashSet::new();
@@ -288,9 +288,9 @@ impl DataSet {
         }
 
         // rows capacity
-        size += self.rows.capacity() * std::mem::size_of::<Vec<super::types::Value>>();
+        size += self.rows.capacity() * std::mem::size_of::<Vec<super::Value>>();
         for row in &self.rows {
-            size += row.capacity() * std::mem::size_of::<super::types::Value>();
+            size += row.capacity() * std::mem::size_of::<super::Value>();
             for value in row {
                 size += value.estimated_size();
             }

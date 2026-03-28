@@ -2,7 +2,7 @@
 //!
 //! Responsible for planning the execution of the RETURN statement and implementing the projection of the results.
 
-use crate::core::types::expr::common_utils::generate_default_alias_from_contextual;
+use crate::core::types::expr::expression_utils::generate_default_alias_from_contextual;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;

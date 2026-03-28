@@ -20,14 +20,14 @@ use std::hash::Hash;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Encode, Decode, Default)]
 pub enum NullType {
     #[default]
-    Null,          // Standard null values
-    NaN,           // Non-numeric results
-    BadData,       // Bad data (parsing failure)
-    BadType,       // Type mismatch
-    ErrOverflow,   // Numeric overflow
-    UnknownProp,   // Unknown property
-    DivByZero,     // Division error
-    OutOfRange,    // Value out of range
+    Null, // Standard null values
+    NaN,         // Non-numeric results
+    BadData,     // Bad data (parsing failure)
+    BadType,     // Type mismatch
+    ErrOverflow, // Numeric overflow
+    UnknownProp, // Unknown property
+    DivByZero,   // Division error
+    OutOfRange,  // Value out of range
 }
 
 impl NullType {

@@ -9,7 +9,7 @@
 //! 4. Pagination: The number of results can be limited using the SKIP/LIMIT parameters.
 //! 5. Scope reset: Only the variables that are output are retained; all other variables become invisible.
 
-use crate::core::types::expr::common_utils::extract_group_info;
+use crate::core::types::expr::expression_utils::extract_group_info;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
 use crate::query::planning::plan::core::nodes::{FilterNode, LimitNode, PlanNodeEnum, ProjectNode};

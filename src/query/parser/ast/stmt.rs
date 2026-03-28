@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use super::pattern::*;
 use super::types::*;
+use crate::core::types::expr::analysis_utils::collect_variables_from_contextual;
 use crate::core::types::expr::contextual::ContextualExpression;
-use crate::core::types::expr::utils::collect_variables_from_contextual;
 use crate::core::types::PropertyDef;
 use crate::query::validator::context::ExpressionAnalysisContext;
 

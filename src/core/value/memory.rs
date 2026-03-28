@@ -4,7 +4,7 @@
 
 use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
 
-use super::value::Value;
+use super::Value;
 
 impl MemoryEstimatable for Value {
     fn estimate_memory(&self) -> usize {
@@ -90,7 +90,7 @@ mod tests {
 
     #[test]
     fn test_list_value() {
-        use super::list::List;
+        use crate::core::value::list::List;
         let list = vec![
             Value::Int(1),
             Value::Int(2),

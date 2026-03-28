@@ -3,7 +3,7 @@
 //! Provide a function for evaluating specific expressions, implemented using direct recursive matching to avoid unnecessary abstract overhead.
 
 use crate::core::error::ExpressionError;
-use crate::core::types::expr::utils::is_evaluable;
+use crate::core::types::expr::analysis_utils::is_evaluable;
 use crate::core::types::expr::Expression;
 use crate::core::value::list::List;
 use crate::core::value::NullType;

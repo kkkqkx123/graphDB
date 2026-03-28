@@ -457,14 +457,14 @@ mod tests {
         let (picked, remained) = split_filter(&ctx_condition, picker);
 
         assert!(picked.is_some());
-        let picked_props = crate::core::types::expr::common_utils::extract_property_refs(
+        let picked_props = crate::core::types::expr::expression_utils::extract_property_refs(
             picked.as_ref().expect("Failed to get picked expression"),
         );
         assert!(picked_props.contains(&"a".to_string()));
         assert!(picked_props.contains(&"b".to_string()));
 
         assert!(remained.is_some());
-        let remained_props = crate::core::types::expr::common_utils::extract_property_refs(
+        let remained_props = crate::core::types::expr::expression_utils::extract_property_refs(
             remained
                 .as_ref()
                 .expect("Failed to get remained expression"),

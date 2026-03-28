@@ -121,14 +121,14 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
 
             // Find the matching row in the right table.
             if let Some(right_indices) = hash_table.get(&left_key) {
-                matched_rows.insert(left_row.clone()); // Marked as matched
+                matched_rows.insert(left_row.to_vec()); // Marked as matched
 
                 for &right_idx in right_indices {
                     if right_idx < build_dataset.rows.len() {
                         let right_row = &build_dataset.rows[right_idx];
                         let new_row = self.base_executor.new_row(
-                            left_row.clone(),
-                            right_row.clone(),
+                            left_row.to_vec(),
+                            right_row.to_vec(),
                             &left_dataset.col_names,
                             &right_dataset.col_names,
                         );
@@ -141,7 +141,7 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
         // Handle unmatched rows from the left table (fill with NULL).
         for left_row in &left_dataset.rows {
             if !matched_rows.contains(left_row) {
-                let mut new_row = left_row.clone();
+                let mut new_row = left_row.to_vec();
                 // Fill the right column with NULL values.
                 for _ in 0..self.right_col_size {
                     new_row.push(Value::Null(NullType::Null));

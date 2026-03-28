@@ -1,7 +1,7 @@
 //! The FETCH EDGES query planner
 //! Planning for the execution of the FETCH EDGES query
 
-use crate::core::types::expr::common_utils::extract_string_from_expr;
+use crate::core::types::expr::expression_utils::extract_string_from_expr;
 use crate::query::parser::ast::{FetchTarget, Stmt};
 use crate::query::planning::plan::core::nodes::{
     ArgumentNode, FilterNode, GetEdgesNode, ProjectNode,

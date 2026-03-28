@@ -457,7 +457,7 @@ mod tests {
                                                             // Verify that all ages are greater than 25.
                 for row in &filtered_dataset.rows {
                     if let crate::core::Value::Int(age) = &row[1] {
-                        assert!(age > &25);
+                        assert!(*age > 25);
                     }
                 }
             }

@@ -187,8 +187,8 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
                     *matched = true; // Marked as matched
                     if *right_idx < right_dataset.rows.len() {
                         let right_row = &right_dataset.rows[*right_idx];
-                        let mut joined_row = row.clone();
-                        joined_row.extend_from_slice(right_row);
+                        let mut joined_row = row.to_vec();
+                        joined_row.extend(right_row.iter().cloned());
                         result_dataset.rows.push(joined_row);
                     }
                 }
@@ -199,8 +199,8 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
                     null_right_row.push(Value::Null(crate::core::value::NullType::Null));
                 }
 
-                let mut joined_row = row.clone();
-                joined_row.extend_from_slice(&null_right_row);
+                let mut joined_row = row.to_vec();
+                joined_row.extend(null_right_row);
                 result_dataset.rows.push(joined_row);
             }
         }
@@ -226,7 +226,7 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
                             }
 
                             let mut joined_row = null_left_row;
-                            joined_row.extend_from_slice(right_row);
+                            joined_row.extend(right_row.iter().cloned());
                             result_dataset.rows.push(joined_row);
                         }
                     }

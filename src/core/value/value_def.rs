@@ -3,6 +3,7 @@
 use crate::core::types::DataType;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
+use std::hash::Hash;
 
 /// Indicates values that can be stored in node/edge attributes
 /// Following Nebula's Value type design pattern
@@ -162,6 +163,57 @@ impl Value {
         let mut hasher = DefaultHasher::new();
         self.hash(&mut hasher);
         hasher.finish()
+    }
+
+    /// Estimate the memory usage of the value
+    pub fn estimated_size(&self) -> usize {
+        match self {
+            Value::Empty => std::mem::size_of::<Self>(),
+            Value::Null(_) => std::mem::size_of::<Self>(),
+            Value::Bool(_) => std::mem::size_of::<Self>(),
+            Value::Int(_) => std::mem::size_of::<Self>(),
+            Value::Int8(_) => std::mem::size_of::<Self>(),
+            Value::Int16(_) => std::mem::size_of::<Self>(),
+            Value::Int32(_) => std::mem::size_of::<Self>(),
+            Value::Int64(_) => std::mem::size_of::<Self>(),
+            Value::UInt8(_) => std::mem::size_of::<Self>(),
+            Value::UInt16(_) => std::mem::size_of::<Self>(),
+            Value::UInt32(_) => std::mem::size_of::<Self>(),
+            Value::UInt64(_) => std::mem::size_of::<Self>(),
+            Value::Float(_) => std::mem::size_of::<Self>(),
+            Value::Decimal128(_) => std::mem::size_of::<Self>(),
+            Value::String(s) => std::mem::size_of::<Self>() + s.capacity(),
+            Value::FixedString { data, .. } => std::mem::size_of::<Self>() + data.capacity(),
+            Value::Blob(b) => std::mem::size_of::<Self>() + b.capacity(),
+            Value::Date(_) => std::mem::size_of::<Self>(),
+            Value::Time(_) => std::mem::size_of::<Self>(),
+            Value::DateTime(_) => std::mem::size_of::<Self>(),
+            Value::Vertex(v) => std::mem::size_of::<Self>() + v.estimated_size(),
+            Value::Edge(e) => std::mem::size_of::<Self>() + e.estimated_size(),
+            Value::Path(p) => std::mem::size_of::<Self>() + p.estimated_size(),
+            Value::List(l) => std::mem::size_of::<Self>() + l.estimated_size(),
+            Value::Map(m) => {
+                let mut size = std::mem::size_of::<Self>();
+                size +=
+                    m.capacity() * (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
+                for (k, v) in m {
+                    size += k.capacity();
+                    size += v.estimated_size();
+                }
+                size
+            }
+            Value::Set(s) => {
+                let mut size = std::mem::size_of::<Self>();
+                size += s.capacity() * std::mem::size_of::<Value>();
+                for v in s {
+                    size += v.estimated_size();
+                }
+                size
+            }
+            Value::Geography(g) => std::mem::size_of::<Self>() + g.estimated_size(),
+            Value::Duration(d) => std::mem::size_of::<Self>() + d.estimated_size(),
+            Value::DataSet(d) => std::mem::size_of::<Self>() + d.estimated_size(),
+        }
     }
 }
 

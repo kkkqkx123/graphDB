@@ -68,7 +68,6 @@ pub use self::metadata_version::{MetadataVersion, SchemaHistory, SchemaVersion};
 
 // Exporting types from split submodules
 pub use self::cluster::ClusterInfo;
-pub use self::space::CharsetInfo;
 pub use self::data_modification::{
     InsertEdgeInfo, InsertVertexInfo, UpdateInfo, UpdateOp, UpdateTarget,
 };
@@ -77,6 +76,7 @@ pub use self::schema_change::{
     AlterTargetType, FieldChangeType, SchemaAlterOperation, SchemaChange, SchemaChangeType,
     SchemaFieldChange,
 };
+pub use self::space::CharsetInfo;
 pub use self::user::{PasswordInfo, UserAlterInfo, UserInfo};
 
 pub use self::expr::{ContextualExpression, Expression, ExpressionMeta, SerializableExpression};

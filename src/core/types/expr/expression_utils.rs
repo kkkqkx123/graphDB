@@ -136,6 +136,7 @@ pub fn extract_group_info(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expr::def::Expression;
     use crate::core::types::expr::ExpressionMeta;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
@@ -150,7 +151,10 @@ mod tests {
 
         let result = extract_string_from_expr(&ctx_expr);
         assert!(result.is_ok());
-        assert_eq!(result.expect("Failed to extract variable string"), "test_var");
+        assert_eq!(
+            result.expect("Failed to extract variable string"),
+            "test_var"
+        );
     }
 
     #[test]

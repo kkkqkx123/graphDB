@@ -72,6 +72,13 @@ impl Default for GeographyValue {
     }
 }
 
+impl GeographyValue {
+    /// Estimate the memory usage of the geography value
+    pub fn estimated_size(&self) -> usize {
+        std::mem::size_of::<Self>()
+    }
+}
+
 /// Geographic type (only point types are supported)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Encode, Decode)]
 pub enum Geography {

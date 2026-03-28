@@ -293,7 +293,7 @@ impl Vertex {
         let mut size = std::mem::size_of::<Self>();
 
         // Calculate the actual size of the vid (including the heap allocation for the Box and the content of the Value).
-        size += std::mem::size_of::<Box<Value>>() + self.vid.estimated_size();
+        size += std::mem::size_of::<Box<Value>>() + self.vid.as_ref().estimated_size();
 
         // Calculate the memory overhead for the capacity of VecTagName>
         size += self.tags.capacity() * std::mem::size_of::<Tag>();
@@ -423,8 +423,8 @@ impl Edge {
         let mut size = std::mem::size_of::<Self>();
 
         // Calculate the actual sizes of src and dst (including the heap allocation for the Box and the content of the Value).
-        size += std::mem::size_of::<Box<Value>>() + self.src.estimated_size();
-        size += std::mem::size_of::<Box<Value>>() + self.dst.estimated_size();
+        size += std::mem::size_of::<Box<Value>>() + self.src.as_ref().estimated_size();
+        size += std::mem::size_of::<Box<Value>>() + self.dst.as_ref().estimated_size();
 
         // Calculate the actual size of edge_type (including heap allocation).
         size += std::mem::size_of::<String>() + self.edge_type.capacity();
@@ -639,7 +639,7 @@ impl Path {
         let mut size = std::mem::size_of::<Self>();
 
         // Calculate the actual size of `src` (including the heap allocation for the `Box` and the content of the `Vertex`).
-        size += std::mem::size_of::<Box<Vertex>>() + self.src.estimated_size();
+        size += std::mem::size_of::<Box<Vertex>>() + self.src.as_ref().estimated_size();
 
         // Calculate the memory overhead for the capacity of Vec<Step>
         size += self.steps.capacity() * std::mem::size_of::<Step>();
