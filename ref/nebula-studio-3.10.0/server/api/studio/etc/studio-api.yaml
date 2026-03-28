@@ -1,0 +1,91 @@
+Name: studio-api
+Host: 0.0.0.0
+Port: 9000
+MaxBytes: 1073741824
+Timeout: 60000
+# single(single-instance) or multi(multi-instance), default is single
+# multi-instance: local data storage will be prohibited to ensure consistency across multiple instances
+# AppInstance: "multi"
+Log: 
+  Mode: file
+  Level: info
+  KeepDays: 7
+Debug:
+  Enable: false
+WebSocket:
+  # The maximum wait time (secend) for the pong message from peer.
+  # If a peer does not respond to the ping message within this time, websocket connection will be closed.
+  # default 60s, 0 means no limit
+  WriteDeadline: 60
+  # The maximum wait time (secend) for the ping message from peer.
+  # If a peer does not send a ping message within this time, websocket connection will be closed.
+  # default 60s, 0 means no limit
+  ReadDeadline: 60
+  # The maximum message size allowed from peer.
+  # If a peer sends a message larger than this, an error will be thrown and websocket connection will be closed.
+  # default: 32MB (32 * 1024 * 1024), 0 means no limit or system limit
+  WriteLimit: 33554432
+  # The maximum message size allowed from peer.
+  # If a peer sends a message larger than this, websocket connection will be closed.
+  # default: 8MB (8 * 1024 * 1024), 0 means no limit or system limit
+  ReadLimit: 8388608
+Auth:
+  TokenName: "studio_token"
+  AccessSecret: "login_secret"
+  AccessExpire: 259200
+File:
+  UploadDir: "./data/upload/"
+  TasksDir: "./data/tasks"
+CorsOrigins: []
+DB:
+  # 1,2,3,4 corresponding to Silent, ERROR, Warn, INFO
+  LogLevel: 4
+  IgnoreRecordNotFoundError: false
+  # AutoMigrate run auto migration for given models
+  AutoMigrate: true
+  # The database backend, either "mysql", "sqlite3".
+  Type: "sqlite3"
+  # Database host
+  Host: "127.0.0.1:3306"
+  # Database name
+  Name: "nebula"
+  # Database user
+  User: "root"
+  # Database password
+  Password: "123456"
+  # For "sqlite3" only, database file path
+  SqliteDbFilePath: "./data/tasks.db"
+  # The maximum open connections of the pool.
+  MaxOpenConns: 30
+  # The maximum idle connections of the pool.
+  MaxIdleConns: 10
+LLM:
+  GQLPath: "./data/llm"
+  GQLBatchSize: 100
+  MaxBlockSize: 0
+  PromptTemplate: |
+    As a knowledge graph AI importer, your task is to extract useful data from the following text:
+
+    ---
+    {text}
+    ---
+
+    The knowledge graph should follow this schema (node name is mandatory):
+
+    ---
+    {spaceSchema}
+    ---
+
+    {userPrompt}
+
+    Please return the results in JSON format only, without any explanations or comments. The JSON should include nodes and edges with their properties, as shown below:
+
+    ```json
+    {
+      "nodes":[{ "name":"foo","type":"node_type_1","props":{"key_x":"85%"} }],
+      "edges":[{ "src":"foo","dst":"bar","edgeType":"edge_type_3","props":{"name":"is located in"} }]
+    }
+    ```
+    
+    Ensure the JSON is correctly formatted. Now, extract!
+    JSON:

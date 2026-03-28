@@ -1,0 +1,134 @@
+package service
+
+import (
+	"context"
+	"net/http"
+
+	"github.com/vesoft-inc/go-pkg/middleware"
+	"github.com/vesoft-inc/go-pkg/response"
+	"github.com/vesoft-inc/nebula-studio/server/api/studio/internal/svc"
+	"github.com/vesoft-inc/nebula-studio/server/api/studio/internal/types"
+	"github.com/vesoft-inc/nebula-studio/server/api/studio/pkg/auth"
+	"github.com/vesoft-inc/nebula-studio/server/api/studio/pkg/base"
+	"github.com/vesoft-inc/nebula-studio/server/api/studio/pkg/client"
+	"github.com/vesoft-inc/nebula-studio/server/api/studio/pkg/ecode"
+	"github.com/vesoft-inc/nebula-studio/server/api/studio/pkg/utils"
+
+	"github.com/zeromicro/go-zero/core/logx"
+)
+
+var _ GatewayService = (*gatewayService)(nil)
+
+type (
+	GatewayService interface {
+		ExecNGQL(request *types.ExecNGQLParams) (*types.AnyResponse, error)
+		BatchExecNGQL(request *types.BatchExecNGQLParams) (*types.AnyResponse, error)
+		ConnectDB(request *types.ConnectDBParams) error
+		DisconnectDB() (*types.AnyResponse, error)
+	}
+
+	gatewayService struct {
+		logx.Logger
+		ctx              context.Context
+		svcCtx           *svc.ServiceContext
+		withErrorMessage utils.WithErrorMessage
+	}
+)
+
+func NewGatewayService(ctx context.Context, svcCtx *svc.ServiceContext) GatewayService {
+	return &gatewayService{
+		Logger:           logx.WithContext(ctx),
+		ctx:              ctx,
+		svcCtx:           svcCtx,
+		withErrorMessage: utils.ErrMsgWithLogger(ctx),
+	}
+}
+
+func (s *gatewayService) ConnectDB(request *types.ConnectDBParams) error {
+	httpRes, _ := middleware.GetResponseWriter(s.ctx)
+
+	tokenString, err := auth.ParseConnectDBParams(request, &s.svcCtx.Config)
+	if err != nil {
+		return s.withErrorMessage(ecode.ErrBadRequest, err, "parse request failed")
+	}
+
+	configAuth := s.svcCtx.Config.Auth
+	tokenCookie := http.Cookie{
+		Name:     configAuth.TokenName,
+		Value:    tokenString,
+		Path:     "/",
+		HttpOnly: true,
+		MaxAge:   int(configAuth.AccessExpire),
+	}
+
+	httpsEnable := len(s.svcCtx.Config.CorsOrigins) > 0 || (s.svcCtx.Config.CertFile != "" && s.svcCtx.Config.KeyFile != "")
+	if httpsEnable {
+		tokenCookie.Secure = true
+		tokenCookie.SameSite = http.SameSiteNoneMode
+	}
+
+	httpRes.Header().Add("Set-Cookie", tokenCookie.String())
+
+	return nil
+}
+
+func (s *gatewayService) DisconnectDB() (*types.AnyResponse, error) {
+	authData, ok := s.ctx.Value(auth.CtxKeyUserInfo{}).(*auth.AuthData)
+	if ok && authData.NSID != "" {
+		client.CloseClient(authData.NSID)
+	}
+
+	httpRes, _ := middleware.GetResponseWriter(s.ctx)
+	configAuth := s.svcCtx.Config.Auth
+	httpsEnable := s.svcCtx.Config.CertFile != "" && s.svcCtx.Config.KeyFile != ""
+	httpRes.Header().Set("Set-Cookie", utils.DisabledCookie(configAuth.TokenName, httpsEnable).String())
+
+	return &types.AnyResponse{Data: response.StandardHandlerDataFieldAny(nil)}, nil
+}
+
+func transformError(err error) error {
+	if auth.IsSessionError(err) {
+		return ecode.WithSessionMessage(err)
+	}
+	return ecode.WithErrorMessage(ecode.ErrInternalServer, err, "execute failed")
+}
+
+func (s *gatewayService) ExecNGQL(request *types.ExecNGQLParams) (*types.AnyResponse, error) {
+	authData := s.ctx.Value(auth.CtxKeyUserInfo{}).(*auth.AuthData)
+	var gqls []string
+	gqls = append(gqls, request.Gql)
+	executes, err := client.Execute(authData.NSID, request.Space, gqls)
+	if err != nil {
+		return nil, transformError(err)
+	}
+	res := executes[0]
+	if res.Error != nil {
+		return nil, transformError(res.Error)
+	}
+	return &types.AnyResponse{Data: response.StandardHandlerDataFieldAny(res.Result)}, nil
+}
+
+func (s *gatewayService) BatchExecNGQL(request *types.BatchExecNGQLParams) (*types.AnyResponse, error) {
+	authData := s.ctx.Value(auth.CtxKeyUserInfo{}).(*auth.AuthData)
+
+	NSID := authData.NSID
+	gqls := request.Gqls
+
+	data := make([]map[string]interface{}, 0)
+	executes, err := client.Execute(NSID, request.Space, gqls)
+	if err != nil {
+		return nil, transformError(err)
+	}
+	for _, res := range executes {
+		gqlRes := map[string]interface{}{"gql": res.Gql, "data": res.Result}
+		if res.Error != nil {
+			gqlRes["message"] = res.Error.Error()
+			gqlRes["code"] = base.Error
+		} else {
+			gqlRes["code"] = base.Success
+		}
+		data = append(data, gqlRes)
+	}
+
+	return &types.AnyResponse{Data: response.StandardHandlerDataFieldAny(data)}, nil
+}

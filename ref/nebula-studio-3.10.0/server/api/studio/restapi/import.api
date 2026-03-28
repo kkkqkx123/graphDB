@@ -1,0 +1,292 @@
+syntax = "v1"
+
+type (
+	ImportTaskCSV {
+		WithHeader *bool   `json:"withHeader,optional"`
+		LazyQuotes *bool   `json:"lazyQuotes,optional"`
+		Delimiter  *string `json:"delimiter,optional"`
+	}
+
+	NodeId {
+		Name        string        `json:"name,optional"`
+		Type        string        `json:"type" validate:"required"`
+		Index       int64         `json:"index,optional,omitempty"`
+		ConcatItems []interface{} `json:"concatItems,optional,omitempty"`
+		Function    string        `json:"function,optional,omitempty"`
+	}
+
+	Tag {
+		Name               string `json:"name" validate:"required"`
+		ID                 NodeId `json:"id" validate:"required"`
+		Props              []Prop `json:"props" validate:"required"`
+		IgnoreExistedIndex bool   `json:"ignoreExistedIndex,optional,omitempty"`
+	}
+	Edge {
+		Name               string      `json:"name" validate:"required"`
+		Src                EdgeNodeRef `json:"src" validate:"required"`
+		Dst                EdgeNodeRef `json:"dst" validate:"required"`
+		Props              []Prop      `json:"props" validate:"required"`
+		Rank               *EdgeRank   `json:"rank,optional,omitempty"`
+		IgnoreExistedIndex bool        `json:"ignoreExistedIndex,optional,omitempty"`
+	}
+
+	EdgeNodeRef {
+		ID NodeId `json:"id" validate:"required"`
+	}
+
+	Prop {
+		Name               string  `json:"name" validate:"required"`
+		Type               string  `json:"type" validate:"required"`
+		Index              int64   `json:"index,optional,omitempty"`
+		Nullable           bool    `json:"nullable,optional,omitempty"`
+		NullValue          string  `json:"nullValue,optional,omitempty"`
+		AlternativeIndices []int64 `json:"alternativeIndices,optional,omitempty"`
+		DefaultValue       string  `json:"defaultValue,optional,omitempty"`
+	}
+
+	EdgeRank {
+		Index *int64 `json:"index,optional,omitempty"`
+	}
+
+	S3Config {
+		Endpoint        string `json:"endpoint,optional,omitempty"`
+		Region          string `json:"region,omitempty"`
+		AccessKeyID     string `json:"accessKeyID,omitempty"`
+		AccessKeySecret string `json:"accessKeySecret,omitempty"`
+		Token           string `json:"token,optional,omitempty"`
+		Bucket          string `json:"bucket,omitempty"`
+		Key             string `json:"key,omitempty"`
+	}
+
+	SFTPConfig {
+		Host       string `json:"host,omitempty"`
+		Port       int    `json:"port,omitempty"`
+		User       string `json:"user,omitempty"`
+		Password   string `json:"password,omitempty"`
+		KeyFile    string `json:"keyFile,optional,omitempty"`
+		KeyData    string `json:"keyData,optional,omitempty"`
+		Passphrase string `json:"passphrase,optional,omitempty"`
+		Path       string `json:"path,omitempty"`
+	}
+
+	OSSConfig {
+		Endpoint        string `json:"endpoint,omitempty"`
+		AccessKeyID     string `json:"accessKeyID,omitempty"`
+		AccessKeySecret string `json:"accessKeySecret,omitempty"`
+		Bucket          string `json:"bucket,omitempty"`
+		Key             string `json:"key,omitempty"`
+	}
+
+	LocalConfig {
+		Path string `json:"path,omitempty"`
+	}
+
+	ImportTaskConfig {
+		Client  Client    `json:"client" validate:"required"`
+		Manager Manager   `json:"manager" validate:"required"`
+		Sources []*Source `json:"sources" validate:"required"`
+		Log     *Log      `json:"log,omitempty,optional"`
+	}
+
+	Client {
+		Version                  string  `json:"version,omitempty" validate:"required"`
+		Address                  string  `json:"address,omitempty" validate:"required"`
+		User                     string  `json:"user,omitempty" validate:"required"`
+		Password                 string  `json:"password,omitempty" validate:"required"`
+		ConcurrencyPerAddress    int     `json:"concurrencyPerAddress,optional"`
+		ReconnectInitialInterval *string `json:"reconnectInitialInterval,optional,omitempty"`
+		Retry                    int     `json:"retry,optional"`
+		RetryInitialInterval     *string `json:"retryInitialInterval,optional,omitempty"`
+	}
+
+	Manager {
+		SpaceName           string  `json:"spaceName,omitempty" validate:"required"`
+		Batch               int     `json:"batch,omitempty,optional"`
+		ReaderConcurrency   int     `json:"readerConcurrency,omitempty,optional"`
+		ImporterConcurrency int     `json:"importerConcurrency,omitempty,optional"`
+		StatsInterval       *string `json:"statsInterval,omitempty,optional"`
+	}
+
+	Source {
+		CSV                ImportTaskCSV `json:"csv" validate:"required"`
+		Path               string        `json:"path,optional,omitempty"`
+		S3                 *S3Config     `json:"s3,optional,omitempty"`
+		SFTP               *SFTPConfig   `json:"sftp,optional,omitempty"`
+		OSS                *OSSConfig    `json:"oss,optional,omitempty"`
+		DatasourceId       *string       `json:"datasourceId,optional,omitempty"`
+		DatasourceFilePath *string       `json:"datasourceFilePath,optional,omitempty"`
+		Tags               []Tag         `json:"tags,optional"`
+		Edges              []Edge        `json:"edges,optional"`
+	}
+
+	Log {
+		Level   *string    `json:"level,omitempty,optional"`
+		Console *bool      `json:"console,omitempty,optional"`
+		Files   []string   `json:"files,omitempty,optional"`
+		Fields  []LogField `json:"fields,omitempty,optional"`
+	}
+
+	LogField {
+		Key   string      `json:"key"`
+		Value interface{} `json:"value"`
+	}
+
+	CreateImportTaskRequest {
+		Id        *string `json:"id,optional,omitempty"`
+		Name      string  `json:"name" validate:"required"`
+		Config    string  `json:"config" validate:"required"`
+		RawConfig string  `json:"rawConfig" validate:"required"`
+	}
+	CreateTaskDraftRequest {
+		Name      string `json:"name" validate:"required"`
+		Space     string `json:"space" validate:"required"`
+		RawConfig string `json:"rawConfig" validate:"required"`
+	}
+
+	UpdateTaskDraftRequest {
+		Id        *string `path:"id" validate:"required"`
+		Name      string  `json:"name" validate:"required"`
+		Space     string  `json:"space" validate:"required"`
+		RawConfig string  `json:"rawConfig" validate:"required"`
+	}
+
+	CreateImportTaskData {
+		Id string `json:"id"`
+	}
+
+	GetImportTaskRequest {
+		Id string `path:"id" validate:"required"`
+	}
+
+	GetImportTaskData {
+		Id            string          `json:"id"`
+		Name          string          `json:"name"`
+		User          string          `json:"user"`
+		Address       string          `json:"address"`
+		ImportAddress []string        `json:"importAddress"`
+		Space         string          `json:"space"`
+		Status        string          `json:"status"`
+		Message       string          `json:"message"`
+		CreateTime    int64           `json:"createTime"`
+		UpdateTime    int64           `json:"updateTime"`
+		Stats         ImportTaskStats `json:"stats"`
+		RawConfig     string          `json:"rawConfig"`
+		LLMJob        interface{}     `json:"llmJob"`
+	}
+
+	ImportTaskStats {
+		ProcessedBytes  int64 `json:"processedBytes"`
+		TotalBytes      int64 `json:"totalBytes"`
+		FailedRecords   int64 `json:"failedRecords"`
+		TotalRecords    int64 `json:"totalRecords"`
+		FailedRequest   int64 `json:"failedRequest"`
+		TotalRequest    int64 `json:"totalRequest"`
+		TotalLatency    int64 `json:"totalLatency"`
+		TotalRespTime   int64 `json:"totalRespTime"`
+		FailedProcessed int64 `json:"failedProcessed"`
+		TotalProcessed  int64 `json:"totalProcessed"`
+	}
+
+	GetManyImportTaskRequest {
+		Page     int    `form:"page,default=1"`
+		PageSize int    `form:"pageSize,default=999"`
+		Space    string `form:"space,optional"`
+	}
+
+	GetManyImportTaskData {
+		Total int64               `json:"total"`
+		List  []GetImportTaskData `json:"list"`
+	}
+
+	GetManyImportTaskLogRequest {
+		Id string `path:"id" validate:"required"`
+	}
+
+	GetManyImportTaskLogData {
+		Logs string `json:"logs"`
+	}
+
+	GetImportTaskLogNamesRequest {
+		Id string `path:"id" validate:"required"`
+	}
+
+	GetImportTaskLogNamesData {
+		Names []string `json:"names"`
+	}
+
+	DeleteImportTaskRequest {
+		Id string `path:"id"`
+	}
+
+	StopImportTaskRequest {
+		Id string `path:"id"`
+	}
+
+	DownloadLogsRequest {
+		Id   string `path:"id" validate:"required"`
+		Name string `form:"name" validate:"required"`
+	}
+
+	DownloadConfigsRequest {
+		Id string `path:"id" validate:"required"`
+	}
+
+	GetWorkingDirResult {
+		TaskDir   string `json:"taskDir,omitempty"`
+		UploadDir string `json:"uploadDir,omitempty"`
+	}
+)
+
+@server(
+	group: importtask
+)
+
+service studio-api {
+	@doc "Create Import Task"
+	@handler CreateImportTask
+	post /api/import-tasks(CreateImportTaskRequest) returns(CreateImportTaskData)
+	
+	@doc "Create Import Task Draft"
+	@handler CreateTaskDraft
+	post /api/import-tasks/draft(CreateTaskDraftRequest)
+	
+	@doc "Update Import Task Draft"
+	@handler UpdateTaskDraft
+	put /api/import-tasks/:id/draft(UpdateTaskDraftRequest)
+	
+	@doc "Get Import Task"
+	@handler GetImportTask
+	get /api/import-tasks/:id(GetImportTaskRequest) returns(GetImportTaskData)
+	
+	@doc "Get Many Import Task"
+	@handler GetManyImportTask
+	get /api/import-tasks(GetManyImportTaskRequest) returns(GetManyImportTaskData)
+	
+	@doc "Get Many Import Task Log"
+	@handler GetManyImportTaskLog
+	get /api/import-tasks/:id/logs(GetManyImportTaskLogRequest) returns(GetManyImportTaskLogData)
+	
+	@doc "Get all logs file name of a Task"
+	@handler GetImportTaskLogNames
+	get /api/import-tasks/:id/task-log-names(GetImportTaskLogNamesRequest) returns(GetImportTaskLogNamesData)
+	
+	@doc "Delete Import Task"
+	@handler DeleteImportTask
+	delete /api/import-tasks/:id(DeleteImportTaskRequest)
+	
+	@doc "Stop Import Task"
+	@handler StopImportTask
+	get /api/import-tasks/:id/stop(StopImportTaskRequest)
+	
+	@doc "Download logs"
+	@handler DownloadLogs
+	get /api/import-tasks/:id/download-logs(DownloadLogsRequest)
+	
+	@doc "Download Config"
+	@handler DownloadConfig
+	get /api/import-tasks/:id/download-config(DownloadConfigsRequest)
+	
+	@doc "Get Working Dir"
+	@handler GetWorkingDir
+	get /api/import-tasks/working-dir returns(GetWorkingDirResult)
+}

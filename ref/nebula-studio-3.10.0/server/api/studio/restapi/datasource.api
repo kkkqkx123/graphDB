@@ -1,0 +1,134 @@
+syntax = "v1"
+
+type (
+	DatasourceS3Config {
+		Endpoint     string `json:"endpoint"`
+		Region       string `json:"region,optional"`
+		Bucket       string `json:"bucket"`
+		AccessKeyID  string `json:"accessKeyID"`
+		AccessSecret string `json:"accessSecret,optional"`
+	}
+
+	DatasourceSFTPConfig {
+		Host     string `json:"host"`
+		Port     int    `json:"port"`
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	DatasourceS3UpdateConfig {
+		Endpoint     string `json:"endpoint,optional,omitempty"`
+		Region       string `json:"region,optional,omitempty"`
+		Bucket       string `json:"bucket,optional,omitempty"`
+		AccessKeyID  string `json:"accessKeyID,optional,omitempty"`
+		AccessSecret string `json:"accessSecret,optional,omitempty"`
+	}
+
+	DatasourceSFTPUpdateConfig {
+		Host     string `json:"host,optional,omitempty"`
+		Port     int    `json:"port,optional,omitempty"`
+		Username string `json:"username,optional,omitempty"`
+		Password string `json:"password,optional,omitempty"`
+	}
+
+	DatasourceAddRequest {
+		Type       string                `json:"type"`
+		Platform   string                `json:"platform,optional,omitempty"`
+		Name       string                `json:"name"`
+		S3Config   *DatasourceS3Config   `json:"s3Config,optional"`
+		SFTPConfig *DatasourceSFTPConfig `json:"sftpConfig,optional"`
+	}
+	DatasourceUpdateRequest {
+		ID         string                      `path:"id"`
+		Platform   string                      `json:"platform,optional,omitempty"`
+		Type       string                      `json:"type"`
+		Name       string                      `json:"name"`
+		S3Config   *DatasourceS3UpdateConfig   `json:"s3Config,optional"`
+		SFTPConfig *DatasourceSFTPUpdateConfig `json:"sftpConfig,optional"`
+	}
+
+	DatasourceAddData {
+		ID string `json:"id"`
+	}
+
+	DatasourceListRequest {
+		Type string `form:"type,optional"`
+	}
+
+	DatasourceRemoveRequest {
+		ID string `path:"id"`
+	}
+	DatasourceBatchRemoveRequest {
+		IDs []string `json:"ids"`
+	}
+
+	DatasourceConfig {
+		ID         string                `json:"id"`
+		Type       string                `json:"type"`
+		Name       string                `json:"name"`
+		Platform   string                `json:"platform"`
+		S3Config   *DatasourceS3Config   `json:"s3Config,optional"`
+		SFTPConfig *DatasourceSFTPConfig `json:"sftpConfig,optional"`
+		CreateTime int64                 `json:"createTime,optional"`
+	}
+
+	DatasourceListContentsRequest {
+		DatasourceID string `path:"id"`
+		Path         string `form:"path,optional"`
+	}
+
+	FileConfig {
+		Size int64  `json:"size"`
+		Type string `json:"type"`
+		Name string `json:"name"`
+	}
+
+	DatasourceListContentsData {
+		List []FileConfig `json:"list"`
+	}
+
+	DatasourceData {
+		List []DatasourceConfig `json:"list"`
+	}
+
+	DatasourcePreviewFileRequest {
+		DatasourceID string `path:"id"`
+		Path         string `form:"path"`
+	}
+
+	DatasourcePreviewFileData {
+		Contents []string `json:"contents"`
+	}
+)
+
+@server (
+	group: datasource
+)
+
+service studio-api {
+	@doc "Add Datasource"
+	@handler DatasourceAdd
+	post /api/datasources(DatasourceAddRequest) returns(DatasourceAddData)
+	@doc "Update Datasource"
+	@handler DatasourceUpdate
+	post /api/datasources/:id(DatasourceUpdateRequest)
+	
+	@doc "Remove Datasource"
+	@handler DatasourceRemove
+	delete /api/datasources/:id(DatasourceRemoveRequest)
+	
+	@doc "Batch Remove Datasource"
+	@handler DatasourceBatchRemove
+	delete /api/datasources(DatasourceBatchRemoveRequest)
+	
+	@doc "List Datasource"
+	@handler DatasourceList
+	get /api/datasources(DatasourceListRequest) returns(DatasourceData)
+	
+	@doc "List Contents"
+	@handler DatasourceListContents
+	get /api/datasources/:id/contents(DatasourceListContentsRequest) returns(DatasourceListContentsData)
+	
+	@doc "Preview File"
+	@handler DatasourcePreviewFile
+	get /api/datasources/:id/file-preview(DatasourcePreviewFileRequest) returns(DatasourcePreviewFileData)
+}
