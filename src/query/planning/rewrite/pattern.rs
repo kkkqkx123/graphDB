@@ -99,11 +99,10 @@ impl Pattern {
         }
 
         // Check whether each dependency pattern matches.
+        // Use dependencies_ref() to avoid cloning nodes
+        let deps = plan_node.dependencies_ref();
         for dep_pattern in &self.dependencies {
-            let dep_matches = plan_node
-                .dependencies()
-                .iter()
-                .any(|input| dep_pattern.matches(input));
+            let dep_matches = deps.iter().any(|input| dep_pattern.matches(input));
 
             if !dep_matches {
                 return false;

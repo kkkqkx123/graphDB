@@ -180,7 +180,11 @@ impl BidirectionalTraversalOptimizer {
         };
 
         // Use threshold from config for bidirectional savings
-        let threshold = self.cost_calculator.config().strategy_thresholds.bidirectional_savings_threshold;
+        let threshold = self
+            .cost_calculator
+            .config()
+            .strategy_thresholds
+            .bidirectional_savings_threshold;
         if savings > threshold {
             BidirectionalDecision::bidirectional(
                 start_variable.to_string(),

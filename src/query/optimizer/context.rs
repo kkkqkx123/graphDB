@@ -5,10 +5,10 @@
 
 use std::sync::Arc;
 
-use crate::query::optimizer::analysis::{BatchPlanAnalysis, ExpressionAnalysis, ReferenceCountAnalysis};
-use crate::query::optimizer::cost::{
-    CostCalculator, CostModelConfig, SelectivityEstimator,
+use crate::query::optimizer::analysis::{
+    BatchPlanAnalysis, ExpressionAnalysis, ReferenceCountAnalysis,
 };
+use crate::query::optimizer::cost::{CostCalculator, CostModelConfig, SelectivityEstimator};
 use crate::query::optimizer::stats::StatisticsManager;
 use crate::query::validator::context::ExpressionAnalysisContext;
 

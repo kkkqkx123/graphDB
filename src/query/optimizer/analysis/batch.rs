@@ -331,30 +331,14 @@ impl BatchPlanAnalyzer {
             | PlanNodeEnum::Argument(_) => 0,
 
             // Single-input nodes
-            PlanNodeEnum::Filter(n) => {
-                self.analyze_recursive(n.input(), context, Some(node_id))
-            }
-            PlanNodeEnum::Project(n) => {
-                self.analyze_recursive(n.input(), context, Some(node_id))
-            }
-            PlanNodeEnum::Sort(n) => {
-                self.analyze_recursive(n.input(), context, Some(node_id))
-            }
-            PlanNodeEnum::Limit(n) => {
-                self.analyze_recursive(n.input(), context, Some(node_id))
-            }
-            PlanNodeEnum::TopN(n) => {
-                self.analyze_recursive(n.input(), context, Some(node_id))
-            }
-            PlanNodeEnum::Sample(n) => {
-                self.analyze_recursive(n.input(), context, Some(node_id))
-            }
-            PlanNodeEnum::Aggregate(n) => {
-                self.analyze_recursive(n.input(), context, Some(node_id))
-            }
-            PlanNodeEnum::Dedup(n) => {
-                self.analyze_recursive(n.input(), context, Some(node_id))
-            }
+            PlanNodeEnum::Filter(n) => self.analyze_recursive(n.input(), context, Some(node_id)),
+            PlanNodeEnum::Project(n) => self.analyze_recursive(n.input(), context, Some(node_id)),
+            PlanNodeEnum::Sort(n) => self.analyze_recursive(n.input(), context, Some(node_id)),
+            PlanNodeEnum::Limit(n) => self.analyze_recursive(n.input(), context, Some(node_id)),
+            PlanNodeEnum::TopN(n) => self.analyze_recursive(n.input(), context, Some(node_id)),
+            PlanNodeEnum::Sample(n) => self.analyze_recursive(n.input(), context, Some(node_id)),
+            PlanNodeEnum::Aggregate(n) => self.analyze_recursive(n.input(), context, Some(node_id)),
+            PlanNodeEnum::Dedup(n) => self.analyze_recursive(n.input(), context, Some(node_id)),
             PlanNodeEnum::PassThrough(_) => {
                 // PassThroughNode is a ZeroInputNode, no children to analyze
                 0
@@ -362,12 +346,8 @@ impl BatchPlanAnalyzer {
             PlanNodeEnum::DataCollect(n) => {
                 self.analyze_recursive(n.input(), context, Some(node_id))
             }
-            PlanNodeEnum::Unwind(n) => {
-                self.analyze_recursive(n.input(), context, Some(node_id))
-            }
-            PlanNodeEnum::Remove(n) => {
-                self.analyze_recursive(n.input(), context, Some(node_id))
-            }
+            PlanNodeEnum::Unwind(n) => self.analyze_recursive(n.input(), context, Some(node_id)),
+            PlanNodeEnum::Remove(n) => self.analyze_recursive(n.input(), context, Some(node_id)),
             PlanNodeEnum::Materialize(n) => {
                 self.analyze_recursive(n.input(), context, Some(node_id))
             }
@@ -417,7 +397,8 @@ impl BatchPlanAnalyzer {
             }
             PlanNodeEnum::Intersect(n) => {
                 let main_count = self.analyze_recursive(n.input(), context, Some(node_id));
-                let intersect_count = self.analyze_recursive(n.intersect_input(), context, Some(node_id));
+                let intersect_count =
+                    self.analyze_recursive(n.intersect_input(), context, Some(node_id));
                 main_count + intersect_count
             }
 
@@ -468,17 +449,13 @@ impl BatchPlanAnalyzer {
 
             // Pattern apply nodes
             PlanNodeEnum::PatternApply(n) => {
-                let left_count =
-                    self.analyze_recursive(n.left_input(), context, Some(node_id));
-                let right_count =
-                    self.analyze_recursive(n.right_input(), context, Some(node_id));
+                let left_count = self.analyze_recursive(n.left_input(), context, Some(node_id));
+                let right_count = self.analyze_recursive(n.right_input(), context, Some(node_id));
                 left_count + right_count
             }
             PlanNodeEnum::RollUpApply(n) => {
-                let left_count =
-                    self.analyze_recursive(n.left_input(), context, Some(node_id));
-                let right_count =
-                    self.analyze_recursive(n.right_input(), context, Some(node_id));
+                let left_count = self.analyze_recursive(n.left_input(), context, Some(node_id));
+                let right_count = self.analyze_recursive(n.right_input(), context, Some(node_id));
                 left_count + right_count
             }
 

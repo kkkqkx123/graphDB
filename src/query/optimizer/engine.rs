@@ -37,9 +37,8 @@ use std::sync::Arc;
 
 use crate::query::optimizer::{
     AggregateStrategySelector, BatchPlanAnalyzer, CostCalculator, CostModelConfig, CteCacheManager,
-    MaterializationOptimizer, SelectivityEstimator,
-    SelectivityFeedbackManager, SortEliminationOptimizer, StatisticsManager,
-    SubqueryUnnestingOptimizer,
+    MaterializationOptimizer, SelectivityEstimator, SelectivityFeedbackManager,
+    SortEliminationOptimizer, StatisticsManager, SubqueryUnnestingOptimizer,
 };
 use crate::query::validator::context::ExpressionAnalysisContext;
 
@@ -137,8 +136,7 @@ impl OptimizerEngine {
         let batch_plan_analyzer = BatchPlanAnalyzer::new();
 
         // Create an aggregate policy selector
-        let aggregate_strategy_selector =
-            AggregateStrategySelector::new(cost_calculator.clone());
+        let aggregate_strategy_selector = AggregateStrategySelector::new(cost_calculator.clone());
 
         // Create a subquery to de-associate the optimizer.
         let subquery_unnesting_optimizer = SubqueryUnnestingOptimizer::new(&stats_manager);

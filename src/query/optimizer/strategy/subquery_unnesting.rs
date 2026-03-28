@@ -24,15 +24,15 @@
 //! let decision = optimizer.should_unnest(&pattern_apply, &analysis);
 //! ```
 
-use crate::core::Expression;
 use crate::core::types::expr::ExpressionMeta;
 use crate::core::types::operators::BinaryOperator;
 use crate::core::types::ContextualExpression;
+use crate::core::Expression;
 use crate::query::optimizer::analysis::BatchPlanAnalysis;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::optimizer::stats::StatisticsManager;
 use crate::query::planning::plan::core::nodes::PlanNodeEnum;
 use crate::query::planning::plan::core::nodes::{HashInnerJoinNode, PatternApplyNode};
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// Decentralized decision-making using subqueries
 #[derive(Debug, Clone, PartialEq)]
@@ -385,7 +385,9 @@ impl SubqueryUnnestingOptimizer {
             Expression::Map(entries) => Expression::Map(
                 entries
                     .iter()
-                    .map(|(k, v): &(String, Expression)| (k.clone(), self.replace_all_variables(v, new_var)))
+                    .map(|(k, v): &(String, Expression)| {
+                        (k.clone(), self.replace_all_variables(v, new_var))
+                    })
                     .collect(),
             ),
             Expression::Case {

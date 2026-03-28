@@ -315,8 +315,8 @@ impl TraversalDirectionOptimizer {
             (TraversalDirection::Backward, in_degree)
         };
 
-        let involves_super_node = out_degree > self.super_node_threshold
-            || in_degree > self.super_node_threshold;
+        let involves_super_node =
+            out_degree > self.super_node_threshold || in_degree > self.super_node_threshold;
 
         TraversalDirectionDecision {
             direction,
@@ -448,19 +448,27 @@ impl TraversalDirectionOptimizer {
 }
 
 impl OptimizationStrategy for TraversalDirectionOptimizer {
-    fn apply(&self, node: PlanNodeEnum, _ctx: &OptimizationContext) -> OptimizeResult<PlanNodeEnum> {
+    fn apply(
+        &self,
+        node: PlanNodeEnum,
+        _ctx: &OptimizationContext,
+    ) -> OptimizeResult<PlanNodeEnum> {
         // Only optimize ExpandNode
         if let PlanNodeEnum::Expand(mut expand_node) = node {
             // Extract edge type from ExpandNode
-            let edge_type = expand_node.edge_types().first().cloned().unwrap_or_default();
+            let edge_type = expand_node
+                .edge_types()
+                .first()
+                .cloned()
+                .unwrap_or_default();
 
             // Create direction context
             let direction_context = DirectionContext {
                 edge_type,
-                start_nodes: 1, // Default to 1 start node
-                explicit_direction: None, // No explicit direction specified
+                start_nodes: 1,            // Default to 1 start node
+                explicit_direction: None,  // No explicit direction specified
                 allow_bidirectional: true, // Allow bidirectional by default
-                steps: 1, // Default to 1 step
+                steps: 1,                  // Default to 1 step
             };
 
             // Use underlying optimizer to make decision

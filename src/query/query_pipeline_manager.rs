@@ -468,8 +468,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         &mut self,
         plan: crate::query::planning::plan::ExecutionPlan,
     ) -> DBResult<crate::query::planning::plan::ExecutionPlan> {
-        use crate::query::optimizer::OptimizationContext;
         use crate::query::optimizer::strategy::{MaterializationOptimizer, StrategyChain};
+        use crate::query::optimizer::OptimizationContext;
         use crate::query::planning::rewrite::rewrite_plan;
 
         // Create optimization context from OptimizerEngine
@@ -491,11 +491,11 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             let materialization_optimizer = MaterializationOptimizer::new(stats_manager.as_ref());
 
             // Create strategy chain with materialization optimizer
-            let chain = StrategyChain::new()
-                .add_strategy(Box::new(materialization_optimizer));
+            let chain = StrategyChain::new().add_strategy(Box::new(materialization_optimizer));
 
             // Apply strategies to the plan root
-            let optimized_root = chain.apply(root, &ctx)
+            let optimized_root = chain
+                .apply(root, &ctx)
                 .map_err(|e| DBError::from(QueryError::pipeline_optimization_error(e)))?;
 
             // Check for repeated subplans
@@ -508,7 +508,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 }
             }
 
-            Ok(crate::query::planning::plan::ExecutionPlan::new(Some(optimized_root)))
+            Ok(crate::query::planning::plan::ExecutionPlan::new(Some(
+                optimized_root,
+            )))
         } else {
             Ok(rewritten_plan)
         }

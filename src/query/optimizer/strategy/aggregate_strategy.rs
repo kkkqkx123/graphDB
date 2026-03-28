@@ -251,13 +251,25 @@ impl AggregateStrategySelector {
                     },
                 )
             }
-        } else if context.input_rows < self.cost_calculator.config().strategy_thresholds.small_dataset_threshold {
+        } else if context.input_rows
+            < self
+                .cost_calculator
+                .config()
+                .strategy_thresholds
+                .small_dataset_threshold
+        {
             // With small amounts of data, hash aggregation is simpler and more efficient.
             (
                 AggregateStrategy::HashAggregate,
                 SelectionReason::SmallDataSet,
             )
-        } else if group_by_cardinality < self.cost_calculator.config().strategy_thresholds.low_cardinality_threshold {
+        } else if group_by_cardinality
+            < self
+                .cost_calculator
+                .config()
+                .strategy_thresholds
+                .low_cardinality_threshold
+        {
             // With a small base size, sorting and aggregation may be more advantageous (as the data becomes more localized after sorting).
             if sort_cost < hash_cost * 1.2 {
                 (
@@ -273,7 +285,14 @@ impl AggregateStrategySelector {
                     },
                 )
             }
-        } else if group_by_cardinality > (context.input_rows as f64 * self.cost_calculator.config().strategy_thresholds.high_cardinality_ratio) as u64 {
+        } else if group_by_cardinality
+            > (context.input_rows as f64
+                * self
+                    .cost_calculator
+                    .config()
+                    .strategy_thresholds
+                    .high_cardinality_ratio) as u64
+        {
             // For high cardinalities (close to unique values), hash aggregation is more advantageous.
             (
                 AggregateStrategy::HashAggregate,
@@ -351,7 +370,8 @@ impl AggregateStrategySelector {
     fn estimate_group_by_cardinality(&self, context: &AggregateContext) -> u64 {
         // Try to use property combination statistics for better estimation
         if let Some(table_name) = self.get_table_name_from_context(context) {
-            if let Some(cardinality) = self.cost_calculator
+            if let Some(cardinality) = self
+                .cost_calculator
                 .statistics_manager()
                 .get_combined_cardinality(Some(&table_name), &context.group_keys)
             {

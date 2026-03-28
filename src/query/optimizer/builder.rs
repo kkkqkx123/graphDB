@@ -129,7 +129,10 @@ mod tests {
         let stats = Arc::new(StatisticsManager::new());
         let builder = OptimizerEngineBuilder::new().with_stats_manager(stats.clone());
         let engine = builder.build();
-        assert_eq!(engine.stats_manager().as_ref() as *const _, stats.as_ref() as *const _);
+        assert_eq!(
+            engine.stats_manager().as_ref() as *const _,
+            stats.as_ref() as *const _
+        );
     }
 
     #[test]

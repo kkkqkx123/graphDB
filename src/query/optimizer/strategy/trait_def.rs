@@ -54,7 +54,11 @@ impl StrategyChain {
     }
 
     /// Apply all strategies in the chain to a plan node.
-    pub fn apply(&self, mut node: PlanNodeEnum, ctx: &OptimizationContext) -> OptimizeResult<PlanNodeEnum> {
+    pub fn apply(
+        &self,
+        mut node: PlanNodeEnum,
+        ctx: &OptimizationContext,
+    ) -> OptimizeResult<PlanNodeEnum> {
         for strategy in &self.strategies {
             if !strategy.is_enabled() {
                 continue;
@@ -85,7 +89,11 @@ impl Default for StrategyChain {
 pub struct NoOpStrategy;
 
 impl OptimizationStrategy for NoOpStrategy {
-    fn apply(&self, node: PlanNodeEnum, _ctx: &OptimizationContext) -> OptimizeResult<PlanNodeEnum> {
+    fn apply(
+        &self,
+        node: PlanNodeEnum,
+        _ctx: &OptimizationContext,
+    ) -> OptimizeResult<PlanNodeEnum> {
         Ok(node)
     }
 

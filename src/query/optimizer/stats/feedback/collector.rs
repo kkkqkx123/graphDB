@@ -207,7 +207,10 @@ impl SimpleFeedbackCollector {
     }
 
     /// Evict stale entries (older than 1 hour)
-    fn evict_stale_entries(&self, map: &mut std::collections::HashMap<String, SimpleExecutionFeedback>) {
+    fn evict_stale_entries(
+        &self,
+        map: &mut std::collections::HashMap<String, SimpleExecutionFeedback>,
+    ) {
         let stale_keys: Vec<String> = map
             .iter()
             .filter(|(_, v)| v.is_stale())

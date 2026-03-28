@@ -125,7 +125,11 @@ impl StatisticsManager {
     }
 
     /// Get property combination statistics for GROUP BY cardinality estimation.
-    pub fn get_property_combo_stats(&self, tag_name: &str, properties: &[String]) -> Option<PropertyCombinationStats> {
+    pub fn get_property_combo_stats(
+        &self,
+        tag_name: &str,
+        properties: &[String],
+    ) -> Option<PropertyCombinationStats> {
         let key = format!("{}.{}", tag_name, properties.join("."));
         self.property_combo_stats.get(&key).map(|v| v.clone())
     }
@@ -137,7 +141,11 @@ impl StatisticsManager {
 
     /// Get combined cardinality for a set of properties.
     /// Returns None if no statistics are available.
-    pub fn get_combined_cardinality(&self, tag_name: Option<&str>, properties: &[String]) -> Option<u64> {
+    pub fn get_combined_cardinality(
+        &self,
+        tag_name: Option<&str>,
+        properties: &[String],
+    ) -> Option<u64> {
         let tag = tag_name?;
         self.get_property_combo_stats(tag, properties)
             .map(|s| s.estimated_cardinality())

@@ -47,7 +47,8 @@ impl PropertyCombinationStats {
         } else {
             let alpha = 0.3; // Smoothing factor
             self.combined_distinct_values = ((1.0 - alpha) * self.combined_distinct_values as f64
-                + alpha * distinct_values as f64) as u64;
+                + alpha * distinct_values as f64)
+                as u64;
             self.sample_count = self.sample_count.saturating_add(sample_count);
         }
         self.last_updated = Instant::now();

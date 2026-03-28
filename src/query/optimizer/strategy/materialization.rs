@@ -25,12 +25,12 @@
 //! let decision = optimizer.should_materialize(&cte_node, &plan_root);
 //! ```
 
+use crate::core::error::optimize::OptimizeResult;
 use crate::query::optimizer::analysis::BatchPlanAnalysis;
 use crate::query::optimizer::context::OptimizationContext;
 use crate::query::optimizer::cost::StrategyThresholds;
 use crate::query::optimizer::stats::StatisticsManager;
 use crate::query::optimizer::strategy::trait_def::OptimizationStrategy;
-use crate::core::error::optimize::OptimizeResult;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planning::plan::core::nodes::{MaterializeNode, PlanNodeEnum};
 
@@ -172,7 +172,11 @@ impl MaterializationOptimizer {
         analysis: &BatchPlanAnalysis,
     ) -> MaterializationDecision {
         // 1. Check whether CTE is referenced multiple times.
-        let ref_info = match analysis.reference_count.node_reference_map.get(&cte_node.id()) {
+        let ref_info = match analysis
+            .reference_count
+            .node_reference_map
+            .get(&cte_node.id())
+        {
             Some(info) => info,
             None => {
                 return MaterializationDecision::DoNotMaterialize {
@@ -374,14 +378,16 @@ impl OptimizationStrategy for MaterializationOptimizer {
                 } => {
                     log::debug!(
                         "Materializing CTE: reason={:?}, refs={}, rows={}, cost={:.2} vs {:.2}",
-                        reason, reference_count, estimated_rows, materialize_cost, recompute_cost
+                        reason,
+                        reference_count,
+                        estimated_rows,
+                        materialize_cost,
+                        recompute_cost
                     );
                     // Keep the MaterializeNode as-is
                     Ok(node)
                 }
-                MaterializationDecision::DoNotMaterialize {
-                    reason,
-                } => {
+                MaterializationDecision::DoNotMaterialize { reason } => {
                     log::debug!("Not materializing CTE: reason={:?}", reason);
                     // Replace MaterializeNode with its input (inline the CTE)
                     Ok(materialize_node.input().clone())

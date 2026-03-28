@@ -2,6 +2,8 @@
 //!
 //! Implementing various operation methods for PlanNodeEnum
 
+use std::borrow::Cow;
+
 use super::plan_node_enum::PlanNodeEnum;
 use super::plan_node_traits::{MultipleInputNode, SingleInputNode};
 
@@ -168,69 +170,79 @@ impl PlanNodeEnum {
 
     /// Obtain the list of dependent nodes of a node.
     pub fn dependencies(&self) -> Vec<PlanNodeEnum> {
+        self.dependencies_ref().iter().map(|&n| n.clone()).collect()
+    }
+
+    /// Get references to dependent nodes without cloning
+    ///
+    /// Uses Cow to avoid allocation for common cases (0, 1, or 2 dependencies)
+    pub fn dependencies_ref(&self) -> Cow<'_, [&PlanNodeEnum]> {
         match self {
-            // Zero-input node
-            PlanNodeEnum::Start(_node) => vec![],
-            PlanNodeEnum::GetVertices(_node) => vec![],
-            PlanNodeEnum::GetEdges(_node) => vec![],
-            PlanNodeEnum::GetNeighbors(_node) => vec![],
-            PlanNodeEnum::ScanVertices(_node) => vec![],
-            PlanNodeEnum::ScanEdges(_node) => vec![],
-            PlanNodeEnum::IndexScan(_node) => vec![],
-            PlanNodeEnum::MultiShortestPath(_node) => vec![],
-            PlanNodeEnum::BFSShortest(_node) => vec![],
-            PlanNodeEnum::AllPaths(_node) => vec![],
-            PlanNodeEnum::ShortestPath(_node) => vec![],
+            // ========== Zero-input nodes ==========
+            PlanNodeEnum::Start(_)
+            | PlanNodeEnum::GetVertices(_)
+            | PlanNodeEnum::GetEdges(_)
+            | PlanNodeEnum::GetNeighbors(_)
+            | PlanNodeEnum::ScanVertices(_)
+            | PlanNodeEnum::ScanEdges(_)
+            | PlanNodeEnum::IndexScan(_)
+            | PlanNodeEnum::EdgeIndexScan(_)
+            | PlanNodeEnum::MultiShortestPath(_)
+            | PlanNodeEnum::BFSShortest(_)
+            | PlanNodeEnum::AllPaths(_)
+            | PlanNodeEnum::ShortestPath(_)
+            | PlanNodeEnum::Argument(_)
+            | PlanNodeEnum::PassThrough(_)
+            | PlanNodeEnum::Select(_) => Cow::Borrowed(&[]),
 
-            // Single input node
-            PlanNodeEnum::Project(node) => vec![node.input().clone()],
-            PlanNodeEnum::Sort(node) => vec![node.input().clone()],
-            PlanNodeEnum::Limit(node) => vec![node.input().clone()],
-            PlanNodeEnum::TopN(node) => vec![node.input().clone()],
-            PlanNodeEnum::Sample(node) => vec![node.input().clone()],
-            PlanNodeEnum::Filter(node) => vec![node.input().clone()],
-            PlanNodeEnum::Aggregate(node) => vec![node.input().clone()],
-            PlanNodeEnum::DataCollect(node) => vec![node.input().clone()],
-            PlanNodeEnum::Dedup(node) => vec![node.input().clone()],
-            PlanNodeEnum::PatternApply(node) => vec![node.input().clone()],
-            PlanNodeEnum::RollUpApply(node) => vec![node.input().clone()],
-            PlanNodeEnum::Union(node) => vec![node.input().clone()],
-            PlanNodeEnum::Unwind(node) => vec![node.input().clone()],
-            PlanNodeEnum::Assign(node) => vec![node.input().clone()],
+            // ========== Single input nodes ==========
+            PlanNodeEnum::Project(node) => Cow::Owned(vec![node.input()]),
+            PlanNodeEnum::Sort(node) => Cow::Owned(vec![node.input()]),
+            PlanNodeEnum::Limit(node) => Cow::Owned(vec![node.input()]),
+            PlanNodeEnum::TopN(node) => Cow::Owned(vec![node.input()]),
+            PlanNodeEnum::Sample(node) => Cow::Owned(vec![node.input()]),
+            PlanNodeEnum::Filter(node) => Cow::Owned(vec![node.input()]),
+            PlanNodeEnum::Aggregate(node) => Cow::Owned(vec![node.input()]),
+            PlanNodeEnum::DataCollect(node) => Cow::Owned(vec![node.input()]),
+            PlanNodeEnum::Dedup(node) => Cow::Owned(vec![node.input()]),
+            PlanNodeEnum::PatternApply(node) => Cow::Owned(vec![node.input()]),
+            PlanNodeEnum::RollUpApply(node) => Cow::Owned(vec![node.input()]),
+            PlanNodeEnum::Union(node) => Cow::Owned(vec![node.input()]),
+            PlanNodeEnum::Unwind(node) => Cow::Owned(vec![node.input()]),
+            PlanNodeEnum::Assign(node) => Cow::Owned(vec![node.input()]),
+            PlanNodeEnum::Traverse(node) => Cow::Owned(vec![node.input()]),
 
-            // Dual-input node
+            // ========== Dual-input nodes (Joins) ==========
             PlanNodeEnum::InnerJoin(node) => {
-                vec![node.left_input().clone(), node.right_input().clone()]
+                Cow::Owned(vec![node.left_input(), node.right_input()])
             }
-            PlanNodeEnum::LeftJoin(node) => {
-                vec![node.left_input().clone(), node.right_input().clone()]
-            }
+            PlanNodeEnum::LeftJoin(node) => Cow::Owned(vec![node.left_input(), node.right_input()]),
             PlanNodeEnum::CrossJoin(node) => {
-                vec![node.left_input().clone(), node.right_input().clone()]
+                Cow::Owned(vec![node.left_input(), node.right_input()])
             }
             PlanNodeEnum::HashInnerJoin(node) => {
-                vec![node.left_input().clone(), node.right_input().clone()]
+                Cow::Owned(vec![node.left_input(), node.right_input()])
             }
             PlanNodeEnum::HashLeftJoin(node) => {
-                vec![node.left_input().clone(), node.right_input().clone()]
+                Cow::Owned(vec![node.left_input(), node.right_input()])
+            }
+            PlanNodeEnum::FullOuterJoin(node) => {
+                Cow::Owned(vec![node.left_input(), node.right_input()])
             }
 
-            // Add more nodes
-            PlanNodeEnum::Expand(node) => node.inputs().to_vec(),
-            PlanNodeEnum::ExpandAll(node) => node.inputs().to_vec(),
-            PlanNodeEnum::Traverse(node) => {
-                vec![node.input().clone()]
+            // ========== Multi-input nodes ==========
+            // These nodes store inputs in a Vec, so we need to convert to Vec<&PlanNodeEnum>
+            PlanNodeEnum::Expand(node) => Cow::Owned(node.inputs().iter().collect::<Vec<_>>()),
+            PlanNodeEnum::ExpandAll(node) => Cow::Owned(node.inputs().iter().collect::<Vec<_>>()),
+            PlanNodeEnum::AppendVertices(node) => {
+                Cow::Owned(node.inputs().iter().collect::<Vec<_>>())
             }
-            PlanNodeEnum::AppendVertices(node) => node.inputs().to_vec(),
 
-            // Other nodes
-            PlanNodeEnum::Argument(_node) => vec![],
-            PlanNodeEnum::Loop(_node) => vec![],
-            PlanNodeEnum::PassThrough(_node) => vec![],
-            PlanNodeEnum::Select(_node) => vec![],
+            // ========== Other nodes ==========
+            PlanNodeEnum::Loop(_) => Cow::Borrowed(&[]),
 
-            // Management Node: No input dependencies
-            _ => vec![],
+            // Management nodes: No input dependencies
+            _ => Cow::Borrowed(&[]),
         }
     }
 

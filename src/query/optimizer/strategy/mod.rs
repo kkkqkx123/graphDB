@@ -25,9 +25,9 @@ pub mod materialization;
 pub mod memory_budget;
 pub mod subquery_unnesting;
 pub mod topn_optimization;
+pub mod trait_def;
 pub mod traversal_direction;
 pub mod traversal_start;
-pub mod trait_def;
 
 pub use traversal_start::{
     CandidateStart, SelectionReason as TraversalSelectionReason, TraversalStartSelector,
