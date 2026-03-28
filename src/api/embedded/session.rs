@@ -390,6 +390,142 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     pub fn batch_inserter(&self, batch_size: usize) -> BatchInserter<'_, S> {
         BatchInserter::new(self, batch_size)
     }
+
+    /// Batch insert vertices
+    ///
+    /// # Parameters
+    /// - `vertices` - list of vertices to insert
+    ///
+    /// # Return
+    /// - Returns the number of vertices inserted on success
+    /// - Return error on failure
+    pub fn batch_insert_vertices(&self, vertices: Vec<crate::core::Vertex>) -> CoreResult<usize> {
+        let space_name = self
+            .space_name()
+            .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
+
+        let count = vertices.len();
+        let mut storage = self.storage();
+        storage
+            .batch_insert_vertices(space_name, vertices)
+            .map_err(|e| CoreError::StorageError(e.to_string()))?;
+
+        Ok(count)
+    }
+
+    /// Batch insert edges
+    ///
+    /// # Parameters
+    /// - `edges` - list of edges to insert
+    ///
+    /// # Return
+    /// - Returns the number of edges inserted on success
+    /// - Return error on failure
+    pub fn batch_insert_edges(&self, edges: Vec<crate::core::Edge>) -> CoreResult<usize> {
+        let space_name = self
+            .space_name()
+            .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
+
+        let count = edges.len();
+        let mut storage = self.storage();
+        storage
+            .batch_insert_edges(space_name, edges)
+            .map_err(|e| CoreError::StorageError(e.to_string()))?;
+
+        Ok(count)
+    }
+
+    /// Commit a transaction by handle (for C API use)
+    ///
+    /// # Parameters
+    /// - `txn_handle` - transaction handle
+    ///
+    /// # Return
+    /// - Returns () on success
+    /// - Return error on failure
+    pub fn commit_transaction(
+        &self,
+        txn_handle: crate::api::core::TransactionHandle,
+    ) -> CoreResult<()> {
+        self.txn_manager()
+            .commit_transaction(txn_handle.0)
+            .map_err(|e| CoreError::TransactionFailed(e.to_string()))
+    }
+
+    /// Rollback a transaction by handle (for C API use)
+    ///
+    /// # Parameters
+    /// - `txn_handle` - transaction handle
+    ///
+    /// # Return
+    /// - Returns () on success
+    /// - Return error on failure
+    pub fn rollback_transaction(
+        &self,
+        txn_handle: crate::api::core::TransactionHandle,
+    ) -> CoreResult<()> {
+        self.txn_manager()
+            .abort_transaction(txn_handle.0)
+            .map_err(|e| CoreError::TransactionFailed(e.to_string()))
+    }
+
+    /// Create a savepoint for a transaction (for C API use)
+    ///
+    /// # Parameters
+    /// - `txn_handle` - transaction handle
+    /// - `name` - savepoint name
+    ///
+    /// # Return
+    /// - Returns savepoint ID on success
+    /// - Return error on failure
+    pub fn create_savepoint(
+        &self,
+        txn_handle: &crate::api::core::TransactionHandle,
+        name: &str,
+    ) -> CoreResult<crate::api::core::SavepointId> {
+        self.txn_manager()
+            .create_savepoint(txn_handle.0, Some(name.to_string()))
+            .map_err(|e| CoreError::TransactionFailed(e.to_string()))
+            .map(crate::api::core::SavepointId)
+    }
+
+    /// Release a savepoint (for C API use)
+    ///
+    /// # Parameters
+    /// - `txn_handle` - transaction handle
+    /// - `savepoint` - savepoint ID
+    ///
+    /// # Return
+    /// - Returns () on success
+    /// - Return error on failure
+    pub fn release_savepoint(
+        &self,
+        txn_handle: &crate::api::core::TransactionHandle,
+        savepoint: crate::api::core::SavepointId,
+    ) -> CoreResult<()> {
+        self.txn_manager()
+            .release_savepoint(txn_handle.0, savepoint.0)
+            .map_err(|e| CoreError::TransactionFailed(e.to_string()))
+    }
+
+    /// Rollback to a savepoint (for C API use)
+    ///
+    /// # Parameters
+    /// - `txn_handle` - transaction handle
+    /// - `savepoint` - savepoint ID
+    ///
+    /// # Return
+    /// - Returns () on success
+    /// - Return error on failure
+    pub fn rollback_to_savepoint(
+        &self,
+        txn_handle: &crate::api::core::TransactionHandle,
+        savepoint: crate::api::core::SavepointId,
+    ) -> CoreResult<()> {
+        self.txn_manager()
+            .rollback_to_savepoint(txn_handle.0, savepoint.0)
+            .map_err(|e| CoreError::TransactionFailed(e.to_string()))
+    }
 }
 
 impl<S: StorageClient + Clone + 'static> Drop for Session<S> {

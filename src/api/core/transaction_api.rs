@@ -2,7 +2,7 @@
 //!
 //! Provides transport layer-independent transaction management capabilities
 
-use crate::api::core::{CoreError, CoreResult, TransactionHandle};
+use crate::api::core::{CoreError, CoreResult, SavepointId, TransactionHandle};
 use crate::transaction::{TransactionManager, TransactionOptions};
 use std::sync::Arc;
 
@@ -59,9 +59,11 @@ impl TransactionApi {
     ///
     /// # Return
     /// Transaction Status String
-    pub fn get_status(&self, _handle: TransactionHandle) -> CoreResult<String> {
-        // Temporarily return Active, actually need to query the transaction status
-        Ok("Active".to_string())
+    pub fn get_status(&self, handle: TransactionHandle) -> CoreResult<String> {
+        match self.txn_manager.get_transaction_info(handle.0) {
+            Some(info) => Ok(format!("{:?}", info.state)),
+            None => Ok("Unknown".to_string()),
+        }
     }
 
     /// Check if a transaction exists and is active
@@ -74,8 +76,79 @@ impl TransactionApi {
 
     /// Get the number of active transactions
     pub fn active_count(&self) -> usize {
-        // Temporarily return 0, actually need to query
-        0
+        self.txn_manager.list_active_transactions().len()
+    }
+
+    /// Create a savepoint within a transaction
+    ///
+    /// # Parameters
+    /// - `handle`: transaction handle
+    /// - `name`: optional savepoint name
+    ///
+    /// # Returns
+    /// Savepoint ID on success
+    pub fn create_savepoint(
+        &self,
+        handle: TransactionHandle,
+        name: Option<String>,
+    ) -> CoreResult<SavepointId> {
+        let context = self
+            .txn_manager
+            .get_context(handle.0)
+            .map_err(|e| CoreError::TransactionFailed(e.to_string()))?;
+        Ok(SavepointId(context.create_savepoint(name)))
+    }
+
+    /// Rollback to a savepoint
+    ///
+    /// # Parameters
+    /// - `handle`: transaction handle
+    /// - `savepoint_id`: savepoint ID to rollback to
+    pub fn rollback_to_savepoint(
+        &self,
+        handle: TransactionHandle,
+        savepoint_id: SavepointId,
+    ) -> CoreResult<()> {
+        let context = self
+            .txn_manager
+            .get_context(handle.0)
+            .map_err(|e| CoreError::TransactionFailed(e.to_string()))?;
+        context
+            .rollback_to_savepoint(savepoint_id.0)
+            .map_err(|e| CoreError::TransactionFailed(e.to_string()))?;
+        Ok(())
+    }
+
+    /// Release a savepoint
+    ///
+    /// # Parameters
+    /// - `handle`: transaction handle
+    /// - `savepoint_id`: savepoint ID to release
+    pub fn release_savepoint(
+        &self,
+        handle: TransactionHandle,
+        savepoint_id: SavepointId,
+    ) -> CoreResult<()> {
+        let context = self
+            .txn_manager
+            .get_context(handle.0)
+            .map_err(|e| CoreError::TransactionFailed(e.to_string()))?;
+        context
+            .release_savepoint(savepoint_id.0)
+            .map_err(|e| CoreError::TransactionFailed(e.to_string()))?;
+        Ok(())
+    }
+
+    /// Get all savepoints for a transaction
+    ///
+    /// # Parameters
+    /// - `handle`: transaction handle
+    pub fn get_savepoints(&self, handle: TransactionHandle) -> CoreResult<Vec<crate::transaction::SavepointInfo>> {
+        let context = self
+            .txn_manager
+            .get_context(handle.0)
+            .map_err(|e| CoreError::TransactionFailed(e.to_string()))?;
+        Ok(context.get_all_savepoints())
     }
 }
 

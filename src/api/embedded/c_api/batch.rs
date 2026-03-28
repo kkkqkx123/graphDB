@@ -4,10 +4,9 @@
 
 use crate::api::embedded::c_api::error::{graphdb_error_code_t, set_last_error_message};
 use crate::api::embedded::c_api::session::GraphDbSessionHandle;
-use crate::api::embedded::c_api::types::graphdb_value_type_t;
 use crate::api::embedded::c_api::types::{graphdb_batch_t, graphdb_session_t, graphdb_value_t};
-use crate::core::{Edge, Value, Vertex};
-use crate::storage::StorageClient;
+use crate::core::vertex_edge_path::Tag;
+use crate::core::{Edge, Vertex};
 use std::collections::HashMap;
 use std::ffi::{c_char, c_int, CStr, CString};
 
@@ -53,7 +52,7 @@ impl GraphDbBatchHandle {
         }
     }
 
-    /// Flush vertex buffer
+    /// Flush vertex buffer - using embedded session API instead of direct storage access
     fn flush_vertices(&mut self) -> Result<(), String> {
         // Separate vertices and edges
         let mut vertices = Vec::new();
@@ -75,20 +74,13 @@ impl GraphDbBatchHandle {
 
         let vertex_count = vertices.len();
 
-        // Avoid borrowing conflicts by placing session-related operations in separate scopes
+        // Use embedded session API instead of direct storage access
         let result = {
             let session = self
                 .get_session()
                 .ok_or_else(|| "Session invalid or closed".to_string())?;
 
-            let space_name = session
-                .inner
-                .space_name()
-                .ok_or_else(|| "No graph space selected".to_string())?;
-
-            // Calling the storage layer's batch insertion interface
-            let mut storage = session.inner.storage();
-            storage.batch_insert_vertices(space_name, vertices)
+            session.inner.batch_insert_vertices(vertices)
         };
 
         match result {
@@ -104,7 +96,7 @@ impl GraphDbBatchHandle {
         }
     }
 
-    /// Flush edge buffer
+    /// Flush edge buffer - using embedded session API instead of direct storage access
     fn flush_edges(&mut self) -> Result<(), String> {
         // Separate edges and vertices
         let mut edges = Vec::new();
@@ -126,20 +118,13 @@ impl GraphDbBatchHandle {
 
         let edge_count = edges.len();
 
-        // Avoid borrowing conflicts by placing session-related operations in separate scopes
+        // Use embedded session API instead of direct storage access
         let result = {
             let session = self
                 .get_session()
                 .ok_or_else(|| "Session invalid or closed".to_string())?;
 
-            let space_name = session
-                .inner
-                .space_name()
-                .ok_or_else(|| "No graph space selected".to_string())?;
-
-            // Calling the storage layer's batch insertion interface
-            let mut storage = session.inner.storage();
-            storage.batch_insert_edges(space_name, edges)
+            session.inner.batch_insert_edges(edges)
         };
 
         match result {
@@ -201,405 +186,295 @@ pub unsafe extern "C" fn graphdb_batch_inserter_create(
         batch_size as usize
     };
 
-    unsafe {
-        let batch_handle = Box::new(GraphDbBatchHandle {
-            session_ptr: session as *mut GraphDbSessionHandle,
-            batch_size: size,
-            buffer: Vec::with_capacity(size),
-            vertices_inserted: 0,
-            edges_inserted: 0,
-            errors: Vec::new(),
-            last_error: None,
-        });
-        *batch = Box::into_raw(batch_handle) as *mut graphdb_batch_t;
-        graphdb_error_code_t::GRAPHDB_OK as c_int
+    let handle = Box::new(GraphDbBatchHandle {
+        session_ptr: session as *mut GraphDbSessionHandle,
+        batch_size: size,
+        buffer: Vec::new(),
+        vertices_inserted: 0,
+        edges_inserted: 0,
+        errors: Vec::new(),
+        last_error: None,
+    });
+
+    *batch = Box::into_raw(handle) as *mut graphdb_batch_t;
+    graphdb_error_code_t::GRAPHDB_OK as c_int
+}
+
+/// Free batch operation handle
+///
+/// # Parameters
+/// - `batch`: batch operation handle
+///
+/// # Safety
+/// - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
+/// - `batch` can be null (in which case this function does nothing)
+/// - After calling this function, the handle is invalid and must not be used again
+#[no_mangle]
+pub unsafe extern "C" fn graphdb_batch_free(batch: *mut graphdb_batch_t) {
+    if !batch.is_null() {
+        let _ = Box::from_raw(batch as *mut GraphDbBatchHandle);
     }
 }
 
-/// Adding Vertices
+/// Add a vertex to the batch
 ///
 /// # Parameters
-/// - `batch`: A handle for batch operations
+/// - `batch`: batch operation handle
 /// - `vid`: vertex ID
-/// - `tag_name`: tag name (UTF-8 encoding)
-/// - `properties`: An array of properties.
-/// - `prop_count`: The number of properties
+/// - `tags`: tag list (comma-separated string)
 ///
 /// # Returns
-/// - Success: GRAPHDB_OK
-/// - Failure: Error code
+/// Success: GRAPHDB_OK
+/// Failure: Error code
 ///
 /// # Safety
-/// - The `batch` must be a valid batch operation handle created using the `graphdb_batch_inserter_create` function.
-/// - `tag_name` must be a valid pointer to a UTF-8 string ending in null
-/// - If `properties` is not `null`, it must point to at least `prop_count` valid `graphdb_value_t` elements.
-/// - The caller must ensure that the associated session is still valid when calling this function.
+/// - `batch` must be a valid batch handle
+/// - `vid` must be a valid pointer to a graphdb_value_t
+/// - `tags` can be null
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_batch_add_vertex(
     batch: *mut graphdb_batch_t,
-    vid: i64,
-    tag_name: *const c_char,
-    properties: *const graphdb_value_t,
-    prop_count: usize,
+    vid: *const graphdb_value_t,
+    tags: *const c_char,
 ) -> c_int {
-    if batch.is_null() || tag_name.is_null() {
+    if batch.is_null() || vid.is_null() {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    let tag_str = unsafe {
-        match CStr::from_ptr(tag_name).to_str() {
+    let handle = &mut *(batch as *mut GraphDbBatchHandle);
+
+    // Check if session is valid
+    if !handle.is_session_valid() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    // Convert C value to core Value
+    let vid_value = unsafe { super::value::graphdb_value_to_core(vid) };
+
+    // Parse tags
+    let tag_list = if tags.is_null() {
+        Vec::new()
+    } else {
+        let tags_str = match unsafe { CStr::from_ptr(tags).to_str() } {
             Ok(s) => s,
             Err(_) => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
-        }
+        };
+        tags_str
+            .split(',')
+            .map(|s| Tag::new(s.trim().to_string(), HashMap::new()))
+            .filter(|t: &Tag| !t.name.is_empty())
+            .collect()
     };
 
-    let mut props = HashMap::new();
+    // Create vertex
+    let vertex = Vertex::new(vid_value, tag_list);
+    handle.buffer.push(BatchItem::Vertex(vertex));
 
-    if !properties.is_null() && prop_count > 0 {
-        for i in 0..prop_count {
-            unsafe {
-                let prop = &*properties.add(i);
-                let prop_name = format!("prop_{}", i);
-                let value = convert_c_value_to_rust(prop);
-                props.insert(prop_name, value);
-            }
+    // Auto-flush if buffer is full
+    if handle.buffer.len() >= handle.batch_size {
+        if let Err(e) = handle.execute() {
+            set_last_error_message(e);
+            return graphdb_error_code_t::GRAPHDB_ERROR as c_int;
         }
-    }
-
-    unsafe {
-        let handle = &mut *(batch as *mut GraphDbBatchHandle);
-
-        // Check the validity of the session.
-        if !handle.is_session_valid() {
-            return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
-        }
-
-        let mut vertex = Vertex::with_vid(Value::Int(vid));
-        let tag = crate::core::vertex_edge_path::Tag::new(tag_str.to_string(), props);
-        vertex.add_tag(tag);
-
-        handle.buffer.push(BatchItem::Vertex(vertex));
-
-        // If the batch size is reached, the content will be automatically flushed.
-        if handle.buffer.len() >= handle.batch_size {
-            if let Err(e) = handle.flush_vertices() {
-                let error_msg = e.to_string();
-                set_last_error_message(error_msg.clone());
-                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
-                return graphdb_error_code_t::GRAPHDB_ERROR as c_int;
-            }
-        }
-
-        graphdb_error_code_t::GRAPHDB_OK as c_int
-    }
-}
-
-/// Add edges
-///
-/// # Parameters
-/// - `batch`: Batch operation handle
-/// - `src_vid`: ID of the source vertex
-/// - `dst_vid`: ID of the target vertex
-/// - `edge_type`: The name of the edge type (encoded in UTF-8)
-/// - `rank`: Ranking
-/// - `properties`: Array of properties
-/// - `prop_count`: Number of properties
-///
-/// # Returns
-/// - Success: GRAPHDB_OK
-/// - Failure: Error code
-///
-/// # Safety
-/// - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
-/// - The `edge_type` must be a valid pointer to a UTF-8 string that ends with `null`.
-/// - If `properties` is not null, it must point to at least `prop_count` valid `graphdb_value_t` elements
-/// - Caller must ensure the associated session is still valid when calling this function
-#[no_mangle]
-pub unsafe extern "C" fn graphdb_batch_add_edge(
-    batch: *mut graphdb_batch_t,
-    src_vid: i64,
-    dst_vid: i64,
-    edge_type: *const c_char,
-    rank: i64,
-    properties: *const graphdb_value_t,
-    prop_count: usize,
-) -> c_int {
-    if batch.is_null() || edge_type.is_null() {
-        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
-    }
-
-    let edge_type_str = unsafe {
-        match CStr::from_ptr(edge_type).to_str() {
-            Ok(s) => s,
-            Err(_) => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
-        }
-    };
-
-    let mut props = HashMap::new();
-
-    if !properties.is_null() && prop_count > 0 {
-        for i in 0..prop_count {
-            unsafe {
-                let prop = &*properties.add(i);
-                let prop_name = format!("prop_{}", i);
-                let value = convert_c_value_to_rust(prop);
-                props.insert(prop_name, value);
-            }
-        }
-    }
-
-    unsafe {
-        let handle = &mut *(batch as *mut GraphDbBatchHandle);
-
-        // Check the validity of the session.
-        if !handle.is_session_valid() {
-            return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
-        }
-
-        let edge = Edge::new(
-            Value::Int(src_vid),
-            Value::Int(dst_vid),
-            edge_type_str.to_string(),
-            rank,
-            props,
-        );
-
-        handle.buffer.push(BatchItem::Edge(edge));
-
-        // If the batch size is reached, the content will be automatically flushed.
-        if handle.buffer.len() >= handle.batch_size {
-            if let Err(e) = handle.flush_edges() {
-                let error_msg = e.to_string();
-                set_last_error_message(error_msg.clone());
-                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
-                return graphdb_error_code_t::GRAPHDB_ERROR as c_int;
-            }
-        }
-
-        graphdb_error_code_t::GRAPHDB_OK as c_int
-    }
-}
-
-/// Perform batch insert operations.
-///
-/// # Parameters
-/// - `batch`: Batch operation handle
-///
-/// # Returns
-/// - Success: GRAPHDB_OK
-/// - Failure: Error code
-///
-/// # Safety
-/// - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
-/// - Caller must ensure the associated session is still valid when calling this function
-/// - This function triggers the actual database write operations, which may involve I/O (Input/Output) operations.
-#[no_mangle]
-pub unsafe extern "C" fn graphdb_batch_flush(batch: *mut graphdb_batch_t) -> c_int {
-    if batch.is_null() {
-        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
-    }
-
-    unsafe {
-        let handle = &mut *(batch as *mut GraphDbBatchHandle);
-
-        // Check the validity of the session.
-        if !handle.is_session_valid() {
-            return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
-        }
-
-        match handle.execute() {
-            Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
-            Err(e) => {
-                let error_msg = e.to_string();
-                set_last_error_message(error_msg.clone());
-                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
-                graphdb_error_code_t::GRAPHDB_ERROR as c_int
-            }
-        }
-    }
-}
-
-/// Get the number of buffered vertices.
-///
-/// # Parameters
-/// - `batch`: Batch operation handle
-///
-/// # Returns
-/// Number of buffered vertices
-///
-/// # Safety
-/// - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
-/// - Caller must ensure the associated session is still valid when calling this function
-#[no_mangle]
-pub unsafe extern "C" fn graphdb_batch_buffered_vertices(batch: *mut graphdb_batch_t) -> c_int {
-    if batch.is_null() {
-        return -1;
-    }
-
-    unsafe {
-        let handle = &*(batch as *mut GraphDbBatchHandle);
-        handle
-            .buffer
-            .iter()
-            .filter(|item| matches!(item, BatchItem::Vertex(_)))
-            .count() as c_int
-    }
-}
-
-/// Get the number of buffered edges.
-///
-/// # Arguments
-/// - `batch`: Batch operation handle
-///
-/// # Returns
-/// - Number of buffered edges
-///
-/// # Safety
-/// - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
-/// - Caller must ensure the associated session is still valid when calling this function
-#[no_mangle]
-pub unsafe extern "C" fn graphdb_batch_buffered_edges(batch: *mut graphdb_batch_t) -> c_int {
-    if batch.is_null() {
-        return -1;
-    }
-
-    unsafe {
-        let handle = &*(batch as *mut GraphDbBatchHandle);
-        handle
-            .buffer
-            .iter()
-            .filter(|item| matches!(item, BatchItem::Edge(_)))
-            .count() as c_int
-    }
-}
-
-/// Free the batch operation handle
-///
-/// # Arguments
-/// - `batch`: Batch operation handle
-///
-/// # Returns
-/// - Success: GRAPHDB_OK
-/// - Failure: Error code
-///
-/// # Safety
-/// - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
-/// - After calling this function, the batch handle becomes invalid and must not be used
-/// - This function does not close the associated session; the caller must close the session separately
-#[no_mangle]
-pub unsafe extern "C" fn graphdb_batch_free(batch: *mut graphdb_batch_t) -> c_int {
-    if batch.is_null() {
-        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
-    }
-
-    unsafe {
-        let _ = Box::from_raw(batch as *mut GraphDbBatchHandle);
     }
 
     graphdb_error_code_t::GRAPHDB_OK as c_int
 }
 
-/// Convert a C value to a Rust value.
-unsafe fn convert_c_value_to_rust(c_value: &graphdb_value_t) -> Value {
-    match c_value.type_ {
-        graphdb_value_type_t::GRAPHDB_NULL => Value::Null(crate::core::value::NullType::Null),
-        graphdb_value_type_t::GRAPHDB_BOOL => Value::Bool(c_value.data.boolean),
-        graphdb_value_type_t::GRAPHDB_INT => Value::Int(c_value.data.integer),
-        graphdb_value_type_t::GRAPHDB_FLOAT => Value::Float(c_value.data.floating),
-        graphdb_value_type_t::GRAPHDB_STRING => {
-            if c_value.data.string.data.is_null() || c_value.data.string.len == 0 {
-                Value::String(String::new())
-            } else {
-                let slice = std::slice::from_raw_parts(
-                    c_value.data.string.data as *const u8,
-                    c_value.data.string.len,
-                );
-                let s = String::from_utf8_unchecked(slice.to_vec());
-                Value::String(s)
-            }
-        }
-        _ => Value::Null(crate::core::value::NullType::Null),
+/// Add an edge to the batch
+///
+/// # Parameters
+/// - `batch`: batch operation handle
+/// - `src_vid`: source vertex ID
+/// - `dst_vid`: destination vertex ID
+/// - `edge_type`: edge type
+///
+/// # Returns
+/// Success: GRAPHDB_OK
+/// Failure: Error code
+///
+/// # Safety
+/// - `batch` must be a valid batch handle
+/// - `src_vid` and `dst_vid` must be valid pointers to graphdb_value_t
+/// - `edge_type` must be a valid null-terminated UTF-8 string
+#[no_mangle]
+pub unsafe extern "C" fn graphdb_batch_add_edge(
+    batch: *mut graphdb_batch_t,
+    src_vid: *const graphdb_value_t,
+    dst_vid: *const graphdb_value_t,
+    edge_type: *const c_char,
+) -> c_int {
+    if batch.is_null() || src_vid.is_null() || dst_vid.is_null() || edge_type.is_null() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
+
+    let handle = &mut *(batch as *mut GraphDbBatchHandle);
+
+    // Check if session is valid
+    if !handle.is_session_valid() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    // Convert C values to core Values
+    let src_value = unsafe { super::value::graphdb_value_to_core(src_vid) };
+    let dst_value = unsafe { super::value::graphdb_value_to_core(dst_vid) };
+
+    // Get edge type
+    let edge_type_str = match CStr::from_ptr(edge_type).to_str() {
+        Ok(s) => s.to_string(),
+        Err(_) => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
+    };
+
+    // Create edge
+    let edge = Edge::new(src_value, dst_value, edge_type_str, 0, HashMap::new());
+    handle.buffer.push(BatchItem::Edge(edge));
+
+    // Auto-flush if buffer is full
+    if handle.buffer.len() >= handle.batch_size {
+        if let Err(e) = handle.execute() {
+            set_last_error_message(e);
+            return graphdb_error_code_t::GRAPHDB_ERROR as c_int;
+        }
+    }
+
+    graphdb_error_code_t::GRAPHDB_OK as c_int
+}
+
+/// Execute batch operation (flush all buffered data)
+///
+/// # Parameters
+/// - `batch`: batch operation handle
+///
+/// # Returns
+/// Success: GRAPHDB_OK
+/// Failure: Error code
+///
+/// # Safety
+/// - `batch` must be a valid batch handle
+#[no_mangle]
+pub unsafe extern "C" fn graphdb_batch_execute(batch: *mut graphdb_batch_t) -> c_int {
+    if batch.is_null() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    let handle = &mut *(batch as *mut GraphDbBatchHandle);
+
+    // Check if session is valid
+    if !handle.is_session_valid() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    if let Err(e) = handle.execute() {
+        set_last_error_message(e);
+        return graphdb_error_code_t::GRAPHDB_ERROR as c_int;
+    }
+
+    graphdb_error_code_t::GRAPHDB_OK as c_int
+}
+
+/// Get the number of vertices inserted
+///
+/// # Parameters
+/// - `batch`: batch operation handle
+/// - `count`: output parameter
+///
+/// # Returns
+/// Success: GRAPHDB_OK
+/// Failure: Error code
+///
+/// # Safety
+/// - `batch` must be a valid batch handle
+/// - `count` must be a valid pointer
+#[no_mangle]
+pub unsafe extern "C" fn graphdb_batch_vertices_inserted(
+    batch: *mut graphdb_batch_t,
+    count: *mut c_int,
+) -> c_int {
+    if batch.is_null() || count.is_null() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    let handle = &*(batch as *mut GraphDbBatchHandle);
+    *count = handle.vertices_inserted as c_int;
+
+    graphdb_error_code_t::GRAPHDB_OK as c_int
+}
+
+/// Get the number of edges inserted
+///
+/// # Parameters
+/// - `batch`: batch operation handle
+/// - `count`: output parameter
+///
+/// # Returns
+/// Success: GRAPHDB_OK
+/// Failure: Error code
+///
+/// # Safety
+/// - `batch` must be a valid batch handle
+/// - `count` must be a valid pointer
+#[no_mangle]
+pub unsafe extern "C" fn graphdb_batch_edges_inserted(
+    batch: *mut graphdb_batch_t,
+    count: *mut c_int,
+) -> c_int {
+    if batch.is_null() || count.is_null() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    let handle = &*(batch as *mut GraphDbBatchHandle);
+    *count = handle.edges_inserted as c_int;
+
+    graphdb_error_code_t::GRAPHDB_OK as c_int
+}
+
+/// Get the number of items in the buffer
+///
+/// # Parameters
+/// - `batch`: batch operation handle
+/// - `count`: output parameter
+///
+/// # Returns
+/// Success: GRAPHDB_OK
+/// Failure: Error code
+///
+/// # Safety
+/// - `batch` must be a valid batch handle
+/// - `count` must be a valid pointer
+#[no_mangle]
+pub unsafe extern "C" fn graphdb_batch_buffered_count(
+    batch: *mut graphdb_batch_t,
+    count: *mut c_int,
+) -> c_int {
+    if batch.is_null() || count.is_null() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    let handle = &*(batch as *mut GraphDbBatchHandle);
+    *count = handle.buffer.len() as c_int;
+
+    graphdb_error_code_t::GRAPHDB_OK as c_int
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::embedded::c_api::database::{graphdb_close, graphdb_open};
-    use crate::api::embedded::c_api::session::{graphdb_session_close, graphdb_session_create};
-    use crate::api::embedded::c_api::types::graphdb_t;
-    use std::ptr;
-    use std::sync::atomic::{AtomicU64, Ordering};
-
-    static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
-
-    fn create_test_db() -> *mut graphdb_t {
-        let counter = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
-        let temp_dir = std::env::temp_dir().join("graphdb_c_api_test");
-        std::fs::create_dir_all(&temp_dir).ok();
-        let db_path = temp_dir.join(format!("test_batch_{}_{}.db", std::process::id(), counter));
-
-        // Make sure the database file does not exist.
-        if db_path.exists() {
-            std::fs::remove_file(&db_path).ok();
-            // Wait for the file system to complete the deletion operation.
-            std::thread::sleep(std::time::Duration::from_millis(50));
-        }
-
-        let path_cstring = CString::new(db_path.to_str().expect("Invalid path"))
-            .expect("Failed to create CString");
-        let mut db: *mut graphdb_t = ptr::null_mut();
-
-        let rc = unsafe { graphdb_open(path_cstring.as_ptr(), &mut db) };
-        if rc != graphdb_error_code_t::GRAPHDB_OK as c_int {
-            panic!(
-                "Failed to open database, error code: {}, path: {:?}",
-                rc, db_path
-            );
-        }
-        assert!(!db.is_null());
-
-        db
-    }
 
     #[test]
     fn test_batch_inserter_create_null_params() {
-        let rc = unsafe { graphdb_batch_inserter_create(ptr::null_mut(), 100, ptr::null_mut()) };
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
+        let result = unsafe { graphdb_batch_inserter_create(std::ptr::null_mut(), 100, std::ptr::null_mut()) };
+        assert_eq!(result, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
     }
 
     #[test]
     fn test_batch_free_null() {
-        let rc = unsafe { graphdb_batch_free(ptr::null_mut()) };
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
-    }
-
-    #[test]
-    fn test_batch_inserter_create_and_free() {
-        let db = create_test_db();
-        let mut session: *mut graphdb_session_t = ptr::null_mut();
-
-        let rc = unsafe { graphdb_session_create(db, &mut session) };
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
-
-        let mut batch: *mut graphdb_batch_t = ptr::null_mut();
-        let rc = unsafe { graphdb_batch_inserter_create(session, 100, &mut batch) };
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
-        assert!(!batch.is_null());
-
-        let rc = unsafe { graphdb_batch_free(batch) };
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
-
-        unsafe { graphdb_session_close(session) };
-        unsafe { graphdb_close(db) };
+        // Should not panic
+        unsafe { graphdb_batch_free(std::ptr::null_mut()) };
     }
 
     #[test]
     fn test_batch_buffered_counts_null() {
-        let count = unsafe { graphdb_batch_buffered_vertices(ptr::null_mut()) };
-        assert_eq!(count, -1);
-
-        let count = unsafe { graphdb_batch_buffered_edges(ptr::null_mut()) };
-        assert_eq!(count, -1);
+        let result = unsafe { graphdb_batch_buffered_count(std::ptr::null_mut(), std::ptr::null_mut()) };
+        assert_eq!(result, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
     }
 }

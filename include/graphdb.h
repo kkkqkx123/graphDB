@@ -336,124 +336,127 @@ int graphdb_batch_inserter_create(struct graphdb_session_t *session,
                                   struct graphdb_batch_t **batch);
 
 /**
- * Adding Vertices
+ * Free batch operation handle
  *
  * # Parameters
- * - `batch`: A handle for batch operations
- * - `vid`: vertex ID
- * - `tag_name`: tag name (UTF-8 encoding)
- * - `properties`: An array of properties.
- * - `prop_count`: The number of properties
- *
- * # Returns
- * - Success: GRAPHDB_OK
- * - Failure: Error code
+ * - `batch`: batch operation handle
  *
  * # Safety
- * - The `batch` must be a valid batch operation handle created using the `graphdb_batch_inserter_create` function.
- * - `tag_name` must be a valid pointer to a UTF-8 string ending in null
- * - If `properties` is not `null`, it must point to at least `prop_count` valid `graphdb_value_t` elements.
- * - The caller must ensure that the associated session is still valid when calling this function.
+ * - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
+ * - `batch` can be null (in which case this function does nothing)
+ * - After calling this function, the handle is invalid and must not be used again
+ */
+void graphdb_batch_free(struct graphdb_batch_t *batch);
+
+/**
+ * Add a vertex to the batch
+ *
+ * # Parameters
+ * - `batch`: batch operation handle
+ * - `vid`: vertex ID
+ * - `tags`: tag list (comma-separated string)
+ *
+ * # Returns
+ * Success: GRAPHDB_OK
+ * Failure: Error code
+ *
+ * # Safety
+ * - `batch` must be a valid batch handle
+ * - `vid` must be a valid pointer to a graphdb_value_t
+ * - `tags` can be null
  */
 int graphdb_batch_add_vertex(struct graphdb_batch_t *batch,
-                             int64_t vid,
-                             const char *tag_name,
-                             const struct graphdb_value_t *properties,
-                             uintptr_t prop_count);
+                             const struct graphdb_value_t *vid,
+                             const char *tags);
 
 /**
- * Add edges
+ * Add an edge to the batch
  *
  * # Parameters
- * - `batch`: Batch operation handle
- * - `src_vid`: ID of the source vertex
- * - `dst_vid`: ID of the target vertex
- * - `edge_type`: The name of the edge type (encoded in UTF-8)
- * - `rank`: Ranking
- * - `properties`: Array of properties
- * - `prop_count`: Number of properties
+ * - `batch`: batch operation handle
+ * - `src_vid`: source vertex ID
+ * - `dst_vid`: destination vertex ID
+ * - `edge_type`: edge type
  *
  * # Returns
- * - Success: GRAPHDB_OK
- * - Failure: Error code
+ * Success: GRAPHDB_OK
+ * Failure: Error code
  *
  * # Safety
- * - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
- * - The `edge_type` must be a valid pointer to a UTF-8 string that ends with `null`.
- * - If `properties` is not null, it must point to at least `prop_count` valid `graphdb_value_t` elements
- * - Caller must ensure the associated session is still valid when calling this function
+ * - `batch` must be a valid batch handle
+ * - `src_vid` and `dst_vid` must be valid pointers to graphdb_value_t
+ * - `edge_type` must be a valid null-terminated UTF-8 string
  */
 int graphdb_batch_add_edge(struct graphdb_batch_t *batch,
-                           int64_t src_vid,
-                           int64_t dst_vid,
-                           const char *edge_type,
-                           int64_t rank,
-                           const struct graphdb_value_t *properties,
-                           uintptr_t prop_count);
+                           const struct graphdb_value_t *src_vid,
+                           const struct graphdb_value_t *dst_vid,
+                           const char *edge_type);
 
 /**
- * Perform batch insert operations.
+ * Execute batch operation (flush all buffered data)
  *
  * # Parameters
- * - `batch`: Batch operation handle
+ * - `batch`: batch operation handle
  *
  * # Returns
- * - Success: GRAPHDB_OK
- * - Failure: Error code
+ * Success: GRAPHDB_OK
+ * Failure: Error code
  *
  * # Safety
- * - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
- * - Caller must ensure the associated session is still valid when calling this function
- * - This function triggers the actual database write operations, which may involve I/O (Input/Output) operations.
+ * - `batch` must be a valid batch handle
  */
-int graphdb_batch_flush(struct graphdb_batch_t *batch);
+int graphdb_batch_execute(struct graphdb_batch_t *batch);
 
 /**
- * Get the number of buffered vertices.
+ * Get the number of vertices inserted
  *
  * # Parameters
- * - `batch`: Batch operation handle
+ * - `batch`: batch operation handle
+ * - `count`: output parameter
  *
  * # Returns
- * Number of buffered vertices
+ * Success: GRAPHDB_OK
+ * Failure: Error code
  *
  * # Safety
- * - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
- * - Caller must ensure the associated session is still valid when calling this function
+ * - `batch` must be a valid batch handle
+ * - `count` must be a valid pointer
  */
-int graphdb_batch_buffered_vertices(struct graphdb_batch_t *batch);
+int graphdb_batch_vertices_inserted(struct graphdb_batch_t *batch, int *count);
 
 /**
- * Get the number of buffered edges.
+ * Get the number of edges inserted
  *
- * # Arguments
- * - `batch`: Batch operation handle
+ * # Parameters
+ * - `batch`: batch operation handle
+ * - `count`: output parameter
  *
  * # Returns
- * - Number of buffered edges
+ * Success: GRAPHDB_OK
+ * Failure: Error code
  *
  * # Safety
- * - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
- * - Caller must ensure the associated session is still valid when calling this function
+ * - `batch` must be a valid batch handle
+ * - `count` must be a valid pointer
  */
-int graphdb_batch_buffered_edges(struct graphdb_batch_t *batch);
+int graphdb_batch_edges_inserted(struct graphdb_batch_t *batch, int *count);
 
 /**
- * Free the batch operation handle
+ * Get the number of items in the buffer
  *
- * # Arguments
- * - `batch`: Batch operation handle
+ * # Parameters
+ * - `batch`: batch operation handle
+ * - `count`: output parameter
  *
  * # Returns
- * - Success: GRAPHDB_OK
- * - Failure: Error code
+ * Success: GRAPHDB_OK
+ * Failure: Error code
  *
  * # Safety
- * - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
- * - After calling this function, the batch handle becomes invalid and must not be used
- * - This function does not close the associated session; the caller must close the session separately
+ * - `batch` must be a valid batch handle
+ * - `count` must be a valid pointer
  */
-int graphdb_batch_free(struct graphdb_batch_t *batch);
+int graphdb_batch_buffered_count(struct graphdb_batch_t *batch, int *count);
 
 /**
  * Open database
@@ -1586,14 +1589,9 @@ int graphdb_txn_rollback_to_savepoint(struct graphdb_txn_t *txn,
  * # Parameters
  * - `txn`: Transaction handle
  *
- * # Returns
- * - Success: GRAPHDB_OK
- * - Failure: Error code
- *
  * # Safety
  * - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
- * - After calling this function, the transaction handle becomes invalid and must not be used
- * - If the transaction has not been committed or rolled back, it will be automatically rolled back
- * - It is safe to call this function multiple times on the same handle (idempotent)
+ * - `txn` can be null (in which case this function does nothing)
+ * - After calling this function, the handle is invalid and must not be used again
  */
-int graphdb_txn_free(struct graphdb_txn_t *txn);
+void graphdb_txn_free(struct graphdb_txn_t *txn);

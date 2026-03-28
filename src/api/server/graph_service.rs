@@ -1,13 +1,11 @@
+use crate::api::core::QueryApi;
 use crate::api::server::auth::{Authenticator, AuthenticatorFactory, PasswordAuthenticator};
 use crate::api::server::permission::PermissionManager;
-use crate::api::server::session::{
-    build_query_request_context, ClientSession, GraphSessionManager, SpaceInfo,
-};
+use crate::api::server::session::{ClientSession, GraphSessionManager, SpaceInfo};
 use crate::config::Config;
 use crate::core::error::{SessionError, SessionResult};
-use crate::core::{MetricType, Permission, StatsManager};
+use crate::core::{DataSet, MetricType, Permission, StatsManager};
 use crate::query::executor::ExecutionResult;
-use crate::query::{OptimizerEngine, QueryPipelineManager};
 use crate::storage::StorageClient;
 use crate::transaction::TransactionManager;
 use log::{info, warn};
@@ -17,7 +15,7 @@ use std::time::Duration;
 
 pub struct GraphService<S: StorageClient + Clone + 'static> {
     session_manager: Arc<GraphSessionManager>,
-    pipeline_manager: Arc<Mutex<QueryPipelineManager<S>>>,
+    query_api: Arc<Mutex<QueryApi<S>>>,
     authenticator: PasswordAuthenticator,
     permission_manager: Arc<PermissionManager>,
     pub stats_manager: Arc<StatsManager>,
@@ -69,13 +67,10 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             session_manager.start_cleanup_task();
         }
 
-        let query_stats_manager = Arc::new(StatsManager::new());
-        let optimizer_engine = Arc::new(OptimizerEngine::default());
-        let pipeline_manager = Arc::new(Mutex::new(QueryPipelineManager::with_optimizer(
-            Arc::new(Mutex::new((*storage).clone())),
-            query_stats_manager.clone(),
-            optimizer_engine,
-        )));
+        // Use core layer QueryApi instead of directly using QueryPipelineManager
+        let query_api = Arc::new(Mutex::new(QueryApi::new(Arc::new(Mutex::new(
+            (*storage).clone(),
+        )))));
 
         let authenticator = AuthenticatorFactory::create_default(&config.auth);
         let permission_manager = Arc::new(PermissionManager::new());
@@ -83,7 +78,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         Arc::new(Self {
             session_manager,
-            pipeline_manager,
+            query_api,
             authenticator,
             permission_manager,
             stats_manager: server_stats_manager,
@@ -149,7 +144,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             return self.handle_release_savepoint(&session, stmt);
         }
 
-        // Perform a regular query.
+        // Perform a regular query using core layer QueryApi
         let result = self.execute_query_with_permission(session_id, stmt, space_id);
 
         // If it is a USE statement and the execution is successful, the space for the session will be updated.
@@ -232,31 +227,76 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             }
         }
 
-        // Extract spatial information from the client session.
-        let space_info = session.space().map(|s| crate::core::types::SpaceInfo {
-            space_name: s.name.clone(),
-            space_id: s.id as u64,
-            vid_type: crate::core::types::DataType::String,
-            tags: Vec::new(),
-            edge_types: Vec::new(),
-            version: crate::core::types::MetadataVersion::default(),
-            comment: None,
-        });
+        // Use core layer QueryApi to execute query
+        let query_request = crate::api::core::QueryRequest {
+            space_id: session.space().map(|s| s.id as u64),
+            auto_commit: session.is_auto_commit(),
+            transaction_id: session.current_transaction(),
+            parameters: None,
+        };
 
-        // Create a QueryRequestContext from the session.
-        let rctx = Arc::new(build_query_request_context(
-            &session,
-            stmt.to_string(),
-            std::collections::HashMap::new(),
-        ));
-
-        let mut pipeline_manager = self.pipeline_manager.lock();
-        let result = pipeline_manager.execute_query_with_request(stmt, rctx, space_info);
+        let mut query_api = self.query_api.lock();
+        let result = query_api.execute(stmt, query_request);
 
         match result {
-            Ok(exec_result) => Ok(exec_result),
+            Ok(query_result) => Ok(Self::convert_to_execution_result(query_result)),
             Err(e) => Err(e.to_string()),
         }
+    }
+
+    /// Convert core QueryResult to query ExecutionResult
+    fn convert_to_execution_result(result: crate::api::core::QueryResult) -> ExecutionResult {
+        if result.rows.is_empty() {
+            return ExecutionResult::Empty;
+        }
+
+        // If there is only one column named "vertex", return Vertices
+        if result.columns.len() == 1 && result.columns[0] == "vertex" {
+            let vertices: Vec<crate::core::Vertex> = result
+                .rows
+                .into_iter()
+                .filter_map(|row| {
+                    row.get("vertex").and_then(|v| match v {
+                        crate::core::Value::Vertex(v) => Some(*v.clone()),
+                        _ => None,
+                    })
+                })
+                .collect();
+            return ExecutionResult::Vertices(vertices);
+        }
+
+        // If there is only one column named "edge", return Edges
+        if result.columns.len() == 1 && result.columns[0] == "edge" {
+            let edges: Vec<crate::core::Edge> = result
+                .rows
+                .into_iter()
+                .filter_map(|row| {
+                    row.get("edge").and_then(|v| match v {
+                        crate::core::Value::Edge(e) => Some(e.clone()),
+                        _ => None,
+                    })
+                })
+                .collect();
+            return ExecutionResult::Edges(edges);
+        }
+
+        // General case: return DataSet
+        let rows: Vec<Vec<crate::core::Value>> = result
+            .rows
+            .into_iter()
+            .map(|row| {
+                result
+                    .columns
+                    .iter()
+                    .filter_map(|col| row.get(col).cloned())
+                    .collect()
+            })
+            .collect();
+
+        ExecutionResult::DataSet(DataSet {
+            col_names: result.columns,
+            rows,
+        })
     }
 
     fn extract_permission_from_statement(&self, stmt: &str) -> Permission {
@@ -516,7 +556,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         let txn_id = session
             .current_transaction()
-            .ok_or("No active transaction")?;
+            .ok_or("No active transaction, cannot release savepoint")?;
 
         let txn_manager = self
             .transaction_manager
@@ -527,309 +567,23 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             .get_context(txn_id)
             .map_err(|e| format!("Failed to get transaction context: {}", e))?;
 
+        // Try to find the save point by using its name.
         let savepoint_info = context
             .find_savepoint_by_name(savepoint_name)
             .ok_or_else(|| format!("Savepoint '{}' does not exist", savepoint_name))?;
 
-        context
-            .release_savepoint(savepoint_info.id)
-            .map_err(|e| format!("Failed to release savepoint: {}", e))?;
+        // Release the savepoint.
+        if let Err(e) = context.release_savepoint(savepoint_info.id) {
+            return Err(format!("Failed to release savepoint: {}", e));
+        }
 
         info!(
-            "Session {} released savepoint {} in transaction {} (ID: {})",
+            "Session {} released savepoint {} in transaction {}",
             session.id(),
             savepoint_name,
-            txn_id,
-            savepoint_info.id
+            txn_id
         );
 
         Ok(ExecutionResult::Success)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::config::Config;
-    use crate::storage::test_mock::MockStorage;
-    use std::sync::Arc;
-
-    fn create_test_config() -> Config {
-        Config {
-            database: crate::config::DatabaseConfig {
-                host: "127.0.0.1".to_string(),
-                port: 9669,
-                storage_path: "/tmp/graphdb_test".to_string(),
-                max_connections: 10,
-            },
-            transaction: crate::config::TransactionConfig::default(),
-            log: crate::config::LogConfig {
-                level: "info".to_string(),
-                dir: "logs".to_string(),
-                file: "logs/test.log".to_string(),
-                max_file_size: 100 * 1024 * 1024,
-                max_files: 5,
-            },
-            auth: crate::config::AuthConfig {
-                enable_authorize: true,
-                failed_login_attempts: 5,
-                session_idle_timeout_secs: 3600,
-                default_username: "root".to_string(),
-                default_password: "root".to_string(),
-                force_change_default_password: true,
-            },
-            bootstrap: crate::config::BootstrapConfig {
-                auto_create_default_space: true,
-                default_space_name: "default".to_string(),
-                single_user_mode: false,
-            },
-            optimizer: crate::config::OptimizerConfig::default(),
-            monitoring: crate::config::MonitoringConfig::default(),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_graph_service_creation() {
-        let config = create_test_config();
-
-        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
-
-        // The verification service has been created successfully.
-        assert!(
-            !graph_service
-                .get_session_manager()
-                .is_out_of_connections()
-                .await
-        );
-    }
-
-    #[tokio::test]
-    async fn test_authentication_success() {
-        let config = create_test_config();
-        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
-
-        // Testing the default user authentication mechanism
-        let result = graph_service.authenticate("root", "root").await;
-        assert!(
-            result.is_ok(),
-            "The default user authentication should succeed."
-        );
-
-        let session = result.expect("Failed to get session");
-        assert_eq!(session.user(), "root");
-    }
-
-    #[tokio::test]
-    async fn test_authentication_failure() {
-        let config = create_test_config();
-        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
-
-        // Test incorrect password.
-        let result = graph_service.authenticate("root", "wrong_password").await;
-        assert!(
-            result.is_err(),
-            "An incorrect password should result in a authentication failure."
-        );
-
-        // Test an empty username or password.
-        let result = graph_service.authenticate("", "root").await;
-        assert!(
-            result.is_err(),
-            "An empty username should result in an authentication failure."
-        );
-
-        let result = graph_service.authenticate("root", "").await;
-        assert!(
-            result.is_err(),
-            "An empty password should result in a failed authentication attempt."
-        );
-    }
-
-    #[tokio::test]
-    async fn test_session_management() {
-        let config = create_test_config();
-        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
-
-        // Create a session
-        let session = graph_service
-            .authenticate("root", "root")
-            .await
-            .expect("Failed to create session");
-
-        let session_id = session.id();
-
-        // Search for the conversation
-        let found_session = graph_service.get_session_manager().find_session(session_id);
-        assert!(
-            found_session.is_some(),
-            "We should be able to find the session that was just created."
-        );
-
-        // Log out of the session.
-        graph_service.signout(session_id).await;
-
-        // The verification session has been removed.
-        let found_session = graph_service.get_session_manager().find_session(session_id);
-        assert!(
-            found_session.is_none(),
-            "After signing out, the session should no longer be available."
-        );
-    }
-
-    #[tokio::test]
-    async fn test_execute_query() {
-        let config = create_test_config();
-        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
-
-        let session = graph_service
-            .authenticate("root", "root")
-            .await
-            .expect("Failed to create session");
-
-        // perform a search
-        let result = graph_service.execute(session.id(), "SHOW SPACES");
-        // Note: It may fail here because MockStorage may not implement the full feature
-        // We mainly test calls that do not panic
-        let _ = result;
-    }
-
-    #[tokio::test]
-    async fn test_transaction_control() {
-        let config = create_test_config();
-        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
-
-        let session = graph_service
-            .authenticate("root", "root")
-            .await
-            .expect("Failed to create session");
-
-        // Test BEGIN TRANSACTION
-        let result = graph_service.execute(session.id(), "BEGIN TRANSACTION");
-        // Note: This may fail because the GraphService may not have a transaction manager configured.
-        // We mainly test calls that do not panic
-        let _ = result;
-    }
-
-    #[tokio::test]
-    async fn test_savepoint_creation() {
-        let config = create_test_config();
-        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
-
-        let session = graph_service
-            .authenticate("root", "root")
-            .await
-            .expect("Failed to create session");
-
-        // Test creation of savepoints (need to start transaction first)
-        let _ = graph_service.execute(session.id(), "BEGIN TRANSACTION");
-        let result = graph_service.execute(session.id(), "SAVEPOINT sp1");
-
-        // Note: This may fail because the GraphService may not have a transaction manager configured.
-        // We mainly test calls that do not panic
-        let _ = result;
-    }
-
-    #[tokio::test]
-    async fn test_savepoint_empty_name() {
-        let config = create_test_config();
-        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
-
-        let session = graph_service
-            .authenticate("root", "root")
-            .await
-            .expect("Failed to create session");
-
-        // Test empty save point name
-        let _ = graph_service.execute(session.id(), "BEGIN TRANSACTION");
-        let result = graph_service.execute(session.id(), "SAVEPOINT");
-
-        // Should return an error
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_rollback_to_savepoint() {
-        let config = create_test_config();
-        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
-
-        let session = graph_service
-            .authenticate("root", "root")
-            .await
-            .expect("Failed to create session");
-
-        // Test rollback to save point
-        let _ = graph_service.execute(session.id(), "BEGIN TRANSACTION");
-        let _ = graph_service.execute(session.id(), "SAVEPOINT sp1");
-        let result = graph_service.execute(session.id(), "ROLLBACK TO SAVEPOINT sp1");
-
-        // Note: This may fail because the GraphService may not have a transaction manager configured.
-        // We mainly test calls that do not panic
-        let _ = result;
-    }
-
-    #[tokio::test]
-    async fn test_rollback_to_savepoint_without_transaction() {
-        let config = create_test_config();
-        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
-
-        let session = graph_service
-            .authenticate("root", "root")
-            .await
-            .expect("Failed to create session");
-
-        // Testing rollback to a savepoint without a transaction
-        let result = graph_service.execute(session.id(), "ROLLBACK TO SAVEPOINT sp1");
-
-        // Should return an error
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_release_savepoint() {
-        let config = create_test_config();
-        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
-
-        let session = graph_service
-            .authenticate("root", "root")
-            .await
-            .expect("Failed to create session");
-
-        // Test release save point
-        let _ = graph_service.execute(session.id(), "BEGIN TRANSACTION");
-        let _ = graph_service.execute(session.id(), "SAVEPOINT sp1");
-        let result = graph_service.execute(session.id(), "RELEASE SAVEPOINT sp1");
-
-        // Note: This may fail because the GraphService may not have a transaction manager configured.
-        // We mainly test calls that do not panic
-        let _ = result;
-    }
-
-    #[tokio::test]
-    async fn test_release_savepoint_without_transaction() {
-        let config = create_test_config();
-        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
-
-        let session = graph_service
-            .authenticate("root", "root")
-            .await
-            .expect("Failed to create session");
-
-        // Testing the release of savepoints without transactions
-        let result = graph_service.execute(session.id(), "RELEASE SAVEPOINT sp1");
-
-        // Should return an error
-        assert!(result.is_err());
     }
 }

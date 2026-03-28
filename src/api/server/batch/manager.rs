@@ -1,5 +1,6 @@
 //! Batch Task Manager
 
+use crate::api::core::{BatchConfig, BatchOperation};
 use crate::api::core::{CoreError, CoreResult};
 use crate::api::server::batch::types::*;
 use crate::core::{Edge, Value, Vertex};
@@ -92,7 +93,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
             task.take_buffered_items()
         };
 
-        // Perform batch insertion
+        // Perform batch insertion using core API
         let result = self.process_items(items, space_name).await;
 
         // Update task status and results
@@ -153,70 +154,59 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
         Ok(())
     }
 
-    /// Processing of batch items
+    /// Processing of batch items using core API
     async fn process_items(
         &self,
         items: Vec<BatchItem>,
         space_name: &str,
     ) -> CoreResult<BatchResultData> {
-        let mut vertices = Vec::new();
-        let mut edges = Vec::new();
+        // Convert BatchItem to core BatchItem
+        let core_items: Vec<crate::api::core::BatchItem> = items
+            .into_iter()
+            .filter_map(|item| self.convert_to_core_item(item))
+            .collect();
 
-        // Categorize vertices and edges
-        for item in items {
-            match item {
-                BatchItem::Vertex(data) => {
-                    if let Some(vertex) = self.convert_vertex_data(data) {
-                        vertices.push(vertex);
-                    }
-                }
-                BatchItem::Edge(data) => {
-                    if let Some(edge) = self.convert_edge_data(data) {
-                        edges.push(edge);
-                    }
-                }
+        // Create batch operation with core API
+        let config = BatchConfig::new().with_continue_on_error(true);
+        let mut operation = BatchOperation::new(config);
+        operation.add_items(core_items);
+
+        // Execute batch operation
+        let mut storage = self.storage.lock();
+        let core_result = operation.execute_sync(&mut *storage, space_name)?;
+
+        // Convert core result to server result
+        Ok(BatchResultData {
+            vertices_inserted: core_result.vertices_inserted,
+            edges_inserted: core_result.edges_inserted,
+            errors: core_result
+                .errors
+                .into_iter()
+                .map(|e| BatchErrorData {
+                    index: e.index,
+                    item_type: match e.item_type {
+                        crate::api::core::BatchItemType::Vertex => BatchItemType::Vertex,
+                        crate::api::core::BatchItemType::Edge => BatchItemType::Edge,
+                    },
+                    error: e.message,
+                })
+                .collect(),
+        })
+    }
+
+    /// Convert server BatchItem to core BatchItem
+    fn convert_to_core_item(
+        &self,
+        item: BatchItem,
+    ) -> Option<crate::api::core::BatchItem> {
+        match item {
+            BatchItem::Vertex(data) => {
+                self.convert_vertex_data(data).map(crate::api::core::BatchItem::Vertex)
+            }
+            BatchItem::Edge(data) => {
+                self.convert_edge_data(data).map(crate::api::core::BatchItem::Edge)
             }
         }
-
-        let mut result = BatchResultData {
-            vertices_inserted: 0,
-            edges_inserted: 0,
-            errors: Vec::new(),
-        };
-
-        // Batch insertion of vertices
-        if !vertices.is_empty() {
-            match self.insert_vertices(space_name, vertices).await {
-                Ok(count) => {
-                    result.vertices_inserted = count;
-                }
-                Err(e) => {
-                    result.errors.push(BatchErrorData {
-                        index: 0,
-                        item_type: BatchItemType::Vertex,
-                        error: format!("Batch insertion of vertices failed: {}", e),
-                    });
-                }
-            }
-        }
-
-        // Batch insertion of edges
-        if !edges.is_empty() {
-            match self.insert_edges(space_name, edges).await {
-                Ok(count) => {
-                    result.edges_inserted = count;
-                }
-                Err(e) => {
-                    result.errors.push(BatchErrorData {
-                        index: 0,
-                        item_type: BatchItemType::Edge,
-                        error: format!("Batch insertion of edges failed: {}", e),
-                    });
-                }
-            }
-        }
-
-        Ok(result)
     }
 
     /// Converting Vertex Data
@@ -262,28 +252,6 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
             props,
         ))
     }
-
-    /// Insert vertex
-    async fn insert_vertices(&self, space_name: &str, vertices: Vec<Vertex>) -> CoreResult<usize> {
-        let count = vertices.len();
-
-        let mut storage = self.storage.lock();
-        match storage.batch_insert_vertices(space_name, vertices) {
-            Ok(_) => Ok(count),
-            Err(e) => Err(CoreError::StorageError(e.to_string())),
-        }
-    }
-
-    /// insertion side
-    async fn insert_edges(&self, space_name: &str, edges: Vec<Edge>) -> CoreResult<usize> {
-        let count = edges.len();
-
-        let mut storage = self.storage.lock();
-        match storage.batch_insert_edges(space_name, edges) {
-            Ok(_) => Ok(count),
-            Err(e) => Err(CoreError::StorageError(e.to_string())),
-        }
-    }
 }
 
 /// Converting JSON Values to Core Value
@@ -301,14 +269,40 @@ fn json_to_value(json: serde_json::Value) -> Option<Value> {
         serde_json::Value::String(s) => Some(Value::String(s)),
         serde_json::Value::Array(arr) => {
             let values: Vec<Value> = arr.into_iter().filter_map(json_to_value).collect();
-            Some(Value::List(crate::core::List::from(values)))
+            Some(Value::List(crate::core::value::List::from(values)))
         }
-        serde_json::Value::Object(map) => {
-            let result: std::collections::HashMap<String, Value> = map
-                .into_iter()
-                .filter_map(|(k, v)| json_to_value(v).map(|val| (k, val)))
-                .collect();
-            Some(Value::Map(result))
-        }
+        serde_json::Value::Object(_) => None, // Object types are not supported
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_json_to_value() {
+        // Test null
+        assert_eq!(
+            json_to_value(serde_json::Value::Null),
+            Some(Value::Null(crate::core::NullType::Null))
+        );
+
+        // Test bool
+        assert_eq!(
+            json_to_value(serde_json::Value::Bool(true)),
+            Some(Value::Bool(true))
+        );
+
+        // Test number
+        assert_eq!(
+            json_to_value(serde_json::json!(42)),
+            Some(Value::Int(42))
+        );
+
+        // Test string
+        assert_eq!(
+            json_to_value(serde_json::json!("hello")),
+            Some(Value::String("hello".to_string()))
+        );
     }
 }

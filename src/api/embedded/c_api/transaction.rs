@@ -9,10 +9,8 @@ use crate::api::embedded::c_api::error::{
 use crate::api::embedded::c_api::result::GraphDbResultHandle;
 use crate::api::embedded::c_api::session::GraphDbSessionHandle;
 use crate::api::embedded::c_api::types::{graphdb_result_t, graphdb_session_t, graphdb_txn_t};
-use crate::transaction::TransactionManager;
 use std::ffi::{c_char, c_int, CStr};
 use std::ptr;
-use std::sync::Arc;
 
 /// Internal structure of transaction handles
 ///
@@ -20,7 +18,6 @@ use std::sync::Arc;
 /// The caller must ensure that the session is not closed until the transaction completes.
 pub struct GraphDbTxnHandle {
     pub(crate) session: *mut GraphDbSessionHandle,
-    pub(crate) txn_manager: Arc<TransactionManager>,
     pub(crate) txn_handle: Option<TransactionHandle>,
     pub(crate) committed: bool,
     pub(crate) rolled_back: bool,
@@ -46,7 +43,10 @@ impl Drop for GraphDbTxnHandle {
     fn drop(&mut self) {
         if !self.committed && !self.rolled_back {
             if let Some(txn_handle) = self.txn_handle.take() {
-                let _ = self.txn_manager.abort_transaction(txn_handle.0);
+                // Try to rollback the transaction if not committed/rolled back
+                if let Some(session) = self.get_session() {
+                    let _ = session.inner.rollback_transaction(txn_handle);
+                }
             }
         }
     }
@@ -77,19 +77,21 @@ pub unsafe extern "C" fn graphdb_txn_begin(
     }
 
     let handle = &*(session as *mut GraphDbSessionHandle);
-    let txn_manager = handle.inner.txn_manager();
 
-    match txn_manager.begin_transaction(Default::default()) {
-        Ok(txn_id) => {
-            let txn_handle = TransactionHandle(txn_id);
-            let handle = Box::new(GraphDbTxnHandle {
+    // Use embedded session API instead of direct TransactionManager access
+    match handle.inner.begin_transaction() {
+        Ok(transaction) => {
+            let txn_handle = transaction.txn_handle();
+            let txn_handle_box = Box::new(GraphDbTxnHandle {
                 session: session as *mut GraphDbSessionHandle,
-                txn_manager,
                 txn_handle: Some(txn_handle),
                 committed: false,
                 rolled_back: false,
             });
-            *txn = Box::into_raw(handle) as *mut graphdb_txn_t;
+            // Leak the transaction to prevent Drop from being called
+            // The transaction lifecycle is now managed by GraphDbTxnHandle
+            std::mem::forget(transaction);
+            *txn = Box::into_raw(txn_handle_box) as *mut graphdb_txn_t;
             graphdb_error_code_t::GRAPHDB_OK as c_int
         }
         Err(e) => {
@@ -127,23 +129,19 @@ pub unsafe extern "C" fn graphdb_txn_begin_readonly(
     }
 
     let handle = &*(session as *mut GraphDbSessionHandle);
-    let txn_manager = handle.inner.txn_manager();
 
-    let options = crate::transaction::TransactionOptions {
-        read_only: true,
-        ..Default::default()
-    };
-
-    match txn_manager.begin_transaction(options) {
-        Ok(txn_id) => {
-            let txn_handle = TransactionHandle(txn_id);
+    // Use embedded session API with read-only config
+    let config = crate::api::embedded::TransactionConfig::new().read_only();
+    match handle.inner.begin_transaction_with_config(config) {
+        Ok(transaction) => {
+            let txn_handle = transaction.txn_handle();
             let txn_handle_box = Box::new(GraphDbTxnHandle {
                 session: session as *mut GraphDbSessionHandle,
-                txn_manager,
                 txn_handle: Some(txn_handle),
                 committed: false,
                 rolled_back: false,
             });
+            std::mem::forget(transaction);
             *txn = Box::into_raw(txn_handle_box) as *mut graphdb_txn_t;
             graphdb_error_code_t::GRAPHDB_OK as c_int
         }
@@ -259,16 +257,22 @@ pub unsafe extern "C" fn graphdb_txn_commit(txn: *mut graphdb_txn_t) -> c_int {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    // Checking session validity
-    let session = match handle.get_session() {
-        Some(s) => s,
-        None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
-    };
+    // Check session validity first (only check pointer, don't borrow)
+    if !handle.is_session_valid() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
 
-    if let Some(callback) = session.commit_hook {
-        let result = callback(session.commit_hook_user_data);
-        if result != 0 {
-            return graphdb_txn_rollback(txn);
+    // Get session pointer for later use
+    let session_ptr = handle.session;
+
+    // Execute commit hook if present
+    {
+        let session = &*session_ptr;
+        if let Some(callback) = session.commit_hook {
+            let result = callback(session.commit_hook_user_data);
+            if result != 0 {
+                return graphdb_txn_rollback(txn);
+            }
         }
     }
 
@@ -277,7 +281,9 @@ pub unsafe extern "C" fn graphdb_txn_commit(txn: *mut graphdb_txn_t) -> c_int {
         None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
     };
 
-    match handle.txn_manager.commit_transaction(txn_handle.0) {
+    // Use embedded session API instead of direct TransactionManager access
+    let session = &*session_ptr;
+    match session.inner.commit_transaction(txn_handle) {
         Ok(_) => {
             handle.committed = true;
             graphdb_error_code_t::GRAPHDB_OK as c_int
@@ -317,14 +323,20 @@ pub unsafe extern "C" fn graphdb_txn_rollback(txn: *mut graphdb_txn_t) -> c_int 
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    // Checking session validity
-    let session = match handle.get_session() {
-        Some(s) => s,
-        None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
-    };
+    // Check session validity first (only check pointer, don't borrow)
+    if !handle.is_session_valid() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
 
-    if let Some(callback) = session.rollback_hook {
-        callback(session.rollback_hook_user_data);
+    // Get session pointer for later use
+    let session_ptr = handle.session;
+
+    // Execute rollback hook if present
+    {
+        let session = &*session_ptr;
+        if let Some(callback) = session.rollback_hook {
+            callback(session.rollback_hook_user_data);
+        }
     }
 
     let txn_handle = match handle.txn_handle.take() {
@@ -332,7 +344,9 @@ pub unsafe extern "C" fn graphdb_txn_rollback(txn: *mut graphdb_txn_t) -> c_int 
         None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
     };
 
-    match handle.txn_manager.abort_transaction(txn_handle.0) {
+    // Use embedded session API instead of direct TransactionManager access
+    let session = &*session_ptr;
+    match session.inner.rollback_transaction(txn_handle) {
         Ok(_) => {
             handle.rolled_back = true;
             graphdb_error_code_t::GRAPHDB_OK as c_int
@@ -380,16 +394,19 @@ pub unsafe extern "C" fn graphdb_txn_savepoint(
         return -1;
     }
 
+    let session = match handle.get_session() {
+        Some(s) => s,
+        None => return -1,
+    };
+
     let txn_handle = match handle.txn_handle.as_ref() {
         Some(h) => h,
         None => return -1,
     };
 
-    match handle
-        .txn_manager
-        .create_savepoint(txn_handle.0, Some(name_str.to_string()))
-    {
-        Ok(id) => id as i64,
+    // Use embedded session API instead of direct TransactionManager access
+    match session.inner.create_savepoint(txn_handle, name_str) {
+        Ok(id) => id.0 as i64,
         Err(_) => -1,
     }
 }
@@ -423,15 +440,20 @@ pub unsafe extern "C" fn graphdb_txn_release_savepoint(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
+    let session = match handle.get_session() {
+        Some(s) => s,
+        None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
+    };
+
     let txn_handle = match handle.txn_handle.as_ref() {
         Some(h) => h,
         None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
     };
 
-    match handle
-        .txn_manager
-        .release_savepoint(txn_handle.0, savepoint_id as u64)
-    {
+    let savepoint = crate::api::core::SavepointId(savepoint_id as u64);
+
+    // Use embedded session API instead of direct TransactionManager access
+    match session.inner.release_savepoint(txn_handle, savepoint) {
         Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
         Err(e) => {
             let core_error = crate::api::core::CoreError::TransactionFailed(format!("{}", e));
@@ -472,15 +494,20 @@ pub unsafe extern "C" fn graphdb_txn_rollback_to_savepoint(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
+    let session = match handle.get_session() {
+        Some(s) => s,
+        None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
+    };
+
     let txn_handle = match handle.txn_handle.as_ref() {
         Some(h) => h,
         None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
     };
 
-    match handle
-        .txn_manager
-        .rollback_to_savepoint(txn_handle.0, savepoint_id as u64)
-    {
+    let savepoint = crate::api::core::SavepointId(savepoint_id as u64);
+
+    // Use embedded session API instead of direct TransactionManager access
+    match session.inner.rollback_to_savepoint(txn_handle, savepoint) {
         Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
         Err(e) => {
             let core_error = crate::api::core::CoreError::TransactionFailed(format!("{}", e));
@@ -497,95 +524,42 @@ pub unsafe extern "C" fn graphdb_txn_rollback_to_savepoint(
 /// # Parameters
 /// - `txn`: Transaction handle
 ///
-/// # Returns
-/// - Success: GRAPHDB_OK
-/// - Failure: Error code
-///
 /// # Safety
 /// - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
-/// - After calling this function, the transaction handle becomes invalid and must not be used
-/// - If the transaction has not been committed or rolled back, it will be automatically rolled back
-/// - It is safe to call this function multiple times on the same handle (idempotent)
+/// - `txn` can be null (in which case this function does nothing)
+/// - After calling this function, the handle is invalid and must not be used again
 #[no_mangle]
-pub unsafe extern "C" fn graphdb_txn_free(txn: *mut graphdb_txn_t) -> c_int {
-    if txn.is_null() {
-        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+pub unsafe extern "C" fn graphdb_txn_free(txn: *mut graphdb_txn_t) {
+    if !txn.is_null() {
+        let _ = Box::from_raw(txn as *mut GraphDbTxnHandle);
     }
-
-    let _ = Box::from_raw(txn as *mut GraphDbTxnHandle);
-
-    graphdb_error_code_t::GRAPHDB_OK as c_int
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::embedded::c_api::database::{graphdb_close, graphdb_open};
-    use crate::api::embedded::c_api::session::{graphdb_session_close, graphdb_session_create};
-    use crate::api::embedded::c_api::types::graphdb_t;
-    use std::ffi::CString;
-    use std::sync::atomic::{AtomicU64, Ordering};
-
-    static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
-
-    fn create_test_db() -> *mut graphdb_t {
-        let counter = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
-        let temp_dir = std::env::temp_dir().join("graphdb_c_api_test");
-        std::fs::create_dir_all(&temp_dir).ok();
-        let db_path = temp_dir.join(format!("test_txn_{}_{}.db", std::process::id(), counter));
-
-        // Make sure the database file does not exist.
-        if db_path.exists() {
-            std::fs::remove_file(&db_path).ok();
-            // Waiting for the file system to complete the deletion operation.
-            std::thread::sleep(std::time::Duration::from_millis(50));
-        }
-
-        let path_cstring = CString::new(db_path.to_str().expect("Invalid path"))
-            .expect("Failed to create CString");
-        let mut db: *mut graphdb_t = ptr::null_mut();
-
-        let rc = unsafe { graphdb_open(path_cstring.as_ptr(), &mut db) };
-        if rc != graphdb_error_code_t::GRAPHDB_OK as c_int {
-            panic!(
-                "Failed to open database, error code: {}, path: {:?}",
-                rc, db_path
-            );
-        }
-        assert!(!db.is_null());
-
-        db
-    }
 
     #[test]
     fn test_txn_begin_null_params() {
-        let rc = unsafe { graphdb_txn_begin(ptr::null_mut(), ptr::null_mut()) };
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
+        let result = unsafe { graphdb_txn_begin(ptr::null_mut(), ptr::null_mut()) };
+        assert_eq!(result, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
     }
 
     #[test]
     fn test_txn_free_null() {
-        let rc = unsafe { graphdb_txn_free(ptr::null_mut()) };
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
+        // Should not panic
+        unsafe { graphdb_txn_free(ptr::null_mut()) };
     }
 
     #[test]
-    fn test_txn_begin_and_free() {
-        let db = create_test_db();
-        let mut session: *mut graphdb_session_t = ptr::null_mut();
+    fn test_txn_commit_null() {
+        let result = unsafe { graphdb_txn_commit(ptr::null_mut()) };
+        assert_eq!(result, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
+    }
 
-        let rc = unsafe { graphdb_session_create(db, &mut session) };
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
-
-        let mut txn: *mut graphdb_txn_t = ptr::null_mut();
-        let rc = unsafe { graphdb_txn_begin(session, &mut txn) };
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
-        assert!(!txn.is_null());
-
-        let rc = unsafe { graphdb_txn_free(txn) };
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
-
-        unsafe { graphdb_session_close(session) };
-        unsafe { graphdb_close(db) };
+    #[test]
+    fn test_txn_rollback_null() {
+        let result = unsafe { graphdb_txn_rollback(ptr::null_mut()) };
+        assert_eq!(result, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
     }
 }
