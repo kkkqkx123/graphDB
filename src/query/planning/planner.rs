@@ -17,26 +17,26 @@ use crate::query::QueryContext;
 pub use crate::query::validator::ValidatedStatement;
 
 use crate::query::planning::rewrite::{rewrite_plan, RewriteError};
-use crate::query::planning::statements::delete_planner::DeletePlanner;
-use crate::query::planning::statements::fetch_edges_planner::FetchEdgesPlanner;
-use crate::query::planning::statements::fetch_vertices_planner::FetchVerticesPlanner;
-use crate::query::planning::statements::go_planner::GoPlanner;
-use crate::query::planning::statements::group_by_planner::GroupByPlanner;
-use crate::query::planning::statements::insert_planner::InsertPlanner;
-use crate::query::planning::statements::lookup_planner::LookupPlanner;
-use crate::query::planning::statements::maintain_planner::MaintainPlanner;
+use crate::query::planning::statements::ddl::maintain_planner::MaintainPlanner;
+use crate::query::planning::statements::ddl::use_planner::UsePlanner;
+use crate::query::planning::statements::ddl::user_management_planner::UserManagementPlanner;
+use crate::query::planning::statements::dml::delete_planner::DeletePlanner;
+use crate::query::planning::statements::dml::insert_planner::InsertPlanner;
+use crate::query::planning::statements::dml::merge_planner::MergePlanner;
+use crate::query::planning::statements::dml::remove_planner::RemovePlanner;
+use crate::query::planning::statements::dml::update_planner::UpdatePlanner;
+use crate::query::planning::statements::dql::fetch_edges_planner::FetchEdgesPlanner;
+use crate::query::planning::statements::dql::fetch_vertices_planner::FetchVerticesPlanner;
+use crate::query::planning::statements::dql::go_planner::GoPlanner;
+use crate::query::planning::statements::dql::group_by_planner::GroupByPlanner;
+use crate::query::planning::statements::dql::lookup_planner::LookupPlanner;
+use crate::query::planning::statements::dql::path_planner::PathPlanner;
+use crate::query::planning::statements::dql::return_planner::ReturnPlanner;
+use crate::query::planning::statements::dql::set_operation_planner::SetOperationPlanner;
+use crate::query::planning::statements::dql::subgraph_planner::SubgraphPlanner;
+use crate::query::planning::statements::dql::with_planner::WithPlanner;
+use crate::query::planning::statements::dql::yield_planner::YieldPlanner;
 use crate::query::planning::statements::match_statement_planner::MatchStatementPlanner;
-use crate::query::planning::statements::merge_planner::MergePlanner;
-use crate::query::planning::statements::path_planner::PathPlanner;
-use crate::query::planning::statements::remove_planner::RemovePlanner;
-use crate::query::planning::statements::return_planner::ReturnPlanner;
-use crate::query::planning::statements::set_operation_planner::SetOperationPlanner;
-use crate::query::planning::statements::subgraph_planner::SubgraphPlanner;
-use crate::query::planning::statements::update_planner::UpdatePlanner;
-use crate::query::planning::statements::use_planner::UsePlanner;
-use crate::query::planning::statements::user_management_planner::UserManagementPlanner;
-use crate::query::planning::statements::with_planner::WithPlanner;
-use crate::query::planning::statements::yield_planner::YieldPlanner;
 
 ///  Planner Configuration
 #[derive(Debug, Clone)]
