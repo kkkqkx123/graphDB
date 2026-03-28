@@ -21,11 +21,12 @@ pub mod tag;
 // Re-export the main types from the feedback module.
 pub use edge::{EdgeTypeStatistics, HotVertexInfo, SkewnessLevel};
 pub use feedback::{
-    generate_query_fingerprint, normalize_query, AutoFeedbackConfig, AutoFeedbackTrigger,
     ExecutionFeedbackCollector, FeedbackDrivenSelectivity, OperatorFeedback,
     QueryExecutionFeedback, QueryFeedbackHistory, SelectivityFeedbackManager,
+    SimpleExecutionFeedback, SimpleFeedbackCollector,
+    generate_query_fingerprint, normalize_query,
 };
 pub use histogram::{Histogram, HistogramBucket, RangeCondition};
 pub use manager::StatisticsManager;
-pub use property::PropertyStatistics;
+pub use property::{PropertyCombinationStats, PropertyStatistics};
 pub use tag::TagStatistics;

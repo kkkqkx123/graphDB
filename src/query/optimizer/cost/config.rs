@@ -191,6 +191,100 @@ pub struct CostModelConfig {
     ///
     /// 图类型处理成本系数。默认值 3.0
     pub graph_type_cost_factor: f64,
+
+    // ==================== Strategy Threshold Parameters ====================
+    /// Strategy threshold configuration
+    ///
+    /// 策略阈值配置，用于控制各种优化策略的行为
+    pub strategy_thresholds: StrategyThresholds,
+}
+
+/// Strategy Threshold Configuration
+///
+/// 定义各种优化策略的阈值参数，用于控制策略选择行为。
+/// 这些参数可以根据工作负载特征进行调整。
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct StrategyThresholds {
+    // ==================== Aggregate Strategy ====================
+    /// Small dataset threshold for aggregate strategy
+    ///
+    /// 小数据集阈值（行数），低于此值使用简单聚合策略。默认值 1000
+    pub small_dataset_threshold: u64,
+
+    /// Low cardinality threshold for aggregate strategy
+    ///
+    /// 低基数阈值，低于此值使用排序聚合。默认值 100
+    pub low_cardinality_threshold: u64,
+
+    /// High cardinality ratio threshold
+    ///
+    /// 高基数比例阈值（相对于输入行数），高于此值使用流式聚合。默认值 0.1
+    pub high_cardinality_ratio: f64,
+
+    // ==================== Traversal Strategy ====================
+    /// Super node threshold (degree)
+    ///
+    /// 超级节点阈值（度数），超过此值视为超级节点。默认值 1000.0
+    pub traversal_super_node_threshold: f64,
+
+    /// Bidirectional traversal savings threshold
+    ///
+    /// 双向遍历节省阈值，超过此值才使用双向遍历。默认值 0.3
+    pub bidirectional_savings_threshold: f64,
+
+    /// Default branching factor for traversal
+    ///
+    /// 遍历默认分支因子，用于成本估计。默认值 2.0
+    pub default_branching_factor: f64,
+
+    // ==================== TopN Strategy ====================
+    /// TopN selectivity threshold
+    ///
+    /// TopN选择性阈值，低于此值才使用TopN优化。默认值 0.1
+    pub topn_threshold: f64,
+
+    /// TopN default limit
+    ///
+    /// TopN默认限制行数。默认值 100
+    pub topn_default_limit: u64,
+
+    // ==================== Materialization Strategy ====================
+    /// Maximum result rows for CTE materialization
+    ///
+    /// CTE物化的最大结果行数。默认值 10000
+    pub max_result_rows: u64,
+
+    /// Minimum reference count for CTE materialization
+    ///
+    /// CTE物化的最小引用次数。默认值 2
+    pub min_reference_count: usize,
+
+    /// Minimum complexity score for CTE materialization
+    ///
+    /// CTE物化的最小复杂度分数。默认值 5.0
+    pub min_complexity_score: f64,
+}
+
+impl Default for StrategyThresholds {
+    fn default() -> Self {
+        Self {
+            // Aggregate strategy
+            small_dataset_threshold: 1000,
+            low_cardinality_threshold: 100,
+            high_cardinality_ratio: 0.1,
+            // Traversal strategy
+            traversal_super_node_threshold: 1000.0,
+            bidirectional_savings_threshold: 0.3,
+            default_branching_factor: 2.0,
+            // TopN strategy
+            topn_threshold: 0.1,
+            topn_default_limit: 100,
+            // Materialization strategy
+            max_result_rows: 10000,
+            min_reference_count: 2,
+            min_complexity_score: 5.0,
+        }
+    }
 }
 
 impl Default for CostModelConfig {
@@ -232,6 +326,8 @@ impl Default for CostModelConfig {
             variable_type_cost_factor: 1.5,
             complex_type_cost_factor: 2.0,
             graph_type_cost_factor: 3.0,
+            // Strategy thresholds
+            strategy_thresholds: StrategyThresholds::default(),
         }
     }
 }

@@ -140,10 +140,12 @@ pub struct DirectionContext {
 impl TraversalDirectionOptimizer {
     /// Create a new optimizer for optimizing traversal directions.
     pub fn new(cost_calculator: Arc<CostCalculator>) -> Self {
+        // Use thresholds from config if available
+        let thresholds = cost_calculator.config().strategy_thresholds;
         Self {
             cost_calculator,
-            super_node_threshold: 1000.0, // Default super node threshold
-            degree_equality_threshold: 0.1, // A difference of 10% is considered equivalent (i.e., the two values are considered to be the same).
+            super_node_threshold: thresholds.traversal_super_node_threshold,
+            degree_equality_threshold: thresholds.bidirectional_savings_threshold,
         }
     }
 
@@ -299,14 +301,18 @@ impl TraversalDirectionOptimizer {
         out_degree: f64,
         in_degree: f64,
     ) -> TraversalDirectionDecision {
-        let forward_cost = self.calculate_cost(context, false);
-        let backward_cost = self.calculate_cost(context, false);
+        // Calculate costs with respective degrees
+        let forward_cost = self.calculate_cost_with_degree(context, out_degree);
+        let backward_cost = self.calculate_cost_with_degree(context, in_degree);
 
         let (direction, avg_degree) = if forward_cost <= backward_cost {
             (TraversalDirection::Forward, out_degree)
         } else {
             (TraversalDirection::Backward, in_degree)
         };
+
+        let involves_super_node = out_degree > self.super_node_threshold
+            || in_degree > self.super_node_threshold;
 
         TraversalDirectionDecision {
             direction,
@@ -317,11 +323,28 @@ impl TraversalDirectionOptimizer {
                 backward_cost,
             },
             avg_degree,
-            involves_super_node: false,
+            involves_super_node,
         }
     }
 
-    /// Calculating the cost of traversal
+    /// Calculating the cost of traversal with a specific degree
+    fn calculate_cost_with_degree(&self, context: &DirectionContext, degree: f64) -> f64 {
+        let base_cost = self
+            .cost_calculator
+            .calculate_expand_cost(context.start_nodes, Some(&context.edge_type));
+
+        // Apply penalty for high-degree (super node) scenarios
+        let degree_factor = if degree > self.super_node_threshold {
+            self.cost_calculator.config().super_node_penalty
+        } else {
+            // Gradual increase in cost based on degree ratio
+            1.0 + (degree / self.super_node_threshold).ln_1p()
+        };
+
+        base_cost * degree_factor
+    }
+
+    /// Calculating the cost of traversal (legacy method for backward compatibility)
     fn calculate_cost(&self, context: &DirectionContext, is_super: bool) -> f64 {
         let base_cost = self
             .cost_calculator

@@ -20,7 +20,9 @@ pub mod selectivity;
 pub mod trigger;
 
 // Re-export the main types while maintaining backward compatibility.
-pub use collector::ExecutionFeedbackCollector;
+pub use collector::{
+    ExecutionFeedbackCollector, SimpleExecutionFeedback, SimpleFeedbackCollector,
+};
 pub use fingerprint::{generate_query_fingerprint, normalize_query};
 pub use history::QueryFeedbackHistory;
 pub use query::{OperatorFeedback, QueryExecutionFeedback};

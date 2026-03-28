@@ -243,6 +243,8 @@ impl ExpressionPrecomputationOptimizer {
         match expr {
             Expression::Literal(_) => true,
             Expression::Variable(_) => true,
+            Expression::Parameter(_) => true, // Parameters are deterministic within a query
+            Expression::Label(_) => true,
             Expression::Unary { operand, .. } => self.check_expression_deterministic(operand),
             Expression::Binary { left, right, .. } => {
                 self.check_expression_deterministic(left)
@@ -277,7 +279,61 @@ impl ExpressionPrecomputationOptimizer {
             Expression::Map(entries) => entries
                 .iter()
                 .all(|(_, v)| self.check_expression_deterministic(v)),
-            _ => true, // Conservative: assume deterministic for unknown types
+            // Property access is deterministic if the object is deterministic
+            Expression::Property { object, .. } => {
+                self.check_expression_deterministic(object)
+            }
+            Expression::TagProperty { .. } => true,
+            Expression::EdgeProperty { .. } => true,
+            Expression::LabelTagProperty { tag, .. } => {
+                self.check_expression_deterministic(tag)
+            }
+            // Type cast is deterministic if the expression is deterministic
+            Expression::TypeCast { expression, .. } => {
+                self.check_expression_deterministic(expression)
+            }
+            // Subscript access is deterministic if both collection and index are deterministic
+            Expression::Subscript { collection, index } => {
+                self.check_expression_deterministic(collection)
+                    && self.check_expression_deterministic(index)
+            }
+            // Range access is deterministic if all parts are deterministic
+            Expression::Range { collection, start, end } => {
+                self.check_expression_deterministic(collection)
+                    && start.as_ref().map_or(true, |e| self.check_expression_deterministic(e))
+                    && end.as_ref().map_or(true, |e| self.check_expression_deterministic(e))
+            }
+            // Path is deterministic if all elements are deterministic
+            Expression::Path(exprs) => {
+                exprs.iter().all(|e| self.check_expression_deterministic(e))
+            }
+            // Path build is deterministic if all elements are deterministic
+            Expression::PathBuild(exprs) => {
+                exprs.iter().all(|e| self.check_expression_deterministic(e))
+            }
+            // List comprehension is deterministic if all parts are deterministic
+            Expression::ListComprehension { source, filter, map, .. } => {
+                self.check_expression_deterministic(source)
+                    && filter.as_ref().map_or(true, |e| self.check_expression_deterministic(e))
+                    && map.as_ref().map_or(true, |e| self.check_expression_deterministic(e))
+            }
+            // Reduce expression is deterministic if all parts are deterministic
+            Expression::Reduce { initial, source, mapping, .. } => {
+                self.check_expression_deterministic(initial)
+                    && self.check_expression_deterministic(source)
+                    && self.check_expression_deterministic(mapping)
+            }
+            // Aggregate expressions are deterministic if the argument is deterministic
+            Expression::Aggregate { arg, .. } => {
+                self.check_expression_deterministic(arg)
+            }
+            // Predicate expressions are deterministic if all arguments are deterministic
+            Expression::Predicate { args, .. } => {
+                args.iter().all(|arg| self.check_expression_deterministic(arg))
+            }
+            // Pattern is now exhaustive - all Expression variants are handled above
+            // If new variants are added in the future, they should be handled here
+            // For now, this branch is unreachable but kept for future-proofing
         }
     }
 

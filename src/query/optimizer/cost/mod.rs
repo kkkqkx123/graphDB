@@ -24,6 +24,6 @@ pub mod selectivity;
 
 pub use assigner::CostAssigner;
 pub use calculator::CostCalculator;
-pub use config::CostModelConfig;
+pub use config::{CostModelConfig, StrategyThresholds};
 pub use estimate::NodeCostEstimate;
 pub use selectivity::SelectivityEstimator;

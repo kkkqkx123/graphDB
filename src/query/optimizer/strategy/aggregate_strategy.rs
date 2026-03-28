@@ -329,13 +329,13 @@ impl AggregateStrategySelector {
                     },
                 )
             }
-        } else if context.input_rows < 1000 {
+        } else if context.input_rows < self.cost_calculator.config().strategy_thresholds.small_dataset_threshold {
             // With small amounts of data, hash aggregation is simpler and more efficient.
             (
                 AggregateStrategy::HashAggregate,
                 SelectionReason::SmallDataSet,
             )
-        } else if group_by_cardinality < 100 {
+        } else if group_by_cardinality < self.cost_calculator.config().strategy_thresholds.low_cardinality_threshold {
             // With a small base size, sorting and aggregation may be more advantageous (as the data becomes more localized after sorting).
             if sort_cost < hash_cost * 1.2 {
                 (
@@ -351,7 +351,7 @@ impl AggregateStrategySelector {
                     },
                 )
             }
-        } else if group_by_cardinality > context.input_rows / 10 {
+        } else if group_by_cardinality > (context.input_rows as f64 * self.cost_calculator.config().strategy_thresholds.high_cardinality_ratio) as u64 {
             // For high cardinalities (close to unique values), hash aggregation is more advantageous.
             (
                 AggregateStrategy::HashAggregate,
@@ -423,8 +423,31 @@ impl AggregateStrategySelector {
     }
 
     /// Estimating the cardinality of the grouping key
+    ///
+    /// First tries to use property combination statistics if available,
+    /// then falls back to heuristic estimation.
     fn estimate_group_by_cardinality(&self, context: &AggregateContext) -> u64 {
+        // Try to use property combination statistics for better estimation
+        if let Some(table_name) = self.get_table_name_from_context(context) {
+            if let Some(cardinality) = self.cost_calculator
+                .statistics_manager()
+                .get_combined_cardinality(Some(&table_name), &context.group_keys)
+            {
+                return cardinality.min(context.input_rows).max(1);
+            }
+        }
+
+        // Fall back to heuristic estimation
         self.estimate_cardinality_quick(context.input_rows, context.group_keys.len())
+    }
+
+    /// Get table name from aggregate context
+    /// This is a helper method to extract table name for statistics lookup
+    fn get_table_name_from_context(&self, _context: &AggregateContext) -> Option<String> {
+        // In a real implementation, this would extract the table name from the context
+        // For now, return None to fall back to heuristic estimation
+        // TODO: Implement proper table name extraction from plan context
+        None
     }
 
     /// Quick estimation of the base number

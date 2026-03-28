@@ -131,10 +131,11 @@ impl OptimizerEngine {
             SubqueryUnnestingOptimizer::new(&expression_analyzer, &stats_manager);
 
         // Creating a CTE (Common Table Expression) materialization optimizer
-        let materialization_optimizer = MaterializationOptimizer::new(
+        let materialization_optimizer = MaterializationOptimizer::with_thresholds(
             &reference_count_analyzer,
             &expression_analyzer,
             &stats_manager,
+            &cost_config.strategy_thresholds,
         );
 
         Self {
@@ -253,10 +254,11 @@ impl OptimizerEngine {
         self.subquery_unnesting_optimizer =
             SubqueryUnnestingOptimizer::new(&self.expression_analyzer, &self.stats_manager);
         // Re-create the CTE (Common Table Expression) materialization optimizer
-        self.materialization_optimizer = MaterializationOptimizer::new(
+        self.materialization_optimizer = MaterializationOptimizer::with_thresholds(
             &self.reference_count_analyzer,
             &self.expression_analyzer,
             &self.stats_manager,
+            &self.cost_config.strategy_thresholds,
         );
         log::info!("优化器代价模型配置已更新: {:?}", self.cost_config);
     }

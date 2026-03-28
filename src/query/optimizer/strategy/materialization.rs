@@ -30,6 +30,7 @@
 //! ```
 
 use crate::query::optimizer::analysis::{ExpressionAnalyzer, ReferenceCountAnalyzer};
+use crate::query::optimizer::cost::StrategyThresholds;
 use crate::query::optimizer::stats::StatisticsManager;
 use crate::query::planning::plan::core::nodes::{MaterializeNode, PlanNodeEnum};
 
@@ -119,6 +120,25 @@ impl MaterializationOptimizer {
             max_complexity: 80,
             memory_cost_factor: 0.0001, // Default: 0.0001 cost per byte
             max_memory_cost_ratio: 0.5, // Memory cost should not exceed 50% of recompute cost
+        }
+    }
+
+    /// Create a new optimizer with strategy thresholds from config.
+    pub fn with_thresholds(
+        reference_count_analyzer: &ReferenceCountAnalyzer,
+        expression_analyzer: &ExpressionAnalyzer,
+        stats_manager: &StatisticsManager,
+        thresholds: &StrategyThresholds,
+    ) -> Self {
+        Self {
+            reference_count_analyzer: reference_count_analyzer.clone(),
+            expression_analyzer: expression_analyzer.clone(),
+            stats_manager: stats_manager.clone(),
+            min_reference_count: thresholds.min_reference_count,
+            max_result_rows: thresholds.max_result_rows,
+            max_complexity: 80,
+            memory_cost_factor: 0.0001,
+            max_memory_cost_ratio: 0.5,
         }
     }
 

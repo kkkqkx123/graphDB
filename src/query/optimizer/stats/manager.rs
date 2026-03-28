@@ -5,7 +5,7 @@
 use dashmap::DashMap;
 use std::sync::Arc;
 
-use super::{EdgeTypeStatistics, PropertyStatistics, TagStatistics};
+use super::{EdgeTypeStatistics, PropertyCombinationStats, PropertyStatistics, TagStatistics};
 
 /// Statistical Information Manager
 ///
@@ -20,6 +20,8 @@ pub struct StatisticsManager {
     edge_stats: Arc<DashMap<String, EdgeTypeStatistics>>,
     /// Attribute statistics information
     property_stats: Arc<DashMap<String, PropertyStatistics>>,
+    /// Property combination statistics for GROUP BY cardinality estimation
+    property_combo_stats: Arc<DashMap<String, PropertyCombinationStats>>,
 }
 
 impl StatisticsManager {
@@ -30,6 +32,7 @@ impl StatisticsManager {
             tag_id_to_name: Arc::new(DashMap::new()),
             edge_stats: Arc::new(DashMap::new()),
             property_stats: Arc::new(DashMap::new()),
+            property_combo_stats: Arc::new(DashMap::new()),
         }
     }
 
@@ -118,6 +121,26 @@ impl StatisticsManager {
         self.tag_id_to_name.clear();
         self.edge_stats.clear();
         self.property_stats.clear();
+        self.property_combo_stats.clear();
+    }
+
+    /// Get property combination statistics for GROUP BY cardinality estimation.
+    pub fn get_property_combo_stats(&self, tag_name: &str, properties: &[String]) -> Option<PropertyCombinationStats> {
+        let key = format!("{}.{}", tag_name, properties.join("."));
+        self.property_combo_stats.get(&key).map(|v| v.clone())
+    }
+
+    /// Update property combination statistics.
+    pub fn update_property_combo_stats(&self, stats: PropertyCombinationStats) {
+        self.property_combo_stats.insert(stats.key.clone(), stats);
+    }
+
+    /// Get combined cardinality for a set of properties.
+    /// Returns None if no statistics are available.
+    pub fn get_combined_cardinality(&self, tag_name: Option<&str>, properties: &[String]) -> Option<u64> {
+        let tag = tag_name?;
+        self.get_property_combo_stats(tag, properties)
+            .map(|s| s.estimated_cardinality())
     }
 
     /// Retrieve all tag names
@@ -144,6 +167,7 @@ impl Clone for StatisticsManager {
             tag_id_to_name: Arc::clone(&self.tag_id_to_name),
             edge_stats: Arc::clone(&self.edge_stats),
             property_stats: Arc::clone(&self.property_stats),
+            property_combo_stats: Arc::clone(&self.property_combo_stats),
         }
     }
 }

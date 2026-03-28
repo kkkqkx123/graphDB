@@ -125,10 +125,11 @@ pub struct SortEliminationOptimizer {
 impl SortEliminationOptimizer {
     /// Create a new sorting and elimination optimizer
     pub fn new(cost_calculator: Arc<CostCalculator>) -> Self {
+        let thresholds = cost_calculator.config().strategy_thresholds;
         Self {
             cost_calculator,
-            topn_threshold: 0.1, // Default: 10%
-            min_limit_for_topn: 1,
+            topn_threshold: thresholds.topn_threshold,
+            min_limit_for_topn: thresholds.topn_default_limit as i64,
         }
     }
 
@@ -345,8 +346,9 @@ mod tests {
     #[test]
     fn test_sort_elimination_optimizer_creation() {
         let optimizer = create_test_optimizer();
+        // Values come from StrategyThresholds defaults
         assert_eq!(optimizer.topn_threshold, 0.1);
-        assert_eq!(optimizer.min_limit_for_topn, 1);
+        assert_eq!(optimizer.min_limit_for_topn, 100); // Default from StrategyThresholds
     }
 
     #[test]

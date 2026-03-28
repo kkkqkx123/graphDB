@@ -179,8 +179,9 @@ impl BidirectionalTraversalOptimizer {
             0.0
         };
 
-        // If you can save more than 30%, it is recommended to use a bidirectional traversal approach.
-        if savings > 0.3 {
+        // Use threshold from config for bidirectional savings
+        let threshold = self.cost_calculator.config().strategy_thresholds.bidirectional_savings_threshold;
+        if savings > threshold {
             BidirectionalDecision::bidirectional(
                 start_variable.to_string(),
                 end_variable.to_string(),

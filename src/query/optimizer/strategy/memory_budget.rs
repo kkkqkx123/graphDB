@@ -225,9 +225,13 @@ impl MemoryBudgetAllocator {
     }
 
     /// Get unique identifier for a node
+    ///
+    /// Uses the plan node's unique ID (i64) converted to u64.
+    /// This is stable across moves unlike pointer addresses.
     fn get_node_id(&self, plan: &PlanNodeEnum) -> NodeId {
-        // Use pointer address as ID
-        plan as *const _ as u64
+        // Use the plan node's unique ID instead of pointer address
+        // This ensures stability even when the plan is moved
+        plan.id() as u64
     }
 
     /// Allocate budgets with constraints (when total requirement > budget)
