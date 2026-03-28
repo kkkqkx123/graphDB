@@ -12,7 +12,6 @@ use crossbeam_utils::atomic::AtomicCell;
 use parking_lot::{Mutex, RwLock};
 
 use crate::core::StorageError;
-use crate::storage::operations::rollback::RollbackExecutor;
 use crate::storage::redb_types::{ByteKey, EDGES_TABLE, NODES_TABLE};
 use crate::transaction::types::*;
 
@@ -53,8 +52,6 @@ pub struct TransactionContext {
     modified_tables: Mutex<Vec<String>>,
     /// Savepoint manager (using RwLock to optimize read-heavy write-light scenarios)
     savepoint_manager: RwLock<SavepointManager>,
-    /// Rollback executor (used to execute actual data rollback during savepoint rollback)
-    rollback_executor: Mutex<Option<Box<dyn RollbackExecutor>>>,
     /// Database reference (used to create rollback executor, currently unused)
     #[allow(dead_code)]
     db: Option<Arc<redb::Database>>,
@@ -138,7 +135,6 @@ impl TransactionContext {
             operation_logs: RwLock::new(Vec::new()),
             modified_tables: Mutex::new(Vec::new()),
             savepoint_manager: RwLock::new(SavepointManager::new()),
-            rollback_executor: Mutex::new(None),
             db,
         }
     }
@@ -169,7 +165,6 @@ impl TransactionContext {
             operation_logs: RwLock::new(Vec::new()),
             modified_tables: Mutex::new(Vec::new()),
             savepoint_manager: RwLock::new(SavepointManager::new()),
-            rollback_executor: Mutex::new(None),
             db,
         }
     }
@@ -646,25 +641,6 @@ impl TransactionContext {
         manager.clear();
     }
 
-    /// Set rollback executor
-    ///
-    /// # Arguments
-    /// * `executor` - Rollback executor instance
-    ///
-    /// # Note
-    /// This method integrates the rollback capability of the storage layer into the transaction context,
-    /// enabling savepoint rollback to execute actual data rollback operations
-    pub fn set_rollback_executor(&self, executor: Box<dyn RollbackExecutor>) {
-        let mut guard = self.rollback_executor.lock();
-        *guard = Some(executor);
-    }
-
-    /// Clear rollback executor
-    pub fn clear_rollback_executor(&self) {
-        let mut guard = self.rollback_executor.lock();
-        *guard = None;
-    }
-
     /// Take write transaction (for commit)
     pub fn take_write_txn(&self) -> Result<redb::WriteTransaction, TransactionError> {
         self.write_txn
@@ -816,10 +792,6 @@ impl Drop for TransactionContext {
         let mut manager = self.savepoint_manager.write();
         manager.clear();
         drop(manager);
-
-        // Clean up rollback executor
-        let mut executor_guard = self.rollback_executor.lock();
-        *executor_guard = None;
     }
 }
 

@@ -7,15 +7,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use dashmap::DashMap;
-use parking_lot::Mutex;
 use redb::Database;
 
-use crate::storage::operations::rollback::RollbackExecutor;
 use crate::transaction::context::TransactionContext;
 use crate::transaction::types::*;
-
-/// Rollback executor factory type alias
-type RollbackExecutorFactory = Box<dyn Fn() -> Box<dyn RollbackExecutor> + Send + Sync>;
 
 /// Transaction Manager
 pub struct TransactionManager {
@@ -32,8 +27,6 @@ pub struct TransactionManager {
     stats: Arc<TransactionStats>,
     /// Whether shutdown
     shutdown_flag: AtomicU64,
-    /// Rollback executor factory (used to create rollback executor for each transaction)
-    rollback_executor_factory: Mutex<Option<RollbackExecutorFactory>>,
 }
 
 impl TransactionManager {
@@ -46,7 +39,6 @@ impl TransactionManager {
             id_generator: AtomicU64::new(1),
             stats: Arc::new(TransactionStats::new()),
             shutdown_flag: AtomicU64::new(0),
-            rollback_executor_factory: Mutex::new(None),
         }
     }
 
@@ -116,16 +108,6 @@ impl TransactionManager {
                 Some(db),
             ))
         };
-
-        // Set rollback executor for read-write transactions (deprecated, no longer used)
-        // Savepoint rollback is now directly implemented in TransactionContext
-        if !options.read_only {
-            let factory_guard = self.rollback_executor_factory.lock();
-            if let Some(factory) = factory_guard.as_ref() {
-                let executor = (**factory)();
-                context.set_rollback_executor(executor);
-            }
-        }
 
         self.active_transactions.insert(txn_id, context);
         self.stats.increment_total();
@@ -427,28 +409,6 @@ impl TransactionManager {
     ) -> Option<SavepointInfo> {
         let context = self.get_context(txn_id).ok()?;
         context.find_savepoint_by_name(name)
-    }
-
-    /// Set rollback executor factory
-    ///
-    /// # Arguments
-    /// * `factory` - Rollback executor factory, used to create rollback executor for each transaction
-    ///
-    /// # Note
-    /// This method integrates the rollback capability of the storage layer into the transaction manager,
-    /// enabling savepoint rollback to execute actual data rollback operations
-    pub fn set_rollback_executor_factory(
-        &self,
-        factory: Box<dyn Fn() -> Box<dyn RollbackExecutor> + Send + Sync>,
-    ) {
-        let mut guard = self.rollback_executor_factory.lock();
-        *guard = Some(factory);
-    }
-
-    /// Clear rollback executor factory
-    pub fn clear_rollback_executor_factory(&self) {
-        let mut guard = self.rollback_executor_factory.lock();
-        *guard = None;
     }
 
     /// Execute operation with retry mechanism

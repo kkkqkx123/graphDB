@@ -135,34 +135,7 @@
 - **分析**: 这些只是文档示例代码中的错误类型，不是实际使用的动态分发
 - **状态**: ℹ️ 文档示例
 
-### 9. 事务管理
 
-#### 9.1 回滚执行器工厂
-- **文件**: `src/transaction/manager.rs:17`
-- **代码**: `type RollbackExecutorFactory = Box<dyn Fn() -> Box<dyn RollbackExecutor> + Send + Sync>;`
-- **使用位置**:
-  - 第 17 行: 类型别名定义
-  - 第 34 行: 字段声明 `rollback_executor_factory: Mutex<Option<RollbackExecutorFactory>>`
-  - 第 422 行: 设置工厂方法 `set_rollback_executor_factory`
-- **分析**: 包含两处动态分发：
-  1. `dyn Fn() -> Box<dyn RollbackExecutor> + Send + Sync` - 工厂函数 trait object
-  2. `Box<dyn RollbackExecutor>` - 返回的回滚执行器 trait object
-- **保留原因**:
-  - 允许存储层在运行时注入不同的回滚策略实现
-  - 支持多种 `RollbackExecutor` 实现（如 `StorageRollbackExecutor`）
-  - 提供扩展点，无需修改 `TransactionManager` 代码即可集成新的回滚机制
-  - 支持保存点回滚功能的实现
-- **设计目的**: 这是一个预留的扩展点，用于将存储层的回滚能力集成到事务管理器中
-- **当前状态**: 🔵 预留功能（`set_rollback_executor_factory` 方法目前未被调用）
-- **状态**: ✅ 保留（设计合理，必要的运行时多态）
-
-#### 9.2 RollbackExecutor trait
-- **文件**: `src/storage/operations/rollback.rs:44`
-- **代码**: `pub trait RollbackExecutor: Send`
-- **实现类型**: `StorageRollbackExecutor<'a>`
-- **分析**: 定义回滚操作的抽象接口，支持不同类型的回滚执行器
-- **使用场景**: 事务保存点回滚时执行实际的数据回滚操作
-- **状态**: ✅ 保留
 
 ## 优化总结
 
@@ -204,7 +177,6 @@
 | `Arc<dyn Fn(&str, &str) -> AuthResult<bool>>` | 用户验证器 | 需要运行时注册不同验证器 |
 | `Arc<dyn Fn(&mut AggData, &Value) -> Result<...>>` | 聚合函数 | 运行时注册，避免大量泛型代码 |
 | `Box<dyn Fn() -> Box<dyn RollbackExecutor>>` | 回滚执行器工厂 | 存储层注入回滚策略，预留扩展点 |
-| `Box<dyn RollbackExecutor>` | 回滚执行器 | 支持不同类型的回滚实现 |
 | `Box<dyn std::error::Error>` | 错误处理 | Rust 标准实践 |
 | `Box<dyn Error + Send + Sync>` | 解析错误上下文 | Rust 错误处理标准模式 |
 | `Arc<dyn Fn() -> T>` | 对象池工厂 | 工厂函数类型多样 |
@@ -223,73 +195,3 @@
 
 - [动态分发分析报告](file:///d:\项目\database\graphDB\docs\archive\dynamic_analysis_report.md) - 详细的分析报告
 - [动态分发优化实施报告](file:///d:\项目\database\graphDB\docs\archive\dynamic_optimization_implementation_report.md) - 优化实施详情
-
-## Predicate 模块优化详情
-
-### 优化前
-```rust
-pub trait Predicate: Send + Sync + fmt::Debug {
-    fn evaluate(&self, row: &[Value]) -> bool;
-    fn box_clone(&self) -> Box<dyn Predicate>;
-    // ...
-}
-
-pub struct CompoundPredicate {
-    predicates: Vec<Box<dyn Predicate>>,
-}
-```
-
-### 优化后
-```rust
-#[derive(Debug, Clone, PartialEq)]
-pub enum PredicateEnum {
-    Simple(SimplePredicate),
-    Compound(CompoundPredicate),
-}
-
-pub struct CompoundPredicate {
-    predicates: Vec<PredicateEnum>,
-}
-```
-
-### 优势
-- 移除 `box_clone` 方法，直接使用 `Clone` trait
-- 编译时类型确定，零运行时开销
-- 支持 `PartialEq` 比较
-
-## ResultIterator 模块优化详情
-
-### 优化前
-```rust
-pub struct Result {
-    iterator: Option<Arc<dyn ResultIterator<'static, Vec<Value>, Row = Vec<Value>>>>,
-}
-```
-
-### 优化后
-```rust
-pub struct Result {
-    iterator: Option<ResultIteratorEnum>,
-}
-
-pub enum ResultIteratorEnum {
-    Default(DefaultIterator),
-    GetNeighbors(GetNeighborsIterator),
-    Prop(PropIterator),
-    Empty,
-}
-```
-
-### 优势
-- 移除 `Arc` 包装，减少内存分配
-- 编译时类型确定，提升性能
-- 支持 `Clone` trait
-
-## 总体评价
-
-GraphDB 项目在动态分发的使用上表现优秀：
-
-1. **核心路径已优化**: Executor、Predicate、ResultIterator 等核心组件已使用枚举实现静态分发
-2. **合理的 dyn 使用**: 保留的 dyn 使用都是必要的（回调函数、错误处理、存储抽象等）
-3. **性能与灵活性平衡**: 在性能关键路径使用静态分发，在需要运行时多态的地方使用动态分发
-4. **预留扩展点**: 事务管理器中的回滚执行器工厂提供了良好的扩展性，支持存储层灵活集成
