@@ -505,7 +505,7 @@ mod tests {
     #[test]
     fn test_batch_analyzer_creation() {
         let _analyzer = BatchPlanAnalyzer::new();
-        let _default_analyzer = BatchPlanAnalyzer::default();
+        let _default_analyzer = BatchPlanAnalyzer;
     }
 
     #[test]

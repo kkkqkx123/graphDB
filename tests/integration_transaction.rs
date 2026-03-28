@@ -12,25 +12,11 @@ mod common;
 use std::sync::Arc;
 use std::time::Duration;
 
-use graphdb::storage::operations::rollback::RollbackExecutor;
 use graphdb::storage::RedbStorage;
 use graphdb::transaction::{
     TransactionError, TransactionManager, TransactionManagerConfig, TransactionOptions,
     TransactionState,
 };
-
-/// Mock rollback executor, used for testing
-struct MockRollbackExecutor;
-
-impl RollbackExecutor for MockRollbackExecutor {
-    fn execute_rollback(
-        &mut self,
-        _log: &graphdb::transaction::types::OperationLog,
-    ) -> Result<(), graphdb::core::StorageError> {
-        // The mock implementation always succeeds.
-        Ok(())
-    }
-}
 
 /// Create a test transaction manager.
 fn create_test_transaction_manager() -> Arc<TransactionManager> {
@@ -164,9 +150,6 @@ fn test_savepoint_rollback_with_data_recovery() {
     let config = TransactionManagerConfig::default();
     let txn_manager = Arc::new(TransactionManager::new(db, config));
 
-    // Setting up the rollback executor factory
-    txn_manager.set_rollback_executor_factory(Box::new(|| Box::new(MockRollbackExecutor)));
-
     // Start a transaction
     let options = TransactionOptions::default();
     let txn_id = txn_manager
@@ -242,9 +225,6 @@ fn test_savepoint_rollback_with_data_recovery() {
 #[test]
 fn test_continue_operations_after_savepoint_rollback() {
     let txn_manager = create_test_transaction_manager();
-
-    // Setting up the rollback executor factory
-    txn_manager.set_rollback_executor_factory(Box::new(|| Box::new(MockRollbackExecutor)));
 
     // Start a transaction
     let options = TransactionOptions::default();
@@ -553,9 +533,6 @@ fn test_release_savepoint() {
 fn test_rollback_to_savepoint() {
     let txn_manager = create_test_transaction_manager();
 
-    // Setting the Rollback Actuator Factory
-    txn_manager.set_rollback_executor_factory(Box::new(|| Box::new(MockRollbackExecutor)));
-
     // Commencement of business
     let options = TransactionOptions::default();
     let txn_id = txn_manager
@@ -732,9 +709,6 @@ fn test_get_savepoint_info() {
 fn test_multiple_savepoints() {
     let txn_manager = create_test_transaction_manager();
 
-    // Setting up the rollback executor factory
-    txn_manager.set_rollback_executor_factory(Box::new(|| Box::new(MockRollbackExecutor)));
-
     // Start a transaction
     let options = TransactionOptions::default();
     let txn_id = txn_manager
@@ -807,9 +781,6 @@ fn test_operation_log_recording_and_rollback() {
     // Create a transaction manager
     let config = TransactionManagerConfig::default();
     let txn_manager = Arc::new(TransactionManager::new(db, config));
-
-    // Setting up the rollback executor factory
-    txn_manager.set_rollback_executor_factory(Box::new(|| Box::new(MockRollbackExecutor)));
 
     // Start a transaction
     let options = TransactionOptions::default();
@@ -884,9 +855,6 @@ fn test_batch_operation_log_recording() {
     // Creating a Transaction Manager
     let config = TransactionManagerConfig::default();
     let txn_manager = Arc::new(TransactionManager::new(db, config));
-
-    // Setting the Rollback Actuator Factory
-    txn_manager.set_rollback_executor_factory(Box::new(|| Box::new(MockRollbackExecutor)));
 
     // Commencement of business
     let options = TransactionOptions::default();
@@ -1244,9 +1212,6 @@ fn test_operation_log_truncation() {
 #[test]
 fn test_savepoint_cleanup_after_rollback() {
     let txn_manager = create_test_transaction_manager();
-
-    // Setting up the rollback executor factory
-    txn_manager.set_rollback_executor_factory(Box::new(|| Box::new(MockRollbackExecutor)));
 
     // Start a transaction
     let options = TransactionOptions::default();

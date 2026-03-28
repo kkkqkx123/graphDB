@@ -111,7 +111,7 @@ mod tests {
     #[test]
     fn test_builder_with_cost_config() {
         let config = CostModelConfig::for_ssd();
-        let builder = OptimizerEngineBuilder::new().with_cost_config(config.clone());
+        let builder = OptimizerEngineBuilder::new().with_cost_config(config);
         let engine = builder.build();
         assert_eq!(engine.cost_config(), &config);
     }

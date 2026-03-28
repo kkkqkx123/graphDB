@@ -304,10 +304,10 @@ impl ExpressionPrecomputationOptimizer {
                 self.check_expression_deterministic(collection)
                     && start
                         .as_ref()
-                        .map_or(true, |e| self.check_expression_deterministic(e))
+                        .is_none_or(|e| self.check_expression_deterministic(e))
                     && end
                         .as_ref()
-                        .map_or(true, |e| self.check_expression_deterministic(e))
+                        .is_none_or(|e| self.check_expression_deterministic(e))
             }
             // Path is deterministic if all elements are deterministic
             Expression::Path(exprs) => exprs.iter().all(|e| self.check_expression_deterministic(e)),
@@ -325,10 +325,10 @@ impl ExpressionPrecomputationOptimizer {
                 self.check_expression_deterministic(source)
                     && filter
                         .as_ref()
-                        .map_or(true, |e| self.check_expression_deterministic(e))
+                        .is_none_or(|e| self.check_expression_deterministic(e))
                     && map
                         .as_ref()
-                        .map_or(true, |e| self.check_expression_deterministic(e))
+                        .is_none_or(|e| self.check_expression_deterministic(e))
             }
             // Reduce expression is deterministic if all parts are deterministic
             Expression::Reduce {

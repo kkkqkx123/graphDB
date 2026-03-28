@@ -34,10 +34,10 @@
 ### Files with Warnings (Top 10)
 
 - `src\query\optimizer\strategy\expression_precomputation.rs`: 4 warnings
-- `src\query\optimizer\stats\feedback\collector.rs`: 1 warnings
 - `src\query\optimizer\analysis\batch.rs`: 1 warnings
-- `src\query\optimizer\builder.rs`: 1 warnings
 - `src\query\optimizer\context.rs`: 1 warnings
+- `src\query\optimizer\stats\feedback\collector.rs`: 1 warnings
+- `src\query\optimizer\builder.rs`: 1 warnings
 
 ## Detailed Error Categorization
 
@@ -64,7 +64,7 @@
 
 ## Detailed Warning Categorization
 
-### warning: comparison is useless due to type limits
+### warning: use of `default` to create a unit struct
 
 **Total Occurrences**: 8  
 **Unique Files**: 5
@@ -75,6 +75,10 @@
 - Line 308: this `map_or` can be simplified
 - Line 326: this `map_or` can be simplified
 - ... 1 more occurrences in this file
+
+#### `src\query\optimizer\analysis\batch.rs`: 1 occurrences
+
+- Line 508: use of `default` to create a unit struct
 
 #### `src\query\optimizer\stats\feedback\collector.rs`: 1 occurrences
 
@@ -87,8 +91,4 @@
 #### `src\query\optimizer\context.rs`: 1 occurrences
 
 - Line 131: using `clone` on type `CostModelConfig` which implements the `Copy` trait: help: try dereferencing it: `*engine.cost_config()`
-
-#### `src\query\optimizer\analysis\batch.rs`: 1 occurrences
-
-- Line 508: use of `default` to create a unit struct
 

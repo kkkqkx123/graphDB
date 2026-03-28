@@ -128,7 +128,7 @@ impl From<&OptimizerEngine> for OptimizationContext {
             engine.stats_manager().clone(),
             engine.cost_calculator().clone(),
             engine.selectivity_estimator().clone(),
-            engine.cost_config().clone(),
+            *engine.cost_config(),
             engine.expression_context().clone(),
         )
     }

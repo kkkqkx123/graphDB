@@ -292,7 +292,6 @@ mod tests {
         let time = collector.finish();
         assert_eq!(collector.get_actual_rows(), 150);
         assert_eq!(collector.get_execution_time_us(), time);
-        assert!(time >= 0);
     }
 
     #[test]
