@@ -239,11 +239,19 @@ mod tests {
         };
         client_session.set_space(space_info.clone());
 
-        assert_eq!(client_session.space().unwrap().id, 456);
-        assert_eq!(client_session.space().unwrap().name, "test_space");
+        assert_eq!(client_session.space().expect("space should exist").id, 456);
+        assert_eq!(
+            client_session.space().expect("space should exist").name,
+            "test_space"
+        );
 
         client_session.update_space_name("new_space".to_string());
-        assert_eq!(client_session.space_name().unwrap(), "new_space");
+        assert_eq!(
+            client_session
+                .space_name()
+                .expect("space_name should exist"),
+            "new_space"
+        );
     }
 
     #[test]
@@ -264,7 +272,9 @@ mod tests {
 
         client_session.set_role(1, crate::core::RoleType::Admin);
         assert_eq!(
-            client_session.role_with_space(1).unwrap(),
+            client_session
+                .role_with_space(1)
+                .expect("role should exist"),
             crate::core::RoleType::Admin
         );
         assert!(client_session.is_admin());
@@ -355,7 +365,12 @@ mod tests {
         assert!(client_session.is_auto_commit());
 
         client_session.bind_transaction(1001);
-        assert_eq!(client_session.current_transaction().unwrap(), 1001);
+        assert_eq!(
+            client_session
+                .current_transaction()
+                .expect("current_transaction should exist"),
+            1001
+        );
         assert!(client_session.has_active_transaction());
 
         client_session.unbind_transaction();

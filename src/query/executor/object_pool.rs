@@ -651,7 +651,17 @@ mod tests {
         let config = ObjectPoolConfig::default();
         let filter_config = config.type_configs.get("FilterExecutor");
         assert!(filter_config.is_some());
-        assert_eq!(filter_config.unwrap().max_size, 50);
-        assert_eq!(filter_config.unwrap().priority, PoolPriority::High);
+        assert_eq!(
+            filter_config
+                .expect("FilterExecutor config should exist")
+                .max_size,
+            50
+        );
+        assert_eq!(
+            filter_config
+                .expect("FilterExecutor config should exist")
+                .priority,
+            PoolPriority::High
+        );
     }
 }

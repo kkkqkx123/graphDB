@@ -4,8 +4,10 @@
 
 use std::collections::HashMap;
 
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
+    MultipleInputNode, SingleInputNode,
+};
 use crate::query::planning::plan::core::nodes::PlanNodeEnum;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::{MultipleInputNode, SingleInputNode};
 
 use super::fingerprint::FingerprintCalculator;
 
@@ -389,7 +391,8 @@ impl ReferenceCountAnalyzer {
             }
             PlanNodeEnum::Intersect(n) => {
                 let main_count = self.analyze_recursive(n.input(), context, Some(node_id));
-                let intersect_count = self.analyze_recursive(n.intersect_input(), context, Some(node_id));
+                let intersect_count =
+                    self.analyze_recursive(n.intersect_input(), context, Some(node_id));
                 1 + main_count + intersect_count
             }
 

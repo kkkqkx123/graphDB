@@ -138,16 +138,10 @@ impl PlanNodeEnum {
             // UnionNode: 使用 dependencies() 获取所有子节点
             PlanNodeEnum::Union(node) => node.dependencies().iter().collect(),
             PlanNodeEnum::Minus(node) => {
-                vec![
-                    node.input(),
-                    node.minus_input(),
-                ]
+                vec![node.input(), node.minus_input()]
             }
             PlanNodeEnum::Intersect(node) => {
-                vec![
-                    node.input(),
-                    node.intersect_input(),
-                ]
+                vec![node.input(), node.intersect_input()]
             }
 
             // ControlFlowNode

@@ -772,7 +772,7 @@ mod tests {
 
         let retrieved = manager.get("SELECT * FROM t");
         assert!(retrieved.is_some());
-        assert_eq!(*retrieved.unwrap(), data);
+        assert_eq!(*retrieved.expect("retrieved value should exist"), data);
 
         // Test statistics
         let stats = manager.get_stats();

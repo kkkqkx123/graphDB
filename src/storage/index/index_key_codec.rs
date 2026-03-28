@@ -312,8 +312,9 @@ mod tests {
     #[test]
     fn test_serialize_deserialize_value() {
         let value = Value::String("test".to_string());
-        let bytes = IndexKeyCodec::serialize_value(&value).unwrap();
-        let decoded = IndexKeyCodec::deserialize_value(&bytes).unwrap();
+        let bytes = IndexKeyCodec::serialize_value(&value).expect("serialize_value should succeed");
+        let decoded =
+            IndexKeyCodec::deserialize_value(&bytes).expect("deserialize_value should succeed");
         assert_eq!(value, decoded);
     }
 
@@ -326,12 +327,13 @@ mod tests {
 
         let key =
             IndexKeyCodec::build_vertex_index_key(space_id, index_name, &prop_value, &vertex_id)
-                .unwrap();
+                .expect("build_vertex_index_key should succeed");
 
         assert!(key.0.len() > 9);
         assert_eq!(key.0[8], KEY_TYPE_VERTEX_FORWARD);
 
-        let parsed_vid = IndexKeyCodec::parse_vertex_id_from_key(&key.0).unwrap();
+        let parsed_vid = IndexKeyCodec::parse_vertex_id_from_key(&key.0)
+            .expect("parse_vertex_id_from_key should succeed");
         assert_eq!(parsed_vid, vertex_id);
     }
 
@@ -341,16 +343,17 @@ mod tests {
         let index_name = "idx_test";
         let vertex_id = Value::Int(456);
 
-        let key =
-            IndexKeyCodec::build_vertex_reverse_key(space_id, index_name, &vertex_id).unwrap();
+        let key = IndexKeyCodec::build_vertex_reverse_key(space_id, index_name, &vertex_id)
+            .expect("build_vertex_reverse_key should succeed");
 
         assert!(key.0.len() > 9);
         assert_eq!(key.0[8], KEY_TYPE_VERTEX_REVERSE);
 
-        let (parsed_name, parsed_vid_bytes) =
-            IndexKeyCodec::parse_vertex_reverse_key(&key.0).unwrap();
+        let (parsed_name, parsed_vid_bytes) = IndexKeyCodec::parse_vertex_reverse_key(&key.0)
+            .expect("parse_vertex_reverse_key should succeed");
         assert_eq!(parsed_name, index_name);
-        let parsed_vid = IndexKeyCodec::deserialize_value(&parsed_vid_bytes).unwrap();
+        let parsed_vid = IndexKeyCodec::deserialize_value(&parsed_vid_bytes)
+            .expect("deserialize_value should succeed");
         assert_eq!(parsed_vid, vertex_id);
     }
 
@@ -364,7 +367,7 @@ mod tests {
 
         let key =
             IndexKeyCodec::build_edge_index_key(space_id, index_name, &prop_value, &src, &dst)
-                .unwrap();
+                .expect("build_edge_index_key should succeed");
 
         assert!(key.0.len() > 9);
         assert_eq!(key.0[8], KEY_TYPE_EDGE_FORWARD);
@@ -376,15 +379,17 @@ mod tests {
         let index_name = "idx_edge_test";
         let src = Value::Int(300);
 
-        let key = IndexKeyCodec::build_edge_reverse_key(space_id, index_name, &src).unwrap();
+        let key = IndexKeyCodec::build_edge_reverse_key(space_id, index_name, &src)
+            .expect("build_edge_reverse_key should succeed");
 
         assert!(key.0.len() > 9);
         assert_eq!(key.0[8], KEY_TYPE_EDGE_REVERSE);
 
-        let (parsed_name, parsed_src_bytes) =
-            IndexKeyCodec::parse_edge_reverse_key(&key.0).unwrap();
+        let (parsed_name, parsed_src_bytes) = IndexKeyCodec::parse_edge_reverse_key(&key.0)
+            .expect("parse_edge_reverse_key should succeed");
         assert_eq!(parsed_name, index_name);
-        let parsed_src = IndexKeyCodec::deserialize_value(&parsed_src_bytes).unwrap();
+        let parsed_src = IndexKeyCodec::deserialize_value(&parsed_src_bytes)
+            .expect("deserialize_value should succeed");
         assert_eq!(parsed_src, src);
     }
 

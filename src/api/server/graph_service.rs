@@ -404,7 +404,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         // Check whether it is a command to perform a ROLLBACK TO SAVEPOINT.
         if trimmed.starts_with("ROLLBACK TO ") {
-            let savepoint_name = stmt[trimmed.find("ROLLBACK TO ").unwrap() + 12..].trim();
+            let savepoint_name = stmt[trimmed.find("ROLLBACK TO ").unwrap_or(0) + 12..].trim();
 
             let txn_id = session
                 .current_transaction()

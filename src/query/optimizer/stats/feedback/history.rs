@@ -272,7 +272,9 @@ mod tests {
         feedback2.actual_rows = 90; // 10% error
         history.add_feedback(feedback2);
 
-        let avg_error = history.get_avg_row_error("fp_123").unwrap();
+        let avg_error = history
+            .get_avg_row_error("fp_123")
+            .expect("get_avg_row_error should succeed");
         assert!((avg_error - 0.1).abs() < 0.01); // 平均误差应该接近0.1
     }
 

@@ -232,7 +232,9 @@ impl ExpressionPrecomputationOptimizer {
                 PrecomputationDecision::Precompute { benefit, .. } => *benefit,
                 _ => 0.0,
             };
-            benefit_b.partial_cmp(&benefit_a).unwrap()
+            benefit_b
+                .partial_cmp(&benefit_a)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         results

@@ -162,7 +162,9 @@ mod tests {
             password_changed_at: 0,
         };
 
-        assert!(storage.create_user(&user).unwrap());
+        assert!(storage
+            .create_user(&user)
+            .expect("create_user should succeed"));
         assert!(storage.user_exists("test_user"));
     }
 
@@ -182,7 +184,9 @@ mod tests {
             password_changed_at: 0,
         };
 
-        storage.create_user(&user).unwrap();
+        storage
+            .create_user(&user)
+            .expect("create_user should succeed");
         let result = storage.create_user(&user);
         assert!(result.is_err());
     }
@@ -203,8 +207,12 @@ mod tests {
             password_changed_at: 0,
         };
 
-        storage.create_user(&user).unwrap();
-        assert!(storage.drop_user("test_user").unwrap());
+        storage
+            .create_user(&user)
+            .expect("create_user should succeed");
+        assert!(storage
+            .drop_user("test_user")
+            .expect("drop_user should succeed"));
         assert!(!storage.user_exists("test_user"));
     }
 
@@ -224,7 +232,9 @@ mod tests {
             password_changed_at: 0,
         };
 
-        storage.create_user(&user).unwrap();
+        storage
+            .create_user(&user)
+            .expect("create_user should succeed");
 
         let alter_info = UserAlterInfo {
             username: "test_user".to_string(),
@@ -235,9 +245,13 @@ mod tests {
             max_user_connections: None,
         };
 
-        assert!(storage.alter_user(&alter_info).unwrap());
+        assert!(storage
+            .alter_user(&alter_info)
+            .expect("alter_user should succeed"));
 
-        let updated_user = storage.get_user("test_user").unwrap();
+        let updated_user = storage
+            .get_user("test_user")
+            .expect("get_user should succeed");
         assert!(updated_user.is_locked);
         assert_eq!(updated_user.max_queries_per_hour, 100);
     }

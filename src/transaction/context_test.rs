@@ -520,7 +520,7 @@ fn test_savepoint_creation() {
     // Get savepoint info
     let savepoint_info = ctx.get_savepoint(savepoint_id);
     assert!(savepoint_info.is_some());
-    let info = savepoint_info.unwrap();
+    let info = savepoint_info.expect("savepoint info should exist");
     assert_eq!(info.name, Some("sp1".to_string()));
     assert_eq!(info.operation_log_index, 0);
 }

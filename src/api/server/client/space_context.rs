@@ -45,7 +45,10 @@ mod tests {
         };
         context.set_space(space_info.clone());
 
-        assert_eq!(context.space().unwrap().id, 456);
-        assert_eq!(context.space().unwrap().name, "test_space");
+        assert_eq!(context.space().expect("space should exist").id, 456);
+        assert_eq!(
+            context.space().expect("space should exist").name,
+            "test_space"
+        );
     }
 }
