@@ -9,6 +9,8 @@
 //! - api::embedded::config - database configuration
 //! - api::embedded::result - query result processing
 
+#![cfg(feature = "embedded")]
+
 mod common;
 
 use std::collections::HashMap;

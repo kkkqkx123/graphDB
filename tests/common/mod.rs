@@ -5,9 +5,15 @@
 #![allow(dead_code)]
 
 pub mod assertions;
-pub mod c_api_helpers;
 pub mod data_fixtures;
+pub mod query_helpers;
 pub mod storage_helpers;
+pub mod test_scenario;
+pub mod validation_helpers;
+
+// C API helpers only compiled when c-api feature is enabled
+#[cfg(feature = "c-api")]
+pub mod c_api_helpers;
 
 use graphdb::core::error::DBResult;
 use graphdb::storage::redb_storage::RedbStorage;

@@ -10,6 +10,8 @@
 //! Batch operations
 //! Error handling
 
+#![cfg(feature = "c-api")]
+
 mod common;
 
 use std::ffi::CString;
