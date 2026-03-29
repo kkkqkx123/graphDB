@@ -165,8 +165,18 @@ pub async fn start_http_server<S: crate::storage::StorageClient + Clone + Send +
     use axum::serve;
     use tokio::net::TcpListener;
 
-    let state = crate::api::server::http::AppState::new(server);
-    let app = crate::api::server::http::router::create_router(state);
+    let state = crate::api::server::http::AppState::new(server.clone());
+
+    // Create WebState for web management APIs
+    let storage_path = format!("{}/metadata.db", config.storage_path());
+    let web_state = crate::api::server::WebState::new(
+        crate::api::server::http::AppState::new(server),
+        &storage_path,
+    )
+    .await
+    .ok();
+
+    let app = crate::api::server::http::router::create_router(state, web_state);
 
     let addr = format!("{}:{}", config.host(), config.port());
     let listener = TcpListener::bind(&addr).await?;
