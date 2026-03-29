@@ -1,17 +1,29 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
-import Login from '@/pages/Login';
-import MainPage from '@/pages/MainPage';
-import Console from '@/pages/Console';
-import Schema from '@/pages/Schema';
-import Graph from '@/pages/Graph';
-import DataBrowser from '@/pages/DataBrowser';
 import MainLayout from '@/components/layout/MainLayout';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
+
+const Login = lazy(() => import('@/pages/Login'));
+const MainPage = lazy(() => import('@/pages/MainPage'));
+const Console = lazy(() => import('@/pages/Console'));
+const Schema = lazy(() => import('@/pages/Schema'));
+const Graph = lazy(() => import('@/pages/Graph'));
+const DataBrowser = lazy(() => import('@/pages/DataBrowser'));
+
+const LoadingFallback = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+    Loading...
+  </div>
+);
 
 const router = createBrowserRouter([
   {
     path: '/login',
-    element: <Login />,
+    element: (
+      <Suspense fallback={<LoadingFallback />}>
+        <Login />
+      </Suspense>
+    ),
   },
   {
     path: '/',
@@ -25,23 +37,43 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <MainPage />,
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <MainPage />
+          </Suspense>
+        ),
       },
       {
         path: 'console',
-        element: <Console />,
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <Console />
+          </Suspense>
+        ),
       },
       {
         path: 'schema',
-        element: <Schema />,
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <Schema />
+          </Suspense>
+        ),
       },
       {
         path: 'graph',
-        element: <Graph />,
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <Graph />
+          </Suspense>
+        ),
       },
       {
         path: 'data-browser',
-        element: <DataBrowser />,
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <DataBrowser />
+          </Suspense>
+        ),
       },
     ],
   },

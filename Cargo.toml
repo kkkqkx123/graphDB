@@ -60,7 +60,7 @@ path = "src/main.rs"
 required-features = ["server"]
 
 [features]
-default = ["redb", "embedded", "server", "c-api"]
+default = ["server", "redb"]
 redb = ["dep:redb"]
 embedded = []
 server = [

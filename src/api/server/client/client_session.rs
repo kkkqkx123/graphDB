@@ -190,7 +190,7 @@ impl ClientSession {
         self.transaction_context.savepoint_count()
     }
 
-    pub fn statistics(&self) -> &crate::api::embedded::statistics::SessionStatistics {
+    pub fn statistics(&self) -> &crate::core::SessionStatistics {
         self.statistics_context.statistics()
     }
 }

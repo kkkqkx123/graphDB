@@ -1,4 +1,4 @@
-use crate::api::embedded::statistics::SessionStatistics;
+use crate::core::SessionStatistics;
 
 #[derive(Debug)]
 pub struct StatisticsContext {

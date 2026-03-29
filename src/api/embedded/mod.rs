@@ -51,8 +51,11 @@ pub use config::{DatabaseConfig, SyncMode};
 pub use database::GraphDatabase;
 pub use result::{QueryResult, ResultMetadata, Row};
 pub use session::Session;
-pub use statistics::{QueryStatistics, SessionStatistics};
+pub use statistics::QueryStatistics;
 pub use transaction::{Transaction, TransactionConfig, TransactionInfo};
+
+// Re-export SessionStatistics from core
+pub use crate::core::SessionStatistics;
 
 // C API re-export
 #[cfg(feature = "c-api")]

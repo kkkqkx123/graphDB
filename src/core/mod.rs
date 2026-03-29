@@ -1,6 +1,7 @@
 pub mod error;
 pub mod npath;
 pub mod query_result;
+pub mod session_stats;
 pub mod type_system;
 pub mod value;
 pub mod vertex_edge_path;
@@ -51,3 +52,6 @@ pub use stats::{
     ErrorInfo, ErrorSummary, ErrorType, MetricType, MetricValue, QueryMetrics, QueryPhase,
     QueryProfile, QueryStatus, StatsManager,
 };
+
+// Session statistics type
+pub use session_stats::SessionStatistics;
