@@ -15,7 +15,7 @@
 | 阶段 | PRD 文档 | 状态 | 关键功能 |
 |-------|----------|------|----------|
 | 阶段 1 | [prd_phase1.md](./prd_phase1.md) | ✅ 已创建 | 基础框架和连接管理 |
-| 阶段 2 | [prd_phase2.md](./prd_phase2.md) | ✅ 已创建 | 查询控制台 |
+| 阶段 2 | prd_phase2.md | 📝 待创建 | 查询控制台 |
 | 阶段 3 | prd_phase3.md | 📝 待创建 | Schema 管理 - Space |
 | 阶段 4 | prd_phase4.md | 📝 待创建 | Schema 管理 - Tag/Edge |
 | 阶段 5 | prd_phase5.md | 📝 待创建 | Schema 管理 - 索引 |
