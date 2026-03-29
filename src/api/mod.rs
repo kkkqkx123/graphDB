@@ -169,14 +169,19 @@ pub async fn start_http_server<S: crate::storage::StorageClient + Clone + Send +
 
     // Create WebState for web management APIs
     let storage_path = format!("{}/metadata.db", config.storage_path());
-    let web_state = crate::api::server::WebState::new(
-        crate::api::server::http::AppState::new(server),
-        &storage_path,
-    )
-    .await
-    .ok();
+    let web_router =
+        match crate::api::server::web::WebState::new(&storage_path, state.clone()).await {
+            Ok(web_state) => Some(crate::api::server::web::create_router(web_state)),
+            Err(e) => {
+                log::warn!(
+                    "Failed to initialize web management: {}, continuing without it",
+                    e
+                );
+                None
+            }
+        };
 
-    let app = crate::api::server::http::router::create_router(state, web_state);
+    let app = crate::api::server::http::router::create_router(state, web_router);
 
     let addr = format!("{}:{}", config.host(), config.port());
     let listener = TcpListener::bind(&addr).await?;

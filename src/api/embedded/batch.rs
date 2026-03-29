@@ -190,7 +190,9 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
 
         // Execute batch operation using core API
         let mut storage = self.session.storage();
-        let core_result = self.core_operation.execute_sync(&mut *storage, space_name)?;
+        let core_result = self
+            .core_operation
+            .execute_sync(&mut *storage, space_name)?;
 
         Ok(core_result.into())
     }
@@ -209,7 +211,9 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
 
         // Execute batch operation using core API
         let mut storage = self.session.storage();
-        let _ = self.core_operation.execute_sync(&mut *storage, space_name)?;
+        let _ = self
+            .core_operation
+            .execute_sync(&mut *storage, space_name)?;
 
         Ok(())
     }

@@ -1,6 +1,5 @@
 //! Web Module Data Models
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 pub mod metadata;

@@ -9,34 +9,35 @@
 
 pub mod error;
 pub mod handlers;
+pub mod middleware;
 pub mod models;
 pub mod services;
 pub mod storage;
 
-use axum::Router;
+use axum::{middleware as axum_middleware, Router};
 use std::sync::Arc;
 
-use crate::api::server::http::AppState;
+use crate::api::server::http::state::AppState;
 use crate::storage::StorageClient;
 
 use self::storage::SqliteStorage;
 
 /// Web module state
 #[derive(Clone)]
-pub struct WebState<S: StorageClient + 'static> {
-    /// Core application state
-    pub app_state: AppState<S>,
+pub struct WebState<S: StorageClient + Clone + Send + Sync + 'static> {
     /// Metadata storage
     pub metadata_storage: Arc<SqliteStorage>,
+    /// Core application state
+    pub core_state: AppState<S>,
 }
 
-impl<S: StorageClient + 'static> WebState<S> {
-    pub async fn new(app_state: AppState<S>, storage_path: &str) -> Result<Self, error::WebError> {
+impl<S: StorageClient + Clone + Send + Sync + 'static> WebState<S> {
+    pub async fn new(storage_path: &str, core_state: AppState<S>) -> Result<Self, error::WebError> {
         let metadata_storage = Arc::new(SqliteStorage::new(storage_path).await?);
 
         Ok(Self {
-            app_state,
             metadata_storage,
+            core_state,
         })
     }
 }
@@ -45,14 +46,20 @@ impl<S: StorageClient + 'static> WebState<S> {
 pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
     web_state: WebState<S>,
 ) -> Router {
-    Router::new()
-        .nest("/v1/queries", handlers::metadata::create_router(web_state.clone()))
-        .nest("/v1/schema", handlers::schema_ext::create_router(web_state.clone()))
-        .nest("/v1/data", handlers::data_browser::create_router(web_state.clone()))
-        .nest("/v1/graph", handlers::graph_data::create_router(web_state))
-}
+    // Build routes with shared state
+    let queries_routes = handlers::metadata::create_routes();
+    let schema_routes = handlers::schema_ext::create_routes();
+    let data_routes = handlers::data_browser::create_routes();
+    let graph_routes = handlers::graph_data::create_routes();
 
-/// Create Web management router (no state version for compatibility)
-pub fn create_router_no_state() -> Router {
     Router::new()
+        .nest("/v1/queries", queries_routes)
+        .nest("/v1/schema", schema_routes)
+        .nest("/v1/data", data_routes)
+        .nest("/v1/graph", graph_routes)
+        .layer(axum_middleware::from_fn_with_state(
+            web_state.clone(),
+            middleware::web_auth_middleware,
+        ))
+        .with_state(web_state)
 }

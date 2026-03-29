@@ -43,7 +43,12 @@ pub trait MetadataStorage: Send + Sync {
     async fn get_favorite(&self, id: &str, session_id: &str) -> WebResult<FavoriteItem>;
 
     /// Update a favorite
-    async fn update_favorite(&self, id: &str, session_id: &str, item: &FavoriteItem) -> WebResult<()>;
+    async fn update_favorite(
+        &self,
+        id: &str,
+        session_id: &str,
+        item: &FavoriteItem,
+    ) -> WebResult<()>;
 
     /// Delete a favorite
     async fn delete_favorite(&self, id: &str, session_id: &str) -> WebResult<()>;

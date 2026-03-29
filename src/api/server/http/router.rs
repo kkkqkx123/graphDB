@@ -12,7 +12,6 @@ use tower_http::{
     trace::TraceLayer,
 };
 
-use crate::api::server::web::{create_router as create_web_router, WebState};
 use crate::storage::StorageClient;
 
 use super::{
@@ -43,10 +42,10 @@ use super::{
 /// /v1/query – Execution of a query (authentication required)
 /// /v1/transactions/* – Transaction management (authentication required)
 /// – /v1/schema/* – Schema management (requires authentication)
-/// – /v1/web/* – Web management APIs (authentication required)
+/// – /api/* – Web management APIs (authentication required)
 pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
     state: AppState<S>,
-    web_state: Option<WebState<S>>,
+    web_router: Option<Router>,
 ) -> Router {
     // Public route (no authentication required)
     let public_routes = Router::new()
@@ -106,17 +105,9 @@ pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
             auth_middleware,
         ));
 
-    // Web management routes (if web_state is provided)
-    let web_routes = if let Some(ws) = web_state {
-        create_web_router(ws)
-    } else {
-        Router::new()
-    };
-
     // Merge all routes and add a version prefix.
-    Router::new()
+    let router = Router::new()
         .nest("/v1", public_routes.merge(protected_routes))
-        .nest("/api", web_routes)
         .layer(middleware::from_fn(logging::logging_middleware))
         .layer(middleware::from_fn(error::error_handling_middleware))
         .layer(TraceLayer::new_for_http())
@@ -126,7 +117,14 @@ pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
             Duration::from_secs(30),
         ))
         .layer(RequestBodyLimitLayer::new(1024 * 1024 * 10)) // Limit on the request body size: 10 MB
-        .with_state(state)
+        .with_state(state);
+
+    // Add web management routes if web_router is provided
+    if let Some(wr) = web_router {
+        router.nest("/api", wr)
+    } else {
+        router
+    }
 }
 
 /// Create a CORS configuration layer

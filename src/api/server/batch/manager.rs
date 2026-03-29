@@ -195,17 +195,14 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
     }
 
     /// Convert server BatchItem to core BatchItem
-    fn convert_to_core_item(
-        &self,
-        item: BatchItem,
-    ) -> Option<crate::api::core::BatchItem> {
+    fn convert_to_core_item(&self, item: BatchItem) -> Option<crate::api::core::BatchItem> {
         match item {
-            BatchItem::Vertex(data) => {
-                self.convert_vertex_data(data).map(crate::api::core::BatchItem::Vertex)
-            }
-            BatchItem::Edge(data) => {
-                self.convert_edge_data(data).map(crate::api::core::BatchItem::Edge)
-            }
+            BatchItem::Vertex(data) => self
+                .convert_vertex_data(data)
+                .map(crate::api::core::BatchItem::Vertex),
+            BatchItem::Edge(data) => self
+                .convert_edge_data(data)
+                .map(crate::api::core::BatchItem::Edge),
         }
     }
 
@@ -294,10 +291,7 @@ mod tests {
         );
 
         // Test number
-        assert_eq!(
-            json_to_value(serde_json::json!(42)),
-            Some(Value::Int(42))
-        );
+        assert_eq!(json_to_value(serde_json::json!(42)), Some(Value::Int(42)));
 
         // Test string
         assert_eq!(

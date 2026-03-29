@@ -143,7 +143,10 @@ impl TransactionApi {
     ///
     /// # Parameters
     /// - `handle`: transaction handle
-    pub fn get_savepoints(&self, handle: TransactionHandle) -> CoreResult<Vec<crate::transaction::SavepointInfo>> {
+    pub fn get_savepoints(
+        &self,
+        handle: TransactionHandle,
+    ) -> CoreResult<Vec<crate::transaction::SavepointInfo>> {
         let context = self
             .txn_manager
             .get_context(handle.0)

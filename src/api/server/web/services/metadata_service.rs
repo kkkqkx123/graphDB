@@ -8,16 +8,16 @@ use crate::api::server::web::error::{WebError, WebResult};
 use crate::api::server::web::models::metadata::{
     AddFavoriteRequest, AddHistoryRequest, FavoriteItem, HistoryItem, UpdateFavoriteRequest,
 };
-use crate::api::server::web::storage::MetadataStorage;
+use crate::api::server::web::storage::{MetadataStorage, SqliteStorage};
 
 /// Metadata service for query history and favorites
 pub struct MetadataService {
-    storage: Arc<dyn MetadataStorage>,
+    storage: Arc<SqliteStorage>,
 }
 
 impl MetadataService {
     /// Create a new metadata service
-    pub fn new(storage: Arc<dyn MetadataStorage>) -> Self {
+    pub fn new(storage: Arc<SqliteStorage>) -> Self {
         Self { storage }
     }
 
@@ -70,7 +70,9 @@ impl MetadataService {
     ) -> WebResult<FavoriteItem> {
         // Validate name is not empty
         if request.name.trim().is_empty() {
-            return Err(WebError::BadRequest("Favorite name cannot be empty".to_string()));
+            return Err(WebError::BadRequest(
+                "Favorite name cannot be empty".to_string(),
+            ));
         }
 
         // Validate query is not empty
@@ -114,7 +116,9 @@ impl MetadataService {
         // Update fields if provided
         if let Some(name) = request.name {
             if name.trim().is_empty() {
-                return Err(WebError::BadRequest("Favorite name cannot be empty".to_string()));
+                return Err(WebError::BadRequest(
+                    "Favorite name cannot be empty".to_string(),
+                ));
             }
             item.name = name;
         }

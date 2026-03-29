@@ -462,7 +462,9 @@ mod tests {
 
     #[test]
     fn test_batch_inserter_create_null_params() {
-        let result = unsafe { graphdb_batch_inserter_create(std::ptr::null_mut(), 100, std::ptr::null_mut()) };
+        let result = unsafe {
+            graphdb_batch_inserter_create(std::ptr::null_mut(), 100, std::ptr::null_mut())
+        };
         assert_eq!(result, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
     }
 
@@ -474,7 +476,8 @@ mod tests {
 
     #[test]
     fn test_batch_buffered_counts_null() {
-        let result = unsafe { graphdb_batch_buffered_count(std::ptr::null_mut(), std::ptr::null_mut()) };
+        let result =
+            unsafe { graphdb_batch_buffered_count(std::ptr::null_mut(), std::ptr::null_mut()) };
         assert_eq!(result, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
     }
 }

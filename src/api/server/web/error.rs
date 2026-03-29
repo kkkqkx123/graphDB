@@ -24,6 +24,9 @@ pub enum WebError {
 
     #[error("Internal error: {0}")]
     Internal(String),
+
+    #[error("Query error: {0}")]
+    Query(String),
 }
 
 impl IntoResponse for WebError {
@@ -42,6 +45,7 @@ impl IntoResponse for WebError {
                 "INTERNAL_ERROR",
                 msg.clone(),
             ),
+            WebError::Query(msg) => (StatusCode::BAD_REQUEST, "QUERY_ERROR", msg.clone()),
         };
 
         let body = Json(json!({

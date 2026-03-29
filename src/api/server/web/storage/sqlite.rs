@@ -1,6 +1,6 @@
 //! SQLite Storage Implementation
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use sqlx::{sqlite::SqlitePoolOptions, Pool, Row, Sqlite};
 
 use crate::api::server::web::error::{WebError, WebResult};
@@ -131,26 +131,23 @@ impl MetadataStorage for SqliteStorage {
         .await
         .map_err(|e| WebError::Storage(format!("Failed to get history: {}", e)))?;
 
-        let total: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM query_history WHERE session_id = ?1"
-        )
-        .bind(session_id)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| WebError::Storage(format!("Failed to count history: {}", e)))?;
+        let total: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM query_history WHERE session_id = ?1")
+                .bind(session_id)
+                .fetch_one(&self.pool)
+                .await
+                .map_err(|e| WebError::Storage(format!("Failed to count history: {}", e)))?;
 
         Ok((items, total))
     }
 
     async fn delete_history(&self, id: &str, session_id: &str) -> WebResult<()> {
-        let result = sqlx::query(
-            "DELETE FROM query_history WHERE id = ?1 AND session_id = ?2"
-        )
-        .bind(id)
-        .bind(session_id)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| WebError::Storage(format!("Failed to delete history: {}", e)))?;
+        let result = sqlx::query("DELETE FROM query_history WHERE id = ?1 AND session_id = ?2")
+            .bind(id)
+            .bind(session_id)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| WebError::Storage(format!("Failed to delete history: {}", e)))?;
 
         if result.rows_affected() == 0 {
             return Err(WebError::NotFound("History item not found".to_string()));
@@ -227,7 +224,12 @@ impl MetadataStorage for SqliteStorage {
         Ok(item)
     }
 
-    async fn update_favorite(&self, id: &str, session_id: &str, item: &FavoriteItem) -> WebResult<()> {
+    async fn update_favorite(
+        &self,
+        id: &str,
+        session_id: &str,
+        item: &FavoriteItem,
+    ) -> WebResult<()> {
         let result = sqlx::query(
             r#"
             UPDATE query_favorites
@@ -253,14 +255,12 @@ impl MetadataStorage for SqliteStorage {
     }
 
     async fn delete_favorite(&self, id: &str, session_id: &str) -> WebResult<()> {
-        let result = sqlx::query(
-            "DELETE FROM query_favorites WHERE id = ?1 AND session_id = ?2"
-        )
-        .bind(id)
-        .bind(session_id)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| WebError::Storage(format!("Failed to delete favorite: {}", e)))?;
+        let result = sqlx::query("DELETE FROM query_favorites WHERE id = ?1 AND session_id = ?2")
+            .bind(id)
+            .bind(session_id)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| WebError::Storage(format!("Failed to delete favorite: {}", e)))?;
 
         if result.rows_affected() == 0 {
             return Err(WebError::NotFound("Favorite not found".to_string()));

@@ -12,6 +12,7 @@ use axum::{
     Router,
 };
 use serde::Deserialize;
+use tokio::task;
 
 use crate::api::server::web::{
     error::{WebError, WebResult},
@@ -20,12 +21,12 @@ use crate::api::server::web::{
 };
 use crate::storage::StorageClient;
 
-/// Create graph data router
-pub fn create_router<S: StorageClient + 'static>(_web_state: WebState<S>) -> Router {
+/// Create graph data routes (without state)
+pub fn create_routes<S: StorageClient + Clone + Send + Sync + 'static>() -> Router<WebState<S>> {
     Router::new()
-        .route("/vertices/:vid", get(get_vertex::<S>))
-        .route("/edges", get(get_edge::<S>))
-        .route("/vertices/:vid/neighbors", get(get_neighbors::<S>))
+        .route("/vertices/{vid}", get(get_vertex))
+        .route("/edges", get(get_edge))
+        .route("/vertices/{vid}/neighbors", get(get_neighbors))
 }
 
 /// Get vertex details
@@ -34,15 +35,44 @@ pub struct GetVertexParams {
     pub space: String,
 }
 
-async fn get_vertex<S: StorageClient>(
+async fn get_vertex<S: StorageClient + Clone + Send + Sync + 'static>(
+    State(web_state): State<WebState<S>>,
     Path(vid): Path<String>,
     Query(params): Query<GetVertexParams>,
 ) -> WebResult<Json<ApiResponse<serde_json::Value>>> {
-    // TODO: Implement actual vertex retrieval with core API
-    Err(WebError::NotFound(format!(
-        "Vertex '{}' not found in space '{}'",
-        vid, params.space
-    )))
+    let result = task::spawn_blocking(move || {
+        let graph_service = web_state.core_state.server.get_graph_service();
+
+        // Build query to fetch vertex by ID
+        let query = format!(
+            "USE {}; FETCH PROP ON * \"{}\" YIELD vertex AS v",
+            params.space, vid
+        );
+
+        match graph_service.execute(0, &query) {
+            Ok(exec_result) => match exec_result {
+                crate::query::executor::ExecutionResult::Vertices(vertices) => {
+                    if let Some(vertex) = vertices.into_iter().next() {
+                        Ok(serde_json::json!({"vertex": vertex}))
+                    } else {
+                        Err(WebError::NotFound(format!(
+                            "Vertex '{}' not found in space '{}'",
+                            vid, params.space
+                        )))
+                    }
+                }
+                _ => Err(WebError::NotFound(format!(
+                    "Vertex '{}' not found in space '{}'",
+                    vid, params.space
+                ))),
+            },
+            Err(e) => Err(WebError::Query(format!("Failed to get vertex: {}", e))),
+        }
+    })
+    .await
+    .map_err(|e| WebError::Internal(format!("Task execution failed: {}", e)))?;
+
+    Ok(Json(ApiResponse::success(result?)))
 }
 
 /// Get edge details
@@ -56,14 +86,43 @@ pub struct GetEdgeParams {
     pub rank: i64,
 }
 
-async fn get_edge<S: StorageClient>(
+async fn get_edge<S: StorageClient + Clone + Send + Sync + 'static>(
+    State(web_state): State<WebState<S>>,
     Query(params): Query<GetEdgeParams>,
 ) -> WebResult<Json<ApiResponse<serde_json::Value>>> {
-    // TODO: Implement actual edge retrieval with core API
-    Err(WebError::NotFound(format!(
-        "Edge from '{}' to '{}' with type '{}' not found in space '{}'",
-        params.src, params.dst, params.edge_type, params.space
-    )))
+    let result = task::spawn_blocking(move || {
+        let graph_service = web_state.core_state.server.get_graph_service();
+
+        // Build query to fetch edge
+        let query = format!(
+            "USE {}; FETCH PROP ON {} \"{}\" -> \"{}\"@{} YIELD edge AS e",
+            params.space, params.edge_type, params.src, params.dst, params.rank
+        );
+
+        match graph_service.execute(0, &query) {
+            Ok(exec_result) => match exec_result {
+                crate::query::executor::ExecutionResult::Edges(edges) => {
+                    if let Some(edge) = edges.into_iter().next() {
+                        Ok(serde_json::json!({"edge": edge}))
+                    } else {
+                        Err(WebError::NotFound(format!(
+                            "Edge from '{}' to '{}' with type '{}' not found in space '{}'",
+                            params.src, params.dst, params.edge_type, params.space
+                        )))
+                    }
+                }
+                _ => Err(WebError::NotFound(format!(
+                    "Edge from '{}' to '{}' with type '{}' not found in space '{}'",
+                    params.src, params.dst, params.edge_type, params.space
+                ))),
+            },
+            Err(e) => Err(WebError::Query(format!("Failed to get edge: {}", e))),
+        }
+    })
+    .await
+    .map_err(|e| WebError::Internal(format!("Task execution failed: {}", e)))?;
+
+    Ok(Json(ApiResponse::success(result?)))
 }
 
 /// Get neighbors of a vertex
@@ -81,17 +140,57 @@ fn default_direction() -> String {
     "BOTH".to_string()
 }
 
-async fn get_neighbors<S: StorageClient>(
+async fn get_neighbors<S: StorageClient + Clone + Send + Sync + 'static>(
+    State(web_state): State<WebState<S>>,
     Path(vid): Path<String>,
     Query(params): Query<GetNeighborsParams>,
 ) -> WebResult<Json<ApiResponse<serde_json::Value>>> {
-    // TODO: Implement actual neighbor query with core API
-    Ok(Json(ApiResponse::success(serde_json::json!({
-        "vid": vid,
-        "space": params.space,
-        "direction": params.direction,
-        "edge_type": params.edge_type,
-        "neighbors": [],
-        "note": "Neighbor query to be implemented"
-    }))))
+    let result = task::spawn_blocking(move || {
+        let graph_service = web_state.core_state.server.get_graph_service();
+
+        // Build match pattern based on direction
+        let pattern = match params.direction.as_str() {
+            "OUT" => "(v)-[e]->(n)".to_string(),
+            "IN" => "(v)<-[e]-(n)".to_string(),
+            _ => "(v)-[e]-(n)".to_string(),
+        };
+
+        // Add edge type filter if specified
+        let edge_filter = params
+            .edge_type
+            .as_ref()
+            .map(|et| format!(":{}", et))
+            .unwrap_or_default();
+        let pattern = pattern.replace("[e]", &format!("[e{}]", edge_filter));
+
+        let query = format!(
+            "USE {}; MATCH {} WHERE id(v) == \"{}\" RETURN n LIMIT 100",
+            params.space, pattern, vid
+        );
+
+        match graph_service.execute(0, &query) {
+            Ok(exec_result) => {
+                let neighbors: Vec<serde_json::Value> = match exec_result {
+                    crate::query::executor::ExecutionResult::Vertices(vertices) => vertices
+                        .into_iter()
+                        .map(|v| serde_json::json!({"vertex": v}))
+                        .collect(),
+                    _ => vec![],
+                };
+
+                Ok(serde_json::json!({
+                    "vid": vid,
+                    "space": params.space,
+                    "direction": params.direction,
+                    "edge_type": params.edge_type,
+                    "neighbors": neighbors,
+                }))
+            }
+            Err(e) => Err(WebError::Query(format!("Failed to get neighbors: {}", e))),
+        }
+    })
+    .await
+    .map_err(|e| WebError::Internal(format!("Task execution failed: {}", e)))?;
+
+    Ok(Json(ApiResponse::success(result?)))
 }

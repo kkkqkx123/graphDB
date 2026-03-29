@@ -1,13 +1,12 @@
 //! Metadata Handlers (Query History & Favorites)
 
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query, State},
     http::StatusCode,
     response::Json,
-    routing::{delete, get, post, put},
+    routing::{delete, get},
     Router,
 };
-use std::sync::Arc;
 
 use crate::api::server::web::{
     error::WebResult,
@@ -23,29 +22,32 @@ use crate::api::server::web::{
 };
 use crate::storage::StorageClient;
 
-/// Create metadata router
-pub fn create_router<S: StorageClient + 'static>(web_state: WebState<S>) -> Router {
+/// Create metadata routes (without state)
+pub fn create_routes<S: StorageClient + Clone + Send + Sync + 'static>() -> Router<WebState<S>> {
     Router::new()
-        .route("/history", get(list_history::<S>).post(add_history::<S>))
-        .route("/history/:id", delete(delete_history::<S>))
-        .route("/history/clear", delete(clear_history::<S>))
-        .route("/favorites", get(list_favorites::<S>).post(add_favorite::<S>))
-        .route("/favorites/:id", get(get_favorite::<S>).put(update_favorite::<S>).delete(delete_favorite::<S>))
-        .route("/favorites/clear", delete(clear_favorites::<S>))
-        .with_state(web_state)
+        .route("/history", get(list_history).post(add_history))
+        .route("/history/{id}", delete(delete_history))
+        .route("/history/clear", delete(clear_history))
+        .route("/favorites", get(list_favorites).post(add_favorite))
+        .route(
+            "/favorites/{id}",
+            get(get_favorite)
+                .put(update_favorite)
+                .delete(delete_favorite),
+        )
+        .route("/favorites/clear", delete(clear_favorites))
 }
 
 /// Add a query history item
-async fn add_history<S: StorageClient>(
+async fn add_history<S: StorageClient + Clone + Send + Sync + 'static>(
+    Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Json(request): Json<AddHistoryRequest>,
 ) -> WebResult<(StatusCode, Json<ApiResponse<serde_json::Value>>)> {
-    // Get session ID from app state (this is a simplified version)
-    // In real implementation, extract from auth middleware
-    let session_id = "default_session".to_string();
+    let session_id_str = session_id.to_string();
 
     let service = MetadataService::new(web_state.metadata_storage.clone());
-    let item = service.add_history(&session_id, request).await?;
+    let item = service.add_history(&session_id_str, request).await?;
 
     Ok((
         StatusCode::CREATED,
@@ -61,27 +63,34 @@ async fn add_history<S: StorageClient>(
 }
 
 /// List query history
-async fn list_history<S: StorageClient>(
+async fn list_history<S: StorageClient + Clone + Send + Sync + 'static>(
+    Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Query(params): Query<PaginationParams>,
 ) -> WebResult<Json<ApiResponse<HistoryListResponse>>> {
-    let session_id = "default_session".to_string();
+    let session_id_str = session_id.to_string();
 
     let service = MetadataService::new(web_state.metadata_storage.clone());
-    let (items, total) = service.get_history(&session_id, params.limit, params.offset).await?;
+    let (items, total) = service
+        .get_history(&session_id_str, params.limit, params.offset)
+        .await?;
 
-    Ok(Json(ApiResponse::success(HistoryListResponse { items, total })))
+    Ok(Json(ApiResponse::success(HistoryListResponse {
+        items,
+        total,
+    })))
 }
 
 /// Delete a history item
-async fn delete_history<S: StorageClient>(
+async fn delete_history<S: StorageClient + Clone + Send + Sync + 'static>(
+    Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path(id): Path<String>,
 ) -> WebResult<(StatusCode, Json<ApiResponse<serde_json::Value>>)> {
-    let session_id = "default_session".to_string();
+    let session_id_str = session_id.to_string();
 
     let service = MetadataService::new(web_state.metadata_storage.clone());
-    service.delete_history(&id, &session_id).await?;
+    service.delete_history(&id, &session_id_str).await?;
 
     Ok((
         StatusCode::OK,
@@ -90,13 +99,14 @@ async fn delete_history<S: StorageClient>(
 }
 
 /// Clear all history
-async fn clear_history<S: StorageClient>(
+async fn clear_history<S: StorageClient + Clone + Send + Sync + 'static>(
+    Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
 ) -> WebResult<(StatusCode, Json<ApiResponse<serde_json::Value>>)> {
-    let session_id = "default_session".to_string();
+    let session_id_str = session_id.to_string();
 
     let service = MetadataService::new(web_state.metadata_storage.clone());
-    service.clear_history(&session_id).await?;
+    service.clear_history(&session_id_str).await?;
 
     Ok((
         StatusCode::OK,
@@ -105,14 +115,15 @@ async fn clear_history<S: StorageClient>(
 }
 
 /// Add a favorite
-async fn add_favorite<S: StorageClient>(
+async fn add_favorite<S: StorageClient + Clone + Send + Sync + 'static>(
+    Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Json(request): Json<AddFavoriteRequest>,
 ) -> WebResult<(StatusCode, Json<ApiResponse<serde_json::Value>>)> {
-    let session_id = "default_session".to_string();
+    let session_id_str = session_id.to_string();
 
     let service = MetadataService::new(web_state.metadata_storage.clone());
-    let item = service.add_favorite(&session_id, request).await?;
+    let item = service.add_favorite(&session_id_str, request).await?;
 
     Ok((
         StatusCode::CREATED,
@@ -127,26 +138,28 @@ async fn add_favorite<S: StorageClient>(
 }
 
 /// List all favorites
-async fn list_favorites<S: StorageClient>(
+async fn list_favorites<S: StorageClient + Clone + Send + Sync + 'static>(
+    Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
 ) -> WebResult<Json<ApiResponse<FavoriteListResponse>>> {
-    let session_id = "default_session".to_string();
+    let session_id_str = session_id.to_string();
 
     let service = MetadataService::new(web_state.metadata_storage.clone());
-    let items = service.get_favorites(&session_id).await?;
+    let items = service.get_favorites(&session_id_str).await?;
 
     Ok(Json(ApiResponse::success(FavoriteListResponse { items })))
 }
 
 /// Get a favorite by ID
-async fn get_favorite<S: StorageClient>(
+async fn get_favorite<S: StorageClient + Clone + Send + Sync + 'static>(
+    Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path(id): Path<String>,
 ) -> WebResult<Json<ApiResponse<serde_json::Value>>> {
-    let session_id = "default_session".to_string();
+    let session_id_str = session_id.to_string();
 
     let service = MetadataService::new(web_state.metadata_storage.clone());
-    let item = service.get_favorite(&id, &session_id).await?;
+    let item = service.get_favorite(&id, &session_id_str).await?;
 
     Ok(Json(ApiResponse::success(serde_json::json!({
         "id": item.id,
@@ -158,15 +171,18 @@ async fn get_favorite<S: StorageClient>(
 }
 
 /// Update a favorite
-async fn update_favorite<S: StorageClient>(
+async fn update_favorite<S: StorageClient + Clone + Send + Sync + 'static>(
+    Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path(id): Path<String>,
     Json(request): Json<UpdateFavoriteRequest>,
 ) -> WebResult<Json<ApiResponse<serde_json::Value>>> {
-    let session_id = "default_session".to_string();
+    let session_id_str = session_id.to_string();
 
     let service = MetadataService::new(web_state.metadata_storage.clone());
-    let item = service.update_favorite(&id, &session_id, request).await?;
+    let item = service
+        .update_favorite(&id, &session_id_str, request)
+        .await?;
 
     Ok(Json(ApiResponse::success(serde_json::json!({
         "id": item.id,
@@ -178,14 +194,15 @@ async fn update_favorite<S: StorageClient>(
 }
 
 /// Delete a favorite
-async fn delete_favorite<S: StorageClient>(
+async fn delete_favorite<S: StorageClient + Clone + Send + Sync + 'static>(
+    Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path(id): Path<String>,
 ) -> WebResult<(StatusCode, Json<ApiResponse<serde_json::Value>>)> {
-    let session_id = "default_session".to_string();
+    let session_id_str = session_id.to_string();
 
     let service = MetadataService::new(web_state.metadata_storage.clone());
-    service.delete_favorite(&id, &session_id).await?;
+    service.delete_favorite(&id, &session_id_str).await?;
 
     Ok((
         StatusCode::OK,
@@ -194,13 +211,14 @@ async fn delete_favorite<S: StorageClient>(
 }
 
 /// Clear all favorites
-async fn clear_favorites<S: StorageClient>(
+async fn clear_favorites<S: StorageClient + Clone + Send + Sync + 'static>(
+    Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
 ) -> WebResult<(StatusCode, Json<ApiResponse<serde_json::Value>>)> {
-    let session_id = "default_session".to_string();
+    let session_id_str = session_id.to_string();
 
     let service = MetadataService::new(web_state.metadata_storage.clone());
-    service.delete_all_favorites(&session_id).await?;
+    service.delete_all_favorites(&session_id_str).await?;
 
     Ok((
         StatusCode::OK,
