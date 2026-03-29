@@ -27,6 +27,24 @@ import styles from './index.module.less';
 
 const { Title, Text } = Typography;
 
+const EmptyState: React.FC<{ onCreate: () => void }> = ({ onCreate }) => (
+  <Empty
+    image={Empty.PRESENTED_IMAGE_SIMPLE}
+    description={
+      <div>
+        <p>No Spaces found</p>
+        <Text type="secondary">
+          Create a new Space to start organizing your graph data
+        </Text>
+      </div>
+    }
+  >
+    <Button type="primary" icon={<PlusOutlined />} onClick={onCreate}>
+      Create Space
+    </Button>
+  </Empty>
+);
+
 const SpaceList: React.FC = () => {
   const {
     spaces,
@@ -159,27 +177,7 @@ const SpaceList: React.FC = () => {
     },
   ];
 
-  const EmptyState = () => (
-    <Empty
-        image={Empty.PRESENTED_IMAGE_SIMPLE}
-        description={
-          <div>
-            <p>No Spaces found</p>
-            <Text type="secondary">
-              Create a new Space to start organizing your graph data
-            </Text>
-          </div>
-        }
-      >
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setCreateModalVisible(true)}
-        >
-          Create Space
-        </Button>
-      </Empty>
-  );
+
 
   return (
     <div className={styles.container}>
@@ -212,7 +210,7 @@ const SpaceList: React.FC = () => {
         {spacesError ? (
           <Empty description={`Error: ${spacesError}`} />
         ) : spaces.length === 0 && !isLoadingSpaces ? (
-          <EmptyState />
+          <EmptyState onCreate={() => setCreateModalVisible(true)} />
         ) : (
           <Spin spinning={isLoadingSpaces}>
             <Table
@@ -226,7 +224,7 @@ const SpaceList: React.FC = () => {
               })}
               rowClassName={() => styles.row}
               locale={{
-                emptyText: <EmptyState />,
+                emptyText: <EmptyState onCreate={() => setCreateModalVisible(true)} />,
               }}
             />
           </Spin>

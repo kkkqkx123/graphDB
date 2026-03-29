@@ -87,3 +87,61 @@ export interface CreateIndexParams {
   fields: string[];
   comment?: string;
 }
+
+// Extended types for Phase 4 & 5
+
+export type DataType =
+  | 'STRING'
+  | 'INT64'
+  | 'DOUBLE'
+  | 'BOOL'
+  | 'DATETIME'
+  | 'DATE'
+  | 'TIME'
+  | 'TIMESTAMP';
+
+export interface Property {
+  name: string;
+  type: DataType;
+  default_value?: string;
+  nullable?: boolean;
+}
+
+export type IndexStatus = 'creating' | 'finished' | 'failed' | 'rebuilding';
+
+export interface Index {
+  id: number;
+  name: string;
+  type: 'TAG' | 'EDGE';
+  schemaName: string;
+  properties: string[];
+  status: IndexStatus;
+  created_at: number;
+  updated_at?: number;
+  progress?: number;
+  errorMessage?: string;
+}
+
+export interface IndexStats {
+  total: number;
+  byType: {
+    tag: number;
+    edge: number;
+  };
+  byStatus: {
+    creating: number;
+    finished: number;
+    failed: number;
+    rebuilding: number;
+  };
+}
+
+export interface UpdateTagParams {
+  add_properties?: PropertyDef[];
+  drop_properties?: string[];
+}
+
+export interface UpdateEdgeTypeParams {
+  add_properties?: PropertyDef[];
+  drop_properties?: string[];
+}
