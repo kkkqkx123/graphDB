@@ -78,6 +78,20 @@ impl<S: StorageClient> SchemaApi<S> {
         Ok(space_id)
     }
 
+    /// List all graph spaces
+    ///
+    /// # Returns
+    /// List of space information
+    pub fn list_spaces(&self) -> CoreResult<Vec<crate::core::types::SpaceInfo>> {
+        let storage = self.storage.lock();
+        let spaces = storage
+            .list_spaces()
+            .map_err(|e| CoreError::StorageError(e.to_string()))?;
+
+        log::info!("Listed {} graph spaces", spaces.len());
+        Ok(spaces)
+    }
+
     /// Creating Tags
     ///
     /// # Parameters
@@ -135,6 +149,42 @@ impl<S: StorageClient> SchemaApi<S> {
             Err(CoreError::NotFound(format!(
                 "Tag '{}' does not exist",
                 name
+            )))
+        }
+    }
+
+    /// Alter Tag
+    ///
+    /// # Parameters
+    /// - `space_id`: Space ID
+    /// - `tag_name`: tag name
+    /// - `additions`: list of properties to add
+    /// - `deletions`: list of property names to delete
+    pub fn alter_tag(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        additions: Vec<PropertyDef>,
+        deletions: Vec<String>,
+    ) -> CoreResult<()> {
+        let space_name = self.get_space_name_by_id(space_id)?;
+
+        // Convert PropertyDef to core PropertyDef
+        let core_additions: Vec<crate::core::types::PropertyDef> =
+            additions.into_iter().map(|p| p.into()).collect();
+
+        let mut storage = self.storage.lock();
+        let result = storage
+            .alter_tag(&space_name, tag_name, core_additions, deletions)
+            .map_err(|e| CoreError::StorageError(e.to_string()))?;
+
+        if result {
+            log::info!("Altered tag successfully: {} in space {}", tag_name, space_id);
+            Ok(())
+        } else {
+            Err(CoreError::NotFound(format!(
+                "Tag '{}' does not exist or no changes made",
+                tag_name
             )))
         }
     }
@@ -203,6 +253,46 @@ impl<S: StorageClient> SchemaApi<S> {
             Err(CoreError::NotFound(format!(
                 "Edge type '{}' does not exist",
                 name
+            )))
+        }
+    }
+
+    /// Alter Edge Type
+    ///
+    /// # Parameters
+    /// - `space_id`: Space ID
+    /// - `edge_type_name`: edge type name
+    /// - `additions`: list of properties to add
+    /// - `deletions`: list of property names to delete
+    pub fn alter_edge_type(
+        &self,
+        space_id: u64,
+        edge_type_name: &str,
+        additions: Vec<PropertyDef>,
+        deletions: Vec<String>,
+    ) -> CoreResult<()> {
+        let space_name = self.get_space_name_by_id(space_id)?;
+
+        // Convert PropertyDef to core PropertyDef
+        let core_additions: Vec<crate::core::types::PropertyDef> =
+            additions.into_iter().map(|p| p.into()).collect();
+
+        let mut storage = self.storage.lock();
+        let result = storage
+            .alter_edge_type(&space_name, edge_type_name, core_additions, deletions)
+            .map_err(|e| CoreError::StorageError(e.to_string()))?;
+
+        if result {
+            log::info!(
+                "Altered edge type successfully: {} in space {}",
+                edge_type_name,
+                space_id
+            );
+            Ok(())
+        } else {
+            Err(CoreError::NotFound(format!(
+                "Edge type '{}' does not exist or no changes made",
+                edge_type_name
             )))
         }
     }
@@ -350,6 +440,52 @@ impl<S: StorageClient> SchemaApi<S> {
         Err(CoreError::NotFound(format!(
             "Index '{}' does not exist",
             name
+        )))
+    }
+
+    /// Rebuild Index
+    ///
+    /// # Parameters
+    /// - `space_id`: Space ID
+    /// - `index_name`: index name
+    pub fn rebuild_index(&self, space_id: u64, index_name: &str) -> CoreResult<()> {
+        let space_name = self.get_space_name_by_id(space_id)?;
+
+        let mut storage = self.storage.lock();
+
+        // Try to rebuild tag index
+        if let Ok(Some(_)) = storage.get_tag_index(&space_name, index_name) {
+            let result = storage
+                .rebuild_tag_index(&space_name, index_name)
+                .map_err(|e| CoreError::StorageError(e.to_string()))?;
+            if result {
+                log::info!(
+                    "Rebuilt tag index successfully: {} in space {}",
+                    index_name,
+                    space_id
+                );
+                return Ok(());
+            }
+        }
+
+        // Try to rebuild edge index
+        if let Ok(Some(_)) = storage.get_edge_index(&space_name, index_name) {
+            let result = storage
+                .rebuild_edge_index(&space_name, index_name)
+                .map_err(|e| CoreError::StorageError(e.to_string()))?;
+            if result {
+                log::info!(
+                    "Rebuilt edge index successfully: {} in space {}",
+                    index_name,
+                    space_id
+                );
+                return Ok(());
+            }
+        }
+
+        Err(CoreError::NotFound(format!(
+            "Index '{}' does not exist",
+            index_name
         )))
     }
 

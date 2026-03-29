@@ -45,7 +45,7 @@ async fn create_test_web_state() -> (
     let config = Config::default();
 
     // Create graph service for test (no transaction manager, no background tasks)
-    let graph_service = GraphService::new_for_test(config.clone(), storage_arc.clone());
+    let graph_service = GraphService::new_for_test(config.clone(), storage_arc.clone()).await;
 
     // Create transaction manager
     let txn_manager = Arc::new(TransactionManager::new(

@@ -104,13 +104,39 @@ pub async fn drop_space<S: StorageClient + Clone + Send + Sync + 'static>(
 
 /// List all graph spaces
 pub async fn list_spaces<S: StorageClient + Clone + Send + Sync + 'static>(
-    State(_state): State<AppState<S>>,
+    State(state): State<AppState<S>>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
-    // Returns an empty list for now, since SchemaApi doesn't have a list_spaces method.
-    Ok(JsonResponse(serde_json::json!({
-        "spaces": [],
-        "note": "This feature is pending implementation",
-    })))
+    let result = task::spawn_blocking(move || {
+        let schema_api = state.server.get_schema_api();
+
+        match schema_api.list_spaces() {
+            Ok(spaces) => {
+                let space_list: Vec<serde_json::Value> = spaces
+                    .into_iter()
+                    .map(|space| {
+                        serde_json::json!({
+                            "id": space.space_id,
+                            "name": space.space_name,
+                            "vid_type": format!("{:?}", space.vid_type),
+                            "comment": space.comment,
+                        })
+                    })
+                    .collect();
+
+                Ok::<_, HttpError>(serde_json::json!({
+                    "spaces": space_list,
+                }))
+            }
+            Err(e) => Err(HttpError::InternalError(format!(
+                "Failed to list spaces: {}",
+                e
+            ))),
+        }
+    })
+    .await
+    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
+
+    Ok(JsonResponse(result?))
 }
 
 // ==================== Tag related ====================

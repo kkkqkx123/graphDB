@@ -27,29 +27,29 @@ pub struct GraphService<S: StorageClient + Clone + 'static> {
 
 impl<S: StorageClient + Clone + 'static> GraphService<S> {
     /// Create a new GraphService (without a transaction manager, for use in a production environment).
-    pub fn new(config: Config, storage: Arc<S>) -> Arc<Self> {
-        Self::create_service(config, storage, None, true)
+    pub async fn new(config: Config, storage: Arc<S>) -> Arc<Self> {
+        Self::create_service(config, storage, None, true).await
     }
 
     /// Create a new GraphService (without a transaction manager and without starting any background tasks, for testing purposes).
-    pub fn new_for_test(config: Config, storage: Arc<S>) -> Arc<Self> {
-        Self::create_service(config, storage, None, false)
+    pub async fn new_for_test(config: Config, storage: Arc<S>) -> Arc<Self> {
+        Self::create_service(config, storage, None, false).await
     }
 
     /// Use the transaction manager to create a GraphService.
-    pub fn new_with_transaction_manager(
+    pub async fn new_with_transaction_manager(
         config: Config,
         storage: Arc<S>,
         transaction_manager: Arc<TransactionManager>,
     ) -> Arc<Self> {
-        Self::create_service(config, storage, Some(transaction_manager), true)
+        Self::create_service(config, storage, Some(transaction_manager), true).await
     }
 
     /// Internal constructor: Extracts the common logic
     ///
     /// # Parameters
     /// `start_cleanup_task` – Whether to initiate the background task for session cleanup
-    fn create_service(
+    async fn create_service(
         config: Config,
         storage: Arc<S>,
         transaction_manager: Option<Arc<TransactionManager>>,
@@ -64,7 +64,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         // Decide whether to start the background task for session cleanup based on the parameters.
         if start_cleanup_task {
-            session_manager.start_cleanup_task();
+            session_manager.start_cleanup_task().await;
         }
 
         // Use core layer QueryApi instead of directly using QueryPipelineManager
@@ -444,7 +444,10 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         // Check whether it is a command to perform a ROLLBACK TO SAVEPOINT.
         if trimmed.starts_with("ROLLBACK TO ") {
-            let savepoint_name = stmt[trimmed.find("ROLLBACK TO ").unwrap_or(0) + 12..].trim();
+            let savepoint_name = trimmed
+                .strip_prefix("ROLLBACK TO ")
+                .map(|s| s.trim())
+                .ok_or("Invalid ROLLBACK TO syntax")?;
 
             let txn_id = session
                 .current_transaction()

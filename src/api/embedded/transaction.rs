@@ -444,30 +444,6 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     pub(crate) fn txn_handle(&self) -> TransactionHandle {
         self.txn_handle
     }
-
-    /// Commit transaction by reference (for internal use by C API)
-    pub(crate) fn commit_ref(&mut self) -> CoreResult<()> {
-        self.check_active()?;
-
-        self.session
-            .txn_manager()
-            .commit_transaction(self.txn_handle.0)
-            .map_err(|e| crate::api::core::CoreError::TransactionFailed(e.to_string()))?;
-        self.committed = true;
-        Ok(())
-    }
-
-    /// Rollback transaction by reference (for internal use by C API)
-    pub(crate) fn rollback_ref(&mut self) -> CoreResult<()> {
-        self.check_active()?;
-
-        self.session
-            .txn_manager()
-            .abort_transaction(self.txn_handle.0)
-            .map_err(|e| crate::api::core::CoreError::TransactionFailed(e.to_string()))?;
-        self.rolled_back = true;
-        Ok(())
-    }
 }
 
 impl<'sess, S: StorageClient + Clone + 'static> Drop for Transaction<'sess, S> {

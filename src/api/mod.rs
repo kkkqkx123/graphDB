@@ -73,18 +73,37 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
     let transaction_manager = Arc::new(TransactionManager::new(db, txn_config));
     println!("Transaction manager initialized");
 
-    let _graph_service = GraphService::<DefaultStorage>::new_with_transaction_manager(
-        config.clone(),
-        storage,
-        transaction_manager,
-    );
-    println!("Graph service initialized with transaction management");
+    // Create Tokio runtime for async initialization
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(async {
+        let graph_service = GraphService::<DefaultStorage>::new_with_transaction_manager(
+            config.clone(),
+            storage.clone(),
+            transaction_manager.clone(),
+        )
+        .await;
+        println!("Graph service initialized with transaction management");
 
-    println!(
-        "Starting HTTP server on {}:{}",
-        config.host(),
-        config.port()
-    );
+        // Create HTTP server
+        let http_server = Arc::new(HttpServer::new(
+            graph_service,
+            Arc::new(parking_lot::Mutex::new((*storage).clone())),
+            transaction_manager,
+            &config,
+        ));
+        println!("HTTP server created");
+
+        println!(
+            "Starting HTTP server on {}:{}",
+            config.host(),
+            config.port()
+        );
+
+        // Start HTTP server
+        if let Err(e) = start_http_server(http_server, &config).await {
+            eprintln!("HTTP server error: {}", e);
+        }
+    });
 
     shutdown_signal();
 
@@ -99,7 +118,7 @@ pub async fn execute_query(query_str: &str) -> DBResult<()> {
     let config = crate::config::Config::default();
     let storage = Arc::new(DefaultStorage::new()?);
 
-    let graph_service = GraphService::<DefaultStorage>::new(config, storage);
+    let graph_service = GraphService::<DefaultStorage>::new_for_test(config, storage).await;
 
     let session = match graph_service
         .get_session_manager()

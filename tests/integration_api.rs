@@ -714,7 +714,7 @@ async fn test_graph_service_creation() {
 
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
 
-    let graph_service = GraphService::<DefaultStorage>::new(config, storage);
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
 
     // Verify that the service was created successfully
     assert!(
@@ -734,7 +734,7 @@ async fn test_graph_service_authentication() {
     config.database.storage_path = db_path.to_string_lossy().to_string();
 
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
-    let graph_service = GraphService::<DefaultStorage>::new(config, storage);
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
 
     // Successful certification
     let session = graph_service.authenticate("root", "root");
@@ -754,7 +754,7 @@ async fn test_graph_service_signout() {
     config.database.storage_path = db_path.to_string_lossy().to_string();
 
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
-    let graph_service = GraphService::<DefaultStorage>::new(config, storage);
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
 
     // Authentication and session acquisition
     let session = graph_service
@@ -788,7 +788,7 @@ async fn test_graph_service_execute_query() {
     config.database.storage_path = db_path.to_string_lossy().to_string();
 
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
-    let graph_service = GraphService::<DefaultStorage>::new(config, storage);
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
 
     // Authentication and session acquisition
     let session = graph_service
@@ -811,7 +811,7 @@ async fn test_graph_service_invalid_session() {
     config.database.storage_path = db_path.to_string_lossy().to_string();
 
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
-    let graph_service = GraphService::<DefaultStorage>::new(config, storage);
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
 
     // Execute a query with an invalid session ID
     let result = graph_service.execute(999999, "SHOW SPACES");
@@ -827,7 +827,7 @@ async fn test_graph_service_list_sessions() {
     config.database.storage_path = db_path.to_string_lossy().to_string();
 
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
-    let graph_service = GraphService::<DefaultStorage>::new(config, storage);
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
 
     // Initially no session
     let sessions = graph_service.list_sessions();
@@ -855,7 +855,7 @@ async fn test_graph_service_kill_session() {
     config.database.storage_path = db_path.to_string_lossy().to_string();
 
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
-    let graph_service = GraphService::<DefaultStorage>::new(config, storage);
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
 
     // Create two sessions
     let admin_session = graph_service
@@ -886,7 +886,7 @@ async fn test_full_session_lifecycle() {
     config.database.storage_path = db_path.to_string_lossy().to_string();
 
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
-    let graph_service = GraphService::<DefaultStorage>::new(config, storage);
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
 
     // 1. Authentication creation session
     let session = graph_service

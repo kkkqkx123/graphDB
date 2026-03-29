@@ -118,7 +118,7 @@ impl GraphSessionManager {
     /// Start the background session cleanup task.
     ///
     /// If the task is already running, this method will not start it again.
-    pub fn start_cleanup_task(self: &Arc<Self>) {
+    pub async fn start_cleanup_task(self: &Arc<Self>) {
         if self.cleanup_task_running.swap(true, Ordering::SeqCst) {
             info!("Session cleanup task is already running");
             return;

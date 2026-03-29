@@ -57,6 +57,30 @@ pub struct BatchResult {
     pub errors: Vec<BatchError>,
 }
 
+impl BatchResult {
+    /// Get total number of inserted items
+    pub fn total_inserted(&self) -> usize {
+        self.vertices_inserted + self.edges_inserted
+    }
+
+    /// Check if there are any errors
+    pub fn has_errors(&self) -> bool {
+        !self.errors.is_empty()
+    }
+
+    /// Get error count
+    pub fn error_count(&self) -> usize {
+        self.errors.len()
+    }
+
+    /// Merge another batch result into this one
+    pub fn merge(&mut self, other: BatchResult) {
+        self.vertices_inserted += other.vertices_inserted;
+        self.edges_inserted += other.edges_inserted;
+        self.errors.extend(other.errors);
+    }
+}
+
 impl From<CoreBatchResult> for BatchResult {
     fn from(result: CoreBatchResult) -> Self {
         Self {
@@ -76,6 +100,17 @@ pub struct BatchError {
     pub item_type: BatchItemType,
     /// error message
     pub error: String,
+}
+
+impl BatchError {
+    /// Create a new batch error
+    pub fn new(index: usize, item_type: BatchItemType, error: impl Into<String>) -> Self {
+        Self {
+            index,
+            item_type,
+            error: error.into(),
+        }
+    }
 }
 
 impl From<CoreBatchError> for BatchError {
@@ -234,12 +269,21 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
         // Note: This is an approximation since core API doesn't expose this detail
         self.core_operation.len()
     }
+
+    /// Get the batch size
+    pub fn batch_size(&self) -> usize {
+        self.core_operation.batch_size()
+    }
+
+    /// Check if there is buffered data
+    pub fn has_buffered_data(&self) -> bool {
+        !self.core_operation.is_empty()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Value;
 
     #[test]
     fn test_batch_result_from_core() {

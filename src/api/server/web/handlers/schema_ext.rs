@@ -374,14 +374,51 @@ async fn get_tag<S: StorageClient + Clone + Send + Sync + 'static>(
 /// Update tag
 async fn update_tag<S: StorageClient + Clone + Send + Sync + 'static>(
     Extension(_session_id): Extension<i64>,
-    State(_web_state): State<WebState<S>>,
-    Path((_space_name, tag_name)): Path<(String, String)>,
-    Json(_request): Json<UpdateTagRequest>,
+    State(web_state): State<WebState<S>>,
+    Path((space_name, tag_name)): Path<(String, String)>,
+    Json(request): Json<UpdateTagRequest>,
 ) -> WebResult<Json<ApiResponse<serde_json::Value>>> {
-    // TODO: Implement alter_tag in core API
-    Ok(Json(ApiResponse::success(serde_json::json!({
-        "message": format!("Update tag '{}' - to be implemented with alter_tag API", tag_name),
-    }))))
+    let result = task::spawn_blocking(move || {
+        let schema_api = web_state.core_state.server.get_schema_api();
+
+        let space_id = schema_api
+            .use_space(&space_name)
+            .map_err(|e| WebError::NotFound(format!("Space '{}' not found: {}", space_name, e)))?;
+
+        // Convert web PropertyDef to core PropertyDef
+        let additions = if let Some(props) = request.add_properties {
+            let mut core_props = Vec::new();
+            for p in props {
+                let data_type = parse_data_type(&p.data_type)
+                    .ok_or_else(|| WebError::BadRequest(format!("Invalid data type: {}", p.data_type)))?;
+                core_props.push(crate::api::core::PropertyDef {
+                    name: p.name,
+                    data_type,
+                    nullable: p.nullable,
+                    default_value: None,
+                    comment: None,
+                });
+            }
+            core_props
+        } else {
+            Vec::new()
+        };
+
+        let deletions = request.drop_properties.unwrap_or_default();
+
+        schema_api
+            .alter_tag(space_id, &tag_name, additions, deletions)
+            .map_err(|e| WebError::Internal(format!("Failed to update tag: {}", e)))?;
+
+        Ok::<_, WebError>(serde_json::json!({
+            "updated": true,
+            "name": tag_name,
+        }))
+    })
+    .await
+    .map_err(|e| WebError::Internal(format!("Task execution failed: {}", e)))?;
+
+    Ok(Json(ApiResponse::success(result?)))
 }
 
 /// Delete tag
@@ -564,14 +601,51 @@ async fn get_edge_type<S: StorageClient + Clone + Send + Sync + 'static>(
 /// Update edge type
 async fn update_edge_type<S: StorageClient + Clone + Send + Sync + 'static>(
     Extension(_session_id): Extension<i64>,
-    State(_web_state): State<WebState<S>>,
-    Path((_space_name, edge_name)): Path<(String, String)>,
-    Json(_request): Json<UpdateEdgeTypeRequest>,
+    State(web_state): State<WebState<S>>,
+    Path((space_name, edge_name)): Path<(String, String)>,
+    Json(request): Json<UpdateEdgeTypeRequest>,
 ) -> WebResult<Json<ApiResponse<serde_json::Value>>> {
-    // TODO: Implement alter_edge_type in core API
-    Ok(Json(ApiResponse::success(serde_json::json!({
-        "message": format!("Update edge type '{}' - to be implemented with alter_edge_type API", edge_name),
-    }))))
+    let result = task::spawn_blocking(move || {
+        let schema_api = web_state.core_state.server.get_schema_api();
+
+        let space_id = schema_api
+            .use_space(&space_name)
+            .map_err(|e| WebError::NotFound(format!("Space '{}' not found: {}", space_name, e)))?;
+
+        // Convert web PropertyDef to core PropertyDef
+        let additions = if let Some(props) = request.add_properties {
+            let mut core_props = Vec::new();
+            for p in props {
+                let data_type = parse_data_type(&p.data_type)
+                    .ok_or_else(|| WebError::BadRequest(format!("Invalid data type: {}", p.data_type)))?;
+                core_props.push(crate::api::core::PropertyDef {
+                    name: p.name,
+                    data_type,
+                    nullable: p.nullable,
+                    default_value: None,
+                    comment: None,
+                });
+            }
+            core_props
+        } else {
+            Vec::new()
+        };
+
+        let deletions = request.drop_properties.unwrap_or_default();
+
+        schema_api
+            .alter_edge_type(space_id, &edge_name, additions, deletions)
+            .map_err(|e| WebError::Internal(format!("Failed to update edge type: {}", e)))?;
+
+        Ok::<_, WebError>(serde_json::json!({
+            "updated": true,
+            "name": edge_name,
+        }))
+    })
+    .await
+    .map_err(|e| WebError::Internal(format!("Task execution failed: {}", e)))?;
+
+    Ok(Json(ApiResponse::success(result?)))
 }
 
 /// Delete edge type
@@ -794,11 +868,27 @@ async fn delete_index<S: StorageClient + Clone + Send + Sync + 'static>(
 /// Rebuild index
 async fn rebuild_index<S: StorageClient + Clone + Send + Sync + 'static>(
     Extension(_session_id): Extension<i64>,
-    State(_web_state): State<WebState<S>>,
-    Path((_space_name, index_name)): Path<(String, String)>,
+    State(web_state): State<WebState<S>>,
+    Path((space_name, index_name)): Path<(String, String)>,
 ) -> WebResult<Json<ApiResponse<serde_json::Value>>> {
-    // TODO: Implement rebuild_index in core API
-    Ok(Json(ApiResponse::success(serde_json::json!({
-        "message": format!("Rebuild index '{}' - to be implemented", index_name),
-    }))))
+    let result = task::spawn_blocking(move || {
+        let schema_api = web_state.core_state.server.get_schema_api();
+
+        let space_id = schema_api
+            .use_space(&space_name)
+            .map_err(|e| WebError::NotFound(format!("Space '{}' not found: {}", space_name, e)))?;
+
+        schema_api
+            .rebuild_index(space_id, &index_name)
+            .map_err(|e| WebError::Internal(format!("Failed to rebuild index: {}", e)))?;
+
+        Ok::<_, WebError>(serde_json::json!({
+            "rebuilt": true,
+            "name": index_name,
+        }))
+    })
+    .await
+    .map_err(|e| WebError::Internal(format!("Task execution failed: {}", e)))?;
+
+    Ok(Json(ApiResponse::success(result?)))
 }

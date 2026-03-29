@@ -8,7 +8,7 @@ use crate::api::embedded::c_api::types::{graphdb_batch_t, graphdb_session_t, gra
 use crate::core::vertex_edge_path::Tag;
 use crate::core::{Edge, Vertex};
 use std::collections::HashMap;
-use std::ffi::{c_char, c_int, CStr, CString};
+use std::ffi::{c_char, c_int, CStr};
 
 // Batch action item type
 enum BatchItem {
@@ -33,8 +33,6 @@ pub struct GraphDbBatchHandle {
     edges_inserted: usize,
     /// Error messages
     errors: Vec<String>,
-    /// Final error
-    pub(crate) last_error: Option<CString>,
 }
 
 impl GraphDbBatchHandle {
@@ -193,7 +191,6 @@ pub unsafe extern "C" fn graphdb_batch_inserter_create(
         vertices_inserted: 0,
         edges_inserted: 0,
         errors: Vec::new(),
-        last_error: None,
     });
 
     *batch = Box::into_raw(handle) as *mut graphdb_batch_t;
@@ -210,10 +207,12 @@ pub unsafe extern "C" fn graphdb_batch_inserter_create(
 /// - `batch` can be null (in which case this function does nothing)
 /// - After calling this function, the handle is invalid and must not be used again
 #[no_mangle]
-pub unsafe extern "C" fn graphdb_batch_free(batch: *mut graphdb_batch_t) {
-    if !batch.is_null() {
-        let _ = Box::from_raw(batch as *mut GraphDbBatchHandle);
+pub unsafe extern "C" fn graphdb_batch_free(batch: *mut graphdb_batch_t) -> c_int {
+    if batch.is_null() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
+    let _ = Box::from_raw(batch as *mut GraphDbBatchHandle);
+    graphdb_error_code_t::GRAPHDB_OK as c_int
 }
 
 /// Add a vertex to the batch
@@ -454,6 +453,48 @@ pub unsafe extern "C" fn graphdb_batch_buffered_count(
     *count = handle.buffer.len() as c_int;
 
     graphdb_error_code_t::GRAPHDB_OK as c_int
+}
+
+/// Get the number of buffered vertices
+///
+/// # Safety
+/// - `batch` must be a valid batch handle or null
+///
+/// # Returns
+/// - Number of buffered vertices, or -1 if batch is null
+#[no_mangle]
+pub unsafe extern "C" fn graphdb_batch_buffered_vertices(batch: *mut graphdb_batch_t) -> c_int {
+    if batch.is_null() {
+        return -1;
+    }
+
+    let handle = &*(batch as *mut GraphDbBatchHandle);
+    handle
+        .buffer
+        .iter()
+        .filter(|item| matches!(item, BatchItem::Vertex(_)))
+        .count() as c_int
+}
+
+/// Get the number of buffered edges
+///
+/// # Safety
+/// - `batch` must be a valid batch handle or null
+///
+/// # Returns
+/// - Number of buffered edges, or -1 if batch is null
+#[no_mangle]
+pub unsafe extern "C" fn graphdb_batch_buffered_edges(batch: *mut graphdb_batch_t) -> c_int {
+    if batch.is_null() {
+        return -1;
+    }
+
+    let handle = &*(batch as *mut GraphDbBatchHandle);
+    handle
+        .buffer
+        .iter()
+        .filter(|item| matches!(item, BatchItem::Edge(_)))
+        .count() as c_int
 }
 
 #[cfg(test)]

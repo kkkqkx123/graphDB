@@ -16,6 +16,10 @@ pub struct BatchConfig {
     pub auto_flush: bool,
     /// Whether to continue on error
     pub continue_on_error: bool,
+    /// Whether to auto-commit (alias for auto_flush for API compatibility)
+    pub auto_commit: bool,
+    /// Maximum number of errors before stopping (None means unlimited)
+    pub max_errors: Option<usize>,
 }
 
 impl Default for BatchConfig {
@@ -23,7 +27,9 @@ impl Default for BatchConfig {
         Self {
             batch_size: 1000,
             auto_flush: true,
-            continue_on_error: false,
+            continue_on_error: true,
+            auto_commit: true,
+            max_errors: Some(100),
         }
     }
 }
@@ -49,6 +55,19 @@ impl BatchConfig {
     /// Set continue on error
     pub fn with_continue_on_error(mut self, continue_on_error: bool) -> Self {
         self.continue_on_error = continue_on_error;
+        self
+    }
+
+    /// Set auto-commit (alias for auto_flush)
+    pub fn with_auto_commit(mut self, auto_commit: bool) -> Self {
+        self.auto_commit = auto_commit;
+        self.auto_flush = auto_commit;
+        self
+    }
+
+    /// Set max errors
+    pub fn with_max_errors(mut self, max_errors: Option<usize>) -> Self {
+        self.max_errors = max_errors;
         self
     }
 }
@@ -142,6 +161,11 @@ impl BatchOperation {
     /// Check if batch should be flushed
     pub fn should_flush(&self) -> bool {
         self.config.auto_flush && self.items.len() >= self.config.batch_size
+    }
+
+    /// Get batch size
+    pub fn batch_size(&self) -> usize {
+        self.config.batch_size
     }
 
     /// Clear all items

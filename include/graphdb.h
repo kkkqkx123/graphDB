@@ -346,7 +346,7 @@ int graphdb_batch_inserter_create(struct graphdb_session_t *session,
  * - `batch` can be null (in which case this function does nothing)
  * - After calling this function, the handle is invalid and must not be used again
  */
-void graphdb_batch_free(struct graphdb_batch_t *batch);
+int graphdb_batch_free(struct graphdb_batch_t *batch);
 
 /**
  * Add a vertex to the batch
@@ -457,6 +457,28 @@ int graphdb_batch_edges_inserted(struct graphdb_batch_t *batch, int *count);
  * - `count` must be a valid pointer
  */
 int graphdb_batch_buffered_count(struct graphdb_batch_t *batch, int *count);
+
+/**
+ * Get the number of buffered vertices
+ *
+ * # Safety
+ * - `batch` must be a valid batch handle or null
+ *
+ * # Returns
+ * - Number of buffered vertices, or -1 if batch is null
+ */
+int graphdb_batch_buffered_vertices(struct graphdb_batch_t *batch);
+
+/**
+ * Get the number of buffered edges
+ *
+ * # Safety
+ * - `batch` must be a valid batch handle or null
+ *
+ * # Returns
+ * - Number of buffered edges, or -1 if batch is null
+ */
+int graphdb_batch_buffered_edges(struct graphdb_batch_t *batch);
 
 /**
  * Open database
