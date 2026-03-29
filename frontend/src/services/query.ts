@@ -3,6 +3,7 @@ import type { QueryResult, QueryError } from '@/types/query';
 
 export interface ExecuteQueryParams {
   query: string;
+  space?: string;
   sessionId?: string;
 }
 

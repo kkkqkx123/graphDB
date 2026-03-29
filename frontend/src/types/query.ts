@@ -43,6 +43,7 @@ export interface QueryResult {
   columns: string[];
   rows: unknown[][];
   rowCount: number;
+  data: unknown[];
 }
 
 export interface QueryError {

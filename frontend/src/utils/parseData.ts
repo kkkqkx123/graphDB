@@ -14,6 +14,7 @@ export const parseQueryResult = (response: unknown): QueryResult | null => {
       columns: data.columns as string[],
       rows: data.rows as unknown[][],
       rowCount: (data.rowCount as number) || (data.rows as unknown[]).length,
+      data: [],
     };
   }
 
@@ -22,7 +23,12 @@ export const parseQueryResult = (response: unknown): QueryResult | null => {
     return parseQueryResult(data.data);
   }
 
-  return null;
+  return {
+    columns: [],
+    rows: [],
+    rowCount: 0,
+    data: [],
+  };
 };
 
 // Parse error from API response

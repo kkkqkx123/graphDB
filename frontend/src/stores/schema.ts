@@ -106,7 +106,9 @@ export const useSchemaStore = create<SchemaState>()(
       fetchSpaces: async () => {
         set({ isLoadingSpaces: true, spacesError: null });
         try {
-          const spaces = await schemaService.spaces.list();
+          const response = await schemaService.spaces.list();
+          // Handle case where API returns { data: [...] } or directly [...]
+          const spaces = Array.isArray(response) ? response : (response as { data?: Space[] }).data || [];
           set({ spaces, isLoadingSpaces: false });
 
           const { currentSpace } = get();
@@ -191,7 +193,8 @@ export const useSchemaStore = create<SchemaState>()(
       fetchTags: async (spaceName: string) => {
         set({ isLoadingTags: true, tagsError: null });
         try {
-          const tags = await schemaService.tags.list(spaceName);
+          const response = await schemaService.tags.list(spaceName);
+          const tags = Array.isArray(response) ? response : (response as { data?: Tag[] }).data || [];
           set({ tags, isLoadingTags: false });
         } catch (err: unknown) {
           const errorMessage = err instanceof Error ? err.message : 'Failed to fetch tags';
@@ -254,7 +257,8 @@ export const useSchemaStore = create<SchemaState>()(
       fetchEdgeTypes: async (spaceName: string) => {
         set({ isLoadingEdgeTypes: true, edgeTypesError: null });
         try {
-          const edgeTypes = await schemaService.edgeTypes.list(spaceName);
+          const response = await schemaService.edgeTypes.list(spaceName);
+          const edgeTypes = Array.isArray(response) ? response : (response as { data?: EdgeType[] }).data || [];
           set({ edgeTypes, isLoadingEdgeTypes: false });
         } catch (err: unknown) {
           const errorMessage = err instanceof Error ? err.message : 'Failed to fetch edge types';
@@ -317,7 +321,8 @@ export const useSchemaStore = create<SchemaState>()(
       fetchIndexes: async (spaceName: string) => {
         set({ isLoadingIndexes: true, indexesError: null });
         try {
-          const indexes = await schemaService.indexes.list(spaceName);
+          const response = await schemaService.indexes.list(spaceName);
+          const indexes = Array.isArray(response) ? response : (response as { data?: IndexInfo[] }).data || [];
           set({ indexes, isLoadingIndexes: false });
         } catch (err: unknown) {
           const errorMessage = err instanceof Error ? err.message : 'Failed to fetch indexes';

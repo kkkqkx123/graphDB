@@ -22,3 +22,54 @@ export interface Neighbor {
   direction: 'OUT' | 'IN';
   rank: number;
 }
+
+// Graph visualization types
+export interface GraphNode {
+  id: string;
+  tag: string;
+  properties: Record<string, unknown>;
+}
+
+export interface GraphEdge {
+  id: string;
+  type: string;
+  source: string;
+  target: string;
+  rank: number;
+  properties: Record<string, unknown>;
+}
+
+export interface GraphData {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+export type LayoutType = 'force' | 'circle' | 'grid' | 'hierarchical';
+
+export interface GraphStyleConfig {
+  nodes: Record<string, {
+    color: string;
+    size: 'small' | 'medium' | 'large';
+    labelProperty: string;
+  }>;
+  edges: Record<string, {
+    color: string;
+    width: 'thin' | 'medium' | 'thick';
+    labelProperty: string;
+  }>;
+}
+
+export interface NodeDetail {
+  id: string;
+  tag: string;
+  properties: Record<string, unknown>;
+}
+
+export interface EdgeDetailInfo {
+  id: string;
+  type: string;
+  source: string;
+  target: string;
+  rank: number;
+  properties: Record<string, unknown>;
+}

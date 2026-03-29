@@ -33,7 +33,7 @@ interface ConsoleState {
   currentResult: QueryResult | null;
   executionTime: number;
   error: QueryError | null;
-  activeView: 'table' | 'json';
+  activeView: 'table' | 'json' | 'graph';
 
   // History state
   history: QueryHistoryItem[];
@@ -47,7 +47,7 @@ interface ConsoleState {
   executeQuery: () => Promise<void>;
   executeQueryByText: (query: string) => Promise<void>;
   clearResult: () => void;
-  setActiveView: (view: 'table' | 'json') => void;
+  setActiveView: (view: 'table' | 'json' | 'graph') => void;
 
   // History actions
   addToHistory: (item: Omit<QueryHistoryItem, 'id' | 'timestamp'>) => void;
@@ -219,7 +219,7 @@ export const useConsoleStore = create<ConsoleState>()(
       },
 
       // Set active view
-      setActiveView: (view: 'table' | 'json') => {
+      setActiveView: (view: 'table' | 'json' | 'graph') => {
         set({ activeView: view });
       },
 

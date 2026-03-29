@@ -16,10 +16,12 @@ import {
   DownloadOutlined,
   FileTextOutlined,
   FileExcelOutlined,
+  ShareAltOutlined,
 } from '@ant-design/icons';
 import type { QueryResult, QueryError } from '@/types/query';
 import ResultTable from '../ResultTable';
 import ResultJson from '../ResultJson';
+import GraphView from '../GraphView';
 import { exportToCSV, exportToJSON } from '@/utils/export';
 import { formatExecutionTime, formatRowCount } from '@/utils/parseData';
 import styles from './index.module.less';
@@ -30,8 +32,8 @@ interface OutputBoxProps {
   result: QueryResult | null;
   error: QueryError | null;
   executionTime: number;
-  activeView: 'table' | 'json';
-  onViewChange: (view: 'table' | 'json') => void;
+  activeView: 'table' | 'json' | 'graph';
+  onViewChange: (view: 'table' | 'json' | 'graph') => void;
 }
 
 const OutputBox: React.FC<OutputBoxProps> = ({
@@ -111,8 +113,10 @@ const OutputBox: React.FC<OutputBoxProps> = ({
       <div className={styles.resultContainer}>
         {activeView === 'table' ? (
           <ResultTable result={result} />
-        ) : (
+        ) : activeView === 'json' ? (
           <ResultJson result={result} />
+        ) : (
+          <GraphView data={result.data} />
         )}
       </div>
     );
@@ -137,7 +141,7 @@ const OutputBox: React.FC<OutputBoxProps> = ({
           <Space>
             <Segmented
               value={activeView}
-              onChange={(value) => onViewChange(value as 'table' | 'json')}
+              onChange={(value) => onViewChange(value as 'table' | 'json' | 'graph')}
               options={[
                 {
                   value: 'table',
@@ -148,6 +152,11 @@ const OutputBox: React.FC<OutputBoxProps> = ({
                   value: 'json',
                   icon: <CodeOutlined />,
                   label: 'JSON',
+                },
+                {
+                  value: 'graph',
+                  icon: <ShareAltOutlined />,
+                  label: 'Graph',
                 },
               ]}
             />
