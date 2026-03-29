@@ -538,8 +538,6 @@ mod tests {
             enabled: true,
             memory_cache_size: 10,
             slow_query_threshold_ms: 1000,
-            slow_query_log_dir: "test_logs".to_string(),
-            slow_query_log_retention_days: 1,
         };
         let stats = StatsManager::with_config(config);
 
@@ -562,8 +560,6 @@ mod tests {
             enabled: true,
             memory_cache_size: 10,
             slow_query_threshold_ms: 1000,
-            slow_query_log_dir: "test_logs".to_string(),
-            slow_query_log_retention_days: 1,
         };
         let stats = StatsManager::with_config(config);
 
@@ -586,8 +582,6 @@ mod tests {
             enabled: true,
             memory_cache_size: 3,
             slow_query_threshold_ms: 1000,
-            slow_query_log_dir: "test_logs".to_string(),
-            slow_query_log_retention_days: 1,
         });
 
         for i in 0..5 {
@@ -608,8 +602,6 @@ mod tests {
             enabled: false,
             memory_cache_size: 10,
             slow_query_threshold_ms: 1000,
-            slow_query_log_dir: "test_logs".to_string(),
-            slow_query_log_retention_days: 1,
         });
 
         let profile = QueryProfile::new(123, "MATCH (n) RETURN n".to_string());

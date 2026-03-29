@@ -183,10 +183,6 @@ pub struct MonitoringConfig {
     pub memory_cache_size: usize,
     /// Slow query threshold (milliseconds)
     pub slow_query_threshold_ms: u64,
-    /// Slow query log directory
-    pub slow_query_log_dir: String,
-    /// Slow query log retention days
-    pub slow_query_log_retention_days: u32,
 }
 
 impl Default for MonitoringConfig {
@@ -195,8 +191,6 @@ impl Default for MonitoringConfig {
             enabled: true,
             memory_cache_size: 1000,
             slow_query_threshold_ms: 1000,
-            slow_query_log_dir: "logs/slow_queries".to_string(),
-            slow_query_log_retention_days: 7,
         }
     }
 }

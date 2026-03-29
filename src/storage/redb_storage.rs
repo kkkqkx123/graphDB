@@ -64,6 +64,19 @@ impl RedbStorage {
                 }
             }
         } else {
+            // Create parent directory if it doesn't exist
+            if let Some(parent) = path.parent() {
+                if !parent.exists() {
+                    std::fs::create_dir_all(parent).map_err(|e| {
+                        StorageError::DbError(format!(
+                            "Failed to create storage directory '{}': {}",
+                            parent.display(),
+                            e
+                        ))
+                    })?;
+                }
+            }
+
             Arc::new(Database::create(&path).map_err(|e| {
                 StorageError::DbError(format!("Failed to create the database: {}", e))
             })?)

@@ -60,8 +60,6 @@ pub async fn get<S: StorageClient + Clone + Send + Sync + 'static>(
             "enabled": config.monitoring.enabled,
             "memory_cache_size": config.monitoring.memory_cache_size,
             "slow_query_threshold_ms": config.monitoring.slow_query_threshold_ms,
-            "slow_query_log_dir": config.monitoring.slow_query_log_dir,
-            "slow_query_log_retention_days": config.monitoring.slow_query_log_retention_days,
         },
     })))
 }
@@ -219,10 +217,6 @@ fn get_config_value(config: &crate::config::Config, section: &str, key: &str) ->
             "slow_query_threshold_ms" => {
                 serde_json::json!(config.monitoring.slow_query_threshold_ms)
             }
-            "slow_query_log_dir" => serde_json::json!(config.monitoring.slow_query_log_dir),
-            "slow_query_log_retention_days" => {
-                serde_json::json!(config.monitoring.slow_query_log_retention_days)
-            }
             _ => serde_json::Value::Null,
         },
         _ => serde_json::Value::Null,
@@ -238,7 +232,7 @@ fn is_restart_required(section: &str, key: &str) -> bool {
         "auth" => matches!(key, "default_username"),
         "bootstrap" => true,
         "optimizer" => false,
-        "monitoring" => matches!(key, "slow_query_log_dir"),
+        "monitoring" => false,
         _ => false,
     }
 }

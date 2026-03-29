@@ -1,7 +1,7 @@
 [database]
 host = "127.0.0.1"
 port = 9758
-storage_path = "data/graphdb"
+storage_path = "D:/项目/database/graphDB/data/graphdb"
 max_connections = 10
 
 [transaction]
@@ -18,7 +18,7 @@ cleanup_interval = 10
 
 [log]
 level = "info"
-dir = "logs"
+dir = "D:/项目/database/graphDB/logs"
 file = "graphdb"
 max_file_size = 104857600  # 100MB
 max_files = 5
@@ -60,3 +60,8 @@ min_iteration_rounds = 1
 disabled_rules = []
 # 显式启用的规则列表（优先级高于默认）
 enabled_rules = []
+
+[monitoring]
+enabled = true
+memory_cache_size = 1000
+slow_query_threshold_ms = 1000
