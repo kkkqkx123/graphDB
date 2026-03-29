@@ -105,7 +105,7 @@ export const formatQuery = (query: string): string => {
 
   const keywords = ['MATCH', 'WHERE', 'RETURN', 'CREATE', 'DELETE', 'SET', 'REMOVE', 'WITH', 'UNWIND', 'CALL', 'YIELD', 'ORDER BY', 'LIMIT', 'SKIP', 'UNION'];
 
-  for (let line of lines) {
+  for (const line of lines) {
     const trimmedLine = line.trim();
     
     if (!trimmedLine) {
@@ -228,10 +228,11 @@ export const extractQueryInfo = (query: string): { type: string; entities: strin
   }
 
   // Extract relationship types
-  const relMatches = query.match(/:\s*\[?\s*:?\s*([A-Z][A-Z_0-9]*)\s*\]?/g);
+  const relMatches = query.match(/:\s*\[?\s*:?\s*([A-Z][A-Z_0-9]*)\s*\]?/gu);
   if (relMatches) {
     relMatches.forEach(match => {
-      const rel = match.replace(/[:\[\]\s]/g, '');
+      // eslint-disable-next-line no-useless-escape
+      const rel = match.replace(/[:\[\]\s]/gu, '');
       if (rel && !entities.includes(rel)) {
         entities.push(rel);
       }

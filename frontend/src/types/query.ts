@@ -37,3 +37,19 @@ export interface UpdateFavoriteParams {
   query?: string;
   description?: string;
 }
+
+// Query execution types
+export interface QueryResult {
+  columns: string[];
+  rows: unknown[][];
+  rowCount: number;
+}
+
+export interface QueryError {
+  code: string;
+  message: string;
+  position?: {
+    line: number;
+    column: number;
+  };
+}

@@ -6,16 +6,23 @@ import {
   DatabaseOutlined,
   ApartmentOutlined,
   TableOutlined,
+  ClusterOutlined,
+  TagsOutlined,
+  ShareAltOutlined,
+  FileSearchOutlined,
 } from '@ant-design/icons';
+import type { MenuProps } from 'antd';
 import styles from './index.module.less';
 
 const { Sider } = Layout;
+
+type MenuItem = Required<MenuProps>['items'][number];
 
 const Sidebar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const menuItems = [
+  const menuItems: MenuItem[] = [
     {
       key: '/console',
       icon: <ConsoleSqlOutlined />,
@@ -26,7 +33,32 @@ const Sidebar: React.FC = () => {
       key: '/schema',
       icon: <DatabaseOutlined />,
       label: 'Schema',
-      onClick: () => navigate('/schema'),
+      children: [
+        {
+          key: '/schema/spaces',
+          icon: <ClusterOutlined />,
+          label: 'Spaces',
+          onClick: () => navigate('/schema/spaces'),
+        },
+        {
+          key: '/schema/tags',
+          icon: <TagsOutlined />,
+          label: 'Tags',
+          onClick: () => navigate('/schema/tags'),
+        },
+        {
+          key: '/schema/edges',
+          icon: <ShareAltOutlined />,
+          label: 'Edges',
+          onClick: () => navigate('/schema/edges'),
+        },
+        {
+          key: '/schema/indexes',
+          icon: <FileSearchOutlined />,
+          label: 'Indexes',
+          onClick: () => navigate('/schema/indexes'),
+        },
+      ],
     },
     {
       key: '/graph',
@@ -45,10 +77,20 @@ const Sidebar: React.FC = () => {
   const getSelectedKey = () => {
     const path = location.pathname;
     if (path.startsWith('/console')) return '/console';
+    if (path.startsWith('/schema/spaces')) return '/schema/spaces';
+    if (path.startsWith('/schema/tags')) return '/schema/tags';
+    if (path.startsWith('/schema/edges')) return '/schema/edges';
+    if (path.startsWith('/schema/indexes')) return '/schema/indexes';
     if (path.startsWith('/schema')) return '/schema';
     if (path.startsWith('/graph')) return '/graph';
     if (path.startsWith('/data-browser')) return '/data-browser';
     return path;
+  };
+
+  const getOpenKeys = () => {
+    const path = location.pathname;
+    if (path.startsWith('/schema')) return ['schema'];
+    return [];
   };
 
   return (
@@ -56,6 +98,7 @@ const Sidebar: React.FC = () => {
       <Menu
         mode="inline"
         selectedKeys={[getSelectedKey()]}
+        defaultOpenKeys={getOpenKeys()}
         items={menuItems}
         className={styles.menu}
       />

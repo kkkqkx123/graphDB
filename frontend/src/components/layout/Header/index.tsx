@@ -1,8 +1,9 @@
 import React from 'react';
-import { Layout, Button, Space, Badge, Dropdown } from 'antd';
+import { Layout, Button, Space, Badge, Dropdown, Divider } from 'antd';
 import { DatabaseOutlined, LogoutOutlined, UserOutlined, DisconnectOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useConnectionStore } from '@/stores/connection';
+import SpaceSelector from '@/components/business/SpaceSelector';
 import styles from './index.module.less';
 
 const { Header: AntHeader } = Layout;
@@ -34,6 +35,12 @@ const Header: React.FC = () => {
       <div className={styles.headerLeft}>
         <DatabaseOutlined className={styles.logo} />
         <span className={styles.title}>GraphDB Studio</span>
+        {isConnected && (
+          <>
+            <Divider type="vertical" className={styles.divider} />
+            <SpaceSelector />
+          </>
+        )}
       </div>
 
       <div className={styles.headerRight}>
