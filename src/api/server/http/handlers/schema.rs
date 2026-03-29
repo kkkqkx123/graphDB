@@ -36,16 +36,12 @@ pub async fn create_space<S: StorageClient + Clone + Send + Sync + 'static>(
             replica_factor: 1,
         };
 
-        match schema_api.create_space(&request.name, config) {
-            Ok(()) => Ok::<_, HttpError>(serde_json::json!({
-                "message": "Space created successfully",
-                "space_name": request.name,
-            })),
-            Err(e) => Err(HttpError::InternalError(format!(
-                "Failed to create space: {}",
-                e
-            ))),
-        }
+        schema_api.create_space(&request.name, config)?;
+
+        Ok::<_, HttpError>(serde_json::json!({
+            "message": "Space created successfully",
+            "space_name": request.name,
+        }))
     })
     .await
     .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
@@ -61,15 +57,14 @@ pub async fn get_space<S: StorageClient + Clone + Send + Sync + 'static>(
     let result = task::spawn_blocking(move || {
         let schema_api = state.server.get_schema_api();
 
-        match schema_api.use_space(&name) {
-            Ok(space_id) => Ok::<_, HttpError>(serde_json::json!({
-                "space": {
-                    "name": name,
-                    "id": space_id,
-                }
-            })),
-            Err(_e) => Err(HttpError::NotFound(format!("Space '{}' not found", name))),
-        }
+        let space_id = schema_api.use_space(&name)?;
+
+        Ok::<_, HttpError>(serde_json::json!({
+            "space": {
+                "name": name,
+                "id": space_id,
+            }
+        }))
     })
     .await
     .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
@@ -85,16 +80,12 @@ pub async fn drop_space<S: StorageClient + Clone + Send + Sync + 'static>(
     let result = task::spawn_blocking(move || {
         let schema_api = state.server.get_schema_api();
 
-        match schema_api.drop_space(&name) {
-            Ok(()) => Ok::<_, HttpError>(serde_json::json!({
-                "message": "Space deleted successfully",
-                "space_name": name,
-            })),
-            Err(e) => Err(HttpError::InternalError(format!(
-                "Failed to delete space: {}",
-                e
-            ))),
-        }
+        schema_api.drop_space(&name)?;
+
+        Ok::<_, HttpError>(serde_json::json!({
+            "message": "Space deleted successfully",
+            "space_name": name,
+        }))
     })
     .await
     .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
@@ -109,29 +100,23 @@ pub async fn list_spaces<S: StorageClient + Clone + Send + Sync + 'static>(
     let result = task::spawn_blocking(move || {
         let schema_api = state.server.get_schema_api();
 
-        match schema_api.list_spaces() {
-            Ok(spaces) => {
-                let space_list: Vec<serde_json::Value> = spaces
-                    .into_iter()
-                    .map(|space| {
-                        serde_json::json!({
-                            "id": space.space_id,
-                            "name": space.space_name,
-                            "vid_type": format!("{:?}", space.vid_type),
-                            "comment": space.comment,
-                        })
-                    })
-                    .collect();
+        let spaces = schema_api.list_spaces()?;
 
-                Ok::<_, HttpError>(serde_json::json!({
-                    "spaces": space_list,
-                }))
-            }
-            Err(e) => Err(HttpError::InternalError(format!(
-                "Failed to list spaces: {}",
-                e
-            ))),
-        }
+        let space_list: Vec<serde_json::Value> = spaces
+            .into_iter()
+            .map(|space| {
+                serde_json::json!({
+                    "id": space.space_id,
+                    "name": space.space_name,
+                    "vid_type": format!("{:?}", space.vid_type),
+                    "comment": space.comment,
+                })
+            })
+            .collect();
+
+        Ok::<_, HttpError>(serde_json::json!({
+            "spaces": space_list,
+        }))
     })
     .await
     .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
@@ -165,15 +150,7 @@ pub async fn create_tag<S: StorageClient + Clone + Send + Sync + 'static>(
         let schema_api = state.server.get_schema_api();
 
         // Get Space ID
-        let space_id = match schema_api.use_space(&space_name) {
-            Ok(id) => id,
-            Err(_) => {
-                return Err(HttpError::NotFound(format!(
-                    "The graph space '{}' does not exist.",
-                    space_name
-                )))
-            }
-        };
+        let space_id = schema_api.use_space(&space_name)?;
 
         // Conversion Attribute Definition
         let properties: Vec<PropertyDef> = request
@@ -188,17 +165,13 @@ pub async fn create_tag<S: StorageClient + Clone + Send + Sync + 'static>(
             })
             .collect();
 
-        match schema_api.create_tag(space_id, &request.name, properties) {
-            Ok(()) => Ok::<_, HttpError>(serde_json::json!({
-                "message": "Tag created successfully",
-                "tag_name": request.name,
-                "space_name": space_name,
-            })),
-            Err(e) => Err(HttpError::InternalError(format!(
-                "Failed to create tag: {}",
-                e
-            ))),
-        }
+        schema_api.create_tag(space_id, &request.name, properties)?;
+
+        Ok::<_, HttpError>(serde_json::json!({
+            "message": "Tag created successfully",
+            "tag_name": request.name,
+            "space_name": space_name,
+        }))
     })
     .await
     .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
@@ -237,15 +210,7 @@ pub async fn create_edge_type<S: StorageClient + Clone + Send + Sync + 'static>(
         let schema_api = state.server.get_schema_api();
 
         // Get Space ID
-        let space_id = match schema_api.use_space(&space_name) {
-            Ok(id) => id,
-            Err(_) => {
-                return Err(HttpError::NotFound(format!(
-                    "The graph space '{}' does not exist.",
-                    space_name
-                )))
-            }
-        };
+        let space_id = schema_api.use_space(&space_name)?;
 
         // Conversion Attribute Definition
         let properties: Vec<PropertyDef> = request
@@ -260,17 +225,13 @@ pub async fn create_edge_type<S: StorageClient + Clone + Send + Sync + 'static>(
             })
             .collect();
 
-        match schema_api.create_edge_type(space_id, &request.name, properties) {
-            Ok(()) => Ok::<_, HttpError>(serde_json::json!({
-                "message": "Edge type created successfully",
-                "edge_type_name": request.name,
-                "space_name": space_name,
-            })),
-            Err(e) => Err(HttpError::InternalError(format!(
-                "Failed to create edge type: {}",
-                e
-            ))),
-        }
+        schema_api.create_edge_type(space_id, &request.name, properties)?;
+
+        Ok::<_, HttpError>(serde_json::json!({
+            "message": "Edge type created successfully",
+            "edge_type_name": request.name,
+            "space_name": space_name,
+        }))
     })
     .await
     .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;

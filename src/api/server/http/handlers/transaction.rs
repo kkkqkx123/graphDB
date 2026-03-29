@@ -5,6 +5,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use tokio::task;
 
+use crate::api::core::TransactionHandle;
 use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::storage::StorageClient;
 use crate::transaction::{DurabilityLevel, IsolationLevel, TransactionOptions};
@@ -36,7 +37,7 @@ pub async fn begin<S: StorageClient + Clone + Send + Sync + 'static>(
     Json(request): Json<BeginTransactionRequest>,
 ) -> Result<JsonResponse<TransactionResponse>, HttpError> {
     let result = task::spawn_blocking(move || {
-        let txn_manager = state.server.get_txn_manager();
+        let txn_api = state.server.get_txn_api();
 
         let options = TransactionOptions {
             read_only: request.read_only,
@@ -54,9 +55,9 @@ pub async fn begin<S: StorageClient + Clone + Send + Sync + 'static>(
                 .map(std::time::Duration::from_secs),
         };
 
-        match txn_manager.begin_transaction(options) {
-            Ok(txn_id) => Ok::<_, HttpError>(TransactionResponse {
-                transaction_id: txn_id,
+        match txn_api.begin(options) {
+            Ok(handle) => Ok::<_, HttpError>(TransactionResponse {
+                transaction_id: handle.0,
                 status: "Active".to_string(),
             }),
             Err(e) => Err(HttpError::InternalError(format!(
@@ -83,9 +84,10 @@ pub async fn commit<S: StorageClient + Clone + Send + Sync + 'static>(
     Json(_request): Json<TransactionActionRequest>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let result = task::spawn_blocking(move || {
-        let txn_manager = state.server.get_txn_manager();
+        let txn_api = state.server.get_txn_api();
+        let handle = TransactionHandle(txn_id);
 
-        match txn_manager.commit_transaction(txn_id) {
+        match txn_api.commit(handle) {
             Ok(()) => Ok::<_, HttpError>(serde_json::json!({
                 "message": "Transaction committed successfully",
                 "transaction_id": txn_id,
@@ -109,9 +111,10 @@ pub async fn rollback<S: StorageClient + Clone + Send + Sync + 'static>(
     Json(_request): Json<TransactionActionRequest>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let result = task::spawn_blocking(move || {
-        let txn_manager = state.server.get_txn_manager();
+        let txn_api = state.server.get_txn_api();
+        let handle = TransactionHandle(txn_id);
 
-        match txn_manager.abort_transaction(txn_id) {
+        match txn_api.rollback(handle) {
             Ok(()) => Ok::<_, HttpError>(serde_json::json!({
                 "message": "Transaction rolled back successfully",
                 "transaction_id": txn_id,

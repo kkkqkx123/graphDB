@@ -2,7 +2,7 @@
 //!
 //! Provides an HTTP-based interface to GraphDB services
 
-use crate::api::core::{QueryApi, SchemaApi};
+use crate::api::core::{QueryApi, SchemaApi, TransactionApi};
 use crate::api::server::auth::PasswordAuthenticator;
 use crate::api::server::batch::BatchManager;
 use crate::api::server::graph_service::GraphService;
@@ -22,6 +22,7 @@ pub struct HttpServer<S: StorageClient + Clone + 'static> {
     graph_service: Arc<GraphService<S>>,
     query_api: QueryApi<S>,
     txn_manager: Arc<TransactionManager>,
+    txn_api: TransactionApi,
     schema_api: SchemaApi<S>,
     auth_service: PasswordAuthenticator,
     batch_manager: Arc<BatchManager<S>>,
@@ -41,7 +42,8 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
         Self {
             graph_service: graph_service.clone(),
             query_api: QueryApi::new(storage.clone()),
-            txn_manager,
+            txn_manager: txn_manager.clone(),
+            txn_api: TransactionApi::new(txn_manager),
             schema_api: SchemaApi::new(storage.clone()),
             auth_service: PasswordAuthenticator::new_default(config.auth.clone()),
             batch_manager: Arc::new(BatchManager::new(storage.clone())),
@@ -69,6 +71,11 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
     /// Getting the Transaction Manager
     pub fn get_txn_manager(&self) -> Arc<TransactionManager> {
         self.txn_manager.clone()
+    }
+
+    /// Getting the Transaction API (core layer)
+    pub fn get_txn_api(&self) -> &TransactionApi {
+        &self.txn_api
     }
 
     /// Getting the Schema API
