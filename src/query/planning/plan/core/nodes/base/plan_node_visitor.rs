@@ -11,7 +11,7 @@ use crate::query::planning::plan::core::nodes::management::index_nodes::{
 };
 use crate::query::planning::plan::core::nodes::management::space_nodes::{
     AlterSpaceNode, ClearSpaceNode, CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode,
-    SpaceManageInfo, SwitchSpaceNode,
+    SwitchSpaceNode,
 };
 use crate::query::planning::plan::core::nodes::management::stats_nodes::ShowStatsNode;
 use crate::query::planning::plan::core::nodes::management::tag_nodes::{

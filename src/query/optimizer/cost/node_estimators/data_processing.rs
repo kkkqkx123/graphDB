@@ -273,7 +273,7 @@ mod tests {
         let config = CostModelConfig::default();
         let estimator = DataProcessingEstimator::new(&calculator, &selectivity_estimator, config);
 
-        let node = PlanNodeEnum::ScanVertices(crate::query::planning::plan::core::nodes::access::graph_scan_node::ScanVerticesNode::new(1));
+        let node = PlanNodeEnum::ScanVertices(crate::query::planning::plan::core::nodes::access::graph_scan_node::ScanVerticesNode::new(1, "test_space"));
         let child_estimates = vec![];
         let result = estimator.estimate(&node, &child_estimates);
 

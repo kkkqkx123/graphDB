@@ -264,8 +264,6 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ProfileExecutor<S> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_profile_executor_creation() {
         // This is a placeholder test

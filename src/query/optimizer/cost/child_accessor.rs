@@ -194,14 +194,14 @@ mod tests {
 
     #[test]
     fn test_scan_vertices_child_count() {
-        let scan = ScanVerticesNode::new(1);
+        let scan = ScanVerticesNode::new(1, "test_space");
         let node = PlanNodeEnum::ScanVertices(scan);
         assert_eq!(node.child_count(), 0);
     }
 
     #[test]
     fn test_scan_vertices_get_child() {
-        let scan = ScanVerticesNode::new(1);
+        let scan = ScanVerticesNode::new(1, "test_space");
         let mut node = PlanNodeEnum::ScanVertices(scan);
         assert!(node.get_child_mut(0).is_none());
     }

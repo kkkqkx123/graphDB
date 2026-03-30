@@ -321,7 +321,7 @@ impl super::SchemaManager for RedbSchemaManager {
     fn create_tag(&self, space_name: &str, tag: &TagInfo) -> Result<bool, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space \"{}\" does not exist", space_name)))?;
 
         // Check if a tag with the same name already exists (before write transaction)
         let existing_tags = self.list_tags(space_name)?;
@@ -395,7 +395,7 @@ impl super::SchemaManager for RedbSchemaManager {
     fn drop_tag(&self, space_name: &str, tag_name: &str) -> Result<bool, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space \"{}\" does not exist", space_name)))?;
 
         let write_txn = self
             .db
@@ -464,7 +464,7 @@ impl super::SchemaManager for RedbSchemaManager {
     fn get_tag(&self, space_name: &str, tag_name: &str) -> Result<Option<TagInfo>, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space \"{}\" does not exist", space_name)))?;
 
         let read_txn = self
             .db
@@ -497,7 +497,7 @@ impl super::SchemaManager for RedbSchemaManager {
     fn list_tags(&self, space_name: &str) -> Result<Vec<TagInfo>, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space \"{}\" does not exist", space_name)))?;
 
         let read_txn = self
             .db
@@ -530,7 +530,7 @@ impl super::SchemaManager for RedbSchemaManager {
     fn update_tag(&self, space_name: &str, tag: &TagInfo) -> Result<bool, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space \"{}\" does not exist", space_name)))?;
 
         let write_txn = self
             .db
@@ -606,7 +606,7 @@ impl super::SchemaManager for RedbSchemaManager {
     ) -> Result<bool, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space \"{}\" does not exist", space_name)))?;
 
         let write_txn = self
             .db
@@ -679,7 +679,7 @@ impl super::SchemaManager for RedbSchemaManager {
     fn drop_edge_type(&self, space_name: &str, edge_type_name: &str) -> Result<bool, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space \"{}\" does not exist", space_name)))?;
 
         let write_txn = self
             .db
@@ -753,7 +753,7 @@ impl super::SchemaManager for RedbSchemaManager {
     ) -> Result<Option<EdgeTypeInfo>, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space \"{}\" does not exist", space_name)))?;
 
         let read_txn = self
             .db
@@ -786,7 +786,7 @@ impl super::SchemaManager for RedbSchemaManager {
     fn list_edge_types(&self, space_name: &str) -> Result<Vec<EdgeTypeInfo>, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space \"{}\" does not exist", space_name)))?;
 
         let read_txn = self
             .db
@@ -823,7 +823,7 @@ impl super::SchemaManager for RedbSchemaManager {
     ) -> Result<bool, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space \"{}\" does not exist", space_name)))?;
 
         let write_txn = self
             .db
@@ -896,7 +896,7 @@ impl super::SchemaManager for RedbSchemaManager {
     fn get_tag_schema(&self, space_name: &str, tag: &str) -> Result<Schema, StorageError> {
         let tag_info = self
             .get_tag(space_name, tag)?
-            .ok_or_else(|| StorageError::DbError(format!("Tag "{}" does not exist", tag)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Tag \"{}\" does not exist", tag)))?;
 
         Ok(tag_info_to_schema(tag, &tag_info))
     }
@@ -904,7 +904,7 @@ impl super::SchemaManager for RedbSchemaManager {
     fn get_edge_type_schema(&self, space_name: &str, edge: &str) -> Result<Schema, StorageError> {
         let edge_type_info = self
             .get_edge_type(space_name, edge)?
-            .ok_or_else(|| StorageError::DbError(format!("Edge type "{}" does not exist", edge)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Edge type \"{}\" does not exist", edge)))?;
 
         Ok(edge_type_info_to_schema(edge, &edge_type_info))
     }

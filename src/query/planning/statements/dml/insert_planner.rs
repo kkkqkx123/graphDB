@@ -9,7 +9,7 @@ use crate::query::parser::ast::{InsertStmt, InsertTarget, Stmt, VertexRow};
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
     nodes::{
-        ArgumentNode, EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, ProjectNode,
+        ArgumentNode, EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode,
         TagInsertSpec, VertexInsertInfo,
     },
 };
@@ -141,7 +141,7 @@ impl Planner for InsertPlanner {
         let arg_node = ArgumentNode::new(next_node_id(), "insert_args");
 
         // Create the corresponding insertion nodes based on the type of the INSERT target.
-        let (insert_node, inserted_count) = match &insert_stmt.target {
+        let (insert_node, _inserted_count) = match &insert_stmt.target {
             InsertTarget::Vertices { tags, values } => {
                 let count = values.len();
                 // Supports the insertion of multiple tags.

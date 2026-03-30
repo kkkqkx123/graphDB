@@ -207,7 +207,7 @@ mod tests {
         let calculator = create_test_calculator_with_stats();
         let estimator = ScanEstimator::new(&calculator);
 
-        let mut node = ScanVerticesNode::new(1);
+        let mut node = ScanVerticesNode::new(1, "test_space");
         node.set_tag("Person");
         let plan_node = PlanNodeEnum::ScanVertices(node);
 
@@ -376,7 +376,7 @@ mod tests {
         let calculator = create_test_calculator();
         let estimator = ScanEstimator::new(&calculator);
 
-        let node = ScanVerticesNode::new(1);
+        let node = ScanVerticesNode::new(1, "test_space");
         let plan_node = PlanNodeEnum::ScanVertices(node);
 
         let child_estimates = vec![];

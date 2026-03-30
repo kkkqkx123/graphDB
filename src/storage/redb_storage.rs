@@ -685,7 +685,7 @@ impl StorageClient for RedbStorage {
             .state
             .index_metadata_manager
             .get_edge_index(space_id, index)?
-            .ok_or_else(|| StorageError::DbError(format!("Index "{}" does not exist", index)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Index \"{}\" does not exist", index)))?;
 
         // Delete the old index data.
         self.index_data_manager

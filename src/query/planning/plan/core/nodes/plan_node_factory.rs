@@ -370,7 +370,7 @@ mod tests {
 
     #[test]
     fn test_create_get_vertices_node() {
-        let get_vertices_node = PlanNodeFactory::create_get_vertices(1, "1,2,3")
+        let get_vertices_node = PlanNodeFactory::create_get_vertices(1, "test_space", "1,2,3")
             .expect("GetVertices node should be created successfully");
 
         assert_eq!(get_vertices_node.type_name(), "GetVertices");
