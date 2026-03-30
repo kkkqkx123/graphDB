@@ -100,7 +100,7 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
                 .get_base()
                 .context
                 .get_result(var)
-                .ok_or_else(|| QueryError::ExecutionError(format!("找不到输入变量: {}", var)))?;
+                .ok_or_else(|| QueryError::ExecutionError(format!("Input variable not found: {}", var)))?;
 
             let dataset = match result {
                 ExecutionResult::Values(values) => {
@@ -108,14 +108,14 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
                         dataset.clone()
                     } else {
                         return Err(QueryError::ExecutionError(format!(
-                            "输入变量 {} 不是有效的数据集",
+                            "The input variable {} is not a valid data set",
                             var
                         )));
                     }
                 }
                 _ => {
                     return Err(QueryError::ExecutionError(format!(
-                        "输入变量 {} 不是有效的数据集",
+                        "The input variable {} is not a valid dataset.",
                         var
                     )))
                 }
@@ -188,7 +188,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                 .get_result(left_var)
                 .ok_or_else(|| {
                     DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
-                        "找不到左输入变量: {}",
+                        "Left input variable not found: {}",
                         left_var
                     )))
                 })?;
@@ -200,7 +200,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                 .get_result(right_var)
                 .ok_or_else(|| {
                     DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
-                        "找不到右输入变量: {}",
+                        "Right input variable not found: {}",
                         right_var
                     )))
                 })?;

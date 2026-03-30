@@ -3,12 +3,12 @@
 //! This module defines all the basic types related to actuators in a centralized manner, eliminating duplicate definitions and ensuring type consistency.
 //!
 //! Module structure:
-//! - executor_stats.rs    - 执行器统计信息
-//! - execution_result.rs  - 执行结果类型
-//! - execution_context.rs - 执行上下文
-//! - executor_base.rs     - 基础执行器实现
-//! - result_processor.rs  - 结果处理器
-//! - config.rs            - 执行器配置结构体
+//! - executor_stats.rs    - Executor statistics
+//! - execution_result.rs  - Execution result type
+//! - execution_context.rs - Execution context
+//! - executor_base.rs     - Basic executor implementation
+//! - result_processor.rs  - Result processor
+//! - config.rs            - Executor configuration structure
 
 pub mod config;
 pub mod execution_context;

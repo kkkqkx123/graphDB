@@ -107,14 +107,14 @@ pub fn get_neighbors<S: StorageClient>(
 ///
 /// By default, duplicate self-loop edges are removed to ensure that self-loop edges of the same type and ranking are only returned once.
 ///
-/// # 参数
-/// - `storage`: 存储客户端
-/// - `node_id`: 当前节点ID
-/// - `edge_direction`: 边方向
-/// - `edge_types`: 边类型过滤
-/// - `allow_loop`: 是否允许自环边（默认false，即去重自环边）
+/// # Parameters
+/// - `storage`: storage client
+/// - `node_id`: current node ID
+/// - `edge_direction`: edge direction
+/// - `edge_types`: edge type filtering
+/// - `allow_loop`: whether to allow self-loop edges (default false, i.e. de-emphasize self-loop edges)
 ///
-/// # 返回
+/// # Back
 /// List of tuples representing neighbor nodes and edges
 pub fn get_neighbors_with_edges<S: StorageClient>(
     storage: &Arc<Mutex<S>>,

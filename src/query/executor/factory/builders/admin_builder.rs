@@ -526,7 +526,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         // CreateUserNode 使用 username() 和 password() 方法
         // The `UserInfo::new` method requires two parameters: `username` and `password`.
         let user_info = UserInfo::new(node.username().to_string(), node.password().to_string())
-            .map_err(|e| QueryError::ExecutionError(format!("创建用户信息失败: {}", e)))?;
+            .map_err(|e| QueryError::ExecutionError(format!("Failed to create user information: {}", e)))?;
         let executor = CreateUserExecutor::new(
             node.id(),
             storage,

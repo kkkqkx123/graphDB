@@ -133,7 +133,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                             .map_err(|e| {
                                 crate::core::error::DBError::Query(
                                     crate::core::error::QueryError::ExecutionError(format!(
-                                        "条件求值失败: {}",
+                                        "Condition evaluation failed: {}",
                                         e
                                     )),
                                 )
@@ -158,7 +158,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                             .map_err(|e| {
                                 crate::core::error::DBError::Storage(
                                     crate::core::error::StorageError::StorageError(format!(
-                                        "获取关联边失败: {}",
+                                        "Failed to retrieve associated edges: {}",
                                         e
                                     )),
                                 )
@@ -174,7 +174,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                                 .map_err(|e| {
                                     crate::core::error::DBError::Storage(
                                         crate::core::error::StorageError::StorageError(format!(
-                                            "删除关联边失败: {}",
+                                            "Failed to delete the associated edge: {}",
                                             e
                                         )),
                                     )
@@ -211,7 +211,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                             .map_err(|e| {
                                 crate::core::error::DBError::Query(
                                     crate::core::error::QueryError::ExecutionError(format!(
-                                        "条件求值失败: {}",
+                                        "Condition evaluation failed: {}",
                                         e
                                     )),
                                 )

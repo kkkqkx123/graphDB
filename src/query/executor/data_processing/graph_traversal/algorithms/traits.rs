@@ -43,14 +43,14 @@ pub trait ShortestPathAlgorithm {
 pub trait PathFindingAlgorithm {
     /// Find all paths.
     ///
-    /// # 参数
-    /// - `start_ids`: 起始顶点ID列表
-    /// - `end_ids`: 目标顶点ID列表
+    /// #Parameters
+    /// - `start_ids`: List of starting vertex IDs
+    /// - `end_ids`: List of target vertex IDs
     /// - `edge_types`: Filter by edge type
     /// - `max_depth`: The maximum depth of the search.
-    /// - `limit`: 返回路径数量限制
+    /// - `limit`: Limit on the number of return paths
     ///
-    /// # 返回
+    /// #Return
     /// - List of all found paths
     fn find_all_paths(
         &mut self,
@@ -61,7 +61,7 @@ pub trait PathFindingAlgorithm {
         limit: usize,
     ) -> Result<Vec<Path>, QueryError>;
 
-    /// 获取算法统计信息
+    /// Get algorithm statistics
     fn stats(&self) -> &AlgorithmStats;
 }
 
@@ -71,7 +71,7 @@ pub trait TraversalAlgorithm {
     ///
     /// # 参数
     /// - `start_ids`: 起始顶点ID列表
-    /// - `edge_types`: 边类型过滤
+    /// - `edge_types`: Filter edge types
     /// - `max_depth`: The maximum depth of the traversal.
     /// - `limit`: Returns the limit on the number of vertices.
     ///

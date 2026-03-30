@@ -71,12 +71,12 @@ impl<S: StorageClient> SetExecutor<S> {
             Some(_result) => {
                 // Results of other types need to be converted into a DataSet.
                 Err(QueryError::ExecutionError(format!(
-                    "左输入变量 {} 不是有效的数据集",
+                    "Left input variable {} is not a valid data set",
                     self.left_input_var
                 )))
             }
             None => Err(QueryError::ExecutionError(format!(
-                "左输入变量 {} 不存在",
+                "Left input variable {} does not exist",
                 self.left_input_var
             ))),
         }
@@ -101,12 +101,12 @@ impl<S: StorageClient> SetExecutor<S> {
             Some(_result) => {
                 // Results of other types need to be converted into a DataSet.
                 Err(QueryError::ExecutionError(format!(
-                    "右输入变量 {} 不是有效的数据集",
+                    "Right input variable {} is not a valid data set",
                     self.right_input_var
                 )))
             }
             None => Err(QueryError::ExecutionError(format!(
-                "右输入变量 {} 不存在",
+                "Right input variable {} does not exist",
                 self.right_input_var
             ))),
         }
@@ -124,7 +124,7 @@ impl<S: StorageClient> SetExecutor<S> {
             let left_cols = left.col_names.join(",");
             let right_cols = right.col_names.join(",");
             return Err(QueryError::ExecutionError(format!(
-                "数据集列名不匹配: <{}> vs <{}>",
+                "Dataset column name mismatch: <{}> vs <{}>",
                 left_cols, right_cols
             )));
         }

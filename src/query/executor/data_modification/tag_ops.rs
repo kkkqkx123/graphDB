@@ -122,7 +122,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteTagExecutor<S> {
                         continue;
                     }
                     Err(e) => {
-                        eprintln!("获取顶点 {:?} 失败: {:?}", vertex_id, e);
+                        eprintln!("Get vertex {:?} Failed: {:?}", vertex_id, e);
                         continue;
                     }
                 }
@@ -136,7 +136,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteTagExecutor<S> {
                 }
                 Err(e) => {
                     // Logging errors but continuing to process other vertices
-                    eprintln!("删除顶点 {:?} 的标签失败: {:?}", vertex_id, e);
+                    eprintln!("Delete vertex {:?} failed to label: {:?}", vertex_id, e);
                 }
             }
         }

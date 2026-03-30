@@ -381,7 +381,7 @@ impl AggFunctionManager {
         let upper_name = name.to_uppercase();
         if self.functions.contains_key(&upper_name) {
             return Err(DBError::Query(QueryError::ExecutionError(format!(
-                "聚合函数 '{}' 已存在",
+                "The aggregate function '{}' already exists.",
                 name
             ))));
         }

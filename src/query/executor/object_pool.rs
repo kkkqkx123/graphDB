@@ -490,49 +490,49 @@ impl<S: StorageClient + 'static> ThreadSafeExecutorPool<S> {
         Self::new(ObjectPoolConfig::default())
     }
 
-    /// 从对象池获取执行器
+    /// Get the executor from the object pool.
     pub fn acquire(&self, executor_type: &str) -> Option<ExecutorEnum<S>> {
         let mut pool = self.inner.lock();
         pool.acquire(executor_type)
     }
 
-    /// 将执行器释放回对象池
+    /// Release the executor back to the object pool.
     pub fn release(&self, executor_type: &str, executor: ExecutorEnum<S>) {
         let mut pool = self.inner.lock();
         pool.release(executor_type, executor);
     }
 
-    /// 清空对象池
+    /// Clear the object pool.
     pub fn clear(&self) {
         let mut pool = self.inner.lock();
         pool.clear();
     }
 
-    /// 获取对象池统计信息
+    /// Obtain object pool statistics information
     pub fn stats(&self) -> PoolStats {
         let pool = self.inner.lock();
         pool.stats().clone()
     }
 
-    /// 获取对象池配置
+    /// Obtain object pool configuration
     pub fn config(&self) -> ObjectPoolConfig {
         let pool = self.inner.lock();
         pool.config().clone()
     }
 
-    /// 更新对象池配置
+    /// Update the object pool configuration.
     pub fn set_config(&self, config: ObjectPoolConfig) {
         let mut pool = self.inner.lock();
         pool.set_config(config);
     }
 
-    /// 获取指定类型的池大小
+    /// Get the pool size of the specified type
     pub fn pool_size(&self, executor_type: &str) -> usize {
         let pool = self.inner.lock();
         pool.pool_size(executor_type)
     }
 
-    /// 获取总池大小
+    /// Get the total pool size
     pub fn total_size(&self) -> usize {
         let pool = self.inner.lock();
         pool.total_size()

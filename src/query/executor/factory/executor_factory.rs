@@ -101,7 +101,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                     .unwrap_or(10);
                 if step_limit > 1000 {
                     return Err(QueryError::ExecutionError(format!(
-                        "Expand执行器的步数限制{}超过安全阈值1000",
+                        "The number of steps limit for the Expand executor {} exceeds the safety threshold of 1000.",
                         step_limit
                     )));
                 }

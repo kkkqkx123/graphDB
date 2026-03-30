@@ -872,11 +872,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GroupByExecutor<S
 ///
 /// Implementing the HAVING clause to filter the results after grouping
 pub struct HavingExecutor<S: StorageClient + Send + 'static> {
-    /// 基础处理器
+    /// Basic Processor
     base: BaseResultProcessor<S>,
     /// HAVING conditional expression
     condition: Expression,
-    /// 输入执行器
+    /// Input Actuator
     input_executor: Option<Box<ExecutorEnum<S>>>,
 }
 

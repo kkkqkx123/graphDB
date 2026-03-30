@@ -54,7 +54,7 @@ impl<S: StorageClient + 'static> SafetyValidator<S> {
     pub fn validate_expand_config(&self, step_limit: usize) -> Result<(), QueryError> {
         if step_limit > self.config.max_recursion_depth {
             return Err(QueryError::ExecutionError(format!(
-                "扩展步数限制 {} 超过最大递归深度 {}",
+                "Extension step limit {} exceeds maximum recursion depth {}",
                 step_limit, self.config.max_recursion_depth
             )));
         }
@@ -65,7 +65,7 @@ impl<S: StorageClient + 'static> SafetyValidator<S> {
     pub fn validate_shortest_path_config(&self, max_step: usize) -> Result<(), QueryError> {
         if max_step > self.config.max_recursion_depth {
             return Err(QueryError::ExecutionError(format!(
-                "最短路径最大步数 {} 超过最大递归深度 {}",
+                "Maximum number of steps in shortest path {} over maximum recursion depth {}",
                 max_step, self.config.max_recursion_depth
             )));
         }

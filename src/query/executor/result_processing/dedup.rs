@@ -40,7 +40,7 @@ pub struct DedupExecutor<S: StorageClient + Send + 'static> {
     base: BaseResultProcessor<S>,
     /// Input actuator
     input_executor: Option<Box<ExecutorEnum<S>>>,
-    /// 去重策略
+    /// de-duplication strategy
     strategy: DedupStrategy,
     /// Memory limit (in bytes)
     memory_limit: usize,

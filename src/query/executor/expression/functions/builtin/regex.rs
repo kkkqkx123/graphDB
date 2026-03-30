@@ -48,7 +48,7 @@ impl RegexFunction {
                     let regex = regex::Regex::new(pattern).map_err(|_| {
                         ExpressionError::new(
                             ExpressionErrorType::InvalidOperation,
-                            format!("无效的正则表达式: {}", pattern),
+                            format!("Invalid regular expression: {}", pattern),
                         )
                     })?;
                     Ok(Value::Bool(regex.is_match(s)))
@@ -61,7 +61,7 @@ impl RegexFunction {
                     let regex = regex::Regex::new(pattern).map_err(|_| {
                         ExpressionError::new(
                             ExpressionErrorType::InvalidOperation,
-                            format!("无效的正则表达式: {}", pattern),
+                            format!("Invalid regular expression: {}", pattern),
                         )
                     })?;
                     Ok(Value::String(
@@ -80,7 +80,7 @@ impl RegexFunction {
                     let regex = regex::Regex::new(pattern).map_err(|_| {
                         ExpressionError::new(
                             ExpressionErrorType::InvalidOperation,
-                            format!("无效的正则表达式: {}", pattern),
+                            format!("Invalid regular expression: {}", pattern),
                         )
                     })?;
                     if let Some(matched) = regex.find(s) {

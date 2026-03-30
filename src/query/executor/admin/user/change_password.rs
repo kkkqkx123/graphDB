@@ -113,7 +113,7 @@ mod tests {
     #[test]
     fn test_change_password_executor() {
         let storage = Arc::new(Mutex::new(
-            MockStorage::new().expect("创建MockStorage应该成功"),
+            MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor = ChangePasswordExecutor::new(
@@ -127,7 +127,7 @@ mod tests {
 
         let result = executor.execute();
         assert!(result.is_ok());
-        match result.expect("执行应该成功") {
+        match result.expect("Execution should succeed") {
             ExecutionResult::Success => {}
             _ => panic!("Expected Success result"),
         }

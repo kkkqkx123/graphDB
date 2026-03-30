@@ -306,7 +306,7 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
 
         let result = ExpressionEvaluator::evaluate(expression, &mut context).map_err(|e| {
             crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
-                format!("条件求值失败: {}", e),
+                format!("Conditional evaluation failed: {}", e),
             ))
         })?;
 

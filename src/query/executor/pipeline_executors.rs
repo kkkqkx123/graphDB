@@ -334,7 +334,7 @@ mod tests {
                 assert_eq!(values.len(), 1);
                 assert_eq!(values[0], Value::String("test_value".to_string()));
             }
-            _ => panic!("预期返回 Values 结果，但得到 {:?}", result),
+            _ => panic!("Expecting to return Values results, but getting {:?}", result),
         }
     }
 
@@ -359,7 +359,7 @@ mod tests {
                 assert_eq!(values.len(), 1);
                 assert_eq!(values[0], Value::Int(42));
             }
-            _ => panic!("预期返回 Values 结果，但得到 {:?}", result),
+            _ => panic!("Expecting to return Values results, but getting {:?}", result),
         }
     }
 

@@ -33,7 +33,7 @@ pub enum SampleMethod {
 pub struct SampleExecutor<S: StorageClient + Send + 'static> {
     /// Basic processor
     base: BaseResultProcessor<S>,
-    /// 采样方法
+    /// Sampling Method
     method: SampleMethod,
     /// Number of samples
     count: usize,

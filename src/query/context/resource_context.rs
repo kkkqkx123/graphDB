@@ -41,7 +41,7 @@ impl QueryResourceContext {
     /// Reset the resource context
     pub fn reset(&mut self) {
         self.id_gen.reset(0);
-        log::info!("查询资源上下文已重置");
+        log::info!("Query resource context has been reset");
     }
 }
 

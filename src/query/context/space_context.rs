@@ -61,7 +61,7 @@ impl QuerySpaceContext {
     pub fn reset(&mut self) {
         self.space_info = None;
         self.charset_info = None;
-        log::info!("查询空间上下文已重置");
+        log::info!("Query space context has been reset");
     }
 }
 

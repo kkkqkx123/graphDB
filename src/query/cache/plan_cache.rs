@@ -370,7 +370,7 @@ impl QueryPlanCache {
             if plan.query_template != query {
                 // A hash collision occurred; the event was logged, and None was returned.
                 log::warn!(
-                    "查询计划缓存哈希冲突 detected: hash={}, expected_query={}, cached_query={}",
+                    "Query plan cache hash collision detected: hash={}, expected_query={}, cached_query={}",
                     key.hash,
                     query,
                     plan.query_template
@@ -619,27 +619,27 @@ impl ParameterizedQueryHandler {
     pub fn new() -> Self {
         Self {
             placeholder_pattern: regex::Regex::new(r"\$(\d+|[a-zA-Z_][a-zA-Z0-9_]*)")
-                .expect("占位符正则表达式编译失败"),
+                .expect("Placeholder regex compilation failed"),
         }
     }
 
     /// Extract the parameter positions from the query.
     ///
-    /// # 参数
-    /// - `query`: 查询文本
+    /// # Parameters
+    /// - `query`: query text
     ///
-    /// # 返回
+    /// # Returns
     /// Parameter Location List
     pub fn extract_params(&self, query: &str) -> Vec<ParamPosition> {
         let mut positions = Vec::new();
 
         for (idx, cap) in self.placeholder_pattern.captures_iter(query).enumerate() {
-            let mat = cap.get(0).expect("正则表达式捕获组不应为空");
+            let mat = cap.get(0).expect("Regex capture group should not be empty");
             let param_str = &cap[1];
 
             // Determine if it is a positional or named parameter
             let (name, index) = if let Ok(num) = param_str.parse::<usize>() {
-                (None, num.saturating_sub(1)) // $1 对应索引 0
+                (None, num.saturating_sub(1)) // $1 corresponds to index 0
             } else {
                 (Some(param_str.to_string()), idx)
             };
@@ -657,18 +657,18 @@ impl ParameterizedQueryHandler {
 
     /// Binding parameters to a query template
     ///
-    /// # 参数
+    /// # Parameters
     /// - `template`: query template
     /// - `params`: parameter values
     ///
-    /// # 返回
+    /// # Returns
     /// Full query after binding
     pub fn bind_params(&self, template: &str, params: &[crate::core::Value]) -> DBResult<String> {
         let positions = self.extract_params(template);
 
         if positions.len() != params.len() {
             return Err(DBError::Validation(format!(
-                "参数数量不匹配: 期望 {}, 实际 {}",
+                "Parameter count mismatch: expected {}, actual {}",
                 positions.len(),
                 params.len()
             )));

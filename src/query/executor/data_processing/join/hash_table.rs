@@ -76,7 +76,7 @@ impl HashTableEntry {
 
 /// Hash table
 pub struct HashTable {
-    /// 哈希表
+    /// hash table
     table: HashMap<JoinKey, Vec<HashTableEntry>>,
 }
 
@@ -172,7 +172,7 @@ pub fn build_hash_table(
         for key_expression in key_exprs {
             match ExpressionEvaluator::evaluate(key_expression, &mut expr_context) {
                 Ok(value) => key_values.push(value),
-                Err(e) => return Err(format!("键表达式求值失败: {}", e)),
+                Err(e) => return Err(format!("Key expression failed: {}", e)),
             }
         }
 

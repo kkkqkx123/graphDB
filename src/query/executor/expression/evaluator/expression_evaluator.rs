@@ -247,7 +247,7 @@ impl ExpressionEvaluator {
                 "路径构建表达式需要运行时上下文",
             )),
             Expression::Parameter(name) => Err(ExpressionError::type_error(format!(
-                "查询参数 '{}' 需要运行时上下文提供值",
+                "The query parameter '{}' requires values provided by the runtime context.",
                 name
             ))),
         }
@@ -274,7 +274,7 @@ impl ExpressionEvaluator {
             DataType::Map => value.to_map(),
             _ => {
                 return Err(ExpressionError::type_error(format!(
-                    "不支持的类型转换: {:?}",
+                    "Unsupported type conversion: {:?}",
                     target_type
                 )))
             }
@@ -283,7 +283,7 @@ impl ExpressionEvaluator {
         // 检查转换结果是否为 Null(BadData)
         if let Value::Null(NullType::BadData) = result {
             Err(ExpressionError::type_error(format!(
-                "无法将 {:?} 转换为 {:?}",
+                "Unable to convert {:?} to {:?}.",
                 value, target_type
             )))
         } else {

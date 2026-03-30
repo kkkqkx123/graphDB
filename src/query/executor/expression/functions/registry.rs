@@ -86,7 +86,7 @@ impl FunctionRegistry {
 
         Err(ExpressionError::new(
             ExpressionErrorType::UndefinedFunction,
-            format!("未定义的函数: {}", name),
+            format!("Undefined function: {}", name),
         ))
     }
 

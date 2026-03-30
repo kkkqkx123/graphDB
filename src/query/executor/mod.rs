@@ -85,7 +85,7 @@ const PLAN_NODE_VARIANT_COUNT: usize = 68;
 
 /// The number of variants of ExecutorEnum
 /// When adding or removing variants of ExecutorEnum, this constant needs to be updated.
-/// 此常量仅用于编译期断言检查，故标记为允许未使用
+/// This constant is only used for compile-time assertion checking, so it is marked to allow unused
 #[allow(dead_code)]
 const EXECUTOR_VARIANT_COUNT: usize = 68;
 

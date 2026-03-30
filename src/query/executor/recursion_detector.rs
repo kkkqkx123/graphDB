@@ -29,7 +29,7 @@ impl RecursionDetector {
         if self.visited_stack.len() >= self.max_depth {
             return Err(DBError::Query(
                 crate::core::error::QueryError::ExecutionError(format!(
-                    "执行器调用深度超过最大限制 {}: 路径 {:?}",
+                    "Executor call depth exceeds the maximum limit: Depth {}, Path {:?}",
                     self.max_depth,
                     self.get_recursion_path()
                 )),
@@ -40,7 +40,7 @@ impl RecursionDetector {
         if self.visited_set.contains(&executor_id) {
             return Err(DBError::Query(
                 crate::core::error::QueryError::ExecutionError(format!(
-                    "检测到执行器循环引用: {} (ID: {}) 在路径 {:?}",
+                    "Detected an executor circular reference: {} (ID: {}) at path {:?}",
                     executor_name,
                     executor_id,
                     self.get_recursion_path()
@@ -170,7 +170,7 @@ pub struct ExecutorSafetyConfig {
     pub max_loop_iterations: usize,
     pub max_expand_depth: usize,
     pub enable_recursion_detection: bool,
-    /// 并行计算配置
+    /// Parallel Computing Configuration
     pub parallel_config: ParallelConfig,
 }
 
@@ -221,7 +221,7 @@ impl ExecutorSafetyValidator {
             if iterations > self.config.max_loop_iterations {
                 return Err(DBError::Query(
                     crate::core::error::QueryError::ExecutionError(format!(
-                        "循环最大迭代次数 {} 超过限制 {}",
+                        "The maximum number of loop iterations {} exceeds the limit of {}.",
                         iterations, self.config.max_loop_iterations
                     )),
                 ));
@@ -236,7 +236,7 @@ impl ExecutorSafetyValidator {
             if depth > self.config.max_expand_depth {
                 return Err(DBError::Query(
                     crate::core::error::QueryError::ExecutionError(format!(
-                        "扩展最大深度 {} 超过限制 {}",
+                        "The maximum depth extension {} exceeds the limit of {}.",
                         depth, self.config.max_expand_depth
                     )),
                 ));

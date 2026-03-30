@@ -89,7 +89,7 @@ pub struct SortExecutor<S: StorageClient + Send + 'static> {
     limit: Option<usize>,
     /// Input actuator
     input_executor: Option<Box<ExecutorEnum<S>>>,
-    /// 排序配置
+    /// Sort Configuration
     config: SortConfig,
     /// Parallel computing configuration
     parallel_config: ParallelConfig,
@@ -221,7 +221,7 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
         if estimated_memory > self.config.memory_limit {
             return Err(DBError::Query(
                 crate::core::error::QueryError::ExecutionError(format!(
-                    "排序操作内存使用超出限制: {} > {}",
+                    "Sort operation memory usage limit exceeded: {} > {}",
                     estimated_memory, self.config.memory_limit
                 )),
             ));
@@ -261,7 +261,7 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
                 if data_set.rows.iter().any(|row| column_index >= row.len()) {
                     return Err(DBError::Query(
                         crate::core::error::QueryError::ExecutionError(format!(
-                            "列索引超出范围: {} (最大索引: {})",
+                            "Column index out of range: {} (Maximum index: {})",
                             column_index,
                             data_set.rows[0].len() - 1
                         )),
@@ -306,7 +306,7 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
                 if column_index >= a.len() || column_index >= b.len() {
                     return Err(DBError::Query(
                         crate::core::error::QueryError::ExecutionError(format!(
-                            "列索引超出范围: {} (最大索引: {})",
+                            "Column index out of range: {} (Maximum index: {})",
                             column_index,
                             a.len().min(b.len()) - 1
                         )),
@@ -318,7 +318,7 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
 
                 let cmp = a_val.partial_cmp(b_val).ok_or_else(|| {
                     DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
-                        "值比较失败，类型不匹配: {:?} 和 {:?}",
+                        "Value comparison failed with type mismatch: {:?} and {:?}",
                         a_val, b_val
                     )))
                 })?;
@@ -488,7 +488,7 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
                 } else {
                     return Err(DBError::Query(
                         crate::core::error::QueryError::ExecutionError(format!(
-                            "列索引{}超出范围，行长度:{}",
+                            "Column index {} out of range, row length:{}",
                             idx,
                             row.len()
                         )),
@@ -533,7 +533,7 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
     fn compare_values(&self, a: &Value, b: &Value, order: &SortOrder) -> DBResult<Ordering> {
         let comparison = a.partial_cmp(b).ok_or_else(|| {
             DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
-                "排序值比较失败，类型不匹配: {:?} 和 {:?}",
+                "Sorted value comparison failed with type mismatch: {:?} and {:?}",
                 a, b
             )))
         })?;
@@ -791,7 +791,7 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
                 } else {
                     return Err(DBError::Query(
                         crate::core::error::QueryError::ExecutionError(format!(
-                            "列索引超出范围: {} (行长度: {})",
+                            "Column index out of range: {} (Row length: {})",
                             column_index,
                             row.len()
                         )),

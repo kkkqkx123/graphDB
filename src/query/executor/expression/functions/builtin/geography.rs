@@ -121,7 +121,7 @@ fn execute_st_geogfromtext(args: &[Value]) -> Result<Value, ExpressionError> {
     match &args[0] {
         Value::String(wkt) => match Geography::from_wkt(wkt) {
             Ok(Geography::Point(geo)) => Ok(Value::Geography(geo)),
-            Err(e) => Err(ExpressionError::type_error(format!("解析WKT失败: {}", e))),
+            Err(e) => Err(ExpressionError::type_error(format!("Failed to parse WKT: {}", e))),
         },
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
         _ => Err(ExpressionError::type_error(

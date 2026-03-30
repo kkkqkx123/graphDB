@@ -24,7 +24,7 @@ impl PlanValidator {
                     .unwrap_or(10);
                 if step_limit > 1000 {
                     return Err(QueryError::ExecutionError(format!(
-                        "Expand执行器的步数限制{}超过安全阈值1000",
+                        "Expand actuator step limit {} exceeds safety threshold 1000",
                         step_limit
                     )));
                 }

@@ -68,7 +68,7 @@ impl CollectionOperationEvaluator {
             Value::Map(map) => {
                 if let Value::String(key) = index {
                     map.get(key).cloned().ok_or_else(|| {
-                        ExpressionError::runtime_error(format!("映射键不存在: {}", key))
+                        ExpressionError::runtime_error(format!("Mapping key does not exist: {}", key))
                     })
                 } else {
                     Err(ExpressionError::type_error("映射键必须是字符串"))
@@ -183,13 +183,13 @@ impl CollectionOperationEvaluator {
 
         match object {
             Value::Vertex(vertex) => vertex.properties.get(property).cloned().ok_or_else(|| {
-                ExpressionError::runtime_error(format!("顶点属性不存在: {}", property))
+                ExpressionError::runtime_error(format!("Vertex attribute not present: {}", property))
             }),
             Value::Edge(edge) => edge.properties().get(property).cloned().ok_or_else(|| {
-                ExpressionError::runtime_error(format!("边属性不存在: {}", property))
+                ExpressionError::runtime_error(format!("Edge attribute not present: {}", property))
             }),
             Value::Map(map) => map.get(property).cloned().ok_or_else(|| {
-                ExpressionError::runtime_error(format!("映射键不存在: {}", property))
+                ExpressionError::runtime_error(format!("Mapping key does not exist: {}", property))
             }),
             Value::List(list) => {
                 if let Ok(index) = property.parse::<isize>() {

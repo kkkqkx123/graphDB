@@ -41,8 +41,8 @@ impl RecursionDetector {
         // Check whether the maximum depth has been exceeded.
         if self.visit_stack.len() >= self.max_depth {
             return Err(DBError::Internal(format!(
-                "执行计划深度超过最大限制 {}: 当前节点 {}({})",
-                self.max_depth, node_name, node_id
+                "Execution plan depth exceeds the maximum limit: Current node {} ({})",
+                node_name, node_id
             )));
         }
 
@@ -54,7 +54,7 @@ impl RecursionDetector {
                 .map(|(id, name)| format!("{}({})", name, id))
                 .collect();
             return Err(DBError::Internal(format!(
-                "检测到执行计划循环引用: {} -> {}({})",
+                "Detected a circular reference in the execution plan: {} -> {}({})",
                 cycle_path.join(" -> "),
                 node_name,
                 node_id

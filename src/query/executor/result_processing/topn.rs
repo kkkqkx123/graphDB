@@ -82,7 +82,7 @@ pub struct TopNExecutor<S: StorageClient + Send + 'static> {
     sort_keys: Vec<crate::query::executor::result_processing::sort::SortKey>,
     /// Input actuator
     input_executor: Option<Box<ExecutorEnum<S>>>,
-    /// 排序列定义
+    /// Sorting column definition
     sort_columns: Vec<SortColumn>,
     /// Sorting direction
     sort_direction: OrderDirection,
@@ -636,7 +636,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     /// Perform a TopN operation on the list of opposite sides.
     ///
     /// Sort the edges using the sorting key; complex sorting based on attributes is also supported.
-    /// 参考nebula-graph的TopNExecutor实现，使用堆排序优化
+    /// Refer to the TopNExecutor implementation in nebula-graph, and optimize it using heap sorting.
     fn execute_topn_edges(
         &self,
         edges: Vec<crate::core::Edge>,

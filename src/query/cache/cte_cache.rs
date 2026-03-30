@@ -640,7 +640,7 @@ pub struct CteCacheDecision {
     pub suggested_priority: CachePriority,
 }
 
-/// CTE缓存决策器
+/// CTE cache decision maker
 #[derive(Debug)]
 pub struct CteCacheDecisionMaker {
     /// Cache Manager

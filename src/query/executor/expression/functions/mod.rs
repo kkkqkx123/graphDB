@@ -146,7 +146,7 @@ pub enum BuiltinFunction {
 }
 
 impl BuiltinFunction {
-    /// 获取函数名称
+    /// Get function name
     pub fn name(&self) -> &str {
         match self {
             BuiltinFunction::Math(f) => f.name(),
@@ -163,7 +163,7 @@ impl BuiltinFunction {
         }
     }
 
-    /// 获取参数数量
+    /// Get the number of parameters
     pub fn arity(&self) -> usize {
         match self {
             BuiltinFunction::Math(f) => f.arity(),
@@ -180,7 +180,7 @@ impl BuiltinFunction {
         }
     }
 
-    /// 检查是否接受可变参数
+    /// Check if variable parameters are accepted
     pub fn is_variadic(&self) -> bool {
         match self {
             BuiltinFunction::Math(f) => f.is_variadic(),
@@ -197,7 +197,7 @@ impl BuiltinFunction {
         }
     }
 
-    /// 获取函数描述
+    /// Get function description
     pub fn description(&self) -> &str {
         match self {
             BuiltinFunction::Math(f) => f.description(),
@@ -214,7 +214,7 @@ impl BuiltinFunction {
         }
     }
 
-    /// 执行函数
+    /// executable function
     pub fn execute(&self, args: &[Value]) -> Result<Value, ExpressionError> {
         match self {
             BuiltinFunction::Math(f) => f.execute(args),
@@ -234,7 +234,7 @@ impl BuiltinFunction {
         }
     }
 
-    /// 执行函数（带缓存）
+    /// Execution function (with cache)
     ///
     /// The caching function has been removed; this method directly calls `execute`.
     pub fn execute_with_cache(
@@ -380,7 +380,7 @@ pub enum CustomFunctionImpl {
         step_callback: usize,
         /// Aggregated final callback (address of the stored function pointer)
         final_callback: usize,
-        /// 用户数据（存储指针地址）
+        /// User data (storage pointer address)
         user_data: usize,
     },
 }
@@ -402,7 +402,7 @@ impl std::fmt::Debug for CustomFunctionImpl {
 pub struct CustomFunction {
     /// Function name
     pub name: String,
-    /// 参数数量
+    /// Number of parameters
     pub arity: usize,
     /// "Do you accept variable parameters?"
     pub is_variadic: bool,
@@ -527,7 +527,7 @@ impl CustomFunction {
                 ctx.result.ok_or_else(|| {
                     ExpressionError::new(
                         ExpressionErrorType::FunctionExecutionError,
-                        format!("函数 '{}' 未设置返回值", self.name),
+                        format!("The function '{}' does not set a return value", self.name),
                     )
                 })
             }

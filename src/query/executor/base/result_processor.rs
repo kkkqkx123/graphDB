@@ -165,7 +165,7 @@ impl<S: StorageClient> BaseResultProcessor<S> {
             if self.memory_usage > limit {
                 return Err(DBError::Query(
                     crate::core::error::QueryError::ExecutionError(format!(
-                        "内存使用超出限制: {} > {}",
+                        "Memory usage limit exceeded: {} > {}",
                         self.memory_usage, limit
                     )),
                 ));
@@ -201,7 +201,7 @@ impl<S: StorageClient> BaseResultProcessor<S> {
         usage
     }
 
-    /// 重置处理器状态
+    /// Reset processor state
     pub fn reset_state(&mut self) {
         self.memory_usage = 0;
         self.input = None;

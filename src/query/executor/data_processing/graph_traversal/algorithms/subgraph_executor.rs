@@ -155,7 +155,7 @@ pub struct SubgraphExecutor<S: StorageClient + Send + 'static> {
     next_vids: Vec<Value>,
     /// Subgraph results
     result: SubgraphResult,
-    /// 统计信息
+    /// Statistics
     stats: AlgorithmStats,
 }
 

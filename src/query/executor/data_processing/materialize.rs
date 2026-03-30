@@ -31,7 +31,7 @@ pub struct MaterializeExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     /// Input actuator
     input_executor: Option<Box<ExecutorEnum<S>>>,
-    /// 物化状态
+    /// Materialized state
     state: MaterializeState,
     /// Materialized data
     materialized_data: Option<ExecutionResult>,
