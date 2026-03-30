@@ -194,3 +194,32 @@ impl TagAlterInfo {
         self
     }
 }
+
+define_plan_node! {
+    pub struct ShowCreateTagNode {
+        space_name: String,
+        tag_name: String,
+    }
+    enum: ShowCreateTag
+    input: ZeroInputNode
+}
+
+impl ShowCreateTagNode {
+    pub fn new(id: i64, space_name: String, tag_name: String) -> Self {
+        Self {
+            id,
+            space_name,
+            tag_name,
+            output_var: None,
+            col_names: Vec::new(),
+        }
+    }
+
+    pub fn space_name(&self) -> &str {
+        &self.space_name
+    }
+
+    pub fn tag_name(&self) -> &str {
+        &self.tag_name
+    }
+}

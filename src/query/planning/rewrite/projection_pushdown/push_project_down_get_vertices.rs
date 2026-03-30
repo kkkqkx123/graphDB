@@ -168,7 +168,7 @@ mod tests {
         let rule = PushProjectDownGetVerticesRule::new();
         let mut ctx = RewriteContext::new();
 
-        let get_vertices = GetVerticesNode::new(1, "vids");
+        let get_vertices = GetVerticesNode::new(1, "default", "vids");
         let get_vertices_enum = PlanNodeEnum::GetVertices(get_vertices);
 
         let columns = vec![create_yield_column(
@@ -197,7 +197,7 @@ mod tests {
     fn test_push_down_rule_trait() {
         let rule = PushProjectDownGetVerticesRule::new();
 
-        let get_vertices = PlanNodeEnum::GetVertices(GetVerticesNode::new(1, "vids"));
+        let get_vertices = PlanNodeEnum::GetVertices(GetVerticesNode::new(1, "default", "vids"));
         let columns = vec![create_yield_column(
             Expression::Variable("test".to_string()),
             "test",

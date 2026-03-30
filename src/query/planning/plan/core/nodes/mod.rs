@@ -34,9 +34,9 @@ pub use management::{
     CreateUserNode, DescEdgeIndexNode, DescEdgeNode, DescSpaceNode, DescTagIndexNode, DescTagNode,
     DropEdgeIndexNode, DropEdgeNode, DropSpaceNode, DropTagIndexNode, DropTagNode, DropUserNode,
     EdgeAlterInfo, EdgeManageInfo, GrantRoleNode, IndexManageInfo, RebuildEdgeIndexNode,
-    RebuildTagIndexNode, RevokeRoleNode, ShowEdgeIndexesNode, ShowEdgesNode, ShowSpacesNode,
-    ShowStatsNode, ShowStatsType, ShowTagIndexesNode, ShowTagsNode, SpaceAlterOption,
-    SpaceManageInfo, SwitchSpaceNode, TagAlterInfo, TagManageInfo,
+    RebuildTagIndexNode, RevokeRoleNode, ShowCreateTagNode, ShowEdgeIndexesNode, ShowEdgesNode,
+    ShowSpacesNode, ShowStatsNode, ShowStatsType, ShowTagIndexesNode, ShowTagsNode,
+    SpaceAlterOption, SpaceManageInfo, SwitchSpaceNode, TagAlterInfo, TagManageInfo,
 };
 pub use operation::{FilterNode, LimitNode, ProjectNode, SampleNode, SortItem, SortNode, TopNNode};
 pub use plan_node_factory::PlanNodeFactory;

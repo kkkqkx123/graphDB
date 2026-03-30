@@ -125,6 +125,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::DescTag(_) => "DescTag",
             PlanNodeEnum::DropTag(_) => "DropTag",
             PlanNodeEnum::ShowTags(_) => "ShowTags",
+            PlanNodeEnum::ShowCreateTag(_) => "ShowCreateTag",
 
             // Management node - Edge
             PlanNodeEnum::CreateEdge(_) => "CreateEdge",

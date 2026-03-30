@@ -146,7 +146,7 @@ mod tests {
     fn test_register_and_find_node() {
         let mut ctx = RewriteContext::new();
         let node_id = ctx.allocate_node_id();
-        let plan_node = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
+        let plan_node = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1, "default"));
 
         let wrapper = ctx.register_node(node_id, plan_node);
         assert_eq!(wrapper.borrow().id, node_id);

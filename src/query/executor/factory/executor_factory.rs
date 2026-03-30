@@ -283,6 +283,9 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             PlanNodeEnum::DescTag(node) => AdminBuilder::build_desc_tag(node, storage, context),
             PlanNodeEnum::DropTag(node) => AdminBuilder::build_drop_tag(node, storage, context),
             PlanNodeEnum::ShowTags(node) => AdminBuilder::build_show_tags(node, storage, context),
+            PlanNodeEnum::ShowCreateTag(node) => {
+                AdminBuilder::build_show_create_tag(node, storage, context)
+            }
 
             // Manage Executor – Edge Management
             PlanNodeEnum::CreateEdge(node) => {

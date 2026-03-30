@@ -298,7 +298,7 @@ impl TestScenario {
     /// Assert vertex exists
     pub fn assert_vertex_exists(mut self, vid: i64, tag: &str) -> Self {
         let query = format!("FETCH PROP ON {} {}", tag, vid);
-        match self.pipeline.execute_query(&query) {
+        match self.pipeline.execute_query_with_space(&query, self.current_space.clone()) {
             Ok(result) => {
                 assert!(
                     result.count() > 0,
@@ -317,7 +317,7 @@ impl TestScenario {
     /// Assert vertex does not exist
     pub fn assert_vertex_not_exists(mut self, vid: i64, tag: &str) -> Self {
         let query = format!("FETCH PROP ON {} {}", tag, vid);
-        match self.pipeline.execute_query(&query) {
+        match self.pipeline.execute_query_with_space(&query, self.current_space.clone()) {
             Ok(result) => {
                 assert!(
                     result.count() == 0,
@@ -341,7 +341,7 @@ impl TestScenario {
         expected: HashMap<&str, Value>,
     ) -> Self {
         let query = format!("FETCH PROP ON {} {}", tag, vid);
-        match self.pipeline.execute_query(&query) {
+        match self.pipeline.execute_query_with_space(&query, self.current_space.clone()) {
             Ok(result) => {
                 let props = self.extract_props(&result);
                 for (key, value) in expected {
@@ -366,7 +366,7 @@ impl TestScenario {
     /// Assert edge exists
     pub fn assert_edge_exists(mut self, src: i64, dst: i64, edge_type: &str) -> Self {
         let query = format!("FETCH PROP ON {} {} -> {}", edge_type, src, dst);
-        match self.pipeline.execute_query(&query) {
+        match self.pipeline.execute_query_with_space(&query, self.current_space.clone()) {
             Ok(result) => {
                 assert!(
                     result.count() > 0,
@@ -386,7 +386,7 @@ impl TestScenario {
     /// Assert edge does not exist
     pub fn assert_edge_not_exists(mut self, src: i64, dst: i64, edge_type: &str) -> Self {
         let query = format!("FETCH PROP ON {} {} -> {}", edge_type, src, dst);
-        match self.pipeline.execute_query(&query) {
+        match self.pipeline.execute_query_with_space(&query, self.current_space.clone()) {
             Ok(result) => {
                 assert!(
                     result.count() == 0,
@@ -489,6 +489,16 @@ impl TestScenario {
                     for (i, col_name) in ds.col_names.iter().enumerate() {
                         if let Some(value) = row.get(i) {
                             props.insert(col_name.clone(), value.clone());
+                        }
+                    }
+                }
+            }
+            ExecutionResult::Vertices(vertices) => {
+                // Extract properties from the first vertex's tags
+                if let Some(vertex) = vertices.get(0) {
+                    for tag in &vertex.tags {
+                        for (prop_name, prop_value) in &tag.properties {
+                            props.insert(prop_name.clone(), prop_value.clone());
                         }
                     }
                 }

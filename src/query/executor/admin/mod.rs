@@ -17,7 +17,8 @@ pub use self::space::{
 };
 
 pub use self::tag::{
-    AlterTagExecutor, CreateTagExecutor, DescTagExecutor, DropTagExecutor, ShowTagsExecutor,
+    AlterTagExecutor, CreateTagExecutor, DescTagExecutor, DropTagExecutor, ShowCreateTagExecutor,
+    ShowTagsExecutor,
 };
 
 pub use self::tag::alter_tag::{AlterTagInfo, AlterTagItem, AlterTagOp};

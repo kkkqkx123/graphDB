@@ -222,7 +222,7 @@ mod tests {
     #[test]
     fn test_rule_matches() {
         let rule = TestRule;
-        let node = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
+        let node = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1, "default"));
 
         assert!(rule.matches(&node));
     }

@@ -728,7 +728,7 @@ fn test_desc_execution_tag() {
         .assert_success()
         .query("DESCRIBE TAG Person")
         .assert_success()
-        .assert_result_count(1);
+        .assert_result_count(2);  // One row per property (name and age)
 }
 
 #[test]
@@ -740,7 +740,7 @@ fn test_desc_execution_edge() {
         .assert_success()
         .query("DESCRIBE EDGE KNOWS")
         .assert_success()
-        .assert_result_count(1);
+        .assert_result_count(1);  // One row per property (since)
 }
 
 // ==================== DDL Lifecycle Tests ====================

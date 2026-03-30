@@ -582,7 +582,10 @@ impl Validator {
             Stmt::Lookup(_) => StatementType::Lookup,
             Stmt::Subgraph(_) => StatementType::GetSubgraph,
             Stmt::FindPath(_) => StatementType::FindPath,
-            Stmt::Insert(_) => StatementType::InsertVertices,
+            Stmt::Insert(insert_stmt) => match &insert_stmt.target {
+                crate::query::parser::ast::stmt::InsertTarget::Vertices { .. } => StatementType::InsertVertices,
+                crate::query::parser::ast::stmt::InsertTarget::Edge { .. } => StatementType::InsertEdges,
+            },
             Stmt::Merge(_) => StatementType::Merge,
             Stmt::Unwind(_) => StatementType::Unwind,
             Stmt::Return(_) => StatementType::Return,

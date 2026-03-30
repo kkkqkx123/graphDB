@@ -512,7 +512,7 @@ impl StatementValidator for ShowCreateValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
-        _qctx: Arc<QueryContext>,
+        qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let show_create_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::ShowCreate(show_create_stmt) => show_create_stmt,
@@ -529,6 +529,16 @@ impl StatementValidator for ShowCreateValidator {
         let mut info = ValidationInfo::new();
 
         info.semantic_info.query_type = Some(format!("{:?}", self.target_type));
+
+        // For TAG and EDGE types, set the current space name
+        match self.target_type {
+            ShowCreateTargetType::Tag | ShowCreateTargetType::Edge => {
+                if let Some(space_name) = qctx.space_name() {
+                    info.semantic_info.space_name = Some(space_name);
+                }
+            }
+            _ => {}
+        }
 
         Ok(ValidationResult::success_with_info(info))
     }

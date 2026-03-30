@@ -300,7 +300,7 @@ mod tests {
     #[test]
     fn test_pattern_matches() {
         let pattern = Pattern::new_with_name("Project");
-        let input_node = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
+        let input_node = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1, "default"));
         let project_node = PlanNodeEnum::Project(
             ProjectNode::new(input_node.clone(), Vec::new()).expect("创建ProjectNode应该成功"),
         );
@@ -344,7 +344,7 @@ mod tests {
     fn test_pattern_with_dependency() {
         let pattern = Pattern::new_with_name("Filter").with_dependency_name("Project");
 
-        let scan = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
+        let scan = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1, "default"));
         let project = PlanNodeEnum::Project(
             ProjectNode::new(scan.clone(), Vec::new()).expect("创建ProjectNode应该成功"),
         );

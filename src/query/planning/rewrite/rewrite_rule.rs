@@ -134,7 +134,7 @@ mod tests {
 
         assert_eq!(adapter.name(), "TestHeuristicRule");
 
-        let node = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
+        let node = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1, "default"));
         assert!(adapter.matches(&node));
     }
 
@@ -142,7 +142,7 @@ mod tests {
     fn test_heuristic_rule_apply() {
         let rule = TestHeuristicRule;
         let mut ctx = RewriteContext::new();
-        let node = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
+        let node = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1, "default"));
 
         let result = rule
             .apply(&mut ctx, &node)

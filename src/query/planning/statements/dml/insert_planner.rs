@@ -117,9 +117,7 @@ impl Planner for InsertPlanner {
     ) -> Result<SubPlan, PlannerError> {
         // Obtain the space name
         let space_name = qctx
-            .rctx()
-            .space_name
-            .clone()
+            .space_name()
             .unwrap_or_else(|| "default".to_string());
 
         // Use the verification information to optimize the planning process.
@@ -178,17 +176,9 @@ impl Planner for InsertPlanner {
             }
         };
 
-        // Create a projection node to return the insertion results.
-        let yield_columns = self.create_yield_columns(inserted_count, validated.ast.expr_context());
-
-        let project_node = ProjectNode::new(insert_node, yield_columns).map_err(|e| {
-            PlannerError::PlanGenerationFailed(format!("创建 ProjectNode 失败: {}", e))
-        })?;
-
-        let final_node = PlanNodeEnum::Project(project_node);
-
-        // Create a SubPlan
-        let sub_plan = SubPlan::new(Some(final_node), Some(PlanNodeEnum::Argument(arg_node)));
+        // Create a SubPlan with InsertVertices/InsertEdges as the root node
+        // Note: ProjectNode is not needed here as the executor returns Count result directly
+        let sub_plan = SubPlan::new(Some(insert_node), Some(PlanNodeEnum::Argument(arg_node)));
 
         Ok(sub_plan)
     }

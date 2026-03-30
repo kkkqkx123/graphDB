@@ -15,7 +15,7 @@ use crate::query::planning::plan::core::nodes::management::space_nodes::{
 };
 use crate::query::planning::plan::core::nodes::management::stats_nodes::ShowStatsNode;
 use crate::query::planning::plan::core::nodes::management::tag_nodes::{
-    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode,
+    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowCreateTagNode, ShowTagsNode,
 };
 use crate::query::planning::plan::core::nodes::management::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode,
@@ -159,6 +159,7 @@ pub trait PlanNodeVisitor {
         DescTag, DescTagNode, visit_desc_tag;
         DropTag, DropTagNode, visit_drop_tag;
         ShowTags, ShowTagsNode, visit_show_tags;
+        ShowCreateTag, ShowCreateTagNode, visit_show_create_tag;
     );
 
     impl_visitor_methods!(
@@ -273,6 +274,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::DescTag(node) => visitor.visit_desc_tag(node),
             PlanNodeEnum::DropTag(node) => visitor.visit_drop_tag(node),
             PlanNodeEnum::ShowTags(node) => visitor.visit_show_tags(node),
+            PlanNodeEnum::ShowCreateTag(node) => visitor.visit_show_create_tag(node),
             PlanNodeEnum::CreateEdge(node) => visitor.visit_create_edge(node),
             PlanNodeEnum::AlterEdge(node) => visitor.visit_alter_edge(node),
             PlanNodeEnum::DescEdge(node) => visitor.visit_desc_edge(node),

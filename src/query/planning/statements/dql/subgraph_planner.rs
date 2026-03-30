@@ -75,7 +75,7 @@ impl Planner for SubgraphPlanner {
         if m_steps == 0 {
             log::debug!("SUBGRAPH with 0 steps - returning only start vertices");
 
-            let get_vertices_node = GetVerticesNode::new(1, var_name);
+            let get_vertices_node = GetVerticesNode::new(1, "default", var_name);
             current_node = PlanNodeEnum::GetVertices(get_vertices_node);
 
             let filters: Vec<Expression> = where_clause

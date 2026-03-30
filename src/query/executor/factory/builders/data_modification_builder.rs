@@ -37,10 +37,11 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
         let mut vertices = Vec::new();
 
         for (vid_expr, tag_values_list) in node.values() {
-            // Obtain the vertex ID expression
-            let _vid_expr = vid_expr
+            // Obtain the vertex ID expression and evaluate it
+            let vid = vid_expr
                 .get_expression()
-                .ok_or_else(|| QueryError::ExecutionError("顶点ID表达式不存在".to_string()))?;
+                .and_then(|e| Self::evaluate_literal(&e))
+                .ok_or_else(|| QueryError::ExecutionError("顶点ID表达式不存在或不是字面量".to_string()))?;
 
             // Obtain the tag name
             let tag_names = node.tag_names();
@@ -58,13 +59,12 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                     if let Some(prop_names) = node.prop_names() {
                         for (prop_idx, prop_value) in tag_values.iter().enumerate() {
                             if let Some(prop_name) = prop_names.get(prop_idx) {
-                                if let Some(_value_expr) = prop_value.get_expression() {
-                                    // Convert the expression into a value (a simplification is done here; in reality, an evaluation should be performed).
-                                    tag_props.insert(
-                                        prop_name.clone(),
-                                        Value::Null(crate::core::NullType::Null),
-                                    );
-                                }
+                                // Evaluate the expression to get the actual value
+                                let value = prop_value
+                                    .get_expression()
+                                    .and_then(|e| Self::evaluate_literal(&e))
+                                    .unwrap_or(Value::Null(crate::core::NullType::Null));
+                                tag_props.insert(prop_name.clone(), value);
                             }
                         }
                     }
@@ -75,8 +75,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 }
             }
 
-            // Create vertices (using placeholder IDs, which will be evaluated during the actual execution).
-            let vid = Value::Null(crate::core::NullType::Null);
+            // Create vertices with evaluated ID
             let vertex = Vertex::new(vid, tags);
             vertices.push(vertex);
         }
@@ -84,11 +83,20 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
         let executor = InsertExecutor::with_vertices(
             node.id(),
             storage,
+            node.space_name().to_string(),
             vertices,
             context.expression_context().clone(),
         );
 
         Ok(ExecutorEnum::InsertVertices(executor))
+    }
+
+    /// Evaluate a literal expression to get its value
+    fn evaluate_literal(expr: &crate::core::Expression) -> Option<Value> {
+        match expr {
+            crate::core::Expression::Literal(value) => Some(value.clone()),
+            _ => None,
+        }
     }
 
     /// Constructing the InsertEdges executor
@@ -143,6 +151,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
         let executor = InsertExecutor::with_edges(
             node.id(),
             storage,
+            node.space_name().to_string(),
             edges,
             context.expression_context().clone(),
         );

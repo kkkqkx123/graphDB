@@ -13,6 +13,7 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 define_plan_node! {
     pub struct GetVerticesNode {
         space_id: u64,
+        space_name: String,
         src_ref: ContextualExpression,
         src_vids: String,
         tag_props: Vec<TagProp>,
@@ -25,7 +26,7 @@ define_plan_node! {
 }
 
 impl GetVerticesNode {
-    pub fn new(space_id: u64, src_vids: &str) -> Self {
+    pub fn new(space_id: u64, space_name: &str, src_vids: &str) -> Self {
         use crate::core::types::expr::ExpressionMeta;
         use crate::core::Expression;
         use std::sync::Arc;
@@ -41,6 +42,7 @@ impl GetVerticesNode {
             id: next_node_id(),
             deps: Vec::new(),
             space_id,
+            space_name: space_name.to_string(),
             src_ref: src_ctx_expr,
             src_vids: src_vids.to_string(),
             tag_props: Vec::new(),
@@ -62,6 +64,10 @@ impl GetVerticesNode {
 
     pub fn space_id(&self) -> u64 {
         self.space_id
+    }
+
+    pub fn space_name(&self) -> &str {
+        &self.space_name
     }
 
     pub fn src_vids(&self) -> &str {
@@ -413,6 +419,7 @@ impl GetNeighborsNode {
 define_plan_node! {
     pub struct ScanVerticesNode {
         space_id: u64,
+        space_name: String,
         tag: Option<String>,
         expression: Option<ContextualExpression>,
         limit: Option<i64>,
@@ -422,10 +429,11 @@ define_plan_node! {
 }
 
 impl ScanVerticesNode {
-    pub fn new(space_id: u64) -> Self {
+    pub fn new(space_id: u64, space_name: &str) -> Self {
         Self {
             id: next_node_id(),
             space_id,
+            space_name: space_name.to_string(),
             tag: None,
             expression: None,
             limit: None,
@@ -444,6 +452,10 @@ impl ScanVerticesNode {
 
     pub fn space_id(&self) -> u64 {
         self.space_id
+    }
+
+    pub fn space_name(&self) -> &str {
+        &self.space_name
     }
 
     pub fn tag(&self) -> Option<&String> {

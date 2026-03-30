@@ -19,6 +19,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::DescTag(_) => vec![],
             PlanNodeEnum::DropTag(_) => vec![],
             PlanNodeEnum::ShowTags(_) => vec![],
+            PlanNodeEnum::ShowCreateTag(_) => vec![],
             PlanNodeEnum::CreateEdge(_) => vec![],
             PlanNodeEnum::AlterEdge(_) => vec![],
             PlanNodeEnum::DescEdge(_) => vec![],

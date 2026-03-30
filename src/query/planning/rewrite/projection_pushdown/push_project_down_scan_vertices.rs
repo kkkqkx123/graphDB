@@ -167,7 +167,7 @@ mod tests {
         let rule = PushProjectDownScanVerticesRule::new();
         let mut ctx = RewriteContext::new();
 
-        let scan_node = ScanVerticesNode::new(1);
+        let scan_node = ScanVerticesNode::new(1, "default");
         let scan = PlanNodeEnum::ScanVertices(scan_node);
 
         let columns = vec![
@@ -196,7 +196,7 @@ mod tests {
     fn test_push_down_rule_trait() {
         let rule = PushProjectDownScanVerticesRule::new();
 
-        let scan = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
+        let scan = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1, "default"));
         let columns = vec![create_yield_column(
             Expression::Variable("test".to_string()),
             "test",

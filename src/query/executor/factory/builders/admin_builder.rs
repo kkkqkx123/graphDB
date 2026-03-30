@@ -16,9 +16,9 @@ use crate::query::executor::admin::{
     DescEdgeExecutor, DescEdgeIndexExecutor, DescSpaceExecutor, DescTagExecutor,
     DescTagIndexExecutor, DropEdgeExecutor, DropEdgeIndexExecutor, DropSpaceExecutor,
     DropTagExecutor, DropTagIndexExecutor, DropUserExecutor, GrantRoleExecutor,
-    RebuildEdgeIndexExecutor, RebuildTagIndexExecutor, RevokeRoleExecutor, ShowEdgeIndexesExecutor,
-    ShowEdgesExecutor, ShowSpacesExecutor, ShowStatsExecutor, ShowTagIndexesExecutor,
-    ShowTagsExecutor, SwitchSpaceExecutor,
+    RebuildEdgeIndexExecutor, RebuildTagIndexExecutor, RevokeRoleExecutor, ShowCreateTagExecutor,
+    ShowEdgeIndexesExecutor, ShowEdgesExecutor, ShowSpacesExecutor, ShowStatsExecutor,
+    ShowTagIndexesExecutor, ShowTagsExecutor, SwitchSpaceExecutor,
 };
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::executor_enum::ExecutorEnum;
@@ -27,9 +27,9 @@ use crate::query::planning::plan::core::nodes::{
     CreateEdgeIndexNode, CreateEdgeNode, CreateSpaceNode, CreateTagIndexNode, CreateTagNode,
     CreateUserNode, DescEdgeIndexNode, DescEdgeNode, DescSpaceNode, DescTagIndexNode, DescTagNode,
     DropEdgeIndexNode, DropEdgeNode, DropSpaceNode, DropTagIndexNode, DropTagNode, DropUserNode,
-    GrantRoleNode, RebuildEdgeIndexNode, RebuildTagIndexNode, RevokeRoleNode, ShowEdgeIndexesNode,
-    ShowEdgesNode, ShowSpacesNode, ShowStatsNode, ShowTagIndexesNode, ShowTagsNode,
-    SwitchSpaceNode,
+    GrantRoleNode, RebuildEdgeIndexNode, RebuildTagIndexNode, RevokeRoleNode, ShowCreateTagNode,
+    ShowEdgeIndexesNode, ShowEdgesNode, ShowSpacesNode, ShowStatsNode, ShowTagIndexesNode,
+    ShowTagsNode, SwitchSpaceNode,
 };
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -201,6 +201,22 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::ShowTags(executor))
+    }
+
+    /// Building the ShowCreateTag executor
+    pub fn build_show_create_tag(
+        node: &ShowCreateTagNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let executor = ShowCreateTagExecutor::new(
+            node.id(),
+            storage,
+            node.space_name().to_string(),
+            node.tag_name().to_string(),
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::ShowCreateTag(executor))
     }
 
     //  Ellison Type Management Executor ============

@@ -94,8 +94,8 @@ fn test_fingerprint_calculator_integration() {
     let calculator = FingerprintCalculator::new();
 
     // Create two plan nodes with the same structure.
-    let node1 = PlanNodeEnum::GetVertices(GetVerticesNode::new(1, "Person"));
-    let node2 = PlanNodeEnum::GetVertices(GetVerticesNode::new(1, "Person"));
+    let node1 = PlanNodeEnum::GetVertices(GetVerticesNode::new(1, "default", "Person"));
+    let node2 = PlanNodeEnum::GetVertices(GetVerticesNode::new(1, "default", "Person"));
 
     let fp1 = calculator.calculate_fingerprint(&node1);
     let fp2 = calculator.calculate_fingerprint(&node2);
@@ -116,7 +116,7 @@ fn test_fingerprint_stability() {
     let calculator = FingerprintCalculator::new();
 
     // Repeating the calculation of the fingerprint for the same node should always produce the same result.
-    let node = PlanNodeEnum::GetVertices(GetVerticesNode::new(1, "Test"));
+    let node = PlanNodeEnum::GetVertices(GetVerticesNode::new(1, "default", "Test"));
 
     let fp1 = calculator.calculate_fingerprint(&node);
     let fp2 = calculator.calculate_fingerprint(&node);
@@ -304,7 +304,7 @@ fn test_plan_fingerprint_with_filter() {
     let expr_id = expr_ctx.register_expression(expr_meta);
     let ctx_expr = crate::core::types::ContextualExpression::new(expr_id, expr_ctx);
 
-    let input_node = PlanNodeEnum::GetVertices(GetVerticesNode::new(1, "Person"));
+    let input_node = PlanNodeEnum::GetVertices(GetVerticesNode::new(1, "default", "Person"));
     let filter_node = PlanNodeEnum::Filter(
         FilterNode::new(input_node, ctx_expr).expect("Failed to create FilterNode"),
     );
@@ -320,7 +320,7 @@ fn test_plan_fingerprint_with_project() {
     let calculator = FingerprintCalculator::new();
 
     // Create a planning node with a projection
-    let input_node = PlanNodeEnum::GetVertices(GetVerticesNode::new(1, "Person"));
+    let input_node = PlanNodeEnum::GetVertices(GetVerticesNode::new(1, "default", "Person"));
 
     // Create a YieldColumn
     let expr_ctx = Arc::new(ExpressionAnalysisContext::new());

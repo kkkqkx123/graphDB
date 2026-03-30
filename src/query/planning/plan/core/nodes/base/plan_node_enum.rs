@@ -24,7 +24,7 @@ use crate::query::planning::plan::core::nodes::management::space_nodes::{
 };
 use crate::query::planning::plan::core::nodes::management::stats_nodes::ShowStatsNode;
 use crate::query::planning::plan::core::nodes::management::tag_nodes::{
-    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode,
+    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowCreateTagNode, ShowTagsNode,
 };
 use crate::query::planning::plan::core::nodes::management::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode,
@@ -145,6 +145,7 @@ pub enum PlanNodeEnum {
     DescTag(DescTagNode),
     DropTag(DropTagNode),
     ShowTags(ShowTagsNode),
+    ShowCreateTag(ShowCreateTagNode),
 
     // Management Node – Edge Type
     CreateEdge(CreateEdgeNode),
@@ -581,6 +582,8 @@ crate::define_enum_type_name! {
     (InsertEdges, "InsertEdges"),
     // Statistical node
     (ShowStats, "ShowStats"),
+    // Show Create Tag node
+    (ShowCreateTag, "ShowCreateTag"),
 }
 
 // Use macros to generate the `category` method.
@@ -674,6 +677,7 @@ crate::define_enum_category! {
     (InsertVertices, PlanNodeCategory::Management),
     (InsertEdges, PlanNodeCategory::Management),
     (ShowStats, PlanNodeCategory::Management),
+    (ShowCreateTag, PlanNodeCategory::Management),
 }
 
 // Use macros to generate the describe method.
@@ -773,6 +777,8 @@ crate::define_enum_describe! {
     (InsertEdges, "InsertEdges"),
     // Statistical node
     (ShowStats, "ShowStats"),
+    // Show Create Tag node
+    (ShowCreateTag, "ShowCreateTag"),
 }
 
 impl PlanNodeEnum {
@@ -885,6 +891,7 @@ impl PlanNodeEnum {
                 | PlanNodeEnum::DescTag(_)
                 | PlanNodeEnum::DropTag(_)
                 | PlanNodeEnum::ShowTags(_)
+                | PlanNodeEnum::ShowCreateTag(_)
                 | PlanNodeEnum::CreateEdge(_)
                 | PlanNodeEnum::AlterEdge(_)
                 | PlanNodeEnum::DescEdge(_)
@@ -980,6 +987,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::DescTag(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::DropTag(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::ShowTags(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::ShowCreateTag(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::CreateEdge(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::AlterEdge(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::DescEdge(node) => base_size + estimate_node_memory(node),
@@ -1215,6 +1223,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::DescTag(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::DropTag(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::ShowTags(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::ShowCreateTag(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::CreateEdge(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::AlterEdge(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::DescEdge(node) => base_size + estimate_node_memory(node),

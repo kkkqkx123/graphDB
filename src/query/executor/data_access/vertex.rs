@@ -11,6 +11,7 @@ use parking_lot::Mutex;
 
 pub struct GetVerticesExecutor<S: StorageClient + 'static> {
     base: BaseExecutor<S>,
+    space_name: String,
     vertex_ids: Option<Vec<Value>>,
     tag_filter: Option<crate::core::Expression>,
     vertex_filter: Option<crate::core::Expression>,
@@ -21,6 +22,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
+        space_name: String,
         vertex_ids: Option<Vec<Value>>,
         tag_filter: Option<crate::core::Expression>,
         vertex_filter: Option<crate::core::Expression>,
@@ -29,6 +31,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "GetVerticesExecutor".to_string(), storage, expr_context),
+            space_name,
             vertex_ids,
             tag_filter,
             vertex_filter,
@@ -93,15 +96,21 @@ impl<S: StorageClient> HasStorage<S> for GetVerticesExecutor<S> {
 
 impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Vertex>> {
+        println!("[GetVerticesExecutor] do_execute called, space_name: {}, vertex_ids: {:?}",
+            self.space_name, self.vertex_ids);
+
         match &self.vertex_ids {
             Some(ids) if ids.len() > 1 => {
+                println!("[GetVerticesExecutor] Processing {} vertex IDs", ids.len());
                 let storage = self.get_storage().lock();
                 let mut result_vertices: Vec<vertex_edge_path::Vertex> = Vec::new();
                 let mut failed_count = 0;
 
                 for id in ids {
-                    match storage.get_vertex("default", id) {
+                    println!("[GetVerticesExecutor] Looking up vertex with ID: {:?}", id);
+                    match storage.get_vertex(&self.space_name, id) {
                         Ok(Some(vertex)) => {
+                            println!("[GetVerticesExecutor] Found vertex: {:?}", vertex);
                             let include_vertex =
                                 if let Some(ref tag_filter_expression) = self.tag_filter {
                                     crate::query::executor::tag_filter::TagFilterProcessor
@@ -115,9 +124,11 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                             }
                         }
                         Ok(None) => {
+                            println!("[GetVerticesExecutor] Vertex not found: {:?}", id);
                             failed_count += 1;
                         }
-                        Err(_) => {
+                        Err(e) => {
+                            println!("[GetVerticesExecutor] Error getting vertex: {:?}", e);
                             failed_count += 1;
                         }
                     }
@@ -133,22 +144,34 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                     log::warn!("获取顶点失败: {} 个", failed_count);
                 }
 
+                println!("[GetVerticesExecutor] Returning {} vertices", result_vertices.len());
                 Ok(result_vertices)
             }
             Some(ids) if ids.len() == 1 => {
+                println!("[GetVerticesExecutor] Looking up single vertex with ID: {:?}", ids[0]);
                 let storage = self.get_storage().lock();
 
-                if let Some(vertex) = storage.get_vertex("default", &ids[0])? {
-                    Ok(vec![vertex])
-                } else {
-                    Ok(Vec::new())
+                match storage.get_vertex(&self.space_name, &ids[0]) {
+                    Ok(Some(vertex)) => {
+                        println!("[GetVerticesExecutor] Found single vertex: {:?}", vertex);
+                        Ok(vec![vertex])
+                    }
+                    Ok(None) => {
+                        println!("[GetVerticesExecutor] Single vertex not found: {:?}", ids[0]);
+                        Ok(vec![])
+                    }
+                    Err(e) => {
+                        println!("[GetVerticesExecutor] Error getting single vertex: {:?}", e);
+                        Err(crate::core::error::DBError::Storage(e))
+                    }
                 }
             }
             Some(_) => Ok(Vec::new()),
             None => {
+                println!("[GetVerticesExecutor] No vertex IDs provided, scanning all vertices");
                 let storage = self.get_storage().lock();
 
-                let vertices = storage.scan_vertices("default")?
+                let vertices = storage.scan_vertices(&self.space_name)?
                     .into_iter()
                     .filter(|vertex| {
                         if let Some(ref tag_filter_expression) = self.tag_filter {

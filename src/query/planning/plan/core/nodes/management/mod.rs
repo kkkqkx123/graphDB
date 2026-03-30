@@ -20,8 +20,8 @@ pub use space_nodes::{
 };
 pub use stats_nodes::{ShowStatsNode, ShowStatsType};
 pub use tag_nodes::{
-    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode, TagAlterInfo,
-    TagManageInfo,
+    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowCreateTagNode, ShowTagsNode,
+    TagAlterInfo, TagManageInfo,
 };
 pub use user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode,

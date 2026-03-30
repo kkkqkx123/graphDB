@@ -41,6 +41,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
         let executor = GetVerticesExecutor::new(
             node.id(),
             storage,
+            node.space_name().to_string(),
             None,
             None,
             node.vertex_filter().and_then(|f| f.get_expression()),
@@ -77,6 +78,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
         let executor = GetVerticesExecutor::new(
             node.id(),
             storage,
+            node.space_name().to_string(),
             if vertex_ids.is_empty() {
                 None
             } else {

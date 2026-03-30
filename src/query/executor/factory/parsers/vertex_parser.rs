@@ -29,11 +29,19 @@ pub fn extract_vertex_ids_from_node(node: &PlanNodeEnum) -> Vec<Value> {
 
 /// Parse the vertex ID string into a list of Values.
 /// Supports multiple IDs separated by commas.
+/// Tries to parse as integer first, then falls back to string.
 pub fn parse_vertex_ids(src_vids: &str) -> Vec<Value> {
     src_vids
         .split(',')
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
-        .map(|s| Value::String(s.to_string()))
+        .map(|s| {
+            // Try to parse as integer first
+            if let Ok(i) = s.parse::<i64>() {
+                Value::Int(i)
+            } else {
+                Value::String(s.to_string())
+            }
+        })
         .collect()
 }

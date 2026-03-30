@@ -109,10 +109,11 @@ impl PlanNodeFactory {
     /// Create a method to retrieve the vertex nodes
     pub fn create_get_vertices(
         space_id: u64,
+        space_name: &str,
         src_vids: &str,
     ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         Ok(PlanNodeEnum::GetVertices(GetVerticesNode::new(
-            space_id, src_vids,
+            space_id, space_name, src_vids,
         )))
     }
 
@@ -139,11 +140,12 @@ impl PlanNodeFactory {
         )))
     }
 
-    /// Create a scan vertex node.
+    /// Create a node for scanning vertices.
     pub fn create_scan_vertices(
         space_id: u64,
+        space_name: &str,
     ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
-        Ok(PlanNodeEnum::ScanVertices(ScanVerticesNode::new(space_id)))
+        Ok(PlanNodeEnum::ScanVertices(ScanVerticesNode::new(space_id, space_name)))
     }
 
     /// Create a node for scanning edges.

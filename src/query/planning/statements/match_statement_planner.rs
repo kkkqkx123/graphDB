@@ -329,7 +329,8 @@ impl MatchStatementPlanner {
         space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
         // Create a node scanning process.
-        let scan_node = ScanVerticesNode::new(space_id);
+        let space_name = "default";
+        let scan_node = ScanVerticesNode::new(space_id, space_name);
         let mut plan = SubPlan::from_root(scan_node.into_enum());
 
         // If there is a label filtering option, please add the filter.
@@ -498,7 +499,8 @@ impl MatchStatementPlanner {
     }
 
     fn plan_node_pattern(&self, space_id: u64) -> Result<SubPlan, PlannerError> {
-        let scan_node = ScanVerticesNode::new(space_id);
+        let space_name = "default";
+        let scan_node = ScanVerticesNode::new(space_id, space_name);
         Ok(SubPlan::from_root(scan_node.into_enum()))
     }
 

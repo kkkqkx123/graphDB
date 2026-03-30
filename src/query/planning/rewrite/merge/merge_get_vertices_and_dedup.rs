@@ -148,7 +148,7 @@ mod tests {
         let dedup_node = PlanNodeEnum::Dedup(dedup);
 
         // Create the GetVertices node.
-        let get_vertices = GetVerticesNode::new(1, "v");
+        let get_vertices = GetVerticesNode::new(1, "default", "v");
         let mut get_vertices_node = PlanNodeEnum::GetVertices(get_vertices);
 
         // Manually setting dependencies

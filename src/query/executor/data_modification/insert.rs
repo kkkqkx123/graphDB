@@ -17,6 +17,7 @@ use parking_lot::Mutex;
 /// Responsible for inserting new vertex and edge data
 pub struct InsertExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
+    space_name: String,
     vertex_data: Option<Vec<Vertex>>,
     edge_data: Option<Vec<Edge>>,
     if_not_exists: bool,
@@ -26,12 +27,14 @@ impl<S: StorageClient> InsertExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
+        space_name: String,
         vertex_data: Option<Vec<Vertex>>,
         edge_data: Option<Vec<Edge>>,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage, expr_context),
+            space_name,
             vertex_data,
             edge_data,
             if_not_exists: false,
@@ -41,11 +44,13 @@ impl<S: StorageClient> InsertExecutor<S> {
     pub fn with_vertices(
         id: i64,
         storage: Arc<Mutex<S>>,
+        space_name: String,
         vertex_data: Vec<Vertex>,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage, expr_context),
+            space_name,
             vertex_data: Some(vertex_data),
             edge_data: None,
             if_not_exists: false,
@@ -55,11 +60,13 @@ impl<S: StorageClient> InsertExecutor<S> {
     pub fn with_edges(
         id: i64,
         storage: Arc<Mutex<S>>,
+        space_name: String,
         edge_data: Vec<Edge>,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage, expr_context),
+            space_name,
             vertex_data: None,
             edge_data: Some(edge_data),
             if_not_exists: false,
@@ -70,11 +77,13 @@ impl<S: StorageClient> InsertExecutor<S> {
     pub fn with_vertices_if_not_exists(
         id: i64,
         storage: Arc<Mutex<S>>,
+        space_name: String,
         vertex_data: Vec<Vertex>,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage, expr_context),
+            space_name,
             vertex_data: Some(vertex_data),
             edge_data: None,
             if_not_exists: true,
@@ -85,11 +94,13 @@ impl<S: StorageClient> InsertExecutor<S> {
     pub fn with_edges_if_not_exists(
         id: i64,
         storage: Arc<Mutex<S>>,
+        space_name: String,
         edge_data: Vec<Edge>,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage, expr_context),
+            space_name,
             vertex_data: None,
             edge_data: Some(edge_data),
             if_not_exists: true,
@@ -152,27 +163,35 @@ impl<S: StorageClient + Send + Sync + 'static> InsertExecutor<S> {
     fn do_execute(&mut self) -> DBResult<usize> {
         let mut total_inserted = 0;
 
+        println!("[InsertExecutor] Starting execution, space_name: {}", self.space_name);
+
         if let Some(vertices) = &self.vertex_data {
+            println!("[InsertExecutor] Inserting {} vertices", vertices.len());
             let mut storage = self.get_storage().lock();
-            for vertex in vertices {
+            for (idx, vertex) in vertices.iter().enumerate() {
+                println!("[InsertExecutor] Vertex {}: vid={:?}, tags={:?}", idx, vertex.vid, vertex.tags);
                 // If IF NOT EXISTS is enabled, check whether the vertex already exists.
-                if self.if_not_exists && storage.get_vertex("default", &vertex.vid)?.is_some() {
+                if self.if_not_exists && storage.get_vertex(&self.space_name, &vertex.vid)?.is_some() {
                     // The vertex already exists; the insertion step will be skipped.
+                    println!("[InsertExecutor] Vertex already exists, skipping");
                     continue;
                 }
-                storage.insert_vertex("default", vertex.clone())?;
+                storage.insert_vertex(&self.space_name, vertex.clone())?;
+                println!("[InsertExecutor] Vertex inserted successfully");
                 total_inserted += 1;
             }
         }
 
         if let Some(edges) = &self.edge_data {
+            println!("[InsertExecutor] Inserting {} edges", edges.len());
             let mut storage = self.get_storage().lock();
             for edge in edges {
-                storage.insert_edge("default", edge.clone())?;
+                storage.insert_edge(&self.space_name, edge.clone())?;
                 total_inserted += 1;
             }
         }
 
+        println!("[InsertExecutor] Total inserted: {}", total_inserted);
         Ok(total_inserted)
     }
 }

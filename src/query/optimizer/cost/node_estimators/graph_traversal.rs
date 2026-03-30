@@ -375,7 +375,7 @@ mod tests {
         let calculator = create_test_calculator();
         let estimator = GraphTraversalEstimator::new(&calculator);
 
-        let mut node = GetVerticesNode::new(1, "vid");
+        let mut node = GetVerticesNode::new(1, "default", "vid");
         node.set_limit(50);
         let plan_node = PlanNodeEnum::GetVertices(node);
 
@@ -489,7 +489,7 @@ mod tests {
         let calculator = create_test_calculator();
         let estimator = GraphTraversalEstimator::new(&calculator);
 
-        let node = GetVerticesNode::new(1, "vid");
+        let node = GetVerticesNode::new(1, "default", "vid");
         let plan_node = PlanNodeEnum::GetVertices(node);
 
         let child_estimates = vec![];

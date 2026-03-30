@@ -29,24 +29,24 @@ mod server_main {
                 println!("Starting GraphDB service with config: {}", config);
                 println!("Process ID: {}", std::process::id());
 
-                // 加载配置
+                // Load configuration
                 let cfg = match Config::load(&config) {
                     Ok(cfg) => cfg,
                     Err(e) => {
-                        eprintln!("加载配置文件失败: {}, 使用默认配置", e);
+                        eprintln!("Failed to load configuration file: {}, using default configuration", e);
                         Config::default()
                     }
                 };
 
-                // 初始化日志系统
+                // Initialize logging system
                 if let Err(e) = logging::init(&cfg) {
-                    eprintln!("初始化日志系统失败: {}", e);
+                    eprintln!("Failed to initialize logging system: {}", e);
                 }
 
                 // Initialize and start service
                 let result = api::start_service_with_config(cfg);
 
-                // 确保日志 flush 后再退出
+                // Ensure logging is flushed before exiting
                 logging::shutdown();
                 result?;
             }
@@ -54,17 +54,17 @@ mod server_main {
                 println!("Executing query: {}", query);
                 println!("Process ID: {}", std::process::id());
 
-                // 使用默认配置初始化日志
+                // Use default configuration to initialize logging
                 let cfg = Config::default();
                 if let Err(e) = logging::init(&cfg) {
-                    eprintln!("初始化日志系统失败: {}", e);
+                    eprintln!("Failed to initialize logging system: {}", e);
                 }
 
                 // Execute query directly using tokio runtime
                 let rt = tokio::runtime::Runtime::new()?;
                 let result = rt.block_on(api::execute_query(&query));
 
-                // 确保日志 flush 后再退出
+                // Ensure logging is flushed before exiting
                 logging::shutdown();
                 result?;
             }
@@ -84,8 +84,8 @@ fn main() -> DBResult<()> {
 
 #[cfg(not(feature = "server"))]
 fn main() {
-    eprintln!("错误：server feature 未启用，无法运行服务端程序");
-    eprintln!("请使用以下命令重新编译：");
+    eprintln!("Error: server feature is not enabled, cannot run server program");
+    eprintln!("Please recompile using the following command:");
     eprintln!("  cargo run --features server");
     std::process::exit(1);
 }

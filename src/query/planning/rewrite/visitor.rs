@@ -61,7 +61,7 @@ use crate::query::planning::plan::core::nodes::management::space_nodes::{
     CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode, SwitchSpaceNode,
 };
 use crate::query::planning::plan::core::nodes::management::tag_nodes::{
-    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode,
+    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowCreateTagNode, ShowTagsNode,
 };
 use crate::query::planning::plan::core::nodes::management::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode,
@@ -335,6 +335,9 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
         visit_show_tags,
         ShowTagsNode,
         ShowTags,
+        visit_show_create_tag,
+        ShowCreateTagNode,
+        ShowCreateTag,
         visit_create_edge,
         CreateEdgeNode,
         CreateEdge,

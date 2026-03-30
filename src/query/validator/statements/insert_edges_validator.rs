@@ -109,6 +109,7 @@ impl InsertEdgesValidator {
     }
 
     /// Basic vertex ID verification (when no SchemaManager is available)
+    /// Accepts both string and integer vertex IDs
     fn basic_validate_vertex_id_format(
         expr: &ContextualExpression,
         role: &str,
@@ -142,16 +143,19 @@ impl InsertEdgesValidator {
                     }
                     return Ok(());
                 }
-                // Please provide the text you would like to have translated.
+                // Accept integer vertex IDs for Int64 vid_type spaces
+                if let Value::Int(_) = value {
+                    return Ok(());
+                }
                 return Err(ValidationError::new(
-                    format!("{} vertex ID must be a string constant or variable", role),
+                    format!("{} vertex ID must be a string, integer, or variable", role),
                     ValidationErrorType::SemanticError,
                 ));
             }
         }
 
         Err(ValidationError::new(
-            format!("{} vertex ID must be a string constant or variable", role),
+            format!("{} vertex ID must be a string, integer, or variable", role),
             ValidationErrorType::SemanticError,
         ))
     }
