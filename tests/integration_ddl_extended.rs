@@ -14,6 +14,7 @@ use std::collections::HashMap;
 #[test]
 fn test_create_tag_with_validation() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, age INT)")
         .assert_success()
@@ -25,8 +26,8 @@ fn test_create_tag_with_validation() {
 
 #[test]
 fn test_create_tag_if_not_exists() {
-    let mut scenario = TestScenario::new();
-    scenario
+    TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -40,6 +41,7 @@ fn test_create_tag_if_not_exists() {
 #[test]
 fn test_create_tag_with_various_types() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl(r#"
             CREATE TAG TestTypes(
@@ -62,6 +64,7 @@ fn test_create_tag_with_various_types() {
 #[test]
 fn test_create_edge_with_validation() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE EDGE KNOWS(since DATE, strength DOUBLE)")
         .assert_success()
@@ -72,6 +75,7 @@ fn test_create_edge_with_validation() {
 #[test]
 fn test_create_edge_if_not_exists() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE EDGE KNOWS(since DATE)")
         .assert_success()
@@ -84,6 +88,7 @@ fn test_create_edge_if_not_exists() {
 #[test]
 fn test_alter_tag_add_field() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -96,6 +101,7 @@ fn test_alter_tag_add_field() {
 #[test]
 fn test_alter_tag_drop_field() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, temp_field INT)")
         .assert_success()
@@ -108,6 +114,7 @@ fn test_alter_tag_drop_field() {
 #[test]
 fn test_alter_tag_change_field() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(old_name STRING)")
         .assert_success()
@@ -126,6 +133,7 @@ fn test_alter_tag_change_field() {
 #[test]
 fn test_drop_tag_with_validation() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -138,6 +146,7 @@ fn test_drop_tag_with_validation() {
 #[test]
 fn test_drop_tag_if_exists() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("DROP TAG NonExistent") // Should fail
         .assert_error()
@@ -150,6 +159,7 @@ fn test_drop_tag_if_exists() {
 #[test]
 fn test_drop_edge_with_validation() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE EDGE KNOWS(since DATE)")
         .assert_success()
@@ -164,6 +174,7 @@ fn test_drop_edge_with_validation() {
 #[test]
 fn test_schema_evolution_complete_flow() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         // Create initial schema
         .exec_ddl("CREATE TAG User(username STRING, created_at TIMESTAMP)")
@@ -203,6 +214,7 @@ fn test_schema_evolution_complete_flow() {
 #[test]
 fn test_create_tag_duplicate_field() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, name INT)") // Duplicate field
         .assert_error();
@@ -211,6 +223,7 @@ fn test_create_tag_duplicate_field() {
 #[test]
 fn test_alter_tag_nonexistent_field() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -221,6 +234,7 @@ fn test_alter_tag_nonexistent_field() {
 #[test]
 fn test_drop_tag_with_data() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -237,6 +251,7 @@ fn test_drop_tag_with_data() {
 #[test]
 fn test_complex_schema_with_multiple_tags_and_edges() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("social_network")
         // Create tags
         .exec_ddl(r#"

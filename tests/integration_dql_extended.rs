@@ -12,7 +12,7 @@ use graphdb::core::Value;
 
 #[test]
 fn test_match_basic_with_data() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, age INT)")
         .assert_success()
@@ -32,7 +32,7 @@ fn test_match_basic_with_data() {
 
 #[test]
 fn test_match_with_where_clause() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, age INT)")
         .assert_success()
@@ -57,7 +57,7 @@ fn test_match_with_where_clause() {
 
 #[test]
 fn test_match_with_edge_traversal() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -88,7 +88,7 @@ fn test_match_with_edge_traversal() {
 
 #[test]
 fn test_match_with_order_and_limit() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, age INT)")
         .assert_success()
@@ -114,7 +114,7 @@ fn test_match_with_order_and_limit() {
 
 #[test]
 fn test_go_basic_traversal() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -147,7 +147,7 @@ fn test_go_basic_traversal() {
 
 #[test]
 fn test_go_with_reversely() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -174,7 +174,7 @@ fn test_go_with_reversely() {
 
 #[test]
 fn test_go_with_bidirect() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -203,7 +203,7 @@ fn test_go_with_bidirect() {
 
 #[test]
 fn test_lookup_basic() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, age INT)")
         .assert_success()
@@ -224,7 +224,7 @@ fn test_lookup_basic() {
 
 #[test]
 fn test_lookup_with_yield() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, age INT)")
         .assert_success()
@@ -247,7 +247,7 @@ fn test_lookup_with_yield() {
 
 #[test]
 fn test_fetch_vertex() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, age INT, city STRING)")
         .assert_success()
@@ -263,7 +263,7 @@ fn test_fetch_vertex() {
 
 #[test]
 fn test_fetch_multiple_vertices() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -282,7 +282,7 @@ fn test_fetch_multiple_vertices() {
 
 #[test]
 fn test_fetch_edge() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -303,7 +303,7 @@ fn test_fetch_edge() {
 
 #[test]
 fn test_find_shortest_path() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -332,7 +332,7 @@ fn test_find_shortest_path() {
 
 #[test]
 fn test_find_all_paths() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -363,7 +363,7 @@ fn test_find_all_paths() {
 
 #[test]
 fn test_find_path_with_steps_limit() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -394,7 +394,7 @@ fn test_find_path_with_steps_limit() {
 
 #[test]
 fn test_get_subgraph() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -424,7 +424,7 @@ fn test_get_subgraph() {
 
 #[test]
 fn test_complex_social_network_query() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("social_network")
         // Setup schema
         .exec_ddl("CREATE TAG Person(name STRING, age INT, city STRING)")
@@ -461,7 +461,7 @@ fn test_complex_social_network_query() {
 
 #[test]
 fn test_aggregation_query() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Product(name STRING, category STRING, price DOUBLE)")
         .assert_success()
@@ -487,7 +487,7 @@ fn test_aggregation_query() {
 
 #[test]
 fn test_query_nonexistent_tag() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .query("MATCH (n:NonExistent) RETURN n")
         .assert_success()
@@ -496,7 +496,7 @@ fn test_query_nonexistent_tag() {
 
 #[test]
 fn test_query_invalid_syntax() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .query("MATCH (n:Person RETURN n")
         .assert_error();
@@ -504,7 +504,7 @@ fn test_query_invalid_syntax() {
 
 #[test]
 fn test_query_nonexistent_property() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()

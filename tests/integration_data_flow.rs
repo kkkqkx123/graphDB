@@ -14,6 +14,7 @@ use std::collections::HashMap;
 #[test]
 fn test_basic_crud_flow() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         // Create
         .exec_ddl("CREATE TAG User(username STRING, email STRING, active BOOL)")
@@ -58,6 +59,7 @@ fn test_basic_crud_flow() {
 #[test]
 fn test_schema_evolution_flow() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         // Initial schema
         .exec_ddl("CREATE TAG Product(name STRING, price DOUBLE)")
@@ -79,7 +81,7 @@ fn test_schema_evolution_flow() {
         .assert_result_count(1)
         .assert_result_contains(vec![
             Value::String("Laptop".into()),
-            Value::Double(999.99),
+            Value::Float(999.99),
             Value::Int(10),
         ])
         // Evolve schema - add another field
@@ -101,6 +103,7 @@ fn test_schema_evolution_flow() {
 #[test]
 fn test_relationship_crud_flow() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("social_network")
         // Setup
         .exec_ddl("CREATE TAG Person(name STRING)")
@@ -134,7 +137,7 @@ fn test_relationship_crud_flow() {
         .assert_success()
         // Query updated relationship
         .query("FETCH PROP ON FOLLOWS 1 -> 2")
-        .assert_result_contains(vec![Value::String("strength".into()), Value::Double(0.9)])
+        .assert_result_contains(vec![Value::String("strength".into()), Value::Float(0.9)])
         // Delete relationship
         .exec_dml("DELETE EDGE FOLLOWS 1 -> 2")
         .assert_success()
@@ -150,6 +153,7 @@ fn test_relationship_crud_flow() {
 #[test]
 fn test_ecommerce_order_flow() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("ecommerce")
         // Schema
         .exec_ddl("CREATE TAG Customer(name STRING, email STRING)")
@@ -215,6 +219,7 @@ fn test_ecommerce_order_flow() {
 #[test]
 fn test_social_network_complete_flow() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("social_network")
         // Schema
         .exec_ddl(r#"
@@ -284,6 +289,7 @@ fn test_social_network_complete_flow() {
 #[test]
 fn test_index_query_flow() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         // Schema without index
         .exec_ddl("CREATE TAG User(username STRING, age INT)")
@@ -325,6 +331,7 @@ fn test_index_query_flow() {
 #[test]
 fn test_batch_operations_flow() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         // Schema
         .exec_ddl("CREATE TAG Item(name STRING, category STRING, price DOUBLE)")
@@ -353,7 +360,7 @@ fn test_batch_operations_flow() {
         // Verify updates
         .assert_vertex_props(1, "Item", {
             let mut map = HashMap::new();
-            map.insert("price", Value::Double(11.0));
+            map.insert("price", Value::Float(11.0));
             map
         })
         // Batch delete
@@ -369,6 +376,7 @@ fn test_batch_operations_flow() {
 #[test]
 fn test_aggregation_flow() {
     TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         // Schema
         .exec_ddl("CREATE TAG Order(order_id STRING, amount DOUBLE, status STRING)")

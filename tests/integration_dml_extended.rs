@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 #[test]
 fn test_insert_vertex_and_verify() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, age INT)")
         .assert_success()
@@ -30,7 +30,7 @@ fn test_insert_vertex_and_verify() {
 
 #[test]
 fn test_insert_multiple_vertices() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, age INT)")
         .assert_success()
@@ -61,7 +61,7 @@ fn test_insert_multiple_vertices() {
 
 #[test]
 fn test_insert_vertex_with_all_types() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl(r#"
             CREATE TAG TestTypes(
@@ -81,7 +81,7 @@ fn test_insert_vertex_with_all_types() {
             let mut map = HashMap::new();
             map.insert("str_field", Value::String("test".into()));
             map.insert("int_field", Value::Int(42));
-            map.insert("double_field", Value::Double(3.14));
+            map.insert("double_field", Value::Float(3.14));
             map.insert("bool_field", Value::Bool(true));
             map
         });
@@ -91,7 +91,7 @@ fn test_insert_vertex_with_all_types() {
 
 #[test]
 fn test_insert_edge_and_verify() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -106,7 +106,7 @@ fn test_insert_edge_and_verify() {
 
 #[test]
 fn test_insert_edge_with_rank() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -126,7 +126,7 @@ fn test_insert_edge_with_rank() {
 
 #[test]
 fn test_update_vertex_and_verify() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, age INT, city STRING)")
         .assert_success()
@@ -159,7 +159,7 @@ fn test_update_vertex_and_verify() {
 
 #[test]
 fn test_update_vertex_with_condition() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, age INT, status STRING)")
         .assert_success()
@@ -185,7 +185,7 @@ fn test_update_vertex_with_condition() {
 
 #[test]
 fn test_update_edge_and_verify() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -199,14 +199,14 @@ fn test_update_edge_and_verify() {
         .exec_dml("UPDATE 1 -> 2 OF KNOWS SET strength = 0.9")
         .assert_success()
         .query("FETCH PROP ON KNOWS 1 -> 2")
-        .assert_result_contains(vec![Value::String("strength".into()), Value::Double(0.9)]);
+        .assert_result_contains(vec![Value::String("strength".into()), Value::Float(0.9)]);
 }
 
 // ==================== DELETE Extended Tests ====================
 
 #[test]
 fn test_delete_vertex_and_verify() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -223,7 +223,7 @@ fn test_delete_vertex_and_verify() {
 
 #[test]
 fn test_delete_multiple_vertices() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -245,7 +245,7 @@ fn test_delete_multiple_vertices() {
 
 #[test]
 fn test_delete_edge_and_verify() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -272,7 +272,7 @@ fn test_delete_edge_and_verify() {
 
 #[test]
 fn test_complete_crud_flow() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         // Create schema
         .exec_ddl("CREATE TAG Product(name STRING, price DOUBLE, stock INT)")
@@ -306,7 +306,7 @@ fn test_complete_crud_flow() {
 
 #[test]
 fn test_insert_update_delete_sequence() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG User(username STRING, email STRING, active BOOL)")
         .assert_success()
@@ -347,7 +347,7 @@ fn test_insert_update_delete_sequence() {
 
 #[test]
 fn test_insert_duplicate_vertex() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -359,7 +359,7 @@ fn test_insert_duplicate_vertex() {
 
 #[test]
 fn test_update_nonexistent_vertex() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -370,7 +370,7 @@ fn test_update_nonexistent_vertex() {
 
 #[test]
 fn test_delete_nonexistent_vertex() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -382,7 +382,7 @@ fn test_delete_nonexistent_vertex() {
 
 #[test]
 fn test_social_network_data_flow() {
-    TestScenario::new()
+    TestScenario::new().expect("Failed to create test scenario")
         .setup_space("social_network")
         // Create schema
         .exec_ddl("CREATE TAG Person(name STRING, age INT)")

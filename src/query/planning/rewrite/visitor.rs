@@ -58,7 +58,7 @@ use crate::query::planning::plan::core::nodes::management::index_nodes::{
     ShowEdgeIndexesNode, ShowTagIndexesNode,
 };
 use crate::query::planning::plan::core::nodes::management::space_nodes::{
-    CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode,
+    CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode, SwitchSpaceNode,
 };
 use crate::query::planning::plan::core::nodes::management::tag_nodes::{
     AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode,
@@ -66,6 +66,7 @@ use crate::query::planning::plan::core::nodes::management::tag_nodes::{
 use crate::query::planning::plan::core::nodes::management::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode,
 };
+use crate::query::planning::plan::core::nodes::insert::insert_nodes::{InsertEdgesNode, InsertVerticesNode};
 
 use crate::query::planning::plan::core::nodes::access::IndexScanNode;
 use crate::query::planning::plan::core::nodes::traversal::{
@@ -316,6 +317,9 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
         visit_show_spaces,
         ShowSpacesNode,
         ShowSpaces,
+        visit_switch_space,
+        SwitchSpaceNode,
+        SwitchSpace,
         visit_create_tag,
         CreateTagNode,
         CreateTag,
@@ -390,7 +394,13 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
         ChangePassword,
         visit_index_scan,
         IndexScanNode,
-        IndexScan
+        IndexScan,
+        visit_insert_vertices,
+        InsertVerticesNode,
+        InsertVertices,
+        visit_insert_edges,
+        InsertEdgesNode,
+        InsertEdges
     );
 
     impl_multi_input_deps_rewrite!(

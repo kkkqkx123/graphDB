@@ -355,6 +355,18 @@ impl DdlParser {
                 ctx.expect_token(TokenKind::Exists)?;
                 if_exists = true;
             }
+            let space_name = ctx.expect_identifier()?;
+            return Ok(Stmt::Drop(DropStmt {
+                span: start_span,
+                target: DropTarget::Space(space_name),
+                if_exists,
+            }));
+        } else if ctx.match_token(TokenKind::Tag) {
+            let mut if_exists = false;
+            if ctx.match_token(TokenKind::If) {
+                ctx.expect_token(TokenKind::Exists)?;
+                if_exists = true;
+            }
             let mut tag_names = vec![ctx.expect_identifier()?];
             while ctx.match_token(TokenKind::Comma) {
                 tag_names.push(ctx.expect_identifier()?);
@@ -778,14 +790,14 @@ impl DdlParser {
                     }
                     _ => Err(ParseError::new(
                         ParseErrorKind::SyntaxError,
-                        format!("负数后期望数字，发现 {:?}", inner_token_kind),
+                        format!("Expected number after minus sign, found {:?}", inner_token_kind),
                         ctx.current_position(),
                     )),
                 }
             }
             _ => Err(ParseError::new(
                 ParseErrorKind::SyntaxError,
-                format!("不支持的默认值类型: {:?}", token_kind),
+                format!("Unsupported default value type: {:?}", token_kind),
                 ctx.current_position(),
             )),
         }
@@ -908,14 +920,14 @@ impl DdlParser {
                         } else {
                             Err(ParseError::new(
                                 ParseErrorKind::SyntaxError,
-                                "FIXED_STRING 需要右括号".to_string(),
+                                "FIXED_STRING Right bracket required".to_string(),
                                 ctx.current_position(),
                             ))
                         }
                     } else {
                         Err(ParseError::new(
                             ParseErrorKind::SyntaxError,
-                            "FIXED_STRING 需要长度参数".to_string(),
+                            "FIXED_STRING Need length parameter".to_string(),
                             ctx.current_position(),
                         ))
                     }
@@ -959,14 +971,14 @@ impl DdlParser {
                                 } else {
                                     Err(ParseError::new(
                                         ParseErrorKind::SyntaxError,
-                                        "FIXED_STRING 需要右括号".to_string(),
+                                        "FIXED_STRING Right bracket required".to_string(),
                                         ctx.current_position(),
                                     ))
                                 }
                             } else {
                                 Err(ParseError::new(
                                     ParseErrorKind::SyntaxError,
-                                    "FIXED_STRING 需要长度参数".to_string(),
+                                    "FIXED_STRING Need length parameter".to_string(),
                                     ctx.current_position(),
                                 ))
                             }
@@ -980,14 +992,14 @@ impl DdlParser {
                     "DATETIME" => Ok(DataType::DateTime),
                     _ => Err(ParseError::new(
                         ParseErrorKind::SyntaxError,
-                        format!("未知数据类型: {}", type_name),
+                        format!("Unknown data type: {}", type_name),
                         ctx.current_position(),
                     )),
                 }
             }
             _ => Err(ParseError::new(
                 ParseErrorKind::UnexpectedToken,
-                format!("期望数据类型，发现 {:?}", token.kind),
+                format!("Expected data type, discovered {:?}", token.kind),
                 ctx.current_position(),
             )),
         }

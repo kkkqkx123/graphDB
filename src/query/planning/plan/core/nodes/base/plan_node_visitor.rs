@@ -20,6 +20,7 @@ use crate::query::planning::plan::core::nodes::management::tag_nodes::{
 use crate::query::planning::plan::core::nodes::management::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode,
 };
+use crate::query::planning::plan::core::nodes::insert::insert_nodes::{InsertEdgesNode, InsertVerticesNode};
 
 pub use crate::query::planning::plan::core::nodes::access::graph_scan_node::{
     EdgeIndexScanNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode,
@@ -203,6 +204,12 @@ pub trait PlanNodeVisitor {
         ClearSpace, ClearSpaceNode, visit_clear_space;
         ShowStats, ShowStatsNode, visit_show_stats;
     );
+
+    // Insert nodes
+    impl_visitor_methods!(
+        InsertVertices, InsertVerticesNode, visit_insert_vertices;
+        InsertEdges, InsertEdgesNode, visit_insert_edges;
+    );
 }
 
 impl PlanNodeEnum {
@@ -292,13 +299,8 @@ impl PlanNodeEnum {
             PlanNodeEnum::AlterSpace(node) => visitor.visit_alter_space(node),
             PlanNodeEnum::ClearSpace(node) => visitor.visit_clear_space(node),
             PlanNodeEnum::ShowStats(node) => visitor.visit_show_stats(node),
-            PlanNodeEnum::InsertVertices(_node) => visitor.visit_create_space(
-                &CreateSpaceNode::new(-1, SpaceManageInfo::new("".to_string())),
-            ),
-            PlanNodeEnum::InsertEdges(_node) => visitor.visit_create_space(&CreateSpaceNode::new(
-                -1,
-                SpaceManageInfo::new("".to_string()),
-            )),
+            PlanNodeEnum::InsertVertices(node) => visitor.visit_insert_vertices(node),
+            PlanNodeEnum::InsertEdges(node) => visitor.visit_insert_edges(node),
         }
     }
 }

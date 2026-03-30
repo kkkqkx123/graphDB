@@ -40,7 +40,7 @@ impl<S: graphdb::storage::StorageClient + 'static> QueryHelper<S> {
         let result = self.execute(query)?;
         match result {
             ExecutionResult::Success | ExecutionResult::Empty => Ok(()),
-            ExecutionResult::Error(msg) => Err(graphdb::core::error::DBError::QueryError(
+            ExecutionResult::Error(msg) => Err(graphdb::core::error::DBError::Query(
                 graphdb::core::error::QueryError::ExecutionError(msg),
             )),
             _ => Ok(()),
@@ -55,7 +55,7 @@ impl<S: graphdb::storage::StorageClient + 'static> QueryHelper<S> {
             ExecutionResult::Count(n) => Ok(n),
             ExecutionResult::Success => Ok(1),
             ExecutionResult::Empty => Ok(0),
-            ExecutionResult::Error(msg) => Err(graphdb::core::error::DBError::QueryError(
+            ExecutionResult::Error(msg) => Err(graphdb::core::error::DBError::Query(
                 graphdb::core::error::QueryError::ExecutionError(msg),
             )),
             _ => Ok(0),
@@ -70,13 +70,13 @@ impl<S: graphdb::storage::StorageClient + 'static> QueryHelper<S> {
             ExecutionResult::DataSet(ds) => Ok(ds.rows),
             ExecutionResult::Values(v) => Ok(vec![v]),
             ExecutionResult::Vertices(v) => {
-                Ok(v.into_iter().map(|vertex| vec![Value::from(vertex)]).collect())
+                Ok(v.into_iter().map(|vertex| vec![Value::Vertex(Box::new(vertex))]).collect())
             }
             ExecutionResult::Edges(e) => {
-                Ok(e.into_iter().map(|edge| vec![Value::from(edge)]).collect())
+                Ok(e.into_iter().map(|edge| vec![Value::Edge(edge)]).collect())
             }
             ExecutionResult::Empty => Ok(vec![]),
-            ExecutionResult::Error(msg) => Err(graphdb::core::error::DBError::QueryError(
+            ExecutionResult::Error(msg) => Err(graphdb::core::error::DBError::Query(
                 graphdb::core::error::QueryError::ExecutionError(msg),
             )),
             _ => Ok(vec![]),
@@ -114,7 +114,11 @@ impl FromValue for i64 {
     fn from_value(value: &Value) -> DBResult<Self> {
         match value {
             Value::Int(i) => Ok(*i),
-            _ => Err(graphdb::core::error::DBError::TypeError(format!(
+            Value::Int64(i) => Ok(*i),
+            Value::Int32(i) => Ok(*i as i64),
+            Value::Int16(i) => Ok(*i as i64),
+            Value::Int8(i) => Ok(*i as i64),
+            _ => Err(graphdb::core::error::DBError::Validation(format!(
                 "Expected Int, got {:?}",
                 value
             ))),
@@ -126,7 +130,7 @@ impl FromValue for String {
     fn from_value(value: &Value) -> DBResult<Self> {
         match value {
             Value::String(s) => Ok(s.clone()),
-            _ => Err(graphdb::core::error::DBError::TypeError(format!(
+            _ => Err(graphdb::core::error::DBError::Validation(format!(
                 "Expected String, got {:?}",
                 value
             ))),
@@ -137,10 +141,9 @@ impl FromValue for String {
 impl FromValue for f64 {
     fn from_value(value: &Value) -> DBResult<Self> {
         match value {
-            Value::Double(d) => Ok(*d),
-            Value::Float(f) => Ok(*f as f64),
-            _ => Err(graphdb::core::error::DBError::TypeError(format!(
-                "Expected Double/Float, got {:?}",
+            Value::Float(f) => Ok(*f),
+            _ => Err(graphdb::core::error::DBError::Validation(format!(
+                "Expected Float, got {:?}",
                 value
             ))),
         }
@@ -151,7 +154,7 @@ impl FromValue for bool {
     fn from_value(value: &Value) -> DBResult<Self> {
         match value {
             Value::Bool(b) => Ok(*b),
-            _ => Err(graphdb::core::error::DBError::TypeError(format!(
+            _ => Err(graphdb::core::error::DBError::Validation(format!(
                 "Expected Bool, got {:?}",
                 value
             ))),

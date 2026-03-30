@@ -83,9 +83,10 @@ pub use clauses::{
 
 // Export the DDL validator.
 pub use ddl::{
-    AlterTargetType, AlterValidator, ClearSpaceValidator, DescTargetType, DescValidator,
-    DropTargetType, DropValidator, KillQueryValidator, ShowConfigsValidator, ShowCreateValidator,
-    ShowQueriesValidator, ShowSessionsValidator, ShowTargetType, ShowValidator, ValidatedAlter,
+    AlterTargetType, AlterValidator, ClearSpaceValidator, CreateEdgeValidator, CreateTagValidator,
+    DescTargetType, DescValidator, DropTargetType, DropValidator, KillQueryValidator,
+    ShowConfigsValidator, ShowCreateValidator, ShowQueriesValidator, ShowSessionsValidator,
+    ShowTargetType, ShowValidator, ValidatedAlter, ValidatedCreateEdge, ValidatedCreateTag,
     ValidatedDesc, ValidatedDrop, ValidatedShow,
 };
 

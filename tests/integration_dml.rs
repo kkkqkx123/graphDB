@@ -1,25 +1,28 @@
-//! 数据操作语言(DML)集成测试
+//! Data Manipulation Language (DML) Integration Tests
 //!
-//! Test scope:
-//! - INSERT – Insert data
-//! - CREATE – Create data
-//! - UPDATE – Update the data
-//! - DELETE – Delete the data
-//! - MERGE – Merge the data
-//! - SET – Set properties
-//! - REMOVE - Remove the attribute.
+//! Test coverage:
+//! - INSERT - Insert data
+//! - CREATE - Create data (Cypher style)
+//! - UPDATE - Update data
+//! - DELETE - Delete data
+//! - MERGE - Merge data
+//! - SET - Set properties
+//! - REMOVE - Remove properties
+//! - UPSERT - Upsert operation
 
 mod common;
 
+use common::test_scenario::TestScenario;
 use common::TestStorage;
-
 use graphdb::core::stats::StatsManager;
+use graphdb::core::Value;
 use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::query::parser::Parser;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
+use std::collections::HashMap;
 use std::sync::Arc;
 
-// ==================== Testing the INSERT statement =====================
+// ==================== INSERT Statement Tests ====================
 
 #[test]
 fn test_insert_parser_vertex() {
@@ -29,11 +32,11 @@ fn test_insert_parser_vertex() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "INSERT VERTEX解析应该成功: {:?}",
+        "INSERT VERTEX parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("INSERT语句解析应该成功");
+    let stmt = result.expect("INSERT statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "INSERT");
 }
 
@@ -45,11 +48,11 @@ fn test_insert_parser_multiple_vertices() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "INSERT多个顶点解析应该成功: {:?}",
+        "INSERT multiple vertices parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("INSERT语句解析应该成功");
+    let stmt = result.expect("INSERT statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "INSERT");
 }
 
@@ -61,11 +64,11 @@ fn test_insert_parser_edge() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "INSERT EDGE解析应该成功: {:?}",
+        "INSERT EDGE parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("INSERT语句解析应该成功");
+    let stmt = result.expect("INSERT statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "INSERT");
 }
 
@@ -77,11 +80,11 @@ fn test_insert_parser_edge_with_rank() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "INSERT EDGE带rank解析应该成功: {:?}",
+        "INSERT EDGE with rank parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("INSERT语句解析应该成功");
+    let stmt = result.expect("INSERT statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "INSERT");
 }
 
@@ -93,11 +96,11 @@ fn test_insert_parser_multiple_edges() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "INSERT多个边解析应该成功: {:?}",
+        "INSERT multiple edges parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("INSERT语句解析应该成功");
+    let stmt = result.expect("INSERT statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "INSERT");
 }
 
@@ -112,43 +115,65 @@ fn test_insert_parser_invalid_syntax() {
 
 #[test]
 fn test_insert_execution_vertex() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING, age: INT)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)")
+        .assert_success()
+        .assert_vertex_exists(1, "Person")
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([
+                ("name", Value::String("Alice".into())),
+                ("age", Value::Int(30)),
+            ]),
+        );
+}
 
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let query = "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)";
-    let result = pipeline_manager.execute_query(query);
-
-    println!("INSERT VERTEX执行结果: {:?}", result);
-    assert!(result.is_ok() || result.is_err());
+#[test]
+fn test_insert_execution_multiple_vertices() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING, age: INT)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25)")
+        .assert_success()
+        .assert_vertex_exists(1, "Person")
+        .assert_vertex_exists(2, "Person")
+        .assert_vertex_count("Person", 2);
 }
 
 #[test]
 fn test_insert_execution_edge() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let query = "INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01')";
-    let result = pipeline_manager.execute_query(query);
-
-    println!("INSERT EDGE执行结果: {:?}", result);
-    assert!(result.is_ok() || result.is_err());
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01')")
+        .assert_success()
+        .assert_edge_exists(1, 2, "KNOWS");
 }
 
-// ==================== CREATE Statement Test ====================
+#[test]
+fn test_insert_execution_multiple_edges() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01'), 2 -> 3:('2021-01-01')")
+        .assert_success()
+        .assert_edge_exists(1, 2, "KNOWS")
+        .assert_edge_exists(2, 3, "KNOWS")
+        .assert_edge_count("KNOWS", 2);
+}
+
+// ==================== CREATE Statement Tests (Cypher style) ====================
 
 #[test]
 fn test_create_parser_vertex() {
@@ -156,7 +181,7 @@ fn test_create_parser_vertex() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("CREATE顶点解析结果: {:?}", result);
+    println!("CREATE vertex parsing result: {:?}", result);
     let _ = result;
 }
 
@@ -166,7 +191,7 @@ fn test_create_parser_edge() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("CREATE边解析结果: {:?}", result);
+    println!("CREATE edge parsing result: {:?}", result);
     let _ = result;
 }
 
@@ -176,49 +201,33 @@ fn test_create_parser_multiple() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("CREATE多个顶点解析结果: {:?}", result);
+    println!("CREATE multiple vertices parsing result: {:?}", result);
     let _ = result;
 }
 
 #[test]
 fn test_create_execution_vertex() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let query = "CREATE (p:Person {name: 'Alice', age: 30})";
-    let result = pipeline_manager.execute_query(query);
-
-    println!("CREATE顶点执行结果: {:?}", result);
-    assert!(result.is_ok() || result.is_err());
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING, age: INT)")
+        .exec_dml("CREATE (p:Person {name: 'Alice', age: 30})")
+        .assert_success();
 }
 
 #[test]
 fn test_create_execution_edge() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let query = "CREATE (a:Person)-[:KNOWS {since: '2020-01-01'}]->(b:Person)";
-    let result = pipeline_manager.execute_query(query);
-
-    println!("CREATE边执行结果: {:?}", result);
-    assert!(result.is_ok() || result.is_err());
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE)")
+        .exec_dml("CREATE (a:Person {name: 'Alice'}), (b:Person {name: 'Bob'})")
+        .exec_dml("CREATE (a)-[:KNOWS {since: '2020-01-01'}]->(b)")
+        .assert_success();
 }
 
-// ==================== Testing of the UPDATE statement ====================
+// ==================== UPDATE Statement Tests ====================
 
 #[test]
 fn test_update_parser_vertex() {
@@ -226,9 +235,13 @@ fn test_update_parser_vertex() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "UPDATE顶点解析应该成功: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "UPDATE vertex parsing should succeed: {:?}",
+        result.err()
+    );
 
-    let stmt = result.expect("UPDATE语句解析应该成功");
+    let stmt = result.expect("UPDATE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "UPDATE");
 }
 
@@ -240,11 +253,11 @@ fn test_update_parser_vertex_with_when() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "UPDATE顶点带WHEN解析应该成功: {:?}",
+        "UPDATE vertex with WHEN parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("UPDATE语句解析应该成功");
+    let stmt = result.expect("UPDATE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "UPDATE");
 }
 
@@ -254,9 +267,13 @@ fn test_update_parser_edge() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "UPDATE边解析应该成功: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "UPDATE edge parsing should succeed: {:?}",
+        result.err()
+    );
 
-    let stmt = result.expect("UPDATE语句解析应该成功");
+    let stmt = result.expect("UPDATE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "UPDATE");
 }
 
@@ -268,11 +285,11 @@ fn test_update_parser_edge_with_when() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "UPDATE边带WHEN解析应该成功: {:?}",
+        "UPDATE edge with WHEN parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("UPDATE语句解析应该成功");
+    let stmt = result.expect("UPDATE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "UPDATE");
 }
 
@@ -284,53 +301,67 @@ fn test_update_parser_multiple_props() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "UPDATE多个属性解析应该成功: {:?}",
+        "UPDATE multiple properties parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("UPDATE语句解析应该成功");
+    let stmt = result.expect("UPDATE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "UPDATE");
 }
 
 #[test]
 fn test_update_execution_vertex() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING, age: INT)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)")
+        .exec_dml("UPDATE 1 SET age = 31")
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([
+                ("name", Value::String("Alice".into())),
+                ("age", Value::Int(31)),
+            ]),
+        );
+}
 
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let query = "UPDATE 1 SET age = 26";
-    let result = pipeline_manager.execute_query(query);
-
-    println!("UPDATE顶点执行结果: {:?}", result);
-    assert!(result.is_ok() || result.is_err());
+#[test]
+fn test_update_execution_vertex_multiple_props() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING, age: INT, city: STRING)")
+        .exec_dml("INSERT VERTEX Person(name, age, city) VALUES 1:('Alice', 30, 'NYC')")
+        .exec_dml("UPDATE 1 SET age = 31, name = 'Alice Smith', city = 'LA'")
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([
+                ("name", Value::String("Alice Smith".into())),
+                ("age", Value::Int(31)),
+                ("city", Value::String("LA".into())),
+            ]),
+        );
 }
 
 #[test]
 fn test_update_execution_edge() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let query = "UPDATE 1 -> 2 @0 OF KNOWS SET since = '2021-01-01'";
-    let result = pipeline_manager.execute_query(query);
-
-    println!("UPDATE边执行结果: {:?}", result);
-    assert!(result.is_ok() || result.is_err());
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01')")
+        .exec_dml("UPDATE 1 -> 2 OF KNOWS SET since = '2021-01-01'")
+        .assert_success();
 }
 
-// ==================== Testing of the DELETE statement ====================
+// ==================== DELETE Statement Tests ====================
 
 #[test]
 fn test_delete_parser_vertex() {
@@ -340,11 +371,11 @@ fn test_delete_parser_vertex() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "DELETE VERTEX解析应该成功: {:?}",
+        "DELETE VERTEX parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("DELETE语句解析应该成功");
+    let stmt = result.expect("DELETE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "DELETE");
 }
 
@@ -356,11 +387,11 @@ fn test_delete_parser_multiple_vertices() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "DELETE多个顶点解析应该成功: {:?}",
+        "DELETE multiple vertices parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("DELETE语句解析应该成功");
+    let stmt = result.expect("DELETE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "DELETE");
 }
 
@@ -372,11 +403,11 @@ fn test_delete_parser_edge() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "DELETE EDGE解析应该成功: {:?}",
+        "DELETE EDGE parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("DELETE语句解析应该成功");
+    let stmt = result.expect("DELETE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "DELETE");
 }
 
@@ -388,11 +419,11 @@ fn test_delete_parser_edge_with_rank() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "DELETE EDGE带rank解析应该成功: {:?}",
+        "DELETE EDGE with rank parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("DELETE语句解析应该成功");
+    let stmt = result.expect("DELETE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "DELETE");
 }
 
@@ -404,53 +435,76 @@ fn test_delete_parser_multiple_edges() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "DELETE多个边解析应该成功: {:?}",
+        "DELETE multiple edges parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("DELETE语句解析应该成功");
+    let stmt = result.expect("DELETE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "DELETE");
 }
 
 #[test]
 fn test_delete_execution_vertex() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice')")
+        .assert_vertex_exists(1, "Person")
+        .exec_dml("DELETE VERTEX 1")
+        .assert_success()
+        .assert_vertex_not_exists(1, "Person");
+}
 
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let query = "DELETE VERTEX 1";
-    let result = pipeline_manager.execute_query(query);
-
-    println!("DELETE VERTEX执行结果: {:?}", result);
-    assert!(result.is_ok() || result.is_err());
+#[test]
+fn test_delete_execution_multiple_vertices() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
+        .assert_vertex_count("Person", 3)
+        .exec_dml("DELETE VERTEX 1, 2")
+        .assert_success()
+        .assert_vertex_not_exists(1, "Person")
+        .assert_vertex_not_exists(2, "Person")
+        .assert_vertex_exists(3, "Person")
+        .assert_vertex_count("Person", 1);
 }
 
 #[test]
 fn test_delete_execution_edge() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let query = "DELETE EDGE KNOWS 1 -> 2";
-    let result = pipeline_manager.execute_query(query);
-
-    println!("DELETE EDGE执行结果: {:?}", result);
-    assert!(result.is_ok() || result.is_err());
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01')")
+        .assert_edge_exists(1, 2, "KNOWS")
+        .exec_dml("DELETE EDGE KNOWS 1 -> 2")
+        .assert_success()
+        .assert_edge_not_exists(1, 2, "KNOWS");
 }
 
-// ==================== Additional testing for DML functionality ====================
+#[test]
+fn test_delete_execution_multiple_edges() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01'), 2 -> 3:('2021-01-01')")
+        .assert_edge_count("KNOWS", 2)
+        .exec_dml("DELETE EDGE KNOWS 1 -> 2, 2 -> 3")
+        .assert_success()
+        .assert_edge_not_exists(1, 2, "KNOWS")
+        .assert_edge_not_exists(2, 3, "KNOWS")
+        .assert_edge_count("KNOWS", 0);
+}
+
+// ==================== Additional DML Functionality Tests ====================
 
 #[test]
 fn test_insert_if_not_exists_parser() {
@@ -460,31 +514,43 @@ fn test_insert_if_not_exists_parser() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "INSERT IF NOT EXISTS 解析应该成功: {:?}",
+        "INSERT IF NOT EXISTS parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("INSERT语句解析应该成功");
+    let stmt = result.expect("INSERT statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "INSERT");
 }
 
 #[test]
 fn test_insert_if_not_exists_execution() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let query = "INSERT VERTEX IF NOT EXISTS Person(name, age) VALUES 1:('Alice', 30)";
-    let result = pipeline_manager.execute_query(query);
-
-    println!("INSERT IF NOT EXISTS 执行结果: {:?}", result);
-    assert!(result.is_ok() || result.is_err());
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING, age: INT)")
+        .exec_dml("INSERT VERTEX IF NOT EXISTS Person(name, age) VALUES 1:('Alice', 30)")
+        .assert_success()
+        .assert_vertex_exists(1, "Person")
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([
+                ("name", Value::String("Alice".into())),
+                ("age", Value::Int(30)),
+            ]),
+        )
+        // Second insert should not fail
+        .exec_dml("INSERT VERTEX IF NOT EXISTS Person(name, age) VALUES 1:('Bob', 25)")
+        .assert_success()
+        // Properties should remain unchanged
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([
+                ("name", Value::String("Alice".into())),
+                ("age", Value::Int(30)),
+            ]),
+        );
 }
 
 #[test]
@@ -495,11 +561,11 @@ fn test_insert_multiple_tags_parser() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "INSERT多Tag解析应该成功: {:?}",
+        "INSERT multiple tags parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("INSERT语句解析应该成功");
+    let stmt = result.expect("INSERT statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "INSERT");
 }
 
@@ -511,11 +577,11 @@ fn test_upsert_vertex_parser() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "UPSERT VERTEX解析应该成功: {:?}",
+        "UPSERT VERTEX parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("UPSERT语句解析应该成功");
+    let stmt = result.expect("UPSERT statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "UPDATE");
 }
 
@@ -527,11 +593,11 @@ fn test_upsert_edge_parser() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "UPSERT EDGE解析应该成功: {:?}",
+        "UPSERT EDGE parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("UPSERT语句解析应该成功");
+    let stmt = result.expect("UPSERT statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "UPDATE");
 }
 
@@ -543,11 +609,11 @@ fn test_update_with_yield_parser() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "UPDATE带YIELD解析应该成功: {:?}",
+        "UPDATE with YIELD parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("UPDATE语句解析应该成功");
+    let stmt = result.expect("UPDATE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "UPDATE");
 }
 
@@ -559,11 +625,11 @@ fn test_update_vertex_on_tag_parser() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "UPDATE VERTEX ON Tag解析应该成功: {:?}",
+        "UPDATE VERTEX ON Tag parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("UPDATE语句解析应该成功");
+    let stmt = result.expect("UPDATE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "UPDATE");
 }
 
@@ -575,11 +641,11 @@ fn test_delete_tag_wildcard_parser() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "DELETE TAG *解析应该成功: {:?}",
+        "DELETE TAG * parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("DELETE语句解析应该成功");
+    let stmt = result.expect("DELETE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "DELETE");
 }
 
@@ -591,11 +657,11 @@ fn test_delete_tag_specific_parser() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "DELETE TAG特定标签解析应该成功: {:?}",
+        "DELETE TAG specific tags parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("DELETE语句解析应该成功");
+    let stmt = result.expect("DELETE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "DELETE");
 }
 
@@ -607,15 +673,15 @@ fn test_delete_tag_multiple_vertices_parser() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "DELETE TAG多个顶点解析应该成功: {:?}",
+        "DELETE TAG multiple vertices parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("DELETE语句解析应该成功");
+    let stmt = result.expect("DELETE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "DELETE");
 }
 
-// ==================== MERGE Statement Test ====================
+// ==================== MERGE Statement Tests ====================
 
 #[test]
 fn test_merge_parser_basic() {
@@ -623,7 +689,7 @@ fn test_merge_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("MERGE基础解析结果: {:?}", result);
+    println!("MERGE basic parsing result: {:?}", result);
     let _ = result;
 }
 
@@ -633,7 +699,7 @@ fn test_merge_parser_on_match() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("MERGE带ON MATCH解析结果: {:?}", result);
+    println!("MERGE with ON MATCH parsing result: {:?}", result);
     let _ = result;
 }
 
@@ -643,7 +709,7 @@ fn test_merge_parser_on_create() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("MERGE带ON CREATE解析结果: {:?}", result);
+    println!("MERGE with ON CREATE parsing result: {:?}", result);
     let _ = result;
 }
 
@@ -653,30 +719,21 @@ fn test_merge_parser_both() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("MERGE带ON MATCH和ON CREATE解析结果: {:?}", result);
+    println!("MERGE with ON MATCH and ON CREATE parsing result: {:?}", result);
     let _ = result;
 }
 
 #[test]
 fn test_merge_execution_basic() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let query = "MERGE (p:Person {name: 'Alice'})";
-    let result = pipeline_manager.execute_query(query);
-
-    println!("MERGE基础执行结果: {:?}", result);
-    assert!(result.is_ok() || result.is_err());
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_dml("MERGE (p:Person {name: 'Alice'})")
+        .assert_success();
 }
 
-// ==================== SET Statement Test ====================
+// ==================== SET Statement Tests ====================
 
 #[test]
 fn test_set_parser_basic() {
@@ -684,9 +741,13 @@ fn test_set_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "SET基础解析应该成功: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "SET basic parsing should succeed: {:?}",
+        result.err()
+    );
 
-    let stmt = result.expect("SET语句解析应该成功");
+    let stmt = result.expect("SET statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SET");
 }
 
@@ -698,11 +759,11 @@ fn test_set_parser_multiple() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "SET多个属性解析应该成功: {:?}",
+        "SET multiple properties parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("SET语句解析应该成功");
+    let stmt = result.expect("SET statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SET");
 }
 
@@ -714,34 +775,34 @@ fn test_set_parser_with_expression() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "SET带表达式解析应该成功: {:?}",
+        "SET with expression parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("SET语句解析应该成功");
+    let stmt = result.expect("SET statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SET");
 }
 
 #[test]
 fn test_set_execution_basic() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let query = "SET p.age = 26";
-    let result = pipeline_manager.execute_query(query);
-
-    println!("SET基础执行结果: {:?}", result);
-    assert!(result.is_ok() || result.is_err());
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING, age: INT)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)")
+        .exec_dml("SET 1.age = 31")
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([
+                ("name", Value::String("Alice".into())),
+                ("age", Value::Int(31)),
+            ]),
+        );
 }
 
-// ==================== REMOVE Statement Testing ====================
+// ==================== REMOVE Statement Tests ====================
 
 #[test]
 fn test_remove_parser_property() {
@@ -749,9 +810,13 @@ fn test_remove_parser_property() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "REMOVE属性解析应该成功: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "REMOVE property parsing should succeed: {:?}",
+        result.err()
+    );
 
-    let stmt = result.expect("REMOVE语句解析应该成功");
+    let stmt = result.expect("REMOVE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "REMOVE");
 }
 
@@ -763,11 +828,11 @@ fn test_remove_parser_multiple_properties() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "REMOVE多个属性解析应该成功: {:?}",
+        "REMOVE multiple properties parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("REMOVE语句解析应该成功");
+    let stmt = result.expect("REMOVE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "REMOVE");
 }
 
@@ -777,9 +842,13 @@ fn test_remove_parser_label() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "REMOVE标签解析应该成功: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "REMOVE label parsing should succeed: {:?}",
+        result.err()
+    );
 
-    let stmt = result.expect("REMOVE语句解析应该成功");
+    let stmt = result.expect("REMOVE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "REMOVE");
 }
 
@@ -791,11 +860,11 @@ fn test_remove_parser_multiple_labels() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "REMOVE多个标签解析应该成功: {:?}",
+        "REMOVE multiple labels parsing should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("REMOVE语句解析应该成功");
+    let stmt = result.expect("REMOVE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "REMOVE");
 }
 
@@ -805,88 +874,85 @@ fn test_remove_parser_mixed() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "REMOVE混合解析应该成功: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "REMOVE mixed parsing should succeed: {:?}",
+        result.err()
+    );
 
-    let stmt = result.expect("REMOVE语句解析应该成功");
+    let stmt = result.expect("REMOVE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "REMOVE");
 }
 
 #[test]
 fn test_remove_execution_property() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let query = "REMOVE p.temp_field";
-    let result = pipeline_manager.execute_query(query);
-
-    println!("REMOVE属性执行结果: {:?}", result);
-    assert!(result.is_ok() || result.is_err());
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING, temp_field: STRING)")
+        .exec_dml("INSERT VERTEX Person(name, temp_field) VALUES 1:('Alice', 'temp_value')")
+        .exec_dml("REMOVE 1.temp_field")
+        .assert_success();
 }
 
-// ==================== Comprehensive DML Testing =====================
+// ==================== Comprehensive DML Tests ====================
 
 #[test]
 fn test_dml_crud_operations() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let queries = [
-        "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)",
-        "UPDATE 1 SET age = 31",
-        "FETCH PROP ON Person 1",
-        "DELETE VERTEX 1",
-    ];
-
-    for (i, query) in queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query);
-        println!("DML CRUD操作 {} 执行结果: {:?}", i + 1, result);
-        assert!(result.is_ok() || result.is_err());
-    }
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        // Create schema
+        .exec_ddl("CREATE TAG Person(name: STRING, age: INT)")
+        // Create
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)")
+        .assert_success()
+        .assert_vertex_exists(1, "Person")
+        // Read
+        .query("FETCH PROP ON Person 1")
+        .assert_success()
+        .assert_result_count(1)
+        // Update
+        .exec_dml("UPDATE 1 SET age = 31")
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([("age", Value::Int(31))]),
+        )
+        // Delete
+        .exec_dml("DELETE VERTEX 1")
+        .assert_success()
+        .assert_vertex_not_exists(1, "Person");
 }
 
 #[test]
 fn test_dml_batch_operations() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let batch_queries = [
-        "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35)",
-        "INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01'), 2 -> 3:('2021-01-01')",
-        "UPDATE 1 SET age = 31, name = 'Alice Smith'",
-        "DELETE VERTEX 1, 2, 3",
-    ];
-
-    for (i, query) in batch_queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query);
-        println!("DML批量操作 {} 执行结果: {:?}", i + 1, result);
-        assert!(result.is_ok() || result.is_err());
-    }
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING, age: INT)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE)")
+        // Batch insert vertices
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35)")
+        .assert_success()
+        .assert_vertex_count("Person", 3)
+        // Batch insert edges
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01'), 2 -> 3:('2021-01-01')")
+        .assert_success()
+        .assert_edge_count("KNOWS", 2)
+        // Batch update
+        .exec_dml("UPDATE 1 SET age = 31, name = 'Alice Smith'")
+        .assert_success()
+        // Batch delete
+        .exec_dml("DELETE VERTEX 1, 2, 3")
+        .assert_success()
+        .assert_vertex_count("Person", 0);
 }
 
 #[test]
 fn test_dml_error_handling() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let test_storage = TestStorage::new().expect("Failed to create test storage");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
 
@@ -898,223 +964,129 @@ fn test_dml_error_handling() {
 
     let invalid_queries = vec![
         "INSERT VERTEX Person(name, age) VALUES 1:'Alice', 30", // Invalid grammar
-        "UPDATE SET age = 26",                                  // The vertex ID is missing.
-        "DELETE VERTEX",                                        // The vertex ID is missing.
-        "SET = 26",                                             // The variable is missing.
+        "UPDATE SET age = 26",                                  // Missing vertex ID
+        "DELETE VERTEX",                                        // Missing vertex ID
+        "SET = 26",                                             // Missing variable
     ];
 
     for query in invalid_queries {
         let result = pipeline_manager.execute_query(query);
-        assert!(result.is_err(), "无效查询应该返回错误: {}", query);
+        assert!(result.is_err(), "Invalid query should return error: {}", query);
     }
 }
 
 #[test]
 fn test_dml_transaction_like_operations() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let transaction_queries = [
-        "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)",
-        "INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01')",
-        "UPDATE 1 SET age = 31",
-        "FETCH PROP ON Person 1",
-    ];
-
-    for (i, query) in transaction_queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query);
-        println!("DML事务类操作 {} 执行结果: {:?}", i + 1, result);
-        assert!(result.is_ok() || result.is_err());
-    }
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING, age: INT)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE)")
+        // Insert vertex
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)")
+        .assert_success()
+        // Insert edge (requires both vertices)
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 2:('Bob', 25)")
+        .assert_success()
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01')")
+        .assert_success()
+        .assert_edge_exists(1, 2, "KNOWS")
+        // Update
+        .exec_dml("UPDATE 1 SET age = 31")
+        .assert_success()
+        // Fetch
+        .query("FETCH PROP ON Person 1")
+        .assert_success()
+        .assert_result_count(1);
 }
 
-// ==================== Testing of Index Optimization Rules ====================
+// ==================== Index Optimization Tests ====================
 
 #[test]
 fn test_index_scan_with_limit() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let setup_queries = vec![
-        "CREATE TAG Person(name string, age int)",
-        "CREATE TAG INDEX person_age_index ON Person(age)",
-        "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35), 4:('David', 28), 5:('Eve', 32)",
-    ];
-
-    for query in setup_queries {
-        let _ = pipeline_manager.execute_query(query);
-    }
-
-    let query = "LOOKUP ON Person WHERE Person.age > 25 YIELD Person.name, Person.age LIMIT 2";
-    let result = pipeline_manager.execute_query(query);
-
-    println!("索引扫描带LIMIT执行结果: {:?}", result);
-    assert!(result.is_ok() || result.is_err());
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING, age: INT)")
+        .exec_ddl("CREATE TAG INDEX person_age_index ON Person(age)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35), 4:('David', 28), 5:('Eve', 32)")
+        .query("LOOKUP ON Person WHERE Person.age > 25 YIELD Person.name, Person.age LIMIT 2")
+        .assert_success()
+        .assert_result_count(2);
 }
 
 #[test]
 fn test_index_scan_with_order_by_limit() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let setup_queries = vec![
-        "CREATE TAG Person(name string, age int)",
-        "CREATE TAG INDEX person_age_index ON Person(age)",
-        "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35), 4:('David', 28), 5:('Eve', 32)",
-    ];
-
-    for query in setup_queries {
-        let _ = pipeline_manager.execute_query(query);
-    }
-
-    let query = "LOOKUP ON Person WHERE Person.age > 20 YIELD Person.name, Person.age ORDER BY Person.age DESC LIMIT 3";
-    let result = pipeline_manager.execute_query(query);
-
-    println!("索引扫描带ORDER BY和LIMIT执行结果: {:?}", result);
-    assert!(result.is_ok() || result.is_err());
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING, age: INT)")
+        .exec_ddl("CREATE TAG INDEX person_age_index ON Person(age)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35), 4:('David', 28), 5:('Eve', 32)")
+        .query("LOOKUP ON Person WHERE Person.age > 20 YIELD Person.name, Person.age ORDER BY Person.age DESC LIMIT 3")
+        .assert_success()
+        .assert_result_count(3);
 }
 
 #[test]
 fn test_index_covering_scan() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let setup_queries = vec![
-        "CREATE TAG Person(name string, age int)",
-        "CREATE TAG INDEX person_name_age_index ON Person(name, age)",
-        "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35)",
-    ];
-
-    for query in setup_queries {
-        let _ = pipeline_manager.execute_query(query);
-    }
-
-    let query = "LOOKUP ON Person WHERE Person.name == 'Alice' YIELD Person.name, Person.age";
-    let result = pipeline_manager.execute_query(query);
-
-    println!("索引覆盖扫描执行结果: {:?}", result);
-    assert!(result.is_ok() || result.is_err());
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING, age: INT)")
+        .exec_ddl("CREATE TAG INDEX person_name_age_index ON Person(name, age)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35)")
+        .query("LOOKUP ON Person WHERE Person.name == 'Alice' YIELD Person.name, Person.age")
+        .assert_success()
+        .assert_result_count(1);
 }
 
 #[test]
 fn test_index_scan_with_filter_optimization() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let setup_queries = vec![
-        "CREATE TAG Person(name string, age int, city string)",
-        "CREATE TAG INDEX person_age_city_index ON Person(age, city)",
-        "INSERT VERTEX Person(name, age, city) VALUES 1:('Alice', 30, 'Beijing'), 2:('Bob', 25, 'Shanghai'), 3:('Charlie', 35, 'Beijing')",
-    ];
-
-    for query in setup_queries {
-        let _ = pipeline_manager.execute_query(query);
-    }
-
-    let query = "LOOKUP ON Person WHERE Person.age > 25 AND Person.city == 'Beijing' YIELD Person.name, Person.age, Person.city";
-    let result = pipeline_manager.execute_query(query);
-
-    println!("索引扫描带过滤器优化执行结果: {:?}", result);
-    assert!(result.is_ok() || result.is_err());
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING, age: INT, city: STRING)")
+        .exec_ddl("CREATE TAG INDEX person_age_city_index ON Person(age, city)")
+        .exec_dml("INSERT VERTEX Person(name, age, city) VALUES 1:('Alice', 30, 'Beijing'), 2:('Bob', 25, 'Shanghai'), 3:('Charlie', 35, 'Beijing')")
+        .query("LOOKUP ON Person WHERE Person.age > 25 AND Person.city == 'Beijing' YIELD Person.name, Person.age, Person.city")
+        .assert_success()
+        .assert_result_count(2);
 }
 
 #[test]
 fn test_dml_with_index_optimization() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let setup_queries = vec![
-        "CREATE TAG Person(name string, age int)",
-        "CREATE TAG INDEX person_age_index ON Person(age)",
-    ];
-
-    for query in setup_queries {
-        let _ = pipeline_manager.execute_query(query);
-    }
-
-    let dml_queries = [
-        "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35)",
-        "UPDATE 1 SET age = 31",
-        "LOOKUP ON Person WHERE Person.age > 25 YIELD Person.name, Person.age LIMIT 2",
-        "DELETE VERTEX 3",
-    ];
-
-    for (i, query) in dml_queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query);
-        println!("DML带索引优化操作 {} 执行结果: {:?}", i + 1, result);
-        assert!(result.is_ok() || result.is_err());
-    }
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING, age: INT)")
+        .exec_ddl("CREATE TAG INDEX person_age_index ON Person(age)")
+        // Insert data
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35)")
+        .assert_success()
+        // Update
+        .exec_dml("UPDATE 1 SET age = 31")
+        .assert_success()
+        // Query with index
+        .query("LOOKUP ON Person WHERE Person.age > 25 YIELD Person.name, Person.age LIMIT 2")
+        .assert_success()
+        // Delete
+        .exec_dml("DELETE VERTEX 3")
+        .assert_success()
+        .assert_vertex_not_exists(3, "Person");
 }
 
 #[test]
 fn test_edge_index_scan_with_limit() {
-    let test_storage = TestStorage::new().expect("创建测试存储失败");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let setup_queries = vec![
-        "CREATE TAG Person(name string)",
-        "CREATE EDGE KNOWS(since string)",
-        "CREATE EDGE INDEX knows_since_index ON KNOWS(since)",
-        "INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')",
-        "INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01'), 1 -> 3:('2021-01-01'), 2 -> 3:('2019-01-01')",
-    ];
-
-    for query in setup_queries {
-        let _ = pipeline_manager.execute_query(query);
-    }
-
-    let query = "LOOKUP ON KNOWS WHERE KNOWS.since > '2019-06-01' YIELD KNOWS.since LIMIT 2";
-    let result = pipeline_manager.execute_query(query);
-
-    println!("边索引扫描带LIMIT执行结果: {:?}", result);
-    assert!(result.is_ok() || result.is_err());
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since: STRING)")
+        .exec_ddl("CREATE EDGE INDEX knows_since_index ON KNOWS(since)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01'), 1 -> 3:('2021-01-01'), 2 -> 3:('2019-01-01')")
+        .query("LOOKUP ON KNOWS WHERE KNOWS.since > '2019-06-01' YIELD KNOWS.since LIMIT 2")
+        .assert_success()
+        .assert_result_count(2);
 }

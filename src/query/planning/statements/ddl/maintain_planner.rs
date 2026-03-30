@@ -7,6 +7,9 @@ use crate::query::planning::plan::core::{
     node_id_generator::next_node_id, AlterSpaceNode, ArgumentNode, ClearSpaceNode, PlanNodeEnum,
     ProjectNode, ShowStatsNode, ShowStatsType,
 };
+use crate::query::planning::plan::core::nodes::{
+    CreateTagNode, CreateEdgeNode, TagManageInfo, EdgeManageInfo,
+};
 use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
@@ -118,6 +121,42 @@ impl Planner for MaintainPlanner {
                         Some(plan_node),
                         Some(PlanNodeEnum::Argument(arg_node)),
                     ));
+                } else if let CreateTarget::Tag {
+                    name,
+                    properties,
+                    ..
+                } = &create_stmt.target
+                {
+                    let space_name = validated
+                        .validation_info
+                        .semantic_info
+                        .space_name
+                        .clone()
+                        .unwrap_or_default();
+
+                    let tag_info = TagManageInfo::new(space_name.clone(), name.clone())
+                        .with_properties(properties.clone());
+
+                    let create_tag_node = CreateTagNode::new(next_node_id(), tag_info);
+                    return Ok(SubPlan::from_single_node(PlanNodeEnum::CreateTag(create_tag_node)));
+                } else if let CreateTarget::EdgeType {
+                    name,
+                    properties,
+                    ..
+                } = &create_stmt.target
+                {
+                    let space_name = validated
+                        .validation_info
+                        .semantic_info
+                        .space_name
+                        .clone()
+                        .unwrap_or_default();
+
+                    let edge_info = EdgeManageInfo::new(space_name.clone(), name.clone())
+                        .with_properties(properties.clone());
+
+                    let create_edge_node = CreateEdgeNode::new(next_node_id(), edge_info);
+                    return Ok(SubPlan::from_single_node(PlanNodeEnum::CreateEdge(create_edge_node)));
                 }
             }
             // For other creation operations, the default processing methods are used.
