@@ -23,14 +23,17 @@
 
 use crate::core::error::{DBError, DBResult, QueryError};
 use crate::core::{ErrorInfo, ErrorType, QueryMetrics, QueryPhase, QueryProfile, StatsManager};
-use crate::query::executor::base::ExecutionResult;
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor};
+use crate::query::executor::explain::{ExplainExecutor, ExplainMode, ProfileExecutor};
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::object_pool::{ObjectPoolConfig, ThreadSafeExecutorPool};
 use crate::query::optimizer::OptimizerEngine;
+use crate::query::parser::ast::stmt::{ExplainStmt, ProfileStmt};
 use crate::query::parser::Parser;
 use crate::query::planning::{ParameterizedQueryHandler, PlanCacheConfig, QueryPlanCache};
 use crate::query::query_request_context::QueryRequestContext;
 use crate::query::validator::{ValidatedStatement, ValidationInfo};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -527,5 +530,157 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         plan_executor
             .execute_plan(query_context, plan)
             .map_err(|e| DBError::from(QueryError::pipeline_execution_error(e)))
+    }
+
+    /// Execute EXPLAIN statement
+    pub fn execute_explain(
+        &mut self,
+        explain_stmt: &ExplainStmt,
+        qctx: Arc<QueryContext>,
+    ) -> DBResult<ExecutionResult> {
+        // 1. Get inner statement execution plan (without executing)
+        let inner_ast = &explain_stmt.statement;
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
+        let validation_info = self.validate_query_with_context(
+            Arc::new(crate::query::parser::ast::stmt::Ast::new(
+                (**inner_ast).clone(),
+                expr_ctx.clone(),
+            )),
+            qctx.clone(),
+        )?;
+        let inner_validated = ValidatedStatement::new(
+            Arc::new(crate::query::parser::ast::stmt::Ast::new(
+                (**inner_ast).clone(),
+                expr_ctx,
+            )),
+            validation_info,
+        );
+        let inner_plan = self.generate_execution_plan(qctx.clone(), &inner_validated)?;
+        let optimized_plan = self.optimize_execution_plan(inner_plan)?;
+
+        // 2. Create ExplainExecutor
+        let storage = self.executor_factory.storage.clone().ok_or_else(|| {
+            DBError::from(QueryError::ExecutionError("Storage not available".to_string()))
+        })?;
+
+        let base = BaseExecutor::new(
+            -1,
+            "ExplainExecutor".to_string(),
+            storage,
+            Arc::new(ExpressionAnalysisContext::new()),
+        );
+
+        let mut explain_executor = ExplainExecutor::new(
+            base,
+            optimized_plan,
+            explain_stmt.format.clone(),
+            ExplainMode::PlanOnly,
+        );
+
+        // 3. Execute Explain
+        explain_executor
+            .execute()
+            .map_err(|e| DBError::from(QueryError::ExecutionError(e.to_string())))
+    }
+
+    /// Execute EXPLAIN ANALYZE statement
+    pub fn execute_explain_analyze(
+        &mut self,
+        explain_stmt: &ExplainStmt,
+        qctx: Arc<QueryContext>,
+    ) -> DBResult<ExecutionResult> {
+        // 1. Get inner statement execution plan
+        let inner_ast = &explain_stmt.statement;
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
+        let validation_info = self.validate_query_with_context(
+            Arc::new(crate::query::parser::ast::stmt::Ast::new(
+                (**inner_ast).clone(),
+                expr_ctx.clone(),
+            )),
+            qctx.clone(),
+        )?;
+        let inner_validated = ValidatedStatement::new(
+            Arc::new(crate::query::parser::ast::stmt::Ast::new(
+                (**inner_ast).clone(),
+                expr_ctx,
+            )),
+            validation_info,
+        );
+        let inner_plan = self.generate_execution_plan(qctx.clone(), &inner_validated)?;
+        let optimized_plan = self.optimize_execution_plan(inner_plan)?;
+
+        // 2. Create ExplainExecutor with Analyze mode
+        let storage = self.executor_factory.storage.clone().ok_or_else(|| {
+            DBError::from(QueryError::ExecutionError("Storage not available".to_string()))
+        })?;
+
+        let base = BaseExecutor::new(
+            -1,
+            "ExplainExecutor".to_string(),
+            storage,
+            Arc::new(ExpressionAnalysisContext::new()),
+        );
+
+        let mut explain_executor = ExplainExecutor::new(
+            base,
+            optimized_plan,
+            explain_stmt.format.clone(),
+            ExplainMode::Analyze,
+        );
+
+        // 3. Execute Explain Analyze
+        explain_executor
+            .execute()
+            .map_err(|e| DBError::from(QueryError::ExecutionError(e.to_string())))
+    }
+
+    /// Execute PROFILE statement
+    pub fn execute_profile(
+        &mut self,
+        profile_stmt: &ProfileStmt,
+        qctx: Arc<QueryContext>,
+    ) -> DBResult<ExecutionResult> {
+        // 1. Get inner statement execution plan
+        let inner_ast = &profile_stmt.statement;
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
+        let validation_info = self.validate_query_with_context(
+            Arc::new(crate::query::parser::ast::stmt::Ast::new(
+                (**inner_ast).clone(),
+                expr_ctx.clone(),
+            )),
+            qctx.clone(),
+        )?;
+        let inner_validated = ValidatedStatement::new(
+            Arc::new(crate::query::parser::ast::stmt::Ast::new(
+                (**inner_ast).clone(),
+                expr_ctx,
+            )),
+            validation_info,
+        );
+        let inner_plan = self.generate_execution_plan(qctx.clone(), &inner_validated)?;
+        let optimized_plan = self.optimize_execution_plan(inner_plan)?;
+
+        // 2. Create ProfileExecutor
+        let storage = self.executor_factory.storage.clone().ok_or_else(|| {
+            DBError::from(QueryError::ExecutionError("Storage not available".to_string()))
+        })?;
+
+        let base = BaseExecutor::new(
+            -1,
+            "ProfileExecutor".to_string(),
+            storage,
+            Arc::new(ExpressionAnalysisContext::new()),
+        );
+
+        let mut profile_executor = ProfileExecutor::new(
+            base,
+            optimized_plan,
+            profile_stmt.format.clone(),
+        );
+
+        // 3. Execute Profile
+        profile_executor
+            .execute()
+            .map_err(|e| DBError::from(QueryError::ExecutionError(e.to_string())))
     }
 }

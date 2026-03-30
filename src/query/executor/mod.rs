@@ -5,6 +5,7 @@ pub mod data_access;
 pub mod data_modification;
 pub mod data_processing;
 pub mod executor_enum;
+pub mod explain;
 pub mod expression;
 pub mod factory;
 pub mod logic;
@@ -65,6 +66,12 @@ pub use pipeline_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughE
 
 // Re-export graph traversal executors (图遍历执行器)
 pub use data_processing::graph_traversal::algorithms::BFSShortestExecutor;
+
+// Re-export explain/profile executors
+pub use explain::{
+    ExecutionStatsContext, ExplainExecutor, ExplainMode, InstrumentedExecutor,
+    InstrumentedExecutorFactory, NodeExecutionStats, ProfileExecutor,
+};
 
 // Compilation-time enumeration consistency check
 // These checks ensure that the number of variants for PlanNodeEnum and ExecutorEnum is the same.
