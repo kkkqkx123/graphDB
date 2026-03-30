@@ -13,7 +13,7 @@ const initService = (service?: AxiosInstance) => {
   }
 
   serviceInstance = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:7001',
+    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:9758',
     timeout: 30000,
     transformResponse: [
       (data) => {
@@ -73,7 +73,6 @@ const initService = (service?: AxiosInstance) => {
         return data;
       } else if (!axios.isCancel(error)) {
         message.error(`Network Error: ${error.message}`);
-        return error;
       }
       
       return Promise.reject(error);

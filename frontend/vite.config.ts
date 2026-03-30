@@ -31,11 +31,11 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/v1': {
-        target: 'http://localhost:7001',
+        target: 'http://localhost:9758',
         changeOrigin: true,
       },
       '/api': {
-        target: 'http://localhost:7001',
+        target: 'http://localhost:9758',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '/api'),
       },

@@ -4,20 +4,20 @@ import { useConnectionStore } from '@/stores/connection';
 import { Spin } from 'antd';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isConnected, checkHealth } = useConnectionStore();
+  const { isConnected, isVerified, checkHealth } = useConnectionStore();
   const location = useLocation();
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
     const verifyConnection = async () => {
-      if (isConnected) {
+      if (isConnected && !isVerified) {
         await checkHealth();
       }
       setIsChecking(false);
     };
 
     verifyConnection();
-  }, [isConnected, checkHealth]);
+  }, []);
 
   if (isChecking) {
     return (
@@ -27,7 +27,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     );
   }
 
-  if (!isConnected) {
+  if (!isVerified) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

@@ -8,6 +8,7 @@ pub mod middleware;
 pub mod router;
 pub mod server;
 pub mod state;
+pub mod typed_path;
 
 pub use error::HttpError;
 pub use handlers::query_types::{QueryRequest, QueryResponse};

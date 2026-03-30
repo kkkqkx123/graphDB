@@ -10,7 +10,7 @@ const { Header: AntHeader } = Layout;
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
-  const { isConnected, connectionInfo, logout, isLoading } = useConnectionStore();
+  const { isVerified, connectionInfo, logout, isLoading } = useConnectionStore();
 
   const handleLogout = async () => {
     try {
@@ -35,7 +35,7 @@ const Header: React.FC = () => {
       <div className={styles.headerLeft}>
         <DatabaseOutlined className={styles.logo} />
         <span className={styles.title}>GraphDB Studio</span>
-        {isConnected && (
+        {isVerified && (
           <>
             <Divider type="vertical" className={styles.divider} />
             <SpaceSelector />
@@ -46,15 +46,15 @@ const Header: React.FC = () => {
       <div className={styles.headerRight}>
         <Space size="large">
           <Badge
-            status={isConnected ? 'success' : 'error'}
+            status={isVerified ? 'success' : 'error'}
             text={
               <span className={styles.statusText}>
-                {isConnected ? 'Connected' : 'Disconnected'}
+                {isVerified ? 'Connected' : 'Disconnected'}
               </span>
             }
           />
 
-          {isConnected && (
+          {isVerified && (
             <>
               <Space size="small" className={styles.connectionInfo}>
                 <UserOutlined />

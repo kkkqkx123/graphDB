@@ -187,7 +187,18 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             self.validate_query_with_context(parser_result.ast.clone(), query_context.clone())?;
 
         // Create a verified statement (using Arc<Ast> to share ownership).
-        let validated = ValidatedStatement::new(parser_result.ast, validation_info);
+        let validated = ValidatedStatement::new(parser_result.ast.clone(), validation_info);
+
+        // Check for EXPLAIN/PROFILE statements and route accordingly
+        match validated.ast.stmt() {
+            crate::query::parser::ast::Stmt::Explain(explain_stmt) => {
+                return self.execute_explain(explain_stmt, query_context);
+            }
+            crate::query::parser::ast::Stmt::Profile(profile_stmt) => {
+                return self.execute_profile(profile_stmt, query_context);
+            }
+            _ => {}
+        }
 
         // 5. Generate an execution plan.
         let execution_plan = self.generate_execution_plan(query_context.clone(), &validated)?;
@@ -237,7 +248,18 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             self.validate_query_with_context(parser_result.ast.clone(), query_context.clone())?;
 
         // Create a verified statement (using Arc<Ast> to share ownership)
-        let validated = ValidatedStatement::new(parser_result.ast, validation_info);
+        let validated = ValidatedStatement::new(parser_result.ast.clone(), validation_info);
+
+        // Check for EXPLAIN/PROFILE statements and route accordingly
+        match validated.ast.stmt() {
+            crate::query::parser::ast::Stmt::Explain(explain_stmt) => {
+                return self.execute_explain(explain_stmt, query_context);
+            }
+            crate::query::parser::ast::Stmt::Profile(profile_stmt) => {
+                return self.execute_profile(profile_stmt, query_context);
+            }
+            _ => {}
+        }
 
         // 4. Generate an execution plan.
         let execution_plan = self.generate_execution_plan(query_context.clone(), &validated)?;
@@ -320,7 +342,24 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         metrics.record_validate_time(validate_start.elapsed());
 
         // Create a verified statement (using Arc<Ast> to share ownership).
-        let validated = ValidatedStatement::new(parser_result.ast, validation_info);
+        let validated = ValidatedStatement::new(parser_result.ast.clone(), validation_info);
+
+        // Check for EXPLAIN/PROFILE statements and route accordingly
+        match validated.ast.stmt() {
+            crate::query::parser::ast::Stmt::Explain(explain_stmt) => {
+                let result = self.execute_explain(explain_stmt, query_context)?;
+                profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+                metrics.record_total_time(total_start.elapsed());
+                return Ok((result, metrics, profile));
+            }
+            crate::query::parser::ast::Stmt::Profile(profile_stmt) => {
+                let result = self.execute_profile(profile_stmt, query_context)?;
+                profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+                metrics.record_total_time(total_start.elapsed());
+                return Ok((result, metrics, profile));
+            }
+            _ => {}
+        }
 
         let plan_start = Instant::now();
         let execution_plan = match self.generate_execution_plan(query_context.clone(), &validated) {

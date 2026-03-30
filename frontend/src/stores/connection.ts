@@ -11,6 +11,7 @@ export interface ConnectionInfo {
 
 export interface ConnectionState {
   isConnected: boolean;
+  isVerified: boolean;
   connectionInfo: ConnectionInfo;
   sessionId: number | null;
   rememberMe: boolean;
@@ -27,6 +28,7 @@ export const useConnectionStore = create<ConnectionState>()(
   persist(
     (set, get) => ({
       isConnected: false,
+      isVerified: false,
       connectionInfo: {
         username: DEFAULT_VALUES.USERNAME,
       },
@@ -36,10 +38,10 @@ export const useConnectionStore = create<ConnectionState>()(
       error: null,
 
       login: async (username: string, password: string, rememberMe = false) => {
-        set({ isLoading: true, error: null });
+        set({ isLoading: true, error: null, isVerified: false });
         try {
           const result = await connectionService.login({ username, password });
-          
+
           const connectionInfo: ConnectionInfo = {
             username,
             password: rememberMe ? password : undefined,
@@ -47,6 +49,7 @@ export const useConnectionStore = create<ConnectionState>()(
 
           set({
             isConnected: true,
+            isVerified: true,
             connectionInfo,
             sessionId: result.session_id,
             rememberMe,
@@ -68,6 +71,7 @@ export const useConnectionStore = create<ConnectionState>()(
           const errorMessage = err instanceof Error ? err.message : 'Login failed';
           set({
             isConnected: false,
+            isVerified: false,
             sessionId: null,
             isLoading: false,
             error: errorMessage,
@@ -88,6 +92,7 @@ export const useConnectionStore = create<ConnectionState>()(
         } finally {
           set({
             isConnected: false,
+            isVerified: false,
             sessionId: null,
             isLoading: false,
             connectionInfo: {
@@ -109,16 +114,19 @@ export const useConnectionStore = create<ConnectionState>()(
           if (result.status !== 'healthy') {
             set({
               isConnected: false,
+              isVerified: false,
               sessionId: null,
               error: 'Connection lost',
             });
             localStorage.removeItem(STORAGE_KEYS.SESSION_ID);
             return false;
           }
+          set({ isVerified: true });
           return true;
         } catch {
           set({
             isConnected: false,
+            isVerified: false,
             sessionId: null,
             error: 'Health check failed',
           });

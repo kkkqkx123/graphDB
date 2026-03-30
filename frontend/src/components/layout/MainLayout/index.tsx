@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Layout, Spin } from 'antd';
 import Header from '../Header';
 import Sidebar from '../Sidebar';
@@ -9,28 +9,37 @@ import styles from './index.module.less';
 const { Content } = Layout;
 
 const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { checkHealth, isConnected, connectionInfo, rememberMe, login } = useConnectionStore();
+  const { checkHealth, isVerified, connectionInfo, rememberMe, login } = useConnectionStore();
   const [isInitialCheck, setIsInitialCheck] = React.useState(true);
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
+    if (hasInitialized.current) {
+      return;
+    }
+    hasInitialized.current = true;
+
     const performInitialCheck = async () => {
-      setIsInitialCheck(true);
-      
+      if (isVerified) {
+        setIsInitialCheck(false);
+        return;
+      }
+
       if (rememberMe && connectionInfo.username && connectionInfo.password) {
         try {
           await login(connectionInfo.username, connectionInfo.password, true);
         } catch (error) {
           console.error('Auto login failed:', error);
         }
-      } else if (isConnected) {
+      } else {
         await checkHealth();
       }
-      
+
       setIsInitialCheck(false);
     };
 
     performInitialCheck();
-  }, [checkHealth, connectionInfo.password, connectionInfo.username, isConnected, login, rememberMe]);
+  }, []);
 
   useHealthCheck(true);
 

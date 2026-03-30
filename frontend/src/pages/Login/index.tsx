@@ -6,7 +6,7 @@ import styles from './index.module.less';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { login, isConnected, isLoading, error, clearError, loadSavedConnection } = useConnectionStore();
+  const { login, isLoading, loadSavedConnection } = useConnectionStore();
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -26,19 +26,6 @@ const Login: React.FC = () => {
       }
     }
   }, [form, loadSavedConnection]);
-
-  useEffect(() => {
-    if (isConnected) {
-      navigate('/');
-    }
-  }, [isConnected, navigate]);
-
-  useEffect(() => {
-    if (error) {
-      message.error(error);
-      clearError();
-    }
-  }, [error, clearError]);
 
   const handleSubmit = async (values: {
     username: string;
