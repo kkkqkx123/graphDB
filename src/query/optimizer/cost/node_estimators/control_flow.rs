@@ -104,7 +104,7 @@ impl<'a> NodeEstimator for ControlFlowEstimator<'a> {
             }
             PlanNodeEnum::Argument(_) => Ok((0.0, 1)),
             _ => Err(CostError::UnsupportedNodeType(format!(
-                "控制流估算器不支持节点类型: {:?}",
+                "The control flow estimator does not support the node type: {:?}",
                 std::mem::discriminant(node)
             ))),
         }

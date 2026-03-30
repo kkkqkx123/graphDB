@@ -487,7 +487,7 @@ pub struct CreateStmt {
 /// Create the target.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CreateTarget {
-    /// Cypher 风格的节点创建: CREATE (n:Label {props})
+    /// Cypher-style node creation: CREATE (n:Label {props})
     Node {
         variable: Option<String>,
         labels: Vec<String>,
@@ -946,14 +946,14 @@ pub struct KillQueryStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShowConfigsStmt {
     pub span: Span,
-    pub module: Option<String>, // 可选的模块名过滤
+    pub module: Option<String>, // Optional module name filtering
 }
 
 /// The “UPDATE CONFIGS” statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct UpdateConfigsStmt {
     pub span: Span,
-    pub module: Option<String>, // 可选的模块名
+    pub module: Option<String>, // Optional module name
     pub config_name: String,
     pub config_value: ContextualExpression,
 }
@@ -962,7 +962,7 @@ pub struct UpdateConfigsStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct AssignmentStmt {
     pub span: Span,
-    pub variable: String, // 变量名（不包含$前缀）
+    pub variable: String, // Variable name (without $ prefix)
     pub statement: Box<Stmt>,
 }
 
@@ -1065,7 +1065,7 @@ pub struct WithClause {
     pub where_clause: Option<ContextualExpression>,
 }
 
-// 语句工具函数
+// Statement Tool Functions
 pub struct StmtUtils;
 
 impl StmtUtils {
@@ -1347,7 +1347,7 @@ impl std::str::FromStr for RoleType {
             "DBA" => Ok(RoleType::Dba),
             "USER" => Ok(RoleType::User),
             "GUEST" => Ok(RoleType::Guest),
-            _ => Err(format!("未知的角色类型: {}", s)),
+            _ => Err(format!("Unknown character type: {}", s)),
         }
     }
 }

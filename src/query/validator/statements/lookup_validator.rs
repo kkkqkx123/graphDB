@@ -82,6 +82,10 @@ impl LookupValidator {
         self
     }
 
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<RedbSchemaManager>) {
+        self.schema_manager = Some(schema_manager);
+    }
+
     /// Parsing a LOOKUP statement from AST (Abstract Syntax Tree)
     fn parse_from_ast(&self, ast: &Arc<Ast>) -> Result<ParsedLookupInfo, ValidationError> {
         let lookup_stmt = match &ast.stmt {

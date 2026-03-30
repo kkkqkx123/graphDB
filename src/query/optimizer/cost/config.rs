@@ -149,7 +149,7 @@ pub struct CostModelConfig {
 
     /// Memory pressure threshold (bytes)
     ///
-    /// 内存压力阈值（超过此值增加成本惩罚）。默认值 100MB
+    /// Memory pressure threshold (exceeding this value increases the cost penalty). Default value 100MB
     pub memory_pressure_threshold: usize,
 
     /// Memory pressure penalty factor
@@ -195,25 +195,25 @@ pub struct CostModelConfig {
     // ==================== Strategy Threshold Parameters ====================
     /// Strategy threshold configuration
     ///
-    /// 策略阈值配置，用于控制各种优化策略的行为
+    /// Policy threshold configuration for controlling the behavior of various optimization policies
     pub strategy_thresholds: StrategyThresholds,
 }
 
 /// Strategy Threshold Configuration
 ///
-/// 定义各种优化策略的阈值参数，用于控制策略选择行为。
-/// 这些参数可以根据工作负载特征进行调整。
+/// Define threshold parameters for various optimization strategies that are used to control the strategy selection behavior.
+/// These parameters can be adjusted according to the workload characteristics.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct StrategyThresholds {
     // ==================== Aggregate Strategy ====================
     /// Small dataset threshold for aggregate strategy
     ///
-    /// 小数据集阈值（行数），低于此值使用简单聚合策略。默认值 1000
+    /// Small dataset threshold (number of rows) below which the simple aggregation strategy is used. Default value 1000
     pub small_dataset_threshold: u64,
 
     /// Low cardinality threshold for aggregate strategy
     ///
-    /// 低基数阈值，低于此值使用排序聚合。默认值 100
+    /// Low base threshold below which sorted aggregation is used. Default value 100
     pub low_cardinality_threshold: u64,
 
     /// High cardinality ratio threshold
@@ -245,18 +245,18 @@ pub struct StrategyThresholds {
 
     /// TopN default limit
     ///
-    /// TopN默认限制行数。默认值 100
+    /// TopN defaults to limiting the number of rows. Default value 100
     pub topn_default_limit: u64,
 
     // ==================== Materialization Strategy ====================
     /// Maximum result rows for CTE materialization
     ///
-    /// CTE物化的最大结果行数。默认值 10000
+    /// Maximum number of result rows for CTE materialization. Default value 10000
     pub max_result_rows: u64,
 
     /// Minimum reference count for CTE materialization
     ///
-    /// CTE物化的最小引用次数。默认值 2
+    /// Minimum number of references for CTE materialization. Default value 2
     pub min_reference_count: usize,
 
     /// Minimum complexity score for CTE materialization

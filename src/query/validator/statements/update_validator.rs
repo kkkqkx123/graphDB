@@ -747,7 +747,7 @@ impl StatementValidator for UpdateValidator {
         // 3. Verify the UPDATE statement
         if let Err(e) = self.validate_update_stmt(update_stmt) {
             return Err(ValidationError::new(
-                format!("UPDATE 验证失败: {}", e),
+                format!("UPDATE validation failed: {}", e),
                 ValidationErrorType::SemanticError,
             ));
         }

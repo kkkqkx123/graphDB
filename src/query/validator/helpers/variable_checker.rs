@@ -52,21 +52,21 @@ impl VariableChecker {
         })?;
         if !first_char.is_alphabetic() && first_char != '_' {
             return Err(ValidationError::new(
-                format!("变量名必须以字母或下划线开头: {:?}", var),
+                format!("Variable names must begin with a letter or an underscore: {:?}", var),
                 ValidationErrorType::SyntaxError,
             ));
         }
 
         if !var.chars().all(|c| c.is_alphanumeric() || c == '_') {
             return Err(ValidationError::new(
-                format!("变量名只能包含字母、数字和下划线: {:?}", var),
+                format!("Variable names can only contain letters, numbers and underscores: {:?}", var),
                 ValidationErrorType::SyntaxError,
             ));
         }
 
         if var.len() > 255 {
             return Err(ValidationError::new(
-                format!("变量名太长: {:?}", var),
+                format!("Variable names too long: {:?}", var),
                 ValidationErrorType::SyntaxError,
             ));
         }
@@ -83,7 +83,7 @@ impl VariableChecker {
 
         if !available_aliases.contains_key(var) {
             return Err(ValidationError::new(
-                format!("变量 {:?} 未定义", var),
+                format!("Variable {:?} Undefined", var),
                 ValidationErrorType::VariableNotFound,
             ));
         }

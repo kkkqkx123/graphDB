@@ -19,7 +19,7 @@
 ///
 /// Generate a macro for the `is_xxx` method for `PlanNodeEnum`
 ///
-/// # 示例
+/// # Examples
 /// ```
 /// define_enum_is_methods! {
 ///     PlanNodeEnum,

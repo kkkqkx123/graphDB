@@ -145,12 +145,12 @@ impl TopNNode {
         })
     }
 
-    /// 获取排序字段
+    /// Get Sorted Fields
     pub fn sort_items(&self) -> &[SortItem] {
         &self.sort_items
     }
 
-    /// 获取限制数量
+    /// Access to restricted quantities
     pub fn limit(&self) -> i64 {
         self.limit
     }

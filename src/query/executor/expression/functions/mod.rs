@@ -488,7 +488,7 @@ impl CustomFunction {
         }
     }
 
-    /// 执行函数
+    /// Execute the function
     pub fn execute(&self, args: &[Value]) -> Result<Value, ExpressionError> {
         match &self.implementation {
             CustomFunctionImpl::Rust(func) => func(args),

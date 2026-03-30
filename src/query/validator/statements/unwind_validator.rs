@@ -186,7 +186,7 @@ impl UnwindValidator {
         if expr_type != ValueType::List && expr_type != ValueType::Set {
             return Err(ValidationError::new(
                 format!(
-                    "UNWIND 表达式必须是列表或集合类型，实际类型为 {:?}",
+                    "UNWIND expressions must be of list or collection type, with actual type {:?}",
                     expr_type
                 ),
                 ValidationErrorType::TypeError,
@@ -208,7 +208,7 @@ impl UnwindValidator {
         if self.variable_name.starts_with('_') && !self.variable_name.starts_with("__") {
             return Err(ValidationError::new(
                 format!(
-                    "变量名 '{}' 不应以单下划线开头（保留给内部使用）",
+                    "Variable names '{}' should not start with a single underscore (reserved for internal use)",
                     self.variable_name
                 ),
                 ValidationErrorType::SemanticError,
@@ -223,14 +223,14 @@ impl UnwindValidator {
             .is_ascii_digit()
         {
             return Err(ValidationError::new(
-                format!("变量名 '{}' 不能以数字开头", self.variable_name),
+                format!("Variable name '{}' cannot start with a number.", self.variable_name),
                 ValidationErrorType::SemanticError,
             ));
         }
 
         if self.aliases_available.contains_key(&self.variable_name) {
             return Err(ValidationError::new(
-                format!("变量 '{}' 已在查询中定义", self.variable_name),
+                format!("Variable '{}' is defined in the query", self.variable_name),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -324,7 +324,7 @@ impl UnwindValidator {
                 && ref_name != "$$"
             {
                 return Err(ValidationError::new(
-                    format!("UNWIND 表达式引用了未定义的变量 '{}'", ref_name),
+                    format!("UNWIND expression references undefined variable '{}'", ref_name),
                     ValidationErrorType::SemanticError,
                 ));
             }

@@ -22,7 +22,7 @@ pub struct EdgePattern {
     pub properties: Vec<(String, Value)>,
 }
 
-/// 边方向
+/// edgewise
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EdgeDirection {
     Outgoing, // ->
@@ -149,7 +149,7 @@ impl SeekStrategy for EdgeSeek {
     }
 
     fn supports(&self, _context: &SeekStrategyContext) -> bool {
-        // 只要有边模式就支持
+        // Supported as long as there is a side mode
         true
     }
 }
@@ -216,12 +216,12 @@ mod tests {
             properties: vec![],
         });
 
-        // 测试边类型匹配
+        // Test edge type matching
         let edge =
             crate::core::Edge::new_empty(Value::Int(1), Value::Int(2), "KNOWS".to_string(), 0);
         assert!(seek.edge_matches_pattern(&edge));
 
-        // 测试边类型不匹配
+        // Test edge type mismatch
         let edge2 =
             crate::core::Edge::new_empty(Value::Int(1), Value::Int(2), "FOLLOWS".to_string(), 0);
         assert!(!seek.edge_matches_pattern(&edge2));

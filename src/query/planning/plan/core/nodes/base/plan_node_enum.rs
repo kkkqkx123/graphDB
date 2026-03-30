@@ -932,7 +932,7 @@ impl PlanNodeEnum {
         )
     }
 
-    /// 判断节点是否是数据处理节点
+    /// Determine if a node is a data processing node
     pub fn is_data_processing_node(&self) -> bool {
         matches!(
             self,
@@ -955,7 +955,7 @@ impl PlanNodeEnum {
         )
     }
 
-    /// 判断节点是否是控制流节点
+    /// Determine if a node is a control flow node
     pub fn is_control_flow_node(&self) -> bool {
         matches!(
             self,

@@ -223,7 +223,7 @@ impl RewriteRule for PushFilterDownAggregateRule {
         // Create a new Filter node and place it before the Aggregate node.
         let new_filter = FilterNode::new(agg_input.clone(), rewritten_ctx_expr).map_err(|e| {
             crate::query::planning::rewrite::result::RewriteError::rewrite_failed(format!(
-                "创建 FilterNode 失败: {:?}",
+                "Failed to create FilterNode: {:?}",
                 e
             ))
         })?;
@@ -236,7 +236,7 @@ impl RewriteRule for PushFilterDownAggregateRule {
         )
         .map_err(|e| {
             crate::query::planning::rewrite::result::RewriteError::rewrite_failed(format!(
-                "创建 AggregateNode 失败: {:?}",
+                "Failed to create AggregateNode: {:?}",
                 e
             ))
         })?;

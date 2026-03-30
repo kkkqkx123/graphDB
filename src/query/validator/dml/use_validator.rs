@@ -124,7 +124,7 @@ impl UseValidator {
 
         if self.space_name.starts_with('_') {
             return Err(ValidationError::new(
-                format!("空间名 '{}' 不能以下划线开头", self.space_name),
+                format!("The space name '{}' cannot start with an underscore.", self.space_name),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -137,7 +137,7 @@ impl UseValidator {
             .is_ascii_digit()
         {
             return Err(ValidationError::new(
-                format!("空间名 '{}' 不能以数字开头", self.space_name),
+                format!("The space name '{}' cannot start with a number.", self.space_name),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -146,7 +146,7 @@ impl UseValidator {
         for c in self.space_name.chars() {
             if invalid_chars.contains(&c) {
                 return Err(ValidationError::new(
-                    format!("空间名 '{}' 包含非法字符 '{}'", self.space_name, c),
+                    format!("Space name '{}' contains illegal character '{}'", self.space_name, c),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -154,7 +154,7 @@ impl UseValidator {
 
         if self.space_name.len() > 64 {
             return Err(ValidationError::new(
-                format!("空间名 '{}' 超过最大长度 64 个字符", self.space_name),
+                format!("Space name '{}' exceeds the maximum length of 64 characters.", self.space_name),
                 ValidationErrorType::SemanticError,
             ));
         }

@@ -95,7 +95,7 @@ impl TypeValidator {
                 } else {
                     Err(ValidationError::new(
                         format!(
-                            "表达式类型不匹配: 期望 {:?}, 实际 {:?}, 表达式: {:?}",
+                            "Expression type mismatch: expected {:?} , actual {:?} , expression: {:?}",
                             expected_type, actual_type, expression
                         ),
                         ValidationErrorType::TypeError,
@@ -125,7 +125,7 @@ impl TypeValidator {
                 } else {
                     Err(ValidationError::new(
                         format!(
-                            "表达式类型不匹配: 期望 {:?}, 实际 {:?}",
+                            "Expression type mismatch: expected {:?} , actual {:?}",
                             expected_type, actual_type
                         ),
                         ValidationErrorType::TypeError,
@@ -158,7 +158,7 @@ impl TypeValidator {
                     } else {
                         Err(ValidationError::new(
                             format!(
-                                "比较操作符的操作数类型不匹配: 左 {:?}, 右 {:?}",
+                                "Comparison operator operand type mismatch: left {:?} , right {:?}",
                                 left_type, right_type
                             ),
                             ValidationErrorType::TypeError,
@@ -166,7 +166,7 @@ impl TypeValidator {
                     }
                 } else {
                     Err(ValidationError::new(
-                        format!("比较操作符的结果是布尔值，但期望类型是 {:?}", expected_type),
+                        format!("The result of the comparison operator is a boolean value, but the expected type is {:?}", expected_type),
                         ValidationErrorType::TypeError,
                     ))
                 }
@@ -177,7 +177,7 @@ impl TypeValidator {
                     self.validate_expression_type_full(right, context, DataType::Bool)
                 } else {
                     Err(ValidationError::new(
-                        format!("逻辑操作符的结果是布尔值，但期望类型是 {:?}", expected_type),
+                        format!("The result of the logical operator is a boolean value, but the expected type is {:?}", expected_type),
                         ValidationErrorType::TypeError,
                     ))
                 }
@@ -192,7 +192,7 @@ impl TypeValidator {
                 } else {
                     Err(ValidationError::new(
                         format!(
-                            "算术操作符的结果类型不匹配: 期望 {:?}, 实际 {:?}",
+                            "Arithmetic operators with mismatched result types: expected {:?} , actual {:?}",
                             expected_type, result_type
                         ),
                         ValidationErrorType::TypeError,
@@ -215,7 +215,7 @@ impl TypeValidator {
                     self.validate_expression_type_full(operand, context, DataType::Bool)
                 } else {
                     Err(ValidationError::new(
-                        format!("逻辑非的结果是布尔值，但期望类型是 {:?}", expected_type),
+                        format!("The result of a logical non is a boolean, but the expected type is {:?}", expected_type),
                         ValidationErrorType::TypeError,
                     ))
                 }
@@ -227,7 +227,7 @@ impl TypeValidator {
                 } else {
                     Err(ValidationError::new(
                         format!(
-                            "一元操作符的结果类型不匹配: 期望 {:?}, 实际 {:?}",
+                            "Unary operator result type mismatch: expected {:?} , actual {:?}",
                             expected_type, operand_type
                         ),
                         ValidationErrorType::TypeError,
@@ -251,7 +251,7 @@ impl TypeValidator {
         } else {
             Err(ValidationError::new(
                 format!(
-                    "函数 {:?} 的返回类型是 {:?}, 但期望类型是 {:?}",
+                    "The function {:?} has a return type of {:?} , but the expected type is {:?}",
                     name, return_type, expected_type
                 ),
                 ValidationErrorType::TypeError,
@@ -273,7 +273,7 @@ impl TypeValidator {
         } else {
             Err(ValidationError::new(
                 format!(
-                    "聚合函数 {:?} 的返回类型是 {:?}, 但期望类型是 {:?}",
+                    "The aggregate function {:?} has a return type of {:?} , but the expected type is {:?}",
                     func, return_type, expected_type
                 ),
                 ValidationErrorType::TypeError,
@@ -294,7 +294,7 @@ impl TypeValidator {
                 } else {
                     return Err(ValidationError::new(
                         format!(
-                            "变量 {:?} 的类型是 {:?}, 但期望类型是 {:?}",
+                            "The variable {:?} is of type {:?} , but expects the type to be {:?}",
                             name, var_type, expected_type
                         ),
                         ValidationErrorType::TypeError,

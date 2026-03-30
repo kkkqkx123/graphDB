@@ -1109,7 +1109,7 @@ mod tests {
             assert_eq!(
                 lexer.current_token.kind,
                 Tk::Values,
-                "'{}' 应该被识别为 Values 关键字",
+                "'{}' should be recognized as a Values keyword.",
                 input
             );
         }

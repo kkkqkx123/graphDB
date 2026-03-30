@@ -439,7 +439,7 @@ impl MatchStatementPlanner {
         };
 
         let join_node = CrossJoinNode::new(left_root.clone(), right_root.clone())
-            .map_err(|e| PlannerError::JoinFailed(format!("交叉连接失败: {}", e)))?;
+            .map_err(|e| PlannerError::JoinFailed(format!("Cross-connection failed: {}", e)))?;
 
         Ok(SubPlan {
             root: Some(join_node.into_enum()),
@@ -490,7 +490,7 @@ impl MatchStatementPlanner {
         // Create a Hashne connection node.
         let join_node =
             HashInnerJoinNode::new(left_root.clone(), right_root.clone(), hash_keys, probe_keys)
-                .map_err(|e| PlannerError::JoinFailed(format!("哈希内连接失败: {}", e)))?;
+                .map_err(|e| PlannerError::JoinFailed(format!("Intra-hash connection failed: {}", e)))?;
 
         Ok(SubPlan {
             root: Some(join_node.into_enum()),
@@ -735,7 +735,7 @@ impl MatchStatementPlanner {
         // Use the alias_map of ValidationInfo to verify whether the variable exists.
         if !validation_info.alias_map.contains_key(&var.name) {
             return Err(PlannerError::PlanGenerationFailed(format!(
-                "变量 '{}' 未定义",
+                "Variable '{}' undefined",
                 var.name
             )));
         }
@@ -767,7 +767,7 @@ impl MatchStatementPlanner {
             left_root.clone(),
             true, // `distinct = true` – to remove duplicates.
         )
-        .map_err(|e| PlannerError::PlanGenerationFailed(format!("并集操作失败: {}", e)))?;
+        .map_err(|e| PlannerError::PlanGenerationFailed(format!("Concatenation operation failed: {}", e)))?;
 
         Ok(SubPlan {
             root: Some(union_node.into_enum()),
@@ -820,7 +820,7 @@ impl MatchStatementPlanner {
             vec![], // hash_keys
             vec![], // probe_keys
         )
-        .map_err(|e| PlannerError::JoinFailed(format!("左连接失败: {}", e)))?;
+        .map_err(|e| PlannerError::JoinFailed(format!("Left connection failed: {}", e)))?;
 
         Ok(SubPlan {
             root: Some(join_node.into_enum()),

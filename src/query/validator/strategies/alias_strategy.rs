@@ -49,7 +49,7 @@ impl AliasValidationStrategy {
         if let Some(alias_name) = self.extract_alias_name_internal(expr) {
             if !aliases.contains_key(&alias_name) {
                 return Err(ValidationError::new(
-                    format!("未定义的变量别名: {}", alias_name),
+                    format!("Undefined variable aliases: {}", alias_name),
                     ValidationErrorType::AliasError,
                 ));
             }
@@ -258,7 +258,7 @@ impl AliasValidationStrategy {
         if let Some(alias_name) = self.extract_alias_name_internal(expression) {
             if !aliases.contains_key(&alias_name) {
                 return Err(ValidationError::new(
-                    format!("未定义的变量别名: {}", alias_name),
+                    format!("Undefined variable aliases: {}", alias_name),
                     ValidationErrorType::AliasError,
                 ));
             }
@@ -278,7 +278,7 @@ impl AliasValidationStrategy {
         if let Some(alias_name) = self.extract_alias_name(ref_expression) {
             if !aliases_available.contains_key(&alias_name) {
                 return Err(ValidationError::new(
-                    format!("未定义的别名: {}", alias_name),
+                    format!("Undefined aliases: {}", alias_name),
                     ValidationErrorType::AliasError,
                 ));
             }
@@ -300,7 +300,7 @@ impl AliasValidationStrategy {
                     .is_some()
             {
                 return Err(ValidationError::new(
-                    format!("`{}': 重复定义的别名", name),
+                    format!("`{}': duplicate defined aliases", name),
                     ValidationErrorType::AliasError,
                 ));
             }

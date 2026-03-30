@@ -8,20 +8,20 @@ use super::histogram::Histogram;
 
 /// Property combination statistics
 ///
-/// 轻量级属性组合统计，用于GROUP BY基数估计
+/// Lightweight attribute combination statistics for GROUP BY base estimation
 #[derive(Debug, Clone)]
 pub struct PropertyCombinationStats {
     /// 属性组合键（如 "tag.prop1.prop2"）
     pub key: String,
-    /// 关联的标签（如果有）
+    /// Associated tags (if any)
     pub tag_name: Option<String>,
-    /// 属性列表
+    /// Property List
     pub properties: Vec<String>,
-    /// 联合不同值数量
+    /// Number of joint dissimilar values
     pub combined_distinct_values: u64,
-    /// 样本数量
+    /// sample size
     pub sample_count: u64,
-    /// 最后更新时间
+    /// Last updated
     pub last_updated: Instant,
 }
 

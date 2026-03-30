@@ -121,12 +121,22 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         let tag_info =
             ExecutorTagInfo::new(node.info().space_name.clone(), node.info().tag_name.clone())
                 .with_properties(node.info().properties.clone());
-        let executor = CreateTagExecutor::new(
-            node.id(),
-            storage,
-            tag_info,
-            context.expression_context().clone(),
-        );
+
+        let executor = if node.info().if_not_exists {
+            CreateTagExecutor::with_if_not_exists(
+                node.id(),
+                storage,
+                tag_info,
+                context.expression_context().clone(),
+            )
+        } else {
+            CreateTagExecutor::new(
+                node.id(),
+                storage,
+                tag_info,
+                context.expression_context().clone(),
+            )
+        };
         Ok(ExecutorEnum::CreateTag(executor))
     }
 
@@ -178,13 +188,23 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let executor = DropTagExecutor::new(
-            node.id(),
-            storage,
-            node.space_name().to_string(),
-            node.tag_name().to_string(),
-            context.expression_context().clone(),
-        );
+        let executor = if node.if_exists() {
+            DropTagExecutor::with_if_exists(
+                node.id(),
+                storage,
+                node.space_name().to_string(),
+                node.tag_name().to_string(),
+                context.expression_context().clone(),
+            )
+        } else {
+            DropTagExecutor::new(
+                node.id(),
+                storage,
+                node.space_name().to_string(),
+                node.tag_name().to_string(),
+                context.expression_context().clone(),
+            )
+        };
         Ok(ExecutorEnum::DropTag(executor))
     }
 
@@ -234,12 +254,22 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             properties: node.info().properties.clone(),
             comment: None,
         };
-        let executor = CreateEdgeExecutor::new(
-            node.id(),
-            storage,
-            edge_info,
-            context.expression_context().clone(),
-        );
+
+        let executor = if node.info().if_not_exists {
+            CreateEdgeExecutor::with_if_not_exists(
+                node.id(),
+                storage,
+                edge_info,
+                context.expression_context().clone(),
+            )
+        } else {
+            CreateEdgeExecutor::new(
+                node.id(),
+                storage,
+                edge_info,
+                context.expression_context().clone(),
+            )
+        };
         Ok(ExecutorEnum::CreateEdge(executor))
     }
 
@@ -293,13 +323,23 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let executor = DropEdgeExecutor::new(
-            node.id(),
-            storage,
-            node.space_name().to_string(),
-            node.edge_name().to_string(),
-            context.expression_context().clone(),
-        );
+        let executor = if node.if_exists() {
+            DropEdgeExecutor::with_if_exists(
+                node.id(),
+                storage,
+                node.space_name().to_string(),
+                node.edge_name().to_string(),
+                context.expression_context().clone(),
+            )
+        } else {
+            DropEdgeExecutor::new(
+                node.id(),
+                storage,
+                node.space_name().to_string(),
+                node.edge_name().to_string(),
+                context.expression_context().clone(),
+            )
+        };
         Ok(ExecutorEnum::DropEdge(executor))
     }
 

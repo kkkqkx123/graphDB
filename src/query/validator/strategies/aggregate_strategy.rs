@@ -168,7 +168,7 @@ impl AggregateValidationStrategy {
                     };
                     return Err(ValidationError::new(
                         format!(
-                            "不能将聚合函数 `{}` 应用于{}通配符属性 `{}.{}`",
+                            "You cannot apply the aggregate function `{}` to the {} wildcard attribute `{}. {}`",
                             func.name(),
                             ref_type,
                             var_name,
@@ -186,7 +186,7 @@ impl AggregateValidationStrategy {
     /// Verify the validity of the parameter expressions for the aggregate functions.
     /// Recursively check whether there are any other illegal nested structures in the parameter expressions.
     ///
-    /// 验证规则：
+    /// Validation rules:
     /// 1. Recursively check the validity of all subexpressions.
     /// 2. Ensure that the structure of the parameter expression is correct.
     fn validate_expression_in_aggregate(

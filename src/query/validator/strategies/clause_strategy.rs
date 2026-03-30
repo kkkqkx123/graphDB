@@ -75,7 +75,7 @@ impl ClauseValidationStrategy {
                 // Check whether the index is valid.
                 if index >= context.yield_clause.yield_columns.len() {
                     return Err(ValidationError::new(
-                        format!("列索引{}超出范围", index),
+                        format!("Column index {} out of range", index),
                         ValidationErrorType::PaginationError,
                     ));
                 }

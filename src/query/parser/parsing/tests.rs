@@ -18,7 +18,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "INSERT EDGE 解析应该成功: {:?}",
+            "INSERT EDGE parse should succeed: {:?}",
             result.err()
         );
 
@@ -48,7 +48,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "INSERT EDGE 带 rank 解析应该成功: {:?}",
+            "INSERT EDGE with rank Parsing should succeed: {:?}",
             result.err()
         );
 
@@ -78,7 +78,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "INSERT 多个边解析应该成功: {:?}",
+            "INSERT Multiple side parsing should succeed: {:?}",
             result.err()
         );
 
@@ -92,7 +92,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "INSERT EDGE 多属性解析应该成功: {:?}",
+            "INSERT EDGE Multiple attribute parsing should succeed: {:?}",
             result.err()
         );
 
@@ -106,7 +106,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "INSERT VERTEX 解析应该成功: {:?}",
+            "INSERT VERTEX Parsing should succeed: {:?}",
             result.err()
         );
 
@@ -120,7 +120,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "INSERT 多个顶点解析应该成功: {:?}",
+            "INSERT Multiple vertex resolution should succeed: {:?}",
             result.err()
         );
 
@@ -134,7 +134,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "DELETE EDGE 解析应该成功: {:?}",
+            "DELETE EDGE Parsing should succeed: {:?}",
             result.err()
         );
 
@@ -148,7 +148,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "DELETE EDGE 带 rank 解析应该成功: {:?}",
+            "DELETE EDGE with rank Parse should succeed: {:?}",
             result.err()
         );
 
@@ -162,7 +162,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "DELETE 多个边解析应该成功: {:?}",
+            "DELETE Multiple side parsing should succeed: {:?}",
             result.err()
         );
 
@@ -174,7 +174,7 @@ mod tests {
     fn test_set_property_basic() {
         let query = "SET p.age = 26";
         let result = parse_statement(query);
-        assert!(result.is_ok(), "SET 属性解析应该成功: {:?}", result.err());
+        assert!(result.is_ok(), "SET attribute parsing should succeed: {:?}", result.err());
 
         let stmt = result.expect("SET属性解析应该成功");
         assert_eq!(stmt.kind(), "SET");
@@ -186,7 +186,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "SET 多个属性解析应该成功: {:?}",
+            "SET Multiple attribute parsing should succeed: {:?}",
             result.err()
         );
 
@@ -200,7 +200,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "SET 带表达式解析应该成功: {:?}",
+            "SET Parsing with expression should succeed: {:?}",
             result.err()
         );
 
@@ -214,7 +214,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "UPDATE 顶点解析应该成功: {:?}",
+            "UPDATE vertex resolution should succeed: {:?}",
             result.err()
         );
 
@@ -228,7 +228,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "DELETE VERTEX 解析应该成功: {:?}",
+            "DELETE VERTEX Parsing should succeed: {:?}",
             result.err()
         );
 
@@ -242,7 +242,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "FIND SHORTEST PATH 解析应该成功: {:?}",
+            "FIND SHORTEST PATH Parsing should succeed: {:?}",
             result.err()
         );
 
@@ -269,7 +269,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "带权 FIND SHORTEST PATH 解析应该成功: {:?}",
+            "With rights FIND SHORTEST PATH Parsing should succeed: {:?}",
             result.err()
         );
 
@@ -297,7 +297,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "使用ranking权重的 FIND SHORTEST PATH 解析应该成功: {:?}",
+            "FIND SHORTEST PATH parsing with ranking weights should succeed: {:?}",
             result.err()
         );
 
@@ -325,7 +325,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "FIND ALL PATH 解析应该成功: {:?}",
+            "FIND ALL PATH Parsing should succeed: {:?}",
             result.err()
         );
 
@@ -348,7 +348,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "带步数限制的 FIND SHORTEST PATH 解析应该成功: {:?}",
+            "FIND SHORTEST PATH parsing with step limit should succeed: {:?}",
             result.err()
         );
 
@@ -376,7 +376,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "带 WITH LOOP 的 FIND PATH 解析应该成功: {:?}",
+            "FIND PATH parsing with WITH LOOP should succeed: {:?}",
             result.err()
         );
 
@@ -403,7 +403,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "带 WITH CYCLE 的 FIND PATH 解析应该成功: {:?}",
+            "FIND PATH parsing with WITH CYCLE should succeed: {:?}",
             result.err()
         );
 
@@ -427,7 +427,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(
             result.is_ok(),
-            "带 WITH LOOP WITH CYCLE 的 FIND PATH 解析应该成功: {:?}",
+            "FIND PATH with WITH LOOP WITH CYCLE should parse successfully: {:?}",
             result.err()
         );
 

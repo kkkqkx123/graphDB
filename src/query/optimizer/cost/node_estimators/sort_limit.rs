@@ -127,7 +127,7 @@ impl<'a> NodeEstimator for SortLimitEstimator<'a> {
                 Ok((cost, output_rows.max(1)))
             }
             _ => Err(CostError::UnsupportedNodeType(format!(
-                "排序限制估算器不支持节点类型: {:?}",
+                "Sort Limit Estimator does not support node type: {:?}",
                 std::mem::discriminant(node)
             ))),
         }

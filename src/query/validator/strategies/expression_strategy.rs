@@ -44,7 +44,7 @@ impl ExpressionValidationStrategy {
 
         if !type_validator.are_types_compatible(&filter_type, &DataType::Bool) {
             return Err(ValidationError::new(
-                format!("过滤条件必须是布尔类型，当前类型为 {:?}", filter_type),
+                format!("The filter condition must be of type Boolean, the current type is {:?}", filter_type),
                 ValidationErrorType::TypeError,
             ));
         }
@@ -80,7 +80,7 @@ impl ExpressionValidationStrategy {
         // Path expressions should either be of the path type itself or be convertible into the path type.
         if !matches!(path_type, DataType::Path) && !matches!(path_type, DataType::Empty) {
             return Err(ValidationError::new(
-                format!("路径表达式类型不匹配，期望路径类型，实际为 {:?}", path_type),
+                format!("Path expression type mismatch, expected path type, actually {:?}", path_type),
                 ValidationErrorType::TypeError,
             ));
         }
@@ -171,7 +171,7 @@ impl ExpressionValidationStrategy {
 
             if unwind_type != DataType::List && unwind_type != DataType::Empty {
                 return Err(ValidationError::new(
-                    format!("Unwind表达式必须是列表类型，当前类型为 {:?}", unwind_type),
+                    format!("Unwind expressions must be of list type, currently of type {:?}", unwind_type),
                     ValidationErrorType::TypeError,
                 ));
             }
@@ -250,7 +250,7 @@ impl ExpressionValidationStrategy {
 
         if !matches!(pattern_type, DataType::Path) && !matches!(pattern_type, DataType::Empty) {
             return Err(ValidationError::new(
-                format!("路径模式必须是路径类型，当前类型为 {:?}", pattern_type),
+                format!("The path mode must be a path type, currently of type {:?}", pattern_type),
                 ValidationErrorType::TypeError,
             ));
         }

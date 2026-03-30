@@ -112,7 +112,7 @@ impl FetchEdgesValidator {
             if let Some(ref name) = alias {
                 if !seen_aliases.insert(name.clone()) {
                     return Err(ValidationError::new(
-                        format!("重复的别名: {}", name),
+                        format!("Duplicate aliases: {}", name),
                         ValidationErrorType::SemanticError,
                     ));
                 }
@@ -181,7 +181,7 @@ impl FetchEdgesValidator {
     ) -> Result<(), ValidationError> {
         if expr.expression().is_none() {
             return Err(ValidationError::new(
-                format!("边键的{} ID 表达式无效", endpoint_type),
+                format!("Invalid {} ID expression for a side key", endpoint_type),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -194,7 +194,7 @@ impl FetchEdgesValidator {
             if let Some(value) = expr.as_literal() {
                 if value.is_null() || value.is_empty() {
                     return Err(ValidationError::new(
-                        format!("边键的{} ID 不能为空", endpoint_type),
+                        format!("The {} ID of a side key cannot be null.", endpoint_type),
                         ValidationErrorType::SemanticError,
                     ));
                 }
@@ -203,7 +203,7 @@ impl FetchEdgesValidator {
         }
 
         Err(ValidationError::new(
-            format!("边键的{} ID 必须是常量或变量", endpoint_type),
+            format!("The {} ID of the side key must be a constant or variable", endpoint_type),
             ValidationErrorType::SemanticError,
         ))
     }

@@ -94,7 +94,7 @@ impl WithClausePlanner {
             .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
 
         ProjectNode::new(input_node.clone(), columns.to_vec())
-            .map_err(|e| PlannerError::PlanGenerationFailed(format!("创建投影节点失败: {}", e)))
+            .map_err(|e| PlannerError::PlanGenerationFailed(format!("Failed to create projection node: {}", e)))
             .map(PlanNodeEnum::Project)
     }
 
@@ -110,7 +110,7 @@ impl WithClausePlanner {
             .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
 
         FilterNode::new(input_node.clone(), condition.clone())
-            .map_err(|e| PlannerError::PlanGenerationFailed(format!("创建过滤节点失败: {}", e)))
+            .map_err(|e| PlannerError::PlanGenerationFailed(format!("Failed to create filter node: {}", e)))
             .map(PlanNodeEnum::Filter)
     }
 
@@ -155,7 +155,7 @@ impl WithClausePlanner {
             input_node.clone(),
             sort_items,
         )
-        .map_err(|e| PlannerError::PlanGenerationFailed(format!("创建排序节点失败: {}", e)))?;
+        .map_err(|e| PlannerError::PlanGenerationFailed(format!("Failed to create sort node: {}", e)))?;
 
         Ok(SubPlan::new(
             Some(PlanNodeEnum::Sort(sort_node)),
@@ -175,7 +175,7 @@ impl WithClausePlanner {
             .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
 
         let limit_node = LimitNode::new(input_node.clone(), pagination.skip, pagination.limit)
-            .map_err(|e| PlannerError::PlanGenerationFailed(format!("创建分页节点失败: {}", e)))?;
+            .map_err(|e| PlannerError::PlanGenerationFailed(format!("Failed to create paging node: {}", e)))?;
 
         Ok(SubPlan::new(
             Some(PlanNodeEnum::Limit(limit_node)),
@@ -194,7 +194,7 @@ impl WithClausePlanner {
         let dedup_node = crate::query::planning::plan::core::nodes::DedupNode::new(
             input_node.clone(),
         )
-        .map_err(|e| PlannerError::PlanGenerationFailed(format!("创建去重节点失败: {}", e)))?;
+        .map_err(|e| PlannerError::PlanGenerationFailed(format!("Failed to create de-duplicated node: {}", e)))?;
 
         Ok(SubPlan::new(
             Some(PlanNodeEnum::Dedup(dedup_node)),

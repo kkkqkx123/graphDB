@@ -215,7 +215,7 @@ impl<'a> NodeEstimator for GraphTraversalEstimator<'a> {
                 Ok((cost, edge_count))
             }
             _ => Err(CostError::UnsupportedNodeType(format!(
-                "图遍历估算器不支持节点类型: {:?}",
+                "The graph traversal estimator does not support the node type: {:?}",
                 std::mem::discriminant(node)
             ))),
         }

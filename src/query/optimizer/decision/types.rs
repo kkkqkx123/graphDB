@@ -55,7 +55,7 @@ impl OptimizationDecision {
     }
 }
 
-/// 遍历起点选择决策
+/// Iterative Starting Point Selection Decision
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TraversalStartDecision {
     /// Name of the starting node variable
@@ -95,7 +95,7 @@ impl TraversalStartDecision {
     }
 }
 
-/// 访问路径类型
+/// Access Path Type
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AccessPath {
     /// Explicit VID specification
@@ -129,7 +129,7 @@ pub enum AccessPath {
     },
 }
 
-/// 实体类型
+/// Entity type
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EntityType {
     /// vertex
@@ -144,7 +144,7 @@ pub enum EntityType {
     },
 }
 
-/// 索引选择决策
+/// Index Selection Decision
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IndexSelectionDecision {
     /// Index selection for each entity type
@@ -199,9 +199,9 @@ pub enum IndexChoice {
     PrimaryKey,
     /// Attribute index
     PropertyIndex {
-        /// 属性名称
+        /// attribute name
         property_name: String,
-        /// 索引名称
+        /// Index name
         index_name: String,
     },
     /// Composite index
@@ -215,7 +215,7 @@ pub enum IndexChoice {
     None,
 }
 
-/// 连接顺序决策
+/// Connection Sequential Decision Making
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct JoinOrderDecision {
     /// Connection order (sequence of variable names)

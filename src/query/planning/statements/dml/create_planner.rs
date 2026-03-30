@@ -297,7 +297,7 @@ impl Planner for CreatePlanner {
         let yield_columns = self.create_yield_columns(created_count, validated.expr_context());
 
         let project_node = ProjectNode::new(insert_node, yield_columns).map_err(|e| {
-            PlannerError::PlanGenerationFailed(format!("创建 ProjectNode 失败: {}", e))
+            PlannerError::PlanGenerationFailed(format!("Failed to create ProjectNode: {}", e))
         })?;
 
         let final_node = PlanNodeEnum::Project(project_node);
@@ -488,7 +488,7 @@ mod tests {
         let result = planner.transform(&validated, qctx);
         assert!(
             result.is_ok(),
-            "CREATE PATH 应该成功，但得到错误: {:?}",
+            "CREATE PATH should succeed, but gets the error: {:?}",
             result.err()
         );
     }

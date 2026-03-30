@@ -128,7 +128,7 @@ impl RewriteRule for PushFilterDownCrossJoinRule {
             let left_ctx_expr = ContextualExpression::new(left_id, ctx.clone());
             let left_filter_node = FilterNode::new(new_left, left_ctx_expr).map_err(|e| {
                 crate::query::planning::rewrite::result::RewriteError::rewrite_failed(format!(
-                    "创建FilterNode失败: {:?}",
+                    "Failed to create FilterNode: {:?}",
                     e
                 ))
             })?;
@@ -147,7 +147,7 @@ impl RewriteRule for PushFilterDownCrossJoinRule {
             let right_ctx_expr = ContextualExpression::new(right_id, ctx.clone());
             let right_filter_node = FilterNode::new(new_right, right_ctx_expr).map_err(|e| {
                 crate::query::planning::rewrite::result::RewriteError::rewrite_failed(format!(
-                    "创建FilterNode失败: {:?}",
+                    "Failed to create FilterNode: {:?}",
                     e
                 ))
             })?;

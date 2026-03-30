@@ -165,7 +165,7 @@ impl ExpressionChecker {
 
         if args.len() > 100 {
             return Err(ValidationError::new(
-                format!("函数 {:?} 的参数数量过多: {}", name, args.len()),
+                format!("The function {:?} has too many arguments: {}", name, args.len()),
                 ValidationErrorType::TooManyArguments,
             ));
         }
@@ -175,7 +175,7 @@ impl ExpressionChecker {
                 .map_err(|e| {
                     ValidationError::new(
                         format!(
-                            "函数 {:?} 的第 {} 个参数验证失败: {}",
+                            "Function {:?} Failed to validate the first {} parameter: {}",
                             name,
                             i + 1,
                             e.message
@@ -206,7 +206,7 @@ impl ExpressionChecker {
                 | crate::core::AggregateFunction::Avg(_) => {}
                 _ => {
                     return Err(ValidationError::new(
-                        format!("聚合函数 {} 不支持 DISTINCT 关键字", func.name()),
+                        format!("Aggregate Functions {} The DISTINCT keyword is not supported.", func.name()),
                         ValidationErrorType::SyntaxError,
                     ));
                 }
@@ -248,7 +248,7 @@ impl ExpressionChecker {
             DataType::List => {
                 if index_type != DataType::Int && index_type != DataType::Empty {
                     return Err(ValidationError::new(
-                        format!("列表下标需要整数类型，但得到: {:?}", index_type),
+                        format!("List subscripts need to be of integer type, but get: {:?}", index_type),
                         ValidationErrorType::TypeError,
                     ));
                 }
@@ -256,7 +256,7 @@ impl ExpressionChecker {
             DataType::Map => {
                 if index_type != DataType::String && index_type != DataType::Empty {
                     return Err(ValidationError::new(
-                        format!("映射键需要字符串类型，但得到: {:?}", index_type),
+                        format!("Mapping keys requires a string type, but gets: {:?}", index_type),
                         ValidationErrorType::TypeError,
                     ));
                 }
@@ -264,7 +264,7 @@ impl ExpressionChecker {
             DataType::Empty => {}
             _ => {
                 return Err(ValidationError::new(
-                    format!("下标操作不支持类型: {:?}", expr_type),
+                    format!("Unsupported types for subscript operations: {:?}", expr_type),
                     ValidationErrorType::TypeError,
                 ));
             }
@@ -289,7 +289,7 @@ impl ExpressionChecker {
             self.validate_expression_operations_recursive(item, depth + 1)
                 .map_err(|e| {
                     ValidationError::new(
-                        format!("列表表达式第 {} 个元素验证失败: {}", i + 1, e.message),
+                        format!("Validation of the {}th element of the list expression failed: {}", i + 1, e.message),
                         e.error_type,
                     )
                 })?;
@@ -314,7 +314,7 @@ impl ExpressionChecker {
         for (key, _) in pairs {
             if !keys.insert(key) {
                 return Err(ValidationError::new(
-                    format!("映射表达式中存在重复的键: {:?}", key),
+                    format!("There are duplicate keys in the mapping expression: {:?}", key),
                     ValidationErrorType::DuplicateKey,
                 ));
             }
@@ -324,7 +324,7 @@ impl ExpressionChecker {
             self.validate_expression_operations_recursive(value, depth + 1)
                 .map_err(|e| {
                     ValidationError::new(
-                        format!("映射表达式键 {:?} 的值验证失败: {}", key, e.message),
+                        format!("The value of the mapping expression key {:?} fails to validate: {}", key, e.message),
                         e.error_type,
                     )
                 })?;
@@ -359,7 +359,7 @@ impl ExpressionChecker {
                 .map_err(|e| {
                     ValidationError::new(
                         format!(
-                            "CASE 表达式第 {} 个 WHEN 子句验证失败: {}",
+                            "CASE Failed to validate the first {} WHEN clause of the expression: {}",
                             i + 1,
                             e.message
                         ),
@@ -370,7 +370,7 @@ impl ExpressionChecker {
                 .map_err(|e| {
                     ValidationError::new(
                         format!(
-                            "CASE 表达式第 {} 个 THEN 子句验证失败: {}",
+                            "CASE {}th expression THEN clause validation failed: {}",
                             i + 1,
                             e.message
                         ),
@@ -418,7 +418,7 @@ impl ExpressionChecker {
             crate::core::types::expr::Expression::Variable(name) => {
                 if visited.contains(name) {
                     return Err(ValidationError::new(
-                        format!("检测到变量循环依赖: {:?}", name),
+                        format!("Variable loop dependency detected: {:?}", name),
                         ValidationErrorType::CyclicReference,
                     ));
                 }
@@ -542,7 +542,7 @@ impl ExpressionChecker {
         let depth = self.calculate_expression_depth(expression);
         if depth > max_depth {
             return Err(ValidationError::new(
-                format!("表达式深度 {} 超过限制 {}", depth, max_depth),
+                format!("Expression depth {} exceeds limit {}", depth, max_depth),
                 ValidationErrorType::ExpressionDepthError,
             ));
         }

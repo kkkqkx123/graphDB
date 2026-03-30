@@ -62,7 +62,7 @@ impl SchemaValidator {
             .get_tag(space_name, tag_name)
             .map_err(|e| {
                 CoreValidationError::new(
-                    format!("获取 Tag 失败: {}", e),
+                    format!("Failed to get Tag: {}", e),
                     ValidationErrorType::SemanticError,
                 )
             })
@@ -79,7 +79,7 @@ impl SchemaValidator {
             .get_edge_type(space_name, edge_type_name)
             .map_err(|e| {
                 CoreValidationError::new(
-                    format!("获取 Edge Type 失败: {}", e),
+                    format!("Failed to get Edge Type: {}", e),
                     ValidationErrorType::SemanticError,
                 )
             })
@@ -95,7 +95,7 @@ impl SchemaValidator {
             .list_edge_types(space_name)
             .map_err(|e| {
                 CoreValidationError::new(
-                    format!("获取 Edge Type 列表失败: {}", e),
+                    format!("Failed to get Edge Type list: {}", e),
                     ValidationErrorType::SemanticError,
                 )
             })
@@ -109,7 +109,7 @@ impl SchemaValidator {
     ) -> Result<(), CoreValidationError> {
         if !properties.iter().any(|p| p.name == prop_name) {
             return Err(CoreValidationError::new(
-                format!("属性 '{}' 不存在于 Schema 中", prop_name),
+                format!("Attribute '{}' not present in Schema", prop_name),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -142,7 +142,7 @@ impl SchemaValidator {
         if !Self::is_type_compatible(expected_type, &actual_type) {
             return Err(CoreValidationError::new(
                 format!(
-                    "属性 '{}' 期望类型 {:?}, 实际类型 {:?}",
+                    "Attribute '{}' Desired type {:?} , actual type {:?}",
                     prop_name, expected_type, actual_type
                 ),
                 ValidationErrorType::TypeMismatch,
@@ -220,7 +220,7 @@ impl SchemaValidator {
     ) -> Result<(), CoreValidationError> {
         if !prop_def.nullable && matches!(value, Value::Null(_)) {
             return Err(CoreValidationError::new(
-                format!("非空属性 '{}' 不能为 NULL", prop_name),
+                format!("The non-null attribute '{}' cannot be NULL.", prop_name),
                 ValidationErrorType::ConstraintViolation,
             ));
         }
@@ -249,7 +249,7 @@ impl SchemaValidator {
                 } else if !prop_def.nullable {
                     return Err(CoreValidationError::new(
                         format!(
-                            "属性 '{}' 未提供且没有默认值，且不允许为 NULL",
+                            "Attribute '{}' is not provided and has no default value, and is not allowed to be NULL.",
                             prop_def.name
                         ),
                         ValidationErrorType::ConstraintViolation,
@@ -277,7 +277,7 @@ impl SchemaValidator {
             DataType::String | DataType::FixedString(_) => {
                 if !matches!(vid, Value::String(_)) {
                     return Err(CoreValidationError::new(
-                        format!("VID 期望字符串类型, 实际为 {:?}", vid.get_type()),
+                        format!("VID Expected string type, actually {:?}", vid.get_type()),
                         ValidationErrorType::TypeMismatch,
                     ));
                 }
@@ -285,7 +285,7 @@ impl SchemaValidator {
             DataType::Int | DataType::Int64 | DataType::Int32 => {
                 if !matches!(vid, Value::Int(_)) {
                     return Err(CoreValidationError::new(
-                        format!("VID 期望整数类型, 实际为 {:?}", vid.get_type()),
+                        format!("VID Expected integer type, actually {:?}", vid.get_type()),
                         ValidationErrorType::TypeMismatch,
                     ));
                 }
@@ -294,14 +294,14 @@ impl SchemaValidator {
                 // The VID type accepts a variety of formats.
                 if !matches!(vid, Value::String(_) | Value::Int(_)) {
                     return Err(CoreValidationError::new(
-                        format!("VID 类型不兼容: {:?}", vid.get_type()),
+                        format!("VID type incompatibility: {:?}", vid.get_type()),
                         ValidationErrorType::TypeMismatch,
                     ));
                 }
             }
             _ => {
                 return Err(CoreValidationError::new(
-                    format!("不支持的 VID 类型: {:?}", expected_type),
+                    format!("Unsupported VID types: {:?}", expected_type),
                     ValidationErrorType::TypeMismatch,
                 ));
             }
@@ -330,7 +330,7 @@ impl SchemaValidator {
             self.validate_vid_expr_internal(&e, vid_type, role)
         } else {
             Err(CoreValidationError::new(
-                format!("{} vertex ID 表达式无效", role),
+                format!("{} vertex ID expression is invalid", role),
                 ValidationErrorType::SemanticError,
             ))
         }
@@ -352,7 +352,7 @@ impl SchemaValidator {
                     Value::String(s) => {
                         if s.is_empty() {
                             return Err(CoreValidationError::new(
-                                format!("{} vertex ID 不能为空字符串", role),
+                                format!("{} vertex ID cannot be an empty string.", role),
                                 ValidationErrorType::SemanticError,
                             ));
                         }
@@ -363,7 +363,7 @@ impl SchemaValidator {
                         ) {
                             return Err(CoreValidationError::new(
                                 format!(
-                                    "{} vertex ID 期望 {:?} 类型, 实际为字符串",
+                                    "{} vertex ID expects {:?} type, actually a string",
                                     role, vid_type
                                 ),
                                 ValidationErrorType::TypeMismatch,
@@ -377,14 +377,14 @@ impl SchemaValidator {
                             DataType::Int | DataType::Int64 | DataType::Int32 | DataType::VID
                         ) {
                             return Err(CoreValidationError::new(
-                                format!("{} vertex ID 期望 {:?} 类型, 实际为整数", role, vid_type),
+                                format!("{} vertex ID expectation {:?} type, actually an integer", role, vid_type),
                                 ValidationErrorType::TypeMismatch,
                             ));
                         }
                     }
                     _ => {
                         return Err(CoreValidationError::new(
-                            format!("{} vertex ID 必须是字符串或整数常量", role),
+                            format!("{} vertex ID must be a string or integer constant.", role),
                             ValidationErrorType::TypeMismatch,
                         ));
                     }
@@ -396,7 +396,7 @@ impl SchemaValidator {
                 Ok(())
             }
             _ => Err(CoreValidationError::new(
-                format!("{} vertex ID 必须是常量或变量", role),
+                format!("{} vertex ID must be a constant or variable.", role),
                 ValidationErrorType::SemanticError,
             )),
         }
@@ -417,7 +417,7 @@ impl SchemaValidator {
                 .get_property_def(prop_name, properties)
                 .ok_or_else(|| {
                     CoreValidationError::new(
-                        format!("属性 '{}' 不存在", prop_name),
+                        format!("Attribute '{}' does not exist", prop_name),
                         ValidationErrorType::SemanticError,
                     )
                 })?;
@@ -502,7 +502,7 @@ impl SchemaValidator {
                 Ok(Value::Map(result))
             }
             _ => Err(CoreValidationError::new(
-                format!("无法评估表达式: {:?}", expr),
+                format!("Unable to evaluate expression: {:?}", expr),
                 ValidationErrorType::SemanticError,
             )),
         }
@@ -523,7 +523,7 @@ impl SchemaValidator {
             .get_tag(space_name, tag_name)
             .map_err(|e| {
                 CoreValidationError::new(
-                    format!("获取 Tag 失败: {}", e),
+                    format!("Failed to get Tag: {}", e),
                     ValidationErrorType::SemanticError,
                 )
             })?
@@ -555,7 +555,7 @@ impl SchemaValidator {
             .create_tag(space_name, &tag_info)
             .map_err(|e| {
                 CoreValidationError::new(
-                    format!("创建 Tag '{}' 失败: {}", tag_name, e),
+                    format!("Create Tag '{}' failed: {}", tag_name, e),
                     ValidationErrorType::SemanticError,
                 )
             })?;
@@ -578,7 +578,7 @@ impl SchemaValidator {
             .get_edge_type(space_name, edge_type_name)
             .map_err(|e| {
                 CoreValidationError::new(
-                    format!("获取 Edge Type 失败: {}", e),
+                    format!("Failed to get Edge Type: {}", e),
                     ValidationErrorType::SemanticError,
                 )
             })?
@@ -610,7 +610,7 @@ impl SchemaValidator {
             .create_edge_type(space_name, &edge_info)
             .map_err(|e| {
                 CoreValidationError::new(
-                    format!("创建 Edge Type '{}' 失败: {}", edge_type_name, e),
+                    format!("Create Edge Type '{}' failed: {}", edge_type_name, e),
                     ValidationErrorType::SemanticError,
                 )
             })?;

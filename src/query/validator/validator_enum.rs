@@ -547,8 +547,10 @@ impl Validator {
 
     /// Set schema manager for validators that need it
     pub fn set_schema_manager(&mut self, schema_manager: Arc<RedbSchemaManager>) {
-        if let Validator::Create(v) = self {
-            v.set_schema_manager(schema_manager);
+        match self {
+            Validator::Create(v) => v.set_schema_manager(schema_manager),
+            Validator::Lookup(v) => v.set_schema_manager(schema_manager),
+            _ => {}
         }
     }
 

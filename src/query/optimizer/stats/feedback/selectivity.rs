@@ -215,7 +215,7 @@ impl Default for FeedbackDrivenSelectivity {
 ///
 /// Managing selective feedback based on multiple conditions.
 ///
-/// # 示例
+/// # Examples
 /// ```
 /// use graphdb::query::optimizer::stats::feedback::selectivity::SelectivityFeedbackManager;
 ///
@@ -248,7 +248,7 @@ impl SelectivityFeedbackManager {
         }
     }
 
-    /// 使用自定义参数创建
+    /// Created using custom parameters
     pub fn with_params(alpha: f64, min_correction: f64, max_correction: f64) -> Self {
         Self {
             feedbacks: RwLock::new(HashMap::new()),
@@ -269,7 +269,7 @@ impl SelectivityFeedbackManager {
         self.feedbacks.write().insert(key, feedback);
     }
 
-    /// 获取校正后的选择性
+    /// Getting corrected selectivity
     pub fn get_corrected_selectivity(&self, key: &str) -> Option<f64> {
         self.feedbacks
             .read()
@@ -288,7 +288,7 @@ impl SelectivityFeedbackManager {
         }
     }
 
-    /// 批量更新反馈
+    /// Batch Update Feedback
     pub fn update_feedback_batch(&self, updates: &[(String, f64)]) {
         let mut feedbacks = self.feedbacks.write();
         for (key, actual_selectivity) in updates {

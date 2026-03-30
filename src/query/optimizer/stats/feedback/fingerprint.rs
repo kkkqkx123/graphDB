@@ -87,7 +87,7 @@ pub fn normalize_query(query: &str) -> String {
 /// Generate a unique fingerprint based on the normalized query string.
 /// Use the FNV-1a hash algorithm.
 ///
-/// # 示例
+/// # Examples
 /// ```
 /// use graphdb::query::optimizer::stats::feedback::fingerprint::generate_query_fingerprint;
 ///

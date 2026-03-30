@@ -1,7 +1,6 @@
 //! Actuator Macro Module
 //!
 //! Provide a declaration macro for simplifying the implementation of the ExecutorEnum trait
-//! Reduce the amount of样板 code and improve maintainability.
 
 /// Generate macro methods for the `ExecutorEnum` that implement the `Executor` trait
 ///

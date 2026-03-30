@@ -237,7 +237,7 @@ impl GoValidator {
 
             if column_names.contains_key(&col_alias) {
                 return Err(ValidationError::new(
-                    format!("YIELD 列别名 '{}' 重复出现", col_alias),
+                    format!("YIELD Column alias '{}' repeats", col_alias),
                     ValidationErrorType::DuplicateKey,
                 ));
             }
@@ -448,7 +448,7 @@ impl StatementValidator for GoValidator {
         // 10.4 添加优化提示
         if over_edges.len() > 10 {
             info.add_optimization_hint(OptimizationHint::PerformanceWarning {
-                message: format!("GO 语句包含 {} 条边，可能影响性能", over_edges.len()),
+                message: format!("GO statements contain {} edges, which may affect performance.", over_edges.len()),
                 severity: crate::query::validator::structs::validation_info::HintSeverity::Warning,
             });
         }
@@ -457,7 +457,7 @@ impl StatementValidator for GoValidator {
             let steps = step_range.step_to - step_range.step_from;
             if steps > 10 {
                 info.add_optimization_hint(OptimizationHint::LimitResults {
-                    reason: format!("跳数过大（{}），建议限制结果数量", steps),
+                    reason: format!("The number of hops is too large ({}), it is recommended to limit the number of results", steps),
                     suggested_limit: 1000,
                 });
             }

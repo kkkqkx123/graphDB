@@ -142,7 +142,7 @@ impl Histogram {
 
     /// Estimated equivalence query selectivity
     ///
-    /// # 说明
+    /// # Description
     /// Find the bucket that contains that value, using the assumption of a uniform distribution within the bucket: 1 / the number of unique values (NDV) in the bucket.
     pub fn estimate_equality_selectivity(&self, value: &Value) -> f64 {
         if value.is_null() {

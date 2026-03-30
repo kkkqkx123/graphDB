@@ -150,7 +150,7 @@ impl<'a> NodeEstimator for ScanEstimator<'a> {
                 Ok((cost, output_rows))
             }
             _ => Err(CostError::UnsupportedNodeType(format!(
-                "扫描估算器不支持节点类型: {:?}",
+                "Scan estimator does not support node type: {:?}",
                 std::mem::discriminant(node)
             ))),
         }

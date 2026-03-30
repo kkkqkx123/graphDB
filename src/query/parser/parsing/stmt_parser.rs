@@ -128,7 +128,7 @@ impl StmtParser {
                 _ => {
                     return Err(ParseError::new(
                         ParseErrorKind::SyntaxError,
-                        format!("未知的 EXPLAIN 格式: {}, 期望 DOT 或 TABLE", format_name),
+                        format!("Unknown EXPLAIN format: {}, expects DOT or TABLE", format_name),
                         ctx.current_position(),
                     ));
                 }
@@ -151,7 +151,7 @@ impl StmtParser {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Profile)?;
 
-        // 解析可选的 FORMAT 子句
+        // Parsing the optional FORMAT clause
         let format = if ctx.match_token(TokenKind::Format) {
             ctx.expect_token(TokenKind::Assign)?;
             let format_name = ctx.expect_identifier()?;
@@ -161,7 +161,7 @@ impl StmtParser {
                 _ => {
                     return Err(ParseError::new(
                         ParseErrorKind::SyntaxError,
-                        format!("未知的 PROFILE 格式: {}, 期望 DOT 或 TABLE", format_name),
+                        format!("Unknown PROFILE format: {}, expects DOT or TABLE", format_name),
                         ctx.current_position(),
                     ));
                 }
@@ -355,7 +355,7 @@ impl StmtParser {
         } else {
             Err(ParseError::new(
                 ParseErrorKind::SyntaxError,
-                format!("未知的 SHOW 目标: {:?}", ctx.peek_token().kind),
+                format!("Unknown SHOW Target: {:?}", ctx.peek_token().kind),
                 ctx.current_position(),
             ))
         }
@@ -479,7 +479,7 @@ impl StmtParser {
 
         // Check whether it is a Cypher-style CREATE statement (starting with ‘(‘).
         if ctx.check_token(TokenKind::LParen) {
-            // Cypher CREATE 数据语句: CREATE (n:Label {props})
+            // Cypher CREATE data statement: CREATE (n:Label {props})
             // Since the CREATE token has already been consumed, a special method needs to be called.
             return DmlParser::new().parse_create_data_after_token(ctx, start_span);
         }
@@ -569,7 +569,7 @@ mod tests {
         let mut parser = StmtParser::new();
         let mut ctx = create_parser_context("MATCH (n:Person) RETURN n");
         let result = parser.parse_statement(&mut ctx);
-        assert!(result.is_ok(), "MATCH 解析失败: {:?}", result.err());
+        assert!(result.is_ok(), "MATCH parse failure: {:?}", result.err());
     }
 
     #[test]
@@ -577,7 +577,7 @@ mod tests {
         let mut parser = StmtParser::new();
         let mut ctx = create_parser_context("GO 1 STEP FROM \"player100\" OVER follow");
         let result = parser.parse_statement(&mut ctx);
-        assert!(result.is_ok(), "GO 解析失败: {:?}", result.err());
+        assert!(result.is_ok(), "GO parse failure: {:?}", result.err());
     }
 
     #[test]
@@ -586,7 +586,7 @@ mod tests {
         let mut ctx =
             create_parser_context("CREATE TAG IF NOT EXISTS Person(name: STRING, age: INT)");
         let result = parser.parse_statement(&mut ctx);
-        assert!(result.is_ok(), "CREATE TAG 解析失败: {:?}", result.err());
+        assert!(result.is_ok(), "CREATE TAG Parse failure: {:?}", result.err());
     }
 
     #[test]
@@ -596,7 +596,7 @@ mod tests {
             "INSERT VERTEX Person(name, age) VALUES \"player100\":(\"Tom\", 18)",
         );
         let result = parser.parse_statement(&mut ctx);
-        assert!(result.is_ok(), "INSERT VERTEX 解析失败: {:?}", result.err());
+        assert!(result.is_ok(), "INSERT VERTEX parse failure: {:?}", result.err());
     }
 
     #[test]
@@ -604,7 +604,7 @@ mod tests {
         let mut parser = StmtParser::new();
         let mut ctx = create_parser_context("DELETE VERTEX \"player100\"");
         let result = parser.parse_statement(&mut ctx);
-        assert!(result.is_ok(), "DELETE VERTEX 解析失败: {:?}", result.err());
+        assert!(result.is_ok(), "DELETE VERTEX parse failure: {:?}", result.err());
     }
 
     #[test]
@@ -612,7 +612,7 @@ mod tests {
         let mut parser = StmtParser::new();
         let mut ctx = create_parser_context("USE test_space");
         let result = parser.parse_statement(&mut ctx);
-        assert!(result.is_ok(), "USE 解析失败: {:?}", result.err());
+        assert!(result.is_ok(), "USE Parse failure: {:?}", result.err());
 
         if let Ok(Stmt::Use(stmt)) = result {
             assert_eq!(stmt.space, "test_space");
@@ -626,7 +626,7 @@ mod tests {
         let mut parser = StmtParser::new();
         let mut ctx = create_parser_context("SHOW SPACES");
         let result = parser.parse_statement(&mut ctx);
-        assert!(result.is_ok(), "SHOW SPACES 解析失败: {:?}", result.err());
+        assert!(result.is_ok(), "SHOW SPACES parse failure: {:?}", result.err());
     }
 
     #[test]
@@ -638,7 +638,7 @@ mod tests {
         let result = parser.parse_statement(&mut ctx);
 
         // Verification and parsing were successful.
-        assert!(result.is_ok(), "CREATE SPACE 解析失败: {:?}", result.err());
+        assert!(result.is_ok(), "CREATE SPACE Parse failure: {:?}", result.err());
 
         // The verification involves the “Create” statement.
         if let Ok(Stmt::Create(stmt)) = result {
@@ -648,7 +648,7 @@ mod tests {
                     assert_eq!(name, "test_space");
                     assert_eq!(vid_type, "INT64");
                 }
-                _ => panic!("期望 Space 创建目标，实际得到 {:?}", stmt.target),
+                _ => panic!("Expect Space to create a goal and actually get {:?}", stmt.target),
             }
             assert!(stmt.if_not_exists);
         } else {
@@ -679,7 +679,7 @@ mod tests {
                     assert_eq!(name, "test_space");
                     assert_eq!(vid_type, "FIXEDSTRING32");
                 }
-                _ => panic!("期望 Space 创建目标，实际得到 {:?}", stmt.target),
+                _ => panic!("Expect Space to create a goal and actually get {:?}", stmt.target),
             }
         } else {
             panic!("The expected Create statement");
@@ -691,7 +691,7 @@ mod tests {
         let mut parser = StmtParser::new();
         let mut ctx = create_parser_context("EXPLAIN MATCH (n) RETURN n");
         let result = parser.parse_statement(&mut ctx);
-        assert!(result.is_ok(), "EXPLAIN 解析失败: {:?}", result.err());
+        assert!(result.is_ok(), "EXPLAIN Parse failure: {:?}", result.err());
 
         if let Ok(Stmt::Explain(stmt)) = result {
             assert!(matches!(stmt.format, ExplainFormat::Table));
@@ -707,7 +707,7 @@ mod tests {
         let result = parser.parse_statement(&mut ctx);
         assert!(
             result.is_ok(),
-            "EXPLAIN FORMAT 解析失败: {:?}",
+            "EXPLAIN FORMAT failed to parse: {:?}",
             result.err()
         );
 
@@ -723,7 +723,7 @@ mod tests {
         let mut parser = StmtParser::new();
         let mut ctx = create_parser_context("PROFILE GO FROM \"player100\" OVER follow");
         let result = parser.parse_statement(&mut ctx);
-        assert!(result.is_ok(), "PROFILE 解析失败: {:?}", result.err());
+        assert!(result.is_ok(), "PROFILE parse failure: {:?}", result.err());
 
         if let Ok(Stmt::Profile(stmt)) = result {
             assert!(matches!(stmt.format, ExplainFormat::Table));
@@ -739,7 +739,7 @@ mod tests {
         let result = parser.parse_statement(&mut ctx);
         assert!(
             result.is_ok(),
-            "PROFILE FORMAT 解析失败: {:?}",
+            "PROFILE FORMAT failed to parse: {:?}",
             result.err()
         );
 
@@ -755,7 +755,7 @@ mod tests {
         let mut parser = StmtParser::new();
         let mut ctx = create_parser_context("GROUP BY category YIELD category");
         let result = parser.parse_statement(&mut ctx);
-        assert!(result.is_ok(), "GROUP BY 解析失败: {:?}", result.err());
+        assert!(result.is_ok(), "GROUP BY Parse failure: {:?}", result.err());
 
         if let Ok(Stmt::GroupBy(stmt)) = result {
             assert_eq!(stmt.group_items.len(), 1);
@@ -773,7 +773,7 @@ mod tests {
         let result = parser.parse_statement(&mut ctx);
         assert!(
             result.is_ok(),
-            "GROUP BY 多字段解析失败: {:?}",
+            "GROUP BY multiple field parsing failure: {:?}",
             result.err()
         );
 
@@ -790,7 +790,7 @@ mod tests {
         let mut parser = StmtParser::new();
         let mut ctx = create_parser_context("SHOW SESSIONS");
         let result = parser.parse_statement(&mut ctx);
-        assert!(result.is_ok(), "SHOW SESSIONS 解析失败: {:?}", result.err());
+        assert!(result.is_ok(), "SHOW SESSIONS Parse failure: {:?}", result.err());
 
         if let Ok(Stmt::ShowSessions(_)) = result {
             // Success
@@ -804,7 +804,7 @@ mod tests {
         let mut parser = StmtParser::new();
         let mut ctx = create_parser_context("SHOW QUERIES");
         let result = parser.parse_statement(&mut ctx);
-        assert!(result.is_ok(), "SHOW QUERIES 解析失败: {:?}", result.err());
+        assert!(result.is_ok(), "SHOW QUERIES Parse failure: {:?}", result.err());
 
         if let Ok(Stmt::ShowQueries(_)) = result {
             // Success
@@ -818,7 +818,7 @@ mod tests {
         let mut parser = StmtParser::new();
         let mut ctx = create_parser_context("KILL QUERY 123, 456");
         let result = parser.parse_statement(&mut ctx);
-        assert!(result.is_ok(), "KILL QUERY 解析失败: {:?}", result.err());
+        assert!(result.is_ok(), "KILL QUERY Parsing failure: {:?}", result.err());
 
         if let Ok(Stmt::KillQuery(stmt)) = result {
             assert_eq!(stmt.session_id, 123);
@@ -833,7 +833,7 @@ mod tests {
         let mut parser = StmtParser::new();
         let mut ctx = create_parser_context("SHOW CONFIGS");
         let result = parser.parse_statement(&mut ctx);
-        assert!(result.is_ok(), "SHOW CONFIGS 解析失败: {:?}", result.err());
+        assert!(result.is_ok(), "SHOW CONFIGS Parse failure: {:?}", result.err());
 
         if let Ok(Stmt::ShowConfigs(stmt)) = result {
             assert!(stmt.module.is_none());
@@ -849,7 +849,7 @@ mod tests {
         let result = parser.parse_statement(&mut ctx);
         assert!(
             result.is_ok(),
-            "SHOW CONFIGS storage 解析失败: {:?}",
+            "SHOW CONFIGS storage Parse failed: {:?}",
             result.err()
         );
 
@@ -867,7 +867,7 @@ mod tests {
         let result = parser.parse_statement(&mut ctx);
         assert!(
             result.is_ok(),
-            "UPDATE CONFIGS 解析失败: {:?}",
+            "UPDATE CONFIGS parse failure: {:?}",
             result.err()
         );
 
@@ -886,7 +886,7 @@ mod tests {
         let result = parser.parse_statement(&mut ctx);
         assert!(
             result.is_ok(),
-            "UPDATE CONFIGS storage 解析失败: {:?}",
+            "UPDATE CONFIGS storage Parse failed: {:?}",
             result.err()
         );
 
@@ -903,12 +903,12 @@ mod tests {
         let mut parser = StmtParser::new();
         let mut ctx = create_parser_context("$result = GO FROM \"player100\" OVER follow");
         let result = parser.parse_statement(&mut ctx);
-        assert!(result.is_ok(), "变量赋值解析失败: {:?}", result.err());
+        assert!(result.is_ok(), "Variable assignment parsing failure: {:?}", result.err());
 
         if let Ok(Stmt::Assignment(stmt)) = result {
             assert_eq!(stmt.variable, "result");
         } else {
-            panic!("期望 Assignment 语句，实际得到 {:?}", result);
+            panic!("Expecting an Assignment statement, you actually get {:?}", result);
         }
     }
 
@@ -919,7 +919,7 @@ mod tests {
             "GO FROM \"player100\" OVER follow UNION GO FROM \"player101\" OVER follow",
         );
         let result = parser.parse_statement(&mut ctx);
-        assert!(result.is_ok(), "UNION 解析失败: {:?}", result.err());
+        assert!(result.is_ok(), "UNION Parse failure: {:?}", result.err());
 
         if let Ok(Stmt::SetOperation(stmt)) = result {
             assert!(matches!(
@@ -927,7 +927,7 @@ mod tests {
                 crate::query::parser::ast::stmt::SetOperationType::Union
             ));
         } else {
-            panic!("期望 SetOperation 语句，实际得到 {:?}", result);
+            panic!("Expecting a SetOperation statement, you actually get {:?}", result);
         }
     }
 
@@ -938,7 +938,7 @@ mod tests {
             "GO FROM \"player100\" OVER follow INTERSECT GO FROM \"player101\" OVER follow",
         );
         let result = parser.parse_statement(&mut ctx);
-        assert!(result.is_ok(), "INTERSECT 解析失败: {:?}", result.err());
+        assert!(result.is_ok(), "INTERSECT parse failure: {:?}", result.err());
 
         if let Ok(Stmt::SetOperation(stmt)) = result {
             assert!(matches!(
@@ -946,7 +946,7 @@ mod tests {
                 crate::query::parser::ast::stmt::SetOperationType::Intersect
             ));
         } else {
-            panic!("期望 SetOperation 语句，实际得到 {:?}", result);
+            panic!("Expecting a SetOperation statement, you actually get {:?}", result);
         }
     }
 
@@ -957,7 +957,7 @@ mod tests {
             "GO FROM \"player100\" OVER follow MINUS GO FROM \"player101\" OVER follow",
         );
         let result = parser.parse_statement(&mut ctx);
-        assert!(result.is_ok(), "MINUS 解析失败: {:?}", result.err());
+        assert!(result.is_ok(), "MINUS parse failure: {:?}", result.err());
 
         if let Ok(Stmt::SetOperation(stmt)) = result {
             assert!(matches!(
@@ -965,7 +965,7 @@ mod tests {
                 crate::query::parser::ast::stmt::SetOperationType::Minus
             ));
         } else {
-            panic!("期望 SetOperation 语句，实际得到 {:?}", result);
+            panic!("Expecting a SetOperation statement, you actually get {:?}", result);
         }
     }
 }

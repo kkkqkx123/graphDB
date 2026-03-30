@@ -86,7 +86,7 @@ impl OperatorFeedback {
 
     /// Calculating the estimated error in time measurement
     ///
-    /// 返回相对误差：(实际-估计)/估计
+    /// Return relative error: (actual-estimate)/estimate
     pub fn time_estimation_error(&self) -> f64 {
         if self.estimated_time_us == 0 {
             return 1.0;
@@ -120,7 +120,7 @@ impl OperatorFeedback {
 ///
 /// Record the complete feedback information for each query execution.
 ///
-/// # 示例
+/// # Examples
 /// ```
 /// use graphdb::query::optimizer::stats::feedback::query::QueryExecutionFeedback;
 ///
@@ -136,13 +136,13 @@ impl OperatorFeedback {
 pub struct QueryExecutionFeedback {
     /// Querying fingerprints
     pub query_fingerprint: String,
-    /// 估计输出行数
+    /// Estimated number of output lines
     pub estimated_rows: u64,
-    /// 实际输出行数
+    /// Actual number of output lines
     pub actual_rows: u64,
-    /// 估计执行时间（微秒）
+    /// Estimated execution time (microseconds)
     pub estimated_time_us: u64,
-    /// 实际执行时间（微秒）
+    /// Actual execution time (microseconds)
     pub actual_time_us: u64,
     /// Execution timestamp
     pub execution_timestamp: Instant,
@@ -164,7 +164,7 @@ impl QueryExecutionFeedback {
         }
     }
 
-    /// 计算行数估计误差
+    /// Estimated error in calculating the number of rows
     pub fn row_estimation_error(&self) -> f64 {
         if self.estimated_rows == 0 {
             return 1.0;
@@ -174,7 +174,7 @@ impl QueryExecutionFeedback {
         ((actual - estimated).abs() / estimated).min(10.0)
     }
 
-    /// 计算时间估计误差
+    /// Calculation time estimation error
     pub fn time_estimation_error(&self) -> f64 {
         if self.estimated_time_us == 0 {
             return 1.0;

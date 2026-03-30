@@ -112,7 +112,7 @@ impl MatchValidator {
         &mut self,
         match_stmt: &MatchStmt,
     ) -> Result<(), ValidationError> {
-        // 1. 验证模式不为空
+        // 1. The validation model is not empty
         if match_stmt.patterns.is_empty() {
             return Err(ValidationError::new(
                 "MATCH 语句必须包含至少一个模式".to_string(),
@@ -120,15 +120,15 @@ impl MatchValidator {
             ));
         }
 
-        // 2. 第一遍：收集所有别名（变量定义）
+        // 2. First pass: collect all aliases (variable definitions)
         self.collect_aliases_from_patterns(&match_stmt.patterns)?;
 
-        // 3. 第二遍：验证模式结构和变量引用
+        // 3. Second pass: validation of schema structure and variable references
         for (idx, pattern) in match_stmt.patterns.iter().enumerate() {
             self.validate_pattern(pattern, idx)?
         }
 
-        // 4. 验证 RETURN 子句存在性
+        // 4. Verify the existence of the RETURN clause.
         if match_stmt.return_clause.is_none() {
             return Err(ValidationError::new(
                 "MATCH 语句必须包含 RETURN 子句".to_string(),
@@ -136,26 +136,26 @@ impl MatchValidator {
             ));
         }
 
-        // 5. 验证 WHERE 子句（如果存在）
+        // 5. Validate the WHERE clause (if present)
         if let Some(ref where_clause) = match_stmt.where_clause {
             self.validate_where_clause(where_clause)?
         }
 
-        // 6. 验证 RETURN 子句
+        // 6. Validating the RETURN clause
         if let Some(ref return_clause) = match_stmt.return_clause {
             self.validate_return_clause(return_clause)?
         }
 
-        // 7. 验证 ORDER BY 子句（如果存在）
+        // 7. Validate the ORDER BY clause (if present)
         if let Some(ref order_by) = match_stmt.order_by {
             self.validate_order_by(order_by)?
         }
 
-        // 8. 验证分页参数
+        // 8. Validation of paging parameters
         if let (Some(skip), Some(limit)) = (match_stmt.skip, match_stmt.limit) {
             if skip >= limit {
                 return Err(ValidationError::new(
-                    format!("SKIP 值 ({}) 必须小于 LIMIT 值 ({})", skip, limit),
+                    format!("The SKIP value ({}) must be less than the LIMIT value ({}).", skip, limit),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -170,7 +170,7 @@ impl MatchValidator {
             Pattern::Node(node_pattern) => {
                 if node_pattern.variable.is_none() && node_pattern.labels.is_empty() {
                     return Err(ValidationError::new(
-                        format!("第 {} 个模式: 匿名节点必须指定标签", idx + 1),
+                        format!("The anonymous node at pattern {} must specify a label.", idx + 1),
                         ValidationErrorType::SemanticError,
                     ));
                 }
@@ -179,7 +179,7 @@ impl MatchValidator {
             Pattern::Path(path_pattern) => {
                 if path_pattern.elements.is_empty() {
                     return Err(ValidationError::new(
-                        format!("第 {} 个模式: 路径不能为空", idx + 1),
+                        format!("Pattern {}: path cannot be empty", idx + 1),
                         ValidationErrorType::SemanticError,
                     ));
                 }
@@ -188,7 +188,7 @@ impl MatchValidator {
                 if !self.aliases.contains_key(&var_pattern.name) {
                     return Err(ValidationError::new(
                         format!(
-                            "第 {} 个模式: 引用了未定义的变量 '{}'",
+                            "Pattern {}: references the undefined variable '{}'.",
                             idx + 1,
                             var_pattern.name
                         ),
@@ -200,7 +200,7 @@ impl MatchValidator {
                     if matches!(alias_type, AliasType::Runtime) {
                         return Err(ValidationError::new(
                             format!(
-                                "第 {} 个模式: 变量 '{}' 是运行时计算的别名，不能作为模式引用",
+                                "Pattern {}: The variable '{}' is an alias for the runtime computation, it cannot be referenced as a pattern",
                                 idx + 1,
                                 var_pattern.name
                             ),
@@ -274,7 +274,7 @@ impl MatchValidator {
                     if let Some(ref alias_name) = alias {
                         if alias_name.is_empty() {
                             return Err(ValidationError::new(
-                                format!("第 {} 个返回项的别名不能为空", idx + 1),
+                                format!("The alias of the {}th return item cannot be null.", idx + 1),
                                 ValidationErrorType::SemanticError,
                             ));
                         }
@@ -295,17 +295,17 @@ impl MatchValidator {
     ) -> Result<(), ValidationError> {
         if expr.expression().is_none() {
             return Err(ValidationError::new(
-                format!("第 {} 个返回项表达式无效", idx + 1),
+                format!("The {}th return expression is invalid", idx + 1),
                 ValidationErrorType::SemanticError,
             ));
         }
 
-        // 验证变量是否已定义
+        // Verify that the variable is defined
         let variables = expr.get_variables();
         for var_name in variables {
             if !self.aliases.contains_key(&var_name) {
                 return Err(ValidationError::new(
-                    format!("第 {} 个返回项引用了未定义的变量 '{}'", idx + 1, var_name),
+                    format!("The {}th return item references the undefined variable '{}'.", idx + 1, var_name),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -313,7 +313,7 @@ impl MatchValidator {
 
         // Note: The function name needs to be accessed, but the `ContextualExpression` class does not provide such a method.
         // Skip function validation for now and wait for further improvements.ntextualExpression 没有提供此方法
-        // 暂时跳过函数验证，等待后续完善
+        // Skip function validation for now and wait for subsequent refinements
 
         Ok(())
     }
@@ -330,7 +330,7 @@ impl MatchValidator {
         for (idx, item) in order_by.items.iter().enumerate() {
             if item.expression.expression().is_none() {
                 return Err(ValidationError::new(
-                    format!("第 {} 个排序表达式无效", idx + 1),
+                    format!("The {}th sort expression is invalid", idx + 1),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -339,7 +339,7 @@ impl MatchValidator {
             for var_name in variables {
                 if !self.aliases.contains_key(&var_name) {
                     return Err(ValidationError::new(
-                        format!("第 {} 个排序项引用了未定义的变量 '{}'", idx + 1, var_name),
+                        format!("The {}th sort item references the undefined variable '{}'", idx + 1, var_name),
                         ValidationErrorType::SemanticError,
                     ));
                 }
@@ -358,17 +358,17 @@ impl MatchValidator {
         for (idx, expr) in exprs.iter().enumerate() {
             if expr.expression().is_none() {
                 return Err(ValidationError::new(
-                    format!("第 {} 个表达式无效", idx + 1),
+                    format!("The {} expression is invalid", idx + 1),
                     ValidationErrorType::SemanticError,
                 ));
             }
 
-            // 验证变量是否在别名中定义
+            // Verify that the variable is defined in an alias
             let variables = expr.get_variables();
             for var_name in variables {
                 if !aliases.contains_key(&var_name) {
                     return Err(ValidationError::new(
-                        format!("第 {} 个表达式引用了未定义的别名 '{}'", idx + 1, var_name),
+                        format!("The {}th expression references the undefined alias '{}'", idx + 1, var_name),
                         ValidationErrorType::SemanticError,
                     ));
                 }
@@ -389,7 +389,7 @@ impl MatchValidator {
         _limit_expression: Option<&ContextualExpression>,
         context: &PaginationContext,
     ) -> Result<(), ValidationError> {
-        // 验证 skip 值
+        // Validate skip value
         if context.skip < 0 {
             return Err(ValidationError::new(
                 "SKIP 值不能为负数".to_string(),
@@ -397,7 +397,7 @@ impl MatchValidator {
             ));
         }
 
-        // 验证 limit 值
+        // Validating Limit Values
         if context.limit < 0 {
             return Err(ValidationError::new(
                 "LIMIT 值不能为负数".to_string(),
@@ -409,7 +409,7 @@ impl MatchValidator {
         if context.skip >= context.limit && context.limit > 0 {
             return Err(ValidationError::new(
                 format!(
-                    "SKIP 值 ({}) 必须小于 LIMIT 值 ({})",
+                    "The SKIP value ({}) must be less than the LIMIT value ({}).",
                     context.skip, context.limit
                 ),
                 ValidationErrorType::SemanticError,
@@ -425,7 +425,7 @@ impl MatchValidator {
         if range.min() > range.max() {
             return Err(ValidationError::new(
                 format!(
-                    "步数范围无效: min ({}) 大于 max ({})",
+                    "Invalid step range: min ({}) greater than max ({})",
                     range.min(),
                     range.max()
                 ),
@@ -489,18 +489,18 @@ impl MatchValidator {
             ));
         }
 
-        // 验证变量是否已定义
+        // Verify that the variable is defined
         let variables = unwind_expression.get_variables();
         for var_name in variables {
             if !self.aliases.contains_key(&var_name) {
                 return Err(ValidationError::new(
-                    format!("UNWIND 引用了未定义的变量 '{}'", var_name),
+                    format!("UNWIND references the undefined variable '{}'", var_name),
                     ValidationErrorType::SemanticError,
                 ));
             }
         }
 
-        // 添加 unwind 别名
+        // Add unwind alias
         self.aliases
             .insert(context.alias.clone(), AliasType::Variable);
         Ok(())
@@ -546,7 +546,7 @@ impl MatchValidator {
             if cur_aliases.contains_key(alias) {
                 if cur_aliases.get(alias) != Some(alias_type) {
                     return Err(ValidationError::new(
-                        format!("别名 '{}' 的类型不一致", alias),
+                        format!("Inconsistency in the type of the alias '{}'.", alias),
                         ValidationErrorType::SemanticError,
                     ));
                 }
@@ -595,12 +595,12 @@ impl MatchValidator {
             ));
         }
 
-        // 验证变量是否在别名中定义
+        // Verify that the variable is defined in an alias
         let variables = ref_expression.get_variables();
         for var_name in variables {
             if !aliases_available.contains_key(&var_name) {
                 return Err(ValidationError::new(
-                    format!("引用了未定义的别名 '{}'", var_name),
+                    format!("Reference to undefined alias '{}'", var_name),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -645,7 +645,7 @@ impl StatementValidator for MatchValidator {
         ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        // 1. 检查是否需要空间
+        // 1. Check if space is needed
         if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "No image space selected, please execute first USE <space>".to_string(),
@@ -653,7 +653,7 @@ impl StatementValidator for MatchValidator {
             ));
         }
 
-        // 2. 获取 MATCH 语句
+        // 2. Getting the MATCH statement
         let match_stmt = match &ast.stmt {
             Stmt::Match(m) => m,
             _ => {
@@ -664,16 +664,16 @@ impl StatementValidator for MatchValidator {
             }
         };
 
-        // 3. 验证 MATCH 语句
+        // 3. Validating the MATCH statement
         self.validate_match_statement(match_stmt)?;
 
-        // 4. 获取 space_id
+        // 4. Get space_id
         let space_id = qctx.space_id().unwrap_or(0);
 
-        // 5. 生成输出列
+        // 5. Generation of output columns
         self.generate_output_columns(match_stmt);
 
-        // 6. 构建详细的 ValidationInfo
+        // 6. Constructing a detailed ValidationInfo
         let mut info = ValidationInfo::new();
 
         // 6.1 添加别名映射
@@ -713,7 +713,7 @@ impl StatementValidator for MatchValidator {
         info.semantic_info.referenced_tags = self.get_referenced_tags();
         info.semantic_info.referenced_edges = self.get_referenced_edges();
 
-        // 7. 创建验证结果（放在最后一步，避免不必要的 clone）
+        // 7. Create the validation result (put it in the last step to avoid unnecessary clone)
         let validated = ValidatedMatch {
             space_id,
             patterns: match_stmt.patterns.clone(),
@@ -729,7 +729,7 @@ impl StatementValidator for MatchValidator {
         self.validated_result = Some(validated);
         self.optional = match_stmt.optional;
 
-        // 8. 返回包含详细信息的验证结果
+        // 8. Returning validation results with detailed information
         Ok(ValidationResult::success_with_info(info))
     }
 
@@ -830,11 +830,11 @@ mod tests {
     fn test_validate_step_range() {
         let validator = MatchValidator::new();
 
-        // 测试有效的范围（min <= max）
+        // Test valid range (min <= max)
         let valid_range = MatchStepRange::new(1, 3);
         assert!(validator.validate_step_range(&valid_range).is_ok());
 
-        // 测试无效的范围（min > max）
+        // Test invalid range (min > max)
         let invalid_range = MatchStepRange::new(3, 1);
         assert!(validator.validate_step_range(&invalid_range).is_err());
     }
@@ -843,16 +843,16 @@ mod tests {
     fn test_validate_aliases() {
         let mut validator = MatchValidator::new();
 
-        // 创建一个别名映射
+        // Creating an alias map
         let mut aliases = HashMap::new();
         aliases.insert("n".to_string(), AliasType::Node);
         aliases.insert("e".to_string(), AliasType::Edge);
 
-        // 测试有效的别名引用
+        // Testing for valid alias references
         let expression = create_contextual_expr(Expression::Variable("n".to_string()));
         assert!(validator.validate_aliases(&[expression], &aliases).is_ok());
 
-        // 测试无效的别名引用
+        // Testing for invalid alias references
         let invalid_expression =
             create_contextual_expr(Expression::Variable("invalid".to_string()));
         assert!(validator
@@ -866,7 +866,7 @@ mod tests {
         let non_agg_expression = create_contextual_expr(Expression::Literal(Value::Int(1)));
         assert!(!validator.has_aggregate_expression(&non_agg_expression));
 
-        // 测试有聚合函数的表达式
+        // Testing Expressions with Aggregate Functions
         let agg_expression = create_contextual_expr(Expression::Aggregate {
             func: crate::core::types::operators::AggregateFunction::Count(None),
             arg: Box::new(Expression::Variable("n".to_string())),
@@ -886,7 +886,7 @@ mod tests {
         last_aliases.insert("b".to_string(), AliasType::Edge);
         last_aliases.insert("c".to_string(), AliasType::Path);
 
-        // 组合别名
+        // portfolio alias
         assert!(validator
             .combine_aliases(&mut cur_aliases, &last_aliases)
             .is_ok());
@@ -900,11 +900,11 @@ mod tests {
     fn test_validate_pagination() {
         let mut validator = MatchValidator::new();
 
-        // 测试有效的分页
+        // Testing Effective Pagination
         let ctx = PaginationContext { skip: 0, limit: 10 };
         assert!(validator.validate_pagination(None, None, &ctx).is_ok());
 
-        // 测试无效的 skip
+        // Test invalid skip
         let invalid_ctx = PaginationContext {
             skip: -1,
             limit: 10,
@@ -945,7 +945,7 @@ mod tests {
 
         let mut validator = MatchValidator::new();
 
-        // 先定义一个节点变量
+        // First define a node variable
         let node_pattern = NodePattern::new(
             Some("a".to_string()),
             vec!["Person".to_string()],
@@ -955,12 +955,12 @@ mod tests {
         );
         let node_var_pattern = Pattern::Node(node_pattern);
 
-        // 收集别名
+        // Collecting aliases
         validator
             .collect_aliases_from_patterns(&[node_var_pattern])
             .expect("收集别名失败");
 
-        // 验证变量模式引用已定义的变量
+        // Verify that the variable pattern references a defined variable
         let var_pattern = VariablePattern::new("a".to_string(), Span::default());
         let pattern = Pattern::Variable(var_pattern);
 
@@ -974,7 +974,7 @@ mod tests {
 
         let mut validator = MatchValidator::new();
 
-        // 验证变量模式引用未定义的变量应该失败
+        // Verify that variable patterns referencing undefined variables should fail
         let var_pattern = VariablePattern::new("undefined".to_string(), Span::default());
         let pattern = Pattern::Variable(var_pattern);
 
@@ -988,12 +988,12 @@ mod tests {
 
         let mut validator = MatchValidator::new();
 
-        // 添加一个运行时别名（如 RETURN 子句中定义的别名）
+        // Add a runtime alias (as defined in the RETURN clause)
         validator
             .aliases
             .insert("runtime_alias".to_string(), AliasType::Runtime);
 
-        // 验证变量模式引用运行时别名应该失败
+        // Validating variable mode references to runtime aliases should fail
         let var_pattern = VariablePattern::new("runtime_alias".to_string(), Span::default());
         let pattern = Pattern::Variable(var_pattern);
 
@@ -1010,7 +1010,7 @@ mod tests {
 
         let mut validator = MatchValidator::new();
 
-        // VariablePattern 不应该被收集为别名
+        // VariablePattern should not be collected as an alias
         let var_pattern = VariablePattern::new("var".to_string(), Span::default());
         let pattern = Pattern::Variable(var_pattern);
 
@@ -1018,7 +1018,7 @@ mod tests {
             .collect_aliases_from_patterns(&[pattern])
             .expect("收集别名失败");
 
-        // 验证别名映射为空，因为 VariablePattern 是引用不是定义
+        // Verify that the alias map is empty, since VariablePattern is a reference and not a definition.
         assert!(validator.aliases.is_empty());
     }
 }

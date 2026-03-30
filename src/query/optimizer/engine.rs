@@ -85,9 +85,9 @@ impl OptimizerEngine {
 
     /// Create an optimizer engine using the shared ExpressionContext.
     ///
-    /// # 参数
+    /// # Parameters
     /// `expression_context`: A shared context for expressions (shared across different stages).
-    /// - `cost_config`: 代价模型配置
+    /// - `cost_config`: Cost model configuration
     pub fn with_expression_context(
         expression_context: Arc<ExpressionAnalysisContext>,
         cost_config: CostModelConfig,

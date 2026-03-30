@@ -208,7 +208,7 @@ impl ReferenceCountAnalyzer {
     /// The root node of the execution plan to be analyzed.
     ///
     /// # Return
-    /// 引用计数分析结果
+    /// Citation Count Analysis Results
     ///
     /// # Algorithms
     /// Post-order traversal of a plan tree
@@ -223,12 +223,12 @@ impl ReferenceCountAnalyzer {
 
     /// Recursive analysis of the plan tree
     ///
-    /// # 参数
+    /// # Parameters
     /// `node`: The current node
     /// “Context” refers to the analysis of the surrounding circumstances, background, or information that is relevant to a particular situation or topic. In translation, understanding the context is crucial in order to provide an accurate and meaningful translation that captures the intended meaning of the original text. This may involve considering the context of the language, the cultural context, the historical context, or any other relevant factors that may affect the interpretation of the text.
     /// `parent_id`: ID of the parent node (used to record the reference location)
     ///
-    /// # 返回
+    /// # Back
     /// Number of nodes
     fn analyze_recursive(
         &self,

@@ -234,7 +234,7 @@ impl SetValidator {
             }
             if !name.starts_with('$') {
                 return Err(ValidationError::new(
-                    format!("变量名 '{}' 必须以 '$' 开头", name),
+                    format!("The variable name '{}' must start with '$'.", name),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -339,7 +339,7 @@ impl SetValidator {
             }
             if !name.starts_with('$') && !name.starts_with('@') {
                 return Err(ValidationError::new(
-                    format!("无效的变量名 '{}': 必须以 '$' 或 '@' 开头", name),
+                    format!("Invalid variable name '{}': must start with '$' or '@'", name),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -449,7 +449,7 @@ impl Default for SetValidator {
 
 /// Implementing the StatementValidator trait
 ///
-/// # 重构变更
+/// # Reconfiguration changes
 /// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as parameters.
 /// Remove operations related to AstContext.
 impl StatementValidator for SetValidator {

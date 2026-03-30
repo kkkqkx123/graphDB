@@ -166,7 +166,8 @@ impl Planner for MaintainPlanner {
                         .unwrap_or_default();
 
                     let tag_info = TagManageInfo::new(space_name.clone(), name.clone())
-                        .with_properties(properties.clone());
+                        .with_properties(properties.clone())
+                        .with_if_not_exists(create_stmt.if_not_exists);
 
                     let create_tag_node = CreateTagNode::new(next_node_id(), tag_info);
                     return Ok(SubPlan::from_single_node(PlanNodeEnum::CreateTag(
@@ -184,7 +185,8 @@ impl Planner for MaintainPlanner {
                         .unwrap_or_default();
 
                     let edge_info = EdgeManageInfo::new(space_name.clone(), name.clone())
-                        .with_properties(properties.clone());
+                        .with_properties(properties.clone())
+                        .with_if_not_exists(create_stmt.if_not_exists);
 
                     let create_edge_node = CreateEdgeNode::new(next_node_id(), edge_info);
                     return Ok(SubPlan::from_single_node(PlanNodeEnum::CreateEdge(
@@ -317,7 +319,8 @@ impl Planner for MaintainPlanner {
                                 next_node_id(),
                                 current_space,
                                 tag_names[0].clone(),
-                            );
+                            )
+                            .with_if_exists(drop_stmt.if_exists);
                         PlanNodeEnum::DropTag(drop_tag_node)
                     }
                     DropTarget::Edges(edge_names) if !edge_names.is_empty() => {
@@ -333,7 +336,8 @@ impl Planner for MaintainPlanner {
                                 next_node_id(),
                                 current_space,
                                 edge_names[0].clone(),
-                            );
+                            )
+                            .with_if_exists(drop_stmt.if_exists);
                         PlanNodeEnum::DropEdge(drop_edge_node)
                     }
                     DropTarget::Space(space_name) => {

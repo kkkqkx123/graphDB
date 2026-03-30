@@ -203,8 +203,8 @@ impl ExpressionAnalysisContext {
 
     /// Obtain the results of the expression analysis.
     ///
-    /// # 参数
-    /// - `id`: 表达式ID
+    /// # Parameters
+    /// - `id`: expression ID
     ///
     /// # Return
     /// Analysis results (if any)
@@ -217,7 +217,7 @@ impl ExpressionAnalysisContext {
     /// # 参数
     /// - `id`: 表达式ID
     ///
-    /// # 返回
+    /// # Back
     /// “true” if the analysis has already been performed.
     pub fn is_analyzed(&self, id: &ExpressionId) -> bool {
         self.analysis_cache.read().contains_key(id)
@@ -367,7 +367,7 @@ impl ExpressionAnalysisContext {
 
     /// Creating an OR expression
     ///
-    /// 便捷方法，用于组合两个条件表达式
+    /// Convenience method for combining two conditional expressions
     pub fn or(
         &self,
         left: &ContextualExpression,

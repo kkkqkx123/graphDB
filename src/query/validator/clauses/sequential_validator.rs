@@ -123,7 +123,7 @@ impl SequentialValidator {
         self.max_statements
     }
 
-    /// 设置最大语句数
+    /// Setting the maximum number of statements
     pub fn set_max_statements(&mut self, max: usize) {
         self.max_statements = max;
     }

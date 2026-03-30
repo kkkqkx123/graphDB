@@ -121,7 +121,7 @@ impl Default for AutoFeedbackConfig {
 /// Automatically determines whether to trigger a statistical update based on the configuration.
 /// Use atomic operations to ensure thread safety.
 ///
-/// # 示例
+/// # Examples
 /// ```
 /// use graphdb::query::optimizer::stats::feedback::trigger::{AutoFeedbackTrigger, AutoFeedbackConfig};
 ///
@@ -161,7 +161,7 @@ impl AutoFeedbackTrigger {
         self.feedback_count.fetch_add(1, Ordering::Relaxed);
     }
 
-    /// 检查是否应该触发更新
+    /// Check if an update should be triggered
     pub fn should_trigger(&self, current_error: f64) -> bool {
         let count = self.feedback_count.load(Ordering::Relaxed) as usize;
         let last_update = self.last_update_time_ms.load(Ordering::Relaxed);

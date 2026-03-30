@@ -96,7 +96,7 @@ impl Default for ExecutionFeedbackCollector {
 
 /// Simple feedback collector for cardinality estimation
 ///
-/// 轻量级反馈收集器，用于基数估计校正
+/// Lightweight feedback collector for base estimation correction
 #[derive(Debug)]
 pub struct SimpleFeedbackCollector {
     /// Map from query pattern to feedback

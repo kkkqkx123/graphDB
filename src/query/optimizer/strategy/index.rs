@@ -37,7 +37,7 @@ pub enum IndexSelection {
     },
     /// Full table scan
     FullScan {
-        /// 估计代价
+        /// Estimated cost
         estimated_cost: f64,
         /// Number of vertices
         vertex_count: u64,

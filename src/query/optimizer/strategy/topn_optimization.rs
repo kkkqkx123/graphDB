@@ -270,12 +270,12 @@ impl SortEliminationOptimizer {
 
     /// Check whether it is possible to convert this into TopN nodes.
     ///
-    /// # 参数
+    /// # Parameters
     /// - `sort_items`: Functions to sort items
     /// - `limit`: The value of the `limit` parameter
     /// - `input_rows`: The number of input rows
     ///
-    /// # 返回
+    /// # Back
     /// - If conversion is possible, return (TopN cost, original sorting cost).
     pub fn check_topn_conversion_cost(
         &self,
@@ -315,12 +315,12 @@ impl SortEliminationOptimizer {
             } => {
                 let savings = original_cost - topn_cost;
                 advice.push(format!(
-                    "建议将 Sort + Limit 转换为 TopN，原因: {:?}，预计节省代价: {:.2}",
+                    "It is recommended to convert Sort + Limit to TopN, reason: {:?} and expected cost savings: {:.2}",
                     reason, savings
                 ));
             }
             SortEliminationDecision::KeepSort { reason, .. } => {
-                advice.push(format!("保留排序操作，原因: {:?}", reason));
+                advice.push(format!("Preserve the sort operation, cause: {:?}", reason));
 
                 if matches!(reason, SortKeepReason::NoLimitForTopN) {
                     advice.push("如果查询包含 LIMIT，考虑将 Sort + Limit 转换为 TopN".to_string());

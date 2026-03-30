@@ -173,7 +173,7 @@ impl YieldValidator {
 
             if *count > 1 {
                 return Err(ValidationError::new(
-                    format!("YIELD 子句中重复的列名 '{}'", name),
+                    format!("Duplicate column names in YIELD clause '{}'", name),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -188,7 +188,7 @@ impl YieldValidator {
             if !alias.starts_with('_') && alias.chars().next().unwrap_or_default().is_ascii_digit()
             {
                 return Err(ValidationError::new(
-                    format!("别名 '{}' 不能以数字开头", alias),
+                    format!("The alias '{}' cannot start with a number.", alias),
                     ValidationErrorType::SemanticError,
                 ));
             }

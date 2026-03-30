@@ -1,5 +1,5 @@
 //! CREATE Statement Validator (Cypher style) – New version of the system
-//! 对应 Cypher CREATE (n:Label {prop: value}) 语法的验证
+//! Validation against the Cypher CREATE (n:Label {prop: value}) syntax
 //! Supports automatic schema inference and creation.
 //!
 //! This document has been restructured in accordance with the new trait + enumeration validator framework.

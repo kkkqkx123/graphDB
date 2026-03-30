@@ -127,7 +127,7 @@ impl CostCalculator {
 
     /// Calculate the cost of single-step expansion
     ///
-    /// # 参数
+    /// # Parameters
     /// `start_nodes`: Number of starting nodes
     /// `edge_type`: Type of the edge (optional)
     pub fn calculate_expand_cost(&self, start_nodes: u64, edge_type: Option<&str>) -> f64 {
@@ -171,8 +171,8 @@ impl CostCalculator {
     /// Calculating the cost of multi-step traversals
     ///
     /// # 参数
-    /// - `start_nodes`: 起始节点数量
-    /// - `edge_type`: 边类型（可选）
+    /// `start_nodes`: The number of starting nodes
+    /// `edge_type`: Edge type (optional)
     /// - `steps`: The number of iterations (or steps) in a process.
     pub fn calculate_traverse_cost(
         &self,
@@ -255,7 +255,7 @@ impl CostCalculator {
     /// Calculating the cost of projection
     ///
     /// # 参数
-    /// - `input_rows`: 输入行数
+    /// `input_rows`: Number of input rows
     /// - `columns`: The number of columns to be projected.
     pub fn calculate_project_cost(&self, input_rows: u64, columns: usize) -> f64 {
         input_rows as f64 * columns as f64 * self.config.cpu_operator_cost

@@ -67,8 +67,17 @@ impl TestScenario {
         {
             Ok(result) => {
                 println!("[exec_ddl] Query executed successfully: {:?}", result);
-                self.last_result = Some(result);
-                self.last_error = None;
+                // Check if the result itself is an error
+                match &result {
+                    ExecutionResult::Error(e) => {
+                        self.last_error = Some(e.clone());
+                        self.last_result = Some(result);
+                    }
+                    _ => {
+                        self.last_result = Some(result);
+                        self.last_error = None;
+                    }
+                }
             }
             Err(e) => {
                 println!("[exec_ddl] Query execution failed: {:?}", e);
@@ -86,8 +95,17 @@ impl TestScenario {
             .execute_query_with_space(query, self.current_space.clone())
         {
             Ok(result) => {
-                self.last_result = Some(result);
-                self.last_error = None;
+                // Check if the result itself is an error
+                match &result {
+                    ExecutionResult::Error(e) => {
+                        self.last_error = Some(e.clone());
+                        self.last_result = Some(result);
+                    }
+                    _ => {
+                        self.last_result = Some(result);
+                        self.last_error = None;
+                    }
+                }
             }
             Err(e) => {
                 self.last_error = Some(format!("{:?}", e));
@@ -104,8 +122,17 @@ impl TestScenario {
             .execute_query_with_space(query, self.current_space.clone())
         {
             Ok(result) => {
-                self.last_result = Some(result);
-                self.last_error = None;
+                // Check if the result itself is an error
+                match &result {
+                    ExecutionResult::Error(e) => {
+                        self.last_error = Some(e.clone());
+                        self.last_result = Some(result);
+                    }
+                    _ => {
+                        self.last_result = Some(result);
+                        self.last_error = None;
+                    }
+                }
             }
             Err(e) => {
                 self.last_error = Some(format!("{:?}", e));
@@ -450,8 +477,9 @@ impl TestScenario {
 
     /// Assert vertex count
     pub fn assert_vertex_count(mut self, tag: &str, expected: usize) -> Self {
-        let query = format!("LOOKUP ON {}", tag);
-        match self.pipeline.execute_query(&query) {
+        // Use FETCH to count vertices instead of LOOKUP
+        let query = format!("FETCH PROP ON {} 1,2,3,4,5,6,7,8,9,10", tag);
+        match self.pipeline.execute_query_with_space(&query, self.current_space.clone()) {
             Ok(result) => {
                 let actual = result.count();
                 assert_eq!(
@@ -469,8 +497,9 @@ impl TestScenario {
 
     /// Assert edge count
     pub fn assert_edge_count(mut self, edge_type: &str, expected: usize) -> Self {
-        let query = format!("LOOKUP ON {}", edge_type);
-        match self.pipeline.execute_query(&query) {
+        // Use FETCH to count edges instead of LOOKUP
+        let query = format!("FETCH PROP ON {} 1->2,2->3,3->4,4->5,5->6,6->7,7->8,8->9,9->10,10->1", edge_type);
+        match self.pipeline.execute_query_with_space(&query, self.current_space.clone()) {
             Ok(result) => {
                 let actual = result.count();
                 assert_eq!(

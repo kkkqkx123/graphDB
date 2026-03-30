@@ -100,6 +100,7 @@ define_plan_node! {
     pub struct DropTagNode {
         space_name: String,
         tag_name: String,
+        if_exists: bool,
     }
     enum: DropTag
     input: ZeroInputNode
@@ -111,9 +112,15 @@ impl DropTagNode {
             id,
             space_name,
             tag_name,
+            if_exists: false,
             output_var: None,
             col_names: Vec::new(),
         }
+    }
+
+    pub fn with_if_exists(mut self, if_exists: bool) -> Self {
+        self.if_exists = if_exists;
+        self
     }
 
     pub fn space_name(&self) -> &str {
@@ -122,6 +129,10 @@ impl DropTagNode {
 
     pub fn tag_name(&self) -> &str {
         &self.tag_name
+    }
+
+    pub fn if_exists(&self) -> bool {
+        self.if_exists
     }
 }
 
@@ -148,6 +159,7 @@ pub struct TagManageInfo {
     pub space_name: String,
     pub tag_name: String,
     pub properties: Vec<PropertyDef>,
+    pub if_not_exists: bool,
 }
 
 impl TagManageInfo {
@@ -156,11 +168,17 @@ impl TagManageInfo {
             space_name,
             tag_name,
             properties: Vec::new(),
+            if_not_exists: false,
         }
     }
 
     pub fn with_properties(mut self, properties: Vec<PropertyDef>) -> Self {
         self.properties = properties;
+        self
+    }
+
+    pub fn with_if_not_exists(mut self, if_not_exists: bool) -> Self {
+        self.if_not_exists = if_not_exists;
         self
     }
 }

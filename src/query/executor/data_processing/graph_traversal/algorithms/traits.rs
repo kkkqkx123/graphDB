@@ -69,13 +69,13 @@ pub trait PathFindingAlgorithm {
 pub trait TraversalAlgorithm {
     /// Traverse a graph
     ///
-    /// # 参数
-    /// - `start_ids`: 起始顶点ID列表
+    /// # Parameters
+    /// - `start_ids`: list of start vertex IDs
     /// - `edge_types`: Filter edge types
     /// - `max_depth`: The maximum depth of the traversal.
     /// - `limit`: Returns the limit on the number of vertices.
     ///
-    /// # 返回
+    /// # Back
     /// - List of vertices that have been traversed
     fn traverse(
         &mut self,
@@ -85,7 +85,7 @@ pub trait TraversalAlgorithm {
         limit: usize,
     ) -> Result<Vec<Value>, QueryError>;
 
-    /// 获取算法统计信息
+    /// Getting Algorithm Statistics
     fn stats(&self) -> &AlgorithmStats;
 }
 

@@ -65,7 +65,7 @@ impl PaginationValidationStrategy {
             Some(e) => e,
             None => {
                 return Err(ValidationError::new(
-                    format!("{}表达式无效", clause_name),
+                    format!("{} expression is invalid", clause_name),
                     ValidationErrorType::PaginationError,
                 ))
             }
@@ -83,7 +83,7 @@ impl PaginationValidationStrategy {
     ) -> Result<(), ValidationError> {
         if !is_evaluable(expression) {
             return Err(ValidationError::new(
-                format!("{}表达式必须是可立即计算的常量表达式", clause_name),
+                format!("The {} expression must be a constant expression that can be computed immediately.", clause_name),
                 ValidationErrorType::PaginationError,
             ));
         }
@@ -94,13 +94,13 @@ impl PaginationValidationStrategy {
                     Ok(())
                 } else {
                     Err(ValidationError::new(
-                        format!("{}表达式必须是非负整数", clause_name),
+                        format!("The {} expression must be a non-negative integer.", clause_name),
                         ValidationErrorType::PaginationError,
                     ))
                 }
             }
             crate::core::types::expr::Expression::Literal(_) => Err(ValidationError::new(
-                format!("{}表达式必须求值为整数类型", clause_name),
+                format!("The {} expression must evaluate to an integer.", clause_name),
                 ValidationErrorType::PaginationError,
             )),
             _ => {
@@ -114,17 +114,17 @@ impl PaginationValidationStrategy {
                             Ok(())
                         } else {
                             Err(ValidationError::new(
-                                format!("{}表达式必须是非负整数", clause_name),
+                                format!("The {} expression must be a non-negative integer.", clause_name),
                                 ValidationErrorType::PaginationError,
                             ))
                         }
                     }
                     Ok(_) => Err(ValidationError::new(
-                        format!("{}表达式必须求值为整数类型", clause_name),
+                        format!("The {} expression must evaluate to an integer.", clause_name),
                         ValidationErrorType::PaginationError,
                     )),
                     Err(e) => Err(ValidationError::new(
-                        format!("{}表达式求值失败: {}", clause_name, e),
+                        format!("Failed to evaluate {} expression: {}", clause_name, e),
                         ValidationErrorType::PaginationError,
                     )),
                 }
@@ -137,7 +137,7 @@ impl PaginationValidationStrategy {
         if range.min > range.max {
             return Err(ValidationError::new(
                 format!(
-                    "最大跳数必须大于等于最小跳数: {} vs. {}",
+                    "The maximum number of hops must be greater than or equal to the minimum number of hops: {} vs {}",
                     range.max, range.min
                 ),
                 ValidationErrorType::PaginationError,
@@ -157,7 +157,7 @@ impl PaginationValidationStrategy {
         for &(index, _) in &context.indexed_order_factors {
             if index >= yield_columns.len() {
                 return Err(ValidationError::new(
-                    format!("列索引{}超出范围", index),
+                    format!("Column index {} out of range", index),
                     ValidationErrorType::PaginationError,
                 ));
             }

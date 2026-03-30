@@ -156,7 +156,7 @@ impl InsertVerticesValidator {
             Some(m) => m,
             None => {
                 return Err(ValidationError::new(
-                    format!("Vertex ID 表达式无效 for vertex {}", idx + 1),
+                    format!("Vertex ID expression is invalid for vertex {}", idx + 1),
                     ValidationErrorType::SemanticError,
                 ))
             }

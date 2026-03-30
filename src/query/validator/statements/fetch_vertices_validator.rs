@@ -201,7 +201,7 @@ impl FetchVerticesValidator {
             for prop in props {
                 if !prop_set.insert(prop) {
                     return Err(ValidationError::new(
-                        format!("属性 '{}' 重复出现", prop),
+                        format!("Attribute '{}' repeated", prop),
                         ValidationErrorType::DuplicateKey,
                     ));
                 }

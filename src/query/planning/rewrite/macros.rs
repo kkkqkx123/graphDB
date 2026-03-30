@@ -69,7 +69,7 @@ macro_rules! define_rewrite_rule {
 ///
 /// Automatic processing of node type matching and unpacking
 ///
-/// # 示例
+/// # Examples
 /// ```rust
 /// define_typed_rewrite_rule! {
 ///     name: EliminateFilterRule,
@@ -95,7 +95,7 @@ macro_rules! define_typed_rewrite_rule {
         pub struct $name;
 
         impl $name {
-            /// 创建规则实例
+            /// Creating rule instances
             pub fn new() -> Self {
                 Self
             }

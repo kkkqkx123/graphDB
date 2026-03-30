@@ -126,7 +126,7 @@ impl<'a> NodeEstimator for DataProcessingEstimator<'a> {
             }
             PlanNodeEnum::Start(_) => Ok((0.0, 0)),
             _ => Err(CostError::UnsupportedNodeType(format!(
-                "数据处理估算器不支持节点类型: {:?}",
+                "Data Processing Estimator does not support node types: {:?}",
                 std::mem::discriminant(node)
             ))),
         }

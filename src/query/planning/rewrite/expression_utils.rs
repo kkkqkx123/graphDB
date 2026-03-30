@@ -44,12 +44,12 @@ pub fn check_col_name(property_names: &[String], expr: &Expression) -> bool {
 ///
 /// Rewrite the `ContextualExpression` according to the `rewrite_map`, and register the result in the `ExpressionContext`.
 ///
-/// # 参数
+/// # Parameters
 /// `expr`: The `ContextualExpression` that needs to be rewritten.
 /// `rewrite_map`: A map for rewriting expressions; the keys represent variable names, and the values represent the `ContextualExpression` objects that need to be replaced.
 /// `expr_context`: The context in which the expression is used, used for registering new expressions.
 ///
-/// # 返回
+/// # Back
 /// Revised ContextualExpression
 pub fn rewrite_contextual_expression(
     expr: &ContextualExpression,
@@ -72,8 +72,8 @@ pub fn rewrite_contextual_expression(
 ///
 /// # 参数
 /// `expr`: The Expression that needs to be rewritten.
-/// - `rewrite_map`: 重写映射表，键为变量名，值为要替换的 ContextualExpression
-/// - `expr_context`: 表达式上下文，用于注册新的表达式
+/// - `rewrite_map`: rewrite mapping table, key is variable name, value is ContextualExpression to be replaced
+/// - `expr_context`: expression context, used to register new expressions
 ///
 /// # 返回
 /// The rewritten expression
@@ -368,7 +368,7 @@ pub fn and_condition(
 /// `conditions`: List of conditions
 ///
 /// # 返回
-/// 合并后的条件
+/// Post-merger conditions
 pub fn and_conditions(
     conditions: Vec<Option<ContextualExpression>>,
 ) -> Option<ContextualExpression> {

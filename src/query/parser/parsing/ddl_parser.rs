@@ -850,7 +850,8 @@ impl DdlParser {
         ctx: &mut ParseContext,
     ) -> Result<PropertyDef, ParseError> {
         let name = ctx.expect_identifier()?;
-        ctx.expect_token(TokenKind::Colon)?;
+        // Support both "name: TYPE" and "name TYPE" formats (colon is optional)
+        ctx.match_token(TokenKind::Colon);
 
         // Parse data types; supports keywords or identifiers.
         let dtype = self.parse_data_type(ctx)?;
