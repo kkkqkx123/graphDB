@@ -35,7 +35,12 @@ impl TestScenario {
 
         let stats_manager = Arc::new(StatsManager::new());
         let optimizer = Arc::new(OptimizerEngine::default());
-        let pipeline = QueryPipelineManager::with_optimizer(storage.clone(), stats_manager, optimizer);
+        let schema_manager = {
+            let storage_guard = storage.lock();
+            storage_guard.state().schema_manager.clone()
+        };
+        let pipeline = QueryPipelineManager::with_optimizer(storage.clone(), stats_manager, optimizer)
+            .with_schema_manager(schema_manager);
 
         Ok(Self {
             storage,
@@ -50,15 +55,19 @@ impl TestScenario {
 
     /// Execute a DDL statement
     pub fn exec_ddl(mut self, query: &str) -> Self {
+        println!("[exec_ddl] Executing query: {}", query);
+        println!("[exec_ddl] Current space: {:?}", self.current_space.as_ref().map(|s| &s.space_name));
         match self
             .pipeline
             .execute_query_with_space(query, self.current_space.clone())
         {
             Ok(result) => {
+                println!("[exec_ddl] Query executed successfully: {:?}", result);
                 self.last_result = Some(result);
                 self.last_error = None;
             }
             Err(e) => {
+                println!("[exec_ddl] Query execution failed: {:?}", e);
                 self.last_error = Some(format!("{:?}", e));
                 self.last_result = None;
             }
@@ -107,9 +116,12 @@ impl TestScenario {
     /// Setup graph space
     pub fn setup_space(mut self, space_name: &str) -> Self {
         let query = format!("CREATE SPACE IF NOT EXISTS {}", space_name);
+        println!("[setup_space] Executing query: {}", query);
 
-        match self.pipeline.execute_query(&query) {
+        // CREATE SPACE does not require a space context, so we pass None
+        match self.pipeline.execute_query_with_space(&query, None) {
             Ok(result) => {
+                println!("[setup_space] Query executed successfully: {:?}", result);
                 match &result {
                     ExecutionResult::Success | ExecutionResult::Empty => {
                         self.last_result = Some(result);
@@ -127,6 +139,7 @@ impl TestScenario {
                 }
             }
             Err(e) => {
+                println!("[setup_space] Query execution failed: {:?}", e);
                 self.last_error = Some(format!("{:?}", e));
                 self.last_result = None;
                 return self;
@@ -137,9 +150,11 @@ impl TestScenario {
             let storage_guard = self.storage.lock();
             storage_guard.get_space(space_name)
         };
+        println!("[setup_space] Got space result: {:?}", space_result);
 
         match space_result {
             Ok(Some(space)) => {
+                println!("[setup_space] Space found: {:?}", space);
                 self.current_space = Some(space);
             }
             Ok(None) => {
@@ -161,7 +176,10 @@ impl TestScenario {
     /// Setup schema with tags and edges
     pub fn setup_schema(mut self, ddls: Vec<&str>) -> Self {
         for ddl in ddls {
-            match self.pipeline.execute_query(ddl) {
+            match self
+                .pipeline
+                .execute_query_with_space(ddl, self.current_space.clone())
+            {
                 Ok(result) => {
                     self.last_result = Some(result);
                     self.last_error = None;
@@ -388,7 +406,7 @@ impl TestScenario {
     /// Assert tag exists
     pub fn assert_tag_exists(mut self, tag: &str) -> Self {
         let query = format!("DESC TAG {}", tag);
-        match self.pipeline.execute_query(&query) {
+        match self.pipeline.execute_query_with_space(&query, self.current_space.clone()) {
             Ok(result) => {
                 assert!(result.count() > 0, "Expected tag {} to exist", tag);
             }
@@ -402,7 +420,7 @@ impl TestScenario {
     /// Assert tag does not exist
     pub fn assert_tag_not_exists(mut self, tag: &str) -> Self {
         let query = format!("DESC TAG {}", tag);
-        match self.pipeline.execute_query(&query) {
+        match self.pipeline.execute_query_with_space(&query, self.current_space.clone()) {
             Ok(result) => {
                 assert!(result.count() == 0, "Expected tag {} to not exist", tag);
             }

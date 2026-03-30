@@ -370,7 +370,7 @@ impl StatementValidator for DescValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
-        _qctx: Arc<QueryContext>,
+        qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let desc_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Desc(desc_stmt) => desc_stmt,
@@ -384,10 +384,27 @@ impl StatementValidator for DescValidator {
 
         self.validate_impl(desc_stmt)?;
 
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        // If space_name is empty, try to get it from query context
+        if self.space_name.is_empty() {
+            if let Some(ctx_space_name) = qctx.space_name() {
+                self.space_name = ctx_space_name;
+            }
+        }
+
+        // Create ValidationInfo with space_name for TAG/EDGE operations
+        let mut info = crate::query::validator::structs::validation_info::ValidationInfo::new();
+        if !self.space_name.is_empty() {
+            info.semantic_info.space_name = Some(self.space_name.clone());
+        }
+
+        Ok(ValidationResult {
+            success: true,
+            errors: Vec::new(),
+            inputs: self.inputs.clone(),
+            outputs: self.outputs.clone(),
+            warnings: Vec::new(),
+            info: Some(info),
+        })
     }
 
     fn statement_type(&self) -> StatementType {

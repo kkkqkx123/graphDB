@@ -648,7 +648,7 @@ impl StatementValidator for MatchValidator {
         // 1. 检查是否需要空间
         if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
-                "未选择图空间，请先执行 USE <space>".to_string(),
+                "No image space selected, please execute first USE <space>".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }

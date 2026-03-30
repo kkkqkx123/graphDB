@@ -3,6 +3,7 @@
 
 use crate::query::parser::ast::{AlterTarget, CreateTarget, IndexType, ShowTarget, Stmt};
 use crate::query::planning::plan::core::nodes::management::index_nodes::IndexManageInfo;
+use crate::query::planning::plan::core::nodes::management::space_nodes::{CreateSpaceNode, SpaceManageInfo};
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id, AlterSpaceNode, ArgumentNode, ClearSpaceNode, PlanNodeEnum,
     ProjectNode, ShowStatsNode, ShowStatsType,
@@ -35,21 +36,6 @@ impl Planner for MaintainPlanner {
     ) -> Result<SubPlan, PlannerError> {
         let stmt_type = validated.stmt().kind().to_uppercase();
 
-        // 1. Create a parameter node to receive the operation parameters.
-        let arg_node = ArgumentNode::new(1, "maintain_args");
-
-        // 2. Create corresponding plan nodes for different types.
-        // Maintenance operations generally do not require the use of expressions; they simply return the results of the operations.
-        let yield_columns = Vec::new();
-
-        let project_node = ProjectNode::new(
-            PlanNodeEnum::Argument(arg_node.clone()),
-            yield_columns,
-        )
-        .map_err(|e| {
-            PlannerError::PlanGenerationFailed(format!("Failed to create ProjectNode: {}", e))
-        })?;
-
         // 3. Different types of operations may require different processing methods.
         let final_node = if stmt_type == "SHOW" {
             // Processing the SHOW STATS statement
@@ -70,10 +56,22 @@ impl Planner for MaintainPlanner {
             }
         } else if stmt_type == "SUBMIT JOB" {
             // Maintenance operations for submitting assignment types
+            // Create a parameter node to receive the operation parameters.
+            let arg_node = ArgumentNode::new(1, "maintain_args");
+            let yield_columns = Vec::new();
+            let project_node = ProjectNode::new(
+                PlanNodeEnum::Argument(arg_node.clone()),
+                yield_columns,
+            )
+            .map_err(|e| {
+                PlannerError::PlanGenerationFailed(format!("Failed to create ProjectNode: {}", e))
+            })?;
             PlanNodeEnum::Project(project_node)
         } else if stmt_type.starts_with("CREATE") {
             // Operation to create a type
+            println!("[MaintainPlanner] Processing CREATE statement");
             if let Stmt::Create(create_stmt) = validated.stmt() {
+                println!("[MaintainPlanner] Create target: {:?}", create_stmt.target);
                 if let CreateTarget::Index {
                     index_type,
                     name,
@@ -117,10 +115,18 @@ impl Planner for MaintainPlanner {
                             PlanNodeEnum::CreateEdgeIndex(create_edge_index_node)
                         }
                     };
-                    return Ok(SubPlan::new(
-                        Some(plan_node),
-                        Some(PlanNodeEnum::Argument(arg_node)),
-                    ));
+                    return Ok(SubPlan::from_single_node(plan_node));
+                } else if let CreateTarget::Space {
+                    name,
+                    vid_type,
+                    ..
+                } = &create_stmt.target
+                {
+                    let space_info = SpaceManageInfo::new(name.clone())
+                        .with_vid_type(vid_type.clone());
+
+                    let create_space_node = CreateSpaceNode::new(next_node_id(), space_info);
+                    return Ok(SubPlan::from_single_node(PlanNodeEnum::CreateSpace(create_space_node)));
                 } else if let CreateTarget::Tag {
                     name,
                     properties,
@@ -159,8 +165,8 @@ impl Planner for MaintainPlanner {
                     return Ok(SubPlan::from_single_node(PlanNodeEnum::CreateEdge(create_edge_node)));
                 }
             }
-            // For other creation operations, the default processing methods are used.
-            PlanNodeEnum::Project(project_node)
+            // For other creation operations, use PassThrough nodes
+            PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(1))
         } else if stmt_type.starts_with("ALTER") {
             // Processing the ALTER SPACE statement
             if let Stmt::Alter(alter_stmt) = validated.stmt() {
@@ -183,10 +189,11 @@ impl Planner for MaintainPlanner {
                         AlterSpaceNode::new(next_node_id(), space_name.clone(), options);
                     PlanNodeEnum::AlterSpace(alter_space_node)
                 } else {
-                    PlanNodeEnum::Project(project_node)
+                    // For other ALTER operations, use PassThrough nodes
+                    PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(1))
                 }
             } else {
-                PlanNodeEnum::Project(project_node)
+                PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(1))
             }
         } else if stmt_type == "CLEAR SPACE" {
             // Processing the CLEAR SPACE statement
@@ -195,15 +202,66 @@ impl Planner for MaintainPlanner {
                     ClearSpaceNode::new(next_node_id(), clear_stmt.space_name.clone());
                 PlanNodeEnum::ClearSpace(clear_space_node)
             } else {
-                PlanNodeEnum::Project(project_node)
+                PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(1))
+            }
+        } else if stmt_type == "DESC" || stmt_type.starts_with("DESCRIBE") {
+            // Processing DESC/DESCRIBE statements
+            if let Stmt::Desc(desc_stmt) = validated.stmt() {
+                // Get space_name from validation_info if available, otherwise use current context
+                let current_space = validated
+                    .validation_info
+                    .semantic_info
+                    .space_name
+                    .clone()
+                    .unwrap_or_default();
+
+                match &desc_stmt.target {
+                    crate::query::parser::ast::stmt::DescTarget::Tag { space_name, tag_name } => {
+                        // Use space_name from DESC statement if provided, otherwise use current space
+                        let effective_space = if space_name.is_empty() {
+                            current_space
+                        } else {
+                            space_name.clone()
+                        };
+                        let desc_tag_node = crate::query::planning::plan::core::nodes::DescTagNode::new(
+                            next_node_id(),
+                            effective_space,
+                            tag_name.clone(),
+                        );
+                        PlanNodeEnum::DescTag(desc_tag_node)
+                    }
+                    crate::query::parser::ast::stmt::DescTarget::Edge { space_name, edge_name } => {
+                        // Use space_name from DESC statement if provided, otherwise use current space
+                        let effective_space = if space_name.is_empty() {
+                            current_space
+                        } else {
+                            space_name.clone()
+                        };
+                        let desc_edge_node = crate::query::planning::plan::core::nodes::DescEdgeNode::new(
+                            next_node_id(),
+                            effective_space,
+                            edge_name.clone(),
+                        );
+                        PlanNodeEnum::DescEdge(desc_edge_node)
+                    }
+                    crate::query::parser::ast::stmt::DescTarget::Space(space_name) => {
+                        let desc_space_node = crate::query::planning::plan::core::nodes::DescSpaceNode::new(
+                            next_node_id(),
+                            space_name.clone(),
+                        );
+                        PlanNodeEnum::DescSpace(desc_space_node)
+                    }
+                }
+            } else {
+                PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(1))
             }
         } else {
-            // Other types of maintenance operations
-            PlanNodeEnum::Project(project_node)
+            // Other types of maintenance operations use PassThrough nodes
+            PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(1))
         };
 
-        // Create a SubPlan
-        let sub_plan = SubPlan::new(Some(final_node), Some(PlanNodeEnum::Argument(arg_node)));
+        // Create a SubPlan without ArgumentNode for DDL operations
+        let sub_plan = SubPlan::from_single_node(final_node);
 
         Ok(sub_plan)
     }

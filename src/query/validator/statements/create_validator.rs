@@ -152,10 +152,15 @@ impl CreateValidator {
         }
     }
 
-    /// Setting up SchemaManager
+    /// Setting up SchemaManager (builder pattern)
     pub fn with_schema_manager(mut self, schema_manager: Arc<RedbSchemaManager>) -> Self {
         self.schema_manager = Some(schema_manager);
         self
+    }
+
+    /// Set schema manager (mutable reference)
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<RedbSchemaManager>) {
+        self.schema_manager = Some(schema_manager);
     }
 
     /// Set whether to automatically create a Schema.

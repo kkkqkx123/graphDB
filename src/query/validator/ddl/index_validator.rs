@@ -115,7 +115,21 @@ impl CreateIndexValidator {
             ));
         }
 
-        self.space_name = "default".to_string();
+        Ok(())
+    }
+
+    fn validate_impl_with_context(&mut self, stmt: &CreateStmt, qctx: &QueryContext) -> Result<(), ValidationError> {
+        self.validate_impl(stmt)?;
+
+        // Get space name from query context
+        if let Some(space_info) = qctx.space_info() {
+            self.space_name = space_info.space_name.clone();
+        } else {
+            return Err(ValidationError::new(
+                "No graph space selected, please execute USE <space> first".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
 
         Ok(())
     }
@@ -125,7 +139,7 @@ impl StatementValidator for CreateIndexValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
-        _qctx: Arc<QueryContext>,
+        qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let create_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Create(create_stmt) => create_stmt,
@@ -137,7 +151,7 @@ impl StatementValidator for CreateIndexValidator {
             }
         };
 
-        self.validate_impl(create_stmt)?;
+        self.validate_impl_with_context(create_stmt, &qctx)?;
 
         let mut info = ValidationInfo::new();
         info.semantic_info.query_type = Some(format!(

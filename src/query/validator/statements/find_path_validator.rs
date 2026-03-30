@@ -133,7 +133,7 @@ impl StatementValidator for FindPathValidator {
         // 1. Check whether additional space is needed.
         if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
-                "未选择图空间，请先执行 USE <space>".to_string(),
+                "No image space selected, please execute first USE <space>".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }

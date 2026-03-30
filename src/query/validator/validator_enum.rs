@@ -9,6 +9,7 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,
 };
 use crate::query::QueryContext;
+use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 // Import the specific validator.
 use crate::query::validator::assignment_validator::AssignmentValidator;
@@ -542,6 +543,16 @@ impl Validator {
     pub fn create_from_stmt(stmt: &Stmt) -> Option<Validator> {
         let stmt_type = Self::infer_statement_type(stmt);
         Some(Self::create(stmt_type))
+    }
+
+    /// Set schema manager for validators that need it
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<RedbSchemaManager>) {
+        match self {
+            Validator::Create(v) => {
+                v.set_schema_manager(schema_manager);
+            }
+            _ => {}
+        }
     }
 
     /// Create a validator from Arc<Ast>.

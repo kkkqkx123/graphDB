@@ -35,6 +35,7 @@ use crate::query::query_request_context::QueryRequestContext;
 use crate::query::validator::{ValidatedStatement, ValidationInfo};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryContext;
+use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -53,6 +54,8 @@ pub struct QueryPipelineManager<S: StorageClient + 'static> {
     plan_cache: Arc<QueryPlanCache>,
     /// Parameterized Query Processor
     param_handler: ParameterizedQueryHandler,
+    /// Schema manager for validation
+    schema_manager: Option<Arc<RedbSchemaManager>>,
 }
 
 impl<S: StorageClient + 'static> QueryPipelineManager<S> {
@@ -74,7 +77,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let plan_cache = Arc::new(QueryPlanCache::default());
         let param_handler = ParameterizedQueryHandler::default();
 
-        log::info!("查询管道管理器已创建，使用优化器引擎和查询计划缓存");
+        log::info!("Query pipeline manager created, using optimizer engine and query plan cache");
 
         Self {
             executor_factory,
@@ -83,16 +86,17 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             optimizer_engine,
             plan_cache,
             param_handler,
+            schema_manager: None,
         }
     }
 
     /// Create using the specified optimizer engine and planning cache configuration.
     ///
-    /// # 参数
-    /// - `storage`: 存储客户端
-    /// - `stats_manager`: 统计信息管理器
-    /// - `optimizer_engine`: 优化器引擎（全局实例）
-    /// - `plan_cache_config`: Queries the configuration of the plan cache.
+    /// # Parameters
+    /// - `storage`: Storage client
+    /// - `stats_manager`: Statistics information manager
+    /// - `optimizer_engine`: Optimizer engine (global instance)
+    /// - `plan_cache_config`: Query plan cache configuration
     pub fn with_optimizer_and_cache(
         storage: Arc<Mutex<S>>,
         stats_manager: Arc<StatsManager>,
@@ -104,7 +108,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let plan_cache = Arc::new(QueryPlanCache::new(plan_cache_config));
         let param_handler = ParameterizedQueryHandler::default();
 
-        log::info!("查询管道管理器已创建，使用优化器引擎和自定义查询计划缓存");
+        log::info!("Query pipeline manager created, using optimizer engine and custom query plan cache");
 
         Self {
             executor_factory,
@@ -113,12 +117,19 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             optimizer_engine,
             plan_cache,
             param_handler,
+            schema_manager: None,
         }
     }
 
     /// Obtaining the optimizer engine
     pub fn optimizer_engine(&self) -> &OptimizerEngine {
         &self.optimizer_engine
+    }
+
+    /// Set schema manager for validation
+    pub fn with_schema_manager(mut self, schema_manager: Arc<RedbSchemaManager>) -> Self {
+        self.schema_manager = Some(schema_manager);
+        self
     }
 
     /// Obtaining the query plan cache
@@ -134,7 +145,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     /// Clear query plan cache.
     pub fn clear_plan_cache(&self) {
         self.plan_cache.clear();
-        log::info!("查询计划缓存已清空");
+        log::info!("Query plan cache cleared");
     }
 
     /// Obtain object pool statistics.
@@ -145,7 +156,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     /// Clear object pool.
     pub fn clear_object_pool(&self) {
         self.object_pool.clear();
-        log::info!("对象池已清空");
+        log::info!("Object pool cleared");
     }
 
     pub fn execute_query(&mut self, query_text: &str) -> DBResult<ExecutionResult> {
@@ -170,7 +181,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
         // 2. Check the query plan cache.
         if let Some(cached_plan) = self.plan_cache.get(query_text) {
-            log::debug!("查询计划缓存命中");
+            log::debug!("Query plan cache hit");
             let execute_start = Instant::now();
             let result = self.execute_plan(query_context, cached_plan.plan.clone())?;
             let execution_time_ms = execute_start.elapsed().as_millis() as f64;
@@ -448,9 +459,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     /// This method reuses the already created QueryContext, thereby avoiding the creation and subsequent disposal of temporary contexts.
     /// Ensure that a consistent context is used throughout the entire lifecycle of the query.
     ///
-    /// # 参数
-    /// AST (Abstract Syntax Tree)
-    /// `qctx`: Query context ( persists throughout the entire lifecycle of the query).
+    /// # Parameters
+    /// `ast`: Abstract Syntax Tree
+    /// `qctx`: Query context (persists throughout the entire lifecycle of the query).
     fn validate_query_with_context(
         &mut self,
         ast: Arc<crate::query::parser::ast::stmt::Ast>,
@@ -459,10 +470,15 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let mut validator =
             crate::query::validator::Validator::create_from_ast(&ast).ok_or_else(|| {
                 DBError::from(QueryError::InvalidQuery(format!(
-                    "不支持的语句类型: {:?}",
-                    ast.stmt
-                )))
+                "Unsupported statement type: {:?}",
+                ast.stmt
+            )))
             })?;
+
+        // Set schema manager if available
+        if let Some(ref schema_manager) = self.schema_manager {
+            validator.set_schema_manager(schema_manager.clone());
+        }
 
         // Perform verification using the provided QueryContext.
         // Avoid creating temporary contexts and ensure the consistency of resources (such as ID generators, object pools, etc.).
@@ -544,7 +560,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             if let Some(analysis) = ctx.batch_plan_analysis() {
                 if analysis.reference_count.repeated_count() > 0 {
                     log::debug!(
-                        "发现 {} 个被多次引用的子计划",
+                        "Found {} subplans referenced multiple times",
                         analysis.reference_count.repeated_count()
                     );
                 }

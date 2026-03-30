@@ -189,7 +189,7 @@ impl StatementValidator for DropValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
-        _qctx: Arc<QueryContext>,
+        qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let drop_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Drop(drop_stmt) => drop_stmt,
@@ -203,7 +203,15 @@ impl StatementValidator for DropValidator {
 
         self.validate_impl(drop_stmt)?;
 
-        let info = ValidationInfo::new();
+        // For TAG, EDGE, and INDEX operations, get space name from query context if not already set
+        if self.space_name.is_none() {
+            if let Some(space_info) = qctx.space_info() {
+                self.space_name = Some(space_info.space_name.clone());
+            }
+        }
+
+        let mut info = ValidationInfo::new();
+        info.semantic_info.space_name = self.space_name.clone();
 
         Ok(ValidationResult::success_with_info(info))
     }

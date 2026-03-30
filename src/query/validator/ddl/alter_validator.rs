@@ -133,6 +133,9 @@ impl AlterValidator {
 
                 // Verify the modification of the attribute.
                 self.validate_property_changes(additions, deletions, changes)?;
+
+                // For TAG and EDGE operations, space_name should be obtained from query context
+                // This is handled in validate_impl_with_context
             }
             AlterTarget::Space {
                 space_name,
@@ -157,6 +160,29 @@ impl AlterValidator {
                         ValidationErrorType::SemanticError,
                     ));
                 }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn validate_impl_with_context(&mut self, stmt: &AlterStmt, qctx: &QueryContext) -> Result<(), ValidationError> {
+        self.validate_impl(stmt)?;
+
+        // For TAG and EDGE operations, get space name from query context
+        match &stmt.target {
+            AlterTarget::Tag { .. } | AlterTarget::Edge { .. } => {
+                if let Some(space_info) = qctx.space_info() {
+                    self.space_name = Some(space_info.space_name.clone());
+                } else {
+                    return Err(ValidationError::new(
+                        "No graph space selected, please execute USE <space> first".to_string(),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+            }
+            AlterTarget::Space { .. } => {
+                // Space operations already have space_name set in validate_impl
             }
         }
 
@@ -313,7 +339,7 @@ impl StatementValidator for AlterValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
-        _qctx: Arc<QueryContext>,
+        qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let alter_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Alter(alter_stmt) => alter_stmt,
@@ -325,9 +351,10 @@ impl StatementValidator for AlterValidator {
             }
         };
 
-        self.validate_impl(alter_stmt)?;
+        self.validate_impl_with_context(alter_stmt, &qctx)?;
 
-        let info = ValidationInfo::new();
+        let mut info = ValidationInfo::new();
+        info.semantic_info.space_name = self.space_name.clone();
 
         Ok(ValidationResult::success_with_info(info))
     }

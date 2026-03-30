@@ -323,39 +323,19 @@ impl super::SchemaManager for RedbSchemaManager {
             .get_space(space_name)?
             .ok_or_else(|| StorageError::DbError(format!("空间 '{}' 不存在", space_name)))?;
 
+        // Check if a tag with the same name already exists (before write transaction)
+        let existing_tags = self.list_tags(space_name)?;
+        if existing_tags.iter().any(|t| t.tag_name == tag.tag_name) {
+            return Ok(false);
+        }
+
         let write_txn = self
             .db
             .begin_write()
             .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
 
-        {
-            let mut tags_table = write_txn
-                .open_table(TAGS_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
-
-            let key = ByteKey(
-                [
-                    space_info.space_id.to_be_bytes().to_vec(),
-                    tag.tag_id.to_be_bytes().to_vec(),
-                ]
-                .concat(),
-            );
-            let value = ByteKey(encode_to_vec(tag, standard())?);
-
-            if tags_table
-                .get(&key)
-                .map_err(|e| StorageError::DbError(format!("查询标签失败: {}", e)))?
-                .is_some()
-            {
-                return Ok(false);
-            }
-
-            tags_table
-                .insert(key, value)
-                .map_err(|e| StorageError::DbError(format!("插入标签失败: {}", e)))?;
-        }
-
-        {
+        // First, get the new tag_id from counter
+        let new_tag_id = {
             let mut id_counter_table = write_txn.open_table(TAG_ID_COUNTER_TABLE).map_err(|e| {
                 StorageError::DbError(format!("打开TAG_ID_COUNTER_TABLE失败: {}", e))
             })?;
@@ -366,9 +346,8 @@ impl super::SchemaManager for RedbSchemaManager {
                 .map_err(|e| StorageError::DbError(format!("查询ID计数器失败: {}", e)))?
                 .map(|v| {
                     let bytes = v.value().0;
-                    u64::from_be_bytes([
-                        bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6],
-                        bytes[7],
+                    u32::from_be_bytes([
+                        bytes[0], bytes[1], bytes[2], bytes[3],
                     ])
                 })
                 .unwrap_or(0);
@@ -379,6 +358,31 @@ impl super::SchemaManager for RedbSchemaManager {
             id_counter_table
                 .insert(key, value)
                 .map_err(|e| StorageError::DbError(format!("更新ID计数器失败: {}", e)))?;
+
+            new_id
+        };
+
+        // Create tag with the new tag_id
+        let mut tag_with_id = tag.clone();
+        tag_with_id.tag_id = new_tag_id as i32;
+
+        {
+            let mut tags_table = write_txn
+                .open_table(TAGS_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
+
+            let key = ByteKey(
+                [
+                    space_info.space_id.to_be_bytes().to_vec(),
+                    tag_with_id.tag_id.to_be_bytes().to_vec(),
+                ]
+                .concat(),
+            );
+            let value = ByteKey(encode_to_vec(&tag_with_id, standard())?);
+
+            tags_table
+                .insert(key, value)
+                .map_err(|e| StorageError::DbError(format!("插入标签失败: {}", e)))?;
         }
 
         write_txn

@@ -110,8 +110,74 @@ impl PlanNodeEnum {
             PlanNodeEnum::AllPaths(_) => "AllPaths",
             PlanNodeEnum::ShortestPath(_) => "ShortestPath",
 
-            // Management node
-            _ => "AdminNode",
+            // Management node - Space
+            PlanNodeEnum::CreateSpace(_) => "CreateSpace",
+            PlanNodeEnum::DropSpace(_) => "DropSpace",
+            PlanNodeEnum::DescSpace(_) => "DescSpace",
+            PlanNodeEnum::ShowSpaces(_) => "ShowSpaces",
+            PlanNodeEnum::SwitchSpace(_) => "SwitchSpace",
+            PlanNodeEnum::AlterSpace(_) => "AlterSpace",
+            PlanNodeEnum::ClearSpace(_) => "ClearSpace",
+
+            // Management node - Tag
+            PlanNodeEnum::CreateTag(_) => "CreateTag",
+            PlanNodeEnum::AlterTag(_) => "AlterTag",
+            PlanNodeEnum::DescTag(_) => "DescTag",
+            PlanNodeEnum::DropTag(_) => "DropTag",
+            PlanNodeEnum::ShowTags(_) => "ShowTags",
+
+            // Management node - Edge
+            PlanNodeEnum::CreateEdge(_) => "CreateEdge",
+            PlanNodeEnum::AlterEdge(_) => "AlterEdge",
+            PlanNodeEnum::DescEdge(_) => "DescEdge",
+            PlanNodeEnum::DropEdge(_) => "DropEdge",
+            PlanNodeEnum::ShowEdges(_) => "ShowEdges",
+
+            // Management node - Index
+            PlanNodeEnum::CreateTagIndex(_) => "CreateTagIndex",
+            PlanNodeEnum::DropTagIndex(_) => "DropTagIndex",
+            PlanNodeEnum::DescTagIndex(_) => "DescTagIndex",
+            PlanNodeEnum::ShowTagIndexes(_) => "ShowTagIndexes",
+            PlanNodeEnum::RebuildTagIndex(_) => "RebuildTagIndex",
+            PlanNodeEnum::CreateEdgeIndex(_) => "CreateEdgeIndex",
+            PlanNodeEnum::DropEdgeIndex(_) => "DropEdgeIndex",
+            PlanNodeEnum::DescEdgeIndex(_) => "DescEdgeIndex",
+            PlanNodeEnum::ShowEdgeIndexes(_) => "ShowEdgeIndexes",
+            PlanNodeEnum::RebuildEdgeIndex(_) => "RebuildEdgeIndex",
+
+            // Management node - User
+            PlanNodeEnum::CreateUser(_) => "CreateUser",
+            PlanNodeEnum::AlterUser(_) => "AlterUser",
+            PlanNodeEnum::DropUser(_) => "DropUser",
+            PlanNodeEnum::ChangePassword(_) => "ChangePassword",
+            PlanNodeEnum::GrantRole(_) => "GrantRole",
+            PlanNodeEnum::RevokeRole(_) => "RevokeRole",
+
+            // Management node - Stats
+            PlanNodeEnum::ShowStats(_) => "ShowStats",
+
+            // Management node - Insert
+            PlanNodeEnum::InsertVertices(_) => "InsertVertices",
+            PlanNodeEnum::InsertEdges(_) => "InsertEdges",
+
+            // Management node - Remove
+            PlanNodeEnum::Remove(_) => "Remove",
+
+            // Management node - Set operations
+            PlanNodeEnum::Minus(_) => "Minus",
+            PlanNodeEnum::Intersect(_) => "Intersect",
+
+            // Management node - FullOuterJoin
+            PlanNodeEnum::FullOuterJoin(_) => "FullOuterJoin",
+
+            // Management node - EdgeIndexScan
+            PlanNodeEnum::EdgeIndexScan(_) => "EdgeIndexScan",
+
+            // Management node - DataModification
+            // Already covered above
+
+            // Default case (should not reach here if all variants are covered)
+            _ => "Unknown",
         }
     }
 

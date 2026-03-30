@@ -59,7 +59,7 @@ impl CreateTagValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &CreateStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &CreateStmt, qctx: &QueryContext) -> Result<(), ValidationError> {
         match &stmt.target {
             CreateTarget::Tag {
                 name,
@@ -97,7 +97,15 @@ impl CreateTagValidator {
             }
         }
 
-        self.space_name = "default".to_string();
+        // Get space name from query context
+        if let Some(space_info) = qctx.space_info() {
+            self.space_name = space_info.space_name.clone();
+        } else {
+            return Err(ValidationError::new(
+                "No graph space selected, please execute USE <space> first".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
 
         Ok(())
     }
@@ -107,7 +115,7 @@ impl StatementValidator for CreateTagValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
-        _qctx: Arc<QueryContext>,
+        qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let create_stmt = match &ast.stmt {
             Stmt::Create(create_stmt) => create_stmt,
@@ -119,7 +127,7 @@ impl StatementValidator for CreateTagValidator {
             }
         };
 
-        self.validate_impl(create_stmt)?;
+        self.validate_impl(create_stmt, &qctx)?;
 
         let mut info = ValidationInfo::new();
         info.semantic_info.query_type = Some("CreateTag".to_string());
