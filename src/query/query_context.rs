@@ -97,10 +97,10 @@ impl QueryContext {
     ///
     /// This is a convenient method for creating a temporary QueryContext during the planning phase.
     ///
-    /// # 参数
-    /// - `query_text`: 查询文本
+    /// # Parameters
+    /// - `query_text`: The query text
     ///
-    /// # 示例
+    /// # Example
     ///
     /// ```rust
     /// use crate::query::QueryContext;
@@ -237,7 +237,7 @@ impl QueryContext {
         self.id_gen.reset(0);
         self.space_info = None;
         self.charset_info = None;
-        log::info!("查询上下文已重置");
+        log::info!("Query context has been reset");
     }
 
     /// Obtain a reference to the query execution manager.

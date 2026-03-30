@@ -92,19 +92,19 @@ impl super::SchemaManager for RedbSchemaManager {
         let write_txn = self
             .db
             .begin_write()
-            .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start write transaction: {}", e)))?;
 
         {
             // Check name index
             let mut name_index = write_txn.open_table(SPACE_NAME_INDEX_TABLE).map_err(|e| {
-                StorageError::DbError(format!("打开SPACE_NAME_INDEX_TABLE失败: {}", e))
+                StorageError::DbError(format!("Failed to open SPACE_NAME_INDEX_TABLE: {}", e))
             })?;
 
             let name_key = ByteKey(space.space_name.as_bytes().to_vec());
 
             if name_index
                 .get(&name_key)
-                .map_err(|e| StorageError::DbError(format!("查询名称索引失败: {}", e)))?
+                .map_err(|e| StorageError::DbError(format!("Failed to query name index: {}", e)))?
                 .is_some()
             {
                 return Ok(false);
@@ -113,25 +113,25 @@ impl super::SchemaManager for RedbSchemaManager {
             // Insertion into the master table
             let mut spaces_table = write_txn
                 .open_table(SPACES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开SPACES_TABLE失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to open SPACES_TABLE: {}", e)))?;
 
             let space_key = ByteKey(space.space_id.to_be_bytes().to_vec());
             let space_value = ByteKey(encode_to_vec(space, standard())?);
 
             spaces_table
                 .insert(space_key, space_value)
-                .map_err(|e| StorageError::DbError(format!("插入空间失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to insert space: {}", e)))?;
 
             // Insert name index
             let id_value = ByteKey(space.space_id.to_be_bytes().to_vec());
             name_index
                 .insert(name_key, id_value)
-                .map_err(|e| StorageError::DbError(format!("插入名称索引失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to insert name index: {}", e)))?;
         }
 
         write_txn
             .commit()
-            .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to commit transaction: {}", e)))?;
 
         Ok(true)
     }
@@ -140,25 +140,25 @@ impl super::SchemaManager for RedbSchemaManager {
         let write_txn = self
             .db
             .begin_write()
-            .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start write transaction: {}", e)))?;
 
         // Find IDs by Name Index
         let name_key = ByteKey(space_name.as_bytes().to_vec());
         let space_id_option = {
             let name_index = write_txn.open_table(SPACE_NAME_INDEX_TABLE).map_err(|e| {
-                StorageError::DbError(format!("打开SPACE_NAME_INDEX_TABLE失败: {}", e))
+                StorageError::DbError(format!("Failed to open SPACE_NAME_INDEX_TABLE: {}", e))
             })?;
 
             let result = name_index
                 .get(&name_key)
-                .map_err(|e| StorageError::DbError(format!("查询名称索引失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to query name index: {}", e)))?;
 
             match result {
                 Some(id_value) => {
                     let bytes = id_value.value().0;
                     let array: [u8; 8] = bytes[0..8]
                         .try_into()
-                        .map_err(|_| StorageError::DbError("ID字节长度不足8字节".to_string()))?;
+                        .map_err(|_| StorageError::DbError("ID byte length is less than 8 bytes".to_string()))?;
                     Some(u64::from_be_bytes(array))
                 }
                 None => None,
@@ -170,28 +170,28 @@ impl super::SchemaManager for RedbSchemaManager {
             {
                 let mut spaces_table = write_txn
                     .open_table(SPACES_TABLE)
-                    .map_err(|e| StorageError::DbError(format!("打开SPACES_TABLE失败: {}", e)))?;
+                    .map_err(|e| StorageError::DbError(format!("Failed to open SPACES_TABLE: {}", e)))?;
 
                 let space_key = ByteKey(space_id.to_be_bytes().to_vec());
                 spaces_table
                     .remove(&space_key)
-                    .map_err(|e| StorageError::DbError(format!("删除空间失败: {}", e)))?;
+                    .map_err(|e| StorageError::DbError(format!("Failed to delete space: {}", e)))?;
             }
 
             // Delete Name Index
             {
                 let mut name_index = write_txn.open_table(SPACE_NAME_INDEX_TABLE).map_err(|e| {
-                    StorageError::DbError(format!("打开SPACE_NAME_INDEX_TABLE失败: {}", e))
+                    StorageError::DbError(format!("Failed to open SPACE_NAME_INDEX_TABLE: {}", e))
                 })?;
 
                 name_index
                     .remove(&name_key)
-                    .map_err(|e| StorageError::DbError(format!("删除名称索引失败: {}", e)))?;
+                    .map_err(|e| StorageError::DbError(format!("Failed to delete name index: {}", e)))?;
             }
 
             write_txn
                 .commit()
-                .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to commit transaction: {}", e)))?;
 
             Ok(true)
         } else {
@@ -203,36 +203,36 @@ impl super::SchemaManager for RedbSchemaManager {
         let read_txn = self
             .db
             .begin_read()
-            .map_err(|e| StorageError::DbError(format!("开始读事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start read transaction: {}", e)))?;
 
         // Search by Name Index
         let name_index = read_txn
             .open_table(SPACE_NAME_INDEX_TABLE)
-            .map_err(|e| StorageError::DbError(format!("打开SPACE_NAME_INDEX_TABLE失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to open SPACE_NAME_INDEX_TABLE: {}", e)))?;
 
         let name_key = ByteKey(space_name.as_bytes().to_vec());
 
         if let Some(id_value) = name_index
             .get(&name_key)
-            .map_err(|e| StorageError::DbError(format!("查询名称索引失败: {}", e)))?
+            .map_err(|e| StorageError::DbError(format!("Failed to query name index: {}", e)))?
         {
             let id_bytes = id_value.value().0;
             let space_id = u64::from_be_bytes(
                 id_bytes[0..8]
                     .try_into()
-                    .map_err(|_| StorageError::DbError("ID字节长度不足8字节".to_string()))?,
+                    .map_err(|_| StorageError::DbError("ID byte length is less than 8 bytes".to_string()))?,
             );
 
             // Get full information by ID
             let spaces_table = read_txn
                 .open_table(SPACES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开SPACES_TABLE失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to open SPACES_TABLE: {}", e)))?;
 
             let space_key = ByteKey(space_id.to_be_bytes().to_vec());
 
             if let Some(space_value) = spaces_table
                 .get(&space_key)
-                .map_err(|e| StorageError::DbError(format!("查询空间失败: {}", e)))?
+                .map_err(|e| StorageError::DbError(format!("Failed to query space: {}", e)))?
             {
                 let space: SpaceInfo = decode_from_slice(&space_value.value().0, standard())?.0;
                 return Ok(Some(space));
@@ -246,17 +246,17 @@ impl super::SchemaManager for RedbSchemaManager {
         let read_txn = self
             .db
             .begin_read()
-            .map_err(|e| StorageError::DbError(format!("开始读事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start read transaction: {}", e)))?;
 
         let spaces_table = read_txn
             .open_table(SPACES_TABLE)
-            .map_err(|e| StorageError::DbError(format!("打开SPACES_TABLE失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to open SPACES_TABLE: {}", e)))?;
 
         let key = ByteKey(space_id.to_be_bytes().to_vec());
 
         match spaces_table
             .get(&key)
-            .map_err(|e| StorageError::DbError(format!("查询空间失败: {}", e)))?
+            .map_err(|e| StorageError::DbError(format!("Failed to query space: {}", e)))?
         {
             Some(value) => {
                 let space: SpaceInfo = decode_from_slice(&value.value().0, standard())?.0;
@@ -270,21 +270,21 @@ impl super::SchemaManager for RedbSchemaManager {
         let read_txn = self
             .db
             .begin_read()
-            .map_err(|e| StorageError::DbError(format!("开始读事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start read transaction: {}", e)))?;
 
         let spaces_table = read_txn
             .open_table(SPACES_TABLE)
-            .map_err(|e| StorageError::DbError(format!("打开SPACES_TABLE失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to open SPACES_TABLE: {}", e)))?;
 
         let mut spaces = Vec::new();
 
         let iter = spaces_table
             .iter()
-            .map_err(|e| StorageError::DbError(format!("遍历空间失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to iterate space: {}", e)))?;
 
         for result in iter {
             let (_key, value) =
-                result.map_err(|e| StorageError::DbError(format!("迭代空间失败: {}", e)))?;
+                result.map_err(|e| StorageError::DbError(format!("Failed to iterate space: {}", e)))?;
             let space: SpaceInfo = decode_from_slice(&value.value().0, standard())?.0;
             spaces.push(space);
         }
@@ -296,24 +296,24 @@ impl super::SchemaManager for RedbSchemaManager {
         let write_txn = self
             .db
             .begin_write()
-            .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start write transaction: {}", e)))?;
 
         {
             let mut spaces_table = write_txn
                 .open_table(SPACES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开SPACES_TABLE失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to open SPACES_TABLE: {}", e)))?;
 
             let space_key = ByteKey(space.space_id.to_be_bytes().to_vec());
             let space_value = ByteKey(encode_to_vec(space, standard())?);
 
             spaces_table
                 .insert(space_key, space_value)
-                .map_err(|e| StorageError::DbError(format!("更新空间失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to update space: {}", e)))?;
         }
 
         write_txn
             .commit()
-            .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to commit transaction: {}", e)))?;
 
         Ok(true)
     }
@@ -321,7 +321,7 @@ impl super::SchemaManager for RedbSchemaManager {
     fn create_tag(&self, space_name: &str, tag: &TagInfo) -> Result<bool, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("空间 '{}' 不存在", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
 
         // Check if a tag with the same name already exists (before write transaction)
         let existing_tags = self.list_tags(space_name)?;
@@ -332,18 +332,18 @@ impl super::SchemaManager for RedbSchemaManager {
         let write_txn = self
             .db
             .begin_write()
-            .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start write transaction: {}", e)))?;
 
         // First, get the new tag_id from counter
         let new_tag_id = {
             let mut id_counter_table = write_txn.open_table(TAG_ID_COUNTER_TABLE).map_err(|e| {
-                StorageError::DbError(format!("打开TAG_ID_COUNTER_TABLE失败: {}", e))
+                StorageError::DbError(format!("Failed to open TAG_ID_COUNTER_TABLE: {}", e))
             })?;
 
             let key = ByteKey(space_info.space_id.to_be_bytes().to_vec());
             let current_id = id_counter_table
                 .get(&key)
-                .map_err(|e| StorageError::DbError(format!("查询ID计数器失败: {}", e)))?
+                .map_err(|e| StorageError::DbError(format!("Failed to query ID counter: {}", e)))?
                 .map(|v| {
                     let bytes = v.value().0;
                     u32::from_be_bytes([
@@ -357,7 +357,7 @@ impl super::SchemaManager for RedbSchemaManager {
 
             id_counter_table
                 .insert(key, value)
-                .map_err(|e| StorageError::DbError(format!("更新ID计数器失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to update ID counter: {}", e)))?;
 
             new_id
         };
@@ -369,7 +369,7 @@ impl super::SchemaManager for RedbSchemaManager {
         {
             let mut tags_table = write_txn
                 .open_table(TAGS_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to open TAGS_TABLE: {}", e)))?;
 
             let key = ByteKey(
                 [
@@ -382,12 +382,12 @@ impl super::SchemaManager for RedbSchemaManager {
 
             tags_table
                 .insert(key, value)
-                .map_err(|e| StorageError::DbError(format!("插入标签失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to insert tag: {}", e)))?;
         }
 
         write_txn
             .commit()
-            .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to commit transaction: {}", e)))?;
 
         Ok(true)
     }
@@ -395,27 +395,27 @@ impl super::SchemaManager for RedbSchemaManager {
     fn drop_tag(&self, space_name: &str, tag_name: &str) -> Result<bool, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("空间 '{}' 不存在", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
 
         let write_txn = self
             .db
             .begin_write()
-            .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start write transaction: {}", e)))?;
 
         let mut tag_id: Option<i32> = None;
 
         {
             let tags_table = write_txn
                 .open_table(TAGS_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to open TAGS_TABLE: {}", e)))?;
 
             let iter = tags_table
                 .iter()
-                .map_err(|e| StorageError::DbError(format!("遍历标签失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to iterate tag: {}", e)))?;
 
             for result in iter {
                 let (key, value) =
-                    result.map_err(|e| StorageError::DbError(format!("迭代标签失败: {}", e)))?;
+                    result.map_err(|e| StorageError::DbError(format!("Failed to iterate tag: {}", e)))?;
                 let key_bytes = &key.value().0;
                 if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                     let tag: TagInfo = decode_from_slice(&value.value().0, standard())?.0;
@@ -437,7 +437,7 @@ impl super::SchemaManager for RedbSchemaManager {
             {
                 let mut tags_table = write_txn
                     .open_table(TAGS_TABLE)
-                    .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
+                    .map_err(|e| StorageError::DbError(format!("Failed to open TAGS_TABLE: {}", e)))?;
 
                 let key = ByteKey(
                     [
@@ -448,12 +448,12 @@ impl super::SchemaManager for RedbSchemaManager {
                 );
                 tags_table
                     .remove(&key)
-                    .map_err(|e| StorageError::DbError(format!("删除标签失败: {}", e)))?;
+                    .map_err(|e| StorageError::DbError(format!("Failed to delete tag: {}", e)))?;
             }
 
             write_txn
                 .commit()
-                .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to commit transaction: {}", e)))?;
 
             return Ok(true);
         }
@@ -464,24 +464,24 @@ impl super::SchemaManager for RedbSchemaManager {
     fn get_tag(&self, space_name: &str, tag_name: &str) -> Result<Option<TagInfo>, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("空间 '{}' 不存在", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
 
         let read_txn = self
             .db
             .begin_read()
-            .map_err(|e| StorageError::DbError(format!("开始读事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start read transaction: {}", e)))?;
 
         let tags_table = read_txn
             .open_table(TAGS_TABLE)
-            .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to open TAGS_TABLE: {}", e)))?;
 
         let iter = tags_table
             .iter()
-            .map_err(|e| StorageError::DbError(format!("遍历标签失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to iterate tag: {}", e)))?;
 
         for result in iter {
             let (key, value) =
-                result.map_err(|e| StorageError::DbError(format!("迭代标签失败: {}", e)))?;
+                result.map_err(|e| StorageError::DbError(format!("Failed to iterate tag: {}", e)))?;
             let key_bytes = &key.value().0;
             if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                 let tag: TagInfo = decode_from_slice(&value.value().0, standard())?.0;
@@ -497,26 +497,26 @@ impl super::SchemaManager for RedbSchemaManager {
     fn list_tags(&self, space_name: &str) -> Result<Vec<TagInfo>, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("空间 '{}' 不存在", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
 
         let read_txn = self
             .db
             .begin_read()
-            .map_err(|e| StorageError::DbError(format!("开始读事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start read transaction: {}", e)))?;
 
         let tags_table = read_txn
             .open_table(TAGS_TABLE)
-            .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to open TAGS_TABLE: {}", e)))?;
 
         let mut tags = Vec::new();
 
         let iter = tags_table
             .iter()
-            .map_err(|e| StorageError::DbError(format!("遍历标签失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to iterate tag: {}", e)))?;
 
         for result in iter {
             let (key, value) =
-                result.map_err(|e| StorageError::DbError(format!("迭代标签失败: {}", e)))?;
+                result.map_err(|e| StorageError::DbError(format!("Failed to iterate tag: {}", e)))?;
             let key_bytes = &key.value().0;
             if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                 let tag: TagInfo = decode_from_slice(&value.value().0, standard())?.0;
@@ -530,12 +530,12 @@ impl super::SchemaManager for RedbSchemaManager {
     fn update_tag(&self, space_name: &str, tag: &TagInfo) -> Result<bool, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("空间 '{}' 不存在", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
 
         let write_txn = self
             .db
             .begin_write()
-            .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start write transaction: {}", e)))?;
 
         let mut tag_id: Option<i32> = None;
 
@@ -543,15 +543,15 @@ impl super::SchemaManager for RedbSchemaManager {
         {
             let tags_table = write_txn
                 .open_table(TAGS_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to open TAGS_TABLE: {}", e)))?;
 
             let iter = tags_table
                 .iter()
-                .map_err(|e| StorageError::DbError(format!("遍历标签失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to iterate tag: {}", e)))?;
 
             for result in iter {
                 let (key, value) =
-                    result.map_err(|e| StorageError::DbError(format!("迭代标签失败: {}", e)))?;
+                    result.map_err(|e| StorageError::DbError(format!("Failed to iterate tag: {}", e)))?;
                 let key_bytes = &key.value().0;
                 if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                     let existing_tag: TagInfo = decode_from_slice(&value.value().0, standard())?.0;
@@ -573,7 +573,7 @@ impl super::SchemaManager for RedbSchemaManager {
             {
                 let mut tags_table = write_txn
                     .open_table(TAGS_TABLE)
-                    .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
+                    .map_err(|e| StorageError::DbError(format!("Failed to open TAGS_TABLE: {}", e)))?;
 
                 let key = ByteKey(
                     [
@@ -586,12 +586,12 @@ impl super::SchemaManager for RedbSchemaManager {
 
                 tags_table
                     .insert(key, value)
-                    .map_err(|e| StorageError::DbError(format!("更新标签失败: {}", e)))?;
+                    .map_err(|e| StorageError::DbError(format!("Failed to update tag: {}", e)))?;
             }
 
             write_txn
                 .commit()
-                .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to commit transaction: {}", e)))?;
 
             Ok(true)
         } else {
@@ -606,17 +606,17 @@ impl super::SchemaManager for RedbSchemaManager {
     ) -> Result<bool, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("空间 '{}' 不存在", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
 
         let write_txn = self
             .db
             .begin_write()
-            .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start write transaction: {}", e)))?;
 
         {
             let mut edge_types_table = write_txn
                 .open_table(EDGE_TYPES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to open EDGE_TYPES_TABLE: {}", e)))?;
 
             let key = ByteKey(
                 [
@@ -629,7 +629,7 @@ impl super::SchemaManager for RedbSchemaManager {
 
             if edge_types_table
                 .get(&key)
-                .map_err(|e| StorageError::DbError(format!("查询边类型失败: {}", e)))?
+                .map_err(|e| StorageError::DbError(format!("Failed to query edge type: {}", e)))?
                 .is_some()
             {
                 return Ok(false);
@@ -637,7 +637,7 @@ impl super::SchemaManager for RedbSchemaManager {
 
             edge_types_table
                 .insert(key, value)
-                .map_err(|e| StorageError::DbError(format!("插入边类型失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to insert edge type: {}", e)))?;
         }
 
         {
@@ -645,13 +645,13 @@ impl super::SchemaManager for RedbSchemaManager {
                 write_txn
                     .open_table(EDGE_TYPE_ID_COUNTER_TABLE)
                     .map_err(|e| {
-                        StorageError::DbError(format!("打开EDGE_TYPE_ID_COUNTER_TABLE失败: {}", e))
+                        StorageError::DbError(format!("Failed to open EDGE_TYPE_ID_COUNTER_TABLE: {}", e))
                     })?;
 
             let key = ByteKey(space_info.space_id.to_be_bytes().to_vec());
             let current_id = id_counter_table
                 .get(&key)
-                .map_err(|e| StorageError::DbError(format!("查询ID计数器失败: {}", e)))?
+                .map_err(|e| StorageError::DbError(format!("Failed to query ID counter: {}", e)))?
                 .map(|v| {
                     let bytes = v.value().0;
                     u64::from_be_bytes([
@@ -666,12 +666,12 @@ impl super::SchemaManager for RedbSchemaManager {
 
             id_counter_table
                 .insert(key, value)
-                .map_err(|e| StorageError::DbError(format!("更新ID计数器失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to update ID counter: {}", e)))?;
         }
 
         write_txn
             .commit()
-            .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to commit transaction: {}", e)))?;
 
         Ok(true)
     }
@@ -679,27 +679,27 @@ impl super::SchemaManager for RedbSchemaManager {
     fn drop_edge_type(&self, space_name: &str, edge_type_name: &str) -> Result<bool, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("空间 '{}' 不存在", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
 
         let write_txn = self
             .db
             .begin_write()
-            .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start write transaction: {}", e)))?;
 
         let mut edge_type_id: Option<i32> = None;
 
         {
             let edge_types_table = write_txn
                 .open_table(EDGE_TYPES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to open EDGE_TYPES_TABLE: {}", e)))?;
 
             let iter = edge_types_table
                 .iter()
-                .map_err(|e| StorageError::DbError(format!("遍历边类型失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to iterate edge type: {}", e)))?;
 
             for result in iter {
                 let (key, value) =
-                    result.map_err(|e| StorageError::DbError(format!("迭代边类型失败: {}", e)))?;
+                    result.map_err(|e| StorageError::DbError(format!("Failed to iterate edge type: {}", e)))?;
                 let key_bytes = &key.value().0;
                 if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                     let edge_type: EdgeTypeInfo =
@@ -721,7 +721,7 @@ impl super::SchemaManager for RedbSchemaManager {
         if let Some(id) = edge_type_id {
             {
                 let mut edge_types_table = write_txn.open_table(EDGE_TYPES_TABLE).map_err(|e| {
-                    StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e))
+                    StorageError::DbError(format!("Failed to open EDGE_TYPES_TABLE: {}", e))
                 })?;
 
                 let key = ByteKey(
@@ -733,12 +733,12 @@ impl super::SchemaManager for RedbSchemaManager {
                 );
                 edge_types_table
                     .remove(&key)
-                    .map_err(|e| StorageError::DbError(format!("删除边类型失败: {}", e)))?;
+                    .map_err(|e| StorageError::DbError(format!("Failed to delete edge type: {}", e)))?;
             }
 
             write_txn
                 .commit()
-                .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to commit transaction: {}", e)))?;
 
             return Ok(true);
         }
@@ -753,24 +753,24 @@ impl super::SchemaManager for RedbSchemaManager {
     ) -> Result<Option<EdgeTypeInfo>, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("空间 '{}' 不存在", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
 
         let read_txn = self
             .db
             .begin_read()
-            .map_err(|e| StorageError::DbError(format!("开始读事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start read transaction: {}", e)))?;
 
         let edge_types_table = read_txn
             .open_table(EDGE_TYPES_TABLE)
-            .map_err(|e| StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to open EDGE_TYPES_TABLE: {}", e)))?;
 
         let iter = edge_types_table
             .iter()
-            .map_err(|e| StorageError::DbError(format!("遍历边类型失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to iterate edge type: {}", e)))?;
 
         for result in iter {
             let (key, value) =
-                result.map_err(|e| StorageError::DbError(format!("迭代边类型失败: {}", e)))?;
+                result.map_err(|e| StorageError::DbError(format!("Failed to iterate edge type: {}", e)))?;
             let key_bytes = &key.value().0;
             if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                 let edge_type: EdgeTypeInfo = decode_from_slice(&value.value().0, standard())?.0;
@@ -786,26 +786,26 @@ impl super::SchemaManager for RedbSchemaManager {
     fn list_edge_types(&self, space_name: &str) -> Result<Vec<EdgeTypeInfo>, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("空间 '{}' 不存在", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
 
         let read_txn = self
             .db
             .begin_read()
-            .map_err(|e| StorageError::DbError(format!("开始读事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start read transaction: {}", e)))?;
 
         let edge_types_table = read_txn
             .open_table(EDGE_TYPES_TABLE)
-            .map_err(|e| StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to open EDGE_TYPES_TABLE: {}", e)))?;
 
         let mut edge_types = Vec::new();
 
         let iter = edge_types_table
             .iter()
-            .map_err(|e| StorageError::DbError(format!("遍历边类型失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to iterate edge type: {}", e)))?;
 
         for result in iter {
             let (key, value) =
-                result.map_err(|e| StorageError::DbError(format!("迭代边类型失败: {}", e)))?;
+                result.map_err(|e| StorageError::DbError(format!("Failed to iterate edge type: {}", e)))?;
             let key_bytes = &key.value().0;
             if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                 let edge_type: EdgeTypeInfo = decode_from_slice(&value.value().0, standard())?.0;
@@ -823,12 +823,12 @@ impl super::SchemaManager for RedbSchemaManager {
     ) -> Result<bool, StorageError> {
         let space_info = self
             .get_space(space_name)?
-            .ok_or_else(|| StorageError::DbError(format!("空间 '{}' 不存在", space_name)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Space "{}" does not exist", space_name)))?;
 
         let write_txn = self
             .db
             .begin_write()
-            .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start write transaction: {}", e)))?;
 
         let mut edge_type_id: Option<i32> = None;
 
@@ -836,15 +836,15 @@ impl super::SchemaManager for RedbSchemaManager {
         {
             let edge_types_table = write_txn
                 .open_table(EDGE_TYPES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to open EDGE_TYPES_TABLE: {}", e)))?;
 
             let iter = edge_types_table
                 .iter()
-                .map_err(|e| StorageError::DbError(format!("遍历边类型失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to iterate edge type: {}", e)))?;
 
             for result in iter {
                 let (key, value) =
-                    result.map_err(|e| StorageError::DbError(format!("迭代边类型失败: {}", e)))?;
+                    result.map_err(|e| StorageError::DbError(format!("Failed to iterate edge type: {}", e)))?;
                 let key_bytes = &key.value().0;
                 if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                     let existing_edge: EdgeTypeInfo =
@@ -866,7 +866,7 @@ impl super::SchemaManager for RedbSchemaManager {
         if let Some(id) = edge_type_id {
             {
                 let mut edge_types_table = write_txn.open_table(EDGE_TYPES_TABLE).map_err(|e| {
-                    StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e))
+                    StorageError::DbError(format!("Failed to open EDGE_TYPES_TABLE: {}", e))
                 })?;
 
                 let key = ByteKey(
@@ -880,12 +880,12 @@ impl super::SchemaManager for RedbSchemaManager {
 
                 edge_types_table
                     .insert(key, value)
-                    .map_err(|e| StorageError::DbError(format!("更新边类型失败: {}", e)))?;
+                    .map_err(|e| StorageError::DbError(format!("Failed to update edge type: {}", e)))?;
             }
 
             write_txn
                 .commit()
-                .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to commit transaction: {}", e)))?;
 
             Ok(true)
         } else {
@@ -896,7 +896,7 @@ impl super::SchemaManager for RedbSchemaManager {
     fn get_tag_schema(&self, space_name: &str, tag: &str) -> Result<Schema, StorageError> {
         let tag_info = self
             .get_tag(space_name, tag)?
-            .ok_or_else(|| StorageError::DbError(format!("标签 '{}' 不存在", tag)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Tag "{}" does not exist", tag)))?;
 
         Ok(tag_info_to_schema(tag, &tag_info))
     }
@@ -904,7 +904,7 @@ impl super::SchemaManager for RedbSchemaManager {
     fn get_edge_type_schema(&self, space_name: &str, edge: &str) -> Result<Schema, StorageError> {
         let edge_type_info = self
             .get_edge_type(space_name, edge)?
-            .ok_or_else(|| StorageError::DbError(format!("边类型 '{}' 不存在", edge)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Edge type "{}" does not exist", edge)))?;
 
         Ok(edge_type_info_to_schema(edge, &edge_type_info))
     }

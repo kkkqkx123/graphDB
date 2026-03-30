@@ -48,15 +48,15 @@ impl StorageMetricsSnapshot {
 /// Storage Metrics Collector
 #[derive(Debug)]
 pub struct StorageMetricsCollector {
-    /// 扫描的项目数
+    /// Number of items scanned
     items_scanned: AtomicU64,
-    /// 返回的项目数
+    /// Number of items returned
     items_returned: AtomicU64,
-    /// 缓存命中次数
+    /// Number of cache hits
     cache_hits: AtomicU64,
-    /// 缓存未命中次数
+    /// Number of cache misses
     cache_misses: AtomicU64,
-    /// 各操作类型的计数
+    /// Count of each operation type
     operation_counts: dashmap::DashMap<String, AtomicU64>,
 }
 

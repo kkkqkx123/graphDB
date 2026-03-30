@@ -55,8 +55,8 @@ pub trait RollbackExecutor: Send {
     /// * :: `log` -- log of operations to be rolled back
     ///
     /// # Returns
-    /// * `Ok(())` - 回滚成功
-    /// * `Err(StorageError)` - 回滚失败
+    /// * `Ok(())` - Rollback successful
+    /// * `Err(StorageError)` - Rollback failed
     fn execute_rollback(&mut self, log: &OperationLog) -> Result<(), StorageError>;
 
     /// Batch execution of rollback operations
@@ -67,8 +67,8 @@ pub trait RollbackExecutor: Send {
     /// * `logs` - a list of operation logs to be rolled back
     ///
     /// # Returns
-    /// * `Ok(())` - 回滚成功
-    /// * `Err(StorageError)` - 回滚失败
+    /// * `Ok(())` - Rollback successful
+    /// * `Err(StorageError)` - Rollback failed
     fn execute_rollback_batch(&mut self, logs: &[OperationLog]) -> Result<(), StorageError> {
         for log in logs.iter().rev() {
             self.execute_rollback(log)?;
@@ -109,14 +109,14 @@ impl<'a> StorageRollbackExecutor<'a> {
     /// (computing) resolve an edge key
     fn parse_edge_key(&self, edge_key: &[u8]) -> Result<(Value, Value, String), StorageError> {
         let key_str = String::from_utf8(edge_key.to_vec())
-            .map_err(|e| StorageError::DbError(format!("无效的边键编码: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Invalid edge key encoding: {}", e)))?;
 
         let (src_str, rest) = self.parse_value_str(&key_str)?;
         let rest = if let Some(stripped) = rest.strip_prefix('_') {
             stripped
         } else {
             return Err(StorageError::DbError(format!(
-                "无效的边键格式，缺少分隔符: {}",
+                "Invalid edge key format, missing separator: {}",
                 key_str
             )));
         };
@@ -170,7 +170,7 @@ impl<'a> StorageRollbackExecutor<'a> {
             return Ok(Value::String(s.to_string()));
         }
 
-        Err(StorageError::DbError(format!("无法解析 Value 格式: {}", s)))
+        Err(StorageError::DbError(format!("Failed to parse Value format: {}", s)))
     }
 }
 
@@ -272,7 +272,7 @@ impl<'a, T: OperationLogContext> OperationLogRollback<'a, T> {
 
         if index > current_len {
             return Err(StorageError::DbError(format!(
-                "无效的回滚索引: {}, 操作日志长度: {}",
+                "Invalid rollback index: {}, operation log length: {}",
                 index, current_len
             )));
         }
@@ -292,7 +292,7 @@ impl<'a, T: OperationLogContext> OperationLogRollback<'a, T> {
 
         if index > current_len {
             return Err(StorageError::DbError(format!(
-                "无效的回滚索引: {}, 操作日志长度: {}",
+                "Invalid rollback index: {}, operation log length: {}",
                 index, current_len
             )));
         }
@@ -306,7 +306,7 @@ impl<'a, T: OperationLogContext> OperationLogRollback<'a, T> {
         Ok(())
     }
 
-    /// 获取操作日志长度
+    /// Get operation log length
     pub fn operation_log_len(&self) -> usize {
         self.ctx.operation_log_len()
     }
@@ -496,7 +496,7 @@ mod tests {
                 properties: HashMap::new(),
             }],
         );
-        let vertex1_bytes = encode_to_vec(&vertex1, standard()).expect("顶点序列化失败");
+        let vertex1_bytes = encode_to_vec(&vertex1, standard()).expect("Vertex serialization failed");
 
         let vertex2 = Vertex::new(
             Value::Int(2),
@@ -505,7 +505,7 @@ mod tests {
                 properties: HashMap::new(),
             }],
         );
-        let vertex2_bytes = encode_to_vec(&vertex2, standard()).expect("顶点序列化失败");
+        let vertex2_bytes = encode_to_vec(&vertex2, standard()).expect("Vertex serialization failed");
 
         ctx.add_log(OperationLog::InsertVertex {
             space: "test".to_string(),
@@ -538,7 +538,7 @@ mod tests {
             previous_state: None,
         };
 
-        executor.execute_rollback(&log).expect("回滚失败");
+        executor.execute_rollback(&log).expect("Rollback failed");
 
         assert_eq!(writer.vertex_operations.len(), 1);
         assert!(writer.vertex_operations[0].contains("delete_vertex"));
@@ -556,7 +556,7 @@ mod tests {
                 properties: HashMap::new(),
             }],
         );
-        let vertex_bytes = encode_to_vec(&vertex, standard()).expect("顶点序列化失败");
+        let vertex_bytes = encode_to_vec(&vertex, standard()).expect("Vertex serialization failed");
 
         let log = OperationLog::DeleteVertex {
             space: "test_space".to_string(),
@@ -564,7 +564,7 @@ mod tests {
             vertex: vertex_bytes,
         };
 
-        executor.execute_rollback(&log).expect("回滚失败");
+        executor.execute_rollback(&log).expect("Rollback failed");
 
         assert_eq!(writer.vertex_operations.len(), 1);
         assert!(writer.vertex_operations[0].contains("insert_vertex"));

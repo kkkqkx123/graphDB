@@ -362,10 +362,10 @@ impl DescValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>`.
 impl StatementValidator for DescValidator {
     fn validate(
         &mut self,
@@ -504,10 +504,10 @@ impl ShowCreateValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>`.
 impl StatementValidator for ShowCreateValidator {
     fn validate(
         &mut self,
@@ -617,10 +617,10 @@ impl ShowConfigsValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>`.
 impl StatementValidator for ShowConfigsValidator {
     fn validate(
         &mut self,
@@ -722,10 +722,10 @@ impl ShowSessionsValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>`.
 impl StatementValidator for ShowSessionsValidator {
     fn validate(
         &mut self,
@@ -827,10 +827,10 @@ impl ShowQueriesValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>`.
 impl StatementValidator for ShowQueriesValidator {
     fn validate(
         &mut self,
@@ -920,10 +920,10 @@ impl KillQueryValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>`.
 impl StatementValidator for KillQueryValidator {
     fn validate(
         &mut self,
@@ -1013,7 +1013,7 @@ impl ClearSpaceValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 impl StatementValidator for ClearSpaceValidator {
     fn validate(
         &mut self,

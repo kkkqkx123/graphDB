@@ -93,7 +93,7 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
 
     fn rollback_schema(&self, space_id: u64, version: i32) -> Result<(), ManagerError> {
         if version < 1 {
-            return Err(ManagerError::invalid_input("版本号必须 >= 1"));
+            return Err(ManagerError::invalid_input("Version number must be >= 1"));
         }
 
         let write_txn = self
@@ -138,7 +138,7 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
 
         let key = Self::make_version_key(space_id, new_version);
         let value = encode_to_vec(&snapshot, bincode::config::standard())
-            .map_err(|e| ManagerError::storage_error(format!("序列化失败: {}", e)))?;
+            .map_err(|e| ManagerError::storage_error(format!("Serialization failed: {}", e)))?;
 
         let write_txn = self
             .db
@@ -178,7 +178,7 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
     ) -> Result<(), ManagerError> {
         let key = Self::make_change_key(space_id, change.timestamp);
         let value = encode_to_vec(&change, bincode::config::standard())
-            .map_err(|e| ManagerError::storage_error(format!("序列化失败: {}", e)))?;
+            .map_err(|e| ManagerError::storage_error(format!("Serialization failed: {}", e)))?;
 
         let write_txn = self
             .db
@@ -221,7 +221,7 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
             if key_str.starts_with(&prefix) {
                 let change: SchemaChange =
                     decode_from_slice(&value.value().0, bincode::config::standard())
-                        .map_err(|e| ManagerError::storage_error(format!("反序列化失败: {}", e)))?
+                        .map_err(|e| ManagerError::storage_error(format!("Deserialization failed: {}", e)))?
                         .0;
                 changes.push(change);
             }
@@ -269,11 +269,11 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
     }
 
     fn export_schema(&self, _config: &SchemaExportConfig) -> Result<String, ManagerError> {
-        Err(ManagerError::storage_error("导出功能暂未实现".to_string()))
+        Err(ManagerError::storage_error("Export functionality is not yet implemented".to_string()))
     }
 
     fn import_schema(&self, _data: &str) -> Result<SchemaImportResult, ManagerError> {
-        Err(ManagerError::storage_error("导入功能暂未实现".to_string()))
+        Err(ManagerError::storage_error("Import functionality is not yet implemented".to_string()))
     }
 }
 
@@ -284,28 +284,28 @@ mod tests {
     use tempfile::TempDir;
 
     fn create_test_manager() -> (RedbExtendedSchemaManager, TempDir) {
-        let temp_dir = TempDir::new().expect("创建临时目录应该成功");
+        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
         let db_path = temp_dir.path().join("test.db");
-        let db = Arc::new(Database::create(db_path).expect("创建数据库应该成功"));
+        let db = Arc::new(Database::create(db_path).expect("Failed to create database"));
 
         // Initialize the required tables
-        let write_txn = db.begin_write().expect("开始写事务应该成功");
+        let write_txn = db.begin_write().expect("Failed to start write transaction");
         {
             let _ = write_txn
                 .open_table(SCHEMA_VERSIONS_TABLE)
-                .expect("打开SCHEMA_VERSIONS_TABLE应该成功");
+                .expect("Failed to open SCHEMA_VERSIONS_TABLE");
         }
         {
             let _ = write_txn
                 .open_table(SCHEMA_CHANGES_TABLE)
-                .expect("打开SCHEMA_CHANGES_TABLE应该成功");
+                .expect("Failed to open SCHEMA_CHANGES_TABLE");
         }
         {
             let _ = write_txn
                 .open_table(CURRENT_VERSIONS_TABLE)
-                .expect("打开CURRENT_VERSIONS_TABLE应该成功");
+                .expect("Failed to open CURRENT_VERSIONS_TABLE");
         }
-        write_txn.commit().expect("提交事务应该成功");
+        write_txn.commit().expect("Failed to commit transaction");
 
         (RedbExtendedSchemaManager::new(db), temp_dir)
     }
@@ -318,18 +318,18 @@ mod tests {
         // The initial version is 0
         let version = manager
             .get_schema_version(space_id)
-            .expect("获取schema版本应该成功");
+            .expect("Failed to get schema version");
         assert_eq!(version, 0);
 
         // Creating a new version
         let new_version = manager
             .create_schema_version(space_id)
-            .expect("创建schema版本应该成功");
+            .expect("Failed to create schema version");
         assert_eq!(new_version, 1);
 
         let version = manager
             .get_schema_version(space_id)
-            .expect("获取schema版本应该成功");
+            .expect("Failed to get schema version");
         assert_eq!(version, 1);
     }
 
@@ -360,9 +360,9 @@ mod tests {
                 space_id,
                 tags.clone(),
                 edge_types,
-                Some("创建 Person 标签".to_string()),
+                Some("Create Person tag".to_string()),
             )
-            .expect("保存schema快照应该成功");
+            .expect("Failed to save schema snapshot");
 
         assert_eq!(snapshot.version, 1);
         assert_eq!(snapshot.space_id, space_id);
@@ -371,7 +371,7 @@ mod tests {
         // Verify that the version has been updated
         let version = manager
             .get_schema_version(space_id)
-            .expect("获取schema版本应该成功");
+            .expect("Failed to get schema version");
         assert_eq!(version, 1);
     }
 
@@ -395,11 +395,11 @@ mod tests {
 
         manager
             .record_schema_change(space_id, change.clone())
-            .expect("记录schema变更应该成功");
+            .expect("Failed to record schema change");
 
         let changes = manager
             .get_schema_changes(space_id)
-            .expect("获取schema变更应该成功");
+            .expect("Failed to get schema change");
         assert_eq!(changes.len(), 1);
         assert_eq!(changes[0].target, "Person.name");
     }

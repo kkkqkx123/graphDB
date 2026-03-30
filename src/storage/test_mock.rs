@@ -29,12 +29,12 @@ pub struct MockStorage {
 impl MockStorage {
     pub fn new() -> Result<Self, StorageError> {
         let temp_dir = tempfile::tempdir()
-            .map_err(|e| StorageError::DbError(format!("创建临时目录失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to create temporary directory: {}", e)))?;
         let db_path = temp_dir.path().join("test_mock.db");
 
         let db = Arc::new(
             redb::Database::create(&db_path)
-                .map_err(|e| StorageError::DbError(format!("创建数据库失败: {}", e)))?,
+                .map_err(|e| StorageError::DbError(format!("Failed to create database: {}", e)))?,
         );
 
         Ok(Self { db })

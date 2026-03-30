@@ -1,6 +1,6 @@
 //! Update Configs Statement Validator
 //! Used to verify the UPDATE CONFIGS statement
-//! 参考 nebula-graph AdminValidator.cpp 中的 SetConfigValidator 实现
+//! Reference: nebula-graph AdminValidator.cpp SetConfigValidator implementation
 
 use std::sync::Arc;
 
@@ -81,7 +81,7 @@ impl UpdateConfigsValidator {
             self.validate_config_value_internal(&e)
         } else {
             Err(ValidationError::new(
-                "配置值表达式无效".to_string(),
+                "Invalid configuration value expression".to_string(),
                 ValidationErrorType::SemanticError,
             ))
         }

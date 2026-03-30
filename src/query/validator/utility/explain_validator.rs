@@ -249,12 +249,12 @@ impl ProfileValidator {
         Ok(())
     }
 
-    /// 获取内部验证器
+    /// Obtain the internal validator.
     pub fn inner_validator(&self) -> Option<&Validator> {
         self.inner_validator.as_deref()
     }
 
-    /// 获取格式类型
+    /// Obtain the format type
     pub fn format(&self) -> &ExplainFormat {
         &self.format
     }
@@ -271,11 +271,11 @@ impl ProfileValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
-/// - 内部语句验证直接调用 validate 方法，传入 stmt 和 qctx
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>`.
+/// The internal statement validation directly calls the `validate` method, passing in `stmt` and `qctx` as arguments.
 impl StatementValidator for ProfileValidator {
     fn validate(
         &mut self,

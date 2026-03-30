@@ -33,12 +33,12 @@ impl EdgeIndexManager {
         let txn = self
             .db
             .begin_write()
-            .map_err(|e| StorageError::DbError(format!("开始写入事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start write transaction: {}", e)))?;
 
         {
             let mut table = txn
                 .open_table(INDEX_DATA_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开索引数据表失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e)))?;
 
             for (prop_name, prop_value) in props {
                 let index_key = IndexKeyCodec::build_edge_index_key(
@@ -47,19 +47,19 @@ impl EdgeIndexManager {
 
                 table
                     .insert(index_key, ByteKey(prop_name.as_bytes().to_vec()))
-                    .map_err(|e| StorageError::DbError(format!("插入边索引数据失败: {}", e)))?;
+                    .map_err(|e| StorageError::DbError(format!("Failed to insert edge index data: {}", e)))?;
 
                 let reverse_key = IndexKeyCodec::build_edge_reverse_key(space_id, index_name, src)?;
                 let prop_value_bytes = IndexKeyCodec::serialize_value(prop_value)?;
                 let value_key = format!("{}:{}", prop_name, prop_value_bytes.len());
                 table
                     .insert(reverse_key, ByteKey(value_key.into_bytes()))
-                    .map_err(|e| StorageError::DbError(format!("插入边反向索引失败: {}", e)))?;
+                    .map_err(|e| StorageError::DbError(format!("Failed to insert edge reverse index: {}", e)))?;
             }
         }
 
         txn.commit()
-            .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to commit transaction: {}", e)))?;
 
         Ok(())
     }
@@ -75,12 +75,12 @@ impl EdgeIndexManager {
         let txn = self
             .db
             .begin_write()
-            .map_err(|e| StorageError::DbError(format!("开始写入事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start write transaction: {}", e)))?;
 
         {
             let mut table = txn
                 .open_table(INDEX_DATA_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开索引数据表失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e)))?;
 
             let src_bytes = IndexKeyCodec::serialize_value(src)?;
             let reverse_prefix = IndexKeyCodec::build_edge_reverse_prefix(space_id);
@@ -90,7 +90,7 @@ impl EdgeIndexManager {
 
             for (key, value) in table
                 .iter()
-                .map_err(|e| StorageError::DbError(format!("遍历索引数据失败: {}", e)))?
+                .map_err(|e| StorageError::DbError(format!("Failed to iterate index data: {}", e)))?
                 .flatten()
             {
                 let key_bytes: Vec<u8> = key.value().0.clone();
@@ -119,7 +119,7 @@ impl EdgeIndexManager {
                                     for (fwd_key, _) in table
                                         .range::<ByteKey>(&forward_key_start..&forward_key_end)
                                         .map_err(|e| {
-                                            StorageError::DbError(format!("范围查询失败: {}", e))
+                                            StorageError::DbError(format!("Range query failed: {}", e))
                                         })?
                                         .flatten()
                                     {
@@ -175,18 +175,18 @@ impl EdgeIndexManager {
             for key in &reverse_keys_to_delete {
                 table
                     .remove(key)
-                    .map_err(|e| StorageError::DbError(format!("删除反向索引失败: {}", e)))?;
+                    .map_err(|e| StorageError::DbError(format!("Failed to delete reverse index: {}", e)))?;
             }
 
             for key in &forward_keys_to_delete {
                 table
                     .remove(key)
-                    .map_err(|e| StorageError::DbError(format!("删除正向索引失败: {}", e)))?;
+                    .map_err(|e| StorageError::DbError(format!("Failed to delete forward index: {}", e)))?;
             }
         }
 
         txn.commit()
-            .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to commit transaction: {}", e)))?;
 
         Ok(())
     }
@@ -201,11 +201,11 @@ impl EdgeIndexManager {
         let txn = self
             .db
             .begin_read()
-            .map_err(|e| StorageError::DbError(format!("开始读取事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start read transaction: {}", e)))?;
 
         let table = txn
             .open_table(INDEX_DATA_TABLE)
-            .map_err(|e| StorageError::DbError(format!("打开索引数据表失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e)))?;
 
         let prefix = IndexKeyCodec::build_edge_index_prefix(space_id, &index.name);
         let end = IndexKeyCodec::build_range_end(&prefix);
@@ -215,7 +215,7 @@ impl EdgeIndexManager {
 
         for (key, _) in table
             .range::<ByteKey>(&prefix..&end)
-            .map_err(|e| StorageError::DbError(format!("范围查询失败: {}", e)))?
+            .map_err(|e| StorageError::DbError(format!("Range query failed: {}", e)))?
             .flatten()
         {
             let key_bytes: Vec<u8> = key.value().0.clone();
@@ -262,12 +262,12 @@ impl EdgeIndexManager {
         let txn = self
             .db
             .begin_write()
-            .map_err(|e| StorageError::DbError(format!("开始写入事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start write transaction: {}", e)))?;
 
         {
             let mut table = txn
                 .open_table(INDEX_DATA_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开索引数据表失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e)))?;
 
             let prefix = IndexKeyCodec::build_edge_index_prefix(space_id, index_name);
             let end = IndexKeyCodec::build_range_end(&prefix);
@@ -276,7 +276,7 @@ impl EdgeIndexManager {
 
             for (key, _) in table
                 .range::<ByteKey>(&prefix..&end)
-                .map_err(|e| StorageError::DbError(format!("范围查询失败: {}", e)))?
+                .map_err(|e| StorageError::DbError(format!("Range query failed: {}", e)))?
                 .flatten()
             {
                 let key_bytes: Vec<u8> = key.value().0.clone();
@@ -286,12 +286,12 @@ impl EdgeIndexManager {
             for key in &keys_to_delete {
                 table
                     .remove(key)
-                    .map_err(|e| StorageError::DbError(format!("删除索引失败: {}", e)))?;
+                    .map_err(|e| StorageError::DbError(format!("Failed to delete index: {}", e)))?;
             }
         }
 
         txn.commit()
-            .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to commit transaction: {}", e)))?;
 
         Ok(())
     }

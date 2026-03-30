@@ -40,12 +40,12 @@ impl UserStorage {
         let username = info
             .username
             .clone()
-            .ok_or_else(|| StorageError::DbError("用户名不能为空".to_string()))?;
+            .ok_or_else(|| StorageError::DbError("Username cannot be empty".to_string()))?;
         if let Some(user) = users.get_mut(&username) {
             user.change_password(info.new_password.clone())?;
             Ok(true)
         } else {
-            Err(StorageError::DbError(format!("用户 {} 不存在", username)))
+            Err(StorageError::DbError(format!("User {} does not exist", username)))
         }
     }
 
@@ -54,7 +54,7 @@ impl UserStorage {
         let mut users = self.users.lock();
         if users.contains_key(&info.username) {
             return Err(StorageError::DbError(format!(
-                "用户 {} 已存在",
+                "User {} already exists",
                 info.username
             )));
         }
@@ -86,7 +86,7 @@ impl UserStorage {
             Ok(true)
         } else {
             Err(StorageError::DbError(format!(
-                "用户 {} 不存在",
+                "User {} does not exist",
                 info.username
             )))
         }

@@ -132,57 +132,57 @@ impl RedbStorage {
     fn initialize_tables(db: &Arc<Database>) -> Result<(), StorageError> {
         let write_txn = db
             .begin_write()
-            .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to start write transaction: {}", e)))?;
         {
             use crate::storage::redb_types::*;
             // Index-related tables
             let _ = write_txn
                 .open_table(TAG_INDEXES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开TAG_INDEXES_TABLE失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to open TAG_INDEXES_TABLE: {}", e)))?;
             let _ = write_txn
                 .open_table(EDGE_INDEXES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开EDGE_INDEXES_TABLE失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to open EDGE_INDEXES_TABLE: {}", e)))?;
             let _ = write_txn
                 .open_table(INDEX_DATA_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开INDEX_DATA_TABLE失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e)))?;
             // Schema-related tables
             let _ = write_txn
                 .open_table(TAGS_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to open TAGS_TABLE: {}", e)))?;
             let _ = write_txn
                 .open_table(EDGE_TYPES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to open EDGE_TYPES_TABLE: {}", e)))?;
             // Data storage table
             let _ = write_txn
                 .open_table(NODES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开NODES_TABLE失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to open NODES_TABLE: {}", e)))?;
             let _ = write_txn
                 .open_table(EDGES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开EDGES_TABLE失败: {}", e)))?;
+                .map_err(|e| StorageError::DbError(format!("Failed to open EDGES_TABLE: {}", e)))?;
             // ID Counter Table and Name Index Table
             let _ = write_txn.open_table(TAG_ID_COUNTER_TABLE).map_err(|e| {
-                StorageError::DbError(format!("打开TAG_ID_COUNTER_TABLE失败: {}", e))
+                StorageError::DbError(format!("Failed to open TAG_ID_COUNTER_TABLE: {}", e))
             })?;
             let _ = write_txn
                 .open_table(EDGE_TYPE_ID_COUNTER_TABLE)
                 .map_err(|e| {
-                    StorageError::DbError(format!("打开EDGE_TYPE_ID_COUNTER_TABLE失败: {}", e))
+                    StorageError::DbError(format!("Failed to open EDGE_TYPE_ID_COUNTER_TABLE: {}", e))
                 })?;
             let _ = write_txn.open_table(SPACE_NAME_INDEX_TABLE).map_err(|e| {
-                StorageError::DbError(format!("打开SPACE_NAME_INDEX_TABLE失败: {}", e))
+                StorageError::DbError(format!("Failed to open SPACE_NAME_INDEX_TABLE: {}", e))
             })?;
             let _ = write_txn.open_table(TAG_NAME_INDEX_TABLE).map_err(|e| {
-                StorageError::DbError(format!("打开TAG_NAME_INDEX_TABLE失败: {}", e))
+                StorageError::DbError(format!("Failed to open TAG_NAME_INDEX_TABLE: {}", e))
             })?;
             let _ = write_txn
                 .open_table(EDGE_TYPE_NAME_INDEX_TABLE)
                 .map_err(|e| {
-                    StorageError::DbError(format!("打开EDGE_TYPE_NAME_INDEX_TABLE失败: {}", e))
+                    StorageError::DbError(format!("Failed to open EDGE_TYPE_NAME_INDEX_TABLE: {}", e))
                 })?;
         }
         write_txn
             .commit()
-            .map_err(|e| StorageError::DbError(format!("提交初始化事务失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Failed to commit initialization transaction: {}", e)))?;
         Ok(())
     }
 
@@ -596,6 +596,8 @@ impl StorageClient for RedbStorage {
         self.state
             .index_metadata_manager
             .drop_tag_index(space_id, index)
+            .map_err(|_| StorageError::DbError(format!("Index '{}' does not exist", index)))?;
+        Ok(true)
     }
 
     fn get_tag_index(&self, space: &str, index: &str) -> Result<Option<Index>, StorageError> {
@@ -683,7 +685,7 @@ impl StorageClient for RedbStorage {
             .state
             .index_metadata_manager
             .get_edge_index(space_id, index)?
-            .ok_or_else(|| StorageError::DbError(format!("索引 '{}' 不存在", index)))?;
+            .ok_or_else(|| StorageError::DbError(format!("Index "{}" does not exist", index)))?;
 
         // Delete the old index data.
         self.index_data_manager
@@ -938,12 +940,12 @@ mod tests {
 
     #[test]
     fn test_new_with_path_creates_database() {
-        let temp_dir = TempDir::new().expect("创建临时目录失败");
+        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
         let db_path = temp_dir.path().join("test_new.db");
 
         assert!(!db_path.exists(), "The database file should not exist.");
 
-        let storage = RedbStorage::new_with_path(db_path.clone()).expect("创建存储应该成功");
+        let storage = RedbStorage::new_with_path(db_path.clone()).expect("Storage creation should succeed");
 
         assert!(db_path.exists(), "The database files should be created.");
         assert_eq!(storage.db_path, db_path);
@@ -951,35 +953,35 @@ mod tests {
 
     #[test]
     fn test_new_with_path_opens_existing_database() {
-        let temp_dir = TempDir::new().expect("创建临时目录失败");
+        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
         let db_path = temp_dir.path().join("test_open.db");
 
         {
             let _storage =
-                RedbStorage::new_with_path(db_path.clone()).expect("第一次创建存储应该成功");
+                RedbStorage::new_with_path(db_path.clone()).expect("First storage creation should succeed");
         }
 
         assert!(db_path.exists(), "The database file should exist.");
 
-        let storage2 = RedbStorage::new_with_path(db_path.clone()).expect("打开现有数据库应该成功");
+        let storage2 = RedbStorage::new_with_path(db_path.clone()).expect("Opening existing database should succeed");
 
         assert_eq!(storage2.db_path, db_path);
     }
 
     #[test]
     fn test_new_with_path_returns_error_on_corrupted_database() {
-        let temp_dir = TempDir::new().expect("创建临时目录失败");
+        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
         let db_path = temp_dir.path().join("test_corrupted.db");
 
         {
-            let _storage = RedbStorage::new_with_path(db_path.clone()).expect("创建存储应该成功");
+            let _storage = RedbStorage::new_with_path(db_path.clone()).expect("Storage creation should succeed");
         }
 
         assert!(db_path.exists(), "The database file should exist.");
 
-        let mut file = fs::File::create(&db_path).expect("打开文件失败");
+        let mut file = fs::File::create(&db_path).expect("Failed to open file");
         use std::io::Write;
-        file.write_all(b"corrupted data").expect("写入损坏数据失败");
+        file.write_all(b"corrupted data").expect("Failed to write corrupted data");
 
         let result = RedbStorage::new_with_path(db_path.clone());
 

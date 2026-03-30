@@ -60,8 +60,8 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     /// * `tag_names` - list of tag names to be deleted
     ///
     /// # Returns
-    /// * `Ok(usize)` - 成功删除的标签数量
-    /// * `Err(StorageError)` - 存储错误
+    /// * `Ok(usize)` - Number of successfully deleted tags
+    /// * `Err(StorageError)` - Storage error
     fn delete_tags(
         &mut self,
         space: &str,

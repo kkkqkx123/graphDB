@@ -111,7 +111,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
     /// Called on vertex deletion, automatically removes all related indexes
     ///
     /// # Arguments
-    /// * `vertex_id` - 顶点ID
+    /// * `vertex_id` - vertex ID
     pub fn delete_vertex_indexes(&self, vertex_id: &Value) -> Result<(), StorageError> {
         self.index_data_manager
             .delete_vertex_indexes(self.space_id, vertex_id)
@@ -122,7 +122,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
     /// Called when removing a label from a vertex
     ///
     /// # Arguments
-    /// * `vertex_id` - 顶点ID
+    /// * `vertex_id` - vertex ID
     /// * `tag_name` – Name of the tag
     pub fn delete_tag_indexes(
         &self,
@@ -185,7 +185,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
     /// Called on edge deletion to automatically delete all related indexes
     ///
     /// # Arguments
-    /// * `edge` - 边对象
+    /// * `edge` - edge object
     pub fn delete_edge_indexes(&self, edge: &Edge) -> Result<(), StorageError> {
         let indexes = self
             .index_metadata_manager
@@ -252,7 +252,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
     /// Efficient index deletion for batch deletion of edges
     ///
     /// # Arguments
-    /// * `edges` - 边列表
+    /// * `edges` - edge list
     pub fn batch_delete_edge_indexes(&self, edges: &[Edge]) -> Result<(), StorageError> {
         for edge in edges {
             self.delete_edge_indexes(edge)?;
@@ -265,7 +265,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
     /// Used for index reconstruction operations
     ///
     /// # Arguments
-    /// * `tag_name` - 标签名称
+    /// * `tag_name` - tag name
     /// * `vertices` – All the vertices associated with this tag.
     pub fn rebuild_tag_indexes(
         &self,
@@ -292,7 +292,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
 
     /// Rebuild all indexes for the specified edge type.
     ///
-    /// 用于索引重建操作
+    /// used for index rebuild operation
     ///
     /// # Arguments
     /// * `edge_type` – Type of the edge

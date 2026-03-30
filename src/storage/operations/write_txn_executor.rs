@@ -30,13 +30,13 @@ impl<'a> WriteTxnExecutor<'a> {
         match &self.bound_context {
             Some(ctx) => {
                 ctx.can_execute()
-                    .map_err(|e| StorageError::DbError(format!("事务状态不允许执行操作: {}", e)))?;
+                    .map_err(|e| StorageError::DbError(format!("Transaction state does not allow operation execution: {}", e)))?;
 
                 ctx.with_write_txn(operation)
                     .map_err(|e| StorageError::DbError(e.to_string()))
             }
             None => {
-                let db = self.db.expect("独立事务需要数据库连接");
+                let db = self.db.expect("Independent transaction requires database connection");
                 let txn = db
                     .begin_write()
                     .map_err(|e| StorageError::DbError(e.to_string()))?;

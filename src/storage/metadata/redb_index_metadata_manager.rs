@@ -31,7 +31,7 @@ impl RedbIndexMetadataManager {
     }
 
     /// Constructing edge index keys
-    /// 格式: space_id:index_name
+    /// Format: space_id:index_name
     fn make_edge_index_key(space_id: u64, index_name: &str) -> Vec<u8> {
         format!("{}:{}", space_id, index_name).as_bytes().to_vec()
     }

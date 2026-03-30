@@ -30,7 +30,7 @@ impl IndexKeyCodec {
     }
 
     /// Constructing a vertex forward index key
-    /// 格式: [space_id: u64] [type: u8=0x03] [index_name_len: u32] [index_name] [prop_value_len: u32] [prop_value] [vertex_id_len: u32] [vertex_id]
+    /// Format: [space_id: u64] [type: u8=0x03] [index_name_len: u32] [index_name] [prop_value_len: u32] [prop_value] [vertex_id_len: u32] [vertex_id]
     pub fn build_vertex_index_key(
         space_id: u64,
         index_name: &str,
@@ -102,7 +102,7 @@ impl IndexKeyCodec {
     }
 
     /// Constructing a reverse index key for vertices
-    /// 格式: [space_id: u64] [type: u8=0x01] [index_name_len: u32] [index_name] [vertex_id_len: u32] [vertex_id]
+    /// Format: [space_id: u64] [type: u8=0x01] [index_name_len: u32] [index_name] [vertex_id_len: u32] [vertex_id]
     pub fn build_vertex_reverse_key(
         space_id: u64,
         index_name: &str,
@@ -177,7 +177,7 @@ impl IndexKeyCodec {
     }
 
     /// Constructing a forward index key for edges
-    /// 格式: [space_id: u64] [type: u8=0x04] [index_name_len: u32] [index_name] [prop_value_len: u32] [prop_value] [src_len: u32] [src] [dst_len: u32] [dst]
+    /// Format: [space_id: u64] [type: u8=0x04] [index_name_len: u32] [index_name] [prop_value_len: u32] [prop_value] [src_len: u32] [src] [dst_len: u32] [dst]
     pub fn build_edge_index_key(
         space_id: u64,
         index_name: &str,
@@ -215,7 +215,7 @@ impl IndexKeyCodec {
     }
 
     /// Constructing a reverse index key for edges
-    /// 格式: [space_id: u64] [type: u8=0x02] [index_name_len: u32] [index_name] [src_len: u32] [src]
+    /// Format: [space_id: u64] [type: u8=0x02] [index_name_len: u32] [index_name] [src_len: u32] [src]
     pub fn build_edge_reverse_key(
         space_id: u64,
         index_name: &str,
