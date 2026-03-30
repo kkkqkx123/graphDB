@@ -49,7 +49,7 @@ use crate::query::planning::plan::core::nodes::control_flow::control_flow_node::
     ArgumentNode, LoopNode, PassThroughNode, SelectNode,
 };
 use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
-use crate::query::planning::plan::core::nodes::insert::insert_nodes::{
+use crate::query::planning::plan::core::nodes::data_modification::{
     InsertEdgesNode, InsertVerticesNode,
 };
 use crate::query::planning::plan::core::nodes::management::edge_nodes::{

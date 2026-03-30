@@ -1,8 +1,9 @@
 //! Implementation of the PlanNode visitor pattern
 
 use super::plan_node_enum::PlanNodeEnum;
-use crate::query::planning::plan::core::nodes::insert::insert_nodes::{
-    InsertEdgesNode, InsertVerticesNode,
+use crate::query::planning::plan::core::nodes::data_modification::{
+    DeleteEdgesNode, DeleteVerticesNode, InsertEdgesNode, InsertVerticesNode, UpdateEdgesNode,
+    UpdateNode, UpdateVerticesNode,
 };
 use crate::query::planning::plan::core::nodes::management::edge_nodes::{
     AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
@@ -213,6 +214,19 @@ pub trait PlanNodeVisitor {
         InsertVertices, InsertVerticesNode, visit_insert_vertices;
         InsertEdges, InsertEdgesNode, visit_insert_edges;
     );
+
+    // Delete nodes
+    impl_visitor_methods!(
+        DeleteVertices, DeleteVerticesNode, visit_delete_vertices;
+        DeleteEdges, DeleteEdgesNode, visit_delete_edges;
+    );
+
+    // Update nodes
+    impl_visitor_methods!(
+        Update, UpdateNode, visit_update;
+        UpdateVertices, UpdateVerticesNode, visit_update_vertices;
+        UpdateEdges, UpdateEdgesNode, visit_update_edges;
+    );
 }
 
 impl PlanNodeEnum {
@@ -305,6 +319,11 @@ impl PlanNodeEnum {
             PlanNodeEnum::ShowStats(node) => visitor.visit_show_stats(node),
             PlanNodeEnum::InsertVertices(node) => visitor.visit_insert_vertices(node),
             PlanNodeEnum::InsertEdges(node) => visitor.visit_insert_edges(node),
+            PlanNodeEnum::DeleteVertices(node) => visitor.visit_delete_vertices(node),
+            PlanNodeEnum::DeleteEdges(node) => visitor.visit_delete_edges(node),
+            PlanNodeEnum::Update(node) => visitor.visit_update(node),
+            PlanNodeEnum::UpdateVertices(node) => visitor.visit_update_vertices(node),
+            PlanNodeEnum::UpdateEdges(node) => visitor.visit_update_edges(node),
         }
     }
 }

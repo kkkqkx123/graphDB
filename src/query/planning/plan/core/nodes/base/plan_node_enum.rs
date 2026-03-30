@@ -7,8 +7,9 @@ use std::collections::HashSet;
 
 use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planning::plan::core::nodes::insert::insert_nodes::{
-    InsertEdgesNode, InsertVerticesNode,
+use crate::query::planning::plan::core::nodes::data_modification::{
+    DeleteEdgesNode, DeleteVerticesNode, InsertEdgesNode, InsertVerticesNode, UpdateEdgesNode,
+    UpdateNode, UpdateVerticesNode,
 };
 use crate::query::planning::plan::core::nodes::management::edge_nodes::{
     AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
@@ -177,6 +178,11 @@ pub enum PlanNodeEnum {
     // Management Node – Data
     InsertVertices(InsertVerticesNode),
     InsertEdges(InsertEdgesNode),
+    DeleteVertices(DeleteVerticesNode),
+    DeleteEdges(DeleteEdgesNode),
+    Update(UpdateNode),
+    UpdateVertices(UpdateVerticesNode),
+    UpdateEdges(UpdateEdgesNode),
 
     // Statistics Nodes ============
     ShowStats(ShowStatsNode),
@@ -283,6 +289,11 @@ crate::define_enum_is_methods! {
     // Management Node – Data
     (InsertVertices, is_insert_vertices),
     (InsertEdges, is_insert_edges),
+    (DeleteVertices, is_delete_vertices),
+    (DeleteEdges, is_delete_edges),
+    (Update, is_update),
+    (UpdateVertices, is_update_vertices),
+    (UpdateEdges, is_update_edges),
     // Statistical nodes
     (ShowStats, is_show_stats),
 }
@@ -382,6 +393,11 @@ crate::define_enum_as_methods! {
     // Management Node – Data
     (InsertVertices, as_insert_vertices, InsertVerticesNode),
     (InsertEdges, as_insert_edges, InsertEdgesNode),
+    (DeleteVertices, as_delete_vertices, DeleteVerticesNode),
+    (DeleteEdges, as_delete_edges, DeleteEdgesNode),
+    (Update, as_update, UpdateNode),
+    (UpdateVertices, as_update_vertices, UpdateVerticesNode),
+    (UpdateEdges, as_update_edges, UpdateEdgesNode),
     // Statistical node
     (ShowStats, as_show_stats, ShowStatsNode),
 }
@@ -481,6 +497,11 @@ crate::define_enum_as_mut_methods! {
     // Management Node – Data
     (InsertVertices, as_insert_vertices_mut, InsertVerticesNode),
     (InsertEdges, as_insert_edges_mut, InsertEdgesNode),
+    (DeleteVertices, as_delete_vertices_mut, DeleteVerticesNode),
+    (DeleteEdges, as_delete_edges_mut, DeleteEdgesNode),
+    (Update, as_update_mut, UpdateNode),
+    (UpdateVertices, as_update_vertices_mut, UpdateVerticesNode),
+    (UpdateEdges, as_update_edges_mut, UpdateEdgesNode),
     // Statistical nodes
     (ShowStats, as_show_stats_mut, ShowStatsNode),
 }
@@ -580,6 +601,11 @@ crate::define_enum_type_name! {
     // Management Node – Data
     (InsertVertices, "InsertVertices"),
     (InsertEdges, "InsertEdges"),
+    (DeleteVertices, "DeleteVertices"),
+    (DeleteEdges, "DeleteEdges"),
+    (Update, "Update"),
+    (UpdateVertices, "UpdateVertices"),
+    (UpdateEdges, "UpdateEdges"),
     // Statistical node
     (ShowStats, "ShowStats"),
     // Show Create Tag node
@@ -676,6 +702,11 @@ crate::define_enum_category! {
     (RevokeRole, PlanNodeCategory::Management),
     (InsertVertices, PlanNodeCategory::Management),
     (InsertEdges, PlanNodeCategory::Management),
+    (DeleteVertices, PlanNodeCategory::Management),
+    (DeleteEdges, PlanNodeCategory::Management),
+    (Update, PlanNodeCategory::Management),
+    (UpdateVertices, PlanNodeCategory::Management),
+    (UpdateEdges, PlanNodeCategory::Management),
     (ShowStats, PlanNodeCategory::Management),
     (ShowCreateTag, PlanNodeCategory::Management),
 }
@@ -775,6 +806,11 @@ crate::define_enum_describe! {
     // Management Node – Data
     (InsertVertices, "InsertVertices"),
     (InsertEdges, "InsertEdges"),
+    (DeleteVertices, "DeleteVertices"),
+    (DeleteEdges, "DeleteEdges"),
+    (Update, "Update"),
+    (UpdateVertices, "UpdateVertices"),
+    (UpdateEdges, "UpdateEdges"),
     // Statistical node
     (ShowStats, "ShowStats"),
     // Show Create Tag node
@@ -1015,6 +1051,11 @@ impl PlanNodeEnum {
             PlanNodeEnum::ShowStats(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::InsertVertices(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::InsertEdges(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DeleteVertices(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DeleteEdges(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::Update(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::UpdateVertices(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::UpdateEdges(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::IndexScan(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::ScanVertices(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::ScanEdges(node) => base_size + estimate_node_memory(node),
@@ -1251,6 +1292,11 @@ impl PlanNodeEnum {
             PlanNodeEnum::ShowStats(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::InsertVertices(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::InsertEdges(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DeleteVertices(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DeleteEdges(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::Update(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::UpdateVertices(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::UpdateEdges(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::IndexScan(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::ScanVertices(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::ScanEdges(node) => base_size + estimate_node_memory(node),

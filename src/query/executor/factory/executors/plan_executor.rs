@@ -70,9 +70,11 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
 
         // Try to get executor from pool first
         let executor_type = root_node.name();
-        // Skip object pool for DDL operations to avoid state reuse issues
-        let is_ddl_executor = matches!(
+        // Skip object pool for DDL and DML operations to avoid state reuse issues
+        // DDL executors manage schema state, DML executors contain query-specific data (e.g., INSERT values)
+        let is_stateful_executor = matches!(
             executor_type,
+            // DDL executors
             "CreateSpace"
                 | "DropSpace"
                 | "DescSpace"
@@ -106,10 +108,16 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
                 | "ShowEdgeIndexes"
                 | "SwitchSpace"
                 | "ClearSpace"
+                // DML executors - contain query-specific data
+                | "InsertVertices"
+                | "InsertEdges"
+                | "DeleteVertices"
+                | "DeleteEdges"
+                | "Remove"
         );
         let mut executor = if let Some(pool) = &self.object_pool {
-            if is_ddl_executor {
-                log::debug!("DDL执行器不使用对象池: {}", executor_type);
+            if is_stateful_executor {
+                log::debug!("Stateful执行器不使用对象池: {}", executor_type);
                 self.factory
                     .create_executor(root_node, storage, &execution_context)?
             } else if let Some(pooled_executor) = pool.acquire(executor_type) {
@@ -130,13 +138,13 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
             .execute()
             .map_err(|e| QueryError::ExecutionError(format!("Executor execution failed: {}", e)))?;
 
-        // Release executor back to pool (skip for DDL executors)
+        // Release executor back to pool (skip for stateful executors)
         if let Some(pool) = &self.object_pool {
-            if !is_ddl_executor {
+            if !is_stateful_executor {
                 pool.release(executor_type, executor);
                 log::debug!("执行器已释放回对象池: {}", executor_type);
             } else {
-                log::debug!("DDL执行器不释放到对象池: {}", executor_type);
+                log::debug!("Stateful执行器不释放到对象池: {}", executor_type);
             }
         }
 

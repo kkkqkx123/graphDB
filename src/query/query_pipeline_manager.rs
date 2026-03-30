@@ -225,11 +225,18 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let execution_time_ms = execute_start.elapsed().as_millis() as f64;
 
         // 8. Caching of query plans
-        let param_positions = self.param_handler.extract_params(query_text);
-        self.plan_cache
-            .put(query_text, optimized_plan, param_positions);
-        self.plan_cache
-            .record_execution(query_text, execution_time_ms);
+        // Skip caching for INSERT statements as they contain literal values
+        let should_cache = !matches!(
+            validated.ast.stmt(),
+            crate::query::parser::ast::Stmt::Insert(_)
+        );
+        if should_cache {
+            let param_positions = self.param_handler.extract_params(query_text);
+            self.plan_cache
+                .put(query_text, optimized_plan, param_positions);
+            self.plan_cache
+                .record_execution(query_text, execution_time_ms);
+        }
 
         Ok(result)
     }

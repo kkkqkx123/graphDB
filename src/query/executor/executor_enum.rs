@@ -26,7 +26,7 @@ use super::data_access::{
     GetEdgesExecutor, GetNeighborsExecutor, GetPropExecutor, GetVerticesExecutor,
     IndexScanExecutor, ScanEdgesExecutor, ScanVerticesExecutor,
 };
-use super::data_modification::{InsertExecutor, RemoveExecutor};
+use super::data_modification::{DeleteExecutor, InsertExecutor, RemoveExecutor, UpdateExecutor};
 use super::data_processing::graph_traversal::algorithms::BFSShortestExecutor;
 use super::data_processing::graph_traversal::{
     algorithms::MultiShortestPathExecutor, AllPathsExecutor, ExpandAllExecutor, ExpandExecutor,
@@ -94,6 +94,8 @@ pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
     RollUpApply(RollUpApplyExecutor<S>),
     PatternApply(PatternApplyExecutor<S>),
     Remove(RemoveExecutor<S>),
+    Delete(DeleteExecutor<S>),
+    Update(UpdateExecutor<S>),
     InsertVertices(InsertExecutor<S>),
     InsertEdges(InsertExecutor<S>),
     Loop(LoopExecutor<S>),
@@ -187,6 +189,8 @@ impl<S: StorageClient + Send + 'static> Debug for ExecutorEnum<S> {
             ExecutorEnum::RollUpApply(exec) => ("RollUpApply", exec.name()),
             ExecutorEnum::PatternApply(exec) => ("PatternApply", exec.name()),
             ExecutorEnum::Remove(exec) => ("Remove", exec.name()),
+            ExecutorEnum::Delete(exec) => ("Delete", exec.name()),
+            ExecutorEnum::Update(exec) => ("Update", exec.name()),
             ExecutorEnum::InsertVertices(exec) => ("InsertVertices", exec.name()),
             ExecutorEnum::InsertEdges(exec) => ("InsertEdges", exec.name()),
             ExecutorEnum::Loop(exec) => ("Loop", exec.name()),
@@ -455,6 +459,8 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::ClearSpace(_) => "clear_space",
             ExecutorEnum::ShowStats(_) => "show_stats",
             ExecutorEnum::Analyze(_) => "analyze",
+            ExecutorEnum::Delete(_) => "delete",
+            ExecutorEnum::Update(_) => "update",
         }
     }
 
@@ -548,6 +554,8 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::ClearSpace(_) => "Clear Space",
             ExecutorEnum::ShowStats(_) => "Show Stats",
             ExecutorEnum::Analyze(_) => "Analyze",
+            ExecutorEnum::Delete(_) => "Delete",
+            ExecutorEnum::Update(_) => "Update",
         }
     }
 
@@ -641,6 +649,8 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::ClearSpace(_) => NodeCategory::Admin,
             ExecutorEnum::ShowStats(_) => NodeCategory::Admin,
             ExecutorEnum::Analyze(_) => NodeCategory::Admin,
+            ExecutorEnum::Delete(_) => NodeCategory::Admin,
+            ExecutorEnum::Update(_) => NodeCategory::Admin,
         }
     }
 }
@@ -690,6 +700,8 @@ mod macros {
                 ExecutorEnum::RollUpApply(exec) => exec.$method(),
                 ExecutorEnum::PatternApply(exec) => exec.$method(),
                 ExecutorEnum::Remove(exec) => exec.$method(),
+                ExecutorEnum::Delete(exec) => exec.$method(),
+                ExecutorEnum::Update(exec) => exec.$method(),
                 ExecutorEnum::InsertVertices(exec) => exec.$method(),
                 ExecutorEnum::InsertEdges(exec) => exec.$method(),
                 ExecutorEnum::Loop(exec) => exec.$method(),
@@ -786,6 +798,8 @@ mod macros {
                 ExecutorEnum::RollUpApply(exec) => exec.$method(),
                 ExecutorEnum::PatternApply(exec) => exec.$method(),
                 ExecutorEnum::Remove(exec) => exec.$method(),
+                ExecutorEnum::Delete(exec) => exec.$method(),
+                ExecutorEnum::Update(exec) => exec.$method(),
                 ExecutorEnum::InsertVertices(exec) => exec.$method(),
                 ExecutorEnum::InsertEdges(exec) => exec.$method(),
                 ExecutorEnum::Loop(exec) => exec.$method(),

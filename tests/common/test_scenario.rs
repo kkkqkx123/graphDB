@@ -477,41 +477,41 @@ impl TestScenario {
 
     /// Assert vertex count
     pub fn assert_vertex_count(mut self, tag: &str, expected: usize) -> Self {
-        // Use FETCH to count vertices instead of LOOKUP
-        let query = format!("FETCH PROP ON {} 1,2,3,4,5,6,7,8,9,10", tag);
-        match self.pipeline.execute_query_with_space(&query, self.current_space.clone()) {
-            Ok(result) => {
-                let actual = result.count();
-                assert_eq!(
-                    actual, expected,
-                    "Expected {} vertices with tag {}, got {}",
-                    expected, tag, actual
-                );
-            }
-            Err(e) => {
-                panic!("Failed to count vertices: {:?}", e);
-            }
-        }
+        // Directly query storage to count vertices with the given tag
+        let space_name = self.current_space.as_ref().map(|s| s.space_name.clone()).unwrap_or_default();
+        let actual = {
+            let storage_guard = self.storage.lock();
+            storage_guard
+                .scan_vertices_by_tag(&space_name, tag)
+                .map(|vertices| vertices.len())
+                .unwrap_or(0)
+        };
+        
+        assert_eq!(
+            actual, expected,
+            "Expected {} vertices with tag {}, got {}",
+            expected, tag, actual
+        );
         self
     }
 
     /// Assert edge count
     pub fn assert_edge_count(mut self, edge_type: &str, expected: usize) -> Self {
-        // Use FETCH to count edges instead of LOOKUP
-        let query = format!("FETCH PROP ON {} 1->2,2->3,3->4,4->5,5->6,6->7,7->8,8->9,9->10,10->1", edge_type);
-        match self.pipeline.execute_query_with_space(&query, self.current_space.clone()) {
-            Ok(result) => {
-                let actual = result.count();
-                assert_eq!(
-                    actual, expected,
-                    "Expected {} edges with type {}, got {}",
-                    expected, edge_type, actual
-                );
-            }
-            Err(e) => {
-                panic!("Failed to count edges: {:?}", e);
-            }
-        }
+        // Directly query storage to count edges with the given type
+        let space_name = self.current_space.as_ref().map(|s| s.space_name.clone()).unwrap_or_default();
+        let actual = {
+            let storage_guard = self.storage.lock();
+            storage_guard
+                .scan_edges_by_type(&space_name, edge_type)
+                .map(|edges| edges.len())
+                .unwrap_or(0)
+        };
+        
+        assert_eq!(
+            actual, expected,
+            "Expected {} edges with type {}, got {}",
+            expected, edge_type, actual
+        );
         self
     }
 

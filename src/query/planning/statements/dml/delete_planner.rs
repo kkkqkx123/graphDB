@@ -3,11 +3,10 @@
 //! Query planning for handling DELETE VERTEX/EDGE/TAG statements
 
 use crate::core::types::ContextualExpression;
-use crate::core::YieldColumn;
 use crate::query::parser::ast::{DeleteStmt, DeleteTarget, Stmt};
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
-    nodes::{ArgumentNode, ProjectNode},
+    nodes::{DeleteEdgesNode, DeleteVerticesNode, EdgeDeleteInfo, VertexDeleteInfo},
 };
 use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
@@ -60,71 +59,52 @@ impl Planner for DeletePlanner {
 
         let delete_stmt = self.extract_delete_stmt(validated.stmt())?;
 
-        // Create a parameter node as the input.
-        let arg_node = ArgumentNode::new(next_node_id(), "delete_input");
-        let arg_node_enum = PlanNodeEnum::Argument(arg_node.clone());
+        // Get current space name from query context or use default
+        let space_name = qctx
+            .space_name()
+            .unwrap_or_else(|| "default".to_string());
 
-        // Develop different plans depending on the type of content that needs to be deleted.
-        let yield_columns = match &delete_stmt.target {
-            DeleteTarget::Vertices(..) => {
-                let expr_meta = crate::core::types::expr::ExpressionMeta::new(
-                    crate::core::Expression::Variable("deleted_vertices".to_string()),
-                );
-                let id = validated.expr_context().register_expression(expr_meta);
-                let ctx_expr = ContextualExpression::new(id, validated.expr_context().clone());
-                vec![YieldColumn {
-                    expression: ctx_expr,
-                    alias: "deleted_count".to_string(),
-                    is_matched: false,
-                }]
+        // Create the appropriate delete node based on target type
+        let final_node = match &delete_stmt.target {
+            DeleteTarget::Vertices(vertex_ids) => {
+                let info = VertexDeleteInfo {
+                    space_name,
+                    vertex_ids: vertex_ids.clone(),
+                    with_edge: false, // TODO: support WITH EDGE option
+                    condition: None,  // TODO: support WHERE clause
+                };
+                let node = DeleteVerticesNode::new(next_node_id(), info);
+                PlanNodeEnum::DeleteVertices(node)
             }
-            DeleteTarget::Edges { .. } => {
-                let expr_meta = crate::core::types::expr::ExpressionMeta::new(
-                    crate::core::Expression::Variable("deleted_edges".to_string()),
-                );
-                let id = validated.expr_context().register_expression(expr_meta);
-                let ctx_expr = ContextualExpression::new(id, validated.expr_context().clone());
-                vec![YieldColumn {
-                    expression: ctx_expr,
-                    alias: "deleted_count".to_string(),
-                    is_matched: false,
-                }]
+            DeleteTarget::Edges { edge_type, edges } => {
+                let info = EdgeDeleteInfo {
+                    space_name,
+                    edge_type: edge_type.clone(),
+                    edges: edges
+                        .iter()
+                        .map(|(src, dst, rank)| (src.clone(), dst.clone(), rank.clone()))
+                        .collect(),
+                    condition: None, // TODO: support WHERE clause
+                };
+                let node = DeleteEdgesNode::new(next_node_id(), info);
+                PlanNodeEnum::DeleteEdges(node)
             }
             DeleteTarget::Tags { .. } => {
-                let expr_meta = crate::core::types::expr::ExpressionMeta::new(
-                    crate::core::Expression::Variable("deleted_tags".to_string()),
-                );
-                let id = validated.expr_context().register_expression(expr_meta);
-                let ctx_expr = ContextualExpression::new(id, validated.expr_context().clone());
-                vec![YieldColumn {
-                    expression: ctx_expr,
-                    alias: "deleted_count".to_string(),
-                    is_matched: false,
-                }]
+                // TODO: Implement DELETE TAG
+                return Err(PlannerError::PlanGenerationFailed(
+                    "DELETE TAG not yet implemented".to_string(),
+                ));
             }
             DeleteTarget::Index(..) => {
-                let expr_meta = crate::core::types::expr::ExpressionMeta::new(
-                    crate::core::Expression::Variable("deleted_index".to_string()),
-                );
-                let id = validated.expr_context().register_expression(expr_meta);
-                let ctx_expr = ContextualExpression::new(id, validated.expr_context().clone());
-                vec![YieldColumn {
-                    expression: ctx_expr,
-                    alias: "deleted_count".to_string(),
-                    is_matched: false,
-                }]
+                // TODO: Implement DELETE INDEX
+                return Err(PlannerError::PlanGenerationFailed(
+                    "DELETE INDEX not yet implemented".to_string(),
+                ));
             }
         };
 
-        // Create a projection node to output the deletion results.
-        let project_node = ProjectNode::new(arg_node_enum.clone(), yield_columns).map_err(|e| {
-            PlannerError::PlanGenerationFailed(format!("Failed to create ProjectNode: {}", e))
-        })?;
-
-        let final_node = PlanNodeEnum::Project(project_node);
-
         // Create a SubPlan
-        let sub_plan = SubPlan::new(Some(final_node), Some(arg_node_enum));
+        let sub_plan = SubPlan::new(Some(final_node), None);
 
         Ok(sub_plan)
     }

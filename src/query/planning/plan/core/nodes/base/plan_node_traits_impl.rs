@@ -90,6 +90,11 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::ShowStats(_) => "show_stats",
             PlanNodeEnum::InsertVertices(_) => "insert_vertices",
             PlanNodeEnum::InsertEdges(_) => "insert_edges",
+            PlanNodeEnum::DeleteVertices(_) => "delete_vertices",
+            PlanNodeEnum::DeleteEdges(_) => "delete_edges",
+            PlanNodeEnum::Update(_) => "update",
+            PlanNodeEnum::UpdateVertices(_) => "update_vertices",
+            PlanNodeEnum::UpdateEdges(_) => "update_edges",
         }
     }
 
@@ -176,6 +181,11 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::ShowStats(_) => "Show Stats",
             PlanNodeEnum::InsertVertices(_) => "Insert Vertices",
             PlanNodeEnum::InsertEdges(_) => "Insert Edges",
+            PlanNodeEnum::DeleteVertices(_) => "Delete Vertices",
+            PlanNodeEnum::DeleteEdges(_) => "Delete Edges",
+            PlanNodeEnum::Update(_) => "Update",
+            PlanNodeEnum::UpdateVertices(_) => "Update Vertices",
+            PlanNodeEnum::UpdateEdges(_) => "Update Edges",
         }
     }
 
@@ -262,6 +272,11 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::ShowStats(_) => NodeCategory::Admin,
             PlanNodeEnum::InsertVertices(_) => NodeCategory::Admin,
             PlanNodeEnum::InsertEdges(_) => NodeCategory::Admin,
+            PlanNodeEnum::DeleteVertices(_) => NodeCategory::Admin,
+            PlanNodeEnum::DeleteEdges(_) => NodeCategory::Admin,
+            PlanNodeEnum::Update(_) => NodeCategory::Admin,
+            PlanNodeEnum::UpdateVertices(_) => NodeCategory::Admin,
+            PlanNodeEnum::UpdateEdges(_) => NodeCategory::Admin,
         }
     }
 }
@@ -353,6 +368,11 @@ impl NodeTypeMapping for PlanNodeEnum {
             PlanNodeEnum::ShowStats(_) => Some("show_stats"),
             PlanNodeEnum::InsertVertices(_) => Some("insert_vertices"),
             PlanNodeEnum::InsertEdges(_) => Some("insert_edges"),
+            PlanNodeEnum::DeleteVertices(_) => Some("delete_vertices"),
+            PlanNodeEnum::DeleteEdges(_) => Some("delete_edges"),
+            PlanNodeEnum::Update(_) => Some("update"),
+            PlanNodeEnum::UpdateVertices(_) => Some("update_vertices"),
+            PlanNodeEnum::UpdateEdges(_) => Some("update_edges"),
         }
     }
 }

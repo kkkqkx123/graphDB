@@ -170,6 +170,21 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             PlanNodeEnum::InsertEdges(node) => {
                 DataModificationBuilder::build_insert_edges(node, storage, context)
             }
+            PlanNodeEnum::DeleteVertices(node) => {
+                DataModificationBuilder::build_delete_vertices(node, storage, context)
+            }
+            PlanNodeEnum::DeleteEdges(node) => {
+                DataModificationBuilder::build_delete_edges(node, storage, context)
+            }
+            PlanNodeEnum::Update(node) => {
+                DataModificationBuilder::build_update(node, storage, context)
+            }
+            PlanNodeEnum::UpdateVertices(node) => {
+                DataModificationBuilder::build_update_vertices(node, storage, context)
+            }
+            PlanNodeEnum::UpdateEdges(node) => {
+                DataModificationBuilder::build_update_edges(node, storage, context)
+            }
             PlanNodeEnum::Remove(node) => {
                 DataModificationBuilder::build_remove(node, storage, context)
             }

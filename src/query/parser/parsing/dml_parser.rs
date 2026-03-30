@@ -69,8 +69,16 @@ impl DmlParser {
                     UpdateTarget::Vertex(vid)
                 }
             } else {
-                // By default, it is the vertex updates that are performed.
-                UpdateTarget::Vertex(self.parse_expression(ctx)?)
+                // Check for old-style edge update syntax: src -> dst OF edge_type
+                // Try to parse as expression first, then check if followed by ->
+                let expr = self.parse_expression(ctx)?;
+                if ctx.check_token(TokenKind::Arrow) {
+                    // This is edge update syntax: src -> dst [@rank] OF edge_type
+                    self.parse_update_edge_short(ctx, expr)?
+                } else {
+                    // Regular vertex update
+                    UpdateTarget::Vertex(expr)
+                }
             }
         };
 
@@ -162,6 +170,40 @@ impl DmlParser {
                 rank,
             })
         }
+    }
+
+    /// Parse short edge update syntax: src -> dst [@rank] OF edge_type
+    /// This is called after parsing the src expression and seeing the -> token
+    fn parse_update_edge_short(
+        &mut self,
+        ctx: &mut ParseContext,
+        src: ContextualExpression,
+    ) -> Result<UpdateTarget, ParseError> {
+        use crate::query::parser::ast::stmt::UpdateTarget;
+
+        // The -> token
+        ctx.expect_token(TokenKind::Arrow)?;
+
+        // Parse dst
+        let dst = self.parse_expression(ctx)?;
+
+        // Optional @rank
+        let rank = if ctx.match_token(TokenKind::At) {
+            Some(self.parse_expression(ctx)?)
+        } else {
+            None
+        };
+
+        // OF edge_type
+        ctx.expect_token(TokenKind::Of)?;
+        let edge_type = Some(ctx.expect_identifier()?);
+
+        Ok(UpdateTarget::Edge {
+            edge_type,
+            src,
+            dst,
+            rank,
+        })
     }
 
     /// Analysis of the DELETE statement

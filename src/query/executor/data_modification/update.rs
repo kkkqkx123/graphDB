@@ -196,8 +196,17 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                     if let Some(mut vertex) =
                         storage.get_vertex(&self.space_name, &update.vertex_id)?
                     {
-                        for (key, value) in &update.properties {
-                            vertex.properties.insert(key.clone(), value.clone());
+                        // Update properties in tags (NebulaGraph stores properties in tags)
+                        if !vertex.tags.is_empty() {
+                            // Update the first tag's properties
+                            for (key, value) in &update.properties {
+                                vertex.tags[0].properties.insert(key.clone(), value.clone());
+                            }
+                        } else {
+                            // If no tags exist, store in vertex.properties as fallback
+                            for (key, value) in &update.properties {
+                                vertex.properties.insert(key.clone(), value.clone());
+                            }
                         }
                         storage.update_vertex(&self.space_name, vertex.clone())?;
 

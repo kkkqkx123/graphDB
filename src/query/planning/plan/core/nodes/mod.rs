@@ -1,8 +1,8 @@
 pub mod access;
 pub mod base;
 pub mod control_flow;
+pub mod data_modification;
 pub mod data_processing;
-pub mod insert;
 pub mod join;
 pub mod management;
 pub mod operation;
@@ -17,12 +17,14 @@ pub use access::{IndexLimit, IndexScanNode, OrderByItem, ScanType};
 pub use base::plan_node_traits::*;
 pub use base::{PlanNodeCategory, PlanNodeEnum, PlanNodeVisitor};
 pub use control_flow::{ArgumentNode, LoopNode, PassThroughNode, SelectNode, StartNode};
+pub use data_modification::{
+    DeleteEdgesNode, DeleteVerticesNode, EdgeDeleteInfo, EdgeInsertInfo, EdgeUpdateInfo,
+    InsertEdgesNode, InsertVerticesNode, TagInsertSpec, UpdateEdgesNode, UpdateNode,
+    UpdateTargetType, UpdateVerticesNode, VertexDeleteInfo, VertexInsertInfo, VertexUpdateInfo,
+};
 pub use data_processing::{
     AggregateNode, AssignNode, DataCollectNode, DedupNode, IntersectNode, MaterializeNode,
     MinusNode, PatternApplyNode, RemoveNode, RollUpApplyNode, UnionNode, UnwindNode,
-};
-pub use insert::{
-    EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, TagInsertSpec, VertexInsertInfo,
 };
 pub use join::{
     CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode,
