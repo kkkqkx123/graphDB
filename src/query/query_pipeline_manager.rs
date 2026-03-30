@@ -32,8 +32,8 @@ use crate::query::parser::ast::stmt::{ExplainStmt, ProfileStmt};
 use crate::query::parser::Parser;
 use crate::query::planning::{ParameterizedQueryHandler, PlanCacheConfig, QueryPlanCache};
 use crate::query::query_request_context::QueryRequestContext;
-use crate::query::validator::{ValidatedStatement, ValidationInfo};
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::query::validator::{ValidatedStatement, ValidationInfo};
 use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 use crate::storage::StorageClient;
@@ -108,7 +108,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let plan_cache = Arc::new(QueryPlanCache::new(plan_cache_config));
         let param_handler = ParameterizedQueryHandler::default();
 
-        log::info!("Query pipeline manager created, using optimizer engine and custom query plan cache");
+        log::info!(
+            "Query pipeline manager created, using optimizer engine and custom query plan cache"
+        );
 
         Self {
             executor_factory,
@@ -470,9 +472,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let mut validator =
             crate::query::validator::Validator::create_from_ast(&ast).ok_or_else(|| {
                 DBError::from(QueryError::InvalidQuery(format!(
-                "Unsupported statement type: {:?}",
-                ast.stmt
-            )))
+                    "Unsupported statement type: {:?}",
+                    ast.stmt
+                )))
             })?;
 
         // Set schema manager if available
@@ -615,7 +617,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
         // 2. Create ExplainExecutor
         let storage = self.executor_factory.storage.clone().ok_or_else(|| {
-            DBError::from(QueryError::ExecutionError("Storage not available".to_string()))
+            DBError::from(QueryError::ExecutionError(
+                "Storage not available".to_string(),
+            ))
         })?;
 
         let base = BaseExecutor::new(
@@ -666,7 +670,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
         // 2. Create ExplainExecutor with Analyze mode
         let storage = self.executor_factory.storage.clone().ok_or_else(|| {
-            DBError::from(QueryError::ExecutionError("Storage not available".to_string()))
+            DBError::from(QueryError::ExecutionError(
+                "Storage not available".to_string(),
+            ))
         })?;
 
         let base = BaseExecutor::new(
@@ -717,7 +723,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
         // 2. Create ProfileExecutor
         let storage = self.executor_factory.storage.clone().ok_or_else(|| {
-            DBError::from(QueryError::ExecutionError("Storage not available".to_string()))
+            DBError::from(QueryError::ExecutionError(
+                "Storage not available".to_string(),
+            ))
         })?;
 
         let base = BaseExecutor::new(
@@ -727,11 +735,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             Arc::new(ExpressionAnalysisContext::new()),
         );
 
-        let mut profile_executor = ProfileExecutor::new(
-            base,
-            optimized_plan,
-            profile_stmt.format.clone(),
-        );
+        let mut profile_executor =
+            ProfileExecutor::new(base, optimized_plan, profile_stmt.format.clone());
 
         // 3. Execute Profile
         profile_executor

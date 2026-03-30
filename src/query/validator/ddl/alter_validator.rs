@@ -166,7 +166,11 @@ impl AlterValidator {
         Ok(())
     }
 
-    fn validate_impl_with_context(&mut self, stmt: &AlterStmt, qctx: &QueryContext) -> Result<(), ValidationError> {
+    fn validate_impl_with_context(
+        &mut self,
+        stmt: &AlterStmt,
+        qctx: &QueryContext,
+    ) -> Result<(), ValidationError> {
         self.validate_impl(stmt)?;
 
         // For TAG and EDGE operations, get space name from query context

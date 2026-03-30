@@ -5,7 +5,7 @@
 use crate::core::error::QueryError;
 use crate::query::executor::base::{ExecutionContext, ExecutorConfig, IndexScanConfig};
 use crate::query::executor::data_access::{
-    GetEdgesExecutor, GetNeighborsExecutor, GetVerticesExecutor, IndexScanExecutor,
+    GetEdgesExecutor, GetNeighborsExecutor, GetVerticesExecutor, GetVerticesParams, IndexScanExecutor,
     ScanEdgesExecutor,
 };
 use crate::query::executor::executor_enum::ExecutorEnum;
@@ -38,14 +38,17 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
+        let params = GetVerticesParams {
+            space_name: node.space_name().to_string(),
+            vertex_ids: None,
+            tag_filter: None,
+            vertex_filter: node.vertex_filter().and_then(|f| f.get_expression()),
+            limit: node.limit().map(|l| l as usize),
+        };
         let executor = GetVerticesExecutor::new(
             node.id(),
             storage,
-            node.space_name().to_string(),
-            None,
-            None,
-            node.vertex_filter().and_then(|f| f.get_expression()),
-            node.limit().map(|l| l as usize),
+            params,
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::GetVertices(executor))
@@ -75,18 +78,21 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let vertex_ids = parse_vertex_ids(node.src_vids());
-        let executor = GetVerticesExecutor::new(
-            node.id(),
-            storage,
-            node.space_name().to_string(),
-            if vertex_ids.is_empty() {
+        let params = GetVerticesParams {
+            space_name: node.space_name().to_string(),
+            vertex_ids: if vertex_ids.is_empty() {
                 None
             } else {
                 Some(vertex_ids)
             },
-            None,
-            node.expression().and_then(|e| e.get_expression()),
-            node.limit().map(|l| l as usize),
+            tag_filter: None,
+            vertex_filter: node.expression().and_then(|e| e.get_expression()),
+            limit: node.limit().map(|l| l as usize),
+        };
+        let executor = GetVerticesExecutor::new(
+            node.id(),
+            storage,
+            params,
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::GetVertices(executor))

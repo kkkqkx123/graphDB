@@ -40,7 +40,9 @@ impl SegmentsConnector {
                 vec![],
                 vec![],
             )
-            .map_err(|e| PlannerError::JoinFailed(format!("Inner join node creation failed: {}", e)))?,
+            .map_err(|e| {
+                PlannerError::JoinFailed(format!("Inner join node creation failed: {}", e))
+            })?,
         );
 
         Ok(SubPlan {
@@ -75,7 +77,9 @@ impl SegmentsConnector {
                 vec![],
                 vec![],
             )
-            .map_err(|e| PlannerError::JoinFailed(format!("Left join node creation failed: {}", e)))?,
+            .map_err(|e| {
+                PlannerError::JoinFailed(format!("Left join node creation failed: {}", e))
+            })?,
         );
 
         Ok(SubPlan {
@@ -113,7 +117,9 @@ impl SegmentsConnector {
                 left_root.clone(),
                 right_root.clone(),
             )
-            .map_err(|e| PlannerError::JoinFailed(format!("Cross join node creation failed: {}", e)))?,
+            .map_err(|e| {
+                PlannerError::JoinFailed(format!("Cross join node creation failed: {}", e))
+            })?,
         );
 
         Ok(SubPlan {

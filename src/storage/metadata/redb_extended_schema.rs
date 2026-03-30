@@ -221,7 +221,9 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
             if key_str.starts_with(&prefix) {
                 let change: SchemaChange =
                     decode_from_slice(&value.value().0, bincode::config::standard())
-                        .map_err(|e| ManagerError::storage_error(format!("Deserialization failed: {}", e)))?
+                        .map_err(|e| {
+                            ManagerError::storage_error(format!("Deserialization failed: {}", e))
+                        })?
                         .0;
                 changes.push(change);
             }
@@ -269,11 +271,15 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
     }
 
     fn export_schema(&self, _config: &SchemaExportConfig) -> Result<String, ManagerError> {
-        Err(ManagerError::storage_error("Export functionality is not yet implemented".to_string()))
+        Err(ManagerError::storage_error(
+            "Export functionality is not yet implemented".to_string(),
+        ))
     }
 
     fn import_schema(&self, _data: &str) -> Result<SchemaImportResult, ManagerError> {
-        Err(ManagerError::storage_error("Import functionality is not yet implemented".to_string()))
+        Err(ManagerError::storage_error(
+            "Import functionality is not yet implemented".to_string(),
+        ))
     }
 }
 

@@ -13,7 +13,8 @@ use std::collections::HashMap;
 
 #[test]
 fn test_insert_vertex_and_verify() {
-    TestScenario::new().expect("Failed to create test scenario")
+    TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, age INT)")
         .assert_success()
@@ -30,16 +31,19 @@ fn test_insert_vertex_and_verify() {
 
 #[test]
 fn test_insert_multiple_vertices() {
-    TestScenario::new().expect("Failed to create test scenario")
+    TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, age INT)")
         .assert_success()
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX Person(name, age) VALUES 
                 1:('Alice', 30),
                 2:('Bob', 25),
                 3:('Charlie', 35)
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_vertex_count("Person", 3)
         .assert_vertex_props(1, "Person", {
@@ -61,21 +65,26 @@ fn test_insert_multiple_vertices() {
 
 #[test]
 fn test_insert_vertex_with_all_types() {
-    TestScenario::new().expect("Failed to create test scenario")
+    TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
-        .exec_ddl(r#"
+        .exec_ddl(
+            r#"
             CREATE TAG TestTypes(
                 str_field STRING,
                 int_field INT,
                 double_field DOUBLE,
                 bool_field BOOL
             )
-        "#)
+        "#,
+        )
         .assert_success()
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX TestTypes(str_field, int_field, double_field, bool_field) 
             VALUES 1:('test', 42, 3.14, true)
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_vertex_props(1, "TestTypes", {
             let mut map = HashMap::new();
@@ -91,7 +100,8 @@ fn test_insert_vertex_with_all_types() {
 
 #[test]
 fn test_insert_edge_and_verify() {
-    TestScenario::new().expect("Failed to create test scenario")
+    TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -106,7 +116,8 @@ fn test_insert_edge_and_verify() {
 
 #[test]
 fn test_insert_edge_with_rank() {
-    TestScenario::new().expect("Failed to create test scenario")
+    TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -126,7 +137,8 @@ fn test_insert_edge_with_rank() {
 
 #[test]
 fn test_update_vertex_and_verify() {
-    TestScenario::new().expect("Failed to create test scenario")
+    TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, age INT, city STRING)")
         .assert_success()
@@ -159,16 +171,19 @@ fn test_update_vertex_and_verify() {
 
 #[test]
 fn test_update_vertex_with_condition() {
-    TestScenario::new().expect("Failed to create test scenario")
+    TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, age INT, status STRING)")
         .assert_success()
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX Person(name, age, status) VALUES 
                 1:('Alice', 30, 'active'),
                 2:('Bob', 25, 'inactive'),
                 3:('Charlie', 35, 'active')
-        "#)
+        "#,
+        )
         .assert_success()
         // Update only active users
         .exec_dml("UPDATE 1 SET status = 'premium' WHEN status == 'active'")
@@ -180,12 +195,16 @@ fn test_update_vertex_with_condition() {
         })
         // Verify Bob's status unchanged
         .query("FETCH PROP ON Person 2")
-        .assert_result_contains(vec![Value::String("status".into()), Value::String("inactive".into())]);
+        .assert_result_contains(vec![
+            Value::String("status".into()),
+            Value::String("inactive".into()),
+        ]);
 }
 
 #[test]
 fn test_update_edge_and_verify() {
-    TestScenario::new().expect("Failed to create test scenario")
+    TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -206,7 +225,8 @@ fn test_update_edge_and_verify() {
 
 #[test]
 fn test_delete_vertex_and_verify() {
-    TestScenario::new().expect("Failed to create test scenario")
+    TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -223,17 +243,20 @@ fn test_delete_vertex_and_verify() {
 
 #[test]
 fn test_delete_multiple_vertices() {
-    TestScenario::new().expect("Failed to create test scenario")
+    TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX Person(name) VALUES 
                 1:('Alice'),
                 2:('Bob'),
                 3:('Charlie'),
                 4:('David')
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_vertex_count("Person", 4)
         // Delete multiple vertices
@@ -245,7 +268,8 @@ fn test_delete_multiple_vertices() {
 
 #[test]
 fn test_delete_edge_and_verify() {
-    TestScenario::new().expect("Failed to create test scenario")
+    TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -253,11 +277,13 @@ fn test_delete_edge_and_verify() {
         .assert_success()
         .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
         .assert_success()
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT EDGE KNOWS(since) VALUES 
                 1 -> 2:('2020-01-01'),
                 1 -> 3:('2021-01-01')
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_edge_count("KNOWS", 2)
         // Delete one edge
@@ -272,7 +298,8 @@ fn test_delete_edge_and_verify() {
 
 #[test]
 fn test_complete_crud_flow() {
-    TestScenario::new().expect("Failed to create test scenario")
+    TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         // Create schema
         .exec_ddl("CREATE TAG Product(name STRING, price DOUBLE, stock INT)")
@@ -289,7 +316,10 @@ fn test_complete_crud_flow() {
         // Read
         .query("FETCH PROP ON Product 101")
         .assert_result_count(1)
-        .assert_result_contains(vec![Value::String("name".into()), Value::String("Laptop".into())])
+        .assert_result_contains(vec![
+            Value::String("name".into()),
+            Value::String("Laptop".into()),
+        ])
         // Update
         .exec_dml("UPDATE 101 SET stock = stock - 1")
         .assert_success()
@@ -306,17 +336,20 @@ fn test_complete_crud_flow() {
 
 #[test]
 fn test_insert_update_delete_sequence() {
-    TestScenario::new().expect("Failed to create test scenario")
+    TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG User(username STRING, email STRING, active BOOL)")
         .assert_success()
         // Insert batch
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX User(username, email, active) VALUES 
                 1:('user1', 'user1@example.com', true),
                 2:('user2', 'user2@example.com', true),
                 3:('user3', 'user3@example.com', true)
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_vertex_count("User", 3)
         // Update batch
@@ -347,7 +380,8 @@ fn test_insert_update_delete_sequence() {
 
 #[test]
 fn test_insert_duplicate_vertex() {
-    TestScenario::new().expect("Failed to create test scenario")
+    TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -359,7 +393,8 @@ fn test_insert_duplicate_vertex() {
 
 #[test]
 fn test_update_nonexistent_vertex() {
-    TestScenario::new().expect("Failed to create test scenario")
+    TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -370,7 +405,8 @@ fn test_update_nonexistent_vertex() {
 
 #[test]
 fn test_delete_nonexistent_vertex() {
-    TestScenario::new().expect("Failed to create test scenario")
+    TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
@@ -382,7 +418,8 @@ fn test_delete_nonexistent_vertex() {
 
 #[test]
 fn test_social_network_data_flow() {
-    TestScenario::new().expect("Failed to create test scenario")
+    TestScenario::new()
+        .expect("Failed to create test scenario")
         .setup_space("social_network")
         // Create schema
         .exec_ddl("CREATE TAG Person(name STRING, age INT)")
@@ -390,23 +427,27 @@ fn test_social_network_data_flow() {
         .exec_ddl("CREATE EDGE KNOWS(since DATE, strength DOUBLE)")
         .assert_success()
         // Insert people
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX Person(name, age) VALUES 
                 1:('Alice', 30),
                 2:('Bob', 25),
                 3:('Charlie', 35),
                 4:('David', 28)
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_vertex_count("Person", 4)
         // Create relationships
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT EDGE KNOWS(since, strength) VALUES 
                 1 -> 2:('2020-01-01', 0.9),
                 1 -> 3:('2021-01-01', 0.8),
                 2 -> 3:('2020-06-01', 0.7),
                 3 -> 4:('2022-01-01', 0.9)
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_edge_count("KNOWS", 4)
         // Query Alice's friends

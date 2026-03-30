@@ -71,17 +71,41 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
         // Try to get executor from pool first
         let executor_type = root_node.name();
         // Skip object pool for DDL operations to avoid state reuse issues
-        let is_ddl_executor = matches!(executor_type,
-            "CreateSpace" | "DropSpace" | "DescSpace" |
-            "CreateTag" | "AlterTag" | "DropTag" | "DescTag" |
-            "CreateEdge" | "AlterEdge" | "DropEdge" | "DescEdge" |
-            "CreateTagIndex" | "DropTagIndex" | "DescTagIndex" | "RebuildTagIndex" |
-            "CreateEdgeIndex" | "DropEdgeIndex" | "DescEdgeIndex" | "RebuildEdgeIndex" |
-            "CreateUser" | "AlterUser" | "DropUser" |
-            "GrantRole" | "RevokeRole" | "ChangePassword" |
-            "ShowSpaces" | "ShowTags" | "ShowEdges" | "ShowStats" |
-            "ShowTagIndexes" | "ShowEdgeIndexes" |
-            "SwitchSpace" | "ClearSpace"
+        let is_ddl_executor = matches!(
+            executor_type,
+            "CreateSpace"
+                | "DropSpace"
+                | "DescSpace"
+                | "CreateTag"
+                | "AlterTag"
+                | "DropTag"
+                | "DescTag"
+                | "CreateEdge"
+                | "AlterEdge"
+                | "DropEdge"
+                | "DescEdge"
+                | "CreateTagIndex"
+                | "DropTagIndex"
+                | "DescTagIndex"
+                | "RebuildTagIndex"
+                | "CreateEdgeIndex"
+                | "DropEdgeIndex"
+                | "DescEdgeIndex"
+                | "RebuildEdgeIndex"
+                | "CreateUser"
+                | "AlterUser"
+                | "DropUser"
+                | "GrantRole"
+                | "RevokeRole"
+                | "ChangePassword"
+                | "ShowSpaces"
+                | "ShowTags"
+                | "ShowEdges"
+                | "ShowStats"
+                | "ShowTagIndexes"
+                | "ShowEdgeIndexes"
+                | "SwitchSpace"
+                | "ClearSpace"
         );
         let mut executor = if let Some(pool) = &self.object_pool {
             if is_ddl_executor {

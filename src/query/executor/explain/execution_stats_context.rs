@@ -78,7 +78,9 @@ impl ExecutionStatsContext {
 
     pub fn on_node_start(&self, node_id: i64) {
         let mut stats = self.node_stats.lock();
-        stats.entry(node_id).or_insert_with(|| NodeExecutionStats::new(node_id));
+        stats
+            .entry(node_id)
+            .or_insert_with(|| NodeExecutionStats::new(node_id));
     }
 
     pub fn on_node_complete(&self, node_id: i64, node_stats: NodeExecutionStats) {

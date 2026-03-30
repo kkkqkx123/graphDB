@@ -389,8 +389,9 @@ async fn update_tag<S: StorageClient + Clone + Send + Sync + 'static>(
         let additions = if let Some(props) = request.add_properties {
             let mut core_props = Vec::new();
             for p in props {
-                let data_type = parse_data_type(&p.data_type)
-                    .ok_or_else(|| WebError::BadRequest(format!("Invalid data type: {}", p.data_type)))?;
+                let data_type = parse_data_type(&p.data_type).ok_or_else(|| {
+                    WebError::BadRequest(format!("Invalid data type: {}", p.data_type))
+                })?;
                 core_props.push(crate::api::core::PropertyDef {
                     name: p.name,
                     data_type,
@@ -616,8 +617,9 @@ async fn update_edge_type<S: StorageClient + Clone + Send + Sync + 'static>(
         let additions = if let Some(props) = request.add_properties {
             let mut core_props = Vec::new();
             for p in props {
-                let data_type = parse_data_type(&p.data_type)
-                    .ok_or_else(|| WebError::BadRequest(format!("Invalid data type: {}", p.data_type)))?;
+                let data_type = parse_data_type(&p.data_type).ok_or_else(|| {
+                    WebError::BadRequest(format!("Invalid data type: {}", p.data_type))
+                })?;
                 core_props.push(crate::api::core::PropertyDef {
                     name: p.name,
                     data_type,

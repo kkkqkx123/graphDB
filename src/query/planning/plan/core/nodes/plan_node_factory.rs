@@ -145,7 +145,9 @@ impl PlanNodeFactory {
         space_id: u64,
         space_name: &str,
     ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
-        Ok(PlanNodeEnum::ScanVertices(ScanVerticesNode::new(space_id, space_name)))
+        Ok(PlanNodeEnum::ScanVertices(ScanVerticesNode::new(
+            space_id, space_name,
+        )))
     }
 
     /// Create a node for scanning edges.

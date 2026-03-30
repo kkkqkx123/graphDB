@@ -547,11 +547,8 @@ impl Validator {
 
     /// Set schema manager for validators that need it
     pub fn set_schema_manager(&mut self, schema_manager: Arc<RedbSchemaManager>) {
-        match self {
-            Validator::Create(v) => {
-                v.set_schema_manager(schema_manager);
-            }
-            _ => {}
+        if let Validator::Create(v) = self {
+            v.set_schema_manager(schema_manager);
         }
     }
 
@@ -583,8 +580,12 @@ impl Validator {
             Stmt::Subgraph(_) => StatementType::GetSubgraph,
             Stmt::FindPath(_) => StatementType::FindPath,
             Stmt::Insert(insert_stmt) => match &insert_stmt.target {
-                crate::query::parser::ast::stmt::InsertTarget::Vertices { .. } => StatementType::InsertVertices,
-                crate::query::parser::ast::stmt::InsertTarget::Edge { .. } => StatementType::InsertEdges,
+                crate::query::parser::ast::stmt::InsertTarget::Vertices { .. } => {
+                    StatementType::InsertVertices
+                }
+                crate::query::parser::ast::stmt::InsertTarget::Edge { .. } => {
+                    StatementType::InsertEdges
+                }
             },
             Stmt::Merge(_) => StatementType::Merge,
             Stmt::Unwind(_) => StatementType::Unwind,

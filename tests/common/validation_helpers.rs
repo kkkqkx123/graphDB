@@ -10,7 +10,7 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::common::TestStorage;
+
 
 /// Data validation helper for verifying storage state
 pub struct ValidationHelper<S: graphdb::storage::StorageClient + 'static> {
@@ -41,11 +41,7 @@ impl<S: graphdb::storage::StorageClient + 'static> ValidationHelper<S> {
     }
 
     /// Get vertex properties
-    pub fn get_vertex_props(
-        &mut self,
-        vid: i64,
-        tag: &str,
-    ) -> DBResult<HashMap<String, Value>> {
+    pub fn get_vertex_props(&mut self, vid: i64, tag: &str) -> DBResult<HashMap<String, Value>> {
         let query = format!("FETCH PROP ON {} {}", tag, vid);
         let result = self.pipeline.execute_query(&query)?;
 
@@ -106,12 +102,7 @@ impl<S: graphdb::storage::StorageClient + 'static> ValidationHelper<S> {
     // ==================== Edge Validation ====================
 
     /// Check if an edge exists
-    pub fn edge_exists(
-        &mut self,
-        src: i64,
-        dst: i64,
-        edge_type: &str,
-    ) -> DBResult<bool> {
+    pub fn edge_exists(&mut self, src: i64, dst: i64, edge_type: &str) -> DBResult<bool> {
         let query = format!("FETCH PROP ON {} {} -> {}", edge_type, src, dst);
         let result = self.pipeline.execute_query(&query)?;
         Ok(result.count() > 0)
@@ -246,8 +237,6 @@ impl<S: graphdb::storage::StorageClient + 'static> ValidationHelper<S> {
         expected_type: &str,
     ) -> DBResult<bool> {
         let schema = self.get_tag_schema(tag)?;
-        Ok(schema
-            .iter()
-            .any(|(f, t)| f == field && t == expected_type))
+        Ok(schema.iter().any(|(f, t)| f == field && t == expected_type))
     }
 }

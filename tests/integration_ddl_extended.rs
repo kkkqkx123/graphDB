@@ -43,7 +43,8 @@ fn test_create_tag_with_various_types() {
     TestScenario::new()
         .expect("Failed to create test scenario")
         .setup_space("test_space")
-        .exec_ddl(r#"
+        .exec_ddl(
+            r#"
             CREATE TAG TestTypes(
                 name STRING,
                 age INT,
@@ -52,7 +53,8 @@ fn test_create_tag_with_various_types() {
                 created_at TIMESTAMP,
                 data BINARY
             )
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_tag_exists("TestTypes")
         .exec_ddl("DESC TAG TestTypes")

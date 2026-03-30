@@ -7,12 +7,12 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::core::error::DBResult;
+use crate::query::core::NodeType;
 use crate::query::executor::base::{
     BaseExecutor, DBResult as ExecutorDBResult, ExecutionResult, Executor, ExecutorStats,
 };
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::parser::ast::stmt::ExplainFormat;
-use crate::query::core::NodeType;
 use crate::query::planning::plan::core::explain::{
     DescribeVisitor, PlanDescription, ProfilingStats,
 };
@@ -21,8 +21,8 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 use super::execution_stats_context::{ExecutionStatsContext, NodeExecutionStats};
+use super::format::{format_plan_as_dot, format_plan_as_table};
 use super::instrumented_executor::InstrumentedExecutor;
-use super::format::{format_plan_as_table, format_plan_as_dot};
 
 /// Explain execution mode
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -43,7 +43,6 @@ pub struct ExplainExecutor<S: StorageClient> {
     inner_plan: ExecutionPlan,
     format: ExplainFormat,
     mode: ExplainMode,
-    plan_description: Option<PlanDescription>,
 }
 
 impl<S: StorageClient + Send + 'static> ExplainExecutor<S> {
@@ -58,7 +57,6 @@ impl<S: StorageClient + Send + 'static> ExplainExecutor<S> {
             inner_plan,
             format,
             mode,
-            plan_description: None,
         }
     }
 
@@ -82,16 +80,23 @@ impl<S: StorageClient + Send + 'static> ExplainExecutor<S> {
     }
 
     /// Execute the inner plan with instrumentation
-    fn execute_with_instrumentation(&mut self) -> DBResult<(ExecutionResult, Arc<ExecutionStatsContext>)> {
+    fn execute_with_instrumentation(
+        &mut self,
+    ) -> DBResult<(ExecutionResult, Arc<ExecutionStatsContext>)> {
         let stats_context = Arc::new(ExecutionStatsContext::new());
 
         let exec_result = if let Some(ref root) = self.inner_plan.root {
             let mut factory = ExecutorFactory::with_storage(self.get_storage().clone());
-            let context = crate::query::executor::base::ExecutionContext::new(
-                std::sync::Arc::new(ExpressionAnalysisContext::new())
-            );
-            let executor = factory.create_executor(root, self.get_storage().clone(), &context)
-                .map_err(|e| crate::core::error::DBError::from(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
+            let context = crate::query::executor::base::ExecutionContext::new(std::sync::Arc::new(
+                ExpressionAnalysisContext::new(),
+            ));
+            let executor = factory
+                .create_executor(root, self.get_storage().clone(), &context)
+                .map_err(|e| {
+                    crate::core::error::DBError::from(
+                        crate::core::error::QueryError::ExecutionError(e.to_string()),
+                    )
+                })?;
 
             let mut instrumented = InstrumentedExecutor::new(
                 executor,
@@ -162,10 +167,12 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExplainExecutor<S> {
             ExplainMode::PlanOnly => {
                 let plan_desc = self.generate_plan_description()?;
                 let output = self.format_output(&plan_desc);
-                Ok(ExecutionResult::from_result(crate::core::query_result::Result::from_rows(
-                    vec![vec![crate::core::value::Value::String(output)]],
-                    vec!["plan".to_string()],
-                )))
+                Ok(ExecutionResult::from_result(
+                    crate::core::query_result::Result::from_rows(
+                        vec![vec![crate::core::value::Value::String(output)]],
+                        vec!["plan".to_string()],
+                    ),
+                ))
             }
 
             ExplainMode::Analyze => {
@@ -187,10 +194,12 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExplainExecutor<S> {
                     output, planning_time, execution_time_ms, total_time
                 );
 
-                Ok(ExecutionResult::from_result(crate::core::query_result::Result::from_rows(
-                    vec![vec![crate::core::value::Value::String(full_output)]],
-                    vec!["plan".to_string()],
-                )))
+                Ok(ExecutionResult::from_result(
+                    crate::core::query_result::Result::from_rows(
+                        vec![vec![crate::core::value::Value::String(full_output)]],
+                        vec!["plan".to_string()],
+                    ),
+                ))
             }
         }
     }

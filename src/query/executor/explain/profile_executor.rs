@@ -8,12 +8,10 @@ use std::time::Instant;
 
 use crate::core::error::DBResult as ExecutorDBResult;
 use crate::core::{DataSet, Value};
-use crate::query::executor::base::{
-    BaseExecutor, ExecutionResult, Executor, ExecutorStats,
-};
+use crate::query::core::NodeType;
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, ExecutorStats};
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::parser::ast::stmt::ExplainFormat;
-use crate::query::core::NodeType;
 use crate::query::planning::plan::core::explain::{
     DescribeVisitor, PlanDescription, ProfilingStats,
 };
@@ -34,11 +32,7 @@ pub struct ProfileExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient + Send + 'static> ProfileExecutor<S> {
-    pub fn new(
-        base: BaseExecutor<S>,
-        inner_plan: ExecutionPlan,
-        format: ExplainFormat,
-    ) -> Self {
+    pub fn new(base: BaseExecutor<S>, inner_plan: ExecutionPlan, format: ExplainFormat) -> Self {
         Self {
             base,
             inner_plan,
@@ -70,16 +64,23 @@ impl<S: StorageClient + Send + 'static> ProfileExecutor<S> {
     }
 
     /// Execute the inner plan with full instrumentation
-    fn execute_profiled(&mut self) -> ExecutorDBResult<(ExecutionResult, Arc<ExecutionStatsContext>)> {
+    fn execute_profiled(
+        &mut self,
+    ) -> ExecutorDBResult<(ExecutionResult, Arc<ExecutionStatsContext>)> {
         let stats_context = Arc::new(ExecutionStatsContext::new());
 
         let _exec_result = if let Some(ref root) = self.inner_plan.root {
             let mut factory = ExecutorFactory::with_storage(self.get_storage().clone());
-            let context = crate::query::executor::base::ExecutionContext::new(
-                std::sync::Arc::new(crate::query::validator::context::ExpressionAnalysisContext::new())
-            );
-            let executor = factory.create_executor(root, self.get_storage().clone(), &context)
-                .map_err(|e| crate::core::error::DBError::from(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
+            let context = crate::query::executor::base::ExecutionContext::new(std::sync::Arc::new(
+                crate::query::validator::context::ExpressionAnalysisContext::new(),
+            ));
+            let executor = factory
+                .create_executor(root, self.get_storage().clone(), &context)
+                .map_err(|e| {
+                    crate::core::error::DBError::from(
+                        crate::core::error::QueryError::ExecutionError(e.to_string()),
+                    )
+                })?;
 
             let mut instrumented = InstrumentedExecutor::new(
                 executor,
@@ -104,7 +105,10 @@ impl<S: StorageClient + Send + 'static> ProfileExecutor<S> {
     fn attach_execution_stats(
         &self,
         plan_desc: &mut PlanDescription,
-        node_stats: &std::collections::HashMap<i64, super::execution_stats_context::NodeExecutionStats>,
+        node_stats: &std::collections::HashMap<
+            i64,
+            super::execution_stats_context::NodeExecutionStats,
+        >,
     ) {
         for (node_id, stats) in node_stats {
             if let Some(node_desc) = plan_desc.get_node_desc_mut(*node_id) {
@@ -151,19 +155,19 @@ impl<S: StorageClient + Send + 'static> ProfileExecutor<S> {
             let deps = node_desc
                 .dependencies
                 .as_ref()
-                .map(|d| d.iter().map(|id| id.to_string()).collect::<Vec<_>>().join(", "))
+                .map(|d| {
+                    d.iter()
+                        .map(|id| id.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                })
                 .unwrap_or_default();
             dependencies.push(Value::String(deps));
 
             let profile_str = if let Some(ref profiles) = node_desc.profiles {
                 profiles
                     .iter()
-                    .map(|p| {
-                        format!(
-                            "rows: {}, exec_time: {}us",
-                            p.rows, p.exec_duration_in_us
-                        )
-                    })
+                    .map(|p| format!("rows: {}, exec_time: {}us", p.rows, p.exec_duration_in_us))
                     .collect::<Vec<_>>()
                     .join("; ")
             } else {
@@ -202,11 +206,25 @@ impl<S: StorageClient + Send + 'static> ProfileExecutor<S> {
                 .map(|(i, _)| {
                     use crate::core::value::NullType;
                     vec![
-                        ids.get(i).cloned().unwrap_or_else(|| Value::Null(NullType::Null)),
-                        names.get(i).cloned().unwrap_or_else(|| Value::Null(NullType::Null)),
-                        dependencies.get(i).cloned().unwrap_or_else(|| Value::Null(NullType::Null)),
-                        profiling_data.get(i).cloned().unwrap_or_else(|| Value::Null(NullType::Null)),
-                        operator_info.get(i).cloned().unwrap_or_else(|| Value::Null(NullType::Null)),
+                        ids.get(i)
+                            .cloned()
+                            .unwrap_or_else(|| Value::Null(NullType::Null)),
+                        names
+                            .get(i)
+                            .cloned()
+                            .unwrap_or_else(|| Value::Null(NullType::Null)),
+                        dependencies
+                            .get(i)
+                            .cloned()
+                            .unwrap_or_else(|| Value::Null(NullType::Null)),
+                        profiling_data
+                            .get(i)
+                            .cloned()
+                            .unwrap_or_else(|| Value::Null(NullType::Null)),
+                        operator_info
+                            .get(i)
+                            .cloned()
+                            .unwrap_or_else(|| Value::Null(NullType::Null)),
                     ]
                 })
                 .collect(),
@@ -224,7 +242,8 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ProfileExecutor<S> {
         let node_stats = stats_context.collect_stats();
         self.attach_execution_stats(&mut plan_desc, &node_stats);
 
-        let result_dataset = self.build_profile_result(&plan_desc, &stats_context, execution_time_ms);
+        let result_dataset =
+            self.build_profile_result(&plan_desc, &stats_context, execution_time_ms);
 
         Ok(ExecutionResult::DataSet(result_dataset))
     }

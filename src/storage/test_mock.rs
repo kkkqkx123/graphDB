@@ -28,8 +28,9 @@ pub struct MockStorage {
 #[cfg(test)]
 impl MockStorage {
     pub fn new() -> Result<Self, StorageError> {
-        let temp_dir = tempfile::tempdir()
-            .map_err(|e| StorageError::DbError(format!("Failed to create temporary directory: {}", e)))?;
+        let temp_dir = tempfile::tempdir().map_err(|e| {
+            StorageError::DbError(format!("Failed to create temporary directory: {}", e))
+        })?;
         let db_path = temp_dir.path().join("test_mock.db");
 
         let db = Arc::new(

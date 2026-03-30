@@ -49,6 +49,9 @@ use crate::query::planning::plan::core::nodes::control_flow::control_flow_node::
     ArgumentNode, LoopNode, PassThroughNode, SelectNode,
 };
 use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
+use crate::query::planning::plan::core::nodes::insert::insert_nodes::{
+    InsertEdgesNode, InsertVerticesNode,
+};
 use crate::query::planning::plan::core::nodes::management::edge_nodes::{
     AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
 };
@@ -66,7 +69,6 @@ use crate::query::planning::plan::core::nodes::management::tag_nodes::{
 use crate::query::planning::plan::core::nodes::management::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode,
 };
-use crate::query::planning::plan::core::nodes::insert::insert_nodes::{InsertEdgesNode, InsertVerticesNode};
 
 use crate::query::planning::plan::core::nodes::access::IndexScanNode;
 use crate::query::planning::plan::core::nodes::traversal::{

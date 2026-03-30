@@ -130,28 +130,28 @@ impl RedbStorage {
 
     /// Initialize the database tables
     fn initialize_tables(db: &Arc<Database>) -> Result<(), StorageError> {
-        let write_txn = db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(format!("Failed to start write transaction: {}", e)))?;
+        let write_txn = db.begin_write().map_err(|e| {
+            StorageError::DbError(format!("Failed to start write transaction: {}", e))
+        })?;
         {
             use crate::storage::redb_types::*;
             // Index-related tables
-            let _ = write_txn
-                .open_table(TAG_INDEXES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("Failed to open TAG_INDEXES_TABLE: {}", e)))?;
-            let _ = write_txn
-                .open_table(EDGE_INDEXES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("Failed to open EDGE_INDEXES_TABLE: {}", e)))?;
-            let _ = write_txn
-                .open_table(INDEX_DATA_TABLE)
-                .map_err(|e| StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e)))?;
+            let _ = write_txn.open_table(TAG_INDEXES_TABLE).map_err(|e| {
+                StorageError::DbError(format!("Failed to open TAG_INDEXES_TABLE: {}", e))
+            })?;
+            let _ = write_txn.open_table(EDGE_INDEXES_TABLE).map_err(|e| {
+                StorageError::DbError(format!("Failed to open EDGE_INDEXES_TABLE: {}", e))
+            })?;
+            let _ = write_txn.open_table(INDEX_DATA_TABLE).map_err(|e| {
+                StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e))
+            })?;
             // Schema-related tables
             let _ = write_txn
                 .open_table(TAGS_TABLE)
                 .map_err(|e| StorageError::DbError(format!("Failed to open TAGS_TABLE: {}", e)))?;
-            let _ = write_txn
-                .open_table(EDGE_TYPES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("Failed to open EDGE_TYPES_TABLE: {}", e)))?;
+            let _ = write_txn.open_table(EDGE_TYPES_TABLE).map_err(|e| {
+                StorageError::DbError(format!("Failed to open EDGE_TYPES_TABLE: {}", e))
+            })?;
             // Data storage table
             let _ = write_txn
                 .open_table(NODES_TABLE)
@@ -166,7 +166,10 @@ impl RedbStorage {
             let _ = write_txn
                 .open_table(EDGE_TYPE_ID_COUNTER_TABLE)
                 .map_err(|e| {
-                    StorageError::DbError(format!("Failed to open EDGE_TYPE_ID_COUNTER_TABLE: {}", e))
+                    StorageError::DbError(format!(
+                        "Failed to open EDGE_TYPE_ID_COUNTER_TABLE: {}",
+                        e
+                    ))
                 })?;
             let _ = write_txn.open_table(SPACE_NAME_INDEX_TABLE).map_err(|e| {
                 StorageError::DbError(format!("Failed to open SPACE_NAME_INDEX_TABLE: {}", e))
@@ -177,12 +180,18 @@ impl RedbStorage {
             let _ = write_txn
                 .open_table(EDGE_TYPE_NAME_INDEX_TABLE)
                 .map_err(|e| {
-                    StorageError::DbError(format!("Failed to open EDGE_TYPE_NAME_INDEX_TABLE: {}", e))
+                    StorageError::DbError(format!(
+                        "Failed to open EDGE_TYPE_NAME_INDEX_TABLE: {}",
+                        e
+                    ))
                 })?;
         }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(format!("Failed to commit initialization transaction: {}", e)))?;
+        write_txn.commit().map_err(|e| {
+            StorageError::DbError(format!(
+                "Failed to commit initialization transaction: {}",
+                e
+            ))
+        })?;
         Ok(())
     }
 
@@ -945,7 +954,8 @@ mod tests {
 
         assert!(!db_path.exists(), "The database file should not exist.");
 
-        let storage = RedbStorage::new_with_path(db_path.clone()).expect("Storage creation should succeed");
+        let storage =
+            RedbStorage::new_with_path(db_path.clone()).expect("Storage creation should succeed");
 
         assert!(db_path.exists(), "The database files should be created.");
         assert_eq!(storage.db_path, db_path);
@@ -957,13 +967,14 @@ mod tests {
         let db_path = temp_dir.path().join("test_open.db");
 
         {
-            let _storage =
-                RedbStorage::new_with_path(db_path.clone()).expect("First storage creation should succeed");
+            let _storage = RedbStorage::new_with_path(db_path.clone())
+                .expect("First storage creation should succeed");
         }
 
         assert!(db_path.exists(), "The database file should exist.");
 
-        let storage2 = RedbStorage::new_with_path(db_path.clone()).expect("Opening existing database should succeed");
+        let storage2 = RedbStorage::new_with_path(db_path.clone())
+            .expect("Opening existing database should succeed");
 
         assert_eq!(storage2.db_path, db_path);
     }
@@ -974,14 +985,16 @@ mod tests {
         let db_path = temp_dir.path().join("test_corrupted.db");
 
         {
-            let _storage = RedbStorage::new_with_path(db_path.clone()).expect("Storage creation should succeed");
+            let _storage = RedbStorage::new_with_path(db_path.clone())
+                .expect("Storage creation should succeed");
         }
 
         assert!(db_path.exists(), "The database file should exist.");
 
         let mut file = fs::File::create(&db_path).expect("Failed to open file");
         use std::io::Write;
-        file.write_all(b"corrupted data").expect("Failed to write corrupted data");
+        file.write_all(b"corrupted data")
+            .expect("Failed to write corrupted data");
 
         let result = RedbStorage::new_with_path(db_path.clone());
 

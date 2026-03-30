@@ -23,7 +23,12 @@ pub fn format_plan_as_table(plan_desc: &PlanDescription) -> String {
         let deps = node
             .dependencies
             .as_ref()
-            .map(|d| d.iter().map(|id| id.to_string()).collect::<Vec<_>>().join(", "))
+            .map(|d| {
+                d.iter()
+                    .map(|id| id.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            })
             .unwrap_or_default();
         let deps = truncate_or_pad(&deps, 12);
 
@@ -136,8 +141,7 @@ mod tests {
     #[test]
     fn test_format_plan_as_table() {
         let mut plan_desc = PlanDescription::new();
-        let node = PlanNodeDescription::new("ScanVertices", 1)
-            .with_description("table", "Person");
+        let node = PlanNodeDescription::new("ScanVertices", 1).with_description("table", "Person");
         plan_desc.add_node_desc(node);
 
         let output = format_plan_as_table(&plan_desc);
@@ -148,8 +152,7 @@ mod tests {
     #[test]
     fn test_format_plan_as_dot() {
         let mut plan_desc = PlanDescription::new();
-        let node = PlanNodeDescription::new("ScanVertices", 1)
-            .with_description("table", "Person");
+        let node = PlanNodeDescription::new("ScanVertices", 1).with_description("table", "Person");
         plan_desc.add_node_desc(node);
 
         let output = format_plan_as_dot(&plan_desc);

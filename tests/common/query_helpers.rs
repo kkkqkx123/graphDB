@@ -9,8 +9,6 @@ use graphdb::query::query_pipeline_manager::QueryPipelineManager;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::common::TestStorage;
-
 /// Query execution helper
 pub struct QueryHelper<S: graphdb::storage::StorageClient + 'static> {
     pipeline: QueryPipelineManager<S>,
@@ -69,9 +67,10 @@ impl<S: graphdb::storage::StorageClient + 'static> QueryHelper<S> {
             ExecutionResult::Result(r) => Ok(r.rows().to_vec()),
             ExecutionResult::DataSet(ds) => Ok(ds.rows),
             ExecutionResult::Values(v) => Ok(vec![v]),
-            ExecutionResult::Vertices(v) => {
-                Ok(v.into_iter().map(|vertex| vec![Value::Vertex(Box::new(vertex))]).collect())
-            }
+            ExecutionResult::Vertices(v) => Ok(v
+                .into_iter()
+                .map(|vertex| vec![Value::Vertex(Box::new(vertex))])
+                .collect()),
             ExecutionResult::Edges(e) => {
                 Ok(e.into_iter().map(|edge| vec![Value::Edge(edge)]).collect())
             }
@@ -106,7 +105,7 @@ impl<S: graphdb::storage::StorageClient + 'static> QueryHelper<S> {
 }
 
 /// Trait for converting Value to specific types
-trait FromValue: Sized {
+pub trait FromValue: Sized {
     fn from_value(value: &Value) -> DBResult<Self>;
 }
 

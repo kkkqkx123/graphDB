@@ -41,7 +41,9 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
             let vid = vid_expr
                 .get_expression()
                 .and_then(|e| Self::evaluate_literal(&e))
-                .ok_or_else(|| QueryError::ExecutionError("顶点ID表达式不存在或不是字面量".to_string()))?;
+                .ok_or_else(|| {
+                    QueryError::ExecutionError("顶点ID表达式不存在或不是字面量".to_string())
+                })?;
 
             // Obtain the tag name
             let tag_names = node.tag_names();

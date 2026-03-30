@@ -14,11 +14,9 @@ mod common;
 use common::test_scenario::TestScenario;
 use common::TestStorage;
 use graphdb::core::stats::StatsManager;
-use graphdb::core::Value;
 use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::query::parser::Parser;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 // ==================== MATCH Statement Tests ====================
@@ -152,7 +150,11 @@ fn test_go_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "GO basic parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "GO basic parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("GO statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GO");
@@ -164,7 +166,11 @@ fn test_go_parser_with_steps() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "GO with steps parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "GO with steps parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("GO statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GO");
@@ -176,7 +182,11 @@ fn test_go_parser_reversely() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "GO reversely parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "GO reversely parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("GO statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GO");
@@ -188,7 +198,11 @@ fn test_go_parser_bidirect() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "GO bidirect parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "GO bidirect parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("GO statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GO");
@@ -210,7 +224,11 @@ fn test_go_parser_with_yield() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "GO with YIELD parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "GO with YIELD parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("GO statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GO");
@@ -222,7 +240,11 @@ fn test_go_parser_complex() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "GO complex query parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "GO complex query parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("GO statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GO");
@@ -278,7 +300,11 @@ fn test_lookup_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "LOOKUP basic parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "LOOKUP basic parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("LOOKUP statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "LOOKUP");
@@ -290,7 +316,11 @@ fn test_lookup_parser_with_yield() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "LOOKUP basic parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "LOOKUP basic parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("LOOKUP statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "LOOKUP");
@@ -302,7 +332,11 @@ fn test_lookup_parser_complex_condition() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "LOOKUP condition parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "LOOKUP condition parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("LOOKUP statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "LOOKUP");
@@ -358,7 +392,11 @@ fn test_fetch_parser_vertex() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "FETCH vertex parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "FETCH vertex parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("FETCH statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "FETCH");
@@ -386,7 +424,11 @@ fn test_fetch_parser_edge() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "FETCH edge parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "FETCH edge parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("FETCH statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "FETCH");
@@ -737,7 +779,11 @@ fn test_dql_error_handling() {
 
     for query in invalid_queries {
         let result = pipeline_manager.execute_query(query);
-        assert!(result.is_err(), "Invalid query should return error: {}", query);
+        assert!(
+            result.is_err(),
+            "Invalid query should return error: {}",
+            query
+        );
     }
 }
 
@@ -936,7 +982,11 @@ fn test_yield_with_where_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "GO with YIELD parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "GO with YIELD parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("GO statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GO");
@@ -948,7 +998,11 @@ fn test_yield_with_where_complex() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "GO with YIELD parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "GO with YIELD parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("GO statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GO");
@@ -960,7 +1014,11 @@ fn test_yield_with_limit() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "GO with YIELD parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "GO with YIELD parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("GO statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GO");
@@ -972,7 +1030,11 @@ fn test_yield_with_skip_limit() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "GO with YIELD parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "GO with YIELD parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("GO statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GO");
@@ -984,7 +1046,11 @@ fn test_yield_with_where_limit() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "GO with YIELD parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "GO with YIELD parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("GO statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GO");

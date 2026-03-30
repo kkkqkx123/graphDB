@@ -179,7 +179,11 @@ impl<S: StorageClient> SchemaApi<S> {
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
         if result {
-            log::info!("Altered tag successfully: {} in space {}", tag_name, space_id);
+            log::info!(
+                "Altered tag successfully: {} in space {}",
+                tag_name,
+                space_id
+            );
             Ok(())
         } else {
             Err(CoreError::NotFound(format!(

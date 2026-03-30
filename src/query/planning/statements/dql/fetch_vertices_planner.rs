@@ -56,14 +56,19 @@ impl Planner for FetchVerticesPlanner {
         let space_name = qctx.space_name().unwrap_or_else(|| "default".to_string());
 
         // Convert ids to comma-separated string for GetVerticesNode
-        let ids_str = ids.iter()
+        let ids_str = ids
+            .iter()
             .map(|ctx_expr| {
                 // Get the expression metadata from the contextual expression
                 if let Some(expr_meta) = ctx_expr.expression() {
                     let expr = expr_meta.inner();
                     match expr {
-                        crate::core::Expression::Literal(crate::core::Value::Int(i)) => i.to_string(),
-                        crate::core::Expression::Literal(crate::core::Value::String(s)) => s.clone(),
+                        crate::core::Expression::Literal(crate::core::Value::Int(i)) => {
+                            i.to_string()
+                        }
+                        crate::core::Expression::Literal(crate::core::Value::String(s)) => {
+                            s.clone()
+                        }
                         _ => expr.to_string(),
                     }
                 } else {

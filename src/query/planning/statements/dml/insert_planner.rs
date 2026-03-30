@@ -3,21 +3,25 @@
 //! Query planning for INSERT VERTEX and INSERT EDGE statements
 
 use crate::core::types::expr::contextual::ContextualExpression;
-use crate::core::YieldColumn;
-use crate::query::parser::ast::utils::ExprFactory;
 use crate::query::parser::ast::{InsertStmt, InsertTarget, Stmt, VertexRow};
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
     nodes::{
-        ArgumentNode, EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode,
-        TagInsertSpec, VertexInsertInfo,
+        ArgumentNode, EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, TagInsertSpec,
+        VertexInsertInfo,
     },
 };
 use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryContext;
 use std::sync::Arc;
+
+#[cfg(test)]
+use crate::core::YieldColumn;
+#[cfg(test)]
+use crate::query::parser::ast::utils::ExprFactory;
+#[cfg(test)]
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// Insert Operation Planner
 /// Responsible for converting INSERT statements into execution plans.
@@ -98,6 +102,7 @@ impl InsertPlanner {
     }
 
     /// Create columns for projecting the insertion results.
+    #[cfg(test)]
     fn create_yield_columns(
         &self,
         count: usize,
@@ -116,9 +121,7 @@ impl Planner for InsertPlanner {
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         // Obtain the space name
-        let space_name = qctx
-            .space_name()
-            .unwrap_or_else(|| "default".to_string());
+        let space_name = qctx.space_name().unwrap_or_else(|| "default".to_string());
 
         // Use the verification information to optimize the planning process.
         let validation_info = &validated.validation_info;

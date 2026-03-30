@@ -728,7 +728,7 @@ fn test_desc_execution_tag() {
         .assert_success()
         .query("DESCRIBE TAG Person")
         .assert_success()
-        .assert_result_count(2);  // One row per property (name and age)
+        .assert_result_count(2); // One row per property (name and age)
 }
 
 #[test]
@@ -740,7 +740,7 @@ fn test_desc_execution_edge() {
         .assert_success()
         .query("DESCRIBE EDGE KNOWS")
         .assert_success()
-        .assert_result_count(1);  // One row per property (since)
+        .assert_result_count(1); // One row per property (since)
 }
 
 // ==================== DDL Lifecycle Tests ====================
@@ -761,7 +761,9 @@ fn test_ddl_tag_lifecycle() {
         .exec_ddl("ALTER TAG TestTag ADD (email: STRING)")
         .assert_success()
         // Insert data
-        .exec_dml("INSERT VERTEX TestTag(name, age, email) VALUES 1:('Alice', 30, 'alice@test.com')")
+        .exec_dml(
+            "INSERT VERTEX TestTag(name, age, email) VALUES 1:('Alice', 30, 'alice@test.com')",
+        )
         .assert_success()
         .assert_vertex_exists(1, "TestTag")
         // Alter tag - drop property
@@ -791,7 +793,9 @@ fn test_ddl_edge_lifecycle() {
         .exec_ddl("ALTER EDGE TestEdge ADD (note: STRING)")
         .assert_success()
         // Insert edge
-        .exec_dml("INSERT EDGE TestEdge(since, weight, note) VALUES 1 -> 2:('2024-01-01', 1.0, 'test')")
+        .exec_dml(
+            "INSERT EDGE TestEdge(since, weight, note) VALUES 1 -> 2:('2024-01-01', 1.0, 'test')",
+        )
         .assert_success()
         .assert_edge_exists(1, 2, "TestEdge")
         // Alter edge - drop property
@@ -843,7 +847,11 @@ fn test_ddl_error_handling() {
 
     for query in invalid_queries {
         let result = pipeline_manager.execute_query(query);
-        assert!(result.is_err(), "Invalid query should return error: {}", query);
+        assert!(
+            result.is_err(),
+            "Invalid query should return error: {}",
+            query
+        );
     }
 }
 

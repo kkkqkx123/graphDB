@@ -17,7 +17,9 @@ pub mod instrumented_executor;
 pub mod profile_executor;
 
 // Re-export main types
-pub use execution_stats_context::{ExecutionStatsContext, NodeExecutionStats, GlobalExecutionStats};
+pub use execution_stats_context::{
+    ExecutionStatsContext, GlobalExecutionStats, NodeExecutionStats,
+};
 pub use explain_executor::{ExplainExecutor, ExplainMode};
 pub use instrumented_executor::{InstrumentedExecutor, InstrumentedExecutorFactory};
 pub use profile_executor::ProfileExecutor;

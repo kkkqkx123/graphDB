@@ -1,6 +1,9 @@
 //! Implementation of the PlanNode visitor pattern
 
 use super::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::insert::insert_nodes::{
+    InsertEdgesNode, InsertVerticesNode,
+};
 use crate::query::planning::plan::core::nodes::management::edge_nodes::{
     AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
 };
@@ -20,7 +23,6 @@ use crate::query::planning::plan::core::nodes::management::tag_nodes::{
 use crate::query::planning::plan::core::nodes::management::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode,
 };
-use crate::query::planning::plan::core::nodes::insert::insert_nodes::{InsertEdgesNode, InsertVerticesNode};
 
 pub use crate::query::planning::plan::core::nodes::access::graph_scan_node::{
     EdgeIndexScanNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode,

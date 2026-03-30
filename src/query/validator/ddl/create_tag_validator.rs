@@ -59,7 +59,11 @@ impl CreateTagValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &CreateStmt, qctx: &QueryContext) -> Result<(), ValidationError> {
+    fn validate_impl(
+        &mut self,
+        stmt: &CreateStmt,
+        qctx: &QueryContext,
+    ) -> Result<(), ValidationError> {
         match &stmt.target {
             CreateTarget::Tag {
                 name,

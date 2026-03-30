@@ -163,15 +163,23 @@ impl<S: StorageClient + Send + Sync + 'static> InsertExecutor<S> {
     fn do_execute(&mut self) -> DBResult<usize> {
         let mut total_inserted = 0;
 
-        println!("[InsertExecutor] Starting execution, space_name: {}", self.space_name);
+        println!(
+            "[InsertExecutor] Starting execution, space_name: {}",
+            self.space_name
+        );
 
         if let Some(vertices) = &self.vertex_data {
             println!("[InsertExecutor] Inserting {} vertices", vertices.len());
             let mut storage = self.get_storage().lock();
             for (idx, vertex) in vertices.iter().enumerate() {
-                println!("[InsertExecutor] Vertex {}: vid={:?}, tags={:?}", idx, vertex.vid, vertex.tags);
+                println!(
+                    "[InsertExecutor] Vertex {}: vid={:?}, tags={:?}",
+                    idx, vertex.vid, vertex.tags
+                );
                 // If IF NOT EXISTS is enabled, check whether the vertex already exists.
-                if self.if_not_exists && storage.get_vertex(&self.space_name, &vertex.vid)?.is_some() {
+                if self.if_not_exists
+                    && storage.get_vertex(&self.space_name, &vertex.vid)?.is_some()
+                {
                     // The vertex already exists; the insertion step will be skipped.
                     println!("[InsertExecutor] Vertex already exists, skipping");
                     continue;

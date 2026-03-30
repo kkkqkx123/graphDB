@@ -45,7 +45,10 @@ impl UserStorage {
             user.change_password(info.new_password.clone())?;
             Ok(true)
         } else {
-            Err(StorageError::DbError(format!("User {} does not exist", username)))
+            Err(StorageError::DbError(format!(
+                "User {} does not exist",
+                username
+            )))
         }
     }
 

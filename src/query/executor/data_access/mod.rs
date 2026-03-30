@@ -16,4 +16,4 @@ pub use neighbor::GetNeighborsExecutor;
 pub use path::AllPathsExecutor;
 pub use property::GetPropExecutor;
 pub use search::IndexScanExecutor;
-pub use vertex::{GetVerticesExecutor, ScanVerticesExecutor};
+pub use vertex::{GetVerticesExecutor, GetVerticesParams, ScanVerticesExecutor};

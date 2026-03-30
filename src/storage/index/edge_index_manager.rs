@@ -30,15 +30,14 @@ impl EdgeIndexManager {
         index_name: &str,
         props: &[(String, Value)],
     ) -> Result<(), StorageError> {
-        let txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(format!("Failed to start write transaction: {}", e)))?;
+        let txn = self.db.begin_write().map_err(|e| {
+            StorageError::DbError(format!("Failed to start write transaction: {}", e))
+        })?;
 
         {
-            let mut table = txn
-                .open_table(INDEX_DATA_TABLE)
-                .map_err(|e| StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e)))?;
+            let mut table = txn.open_table(INDEX_DATA_TABLE).map_err(|e| {
+                StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e))
+            })?;
 
             for (prop_name, prop_value) in props {
                 let index_key = IndexKeyCodec::build_edge_index_key(
@@ -47,14 +46,18 @@ impl EdgeIndexManager {
 
                 table
                     .insert(index_key, ByteKey(prop_name.as_bytes().to_vec()))
-                    .map_err(|e| StorageError::DbError(format!("Failed to insert edge index data: {}", e)))?;
+                    .map_err(|e| {
+                        StorageError::DbError(format!("Failed to insert edge index data: {}", e))
+                    })?;
 
                 let reverse_key = IndexKeyCodec::build_edge_reverse_key(space_id, index_name, src)?;
                 let prop_value_bytes = IndexKeyCodec::serialize_value(prop_value)?;
                 let value_key = format!("{}:{}", prop_name, prop_value_bytes.len());
                 table
                     .insert(reverse_key, ByteKey(value_key.into_bytes()))
-                    .map_err(|e| StorageError::DbError(format!("Failed to insert edge reverse index: {}", e)))?;
+                    .map_err(|e| {
+                        StorageError::DbError(format!("Failed to insert edge reverse index: {}", e))
+                    })?;
             }
         }
 
@@ -72,15 +75,14 @@ impl EdgeIndexManager {
         dst: &Value,
         index_names: &[String],
     ) -> Result<(), StorageError> {
-        let txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(format!("Failed to start write transaction: {}", e)))?;
+        let txn = self.db.begin_write().map_err(|e| {
+            StorageError::DbError(format!("Failed to start write transaction: {}", e))
+        })?;
 
         {
-            let mut table = txn
-                .open_table(INDEX_DATA_TABLE)
-                .map_err(|e| StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e)))?;
+            let mut table = txn.open_table(INDEX_DATA_TABLE).map_err(|e| {
+                StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e))
+            })?;
 
             let src_bytes = IndexKeyCodec::serialize_value(src)?;
             let reverse_prefix = IndexKeyCodec::build_edge_reverse_prefix(space_id);
@@ -119,7 +121,10 @@ impl EdgeIndexManager {
                                     for (fwd_key, _) in table
                                         .range::<ByteKey>(&forward_key_start..&forward_key_end)
                                         .map_err(|e| {
-                                            StorageError::DbError(format!("Range query failed: {}", e))
+                                            StorageError::DbError(format!(
+                                                "Range query failed: {}",
+                                                e
+                                            ))
                                         })?
                                         .flatten()
                                     {
@@ -173,15 +178,15 @@ impl EdgeIndexManager {
             }
 
             for key in &reverse_keys_to_delete {
-                table
-                    .remove(key)
-                    .map_err(|e| StorageError::DbError(format!("Failed to delete reverse index: {}", e)))?;
+                table.remove(key).map_err(|e| {
+                    StorageError::DbError(format!("Failed to delete reverse index: {}", e))
+                })?;
             }
 
             for key in &forward_keys_to_delete {
-                table
-                    .remove(key)
-                    .map_err(|e| StorageError::DbError(format!("Failed to delete forward index: {}", e)))?;
+                table.remove(key).map_err(|e| {
+                    StorageError::DbError(format!("Failed to delete forward index: {}", e))
+                })?;
             }
         }
 
@@ -198,14 +203,13 @@ impl EdgeIndexManager {
         index: &Index,
         value: &Value,
     ) -> Result<Vec<Value>, StorageError> {
-        let txn = self
-            .db
-            .begin_read()
-            .map_err(|e| StorageError::DbError(format!("Failed to start read transaction: {}", e)))?;
+        let txn = self.db.begin_read().map_err(|e| {
+            StorageError::DbError(format!("Failed to start read transaction: {}", e))
+        })?;
 
-        let table = txn
-            .open_table(INDEX_DATA_TABLE)
-            .map_err(|e| StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e)))?;
+        let table = txn.open_table(INDEX_DATA_TABLE).map_err(|e| {
+            StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e))
+        })?;
 
         let prefix = IndexKeyCodec::build_edge_index_prefix(space_id, &index.name);
         let end = IndexKeyCodec::build_range_end(&prefix);
@@ -259,15 +263,14 @@ impl EdgeIndexManager {
 
     /// Clear the side index.
     pub fn clear_edge_index(&self, space_id: u64, index_name: &str) -> Result<(), StorageError> {
-        let txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(format!("Failed to start write transaction: {}", e)))?;
+        let txn = self.db.begin_write().map_err(|e| {
+            StorageError::DbError(format!("Failed to start write transaction: {}", e))
+        })?;
 
         {
-            let mut table = txn
-                .open_table(INDEX_DATA_TABLE)
-                .map_err(|e| StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e)))?;
+            let mut table = txn.open_table(INDEX_DATA_TABLE).map_err(|e| {
+                StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e))
+            })?;
 
             let prefix = IndexKeyCodec::build_edge_index_prefix(space_id, index_name);
             let end = IndexKeyCodec::build_range_end(&prefix);

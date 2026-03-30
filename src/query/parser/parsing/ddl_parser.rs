@@ -790,7 +790,10 @@ impl DdlParser {
                     }
                     _ => Err(ParseError::new(
                         ParseErrorKind::SyntaxError,
-                        format!("Expected number after minus sign, found {:?}", inner_token_kind),
+                        format!(
+                            "Expected number after minus sign, found {:?}",
+                            inner_token_kind
+                        ),
                         ctx.current_position(),
                     )),
                 }

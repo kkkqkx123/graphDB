@@ -9,9 +9,8 @@ use std::sync::OnceLock;
 /// Validates that a path uses the correct axum 0.7+ syntax `{param}` instead of `:param`
 pub fn validate_path(path: &str) -> Result<(), PathValidationError> {
     static OLD_SYNTAX_REGEX: OnceLock<Regex> = OnceLock::new();
-    let regex = OLD_SYNTAX_REGEX.get_or_init(|| {
-        Regex::new(r":([a-zA-Z_][a-zA-Z0-9_]*)").expect("Invalid regex pattern")
-    });
+    let regex = OLD_SYNTAX_REGEX
+        .get_or_init(|| Regex::new(r":([a-zA-Z_][a-zA-Z0-9_]*)").expect("Invalid regex pattern"));
 
     if let Some(captures) = regex.captures(path) {
         let param_name = captures.get(1).map(|m| m.as_str()).unwrap_or("");

@@ -32,7 +32,12 @@ impl<S: StorageClient> ShowCreateTagExecutor<S> {
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "ShowCreateTagExecutor".to_string(), storage, expr_context),
+            base: BaseExecutor::new(
+                id,
+                "ShowCreateTagExecutor".to_string(),
+                storage,
+                expr_context,
+            ),
             space_name,
             tag_name,
         }

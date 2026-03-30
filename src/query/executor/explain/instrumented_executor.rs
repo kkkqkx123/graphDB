@@ -6,9 +6,7 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::query::executor::base::{
-    DBResult, ExecutionResult, Executor, ExecutorStats,
-};
+use crate::query::executor::base::{DBResult, ExecutionResult, Executor, ExecutorStats};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::storage::StorageClient;
 
@@ -65,23 +63,24 @@ impl<S: StorageClient + Send + 'static> Executor<S> for InstrumentedExecutor<S> 
         let elapsed = start.elapsed();
         self.stats.actual_time_ms = elapsed.as_micros() as f64 / 1000.0;
 
-        match &result {
-            Ok(exec_result) => {
-                self.row_count = exec_result.count();
-                self.stats.actual_rows = self.row_count;
+        if let Ok(exec_result) = &result {
+            self.row_count = exec_result.count();
+            self.stats.actual_rows = self.row_count;
 
-                if self.first_row_time.is_none() && self.row_count > 0 {
-                    self.first_row_time = Some(Instant::now());
-                    self.stats.startup_time_ms =
-                        self.first_row_time.unwrap().duration_since(start).as_micros() as f64
-                            / 1000.0;
-                }
+            if self.first_row_time.is_none() && self.row_count > 0 {
+                self.first_row_time = Some(Instant::now());
+                self.stats.startup_time_ms = self
+                    .first_row_time
+                    .unwrap()
+                    .duration_since(start)
+                    .as_micros() as f64
+                    / 1000.0;
             }
-            Err(_) => {}
         }
 
         self.collect_inner_stats();
-        self.context.on_node_complete(self.node_id, self.stats.clone());
+        self.context
+            .on_node_complete(self.node_id, self.stats.clone());
 
         result
     }

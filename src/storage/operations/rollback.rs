@@ -170,7 +170,10 @@ impl<'a> StorageRollbackExecutor<'a> {
             return Ok(Value::String(s.to_string()));
         }
 
-        Err(StorageError::DbError(format!("Failed to parse Value format: {}", s)))
+        Err(StorageError::DbError(format!(
+            "Failed to parse Value format: {}",
+            s
+        )))
     }
 }
 
@@ -496,7 +499,8 @@ mod tests {
                 properties: HashMap::new(),
             }],
         );
-        let vertex1_bytes = encode_to_vec(&vertex1, standard()).expect("Vertex serialization failed");
+        let vertex1_bytes =
+            encode_to_vec(&vertex1, standard()).expect("Vertex serialization failed");
 
         let vertex2 = Vertex::new(
             Value::Int(2),
@@ -505,7 +509,8 @@ mod tests {
                 properties: HashMap::new(),
             }],
         );
-        let vertex2_bytes = encode_to_vec(&vertex2, standard()).expect("Vertex serialization failed");
+        let vertex2_bytes =
+            encode_to_vec(&vertex2, standard()).expect("Vertex serialization failed");
 
         ctx.add_log(OperationLog::InsertVertex {
             space: "test".to_string(),

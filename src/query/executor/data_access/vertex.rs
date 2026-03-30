@@ -9,6 +9,27 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
+/// Parameters for creating GetVerticesExecutor
+pub struct GetVerticesParams {
+    pub space_name: String,
+    pub vertex_ids: Option<Vec<Value>>,
+    pub tag_filter: Option<crate::core::Expression>,
+    pub vertex_filter: Option<crate::core::Expression>,
+    pub limit: Option<usize>,
+}
+
+impl GetVerticesParams {
+    pub fn new(space_name: String) -> Self {
+        Self {
+            space_name,
+            vertex_ids: None,
+            tag_filter: None,
+            vertex_filter: None,
+            limit: None,
+        }
+    }
+}
+
 pub struct GetVerticesExecutor<S: StorageClient + 'static> {
     base: BaseExecutor<S>,
     space_name: String,
@@ -22,20 +43,16 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
-        space_name: String,
-        vertex_ids: Option<Vec<Value>>,
-        tag_filter: Option<crate::core::Expression>,
-        vertex_filter: Option<crate::core::Expression>,
-        limit: Option<usize>,
+        params: GetVerticesParams,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "GetVerticesExecutor".to_string(), storage, expr_context),
-            space_name,
-            vertex_ids,
-            tag_filter,
-            vertex_filter,
-            limit,
+            space_name: params.space_name,
+            vertex_ids: params.vertex_ids,
+            tag_filter: params.tag_filter,
+            vertex_filter: params.vertex_filter,
+            limit: params.limit,
         }
     }
 }
@@ -96,8 +113,10 @@ impl<S: StorageClient> HasStorage<S> for GetVerticesExecutor<S> {
 
 impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Vertex>> {
-        println!("[GetVerticesExecutor] do_execute called, space_name: {}, vertex_ids: {:?}",
-            self.space_name, self.vertex_ids);
+        println!(
+            "[GetVerticesExecutor] do_execute called, space_name: {}, vertex_ids: {:?}",
+            self.space_name, self.vertex_ids
+        );
 
         match &self.vertex_ids {
             Some(ids) if ids.len() > 1 => {
@@ -144,11 +163,17 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                     log::warn!("获取顶点失败: {} 个", failed_count);
                 }
 
-                println!("[GetVerticesExecutor] Returning {} vertices", result_vertices.len());
+                println!(
+                    "[GetVerticesExecutor] Returning {} vertices",
+                    result_vertices.len()
+                );
                 Ok(result_vertices)
             }
             Some(ids) if ids.len() == 1 => {
-                println!("[GetVerticesExecutor] Looking up single vertex with ID: {:?}", ids[0]);
+                println!(
+                    "[GetVerticesExecutor] Looking up single vertex with ID: {:?}",
+                    ids[0]
+                );
                 let storage = self.get_storage().lock();
 
                 match storage.get_vertex(&self.space_name, &ids[0]) {
@@ -157,7 +182,10 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                         Ok(vec![vertex])
                     }
                     Ok(None) => {
-                        println!("[GetVerticesExecutor] Single vertex not found: {:?}", ids[0]);
+                        println!(
+                            "[GetVerticesExecutor] Single vertex not found: {:?}",
+                            ids[0]
+                        );
                         Ok(vec![])
                     }
                     Err(e) => {

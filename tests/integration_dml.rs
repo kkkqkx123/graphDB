@@ -719,7 +719,10 @@ fn test_merge_parser_both() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("MERGE with ON MATCH and ON CREATE parsing result: {:?}", result);
+    println!(
+        "MERGE with ON MATCH and ON CREATE parsing result: {:?}",
+        result
+    );
     let _ = result;
 }
 
@@ -915,11 +918,7 @@ fn test_dml_crud_operations() {
         // Update
         .exec_dml("UPDATE 1 SET age = 31")
         .assert_success()
-        .assert_vertex_props(
-            1,
-            "Person",
-            HashMap::from([("age", Value::Int(31))]),
-        )
+        .assert_vertex_props(1, "Person", HashMap::from([("age", Value::Int(31))]))
         // Delete
         .exec_dml("DELETE VERTEX 1")
         .assert_success()
@@ -971,7 +970,11 @@ fn test_dml_error_handling() {
 
     for query in invalid_queries {
         let result = pipeline_manager.execute_query(query);
-        assert!(result.is_err(), "Invalid query should return error: {}", query);
+        assert!(
+            result.is_err(),
+            "Invalid query should return error: {}",
+            query
+        );
     }
 }
 

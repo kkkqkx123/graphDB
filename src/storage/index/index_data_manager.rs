@@ -272,15 +272,14 @@ impl IndexDataManager for RedbIndexDataManager {
         index: &Index,
         edge: &Edge,
     ) -> Result<(), StorageError> {
-        let txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(format!("Failed to start write transaction: {}", e)))?;
+        let txn = self.db.begin_write().map_err(|e| {
+            StorageError::DbError(format!("Failed to start write transaction: {}", e))
+        })?;
 
         {
-            let mut table = txn
-                .open_table(INDEX_DATA_TABLE)
-                .map_err(|e| StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e)))?;
+            let mut table = txn.open_table(INDEX_DATA_TABLE).map_err(|e| {
+                StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e))
+            })?;
 
             for field in &index.fields {
                 if let Some(prop_value) = edge.props.get(&field.name) {
@@ -294,7 +293,12 @@ impl IndexDataManager for RedbIndexDataManager {
 
                     table
                         .insert(index_key, ByteKey(field.name.as_bytes().to_vec()))
-                        .map_err(|e| StorageError::DbError(format!("Failed to insert edge index data: {}", e)))?;
+                        .map_err(|e| {
+                            StorageError::DbError(format!(
+                                "Failed to insert edge index data: {}",
+                                e
+                            ))
+                        })?;
 
                     let reverse_key =
                         IndexKeyCodec::build_edge_reverse_key(space_id, &index.name, &edge.src)?;
@@ -302,7 +306,12 @@ impl IndexDataManager for RedbIndexDataManager {
                     let value_key = format!("{}:{}", field.name, prop_value_bytes.len());
                     table
                         .insert(reverse_key, ByteKey(value_key.into_bytes()))
-                        .map_err(|e| StorageError::DbError(format!("Failed to insert edge reverse index: {}", e)))?;
+                        .map_err(|e| {
+                            StorageError::DbError(format!(
+                                "Failed to insert edge reverse index: {}",
+                                e
+                            ))
+                        })?;
                 }
             }
         }
@@ -334,15 +343,14 @@ impl IndexDataManager for RedbIndexDataManager {
         vertex_id: &Value,
         tag: &Tag,
     ) -> Result<(), StorageError> {
-        let txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(format!("Failed to start write transaction: {}", e)))?;
+        let txn = self.db.begin_write().map_err(|e| {
+            StorageError::DbError(format!("Failed to start write transaction: {}", e))
+        })?;
 
         {
-            let mut table = txn
-                .open_table(INDEX_DATA_TABLE)
-                .map_err(|e| StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e)))?;
+            let mut table = txn.open_table(INDEX_DATA_TABLE).map_err(|e| {
+                StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e))
+            })?;
 
             for field in &index.fields {
                 if let Some(prop_value) = tag.properties.get(&field.name) {
@@ -356,7 +364,10 @@ impl IndexDataManager for RedbIndexDataManager {
                     table
                         .insert(&index_key, ByteKey(field.name.as_bytes().to_vec()))
                         .map_err(|e| {
-                            StorageError::DbError(format!("Failed to insert vertex index data: {}", e))
+                            StorageError::DbError(format!(
+                                "Failed to insert vertex index data: {}",
+                                e
+                            ))
                         })?;
 
                     let reverse_key =
@@ -366,7 +377,10 @@ impl IndexDataManager for RedbIndexDataManager {
                     table
                         .insert(&reverse_key, ByteKey(value_key.into_bytes()))
                         .map_err(|e| {
-                            StorageError::DbError(format!("Failed to insert vertex reverse index: {}", e))
+                            StorageError::DbError(format!(
+                                "Failed to insert vertex reverse index: {}",
+                                e
+                            ))
                         })?;
                 }
             }

@@ -111,20 +111,24 @@ fn test_relationship_crud_flow() {
         .exec_ddl("CREATE EDGE FOLLOWS(since DATE)")
         .assert_success()
         // Create persons
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX Person(name) VALUES 
                 1:('Alice'),
                 2:('Bob'),
                 3:('Charlie')
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_vertex_count("Person", 3)
         // Create relationships
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT EDGE FOLLOWS(since) VALUES 
                 1 -> 2:('2020-01-01'),
                 1 -> 3:('2021-01-01')
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_edge_count("FOLLOWS", 2)
         // Query relationships
@@ -170,11 +174,13 @@ fn test_ecommerce_order_flow() {
         .exec_dml("INSERT VERTEX Customer(name, email) VALUES 1:('John Doe', 'john@example.com')")
         .assert_success()
         // Insert products
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX Product(name, price, stock) VALUES 
                 101:('Laptop', 999.99, 10),
                 102:('Mouse', 29.99, 50)
-        "#)
+        "#,
+        )
         .assert_success()
         // Create order
         .exec_dml("INSERT VERTEX Order(order_date, total) VALUES 1001:('2024-01-15', 1029.98)")
@@ -183,11 +189,13 @@ fn test_ecommerce_order_flow() {
         .exec_dml("INSERT EDGE PURCHASED(quantity) VALUES 1 -> 1001:(1)")
         .assert_success()
         // Link order to products
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT EDGE CONTAINS(quantity, price) VALUES 
                 1001 -> 101:(1, 999.99),
                 1001 -> 102:(1, 29.99)
-        "#)
+        "#,
+        )
         .assert_success()
         // Update product stock
         .exec_dml("UPDATE 101 SET stock = stock - 1")
@@ -206,11 +214,13 @@ fn test_ecommerce_order_flow() {
             map
         })
         // Query order details
-        .query(r#"
+        .query(
+            r#"
             MATCH (c:Customer)-[:PURCHASED]->(o:Order)-[:CONTAINS]->(p:Product)
             WHERE c.name == 'John Doe'
             RETURN o.order_date, p.name, p.price
-        "#)
+        "#,
+        )
         .assert_result_count(2);
 }
 
@@ -222,40 +232,48 @@ fn test_social_network_complete_flow() {
         .expect("Failed to create test scenario")
         .setup_space("social_network")
         // Schema
-        .exec_ddl(r#"
+        .exec_ddl(
+            r#"
             CREATE TAG Person(
                 name STRING,
                 age INT,
                 city STRING,
                 join_date DATE
             )
-        "#)
+        "#,
+        )
         .assert_success()
-        .exec_ddl(r#"
+        .exec_ddl(
+            r#"
             CREATE EDGE KNOWS(
                 since DATE,
                 strength DOUBLE
             )
-        "#)
+        "#,
+        )
         .assert_success()
         // Create users
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX Person(name, age, city, join_date) VALUES 
                 1:('Alice', 30, 'NYC', '2020-01-01'),
                 2:('Bob', 25, 'LA', '2020-06-01'),
                 3:('Charlie', 35, 'NYC', '2021-01-01'),
                 4:('David', 28, 'LA', '2021-06-01')
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_vertex_count("Person", 4)
         // Create friendships
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT EDGE KNOWS(since, strength) VALUES 
                 1 -> 2:('2020-06-01', 0.9),
                 1 -> 3:('2021-01-01', 0.8),
                 2 -> 4:('2021-06-01', 0.7),
                 3 -> 4:('2022-01-01', 0.9)
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_edge_count("KNOWS", 4)
         // Query: Find all people in NYC
@@ -295,13 +313,15 @@ fn test_index_query_flow() {
         .exec_ddl("CREATE TAG User(username STRING, age INT)")
         .assert_success()
         // Insert data
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX User(username, age) VALUES 
                 1:('user1', 25),
                 2:('user2', 30),
                 3:('user3', 25),
                 4:('user4', 35)
-        "#)
+        "#,
+        )
         .assert_success()
         // Query without index (full scan)
         .query("MATCH (u:User) WHERE u.age == 25 RETURN u.username")
@@ -337,14 +357,16 @@ fn test_batch_operations_flow() {
         .exec_ddl("CREATE TAG Item(name STRING, category STRING, price DOUBLE)")
         .assert_success()
         // Batch insert
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX Item(name, category, price) VALUES 
                 1:('Item1', 'A', 10.0),
                 2:('Item2', 'A', 20.0),
                 3:('Item3', 'B', 30.0),
                 4:('Item4', 'B', 40.0),
                 5:('Item5', 'A', 50.0)
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_vertex_count("Item", 5)
         // Query by category
@@ -382,34 +404,42 @@ fn test_aggregation_flow() {
         .exec_ddl("CREATE TAG Order(order_id STRING, amount DOUBLE, status STRING)")
         .assert_success()
         // Insert orders
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX Order(order_id, amount, status) VALUES 
                 1:('ORD001', 100.0, 'completed'),
                 2:('ORD002', 200.0, 'completed'),
                 3:('ORD003', 150.0, 'pending'),
                 4:('ORD004', 300.0, 'completed'),
                 5:('ORD005', 50.0, 'cancelled')
-        "#)
+        "#,
+        )
         .assert_success()
         // Count by status
-        .query(r#"
+        .query(
+            r#"
             MATCH (o:Order)
             RETURN o.status, count(*) AS count
             ORDER BY count DESC
-        "#)
+        "#,
+        )
         .assert_result_count(3)
         // Sum by status
-        .query(r#"
+        .query(
+            r#"
             MATCH (o:Order)
             WHERE o.status == 'completed'
             RETURN sum(o.amount) AS total_completed
-        "#)
+        "#,
+        )
         .assert_success()
         // Average amount
-        .query(r#"
+        .query(
+            r#"
             MATCH (o:Order)
             WHERE o.status == 'completed'
             RETURN avg(o.amount) AS avg_amount
-        "#)
+        "#,
+        )
         .assert_success();
 }

@@ -33,7 +33,10 @@ mod server_main {
                 let cfg = match Config::load(&config) {
                     Ok(cfg) => cfg,
                     Err(e) => {
-                        eprintln!("Failed to load configuration file: {}, using default configuration", e);
+                        eprintln!(
+                            "Failed to load configuration file: {}, using default configuration",
+                            e
+                        );
                         Config::default()
                     }
                 };

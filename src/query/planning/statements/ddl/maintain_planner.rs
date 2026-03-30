@@ -3,13 +3,15 @@
 
 use crate::query::parser::ast::{AlterTarget, CreateTarget, IndexType, ShowTarget, Stmt};
 use crate::query::planning::plan::core::nodes::management::index_nodes::IndexManageInfo;
-use crate::query::planning::plan::core::nodes::management::space_nodes::{CreateSpaceNode, SpaceManageInfo};
+use crate::query::planning::plan::core::nodes::management::space_nodes::{
+    CreateSpaceNode, SpaceManageInfo,
+};
+use crate::query::planning::plan::core::nodes::{
+    CreateEdgeNode, CreateTagNode, EdgeManageInfo, ShowCreateTagNode, TagManageInfo,
+};
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id, AlterSpaceNode, ArgumentNode, ClearSpaceNode, PlanNodeEnum,
     ProjectNode, ShowStatsNode, ShowStatsType,
-};
-use crate::query::planning::plan::core::nodes::{
-    CreateTagNode, CreateEdgeNode, TagManageInfo, EdgeManageInfo, ShowCreateTagNode,
 };
 use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
@@ -66,20 +68,21 @@ impl Planner for MaintainPlanner {
 
                 match &show_create_stmt.target {
                     crate::query::parser::ast::stmt::ShowCreateTarget::Tag(tag_name) => {
-                        let show_create_tag_node = ShowCreateTagNode::new(
-                            next_node_id(),
-                            current_space,
-                            tag_name.clone(),
-                        );
+                        let show_create_tag_node =
+                            ShowCreateTagNode::new(next_node_id(), current_space, tag_name.clone());
                         PlanNodeEnum::ShowCreateTag(show_create_tag_node)
                     }
                     _ => {
                         // Other SHOW CREATE targets use PassThrough nodes
-                        PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(1))
+                        PlanNodeEnum::PassThrough(
+                            crate::query::planning::plan::core::PassThroughNode::new(1),
+                        )
                     }
                 }
             } else {
-                PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(1))
+                PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(
+                    1,
+                ))
             }
         } else if stmt_type == "SUBMIT JOB" {
             // Maintenance operations for submitting assignment types
@@ -143,21 +146,16 @@ impl Planner for MaintainPlanner {
                         }
                     };
                     return Ok(SubPlan::from_single_node(plan_node));
-                } else if let CreateTarget::Space {
-                    name,
-                    vid_type,
-                    ..
-                } = &create_stmt.target
-                {
-                    let space_info = SpaceManageInfo::new(name.clone())
-                        .with_vid_type(vid_type.clone());
+                } else if let CreateTarget::Space { name, vid_type, .. } = &create_stmt.target {
+                    let space_info =
+                        SpaceManageInfo::new(name.clone()).with_vid_type(vid_type.clone());
 
                     let create_space_node = CreateSpaceNode::new(next_node_id(), space_info);
-                    return Ok(SubPlan::from_single_node(PlanNodeEnum::CreateSpace(create_space_node)));
+                    return Ok(SubPlan::from_single_node(PlanNodeEnum::CreateSpace(
+                        create_space_node,
+                    )));
                 } else if let CreateTarget::Tag {
-                    name,
-                    properties,
-                    ..
+                    name, properties, ..
                 } = &create_stmt.target
                 {
                     let space_name = validated
@@ -171,11 +169,11 @@ impl Planner for MaintainPlanner {
                         .with_properties(properties.clone());
 
                     let create_tag_node = CreateTagNode::new(next_node_id(), tag_info);
-                    return Ok(SubPlan::from_single_node(PlanNodeEnum::CreateTag(create_tag_node)));
+                    return Ok(SubPlan::from_single_node(PlanNodeEnum::CreateTag(
+                        create_tag_node,
+                    )));
                 } else if let CreateTarget::EdgeType {
-                    name,
-                    properties,
-                    ..
+                    name, properties, ..
                 } = &create_stmt.target
                 {
                     let space_name = validated
@@ -189,7 +187,9 @@ impl Planner for MaintainPlanner {
                         .with_properties(properties.clone());
 
                     let create_edge_node = CreateEdgeNode::new(next_node_id(), edge_info);
-                    return Ok(SubPlan::from_single_node(PlanNodeEnum::CreateEdge(create_edge_node)));
+                    return Ok(SubPlan::from_single_node(PlanNodeEnum::CreateEdge(
+                        create_edge_node,
+                    )));
                 }
             }
             // For other creation operations, use PassThrough nodes
@@ -217,10 +217,14 @@ impl Planner for MaintainPlanner {
                     PlanNodeEnum::AlterSpace(alter_space_node)
                 } else {
                     // For other ALTER operations, use PassThrough nodes
-                    PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(1))
+                    PlanNodeEnum::PassThrough(
+                        crate::query::planning::plan::core::PassThroughNode::new(1),
+                    )
                 }
             } else {
-                PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(1))
+                PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(
+                    1,
+                ))
             }
         } else if stmt_type == "CLEAR SPACE" {
             // Processing the CLEAR SPACE statement
@@ -229,7 +233,9 @@ impl Planner for MaintainPlanner {
                     ClearSpaceNode::new(next_node_id(), clear_stmt.space_name.clone());
                 PlanNodeEnum::ClearSpace(clear_space_node)
             } else {
-                PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(1))
+                PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(
+                    1,
+                ))
             }
         } else if stmt_type == "DESC" || stmt_type.starts_with("DESCRIBE") {
             // Processing DESC/DESCRIBE statements
@@ -243,44 +249,55 @@ impl Planner for MaintainPlanner {
                     .unwrap_or_default();
 
                 match &desc_stmt.target {
-                    crate::query::parser::ast::stmt::DescTarget::Tag { space_name, tag_name } => {
+                    crate::query::parser::ast::stmt::DescTarget::Tag {
+                        space_name,
+                        tag_name,
+                    } => {
                         // Use space_name from DESC statement if provided, otherwise use current space
                         let effective_space = if space_name.is_empty() {
                             current_space
                         } else {
                             space_name.clone()
                         };
-                        let desc_tag_node = crate::query::planning::plan::core::nodes::DescTagNode::new(
-                            next_node_id(),
-                            effective_space,
-                            tag_name.clone(),
-                        );
+                        let desc_tag_node =
+                            crate::query::planning::plan::core::nodes::DescTagNode::new(
+                                next_node_id(),
+                                effective_space,
+                                tag_name.clone(),
+                            );
                         PlanNodeEnum::DescTag(desc_tag_node)
                     }
-                    crate::query::parser::ast::stmt::DescTarget::Edge { space_name, edge_name } => {
+                    crate::query::parser::ast::stmt::DescTarget::Edge {
+                        space_name,
+                        edge_name,
+                    } => {
                         // Use space_name from DESC statement if provided, otherwise use current space
                         let effective_space = if space_name.is_empty() {
                             current_space
                         } else {
                             space_name.clone()
                         };
-                        let desc_edge_node = crate::query::planning::plan::core::nodes::DescEdgeNode::new(
-                            next_node_id(),
-                            effective_space,
-                            edge_name.clone(),
-                        );
+                        let desc_edge_node =
+                            crate::query::planning::plan::core::nodes::DescEdgeNode::new(
+                                next_node_id(),
+                                effective_space,
+                                edge_name.clone(),
+                            );
                         PlanNodeEnum::DescEdge(desc_edge_node)
                     }
                     crate::query::parser::ast::stmt::DescTarget::Space(space_name) => {
-                        let desc_space_node = crate::query::planning::plan::core::nodes::DescSpaceNode::new(
-                            next_node_id(),
-                            space_name.clone(),
-                        );
+                        let desc_space_node =
+                            crate::query::planning::plan::core::nodes::DescSpaceNode::new(
+                                next_node_id(),
+                                space_name.clone(),
+                            );
                         PlanNodeEnum::DescSpace(desc_space_node)
                     }
                 }
             } else {
-                PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(1))
+                PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(
+                    1,
+                ))
             }
         } else if stmt_type.starts_with("DROP") {
             // Processing DROP statements
@@ -295,11 +312,12 @@ impl Planner for MaintainPlanner {
                             .space_name
                             .clone()
                             .unwrap_or_default();
-                        let drop_tag_node = crate::query::planning::plan::core::nodes::DropTagNode::new(
-                            next_node_id(),
-                            current_space,
-                            tag_names[0].clone(),
-                        );
+                        let drop_tag_node =
+                            crate::query::planning::plan::core::nodes::DropTagNode::new(
+                                next_node_id(),
+                                current_space,
+                                tag_names[0].clone(),
+                            );
                         PlanNodeEnum::DropTag(drop_tag_node)
                     }
                     DropTarget::Edges(edge_names) if !edge_names.is_empty() => {
@@ -310,24 +328,30 @@ impl Planner for MaintainPlanner {
                             .space_name
                             .clone()
                             .unwrap_or_default();
-                        let drop_edge_node = crate::query::planning::plan::core::nodes::DropEdgeNode::new(
-                            next_node_id(),
-                            current_space,
-                            edge_names[0].clone(),
-                        );
+                        let drop_edge_node =
+                            crate::query::planning::plan::core::nodes::DropEdgeNode::new(
+                                next_node_id(),
+                                current_space,
+                                edge_names[0].clone(),
+                            );
                         PlanNodeEnum::DropEdge(drop_edge_node)
                     }
                     DropTarget::Space(space_name) => {
-                        let drop_space_node = crate::query::planning::plan::core::nodes::DropSpaceNode::new(
-                            next_node_id(),
-                            space_name.clone(),
-                        );
+                        let drop_space_node =
+                            crate::query::planning::plan::core::nodes::DropSpaceNode::new(
+                                next_node_id(),
+                                space_name.clone(),
+                            );
                         PlanNodeEnum::DropSpace(drop_space_node)
                     }
-                    _ => PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(1)),
+                    _ => PlanNodeEnum::PassThrough(
+                        crate::query::planning::plan::core::PassThroughNode::new(1),
+                    ),
                 }
             } else {
-                PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(1))
+                PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(
+                    1,
+                ))
             }
         } else {
             // Other types of maintenance operations use PassThrough nodes

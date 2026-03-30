@@ -118,7 +118,11 @@ impl CreateIndexValidator {
         Ok(())
     }
 
-    fn validate_impl_with_context(&mut self, stmt: &CreateStmt, qctx: &QueryContext) -> Result<(), ValidationError> {
+    fn validate_impl_with_context(
+        &mut self,
+        stmt: &CreateStmt,
+        qctx: &QueryContext,
+    ) -> Result<(), ValidationError> {
         self.validate_impl(stmt)?;
 
         // Get space name from query context
