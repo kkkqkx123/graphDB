@@ -292,16 +292,23 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                         QueryError::ExecutionError("顶点ID表达式不存在或不是字面量".to_string())
                     })?;
 
+                log::debug!("[build_update] vertex_id={:?}, properties_count={}", vertex_id, info.properties.len());
+                eprintln!("[build_update] vertex_id={:?}, properties_count={}", vertex_id, info.properties.len());
+
                 let mut properties = HashMap::new();
                 for (key, value_expr) in &info.properties {
-                    let value = value_expr
-                        .get_expression()
+                    let expr_opt = value_expr.get_expression();
+                    log::debug!("[build_update] property '{}' expression={:?}", key, expr_opt);
+                    eprintln!("[build_update] property '{}' expression={:?}", key, expr_opt);
+                    let value = expr_opt
                         .and_then(|e| Self::evaluate_literal(&e))
                         .ok_or_else(|| {
                             QueryError::ExecutionError(format!("属性 {} 的值表达式不存在或不是字面量", key))
                         })?;
                     properties.insert(key.clone(), value);
                 }
+
+                log::debug!("[build_update] final properties={:?}", properties);
 
                 let vertex_update = VertexUpdate {
                     vertex_id,

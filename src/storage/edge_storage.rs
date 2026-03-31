@@ -44,11 +44,12 @@ impl EdgeStorage {
         src: &Value,
         dst: &Value,
         edge_type: &str,
+        rank: i64,
     ) -> Result<Option<Edge>, StorageError> {
         self.inner
             .reader
             .lock()
-            .get_edge(space, src, dst, edge_type)
+            .get_edge(space, src, dst, edge_type, rank)
     }
 
     /// Get the edges of the node
@@ -150,10 +151,11 @@ impl EdgeStorage {
         src: &Value,
         dst: &Value,
         edge_type: &str,
+        rank: i64,
     ) -> Result<(), StorageError> {
         {
             let mut writer = self.inner.writer.lock();
-            writer.delete_edge(space, src, dst, edge_type)?;
+            writer.delete_edge(space, src, dst, edge_type, rank)?;
         }
 
         // Delete Index
@@ -194,7 +196,7 @@ impl EdgeStorage {
             if *edge.src == *vertex_id || *edge.dst == *vertex_id {
                 {
                     let mut writer = self.inner.writer.lock();
-                    writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type)?;
+                    writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type, edge.ranking)?;
                 }
                 let indexes = self
                     .state
@@ -291,7 +293,7 @@ impl EdgeStorage {
             if *edge.src == *src && *edge.dst == *dst && edge.ranking == rank {
                 {
                     let mut writer = self.inner.writer.lock();
-                    writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type)?;
+                    writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type, edge.ranking)?;
                 }
                 let indexes = self
                     .state
@@ -351,7 +353,7 @@ impl EdgeStorage {
         for edge in dangling_edges {
             {
                 let mut writer = self.inner.writer.lock();
-                writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type)?;
+                writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type, edge.ranking)?;
             }
             let indexes = self
                 .state
@@ -406,7 +408,7 @@ impl EdgeStorage {
             .inner
             .reader
             .lock()
-            .get_edge(space, src, dst, edge_type)?
+            .get_edge(space, src, dst, edge_type, 0)?
         {
             let edge_type_info = self
                 .state

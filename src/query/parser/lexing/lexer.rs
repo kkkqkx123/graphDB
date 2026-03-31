@@ -467,6 +467,8 @@ impl<'a> Lexer<'a> {
             "DESTINATION" => Tk::Destination,
             "RANK" => Tk::Rank,
             "INPUT" => Tk::Input,
+            "TRUE" => Tk::BooleanLiteral(true),
+            "FALSE" => Tk::BooleanLiteral(false),
             _ => Tk::Identifier(identifier.to_string()),
         }
     }

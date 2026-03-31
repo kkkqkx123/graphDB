@@ -769,6 +769,9 @@ fn test_ddl_tag_lifecycle() {
         // Alter tag - drop property
         .exec_ddl("ALTER TAG TestTag DROP (email)")
         .assert_success()
+        // Delete vertex data before dropping tag
+        .exec_dml("DELETE VERTEX 1")
+        .assert_success()
         // Drop tag
         .exec_ddl("DROP TAG TestTag")
         .assert_success()

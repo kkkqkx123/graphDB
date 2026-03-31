@@ -83,6 +83,7 @@ impl StorageClient for MockStorage {
         _src: &Value,
         _dst: &Value,
         _edge_type: &str,
+        _rank: i64,
     ) -> Result<Option<Edge>, StorageError> {
         Ok(None)
     }
@@ -151,6 +152,7 @@ impl StorageClient for MockStorage {
         _src: &Value,
         _dst: &Value,
         _edge_type: &str,
+        _rank: i64,
     ) -> Result<(), StorageError> {
         Ok(())
     }

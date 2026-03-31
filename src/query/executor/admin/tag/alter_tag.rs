@@ -103,22 +103,46 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterTagExecutor<
         let storage = self.get_storage();
         let mut storage_guard = storage.lock();
 
-        let items: Vec<String> = self
+        let additions: Vec<crate::core::types::PropertyDef> = self
             .alter_info
             .items
             .iter()
             .filter_map(|item| match item.op {
-                AlterTagOp::Add => item.property.as_ref().map(|p| p.name.clone()),
-                AlterTagOp::Drop => item.property_name.clone(),
-                AlterTagOp::Change => item.property_name.clone(),
+                AlterTagOp::Add => item.property.clone(),
+                _ => None,
             })
             .collect();
+
+        let deletions: Vec<String> = self
+            .alter_info
+            .items
+            .iter()
+            .filter_map(|item| match item.op {
+                AlterTagOp::Drop => item.property_name.clone(),
+                AlterTagOp::Change => item.property_name.clone(),
+                _ => None,
+            })
+            .collect();
+
+        if !deletions.is_empty() {
+            let tag_info = storage_guard.get_tag(&self.alter_info.space_name, &self.alter_info.tag_name);
+            if let Ok(Some(tag)) = tag_info {
+                for del_name in &deletions {
+                    if !tag.properties.iter().any(|p| &p.name == del_name) {
+                        return Ok(ExecutionResult::Error(format!(
+                            "Property '{}' not found in tag '{}'",
+                            del_name, self.alter_info.tag_name
+                        )));
+                    }
+                }
+            }
+        }
 
         let result = storage_guard.alter_tag(
             &self.alter_info.space_name,
             &self.alter_info.tag_name,
-            Vec::new(),
-            items,
+            additions,
+            deletions,
         );
 
         match result {

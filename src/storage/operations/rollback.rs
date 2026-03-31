@@ -228,7 +228,7 @@ impl<'a> RollbackExecutor for StorageRollbackExecutor<'a> {
                     self.writer.insert_edge(&self.space, edge)?;
                 } else {
                     self.writer
-                        .delete_edge(&self.space, &src, &dst, &edge_type)?;
+                        .delete_edge(&self.space, &src, &dst, &edge_type, 0)?;
                 }
                 Ok(())
             }
@@ -445,10 +445,11 @@ mod tests {
             src: &Value,
             dst: &Value,
             edge_type: &str,
+            rank: i64,
         ) -> Result<(), StorageError> {
             self.edge_operations.push(format!(
-                "delete_edge({}, {:?}_{}_{})",
-                space, src, dst, edge_type
+                "delete_edge({}, {:?}_{}_{}_{})",
+                space, src, dst, edge_type, rank
             ));
             Ok(())
         }

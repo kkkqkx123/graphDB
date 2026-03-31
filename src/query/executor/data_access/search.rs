@@ -259,7 +259,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                         Err(_) => return None,
                     };
 
-                    if let Ok(Some(edge)) = storage.get_edge(&space_name, &src, &dst, &schema_name)
+                    if let Ok(Some(edge)) = storage.get_edge(&space_name, &src, &dst, &schema_name, 0)
                     {
                         // Find from the properties of the edge
                         if let Some(value) = edge.props.get(column_name) {
@@ -317,7 +317,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                         let src = Value::String(parts[0].to_string());
                         let dst = Value::String(parts[1].to_string());
                         if let Some(edge) = storage
-                            .get_edge(&space_name, &src, &dst, &schema_name)
+                            .get_edge(&space_name, &src, &dst, &schema_name, 0)
                             .map_err(DBError::Storage)?
                         {
                             results.push(Value::Edge(edge));

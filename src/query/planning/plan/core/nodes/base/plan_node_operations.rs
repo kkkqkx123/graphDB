@@ -164,6 +164,15 @@ impl PlanNodeEnum {
             // Management node - Remove
             PlanNodeEnum::Remove(_) => "Remove",
 
+            // Management node - Update
+            PlanNodeEnum::Update(_) => "Update",
+            PlanNodeEnum::UpdateVertices(_) => "UpdateVertices",
+            PlanNodeEnum::UpdateEdges(_) => "UpdateEdges",
+
+            // Management node - Delete
+            PlanNodeEnum::DeleteVertices(_) => "DeleteVertices",
+            PlanNodeEnum::DeleteEdges(_) => "DeleteEdges",
+
             // Management node - Set operations
             PlanNodeEnum::Minus(_) => "Minus",
             PlanNodeEnum::Intersect(_) => "Intersect",

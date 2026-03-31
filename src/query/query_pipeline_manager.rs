@@ -221,7 +221,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
         // 7. Execution Plan
         let execute_start = Instant::now();
+        eprintln!("[query_pipeline_manager] About to execute plan");
         let result = self.execute_plan(query_context, optimized_plan.clone())?;
+        eprintln!("[query_pipeline_manager] Plan executed, result: {:?}", result);
         let execution_time_ms = execute_start.elapsed().as_millis() as f64;
 
         // 8. Caching of query plans
@@ -512,6 +514,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         query_context: Arc<QueryContext>,
         validated: &ValidatedStatement,
     ) -> DBResult<crate::query::planning::plan::ExecutionPlan> {
+        eprintln!("[generate_execution_plan] stmt type: {:?}", std::mem::discriminant(validated.ast.stmt()));
         // Create the planner directly using Arc<Ast>, eliminating the need for string matching of the SentenceKind type.
         let plan = if let Some(mut planner_enum) =
             crate::query::planning::planner::PlannerEnum::from_ast(&validated.ast)
@@ -519,7 +522,11 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             let sub_plan = planner_enum
                 .transform(validated, query_context)
                 .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?;
-            crate::query::planning::plan::ExecutionPlan::new(sub_plan.root().clone())
+            let root = sub_plan.root().clone();
+            if let Some(ref r) = root {
+                eprintln!("[generate_execution_plan] root plan node: {}", r.name());
+            }
+            crate::query::planning::plan::ExecutionPlan::new(root)
         } else {
             return Err(DBError::from(QueryError::pipeline_planning_error(
                 crate::query::planning::planner::PlannerError::NoSuitablePlanner(

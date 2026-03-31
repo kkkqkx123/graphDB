@@ -56,6 +56,45 @@ pub enum DataType {
     Timestamp,
 }
 
+impl std::fmt::Display for DataType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DataType::Empty => write!(f, "EMPTY"),
+            DataType::Null => write!(f, "NULL"),
+            DataType::Bool => write!(f, "BOOL"),
+            DataType::Int => write!(f, "INT"),
+            DataType::Int8 => write!(f, "INT8"),
+            DataType::Int16 => write!(f, "INT16"),
+            DataType::Int32 => write!(f, "INT32"),
+            DataType::Int64 => write!(f, "INT64"),
+            DataType::UInt8 => write!(f, "UINT8"),
+            DataType::UInt16 => write!(f, "UINT16"),
+            DataType::UInt32 => write!(f, "UINT32"),
+            DataType::UInt64 => write!(f, "UINT64"),
+            DataType::Float => write!(f, "FLOAT"),
+            DataType::Double => write!(f, "DOUBLE"),
+            DataType::Decimal128 => write!(f, "DECIMAL128"),
+            DataType::String => write!(f, "STRING"),
+            DataType::Date => write!(f, "DATE"),
+            DataType::Time => write!(f, "TIME"),
+            DataType::DateTime => write!(f, "DATETIME"),
+            DataType::Vertex => write!(f, "VERTEX"),
+            DataType::Edge => write!(f, "EDGE"),
+            DataType::Path => write!(f, "PATH"),
+            DataType::List => write!(f, "LIST"),
+            DataType::Map => write!(f, "MAP"),
+            DataType::Set => write!(f, "SET"),
+            DataType::Geography => write!(f, "GEOGRAPHY"),
+            DataType::Duration => write!(f, "DURATION"),
+            DataType::DataSet => write!(f, "DATASET"),
+            DataType::FixedString(n) => write!(f, "FIXEDSTRING({})", n),
+            DataType::VID => write!(f, "VID"),
+            DataType::Blob => write!(f, "BLOB"),
+            DataType::Timestamp => write!(f, "TIMESTAMP"),
+        }
+    }
+}
+
 // Exporting Base Schema Types from Atomic Modules
 pub use self::edge::EdgeTypeInfo;
 pub use self::index::{Index, IndexConfig, IndexField, IndexStatus, IndexType};

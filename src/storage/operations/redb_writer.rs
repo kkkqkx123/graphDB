@@ -84,6 +84,12 @@ impl RedbWriter {
         let id_bytes = encode_to_vec(&id, standard())?;
 
         let previous_state = self.get_vertex_bytes(&id)?;
+        if previous_state.is_some() {
+            return Err(StorageError::AlreadyExists(format!(
+                "Vertex with ID {} already exists",
+                id
+            )));
+        }
 
         let executor = self.get_executor();
         executor.execute(|write_txn| {
@@ -405,8 +411,9 @@ impl RedbWriter {
         src: &Value,
         dst: &Value,
         edge_type: &str,
+        rank: i64,
     ) -> Result<(), StorageError> {
-        let edge_key = format!("{:?}_{:?}_{}", src, dst, edge_type);
+        let edge_key = format!("{:?}_{:?}_{}_{}", src, dst, edge_type, rank);
         let edge_key_bytes = edge_key.as_bytes().to_vec();
 
         let deleted_data = self
@@ -500,9 +507,10 @@ impl EdgeWriter for RedbWriter {
         src: &Value,
         dst: &Value,
         edge_type: &str,
+        rank: i64,
     ) -> Result<(), StorageError> {
         let _ = space;
-        self.delete_edge_internal(src, dst, edge_type)
+        self.delete_edge_internal(src, dst, edge_type, rank)
     }
 
     fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {

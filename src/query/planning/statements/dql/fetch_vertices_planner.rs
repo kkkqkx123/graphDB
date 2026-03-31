@@ -59,7 +59,6 @@ impl Planner for FetchVerticesPlanner {
         let ids_str = ids
             .iter()
             .map(|ctx_expr| {
-                // Get the expression metadata from the contextual expression
                 if let Some(expr_meta) = ctx_expr.expression() {
                     let expr = expr_meta.inner();
                     match expr {

@@ -147,16 +147,16 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::admin::tag::alter_tag::{AlterTagInfo, AlterTagItem};
-        let mut alter_info =
-            AlterTagInfo::new(node.info().space_name.clone(), node.info().tag_name.clone());
+        let mut items = Vec::new();
         for prop in node.info().additions.iter() {
-            let item = AlterTagItem::add_property(prop.clone());
-            alter_info = alter_info.with_items(vec![item]);
+            items.push(AlterTagItem::add_property(prop.clone()));
         }
         for prop_name in node.info().deletions.iter() {
-            let item = AlterTagItem::drop_property(prop_name.clone());
-            alter_info = alter_info.with_items(vec![item]);
+            items.push(AlterTagItem::drop_property(prop_name.clone()));
         }
+        let alter_info =
+            AlterTagInfo::new(node.info().space_name.clone(), node.info().tag_name.clone())
+                .with_items(items);
         let executor = AlterTagExecutor::new(
             node.id(),
             storage,
@@ -280,18 +280,18 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::admin::edge::alter_edge::{AlterEdgeInfo, AlterEdgeItem};
-        let mut alter_info = AlterEdgeInfo::new(
-            node.info().space_name.clone(),
-            node.info().edge_name.clone(),
-        );
+        let mut items = Vec::new();
         for prop in node.info().additions.iter() {
-            let item = AlterEdgeItem::add_property(prop.clone());
-            alter_info = alter_info.with_items(vec![item]);
+            items.push(AlterEdgeItem::add_property(prop.clone()));
         }
         for prop_name in node.info().deletions.iter() {
-            let item = AlterEdgeItem::drop_property(prop_name.clone());
-            alter_info = alter_info.with_items(vec![item]);
+            items.push(AlterEdgeItem::drop_property(prop_name.clone()));
         }
+        let alter_info = AlterEdgeInfo::new(
+            node.info().space_name.clone(),
+            node.info().edge_name.clone(),
+        )
+        .with_items(items);
         let executor = AlterEdgeExecutor::new(
             node.id(),
             storage,
@@ -386,6 +386,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         let executor = CreateTagIndexExecutor::new(
             node.id(),
             storage,
+            node.info().space_name.clone(),
             index,
             context.expression_context().clone(),
         );

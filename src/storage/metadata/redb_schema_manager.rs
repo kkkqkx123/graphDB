@@ -593,38 +593,19 @@ impl super::SchemaManager for RedbSchemaManager {
             StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
         })?;
 
+        let existing_edge_types = self.list_edge_types(space_name)?;
+        if existing_edge_types
+            .iter()
+            .any(|e| e.edge_type_name == edge_type.edge_type_name)
+        {
+            return Ok(false);
+        }
+
         let write_txn = self.db.begin_write().map_err(|e| {
             StorageError::DbError(format!("Failed to start write transaction: {}", e))
         })?;
 
-        {
-            let mut edge_types_table = write_txn.open_table(EDGE_TYPES_TABLE).map_err(|e| {
-                StorageError::DbError(format!("Failed to open EDGE_TYPES_TABLE: {}", e))
-            })?;
-
-            let key = ByteKey(
-                [
-                    space_info.space_id.to_be_bytes().to_vec(),
-                    edge_type.edge_type_id.to_be_bytes().to_vec(),
-                ]
-                .concat(),
-            );
-            let value = ByteKey(encode_to_vec(edge_type, standard())?);
-
-            if edge_types_table
-                .get(&key)
-                .map_err(|e| StorageError::DbError(format!("Failed to query edge type: {}", e)))?
-                .is_some()
-            {
-                return Ok(false);
-            }
-
-            edge_types_table
-                .insert(key, value)
-                .map_err(|e| StorageError::DbError(format!("Failed to insert edge type: {}", e)))?;
-        }
-
-        {
+        let new_edge_type_id = {
             let mut id_counter_table =
                 write_txn
                     .open_table(EDGE_TYPE_ID_COUNTER_TABLE)
@@ -654,6 +635,30 @@ impl super::SchemaManager for RedbSchemaManager {
             id_counter_table.insert(key, value).map_err(|e| {
                 StorageError::DbError(format!("Failed to update ID counter: {}", e))
             })?;
+
+            new_id as i32
+        };
+
+        {
+            let mut edge_types_table = write_txn.open_table(EDGE_TYPES_TABLE).map_err(|e| {
+                StorageError::DbError(format!("Failed to open EDGE_TYPES_TABLE: {}", e))
+            })?;
+
+            let mut edge_type_with_id = edge_type.clone();
+            edge_type_with_id.edge_type_id = new_edge_type_id;
+
+            let key = ByteKey(
+                [
+                    space_info.space_id.to_be_bytes().to_vec(),
+                    new_edge_type_id.to_be_bytes().to_vec(),
+                ]
+                .concat(),
+            );
+            let value = ByteKey(encode_to_vec(&edge_type_with_id, standard())?);
+
+            edge_types_table
+                .insert(key, value)
+                .map_err(|e| StorageError::DbError(format!("Failed to insert edge type: {}", e)))?;
         }
 
         write_txn

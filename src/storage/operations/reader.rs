@@ -24,6 +24,7 @@ pub trait EdgeReader: Send + Sync {
         src: &Value,
         dst: &Value,
         edge_type: &str,
+        rank: i64,
     ) -> Result<Option<Edge>, StorageError>;
     fn get_node_edges(
         &self,

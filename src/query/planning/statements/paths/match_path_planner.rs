@@ -241,6 +241,7 @@ impl StorageClient for DummyStorage {
         _src: &Value,
         _dst: &Value,
         _edge_type: &str,
+        _rank: i64,
     ) -> Result<Option<crate::core::Edge>, crate::core::StorageError> {
         Ok(None)
     }
@@ -270,6 +271,7 @@ impl StorageClient for DummyStorage {
         _src: &Value,
         _dst: &Value,
         _edge_type: &str,
+        _rank: i64,
     ) -> Result<(), crate::core::StorageError> {
         Ok(())
     }

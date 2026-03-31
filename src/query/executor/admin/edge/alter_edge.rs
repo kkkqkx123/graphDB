@@ -103,22 +103,32 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterEdgeExecutor
         let storage = self.get_storage();
         let mut storage_guard = storage.lock();
 
-        let items: Vec<String> = self
+        let additions: Vec<PropertyDef> = self
             .alter_info
             .items
             .iter()
             .filter_map(|item| match item.op {
-                AlterEdgeOp::Add => item.property.as_ref().map(|p| p.name.clone()),
+                AlterEdgeOp::Add => item.property.clone(),
+                _ => None,
+            })
+            .collect();
+
+        let deletions: Vec<String> = self
+            .alter_info
+            .items
+            .iter()
+            .filter_map(|item| match item.op {
                 AlterEdgeOp::Drop => item.property_name.clone(),
                 AlterEdgeOp::Change => item.property_name.clone(),
+                _ => None,
             })
             .collect();
 
         let result = storage_guard.alter_edge_type(
             &self.alter_info.space_name,
             &self.alter_info.edge_name,
-            Vec::new(),
-            items,
+            additions,
+            deletions,
         );
 
         match result {

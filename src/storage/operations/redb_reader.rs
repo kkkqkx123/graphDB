@@ -49,6 +49,20 @@ impl RedbReader {
         self.txn_context.clone()
     }
 
+    pub fn invalidate_vertex_cache(&self, id: &Value) {
+        if let Ok(id_bytes) = encode_to_vec(id, standard()) {
+            let mut cache = self.vertex_cache.lock();
+            cache.pop(&id_bytes);
+        }
+    }
+
+    pub fn invalidate_edge_cache(&self, src: &Value, dst: &Value, edge_type: &str) {
+        if let Ok(key) = encode_to_vec(&(src.clone(), dst.clone(), edge_type.to_string()), standard()) {
+            let mut cache = self.edge_cache.lock();
+            cache.pop(&key);
+        }
+    }
+
     fn get_node_from_bytes(&self, id_bytes: &[u8]) -> Result<Option<Vertex>, StorageError> {
         if let Some(ref ctx) = self.txn_context {
             if ctx.read_only {
@@ -331,8 +345,9 @@ impl EdgeReader for RedbReader {
         src: &Value,
         dst: &Value,
         edge_type: &str,
+        rank: i64,
     ) -> Result<Option<Edge>, StorageError> {
-        let edge_key = format!("{:?}_{:?}_{}", src, dst, edge_type);
+        let edge_key = format!("{:?}_{:?}_{}_{}", src, dst, edge_type, rank);
         let edge_key_bytes = edge_key.as_bytes().to_vec();
 
         {

@@ -206,6 +206,13 @@ impl<S: StorageClient> ProjectExecutor<S> {
                 context.set_variable(prop_name.clone(), prop_value.clone());
             }
 
+            // Set tag properties as variables so that the projection can access them.
+            for tag in &vertex.tags {
+                for (prop_name, prop_value) in &tag.properties {
+                    context.set_variable(prop_name.clone(), prop_value.clone());
+                }
+            }
+
             let mut projected_row = Vec::new();
             for column in &self.columns {
                 let expr = match column.expression.expression() {
@@ -299,6 +306,10 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
         } else {
             ExecutionResult::DataSet(crate::core::value::DataSet::new())
         };
+
+        if self.columns.is_empty() {
+            return Ok(input_result);
+        }
 
         let projected_result = match input_result {
             ExecutionResult::DataSet(dataset) => {

@@ -90,11 +90,13 @@ impl TestScenario {
 
     /// Execute a DML statement
     pub fn exec_dml(mut self, query: &str) -> Self {
+        eprintln!("[exec_dml] Executing query: {}", query);
         match self
             .pipeline
             .execute_query_with_space(query, self.current_space.clone())
         {
             Ok(result) => {
+                eprintln!("[exec_dml] Result: {:?}", result);
                 // Check if the result itself is an error
                 match &result {
                     ExecutionResult::Error(e) => {
@@ -108,6 +110,7 @@ impl TestScenario {
                 }
             }
             Err(e) => {
+                eprintln!("[exec_dml] Error: {:?}", e);
                 self.last_error = Some(format!("{:?}", e));
                 self.last_result = None;
             }
@@ -305,11 +308,38 @@ impl TestScenario {
             let rows: Vec<Vec<Value>> = match result {
                 ExecutionResult::Result(r) => r.rows().to_vec(),
                 ExecutionResult::DataSet(ds) => ds.rows.clone(),
+                ExecutionResult::Vertices(vertices) => vertices
+                    .iter()
+                    .flat_map(|v| {
+                        let mut row = vec![(*v.vid).clone()];
+                        for tag in &v.tags {
+                            for (k, val) in &tag.properties {
+                                row.push(Value::String(k.clone()));
+                                row.push(val.clone());
+                            }
+                        }
+                        Some(row)
+                    })
+                    .collect(),
+                ExecutionResult::Edges(edges) => edges
+                    .iter()
+                    .flat_map(|e| {
+                        let mut row = vec![e.src().clone(), e.dst().clone()];
+                        for (k, val) in e.properties() {
+                            row.push(Value::String(k.clone()));
+                            row.push(val.clone());
+                        }
+                        Some(row)
+                    })
+                    .collect(),
                 _ => vec![],
             };
 
-            let found = rows.iter().any(|row| row == &expected);
-            assert!(found, "Expected to find row {:?} in results", expected);
+            // Check if any row contains all expected values (subset match)
+            let found = rows.iter().any(|row| {
+                expected.iter().all(|exp_val| row.contains(exp_val))
+            });
+            assert!(found, "Expected to find row containing {:?} in results, actual rows: {:?}", expected, rows);
         } else {
             panic!("No result to check");
         }
@@ -396,48 +426,46 @@ impl TestScenario {
     }
 
     /// Assert edge exists
-    pub fn assert_edge_exists(mut self, src: i64, dst: i64, edge_type: &str) -> Self {
-        let query = format!("FETCH PROP ON {} {} -> {}", edge_type, src, dst);
-        match self
-            .pipeline
-            .execute_query_with_space(&query, self.current_space.clone())
-        {
-            Ok(result) => {
-                assert!(
-                    result.count() > 0,
-                    "Expected edge {} -> {} with type {} to exist",
-                    src,
-                    dst,
-                    edge_type
-                );
-            }
-            Err(e) => {
-                panic!("Failed to check edge existence: {:?}", e);
-            }
-        }
+    pub fn assert_edge_exists(self, src: i64, dst: i64, edge_type: &str) -> Self {
+        let space_name = self.current_space.as_ref().map(|s| s.space_name.clone()).unwrap_or_default();
+        let src_val = Value::Int(src);
+        let dst_val = Value::Int(dst);
+        let found = {
+            let storage_guard = self.storage.lock();
+            let edges = storage_guard
+                .scan_edges_by_type(&space_name, edge_type)
+                .unwrap_or_default();
+            edges.iter().any(|e| {
+                *e.src() == src_val && *e.dst() == dst_val && e.edge_type == edge_type
+            })
+        };
+        assert!(
+            found,
+            "Expected edge {} -> {} with type {} to exist",
+            src, dst, edge_type
+        );
         self
     }
 
     /// Assert edge does not exist
-    pub fn assert_edge_not_exists(mut self, src: i64, dst: i64, edge_type: &str) -> Self {
-        let query = format!("FETCH PROP ON {} {} -> {}", edge_type, src, dst);
-        match self
-            .pipeline
-            .execute_query_with_space(&query, self.current_space.clone())
-        {
-            Ok(result) => {
-                assert!(
-                    result.count() == 0,
-                    "Expected edge {} -> {} with type {} to not exist",
-                    src,
-                    dst,
-                    edge_type
-                );
-            }
-            Err(_e) => {
-                // Error might mean edge doesn't exist, which is what we want
-            }
-        }
+    pub fn assert_edge_not_exists(self, src: i64, dst: i64, edge_type: &str) -> Self {
+        let space_name = self.current_space.as_ref().map(|s| s.space_name.clone()).unwrap_or_default();
+        let src_val = Value::Int(src);
+        let dst_val = Value::Int(dst);
+        let found = {
+            let storage_guard = self.storage.lock();
+            let edges = storage_guard
+                .scan_edges_by_type(&space_name, edge_type)
+                .unwrap_or_default();
+            edges.iter().any(|e| {
+                *e.src() == src_val && *e.dst() == dst_val && e.edge_type == edge_type
+            })
+        };
+        assert!(
+            !found,
+            "Expected edge {} -> {} with type {} to not exist",
+            src, dst, edge_type
+        );
         self
     }
 

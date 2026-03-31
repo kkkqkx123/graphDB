@@ -123,6 +123,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
+        eprintln!("[create_executor] plan_node type: {}", plan_node.name());
         self.validate_plan_node(plan_node)?;
 
         if self.config.enable_recursion_detection {

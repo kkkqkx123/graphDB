@@ -23,6 +23,7 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
         src: &Value,
         dst: &Value,
         edge_type: &str,
+        rank: i64,
     ) -> Result<Option<Edge>, StorageError>;
     fn get_node_edges(
         &self,
@@ -76,6 +77,7 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
         src: &Value,
         dst: &Value,
         edge_type: &str,
+        rank: i64,
     ) -> Result<(), StorageError>;
     fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError>;
 

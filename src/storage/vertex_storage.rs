@@ -124,8 +124,12 @@ impl VertexStorage {
 
     /// Update Vertex
     pub fn update_vertex(&self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
+        let vid = vertex.vid.clone();
         let mut writer = self.inner.writer.lock();
-        writer.update_vertex(space, vertex)
+        writer.update_vertex(space, vertex)?;
+        drop(writer);
+        self.inner.reader.lock().invalidate_vertex_cache(&vid);
+        Ok(())
     }
 
     /// Delete Vertex
@@ -143,6 +147,9 @@ impl VertexStorage {
         // Delete Index
         self.index_data_manager
             .delete_vertex_indexes(space_id, id)?;
+
+        // Clear cache
+        self.inner.reader.lock().invalidate_vertex_cache(id);
 
         Ok(())
     }

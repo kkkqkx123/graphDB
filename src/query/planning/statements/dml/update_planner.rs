@@ -93,6 +93,7 @@ impl Planner for UpdatePlanner {
         validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
+        eprintln!("[UpdatePlanner::transform] called");
         let update_stmt = self.extract_update_stmt(validated.stmt())?;
 
         // Get current space name from query context

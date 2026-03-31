@@ -66,6 +66,7 @@ impl From<&TagIndexDesc> for Index {
 #[derive(Debug)]
 pub struct CreateTagIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
+    space_name: String,
     index_info: Index,
     if_not_exists: bool,
 }
@@ -74,6 +75,7 @@ impl<S: StorageClient> CreateTagIndexExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
+        space_name: String,
         index_info: Index,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -84,6 +86,7 @@ impl<S: StorageClient> CreateTagIndexExecutor<S> {
                 storage,
                 expr_context,
             ),
+            space_name,
             index_info,
             if_not_exists: false,
         }
@@ -92,6 +95,7 @@ impl<S: StorageClient> CreateTagIndexExecutor<S> {
     pub fn with_if_not_exists(
         id: i64,
         storage: Arc<Mutex<S>>,
+        space_name: String,
         index_info: Index,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -102,6 +106,7 @@ impl<S: StorageClient> CreateTagIndexExecutor<S> {
                 storage,
                 expr_context,
             ),
+            space_name,
             index_info,
             if_not_exists: true,
         }
@@ -113,7 +118,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagIndexExe
         let storage = self.get_storage();
         let mut storage_guard = storage.lock();
 
-        let result = storage_guard.create_tag_index("default", &self.index_info);
+        let result = storage_guard.create_tag_index(&self.space_name, &self.index_info);
 
         match result {
             Ok(true) => Ok(ExecutionResult::Success),

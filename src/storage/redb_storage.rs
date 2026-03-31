@@ -285,8 +285,12 @@ impl StorageClient for RedbStorage {
     }
 
     fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
+        eprintln!("[RedbStorage::delete_vertex] space={}, id={:?}", space, id);
         let space_id = self.get_space_id_internal(space)?;
-        self.vertex_storage.delete_vertex(space, space_id, id)
+        eprintln!("[RedbStorage::delete_vertex] space_id={}", space_id);
+        let result = self.vertex_storage.delete_vertex(space, space_id, id);
+        eprintln!("[RedbStorage::delete_vertex] result={:?}", result);
+        result
     }
 
     fn delete_vertex_with_edges(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
@@ -323,8 +327,9 @@ impl StorageClient for RedbStorage {
         src: &Value,
         dst: &Value,
         edge_type: &str,
+        rank: i64,
     ) -> Result<Option<Edge>, StorageError> {
-        self.edge_storage.get_edge(space, src, dst, edge_type)
+        self.edge_storage.get_edge(space, src, dst, edge_type, rank)
     }
 
     fn get_node_edges(
@@ -369,10 +374,11 @@ impl StorageClient for RedbStorage {
         src: &Value,
         dst: &Value,
         edge_type: &str,
+        rank: i64,
     ) -> Result<(), StorageError> {
         let space_id = self.get_space_id_internal(space)?;
         self.edge_storage
-            .delete_edge(space, space_id, src, dst, edge_type)
+            .delete_edge(space, space_id, src, dst, edge_type, rank)
     }
 
     fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
@@ -434,6 +440,7 @@ impl StorageClient for RedbStorage {
                 &edge.src,
                 &edge.dst,
                 &edge.edge_type,
+                edge.ranking,
             )?;
         }
 

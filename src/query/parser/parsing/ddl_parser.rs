@@ -160,6 +160,40 @@ impl DdlParser {
         start_span: crate::query::parser::ast::types::Span,
     ) -> Result<Stmt, ParseError> {
         if ctx.match_token(TokenKind::Tag) {
+            // Check if it's CREATE TAG INDEX
+            if ctx.check_token(TokenKind::Index) {
+                // CREATE TAG INDEX name ON tag_name(property)
+                ctx.match_token(TokenKind::Index); // consume INDEX
+                let mut if_not_exists = false;
+                if ctx.match_token(TokenKind::If) {
+                    ctx.expect_token(TokenKind::Not)?;
+                    ctx.expect_token(TokenKind::Exists)?;
+                    if_not_exists = true;
+                }
+                let name = ctx.expect_identifier()?;
+                ctx.expect_token(TokenKind::On)?;
+                let on = ctx.expect_identifier()?;
+                ctx.expect_token(TokenKind::LParen)?;
+                let mut properties = vec![];
+                loop {
+                    properties.push(ctx.expect_identifier()?);
+                    if !ctx.match_token(TokenKind::Comma) {
+                        break;
+                    }
+                }
+                ctx.expect_token(TokenKind::RParen)?;
+                return Ok(Stmt::Create(CreateStmt {
+                    span: start_span,
+                    target: CreateTarget::Index {
+                        index_type: IndexType::Tag,
+                        name,
+                        on,
+                        properties,
+                    },
+                    if_not_exists,
+                }));
+            }
+            
             // Analysis of the IF NOT EXISTS clause (located after the TAG)
             let mut if_not_exists = false;
             if ctx.match_token(TokenKind::If) {
@@ -700,7 +734,7 @@ impl DdlParser {
         if ctx.match_token(TokenKind::LParen) {
             while !ctx.match_token(TokenKind::RParen) {
                 let name = ctx.expect_identifier()?;
-                ctx.expect_token(TokenKind::Colon)?;
+                let _ = ctx.match_token(TokenKind::Colon);
 
                 // Parse data types, with support for keywords or identifiers.
                 let dtype = self.parse_data_type(ctx)?;

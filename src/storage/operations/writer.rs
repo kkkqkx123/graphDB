@@ -26,6 +26,7 @@ pub trait EdgeWriter: Send + Sync {
         src: &Value,
         dst: &Value,
         edge_type: &str,
+        rank: i64,
     ) -> Result<(), StorageError>;
     fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError>;
 }

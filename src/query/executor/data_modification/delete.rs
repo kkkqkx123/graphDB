@@ -170,6 +170,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                                     &edge.src,
                                     &edge.dst,
                                     &edge.edge_type,
+                                    edge.ranking,
                                 )
                                 .map_err(|e| {
                                     crate::core::error::DBError::Storage(
@@ -194,7 +195,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
             let mut storage = self.get_storage().lock();
             for (src, dst, edge_type) in edges {
                 let should_delete = if let Some(ref expression) = condition_expression {
-                    if let Ok(Some(edge)) = storage.get_edge(&self.space_name, src, dst, edge_type)
+                    if let Ok(Some(edge)) = storage.get_edge(&self.space_name, src, dst, edge_type, 0)
                     {
                         let mut context = DefaultExpressionContext::new();
                         context.set_variable("SRC".to_string(), src.clone());
@@ -228,12 +229,18 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                     true
                 };
 
-                if should_delete
-                    && storage
-                        .delete_edge(&self.space_name, src, dst, edge_type)
-                        .is_ok()
-                {
-                    total_deleted += 1;
+                if should_delete {
+                    // Use scan and delete approach for edges without specific rank
+                    let edges = storage.scan_edges_by_type(&self.space_name, edge_type)
+                        .map_err(|e| crate::core::error::DBError::Storage(e))?;
+                    for edge in edges {
+                        if *edge.src == *src && *edge.dst == *dst {
+                            storage.delete_edge(&self.space_name, src, dst, edge_type, edge.ranking)
+                                .map_err(|e| crate::core::error::DBError::Storage(e))?;
+                            total_deleted += 1;
+                            break;
+                        }
+                    }
                 }
             }
         }

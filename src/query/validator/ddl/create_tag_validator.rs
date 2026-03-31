@@ -92,6 +92,16 @@ impl CreateTagValidator {
                         ));
                     }
                 }
+
+                let mut seen_names = std::collections::HashSet::new();
+                for prop in &self.properties {
+                    if !seen_names.insert(&prop.name) {
+                        return Err(ValidationError::new(
+                            format!("Duplicate property name '{}' in tag '{}'", prop.name, self.tag_name),
+                            ValidationErrorType::SemanticError,
+                        ));
+                    }
+                }
             }
             _ => {
                 return Err(ValidationError::new(

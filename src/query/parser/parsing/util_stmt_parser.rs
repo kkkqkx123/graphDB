@@ -157,12 +157,32 @@ impl UtilStmtParser {
         let _with_props = ctx.match_token(TokenKind::Prop);
 
         let target = if ctx.match_token(TokenKind::On) {
-            // The syntax for `FETCH PROP ON <tag> <ids>` is as follows:
-            let _tag_name = ctx.expect_identifier()?;
-            let ids = self.parse_expression_list(ctx)?;
-            FetchTarget::Vertices {
-                ids,
-                properties: None,
+            let name = ctx.expect_identifier()?;
+            let first_expr = self.parse_expression(ctx)?;
+            if ctx.check_token(TokenKind::Arrow) {
+                ctx.expect_token(TokenKind::Arrow)?;
+                let dst = self.parse_expression(ctx)?;
+                let rank = if ctx.match_token(TokenKind::At) {
+                    Some(self.parse_expression(ctx)?)
+                } else {
+                    None
+                };
+                FetchTarget::Edges {
+                    src: first_expr,
+                    dst,
+                    edge_type: name,
+                    rank,
+                    properties: None,
+                }
+            } else {
+                let mut ids = vec![first_expr];
+                while ctx.match_token(TokenKind::Comma) {
+                    ids.push(self.parse_expression(ctx)?);
+                }
+                FetchTarget::Vertices {
+                    ids,
+                    properties: None,
+                }
             }
         } else if ctx.match_token(TokenKind::Tag) {
             let _tag_name = ctx.expect_identifier()?;

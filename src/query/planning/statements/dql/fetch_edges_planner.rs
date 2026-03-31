@@ -3,9 +3,7 @@
 
 use crate::core::types::expr::expression_utils::extract_string_from_expr;
 use crate::query::parser::ast::{FetchTarget, Stmt};
-use crate::query::planning::plan::core::nodes::{
-    ArgumentNode, FilterNode, GetEdgesNode, ProjectNode,
-};
+use crate::query::planning::plan::core::nodes::GetEdgesNode;
 use crate::query::planning::plan::core::PlanNodeEnum;
 use crate::query::planning::plan::execution_plan::SubPlan;
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
@@ -41,7 +39,6 @@ impl Planner for FetchEdgesPlanner {
             }
         };
 
-        // Check whether it is "FETCH EDGES".
         let (src, dst, edge_type, rank) = match &fetch_stmt.target {
             FetchTarget::Edges {
                 src,
@@ -57,12 +54,6 @@ impl Planner for FetchEdgesPlanner {
             }
         };
 
-        let var_name = "e";
-
-        // 1. Create a parameter node to define the conditions for obtaining the edges.
-        let arg_node = ArgumentNode::new(1, var_name);
-
-        // Extract string values from the expression.
         let src_str = extract_string_from_expr(src)?;
         let dst_str = extract_string_from_expr(dst)?;
         let rank_str = rank
@@ -71,36 +62,17 @@ impl Planner for FetchEdgesPlanner {
             .transpose()?
             .unwrap_or_else(|| "0".to_string());
 
-        // 2. Create nodes for retrieving the edges.
         let get_edges_node = PlanNodeEnum::GetEdges(GetEdgesNode::new(
-            1, // space_id
-            &src_str, edge_type, &rank_str, &dst_str,
+            1,
+            &src_str,
+            edge_type,
+            &rank_str,
+            &dst_str,
         ));
 
-        // 3. Create nodes that filter out empty edges.
-        let expr_meta = crate::core::types::expr::ExpressionMeta::new(
-            crate::core::Expression::Variable(format!("{} IS NOT EMPTY", var_name)),
-        );
-        let id = validated.expr_context().register_expression(expr_meta);
-        let ctx_expr =
-            crate::core::types::ContextualExpression::new(id, validated.expr_context().clone());
-        let filter_node = match FilterNode::new(get_edges_node.clone(), ctx_expr) {
-            Ok(node) => PlanNodeEnum::Filter(node),
-            Err(_) => get_edges_node.clone(),
-        };
-
-        // 4. Create a projection node.
-        let project_node = match ProjectNode::new(filter_node.clone(), vec![]) {
-            Ok(node) => PlanNodeEnum::Project(node),
-            Err(e) => {
-                println!("Failed to create project node: {:?}", e);
-                filter_node
-            }
-        };
-
-        // 5. Create a SubPlan
-        let arg_node = PlanNodeEnum::Argument(arg_node);
-        let sub_plan = SubPlan::new(Some(project_node), Some(arg_node));
+        // For FETCH PROP ON EDGE with specific src/dst/rank, GetEdgesNode is sufficient
+        // No need for additional Filter or Project nodes
+        let sub_plan = SubPlan::new(Some(get_edges_node), None);
 
         Ok(sub_plan)
     }

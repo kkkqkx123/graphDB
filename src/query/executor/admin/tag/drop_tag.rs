@@ -59,6 +59,18 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropTagExecutor<S
         let storage = self.get_storage();
         let mut storage_guard = storage.lock();
 
+        let vertices_with_tag = storage_guard
+            .scan_vertices_by_tag(&self.space_name, &self.tag_name)
+            .unwrap_or_default();
+
+        if !vertices_with_tag.is_empty() {
+            return Ok(ExecutionResult::Error(format!(
+                "Cannot drop tag '{}': {} vertices are using this tag",
+                self.tag_name,
+                vertices_with_tag.len()
+            )));
+        }
+
         let result = storage_guard.drop_tag(&self.space_name, &self.tag_name);
 
         match result {
