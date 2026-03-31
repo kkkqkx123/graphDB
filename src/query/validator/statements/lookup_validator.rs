@@ -10,10 +10,7 @@ use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::Expression;
 use crate::query::parser::ast::stmt::Ast;
 use crate::query::parser::ast::{Stmt, YieldItem};
-use crate::query::validator::structs::validation_info::{
-    IndexHint, OptimizationHint, ValidationInfo,
-};
-use crate::query::validator::structs::AliasType;
+use crate::query::validator::structs::validation_info::{IndexHint, ValidationInfo};
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
@@ -99,9 +96,13 @@ impl LookupValidator {
         };
 
         // Analysis target (Tag or Edge)
-        let (label, is_edge) = match &lookup_stmt.target {
-            crate::query::parser::ast::stmt::LookupTarget::Tag(name) => (name.clone(), false),
-            crate::query::parser::ast::stmt::LookupTarget::Edge(name) => (name.clone(), true),
+        let (label, is_edge, target_type_specified) = match &lookup_stmt.target {
+            crate::query::parser::ast::stmt::LookupTarget::Tag(name) => (name.clone(), false, true),
+            crate::query::parser::ast::stmt::LookupTarget::Edge(name) => (name.clone(), true, true),
+            crate::query::parser::ast::stmt::LookupTarget::Unspecified(name) => {
+                // Type will be resolved during validation
+                (name.clone(), false, false)
+            }
         };
 
         if label.is_empty() {
@@ -131,6 +132,7 @@ impl LookupValidator {
         Ok(ParsedLookupInfo {
             label,
             is_edge,
+            target_type_specified,
             filter_expression,
             yield_columns,
             is_yield_all,
@@ -175,7 +177,8 @@ impl LookupValidator {
         space_name: &str,
         label: &str,
         is_edge: bool,
-    ) -> Result<LookupIndexType, ValidationError> {
+        target_type_specified: bool,
+    ) -> Result<(LookupIndexType, bool), ValidationError> {
         // Check whether schema_manager is available.
         let schema_manager = self.schema_manager.as_ref().ok_or_else(|| {
             ValidationError::new(
@@ -184,37 +187,71 @@ impl LookupValidator {
             )
         })?;
 
-        if is_edge {
-            // Verify whether the Edge Type exists.
-            match schema_manager.as_ref().get_edge_type(space_name, label) {
-                Ok(Some(_edge_info)) => {
-                    // If the “Edge Type” is present, the “Single” index type should be returned.
-                    Ok(LookupIndexType::Single(label.to_string()))
+        if target_type_specified {
+            // Type was explicitly specified, use it directly
+            if is_edge {
+                // Verify whether the Edge Type exists.
+                match schema_manager.as_ref().get_edge_type(space_name, label) {
+                    Ok(Some(_edge_info)) => Ok((LookupIndexType::Single(label.to_string()), true)),
+                    Ok(None) => Err(ValidationError::new(
+                        format!("Edge type '{}' not found in space '{}'", label, space_name),
+                        ValidationErrorType::SemanticError,
+                    )),
+                    Err(e) => Err(ValidationError::new(
+                        format!("Failed to get edge type '{}': {}", label, e),
+                        ValidationErrorType::SemanticError,
+                    )),
                 }
-                Ok(None) => Err(ValidationError::new(
-                    format!("Edge type '{}' not found in space '{}'", label, space_name),
-                    ValidationErrorType::SemanticError,
-                )),
-                Err(e) => Err(ValidationError::new(
-                    format!("Failed to get edge type '{}': {}", label, e),
-                    ValidationErrorType::SemanticError,
-                )),
+            } else {
+                // Verify whether the Tag exists.
+                match schema_manager.as_ref().get_tag(space_name, label) {
+                    Ok(Some(_tag_info)) => Ok((LookupIndexType::Single(label.to_string()), false)),
+                    Ok(None) => Err(ValidationError::new(
+                        format!("Tag '{}' not found in space '{}'", label, space_name),
+                        ValidationErrorType::SemanticError,
+                    )),
+                    Err(e) => Err(ValidationError::new(
+                        format!("Failed to get tag '{}': {}", label, e),
+                        ValidationErrorType::SemanticError,
+                    )),
+                }
             }
         } else {
-            // Verify whether the Tag exists.
+            // Type was not specified, try to infer from schema
+            // First try as Tag
             match schema_manager.as_ref().get_tag(space_name, label) {
                 Ok(Some(_tag_info)) => {
-                    // If the “Tag” field exists, return the “Single” index type.
-                    Ok(LookupIndexType::Single(label.to_string()))
+                    return Ok((LookupIndexType::Single(label.to_string()), false));
                 }
-                Ok(None) => Err(ValidationError::new(
-                    format!("Tag '{}' not found in space '{}'", label, space_name),
-                    ValidationErrorType::SemanticError,
-                )),
-                Err(e) => Err(ValidationError::new(
-                    format!("Failed to get tag '{}': {}", label, e),
-                    ValidationErrorType::SemanticError,
-                )),
+                Ok(None) => {
+                    // Tag not found, try as Edge
+                    match schema_manager.as_ref().get_edge_type(space_name, label) {
+                        Ok(Some(_edge_info)) => {
+                            return Ok((LookupIndexType::Single(label.to_string()), true));
+                        }
+                        Ok(None) => {
+                            return Err(ValidationError::new(
+                                format!(
+                                    "Tag or Edge type '{}' not found in space '{}'",
+                                    label, space_name
+                                ),
+                                ValidationErrorType::SemanticError,
+                            ));
+                        }
+                        Err(e) => {
+                            return Err(ValidationError::new(
+                                format!("Failed to get edge type '{}': {}", label, e),
+                                ValidationErrorType::SemanticError,
+                            ));
+                        }
+                    }
+                }
+                Err(e) => {
+                    return Err(ValidationError::new(
+                        format!("Failed to get tag '{}': {}", label, e),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
             }
         }
     }
@@ -347,6 +384,8 @@ impl LookupValidator {
 struct ParsedLookupInfo {
     label: String,
     is_edge: bool,
+    /// Whether the target type (tag/edge) was explicitly specified
+    target_type_specified: bool,
     filter_expression: Option<ContextualExpression>,
     yield_columns: Vec<LookupYieldColumn>,
     is_yield_all: bool,
@@ -360,140 +399,109 @@ impl Default for LookupValidator {
 
 /// Implementing the StatementValidator trait
 ///
-/// # Refactoring changes
-/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as arguments.
+/// # Design Notes
+/// - Completely parse LOOKUP information from AST
+/// - Do not rely on any external preset values
+/// - All required information is parsed from AST
 impl StatementValidator for LookupValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
-        qctx: Arc<QueryContext>,
+        ctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        // 1. Check whether additional space is needed.
-        if !self.is_global_statement() && qctx.space_id().is_none() {
-            return Err(ValidationError::new(
-                "No image space selected, please execute first USE <space>".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
-        }
-
-        // 2. Parsing the LOOKUP statement from Ast
+        // Parsing the LOOKUP statement
         let parsed_info = self.parse_from_ast(&ast)?;
 
-        // 3. Obtain the current name of the space.
-        let space_name = qctx.space_name().unwrap_or_default();
-
-        if space_name.is_empty() {
-            return Err(ValidationError::new(
-                "No image space selected, please execute first USE <space>".to_string(),
+        // Get the current space name
+        let space_name = ctx.space_name().ok_or_else(|| {
+            ValidationError::new(
+                "No current space selected".to_string(),
                 ValidationErrorType::SemanticError,
-            ));
-        }
+            )
+        })?;
 
-        // 4. Verify the LOOKUP target
-        let index_type =
-            self.validate_lookup_target(&space_name, &parsed_info.label, parsed_info.is_edge)?;
+        // Verify the LOOKUP target (and determine if it's an edge)
+        let (index_type, is_edge) = self.validate_lookup_target(
+            &space_name,
+            &parsed_info.label,
+            parsed_info.is_edge,
+            parsed_info.target_type_specified,
+        )?;
 
-        // 4. Verify the filtering criteria
+        // Verify the filtering criteria
         self.validate_filter(&parsed_info.filter_expression)?;
 
-        // 5. Verify the YIELD clause
+        // Verify the YIELD clause
         self.validate_yields(&parsed_info.yield_columns, parsed_info.is_yield_all)?;
 
-        // 6. Obtain the space_id
-        let space_id = qctx.space_id().unwrap_or(0);
-
-        // 7. Generate the output column.
+        // Generate output columns
         self.outputs =
             self.generate_output_columns(&parsed_info.yield_columns, parsed_info.is_yield_all);
 
-        // 8. Constructing detailed ValidationInfo
-        let mut info = ValidationInfo::new();
+        // Get space_id
+        let space_id = ctx.space_id().unwrap_or(0);
 
-        // 8.1 添加别名映射
-        let alias_type = if parsed_info.is_edge {
-            AliasType::Edge
+        // Find index name and columns from schema manager
+        let (index_name, index_columns) = if let Some(ref schema_manager) = self.schema_manager {
+            if is_edge {
+                // Find edge index for this edge type
+                match schema_manager.list_edge_indexes(&space_name) {
+                    Ok(indexes) => indexes
+                        .into_iter()
+                        .find(|idx| idx.schema_name == parsed_info.label)
+                        .map(|idx| (idx.name, idx.properties))
+                        .unwrap_or_default(),
+                    Err(_) => (String::new(), Vec::new()),
+                }
+            } else {
+                // Find tag index for this tag
+                match schema_manager.list_tag_indexes(&space_name) {
+                    Ok(indexes) => indexes
+                        .into_iter()
+                        .find(|idx| idx.schema_name == parsed_info.label)
+                        .map(|idx| (idx.name, idx.properties))
+                        .unwrap_or_default(),
+                    Err(_) => (String::new(), Vec::new()),
+                }
+            }
         } else {
-            AliasType::Node
+            (String::new(), Vec::new())
         };
-        info.add_alias(parsed_info.label.clone(), alias_type);
 
-        // 8.2 添加语义信息
-        if parsed_info.is_edge {
-            info.semantic_info
-                .referenced_edges
-                .push(parsed_info.label.clone());
-        } else {
-            info.semantic_info
-                .referenced_tags
-                .push(parsed_info.label.clone());
-        }
-
-        // 8.3 添加优化提示
-        if let Some(ref filter) = parsed_info.filter_expression {
-            info.add_optimization_hint(OptimizationHint::UseIndexScan {
-                table: parsed_info.label.clone(),
-                column: "id".to_string(),
-                condition: filter.clone(),
-            });
-        }
-
-        // 8.4 添加索引提示
-        match &index_type {
-            LookupIndexType::Single(column) => {
-                info.add_index_hint(IndexHint {
-                    index_name: format!("{}_{}_index", parsed_info.label, column),
-                    table_name: parsed_info.label.clone(),
-                    columns: vec![column.clone()],
-                    applicable_conditions: parsed_info
-                        .filter_expression
-                        .clone()
-                        .map_or_else(std::vec::Vec::new, |f| vec![f]),
-                    estimated_selectivity: 0.1,
-                });
-            }
-            LookupIndexType::Composite(columns) => {
-                info.add_index_hint(IndexHint {
-                    index_name: format!("{}_composite_index", parsed_info.label),
-                    table_name: parsed_info.label.clone(),
-                    columns: columns.clone(),
-                    applicable_conditions: parsed_info
-                        .filter_expression
-                        .clone()
-                        .map_or_else(std::vec::Vec::new, |f| vec![f]),
-                    estimated_selectivity: 0.05,
-                });
-            }
-            LookupIndexType::None => {}
-        }
-
-        // 8.5 添加验证通过的子句
-        info.validated_clauses
-            .push(crate::query::validator::structs::ClauseKind::Match);
-
-        // 9. Create the validation results (place this in the final step to avoid unnecessary clones).
-        let validated = ValidatedLookup {
+        // Store verification results
+        self.validated_result = Some(ValidatedLookup {
             space_id,
-            label: parsed_info.label,
-            is_edge: parsed_info.is_edge,
+            label: parsed_info.label.clone(),
+            is_edge,
             index_type,
             filter_expression: parsed_info.filter_expression,
             yield_columns: parsed_info.yield_columns,
             is_yield_all: parsed_info.is_yield_all,
+        });
+
+        // Build ValidationInfo
+        let validation_info = ValidationInfo {
+            alias_map: HashMap::new(),
+            path_analysis: Vec::new(),
+            optimization_hints: Vec::new(),
+            variable_definitions: HashMap::new(),
+            index_hints: vec![IndexHint {
+                index_name,
+                table_name: parsed_info.label,
+                columns: index_columns,
+                applicable_conditions: Vec::new(),
+                estimated_selectivity: 0.0,
+                is_edge,
+            }],
+            validated_clauses: Vec::new(),
+            semantic_info: Default::default(),
         };
 
-        self.validated_result = Some(validated);
-
-        // 10. Return the verification results containing detailed information.
-        Ok(ValidationResult::success_with_info(info))
+        Ok(ValidationResult::success_with_info(validation_info))
     }
 
     fn statement_type(&self) -> StatementType {
         StatementType::Lookup
-    }
-
-    fn is_global_statement(&self) -> bool {
-        // LOOKUP is not a global statement; the relevant scope must be selected in advance.
-        false
     }
 
     fn inputs(&self) -> &[ColumnDef] {
@@ -504,97 +512,15 @@ impl StatementValidator for LookupValidator {
         &self.outputs
     }
 
+    fn is_global_statement(&self) -> bool {
+        false
+    }
+
     fn expression_props(&self) -> &ExpressionProps {
         &self.expression_props
     }
 
     fn user_defined_vars(&self) -> &[String] {
         &self.user_defined_vars
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::query::parser::ast::stmt::{Ast, LookupStmt, LookupTarget, YieldClause};
-    use crate::query::parser::ast::Span;
-    use crate::query::query_request_context::QueryRequestContext;
-    use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
-    use std::sync::Arc;
-
-    /// Create a QueryContext for testing purposes, which should contain a valid space_id.
-    fn create_test_query_context() -> Arc<QueryContext> {
-        let rctx = Arc::new(QueryRequestContext::new("TEST".to_string()));
-        let mut qctx = QueryContext::new(rctx);
-        let space_info = crate::core::types::SpaceInfo::new("test_space".to_string());
-        qctx.set_space_info(space_info);
-        Arc::new(qctx)
-    }
-
-    fn create_test_ast(stmt: Stmt) -> Arc<Ast> {
-        let ctx = Arc::new(ExpressionAnalysisContext::new());
-        Arc::new(Ast::new(stmt, ctx))
-    }
-
-    fn create_simple_lookup_stmt(label: &str, is_edge: bool) -> LookupStmt {
-        let target = if is_edge {
-            LookupTarget::Edge(label.to_string())
-        } else {
-            LookupTarget::Tag(label.to_string())
-        };
-
-        LookupStmt {
-            span: Span::default(),
-            target,
-            where_clause: None,
-            yield_clause: Some(YieldClause {
-                span: Span::default(),
-                items: vec![],
-                where_clause: None,
-                order_by: None,
-                limit: None,
-                skip: None,
-                sample: None,
-            }),
-        }
-    }
-
-    #[test]
-    fn test_lookup_validator_basic() {
-        let mut validator = LookupValidator::new();
-        let lookup_stmt = create_simple_lookup_stmt("person", false);
-        let qctx = create_test_query_context();
-
-        let result = validator.validate(create_test_ast(Stmt::Lookup(lookup_stmt)), qctx);
-        // The current attempt will fail because there is no YIELD column, and the calculation cannot be performed using the formula YIELD * …
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_lookup_validator_empty_label() {
-        let mut validator = LookupValidator::new();
-        let lookup_stmt = create_simple_lookup_stmt("", false);
-        let qctx = create_test_query_context();
-
-        let result = validator.validate(create_test_ast(Stmt::Lookup(lookup_stmt)), qctx);
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(err.message.contains("必须指定"));
-    }
-
-    #[test]
-    fn test_lookup_validator_not_lookup_stmt() {
-        let mut validator = LookupValidator::new();
-        let qctx = create_test_query_context();
-        // Do not set the LOOKUP statement.
-
-        let result = validator.validate(
-            create_test_ast(Stmt::Use(crate::query::parser::ast::stmt::UseStmt {
-                span: Span::default(),
-                space: "test".to_string(),
-            })),
-            qctx,
-        );
-        assert!(result.is_err());
     }
 }

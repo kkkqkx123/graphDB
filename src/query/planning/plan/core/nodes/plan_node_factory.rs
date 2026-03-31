@@ -320,15 +320,17 @@ impl PlanNodeFactory {
         space_id: u64,
         tag_id: i32,
         index_id: i32,
+        index_name: &str,
         scan_type: &str,
     ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         use crate::query::planning::plan::core::nodes::access::{IndexScanNode, ScanType};
 
-        // Create an IndexScan node
         let index_scan_node = IndexScanNode::new(
             space_id,
             tag_id,
             index_id,
+            index_name.to_string(),
+            String::new(),
             ScanType::from_str_with_default(scan_type),
         );
         Ok(PlanNodeEnum::IndexScan(index_scan_node))

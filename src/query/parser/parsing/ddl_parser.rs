@@ -213,7 +213,42 @@ impl DdlParser {
                 },
                 if_not_exists,
             }))
-        } else if ctx.match_token(TokenKind::Edge) {
+        } else if ctx.check_token(TokenKind::Edge) {
+            ctx.next_token(); // consume EDGE
+
+            // Check if it's CREATE EDGE INDEX
+            if ctx.check_token(TokenKind::Index) {
+                ctx.next_token(); // consume INDEX
+                let mut if_not_exists = false;
+                if ctx.match_token(TokenKind::If) {
+                    ctx.expect_token(TokenKind::Not)?;
+                    ctx.expect_token(TokenKind::Exists)?;
+                    if_not_exists = true;
+                }
+                let name = ctx.expect_identifier()?;
+                ctx.expect_token(TokenKind::On)?;
+                let on = ctx.expect_identifier()?;
+                ctx.expect_token(TokenKind::LParen)?;
+                let mut properties = vec![];
+                loop {
+                    properties.push(ctx.expect_identifier()?);
+                    if !ctx.match_token(TokenKind::Comma) {
+                        break;
+                    }
+                }
+                ctx.expect_token(TokenKind::RParen)?;
+                return Ok(Stmt::Create(CreateStmt {
+                    span: start_span,
+                    target: CreateTarget::Index {
+                        index_type: IndexType::Edge,
+                        name,
+                        on,
+                        properties,
+                    },
+                    if_not_exists,
+                }));
+            }
+
             // Analysis of the IF NOT EXISTS clause (used after EDGE)
             let mut if_not_exists = false;
             if ctx.match_token(TokenKind::If) {

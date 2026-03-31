@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 pub use crate::query::planning::plan::core::nodes::{
     ArgumentNode, DedupNode, ExpandAllNode, FilterNode, GetNeighborsNode, HashInnerJoinNode,
-    ProjectNode,
+    ProjectNode, StartNode,
 };
 pub use crate::query::planning::plan::core::PlanNodeEnum;
 
@@ -74,9 +74,34 @@ impl Planner for GoPlanner {
             log::debug!("GO 引用的边类型: {:?}", referenced_edges);
         }
 
-        let from_var = "v";
-        let arg_node = ArgumentNode::new(0, from_var);
-        let arg_node_enum = PlanNodeEnum::Argument(arg_node);
+        // Handle FROM clause - extract source vertex IDs
+        let from_vertices = &go_stmt.from.vertices;
+        if from_vertices.is_empty() {
+            return Err(PlannerError::PlanGenerationFailed(
+                "GO statement must have FROM clause".to_string(),
+            ));
+        }
+
+        // Check if the first from expression is a literal (vertex ID)
+        let first_from = &from_vertices[0];
+        let (use_start_node, from_var) = if first_from.is_literal() {
+            // If it's a literal like "1", we need to create a variable in context
+            // Use StartNode as the tail and set the variable in execution context
+            (true, "v".to_string())
+        } else if let Some(var_name) = first_from.as_variable() {
+            // If it's already a variable, use ArgumentNode
+            (false, var_name.clone())
+        } else {
+            // For other expressions, use ArgumentNode with a default variable name
+            (false, "v".to_string())
+        };
+
+        // Create the tail node
+        let tail_node = if use_start_node {
+            PlanNodeEnum::Start(StartNode::new())
+        } else {
+            PlanNodeEnum::Argument(ArgumentNode::new(0, &from_var))
+        };
 
         let (direction_str, edge_types) = if let Some(over_clause) = &go_stmt.over {
             let direction_str = match over_clause.direction {
@@ -89,7 +114,25 @@ impl Planner for GoPlanner {
             ("both", vec![])
         };
 
-        let expand_all_node = ExpandAllNode::new(1, edge_types, direction_str);
+        // Create ExpandAllNode to traverse edges
+        let mut expand_all_node = ExpandAllNode::new(1, edge_types, direction_str);
+
+        // Set step_limit to 1 for GO FROM (one step traversal)
+        expand_all_node.set_step_limit(1);
+
+        // Don't include empty paths for GO FROM queries
+        expand_all_node.set_include_empty_paths(false);
+
+        // Set src_vids from FROM clause if they are literals
+        if use_start_node {
+            let src_vids: Vec<crate::core::Value> = from_vertices
+                .iter()
+                .filter_map(|expr| expr.as_literal())
+                .collect();
+            if !src_vids.is_empty() {
+                expand_all_node.set_src_vids(src_vids);
+            }
+        }
 
         let input_for_join = PlanNodeEnum::ExpandAll(expand_all_node);
 
@@ -120,7 +163,7 @@ impl Planner for GoPlanner {
 
         let sub_plan = SubPlan {
             root: Some(project_node),
-            tail: Some(arg_node_enum),
+            tail: Some(tail_node),
         };
 
         Ok(sub_plan)

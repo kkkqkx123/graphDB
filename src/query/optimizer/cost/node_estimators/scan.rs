@@ -242,7 +242,14 @@ mod tests {
         let calculator = create_test_calculator_with_stats();
         let estimator = ScanEstimator::new(&calculator);
 
-        let mut node = IndexScanNode::new(1, 1, 1, ScanType::Unique);
+        let mut node = IndexScanNode::new(
+            1,
+            1,
+            1,
+            "test_index".to_string(),
+            "test_schema".to_string(),
+            ScanType::Unique,
+        );
         node.set_scan_limits(vec![IndexLimit::equal("Person.name", "Alice")]);
         let plan_node = PlanNodeEnum::IndexScan(node);
 
@@ -292,7 +299,14 @@ mod tests {
         let calculator = create_test_calculator();
         let estimator = ScanEstimator::new(&calculator);
 
-        let node = IndexScanNode::new(1, 1, 1, ScanType::Unique);
+        let node = IndexScanNode::new(
+            1,
+            1,
+            1,
+            "test_index".to_string(),
+            "test_schema".to_string(),
+            ScanType::Unique,
+        );
         let selectivity = estimator.estimate_index_scan_selectivity(&node);
         assert_eq!(selectivity, 0.1);
     }
@@ -302,7 +316,14 @@ mod tests {
         let calculator = create_test_calculator();
         let estimator = ScanEstimator::new(&calculator);
 
-        let mut node = IndexScanNode::new(1, 1, 1, ScanType::Unique);
+        let mut node = IndexScanNode::new(
+            1,
+            1,
+            1,
+            "test_index".to_string(),
+            "test_schema".to_string(),
+            ScanType::Unique,
+        );
         node.set_scan_limits(vec![IndexLimit::equal("Person.name", "Alice")]);
         let selectivity = estimator.estimate_index_scan_selectivity(&node);
         assert_eq!(selectivity, 0.01);
@@ -313,7 +334,14 @@ mod tests {
         let calculator = create_test_calculator();
         let estimator = ScanEstimator::new(&calculator);
 
-        let mut node = IndexScanNode::new(1, 1, 1, ScanType::Prefix);
+        let mut node = IndexScanNode::new(
+            1,
+            1,
+            1,
+            "test_index".to_string(),
+            "test_schema".to_string(),
+            ScanType::Prefix,
+        );
         node.set_scan_limits(vec![IndexLimit::prefix("Person.name", "A")]);
         let selectivity = estimator.estimate_index_scan_selectivity(&node);
         assert_eq!(selectivity, 0.05);
@@ -324,7 +352,14 @@ mod tests {
         let calculator = create_test_calculator();
         let estimator = ScanEstimator::new(&calculator);
 
-        let mut node = IndexScanNode::new(1, 1, 1, ScanType::Range);
+        let mut node = IndexScanNode::new(
+            1,
+            1,
+            1,
+            "test_index".to_string(),
+            "test_schema".to_string(),
+            ScanType::Range,
+        );
         node.set_scan_limits(vec![IndexLimit::range(
             "Person.age",
             Some("20"),
@@ -341,7 +376,14 @@ mod tests {
         let calculator = create_test_calculator();
         let estimator = ScanEstimator::new(&calculator);
 
-        let mut node = IndexScanNode::new(1, 1, 1, ScanType::Unique);
+        let mut node = IndexScanNode::new(
+            1,
+            1,
+            1,
+            "test_index".to_string(),
+            "test_schema".to_string(),
+            ScanType::Unique,
+        );
         node.set_scan_limits(vec![
             IndexLimit::equal("Person.name", "Alice"),
             IndexLimit::equal("Person.age", "25"),
@@ -410,7 +452,14 @@ mod tests {
         let calculator = create_test_calculator_with_stats();
         let estimator = ScanEstimator::new(&calculator);
 
-        let node = IndexScanNode::new(1, 1, 1, ScanType::Unique);
+        let node = IndexScanNode::new(
+            1,
+            1,
+            1,
+            "test_index".to_string(),
+            "test_schema".to_string(),
+            ScanType::Unique,
+        );
         let tag_name = estimator.get_tag_name_from_index_scan(&node);
         assert_eq!(tag_name, "default");
     }
@@ -420,7 +469,14 @@ mod tests {
         let calculator = create_test_calculator();
         let estimator = ScanEstimator::new(&calculator);
 
-        let mut node = IndexScanNode::new(1, 1, 1, ScanType::Unique);
+        let mut node = IndexScanNode::new(
+            1,
+            1,
+            1,
+            "test_index".to_string(),
+            "test_schema".to_string(),
+            ScanType::Unique,
+        );
         node.set_scan_limits(vec![IndexLimit::equal("Person.name", "Alice")]);
         let property_name = estimator.get_property_name_from_index_scan(&node);
         assert_eq!(property_name, "Person.name");
@@ -431,7 +487,14 @@ mod tests {
         let calculator = create_test_calculator();
         let estimator = ScanEstimator::new(&calculator);
 
-        let node = IndexScanNode::new(1, 1, 1, ScanType::Unique);
+        let node = IndexScanNode::new(
+            1,
+            1,
+            1,
+            "test_index".to_string(),
+            "test_schema".to_string(),
+            ScanType::Unique,
+        );
         let property_name = estimator.get_property_name_from_index_scan(&node);
         assert_eq!(property_name, "default");
     }

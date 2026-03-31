@@ -157,8 +157,12 @@ impl Planner for InsertPlanner {
                         "INSERT VERTEX must specify at least one tag".to_string(),
                     ));
                 }
-                let info =
-                    self.build_vertex_insert_info(space_name, tags.clone(), values.clone(), insert_stmt.if_not_exists)?;
+                let info = self.build_vertex_insert_info(
+                    space_name,
+                    tags.clone(),
+                    values.clone(),
+                    insert_stmt.if_not_exists,
+                )?;
                 (
                     PlanNodeEnum::InsertVertices(InsertVerticesNode::new(next_node_id(), info)),
                     count,

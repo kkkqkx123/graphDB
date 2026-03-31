@@ -488,6 +488,20 @@ impl<'a> ExprParser<'a> {
 
                 Ok(ParseResult { expr, span })
             }
+            TokenKind::DstRef => {
+                ctx.next_token();
+                let mut span = ctx.merge_span(start_pos, ctx.current_position());
+                let mut expr = Expression::variable("$$");
+
+                if ctx.match_token(TokenKind::Dot) {
+                    let prop_name = ctx.expect_identifier()?;
+                    expr = Expression::property(expr, prop_name);
+                    // Update the span to include attribute access.
+                    span = ctx.merge_span(start_pos, ctx.current_position());
+                }
+
+                Ok(ParseResult { expr, span })
+            }
             TokenKind::Dollar => {
                 ctx.next_token();
                 let var_name = ctx.expect_identifier()?;

@@ -1,9 +1,9 @@
-use crate::core::types::{EdgeTypeInfo, PropertyDef, SpaceInfo, TagInfo};
+use crate::core::types::{EdgeTypeInfo, Index, PropertyDef, SpaceInfo, TagInfo};
 use crate::core::value::Value;
 use crate::core::StorageError;
 use crate::storage::redb_types::{
-    ByteKey, EDGE_TYPES_TABLE, EDGE_TYPE_ID_COUNTER_TABLE, SPACES_TABLE, SPACE_NAME_INDEX_TABLE,
-    TAGS_TABLE, TAG_ID_COUNTER_TABLE,
+    ByteKey, EDGE_INDEXES_TABLE, EDGE_TYPES_TABLE, EDGE_TYPE_ID_COUNTER_TABLE, SPACES_TABLE,
+    SPACE_NAME_INDEX_TABLE, TAGS_TABLE, TAG_ID_COUNTER_TABLE, TAG_INDEXES_TABLE,
 };
 use crate::storage::{FieldDef, Schema};
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
@@ -899,5 +899,67 @@ impl super::SchemaManager for RedbSchemaManager {
         })?;
 
         Ok(edge_type_info_to_schema(edge, &edge_type_info))
+    }
+
+    fn list_tag_indexes(&self, space_name: &str) -> Result<Vec<Index>, StorageError> {
+        let space = self.get_space(space_name)?.ok_or_else(|| {
+            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+        })?;
+        let space_id = space.space_id;
+
+        let read_txn = self.db.begin_read().map_err(|e| {
+            StorageError::DbError(format!("Failed to start read transaction: {}", e))
+        })?;
+        let table = read_txn.open_table(TAG_INDEXES_TABLE).map_err(|e| {
+            StorageError::DbError(format!("Failed to open TAG_INDEXES_TABLE: {}", e))
+        })?;
+
+        let mut indexes = Vec::new();
+        let space_prefix = format!("{}:", space_id);
+        for result in table
+            .iter()
+            .map_err(|e| StorageError::DbError(e.to_string()))?
+        {
+            let (key, value) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+            let key_data = key.value().0.clone();
+            let key_str = String::from_utf8_lossy(&key_data);
+            if key_str.starts_with(&space_prefix) {
+                let index_bytes = value.value().0;
+                let index: Index = decode_from_slice(&index_bytes, standard())?.0;
+                indexes.push(index);
+            }
+        }
+        Ok(indexes)
+    }
+
+    fn list_edge_indexes(&self, space_name: &str) -> Result<Vec<Index>, StorageError> {
+        let space = self.get_space(space_name)?.ok_or_else(|| {
+            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+        })?;
+        let space_id = space.space_id;
+
+        let read_txn = self.db.begin_read().map_err(|e| {
+            StorageError::DbError(format!("Failed to start read transaction: {}", e))
+        })?;
+        let table = read_txn.open_table(EDGE_INDEXES_TABLE).map_err(|e| {
+            StorageError::DbError(format!("Failed to open EDGE_INDEXES_TABLE: {}", e))
+        })?;
+
+        let mut indexes = Vec::new();
+        let space_prefix = format!("{}:", space_id);
+        for result in table
+            .iter()
+            .map_err(|e| StorageError::DbError(e.to_string()))?
+        {
+            let (key, value) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+            let key_data = key.value().0.clone();
+            let key_str = String::from_utf8_lossy(&key_data);
+            if key_str.starts_with(&space_prefix) {
+                let index_bytes = value.value().0;
+                let index: Index = decode_from_slice(&index_bytes, standard())?.0;
+                indexes.push(index);
+            }
+        }
+        Ok(indexes)
     }
 }

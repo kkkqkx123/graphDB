@@ -143,6 +143,27 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
                 }
             }
 
+            // Handle table.column format: create table map variables
+            let mut table_maps: std::collections::HashMap<
+                String,
+                std::collections::HashMap<String, crate::core::Value>,
+            > = std::collections::HashMap::new();
+            for (i, col_name) in dataset.col_names.iter().enumerate() {
+                if i < row.len() {
+                    if let Some(dot_pos) = col_name.find('.') {
+                        let table = &col_name[..dot_pos];
+                        let column = &col_name[dot_pos + 1..];
+                        table_maps
+                            .entry(table.to_string())
+                            .or_default()
+                            .insert(column.to_string(), row[i].clone());
+                    }
+                }
+            }
+            for (table, map) in table_maps {
+                context.set_variable(table, crate::core::Value::Map(map));
+            }
+
             // Set the `row` variable (which contains the entire row of data)
             let row_map: std::collections::HashMap<String, crate::core::Value> = dataset
                 .col_names

@@ -83,6 +83,27 @@ impl<S: StorageClient> ProjectExecutor<S> {
             }
         }
 
+        // Handle table.column format: create table map variables
+        let mut table_maps: std::collections::HashMap<
+            String,
+            std::collections::HashMap<String, Value>,
+        > = std::collections::HashMap::new();
+        for (i, col_name) in col_names.iter().enumerate() {
+            if i < row.len() {
+                if let Some(dot_pos) = col_name.find('.') {
+                    let table = &col_name[..dot_pos];
+                    let column = &col_name[dot_pos + 1..];
+                    table_maps
+                        .entry(table.to_string())
+                        .or_default()
+                        .insert(column.to_string(), row[i].clone());
+                }
+            }
+        }
+        for (table, map) in table_maps {
+            context.set_variable(table, Value::Map(map));
+        }
+
         // Evaluate each projected column.
         for column in &self.columns {
             // Extract the Expression from the ContextualExpression.
@@ -151,6 +172,27 @@ impl<S: StorageClient> ProjectExecutor<S> {
                                 if i < row.len() {
                                     context.set_variable(col_name.clone(), row[i].clone());
                                 }
+                            }
+
+                            // Handle table.column format: create table map variables
+                            let mut table_maps: std::collections::HashMap<
+                                String,
+                                std::collections::HashMap<String, Value>,
+                            > = std::collections::HashMap::new();
+                            for (i, col_name) in col_names.iter().enumerate() {
+                                if i < row.len() {
+                                    if let Some(dot_pos) = col_name.find('.') {
+                                        let table = &col_name[..dot_pos];
+                                        let column = &col_name[dot_pos + 1..];
+                                        table_maps
+                                            .entry(table.to_string())
+                                            .or_default()
+                                            .insert(column.to_string(), row[i].clone());
+                                    }
+                                }
+                            }
+                            for (table, map) in table_maps {
+                                context.set_variable(table, Value::Map(map));
                             }
 
                             // Evaluate each projected column.

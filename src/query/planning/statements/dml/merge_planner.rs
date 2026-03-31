@@ -11,9 +11,7 @@ use crate::core::{Expression, Value};
 use crate::query::parser::ast::{MergeStmt, Pattern, Stmt};
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
-    nodes::{
-        ArgumentNode, InsertVerticesNode, VertexInsertInfo, TagInsertSpec,
-    },
+    nodes::{ArgumentNode, InsertVerticesNode, TagInsertSpec, VertexInsertInfo},
 };
 use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
@@ -68,15 +66,14 @@ impl MergePlanner {
                     .clone();
 
                 // Handle properties
-                let (prop_names, prop_values, vid_expr) = if let Some(props_expr) =
-                    &node_pattern.properties
-                {
-                    self.extract_properties_and_vid(props_expr, expr_context)?
-                } else {
-                    // No properties - generate a random ID
-                    let vid_expr = self.create_vid_expression(expr_context)?;
-                    (vec![], vec![], vid_expr)
-                };
+                let (prop_names, prop_values, vid_expr) =
+                    if let Some(props_expr) = &node_pattern.properties {
+                        self.extract_properties_and_vid(props_expr, expr_context)?
+                    } else {
+                        // No properties - generate a random ID
+                        let vid_expr = self.create_vid_expression(expr_context)?;
+                        (vec![], vec![], vid_expr)
+                    };
 
                 let tag_spec = TagInsertSpec {
                     tag_name,
@@ -190,19 +187,15 @@ impl Planner for MergePlanner {
         let merge_stmt = self.extract_merge_stmt(validated.stmt())?;
 
         // Convert the pattern to vertex insert info
-        let vertex_info = self.pattern_to_vertex_info(
-            &merge_stmt.pattern,
-            space_name,
-            validated.expr_context(),
-        )?;
+        let vertex_info =
+            self.pattern_to_vertex_info(&merge_stmt.pattern, space_name, validated.expr_context())?;
 
         // Create an Argument Node
         let arg_node = ArgumentNode::new(next_node_id(), "merge_args");
         let arg_node_enum = PlanNodeEnum::Argument(arg_node.clone());
 
         // Create InsertVertices node with IF NOT EXISTS
-        let insert_node =
-            InsertVerticesNode::new(next_node_id(), vertex_info);
+        let insert_node = InsertVerticesNode::new(next_node_id(), vertex_info);
         let insert_node_enum = PlanNodeEnum::InsertVertices(insert_node);
 
         // Create a SubPlan

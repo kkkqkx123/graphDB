@@ -228,11 +228,24 @@ impl UtilStmtParser {
         ctx.expect_token(TokenKind::Lookup)?;
 
         let target = if ctx.match_token(TokenKind::On) {
-            let name = ctx.expect_identifier()?;
-            ctx.match_token(TokenKind::Tag); // Consuming the TokenKind::Tag token
-            LookupTarget::Tag(name)
+            // Check if it's an EDGE or TAG keyword followed by identifier
+            if ctx.current_token().kind == TokenKind::Edge {
+                // LOOKUP ON EDGE <name>
+                ctx.next_token(); // consume EDGE
+                let name = ctx.expect_identifier()?;
+                LookupTarget::Edge(name)
+            } else if ctx.current_token().kind == TokenKind::Tag {
+                // LOOKUP ON TAG <name>
+                ctx.next_token(); // consume TAG
+                let name = ctx.expect_identifier()?;
+                LookupTarget::Tag(name)
+            } else {
+                // LOOKUP ON <name> - type will be resolved during validation
+                let name = ctx.expect_identifier()?;
+                LookupTarget::Unspecified(name)
+            }
         } else {
-            LookupTarget::Tag(String::new())
+            LookupTarget::Unspecified(String::new())
         };
 
         let where_clause = if ctx.match_token(TokenKind::Where) {

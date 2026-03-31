@@ -138,18 +138,24 @@ impl DropEdgeNode {
 
 define_plan_node! {
     pub struct ShowEdgesNode {
+        space_name: String,
     }
     enum: ShowEdges
     input: ZeroInputNode
 }
 
 impl ShowEdgesNode {
-    pub fn new(id: i64) -> Self {
+    pub fn new(id: i64, space_name: String) -> Self {
         Self {
             id,
+            space_name,
             output_var: None,
             col_names: Vec::new(),
         }
+    }
+
+    pub fn space_name(&self) -> &str {
+        &self.space_name
     }
 }
 

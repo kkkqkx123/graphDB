@@ -179,6 +179,10 @@ impl EdgeIndexScanNode {
         &self.edge_type
     }
 
+    pub fn schema_name(&self) -> &str {
+        &self.edge_type
+    }
+
     pub fn index_name(&self) -> &str {
         &self.index_name
     }

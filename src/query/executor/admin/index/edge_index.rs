@@ -66,6 +66,7 @@ impl From<&EdgeIndexDesc> for Index {
 #[derive(Debug)]
 pub struct CreateEdgeIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
+    space_name: String,
     index_info: Index,
     if_not_exists: bool,
 }
@@ -74,6 +75,7 @@ impl<S: StorageClient> CreateEdgeIndexExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
+        space_name: String,
         index_info: Index,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -84,6 +86,7 @@ impl<S: StorageClient> CreateEdgeIndexExecutor<S> {
                 storage,
                 expr_context,
             ),
+            space_name,
             index_info,
             if_not_exists: false,
         }
@@ -92,6 +95,7 @@ impl<S: StorageClient> CreateEdgeIndexExecutor<S> {
     pub fn with_if_not_exists(
         id: i64,
         storage: Arc<Mutex<S>>,
+        space_name: String,
         index_info: Index,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -102,6 +106,7 @@ impl<S: StorageClient> CreateEdgeIndexExecutor<S> {
                 storage,
                 expr_context,
             ),
+            space_name,
             index_info,
             if_not_exists: true,
         }
@@ -113,7 +118,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateEdgeIndexEx
         let storage = self.get_storage();
         let mut storage_guard = storage.lock();
 
-        let result = storage_guard.create_edge_index("default", &self.index_info);
+        let result = storage_guard.create_edge_index(&self.space_name, &self.index_info);
 
         match result {
             Ok(true) => Ok(ExecutionResult::Success),

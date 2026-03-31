@@ -53,7 +53,6 @@ use crate::query::planning::plan::core::nodes::data_modification::{
     DeleteEdgesNode, DeleteVerticesNode, InsertEdgesNode, InsertVerticesNode, UpdateEdgesNode,
     UpdateNode, UpdateVerticesNode,
 };
-use crate::query::planning::plan::core::nodes::RemoveNode;
 use crate::query::planning::plan::core::nodes::management::edge_nodes::{
     AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
 };
@@ -71,6 +70,7 @@ use crate::query::planning::plan::core::nodes::management::tag_nodes::{
 use crate::query::planning::plan::core::nodes::management::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode,
 };
+use crate::query::planning::plan::core::nodes::RemoveNode;
 
 use crate::query::planning::plan::core::nodes::access::IndexScanNode;
 use crate::query::planning::plan::core::nodes::traversal::{

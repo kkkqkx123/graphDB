@@ -120,11 +120,13 @@ impl TestScenario {
 
     /// Execute a query
     pub fn query(mut self, query: &str) -> Self {
+        eprintln!("[query] Executing query: {}", query);
         match self
             .pipeline
             .execute_query_with_space(query, self.current_space.clone())
         {
             Ok(result) => {
+                eprintln!("[query] Result: {:?}", result);
                 // Check if the result itself is an error
                 match &result {
                     ExecutionResult::Error(e) => {
@@ -138,6 +140,7 @@ impl TestScenario {
                 }
             }
             Err(e) => {
+                eprintln!("[query] Error: {:?}", e);
                 self.last_error = Some(format!("{:?}", e));
                 self.last_result = None;
             }

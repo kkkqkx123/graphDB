@@ -30,6 +30,10 @@ pub struct ExpandAllExecutor<S: StorageClient + Send + 'static> {
     path_cache: Vec<Path>,
     // Set of visited nodes, used to avoid loops.
     pub visited_nodes: HashSet<Value>,
+    // Source vertex IDs for starting the expansion (from GO FROM clause)
+    pub src_vids: Vec<Value>,
+    // Whether to include empty paths (paths with no edges) in the result
+    pub include_empty_paths: bool,
 }
 
 // Manual Debug implementation for ExpandAllExecutor to avoid requiring Debug trait for Executor trait object
@@ -67,7 +71,19 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             npath_cache: Vec::new(),
             path_cache: Vec::new(),
             visited_nodes: HashSet::new(),
+            src_vids: Vec::new(),
+            include_empty_paths: true, // Default to true for backward compatibility
         }
+    }
+
+    pub fn with_src_vids(mut self, src_vids: Vec<Value>) -> Self {
+        self.src_vids = src_vids;
+        self
+    }
+
+    pub fn with_include_empty_paths(mut self, include: bool) -> Self {
+        self.include_empty_paths = include;
+        self
     }
 
     fn get_neighbors_with_edges(&self, node_id: &Value) -> Result<Vec<(Value, Edge)>, QueryError> {
@@ -178,6 +194,11 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
         let mut path_values = Vec::new();
 
         for path in &paths {
+            // Skip empty paths if include_empty_paths is false
+            if !self.include_empty_paths && path.steps.is_empty() {
+                continue;
+            }
+
             let mut path_value = Vec::new();
 
             // Add a starting node.
@@ -208,6 +229,11 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExpandAllExecutor<S
 
 impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
+        eprintln!(
+            "[ExpandAllExecutor] Starting execution, src_vids: {:?}",
+            self.src_vids
+        );
+
         // First, execute the input executor (if it exists).
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute()?
@@ -216,8 +242,10 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
             ExecutionResult::Vertices(Vec::new())
         };
 
+        eprintln!("[ExpandAllExecutor] Input result: {:?}", input_result);
+
         // Extract the input node.
-        let input_nodes = match input_result {
+        let mut input_nodes = match input_result {
             ExecutionResult::Vertices(vertices) => vertices,
             ExecutionResult::Edges(edges) => {
                 // Extract nodes from the edges.
@@ -259,6 +287,32 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
             }
             _ => Vec::new(),
         };
+
+        // If src_vids is set (from GO FROM clause), add those vertices as input nodes
+        if !self.src_vids.is_empty() {
+            eprintln!("[ExpandAllExecutor] Loading src_vids from storage");
+            let storage = self.get_storage().lock();
+            for vid in &self.src_vids {
+                eprintln!("[ExpandAllExecutor] Looking up vertex with vid: {:?}", vid);
+                match storage.get_vertex("default", vid) {
+                    Ok(Some(vertex)) => {
+                        eprintln!("[ExpandAllExecutor] Found vertex: {:?}", vertex);
+                        input_nodes.push(vertex);
+                    }
+                    Ok(None) => {
+                        eprintln!("[ExpandAllExecutor] Vertex not found for vid: {:?}", vid);
+                    }
+                    Err(e) => {
+                        eprintln!("[ExpandAllExecutor] Error looking up vertex: {:?}", e);
+                    }
+                }
+            }
+        }
+
+        eprintln!(
+            "[ExpandAllExecutor] Total input_nodes: {}",
+            input_nodes.len()
+        );
 
         // Determine the maximum depth.
         let max_depth = self.max_depth.unwrap_or(3); // The default depth is 3.

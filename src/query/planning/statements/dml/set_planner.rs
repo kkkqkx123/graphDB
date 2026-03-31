@@ -38,10 +38,7 @@ impl SetPlanner {
 
     /// Extract vertex ID from target expression
     /// For expressions like "1.age", extract the vertex ID "1" as a new ContextualExpression
-    fn extract_vertex_id(
-        &self,
-        target: &ContextualExpression,
-    ) -> Option<ContextualExpression> {
+    fn extract_vertex_id(&self, target: &ContextualExpression) -> Option<ContextualExpression> {
         let expr_meta = target.expression()?;
         let expr = expr_meta.inner();
 
@@ -105,7 +102,8 @@ impl Planner for SetPlanner {
                     vertex_updates.push(vertex_update);
                 } else {
                     // Fallback to variable assignment
-                    variable_assignments.push((assignment.property.clone(), assignment.value.clone()));
+                    variable_assignments
+                        .push((assignment.property.clone(), assignment.value.clone()));
                 }
             } else {
                 // This is a variable assignment like "p.age" where p is a variable
@@ -141,7 +139,10 @@ impl Planner for SetPlanner {
 
             let assign_node = AssignNode::new(arg_node_enum.clone(), variable_assignments)
                 .map_err(|e| {
-                    PlannerError::PlanGenerationFailed(format!("Failed to create AssignNode: {}", e))
+                    PlannerError::PlanGenerationFailed(format!(
+                        "Failed to create AssignNode: {}",
+                        e
+                    ))
                 })?;
 
             let assign_node_enum = PlanNodeEnum::Assign(assign_node);

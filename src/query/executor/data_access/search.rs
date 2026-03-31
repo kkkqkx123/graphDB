@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use super::super::base::{BaseExecutor, ExecutorConfig, IndexScanConfig};
 use crate::core::error::DBError;
-use crate::core::{NullType, Value};
+use crate::core::{DataSet, NullType, Value};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::storage::StorageClient;
@@ -21,6 +21,7 @@ pub struct IndexScanExecutor<S: StorageClient + Send + 'static> {
     tag_id: i32,
     index_id: i32,
     index_name: String,
+    schema_name: String,
     scan_type: String,
     scan_limits: Vec<crate::query::planning::plan::core::nodes::access::IndexLimit>,
     filter: Option<crate::core::Expression>,
@@ -42,6 +43,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
             tag_id: scan_config.tag_id,
             index_id: scan_config.index_id,
             index_name: scan_config.index_name,
+            schema_name: scan_config.schema_name,
             scan_type: scan_config.scan_type,
             scan_limits: scan_config.scan_limits,
             filter: scan_config.filter,
@@ -148,80 +150,129 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                 }
             }
             "RANGE" => {
-                // Range Index Lookup
                 if let Some(first_limit) = self.scan_limits.first() {
                     let column_name = &first_limit.column;
                     let include_begin = first_limit.include_begin;
                     let include_end = first_limit.include_end;
 
-                    // Get start and end values
-                    let start_value = first_limit
-                        .begin_value
-                        .as_ref()
-                        .map(|v| Value::String(v.clone()));
-                    let end_value = first_limit
-                        .end_value
-                        .as_ref()
-                        .map(|v| Value::String(v.clone()));
+                    if self.is_edge {
+                        // Scan edges by type
+                        let edges = storage
+                            .scan_edges_by_type(&space_name, &self.schema_name)
+                            .map_err(DBError::Storage)?;
 
-                    // Returns null if there is no starting value
-                    let start_val = match start_value {
-                        Some(v) => v,
-                        None => return Ok(Vec::new()),
-                    };
+                        let mut results = Vec::new();
+                        for edge in &edges {
+                            let prop_value = self.get_property_from_edge(edge, column_name);
+                            if let Some(prop_value) = prop_value {
+                                let start_val = first_limit
+                                    .begin_value
+                                    .as_ref()
+                                    .map(|v| Self::coerce_value(&prop_value, v));
+                                let end_val = first_limit
+                                    .end_value
+                                    .as_ref()
+                                    .map(|v| Self::coerce_value(&prop_value, v));
 
-                    // Prefix lookup using start value to get candidate results
-                    let candidates = storage
-                        .lookup_index(&space_name, &self.index_name, &start_val)
-                        .map_err(DBError::Storage)?;
-
-                    // Range filtering if there is an end value
-                    if let Some(end_val) = end_value {
-                        let filtered: Vec<Value> = candidates
-                            .into_iter()
-                            .filter(|id| {
-                                // Getting the value of an entity's attribute for comparison
-                                match self.get_entity_property_for_filter(storage, id, column_name)
-                                {
-                                    Some(prop_value) => {
-                                        // Compare attribute values to see if they are in range, consider boundary inclusion control
-                                        Self::value_in_range(
-                                            &prop_value,
-                                            &start_val,
-                                            &end_val,
-                                            include_begin,
-                                            include_end,
-                                        )
-                                    }
-                                    None => false,
-                                }
-                            })
-                            .collect();
-                        Ok(filtered)
-                    } else {
-                        // No end value, returns all candidate results (from start value to infinity)
-                        // However, the starting boundary still needs to be checked
-                        if include_begin {
-                            Ok(candidates)
-                        } else {
-                            // does not contain a starting value and needs to be filtered out equal to the starting value of the
-                            let filtered: Vec<Value> = candidates
-                                .into_iter()
-                                .filter(|id| {
-                                    match self.get_entity_property_for_filter(
-                                        storage,
-                                        id,
-                                        column_name,
-                                    ) {
-                                        Some(prop_value) => {
-                                            !Self::values_equal(&prop_value, &start_val)
+                                let passes_start = match &start_val {
+                                    Some(sv) => {
+                                        let cmp = Self::compare_values(&prop_value, sv);
+                                        match cmp {
+                                            Some(std::cmp::Ordering::Greater) => true,
+                                            Some(std::cmp::Ordering::Equal) => include_begin,
+                                            Some(std::cmp::Ordering::Less) => false,
+                                            None => false,
                                         }
-                                        None => false,
                                     }
-                                })
-                                .collect();
-                            Ok(filtered)
+                                    None => true,
+                                };
+
+                                if !passes_start {
+                                    continue;
+                                }
+
+                                let passes_end = match &end_val {
+                                    Some(ev) => {
+                                        let cmp = Self::compare_values(&prop_value, ev);
+                                        match cmp {
+                                            Some(std::cmp::Ordering::Less) => true,
+                                            Some(std::cmp::Ordering::Equal) => include_end,
+                                            Some(std::cmp::Ordering::Greater) => false,
+                                            None => false,
+                                        }
+                                    }
+                                    None => true,
+                                };
+
+                                if passes_end {
+                                    // Create edge key: src:dst:ranking
+                                    let edge_key = format!(
+                                        "{}:{}:{}",
+                                        edge.src.to_string(),
+                                        edge.dst.to_string(),
+                                        edge.ranking
+                                    );
+                                    results.push(Value::String(edge_key));
+                                }
+                            }
                         }
+
+                        Ok(results)
+                    } else {
+                        let vertices = storage
+                            .scan_vertices_by_tag(&space_name, &self.schema_name)
+                            .map_err(DBError::Storage)?;
+
+                        let mut results = Vec::new();
+                        for vertex in vertices {
+                            let prop_value = self.get_property_from_vertex(&vertex, column_name);
+                            if let Some(prop_value) = prop_value {
+                                let start_val = first_limit
+                                    .begin_value
+                                    .as_ref()
+                                    .map(|v| Self::coerce_value(&prop_value, v));
+                                let end_val = first_limit
+                                    .end_value
+                                    .as_ref()
+                                    .map(|v| Self::coerce_value(&prop_value, v));
+
+                                let passes_start = match &start_val {
+                                    Some(sv) => {
+                                        let cmp = Self::compare_values(&prop_value, sv);
+                                        match cmp {
+                                            Some(std::cmp::Ordering::Greater) => true,
+                                            Some(std::cmp::Ordering::Equal) => include_begin,
+                                            Some(std::cmp::Ordering::Less) => false,
+                                            None => false,
+                                        }
+                                    }
+                                    None => true,
+                                };
+
+                                if !passes_start {
+                                    continue;
+                                }
+
+                                let passes_end = match &end_val {
+                                    Some(ev) => {
+                                        let cmp = Self::compare_values(&prop_value, ev);
+                                        match cmp {
+                                            Some(std::cmp::Ordering::Less) => true,
+                                            Some(std::cmp::Ordering::Equal) => include_end,
+                                            Some(std::cmp::Ordering::Greater) => false,
+                                            None => false,
+                                        }
+                                    }
+                                    None => true,
+                                };
+
+                                if passes_end {
+                                    results.push((*vertex.vid).clone());
+                                }
+                            }
+                        }
+
+                        Ok(results)
                     }
                 } else {
                     Ok(Vec::new())
@@ -231,6 +282,56 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                 // Default scanning of all
                 Ok(Vec::new())
             }
+        }
+    }
+
+    fn coerce_value(target_type: &Value, str_val: &str) -> Value {
+        match target_type {
+            Value::Int(_) => str_val
+                .parse::<i64>()
+                .map(Value::Int)
+                .unwrap_or(Value::String(str_val.to_string())),
+            Value::Float(_) => str_val
+                .parse::<f64>()
+                .map(Value::Float)
+                .unwrap_or(Value::String(str_val.to_string())),
+            Value::Bool(_) => str_val
+                .parse::<bool>()
+                .map(Value::Bool)
+                .unwrap_or(Value::String(str_val.to_string())),
+            _ => Value::String(str_val.to_string()),
+        }
+    }
+
+    fn get_property_from_vertex(
+        &self,
+        vertex: &crate::core::Vertex,
+        column_name: &str,
+    ) -> Option<Value> {
+        if let Some(value) = vertex.properties.get(column_name) {
+            return Some(value.clone());
+        }
+        for tag in &vertex.tags {
+            if let Some(value) = tag.properties.get(column_name) {
+                return Some(value.clone());
+            }
+        }
+        match column_name {
+            "vid" => Some((*vertex.vid).clone()),
+            "id" => Some(Value::Int(vertex.id)),
+            _ => None,
+        }
+    }
+
+    fn get_property_from_edge(&self, edge: &crate::core::Edge, column_name: &str) -> Option<Value> {
+        if let Some(value) = edge.properties().get(column_name) {
+            return Some(value.clone());
+        }
+        match column_name {
+            "src" => Some((*edge.src).clone()),
+            "dst" => Some((*edge.dst).clone()),
+            "ranking" => Some(Value::Int(edge.ranking)),
+            _ => None,
         }
     }
 
@@ -304,20 +405,35 @@ impl<S: StorageClient> IndexScanExecutor<S> {
     /// Get the complete vertex or edge based on the ID list
     fn fetch_entities(&self, storage: &S, ids: Vec<Value>) -> DBResult<Vec<Value>> {
         let space_name = self.get_space_name(storage)?;
-        let schema_name = self.get_schema_name(storage)?;
+        // Use self.schema_name directly instead of get_schema_name, since schema_name is already set correctly
+        let schema_name = &self.schema_name;
 
         let mut results = Vec::new();
 
         for id in ids {
             if self.is_edge {
-                // Edge type: ID format should be src_dst_ranking
+                // Edge type: ID format should be src:dst:ranking
                 if let Value::String(edge_key) = &id {
                     let parts: Vec<&str> = edge_key.split(':').collect();
                     if parts.len() >= 2 {
-                        let src = Value::String(parts[0].to_string());
-                        let dst = Value::String(parts[1].to_string());
+                        // Try to parse as integers first (since that's how they were inserted)
+                        let src = if let Ok(src_int) = parts[0].parse::<i64>() {
+                            Value::Int(src_int)
+                        } else {
+                            Value::String(parts[0].to_string())
+                        };
+                        let dst = if let Ok(dst_int) = parts[1].parse::<i64>() {
+                            Value::Int(dst_int)
+                        } else {
+                            Value::String(parts[1].to_string())
+                        };
+                        let rank = if parts.len() >= 3 {
+                            parts[2].parse::<i64>().unwrap_or(0)
+                        } else {
+                            0
+                        };
                         if let Some(edge) = storage
-                            .get_edge(&space_name, &src, &dst, &schema_name, 0)
+                            .get_edge(&space_name, &src, &dst, schema_name, rank)
                             .map_err(DBError::Storage)?
                         {
                             results.push(Value::Edge(edge));
@@ -371,27 +487,35 @@ impl<S: StorageClient> IndexScanExecutor<S> {
             return entities;
         }
 
+        let schema_prefix = if self.schema_name.is_empty() {
+            String::new()
+        } else {
+            format!("{}.", self.schema_name)
+        };
+
         entities
             .into_iter()
             .map(|entity| match entity {
                 Value::Vertex(vertex) => {
                     let mut props = std::collections::HashMap::new();
                     for col in &self.return_columns {
+                        let key = format!("{}{}", schema_prefix, col);
                         match col.as_str() {
                             "vid" => {
-                                props.insert(col.clone(), (*vertex.vid).clone());
+                                props.insert(key, (*vertex.vid).clone());
                             }
                             "id" => {
-                                props.insert(col.clone(), Value::Int(vertex.id));
+                                props.insert(key, Value::Int(vertex.id));
                             }
                             "*" => {
                                 for (k, v) in &vertex.properties {
-                                    props.insert(k.clone(), v.clone());
+                                    let full_key = format!("{}{}", schema_prefix, k);
+                                    props.insert(full_key, v.clone());
                                 }
                             }
                             _ => {
                                 if let Some(v) = vertex.properties.get(col) {
-                                    props.insert(col.clone(), v.clone());
+                                    props.insert(key, v.clone());
                                 }
                             }
                         }
@@ -401,27 +525,29 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                 Value::Edge(edge) => {
                     let mut props = std::collections::HashMap::new();
                     for col in &self.return_columns {
+                        let key = format!("{}{}", schema_prefix, col);
                         match col.as_str() {
                             "src" => {
-                                props.insert(col.clone(), (*edge.src).clone());
+                                props.insert(key, (*edge.src).clone());
                             }
                             "dst" => {
-                                props.insert(col.clone(), (*edge.dst).clone());
+                                props.insert(key, (*edge.dst).clone());
                             }
                             "edge_type" => {
-                                props.insert(col.clone(), Value::String(edge.edge_type.clone()));
+                                props.insert(key, Value::String(edge.edge_type.clone()));
                             }
                             "ranking" => {
-                                props.insert(col.clone(), Value::Int(edge.ranking));
+                                props.insert(key, Value::Int(edge.ranking));
                             }
                             "*" => {
                                 for (k, v) in &edge.props {
-                                    props.insert(k.clone(), v.clone());
+                                    let full_key = format!("{}{}", schema_prefix, k);
+                                    props.insert(full_key, v.clone());
                                 }
                             }
                             _ => {
                                 if let Some(v) = edge.props.get(col) {
-                                    props.insert(col.clone(), v.clone());
+                                    props.insert(key, v.clone());
                                 }
                             }
                         }
@@ -486,31 +612,150 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage = self.get_storage().lock();
 
-        // 1. Use index lookup to get a list of IDs
         let index_results = self.lookup_by_index(&storage)?;
 
-        // 2. Obtaining the full entity by ID
         let entities = self.fetch_entities(&storage, index_results)?;
 
-        // 3. Application filters
         let filtered = self.apply_filter(entities);
 
-        // 4. Projected return columns
         let projected = self.project_columns(filtered);
 
-        // 5. Application limitations
         let limited: Vec<Value> = if let Some(limit) = self.limit {
             projected.into_iter().take(limit).collect()
         } else {
             projected
         };
 
-        // 6. Constructing return results
-        let rows: Vec<Vec<Value>> = limited.into_iter().map(|v| vec![v]).collect();
+        let mut dataset = DataSet::new();
 
-        Ok(ExecutionResult::Values(
-            rows.into_iter().flatten().collect(),
-        ))
+        // First pass: collect all column names from all entities
+        for value in &limited {
+            match value {
+                Value::Vertex(vertex) => {
+                    // Add vid column if not exists
+                    let vid_key = format!(
+                        "{}vid",
+                        if self.schema_name.is_empty() {
+                            "".to_string()
+                        } else {
+                            format!("{}.", self.schema_name)
+                        }
+                    );
+                    if !dataset.col_names.contains(&vid_key) {
+                        dataset.col_names.push(vid_key);
+                    }
+
+                    // Add property columns from tags
+                    for tag in &vertex.tags {
+                        for k in tag.properties.keys() {
+                            let key = format!("{}.{}", tag.name, k);
+                            if !dataset.col_names.contains(&key) {
+                                dataset.col_names.push(key);
+                            }
+                        }
+                    }
+                }
+                Value::Edge(edge) => {
+                    // Add edge property columns with schema prefix (e.g., KNOWS.since)
+                    for k in edge.props.keys() {
+                        let key = format!("{}.{}", self.schema_name, k);
+                        if !dataset.col_names.contains(&key) {
+                            dataset.col_names.push(key);
+                        }
+                    }
+                }
+                Value::Map(props) => {
+                    // Add all keys from Map
+                    for k in props.keys() {
+                        if !dataset.col_names.contains(k) {
+                            dataset.col_names.push(k.clone());
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Second pass: build rows
+        for value in &limited {
+            match value {
+                Value::Map(props) => {
+                    let row: Vec<Value> = dataset
+                        .col_names
+                        .iter()
+                        .map(|col| {
+                            props
+                                .get(col)
+                                .cloned()
+                                .unwrap_or(Value::Null(NullType::Null))
+                        })
+                        .collect();
+                    dataset.rows.push(row);
+                }
+                Value::Vertex(vertex) => {
+                    let mut row_map = std::collections::HashMap::new();
+
+                    // Add vid
+                    let vid_key = format!(
+                        "{}vid",
+                        if self.schema_name.is_empty() {
+                            "".to_string()
+                        } else {
+                            format!("{}.", self.schema_name)
+                        }
+                    );
+                    row_map.insert(vid_key, (*vertex.vid).clone());
+
+                    // Add properties from tags
+                    for tag in &vertex.tags {
+                        for (k, v) in &tag.properties {
+                            let key = format!("{}.{}", tag.name, k);
+                            row_map.insert(key, v.clone());
+                        }
+                    }
+
+                    // Build row in column order
+                    let row: Vec<Value> = dataset
+                        .col_names
+                        .iter()
+                        .map(|col| {
+                            row_map
+                                .get(col)
+                                .cloned()
+                                .unwrap_or(Value::Null(NullType::Null))
+                        })
+                        .collect();
+                    dataset.rows.push(row);
+                }
+                Value::Edge(edge) => {
+                    let mut row_map = std::collections::HashMap::new();
+
+                    // Add edge properties with schema prefix
+                    for (k, v) in &edge.props {
+                        let key = format!("{}.{}", self.schema_name, k);
+                        row_map.insert(key, v.clone());
+                    }
+
+                    // Build row in column order
+                    let row: Vec<Value> = dataset
+                        .col_names
+                        .iter()
+                        .map(|col| {
+                            row_map
+                                .get(col)
+                                .cloned()
+                                .unwrap_or(Value::Null(NullType::Null))
+                        })
+                        .collect();
+                    dataset.rows.push(row);
+                }
+                _ => {
+                    dataset.rows.push(vec![value.clone()]);
+                }
+            }
+        }
+
+        Ok(ExecutionResult::DataSet(dataset))
     }
 
     fn open(&mut self) -> DBResult<()> {

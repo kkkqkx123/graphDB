@@ -141,6 +141,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
                     .chars()
                     .fold(0i32, |acc, c| acc.wrapping_mul(31).wrapping_add(c as i32)),
                 index_name: node.index_name().to_string(),
+                schema_name: node.schema_name().to_string(),
                 scan_type: node.scan_type().as_str().to_string(),
                 scan_limits: node.scan_limits().to_vec(),
                 filter: node.filter().and_then(|f| f.get_expression()),
@@ -186,6 +187,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
                 tag_id: node.tag_id(),
                 index_id: node.index_id(),
                 index_name: node.index_name().to_string(),
+                schema_name: node.schema_name().to_string(),
                 scan_type: node.scan_type().as_str().to_string(),
                 scan_limits: node.scan_limits().to_vec(),
                 filter: node.filter().and_then(|f| f.get_expression()),

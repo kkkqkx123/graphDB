@@ -95,18 +95,24 @@ impl DescTagIndexNode {
 
 define_plan_node! {
     pub struct ShowTagIndexesNode {
+        space_name: String,
     }
     enum: ShowTagIndexes
     input: ZeroInputNode
 }
 
 impl ShowTagIndexesNode {
-    pub fn new(id: i64) -> Self {
+    pub fn new(id: i64, space_name: String) -> Self {
         Self {
             id,
+            space_name,
             output_var: None,
             col_names: Vec::new(),
         }
+    }
+
+    pub fn space_name(&self) -> &str {
+        &self.space_name
     }
 }
 
@@ -201,18 +207,24 @@ impl DescEdgeIndexNode {
 
 define_plan_node! {
     pub struct ShowEdgeIndexesNode {
+        space_name: String,
     }
     enum: ShowEdgeIndexes
     input: ZeroInputNode
 }
 
 impl ShowEdgeIndexesNode {
-    pub fn new(id: i64) -> Self {
+    pub fn new(id: i64, space_name: String) -> Self {
         Self {
             id,
+            space_name,
             output_var: None,
             col_names: Vec::new(),
         }
+    }
+
+    pub fn space_name(&self) -> &str {
+        &self.space_name
     }
 }
 

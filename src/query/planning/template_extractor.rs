@@ -432,6 +432,7 @@ impl TemplateExtractor {
         let target_str = match &stmt.target {
             crate::query::parser::ast::LookupTarget::Tag(name) => format!("ON {}", name),
             crate::query::parser::ast::LookupTarget::Edge(name) => format!("ON {}", name),
+            crate::query::parser::ast::LookupTarget::Unspecified(name) => format!("ON {}", name),
         };
         parts.push(format!("LOOKUP {}", target_str));
 

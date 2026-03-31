@@ -102,6 +102,8 @@ define_plan_node! {
         vertex_props: Vec<TagProp>,
         filter: Option<ContextualExpression>,
         filter_serializable: Option<SerializableExpression>,
+        src_vids: Vec<crate::core::Value>,
+        include_empty_paths: bool,
     }
     enum: ExpandAll
     input: MultipleInputNode
@@ -124,9 +126,27 @@ impl ExpandAllNode {
             vertex_props: Vec::new(),
             filter: None,
             filter_serializable: None,
+            src_vids: Vec::new(),
+            include_empty_paths: true, // Default to true for backward compatibility
             output_var: None,
             col_names: Vec::new(),
         }
+    }
+
+    pub fn set_src_vids(&mut self, src_vids: Vec<crate::core::Value>) {
+        self.src_vids = src_vids;
+    }
+
+    pub fn src_vids(&self) -> &[crate::core::Value] {
+        &self.src_vids
+    }
+
+    pub fn set_include_empty_paths(&mut self, include: bool) {
+        self.include_empty_paths = include;
+    }
+
+    pub fn include_empty_paths(&self) -> bool {
+        self.include_empty_paths
     }
 
     pub fn set_any_edge_type(&mut self, any: bool) {

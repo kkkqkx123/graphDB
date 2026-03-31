@@ -843,6 +843,8 @@ pub struct LookupStmt {
 pub enum LookupTarget {
     Tag(String),
     Edge(String),
+    /// Unspecified type - will be resolved during validation
+    Unspecified(String),
 }
 
 /// The SUBGRAPH statement (newly added)

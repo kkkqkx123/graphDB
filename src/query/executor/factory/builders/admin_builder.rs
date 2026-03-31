@@ -210,14 +210,14 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Constructing the ShowTags executor
     pub fn build_show_tags(
-        _node: &ShowTagsNode,
+        node: &ShowTagsNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = ShowTagsExecutor::new(
-            _node.id(),
+            node.id(),
             storage,
-            "".to_string(),
+            node.space_name().to_string(),
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::ShowTags(executor))
@@ -345,14 +345,14 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Constructing the ShowEdges executor
     pub fn build_show_edges(
-        _node: &ShowEdgesNode,
+        node: &ShowEdgesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = ShowEdgesExecutor::new(
-            _node.id(),
+            node.id(),
             storage,
-            "".to_string(),
+            node.space_name().to_string(),
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::ShowEdges(executor))
@@ -427,15 +427,14 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Constructing the ShowTagIndexes executor
     pub fn build_show_tag_indexes(
-        _node: &ShowTagIndexesNode,
+        node: &ShowTagIndexesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // The ShowTagIndexesNode class does not have a method named “space_name”; therefore, an empty string is used in its place.
         let executor = ShowTagIndexesExecutor::new(
-            _node.id(),
+            node.id(),
             storage,
-            "".to_string(),
+            node.space_name().to_string(),
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::ShowTagIndexes(executor))
@@ -485,6 +484,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         let executor = CreateEdgeIndexExecutor::new(
             node.id(),
             storage,
+            node.space_name().to_string(),
             index,
             context.expression_context().clone(),
         );
@@ -525,15 +525,14 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     /// Constructing the ShowEdgeIndexes executor
     pub fn build_show_edge_indexes(
-        _node: &ShowEdgeIndexesNode,
+        node: &ShowEdgeIndexesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // The `ShowEdgeIndexesNode` class does not have a `space_name` method; therefore, an empty string is used in its place.
         let executor = ShowEdgeIndexesExecutor::new(
-            _node.id(),
+            node.id(),
             storage,
-            "".to_string(),
+            node.space_name().to_string(),
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::ShowEdgeIndexes(executor))

@@ -261,6 +261,8 @@ pub struct IndexHint {
     pub applicable_conditions: Vec<ContextualExpression>,
     /// Estimated selectivity
     pub estimated_selectivity: f64,
+    /// Whether this is an edge index
+    pub is_edge: bool,
 }
 
 /// Sentence types

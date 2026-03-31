@@ -229,7 +229,12 @@ impl ClauseParser {
                 }
             };
 
-            assignments.push(Assignment { property, value, target, object: None });
+            assignments.push(Assignment {
+                property,
+                value,
+                target,
+                object: None,
+            });
             if !ctx.match_token(TokenKind::Comma) {
                 break;
             }

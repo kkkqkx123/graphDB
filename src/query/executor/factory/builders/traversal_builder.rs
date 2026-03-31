@@ -70,7 +70,9 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
             false, // any_edge_type
             node.step_limit().map(|s| s as usize),
             context.expression_context().clone(),
-        );
+        )
+        .with_src_vids(node.src_vids().to_vec())
+        .with_include_empty_paths(node.include_empty_paths());
         Ok(ExecutorEnum::ExpandAll(executor))
     }
 

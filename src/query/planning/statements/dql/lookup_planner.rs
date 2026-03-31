@@ -8,11 +8,15 @@
 //! Add logic for selecting attribute indexes.
 //! Use IndexSelector to automatically select the optimal index.
 
+use crate::core::types::operators::BinaryOperator;
+use crate::core::types::ContextualExpression;
 use crate::core::types::Index;
 use crate::core::value::NullType;
 use crate::core::Expression;
 use crate::query::parser::ast::{LookupStmt, Stmt};
-use crate::query::planning::plan::core::nodes::access::{IndexScanNode, ScanType};
+use crate::query::planning::plan::core::nodes::access::{
+    EdgeIndexScanNode, IndexLimit, IndexScanNode, ScanType,
+};
 use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
@@ -77,7 +81,6 @@ impl Planner for LookupPlanner {
             let hint = &validation_info.index_hints[0];
             log::debug!("LOOKUP 使用索引提示: {:?}", hint);
 
-            // Use the index hints provided by the validator.
             let index_fields: Vec<crate::core::types::IndexField> = hint
                 .columns
                 .iter()
@@ -103,17 +106,14 @@ impl Planner for LookupPlanner {
                 comment: None,
             });
 
-            scan_type = ScanType::Range;
-
-            // Convert the column names to IndexLimit.
-            for column in &hint.columns {
-                scan_limits.push(
-                    crate::query::planning::plan::core::nodes::access::IndexLimit::equal(
-                        column.clone(),
-                        "",
-                    ),
-                );
-            }
+            // Extract filter values from WHERE clause
+            scan_limits =
+                Self::extract_scan_limits_from_where(&lookup_stmt.where_clause, &hint.columns);
+            scan_type = if scan_limits.is_empty() {
+                ScanType::Full
+            } else {
+                ScanType::Range
+            };
         }
 
         // 3. If there is no index suggestion, obtain the list of available indexes.
@@ -130,13 +130,59 @@ impl Planner for LookupPlanner {
 
         let index_id = selected_index.as_ref().map(|idx| idx.id).unwrap_or(0);
 
-        // 4. Create an IndexScan node
-        let mut index_scan_node = IndexScanNode::new(space_id, 0, index_id, scan_type);
+        // Get index_name and schema_name from index_hint if available
+        let (index_name, schema_name) = if let Some(hint) = validation_info.index_hints.first() {
+            let name = if hint.index_name.is_empty() {
+                selected_index
+                    .as_ref()
+                    .map(|idx| idx.name.clone())
+                    .unwrap_or_default()
+            } else {
+                hint.index_name.clone()
+            };
+            (name, hint.table_name.clone())
+        } else {
+            (String::new(), String::new())
+        };
 
-        // 5. Setting scan limitations and the columns to be returned
-        index_scan_node.set_scan_limits(scan_limits);
+        // Check if this is an edge lookup
+        let is_edge = validation_info
+            .index_hints
+            .first()
+            .map(|h| h.is_edge)
+            .unwrap_or(false);
 
-        let mut current_node: PlanNodeEnum = PlanNodeEnum::IndexScan(index_scan_node);
+        // 4. Create the appropriate scan node based on whether it's an edge or tag lookup
+        let mut current_node: PlanNodeEnum = if is_edge {
+            let mut edge_index_scan_node =
+                EdgeIndexScanNode::new(space_id, &schema_name, &index_name);
+            edge_index_scan_node.set_scan_type(scan_type);
+            edge_index_scan_node.set_scan_limits(scan_limits);
+
+            // Set limit from yield clause
+            if let Some(ref yield_clause) = lookup_stmt.yield_clause {
+                if let Some(ref limit_clause) = yield_clause.limit {
+                    edge_index_scan_node.set_limit(limit_clause.count as i64);
+                }
+            }
+
+            PlanNodeEnum::EdgeIndexScan(edge_index_scan_node)
+        } else {
+            let mut index_scan_node =
+                IndexScanNode::new(space_id, 0, index_id, index_name, schema_name, scan_type);
+
+            // 5. Setting scan limitations and the columns to be returned
+            index_scan_node.set_scan_limits(scan_limits);
+
+            // 5.1 Set limit from yield clause
+            if let Some(ref yield_clause) = lookup_stmt.yield_clause {
+                if let Some(ref limit_clause) = yield_clause.limit {
+                    index_scan_node.set_limit(limit_clause.count as i64);
+                }
+            }
+
+            PlanNodeEnum::IndexScan(index_scan_node)
+        };
 
         if let Some(ref condition) = lookup_stmt.where_clause {
             let filter_node = FilterNode::new(current_node, condition.clone()).map_err(|e| {
@@ -197,6 +243,184 @@ impl LookupPlanner {
         }
 
         Ok(columns)
+    }
+
+    /// Extract scan limits from WHERE clause
+    fn extract_scan_limits_from_where(
+        where_clause: &Option<ContextualExpression>,
+        index_columns: &[String],
+    ) -> Vec<IndexLimit> {
+        let mut limits = Vec::new();
+
+        let Some(ref where_expr) = where_clause else {
+            return limits;
+        };
+
+        let Some(expr) = where_expr.get_expression() else {
+            return limits;
+        };
+
+        Self::extract_conditions(&expr, index_columns, &mut limits);
+
+        limits
+    }
+
+    fn extract_conditions(
+        expr: &Expression,
+        index_columns: &[String],
+        limits: &mut Vec<IndexLimit>,
+    ) {
+        match expr {
+            Expression::Binary { left, op, right } => match op {
+                BinaryOperator::Equal => {
+                    if let Some((col, val)) = Self::extract_comparison(left, right, index_columns) {
+                        limits.push(IndexLimit::equal(col, val));
+                    }
+                }
+                BinaryOperator::NotEqual => {
+                    if let Some((col, val)) = Self::extract_comparison(left, right, index_columns) {
+                        limits.push(IndexLimit::range(
+                            col,
+                            Some(val.clone()),
+                            Some(val),
+                            true,
+                            true,
+                        ));
+                    }
+                }
+                BinaryOperator::LessThan => {
+                    if let Some((col, val)) = Self::extract_comparison(left, right, index_columns) {
+                        limits.push(IndexLimit::range(
+                            col,
+                            None::<String>,
+                            Some(val),
+                            false,
+                            false,
+                        ));
+                    } else if let Some((col, val)) =
+                        Self::extract_comparison(right, left, index_columns)
+                    {
+                        limits.push(IndexLimit::range(
+                            col,
+                            Some(val),
+                            None::<String>,
+                            true,
+                            false,
+                        ));
+                    }
+                }
+                BinaryOperator::LessThanOrEqual => {
+                    if let Some((col, val)) = Self::extract_comparison(left, right, index_columns) {
+                        limits.push(IndexLimit::range(
+                            col,
+                            None::<String>,
+                            Some(val),
+                            false,
+                            true,
+                        ));
+                    } else if let Some((col, val)) =
+                        Self::extract_comparison(right, left, index_columns)
+                    {
+                        limits.push(IndexLimit::range(
+                            col,
+                            Some(val),
+                            None::<String>,
+                            true,
+                            true,
+                        ));
+                    }
+                }
+                BinaryOperator::GreaterThan => {
+                    if let Some((col, val)) = Self::extract_comparison(left, right, index_columns) {
+                        limits.push(IndexLimit::range(
+                            col,
+                            Some(val),
+                            None::<String>,
+                            false,
+                            false,
+                        ));
+                    } else if let Some((col, val)) =
+                        Self::extract_comparison(right, left, index_columns)
+                    {
+                        limits.push(IndexLimit::range(
+                            col,
+                            None::<String>,
+                            Some(val),
+                            false,
+                            false,
+                        ));
+                    }
+                }
+                BinaryOperator::GreaterThanOrEqual => {
+                    if let Some((col, val)) = Self::extract_comparison(left, right, index_columns) {
+                        limits.push(IndexLimit::range(
+                            col,
+                            Some(val),
+                            None::<String>,
+                            true,
+                            false,
+                        ));
+                    } else if let Some((col, val)) =
+                        Self::extract_comparison(right, left, index_columns)
+                    {
+                        limits.push(IndexLimit::range(
+                            col,
+                            None::<String>,
+                            Some(val),
+                            false,
+                            true,
+                        ));
+                    }
+                }
+                BinaryOperator::And => {
+                    Self::extract_conditions(left, index_columns, limits);
+                    Self::extract_conditions(right, index_columns, limits);
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+    }
+
+    fn extract_comparison(
+        left: &Expression,
+        right: &Expression,
+        index_columns: &[String],
+    ) -> Option<(String, String)> {
+        let col_name = Self::extract_property_name(left)?;
+        if !index_columns.iter().any(|c| c == &col_name) {
+            return None;
+        }
+        let value = Self::extract_literal_value(right)?;
+        Some((col_name, value))
+    }
+
+    fn extract_property_name(expr: &Expression) -> Option<String> {
+        match expr {
+            Expression::Property { property, .. } => Some(property.clone()),
+            Expression::Variable(name) => {
+                if name.contains('.') {
+                    let parts: Vec<&str> = name.split('.').collect();
+                    parts.last().map(|s| s.to_string())
+                } else {
+                    Some(name.clone())
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn extract_literal_value(expr: &Expression) -> Option<String> {
+        match expr {
+            Expression::Literal(value) => match value {
+                crate::core::Value::String(s) => Some(s.clone()),
+                crate::core::Value::Int(i) => Some(i.to_string()),
+                crate::core::Value::Float(f) => Some(f.to_string()),
+                crate::core::Value::Bool(b) => Some(b.to_string()),
+                _ => None,
+            },
+            _ => None,
+        }
     }
 
     /// Analyzing the YIELD expression
