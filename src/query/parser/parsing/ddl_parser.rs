@@ -193,7 +193,7 @@ impl DdlParser {
                     if_not_exists,
                 }));
             }
-            
+
             // Analysis of the IF NOT EXISTS clause (located after the TAG)
             let mut if_not_exists = false;
             if ctx.match_token(TokenKind::If) {

@@ -575,7 +575,7 @@ fn test_delete_edge_indexes() {
 
     assert_ok(get_storage(&storage).insert_edge("test_space", edge));
 
-    assert_ok(get_storage(&storage).delete_edge("test_space", &src, &dst, edge_type));
+    assert_ok(get_storage(&storage).delete_edge("test_space", &src, &dst, edge_type, 0));
 
     let retrieved = get_storage(&storage).lookup_index(
         "test_space",

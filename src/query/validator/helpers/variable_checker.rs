@@ -52,14 +52,20 @@ impl VariableChecker {
         })?;
         if !first_char.is_alphabetic() && first_char != '_' {
             return Err(ValidationError::new(
-                format!("Variable names must begin with a letter or an underscore: {:?}", var),
+                format!(
+                    "Variable names must begin with a letter or an underscore: {:?}",
+                    var
+                ),
                 ValidationErrorType::SyntaxError,
             ));
         }
 
         if !var.chars().all(|c| c.is_alphanumeric() || c == '_') {
             return Err(ValidationError::new(
-                format!("Variable names can only contain letters, numbers and underscores: {:?}", var),
+                format!(
+                    "Variable names can only contain letters, numbers and underscores: {:?}",
+                    var
+                ),
                 ValidationErrorType::SyntaxError,
             ));
         }

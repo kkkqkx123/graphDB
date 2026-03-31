@@ -24,6 +24,7 @@ use crate::query::planning::statements::dml::delete_planner::DeletePlanner;
 use crate::query::planning::statements::dml::insert_planner::InsertPlanner;
 use crate::query::planning::statements::dml::merge_planner::MergePlanner;
 use crate::query::planning::statements::dml::remove_planner::RemovePlanner;
+use crate::query::planning::statements::dml::set_planner::SetPlanner;
 use crate::query::planning::statements::dml::update_planner::UpdatePlanner;
 use crate::query::planning::statements::dql::fetch_edges_planner::FetchEdgesPlanner;
 use crate::query::planning::statements::dql::fetch_vertices_planner::FetchVerticesPlanner;
@@ -120,6 +121,7 @@ pub enum PlannerEnum {
     Delete(DeletePlanner),
     Update(UpdatePlanner),
     Remove(RemovePlanner),
+    Set(SetPlanner),
     Merge(MergePlanner),
     GroupBy(GroupByPlanner),
     SetOperation(SetOperationPlanner),
@@ -151,6 +153,7 @@ impl PlannerEnum {
             Stmt::Delete(_) => Some(PlannerEnum::Delete(DeletePlanner::new())),
             Stmt::Update(_) => Some(PlannerEnum::Update(UpdatePlanner::new())),
             Stmt::Remove(_) => Some(PlannerEnum::Remove(RemovePlanner::new())),
+            Stmt::Set(_) => Some(PlannerEnum::Set(SetPlanner::new())),
             Stmt::Merge(_) => Some(PlannerEnum::Merge(MergePlanner::new())),
             Stmt::GroupBy(_) => Some(PlannerEnum::GroupBy(GroupByPlanner::new())),
             Stmt::SetOperation(_) => Some(PlannerEnum::SetOperation(SetOperationPlanner::new())),
@@ -211,6 +214,7 @@ impl PlannerEnum {
             PlannerEnum::Delete(planner) => planner.transform(validated, qctx),
             PlannerEnum::Update(planner) => planner.transform(validated, qctx),
             PlannerEnum::Remove(planner) => planner.transform(validated, qctx),
+            PlannerEnum::Set(planner) => planner.transform(validated, qctx),
             PlannerEnum::Merge(planner) => planner.transform(validated, qctx),
             PlannerEnum::GroupBy(planner) => planner.transform(validated, qctx),
             PlannerEnum::SetOperation(planner) => planner.transform(validated, qctx),
@@ -237,6 +241,7 @@ impl PlannerEnum {
             PlannerEnum::Delete(_) => "DeletePlanner",
             PlannerEnum::Update(_) => "UpdatePlanner",
             PlannerEnum::Remove(_) => "RemovePlanner",
+            PlannerEnum::Set(_) => "SetPlanner",
             PlannerEnum::Merge(_) => "MergePlanner",
             PlannerEnum::GroupBy(_) => "GroupByPlanner",
             PlannerEnum::SetOperation(_) => "SetOperationPlanner",
@@ -263,6 +268,7 @@ impl PlannerEnum {
             PlannerEnum::Delete(planner) => planner.match_planner(stmt),
             PlannerEnum::Update(planner) => planner.match_planner(stmt),
             PlannerEnum::Remove(planner) => planner.match_planner(stmt),
+            PlannerEnum::Set(planner) => planner.match_planner(stmt),
             PlannerEnum::Merge(planner) => planner.match_planner(stmt),
             PlannerEnum::GroupBy(planner) => planner.match_planner(stmt),
             PlannerEnum::SetOperation(planner) => planner.match_planner(stmt),

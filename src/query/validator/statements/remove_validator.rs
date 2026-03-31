@@ -94,20 +94,27 @@ impl RemoveValidator {
     ) -> Result<(), ValidationError> {
         use crate::core::types::expr::Expression;
 
-        // The object must be a variable.
-        if let Expression::Variable(var_name) = object {
-            // Check whether the variable exists.
-            if !self.user_defined_vars.iter().any(|v| v == var_name) {
+        // The object can be a variable or a literal (for direct vertex ID access like REMOVE 1.temp_field)
+        match object {
+            Expression::Variable(var_name) => {
+                // Check whether the variable exists.
+                if !self.user_defined_vars.iter().any(|v| v == var_name) {
+                    return Err(ValidationError::new(
+                        format!("Variable '{}' not defined", var_name),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+            }
+            Expression::Literal(_) => {
+                // Literal values (like 1 in "REMOVE 1.temp_field") are valid for direct vertex ID access
+                // No additional validation needed for literals
+            }
+            _ => {
                 return Err(ValidationError::new(
-                    format!("Variable '{}' not defined", var_name),
+                    "REMOVE property target must be a variable or literal".to_string(),
                     ValidationErrorType::SemanticError,
                 ));
             }
-        } else {
-            return Err(ValidationError::new(
-                "REMOVE property target must be a variable".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
         }
 
         // The attribute name cannot be empty.

@@ -203,7 +203,10 @@ impl FetchEdgesValidator {
         }
 
         Err(ValidationError::new(
-            format!("The {} ID of the side key must be a constant or variable", endpoint_type),
+            format!(
+                "The {} ID of the side key must be a constant or variable",
+                endpoint_type
+            ),
             ValidationErrorType::SemanticError,
         ))
     }

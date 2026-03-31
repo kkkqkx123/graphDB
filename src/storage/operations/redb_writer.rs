@@ -376,7 +376,10 @@ impl VertexWriter for RedbWriter {
 
 impl RedbWriter {
     fn insert_edge_internal(&self, edge: Edge) -> Result<(), StorageError> {
-        let edge_key = format!("{:?}_{:?}_{}_{}", edge.src, edge.dst, edge.edge_type, edge.ranking);
+        let edge_key = format!(
+            "{:?}_{:?}_{}_{}",
+            edge.src, edge.dst, edge.edge_type, edge.ranking
+        );
         let edge_key_bytes = edge_key.as_bytes().to_vec();
         let edge_bytes = encode_to_vec(&edge, standard())?;
 

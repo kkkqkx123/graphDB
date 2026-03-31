@@ -872,6 +872,8 @@ mod tests {
                 value: create_contextual_expr(Expression::Literal(Value::String(
                     "new_name".to_string(),
                 ))),
+                target: None,
+                object: None,
             }],
             None,
         );
@@ -891,6 +893,8 @@ mod tests {
                 value: create_contextual_expr(Expression::Literal(Value::String(
                     "new_name".to_string(),
                 ))),
+                target: None,
+                object: None,
             }],
             None,
         );
@@ -910,6 +914,8 @@ mod tests {
                 value: create_contextual_expr(Expression::Literal(Value::String(
                     "new_name".to_string(),
                 ))),
+                target: None,
+                object: None,
             }],
             None,
         );
@@ -930,6 +936,8 @@ mod tests {
             vec![Assignment {
                 property: "name".to_string(),
                 value: create_contextual_expr(Expression::literal("new_name")),
+                target: None,
+                object: None,
             }],
             None,
         );
@@ -951,12 +959,16 @@ mod tests {
                     value: create_contextual_expr(Expression::Literal(Value::String(
                         "name1".to_string(),
                     ))),
+                    target: None,
+                    object: None,
                 },
                 Assignment {
                     property: "name".to_string(),
                     value: create_contextual_expr(Expression::Literal(Value::String(
                         "name2".to_string(),
                     ))),
+                    target: None,
+                    object: None,
                 },
             ],
             None,

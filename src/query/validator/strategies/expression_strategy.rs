@@ -44,7 +44,10 @@ impl ExpressionValidationStrategy {
 
         if !type_validator.are_types_compatible(&filter_type, &DataType::Bool) {
             return Err(ValidationError::new(
-                format!("The filter condition must be of type Boolean, the current type is {:?}", filter_type),
+                format!(
+                    "The filter condition must be of type Boolean, the current type is {:?}",
+                    filter_type
+                ),
                 ValidationErrorType::TypeError,
             ));
         }
@@ -80,7 +83,10 @@ impl ExpressionValidationStrategy {
         // Path expressions should either be of the path type itself or be convertible into the path type.
         if !matches!(path_type, DataType::Path) && !matches!(path_type, DataType::Empty) {
             return Err(ValidationError::new(
-                format!("Path expression type mismatch, expected path type, actually {:?}", path_type),
+                format!(
+                    "Path expression type mismatch, expected path type, actually {:?}",
+                    path_type
+                ),
                 ValidationErrorType::TypeError,
             ));
         }
@@ -171,7 +177,10 @@ impl ExpressionValidationStrategy {
 
             if unwind_type != DataType::List && unwind_type != DataType::Empty {
                 return Err(ValidationError::new(
-                    format!("Unwind expressions must be of list type, currently of type {:?}", unwind_type),
+                    format!(
+                        "Unwind expressions must be of list type, currently of type {:?}",
+                        unwind_type
+                    ),
                     ValidationErrorType::TypeError,
                 ));
             }
@@ -250,7 +259,10 @@ impl ExpressionValidationStrategy {
 
         if !matches!(pattern_type, DataType::Path) && !matches!(pattern_type, DataType::Empty) {
             return Err(ValidationError::new(
-                format!("The path mode must be a path type, currently of type {:?}", pattern_type),
+                format!(
+                    "The path mode must be a path type, currently of type {:?}",
+                    pattern_type
+                ),
                 ValidationErrorType::TypeError,
             ));
         }

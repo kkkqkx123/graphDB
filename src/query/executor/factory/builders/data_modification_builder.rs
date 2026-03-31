@@ -8,7 +8,11 @@ use crate::core::{Edge, Value, Vertex};
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::data_modification::{InsertExecutor, RemoveExecutor, RemoveItem};
 use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::planning::plan::core::nodes::{DeleteEdgesNode, DeleteVerticesNode, InsertEdgesNode, InsertVerticesNode, RemoveNode, UpdateEdgesNode, UpdateNode, UpdateVerticesNode, UpdateTargetType, VertexUpdateInfo, EdgeUpdateInfo};
+use crate::query::planning::plan::core::nodes::{
+    DeleteEdgesNode, DeleteVerticesNode, EdgeUpdateInfo, InsertEdgesNode, InsertVerticesNode,
+    RemoveNode, UpdateEdgesNode, UpdateNode, UpdateTargetType, UpdateVerticesNode,
+    VertexUpdateInfo,
+};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -82,13 +86,24 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
             vertices.push(vertex);
         }
 
-        let executor = InsertExecutor::with_vertices(
-            node.id(),
-            storage,
-            node.space_name().to_string(),
-            vertices,
-            context.expression_context().clone(),
-        );
+        // Create executor based on if_not_exists flag
+        let executor = if node.if_not_exists() {
+            InsertExecutor::with_vertices_if_not_exists(
+                node.id(),
+                storage,
+                node.space_name().to_string(),
+                vertices,
+                context.expression_context().clone(),
+            )
+        } else {
+            InsertExecutor::with_vertices(
+                node.id(),
+                storage,
+                node.space_name().to_string(),
+                vertices,
+                context.expression_context().clone(),
+            )
+        };
 
         Ok(ExecutorEnum::InsertVertices(executor))
     }
@@ -114,13 +129,17 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
             let src = src_expr
                 .get_expression()
                 .and_then(|e| Self::evaluate_literal(&e))
-                .ok_or_else(|| QueryError::ExecutionError("源顶点ID表达式不存在或不是字面量".to_string()))?;
+                .ok_or_else(|| {
+                    QueryError::ExecutionError("源顶点ID表达式不存在或不是字面量".to_string())
+                })?;
 
             // Obtain the expression for the target vertex ID and evaluate it.
             let dst = dst_expr
                 .get_expression()
                 .and_then(|e| Self::evaluate_literal(&e))
-                .ok_or_else(|| QueryError::ExecutionError("目标顶点ID表达式不存在或不是字面量".to_string()))?;
+                .ok_or_else(|| {
+                    QueryError::ExecutionError("目标顶点ID表达式不存在或不是字面量".to_string())
+                })?;
 
             // Obtain the rank (optional); the default value is 0.
             let rank = rank_expr
@@ -153,13 +172,24 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
             edges.push(edge);
         }
 
-        let executor = InsertExecutor::with_edges(
-            node.id(),
-            storage,
-            node.space_name().to_string(),
-            edges,
-            context.expression_context().clone(),
-        );
+        // Create executor based on if_not_exists flag
+        let executor = if node.if_not_exists() {
+            InsertExecutor::with_edges_if_not_exists(
+                node.id(),
+                storage,
+                node.space_name().to_string(),
+                edges,
+                context.expression_context().clone(),
+            )
+        } else {
+            InsertExecutor::with_edges(
+                node.id(),
+                storage,
+                node.space_name().to_string(),
+                edges,
+                context.expression_context().clone(),
+            )
+        };
 
         Ok(ExecutorEnum::InsertEdges(executor))
     }
@@ -281,29 +311,48 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::data_modification::{UpdateExecutor, VertexUpdate, EdgeUpdate};
+        use crate::query::executor::data_modification::{EdgeUpdate, UpdateExecutor, VertexUpdate};
 
         match node.info() {
             UpdateTargetType::Vertex(info) => {
-                let vertex_id = info.vertex_id
+                let vertex_id = info
+                    .vertex_id
                     .get_expression()
                     .and_then(|e| Self::evaluate_literal(&e))
                     .ok_or_else(|| {
                         QueryError::ExecutionError("顶点ID表达式不存在或不是字面量".to_string())
                     })?;
 
-                log::debug!("[build_update] vertex_id={:?}, properties_count={}", vertex_id, info.properties.len());
-                eprintln!("[build_update] vertex_id={:?}, properties_count={}", vertex_id, info.properties.len());
+                log::debug!(
+                    "[build_update] vertex_id={:?}, properties_count={}",
+                    vertex_id,
+                    info.properties.len()
+                );
+                eprintln!(
+                    "[build_update] vertex_id={:?}, properties_count={}",
+                    vertex_id,
+                    info.properties.len()
+                );
 
                 let mut properties = HashMap::new();
                 for (key, value_expr) in &info.properties {
                     let expr_opt = value_expr.get_expression();
-                    log::debug!("[build_update] property '{}' expression={:?}", key, expr_opt);
-                    eprintln!("[build_update] property '{}' expression={:?}", key, expr_opt);
+                    log::debug!(
+                        "[build_update] property '{}' expression={:?}",
+                        key,
+                        expr_opt
+                    );
+                    eprintln!(
+                        "[build_update] property '{}' expression={:?}",
+                        key, expr_opt
+                    );
                     let value = expr_opt
                         .and_then(|e| Self::evaluate_literal(&e))
                         .ok_or_else(|| {
-                            QueryError::ExecutionError(format!("属性 {} 的值表达式不存在或不是字面量", key))
+                            QueryError::ExecutionError(format!(
+                                "属性 {} 的值表达式不存在或不是字面量",
+                                key
+                            ))
                         })?;
                     properties.insert(key.clone(), value);
                 }
@@ -331,26 +380,30 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 Ok(ExecutorEnum::Update(executor))
             }
             UpdateTargetType::Edge(info) => {
-                let src = info.src
+                let src = info
+                    .src
                     .get_expression()
                     .and_then(|e| Self::evaluate_literal(&e))
                     .ok_or_else(|| {
                         QueryError::ExecutionError("源顶点ID表达式不存在或不是字面量".to_string())
                     })?;
 
-                let dst = info.dst
+                let dst = info
+                    .dst
                     .get_expression()
                     .and_then(|e| Self::evaluate_literal(&e))
                     .ok_or_else(|| {
                         QueryError::ExecutionError("目标顶点ID表达式不存在或不是字面量".to_string())
                     })?;
 
-                let rank = info.rank.as_ref().and_then(|r| {
-                    r.get_expression().and_then(|e| Self::evaluate_literal(&e))
-                }).and_then(|v| match v {
-                    Value::Int(i) => Some(i),
-                    _ => None,
-                });
+                let rank = info
+                    .rank
+                    .as_ref()
+                    .and_then(|r| r.get_expression().and_then(|e| Self::evaluate_literal(&e)))
+                    .and_then(|v| match v {
+                        Value::Int(i) => Some(i),
+                        _ => None,
+                    });
 
                 let mut properties = HashMap::new();
                 for (key, value_expr) in &info.properties {
@@ -358,7 +411,10 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                         .get_expression()
                         .and_then(|e| Self::evaluate_literal(&e))
                         .ok_or_else(|| {
-                            QueryError::ExecutionError(format!("属性 {} 的值表达式不存在或不是字面量", key))
+                            QueryError::ExecutionError(format!(
+                                "属性 {} 的值表达式不存在或不是字面量",
+                                key
+                            ))
                         })?;
                     properties.insert(key.clone(), value);
                 }
@@ -399,7 +455,8 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
 
         let mut vertex_updates = Vec::new();
         for info in node.updates() {
-            let vertex_id = info.vertex_id
+            let vertex_id = info
+                .vertex_id
                 .get_expression()
                 .and_then(|e| Self::evaluate_literal(&e))
                 .ok_or_else(|| {
@@ -412,7 +469,10 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                     .get_expression()
                     .and_then(|e| Self::evaluate_literal(&e))
                     .ok_or_else(|| {
-                        QueryError::ExecutionError(format!("属性 {} 的值表达式不存在或不是字面量", key))
+                        QueryError::ExecutionError(format!(
+                            "属性 {} 的值表达式不存在或不是字面量",
+                            key
+                        ))
                     })?;
                 properties.insert(key.clone(), value);
             }
@@ -425,13 +485,13 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
             });
         }
 
-        let space_name = node.updates().first()
+        let space_name = node
+            .updates()
+            .first()
             .map(|u| u.space_name.clone())
             .unwrap_or_else(|| "default".to_string());
 
-        let is_upsert = node.updates().first()
-            .map(|u| u.is_upsert)
-            .unwrap_or(false);
+        let is_upsert = node.updates().first().map(|u| u.is_upsert).unwrap_or(false);
 
         let executor = UpdateExecutor::new(
             node.id(),
@@ -453,30 +513,34 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::data_modification::{UpdateExecutor, EdgeUpdate};
+        use crate::query::executor::data_modification::{EdgeUpdate, UpdateExecutor};
 
         let mut edge_updates = Vec::new();
         for info in node.updates() {
-            let src = info.src
+            let src = info
+                .src
                 .get_expression()
                 .and_then(|e| Self::evaluate_literal(&e))
                 .ok_or_else(|| {
                     QueryError::ExecutionError("源顶点ID表达式不存在或不是字面量".to_string())
                 })?;
 
-            let dst = info.dst
+            let dst = info
+                .dst
                 .get_expression()
                 .and_then(|e| Self::evaluate_literal(&e))
                 .ok_or_else(|| {
                     QueryError::ExecutionError("目标顶点ID表达式不存在或不是字面量".to_string())
                 })?;
 
-            let rank = info.rank.as_ref().and_then(|r| {
-                r.get_expression().and_then(|e| Self::evaluate_literal(&e))
-            }).and_then(|v| match v {
-                Value::Int(i) => Some(i),
-                _ => None,
-            });
+            let rank = info
+                .rank
+                .as_ref()
+                .and_then(|r| r.get_expression().and_then(|e| Self::evaluate_literal(&e)))
+                .and_then(|v| match v {
+                    Value::Int(i) => Some(i),
+                    _ => None,
+                });
 
             let mut properties = HashMap::new();
             for (key, value_expr) in &info.properties {
@@ -484,7 +548,10 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                     .get_expression()
                     .and_then(|e| Self::evaluate_literal(&e))
                     .ok_or_else(|| {
-                        QueryError::ExecutionError(format!("属性 {} 的值表达式不存在或不是字面量", key))
+                        QueryError::ExecutionError(format!(
+                            "属性 {} 的值表达式不存在或不是字面量",
+                            key
+                        ))
                     })?;
                 properties.insert(key.clone(), value);
             }
@@ -500,13 +567,13 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
             });
         }
 
-        let space_name = node.updates().first()
+        let space_name = node
+            .updates()
+            .first()
             .map(|u| u.space_name.clone())
             .unwrap_or_else(|| "default".to_string());
 
-        let is_upsert = node.updates().first()
-            .map(|u| u.is_upsert)
-            .unwrap_or(false);
+        let is_upsert = node.updates().first().map(|u| u.is_upsert).unwrap_or(false);
 
         let executor = UpdateExecutor::new(
             node.id(),

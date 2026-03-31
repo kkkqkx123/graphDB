@@ -81,7 +81,12 @@ impl YieldClausePlanner {
             .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
 
         ProjectNode::new(input_node.clone(), columns.to_vec())
-            .map_err(|e| PlannerError::PlanGenerationFailed(format!("Failed to create projection node: {}", e)))
+            .map_err(|e| {
+                PlannerError::PlanGenerationFailed(format!(
+                    "Failed to create projection node: {}",
+                    e
+                ))
+            })
             .map(PlanNodeEnum::Project)
     }
 
@@ -97,7 +102,9 @@ impl YieldClausePlanner {
             .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
 
         FilterNode::new(input_node.clone(), condition)
-            .map_err(|e| PlannerError::PlanGenerationFailed(format!("Failed to create filter node: {}", e)))
+            .map_err(|e| {
+                PlannerError::PlanGenerationFailed(format!("Failed to create filter node: {}", e))
+            })
             .map(PlanNodeEnum::Filter)
     }
 
@@ -116,8 +123,9 @@ impl YieldClausePlanner {
         let offset = skip.unwrap_or(0) as i64;
         let count = limit.map(|l| l as i64).unwrap_or(i64::MAX);
 
-        let limit_node = LimitNode::new(input_node.clone(), offset, count)
-            .map_err(|e| PlannerError::PlanGenerationFailed(format!("Failed to create paging node: {}", e)))?;
+        let limit_node = LimitNode::new(input_node.clone(), offset, count).map_err(|e| {
+            PlannerError::PlanGenerationFailed(format!("Failed to create paging node: {}", e))
+        })?;
 
         Ok(SubPlan::new(
             Some(PlanNodeEnum::Limit(limit_node)),

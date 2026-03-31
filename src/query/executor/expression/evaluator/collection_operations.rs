@@ -68,7 +68,10 @@ impl CollectionOperationEvaluator {
             Value::Map(map) => {
                 if let Value::String(key) = index {
                     map.get(key).cloned().ok_or_else(|| {
-                        ExpressionError::runtime_error(format!("Mapping key does not exist: {}", key))
+                        ExpressionError::runtime_error(format!(
+                            "Mapping key does not exist: {}",
+                            key
+                        ))
                     })
                 } else {
                     Err(ExpressionError::type_error("映射键必须是字符串"))
@@ -183,7 +186,10 @@ impl CollectionOperationEvaluator {
 
         match object {
             Value::Vertex(vertex) => vertex.properties.get(property).cloned().ok_or_else(|| {
-                ExpressionError::runtime_error(format!("Vertex attribute not present: {}", property))
+                ExpressionError::runtime_error(format!(
+                    "Vertex attribute not present: {}",
+                    property
+                ))
             }),
             Value::Edge(edge) => edge.properties().get(property).cloned().ok_or_else(|| {
                 ExpressionError::runtime_error(format!("Edge attribute not present: {}", property))

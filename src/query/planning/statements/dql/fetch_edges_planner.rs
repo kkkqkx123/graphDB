@@ -63,11 +63,7 @@ impl Planner for FetchEdgesPlanner {
             .unwrap_or_else(|| "0".to_string());
 
         let get_edges_node = PlanNodeEnum::GetEdges(GetEdgesNode::new(
-            1,
-            &src_str,
-            edge_type,
-            &rank_str,
-            &dst_str,
+            1, &src_str, edge_type, &rank_str, &dst_str,
         ));
 
         // For FETCH PROP ON EDGE with specific src/dst/rank, GetEdgesNode is sufficient

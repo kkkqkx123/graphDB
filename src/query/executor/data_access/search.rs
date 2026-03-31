@@ -20,6 +20,7 @@ pub struct IndexScanExecutor<S: StorageClient + Send + 'static> {
     space_id: u64,
     tag_id: i32,
     index_id: i32,
+    index_name: String,
     scan_type: String,
     scan_limits: Vec<crate::query::planning::plan::core::nodes::access::IndexLimit>,
     filter: Option<crate::core::Expression>,
@@ -40,6 +41,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
             space_id: scan_config.space_id,
             tag_id: scan_config.tag_id,
             index_id: scan_config.index_id,
+            index_name: scan_config.index_name,
             scan_type: scan_config.scan_type,
             scan_limits: scan_config.scan_limits,
             filter: scan_config.filter,
@@ -113,10 +115,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
     /// Perform an index lookup
     fn lookup_by_index(&self, storage: &S) -> DBResult<Vec<Value>> {
         let space_name = self.get_space_name(storage)?;
-        let index_name = format!("index_{}", self.index_id);
 
-        // Using the storage tier's index lookup function
-        // Select different lookup strategies based on scan_type
         match self.scan_type.as_str() {
             "UNIQUE" => {
                 // Unique Index Lookup
@@ -127,7 +126,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                         .map(|v| Value::String(v.clone()))
                         .unwrap_or(Value::Null(NullType::Null));
                     storage
-                        .lookup_index(&space_name, &index_name, &value)
+                        .lookup_index(&space_name, &self.index_name, &value)
                         .map_err(DBError::Storage)
                 } else {
                     Ok(Vec::new())
@@ -142,7 +141,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                         .map(|v| Value::String(v.clone()))
                         .unwrap_or(Value::Null(NullType::Null));
                     storage
-                        .lookup_index(&space_name, &index_name, &prefix)
+                        .lookup_index(&space_name, &self.index_name, &prefix)
                         .map_err(DBError::Storage)
                 } else {
                     Ok(Vec::new())
@@ -173,7 +172,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
 
                     // Prefix lookup using start value to get candidate results
                     let candidates = storage
-                        .lookup_index(&space_name, &index_name, &start_val)
+                        .lookup_index(&space_name, &self.index_name, &start_val)
                         .map_err(DBError::Storage)?;
 
                     // Range filtering if there is an end value
@@ -259,7 +258,8 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                         Err(_) => return None,
                     };
 
-                    if let Ok(Some(edge)) = storage.get_edge(&space_name, &src, &dst, &schema_name, 0)
+                    if let Ok(Some(edge)) =
+                        storage.get_edge(&space_name, &src, &dst, &schema_name, 0)
                     {
                         // Find from the properties of the edge
                         if let Some(value) = edge.props.get(column_name) {

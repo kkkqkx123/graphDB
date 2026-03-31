@@ -339,7 +339,10 @@ impl SetValidator {
             }
             if !name.starts_with('$') && !name.starts_with('@') {
                 return Err(ValidationError::new(
-                    format!("Invalid variable name '{}': must start with '$' or '@'", name),
+                    format!(
+                        "Invalid variable name '{}': must start with '$' or '@'",
+                        name
+                    ),
                     ValidationErrorType::SemanticError,
                 ));
             }

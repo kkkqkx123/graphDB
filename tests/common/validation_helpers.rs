@@ -10,8 +10,6 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-
-
 /// Data validation helper for verifying storage state
 pub struct ValidationHelper<S: graphdb::storage::StorageClient + 'static> {
     pipeline: QueryPipelineManager<S>,

@@ -174,7 +174,11 @@ mod tests {
     fn test_set_property_basic() {
         let query = "SET p.age = 26";
         let result = parse_statement(query);
-        assert!(result.is_ok(), "SET attribute parsing should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "SET attribute parsing should succeed: {:?}",
+            result.err()
+        );
 
         let stmt = result.expect("SET属性解析应该成功");
         assert_eq!(stmt.kind(), "SET");

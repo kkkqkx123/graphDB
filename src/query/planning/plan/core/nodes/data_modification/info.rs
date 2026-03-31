@@ -21,6 +21,8 @@ pub struct VertexInsertInfo {
     pub tags: Vec<TagInsertSpec>,
     /// (vertex_id, tag_values) pairs
     pub values: Vec<(ContextualExpression, Vec<Vec<ContextualExpression>>)>,
+    /// IF NOT EXISTS flag
+    pub if_not_exists: bool,
 }
 
 /// Edge insertion information
@@ -36,6 +38,8 @@ pub struct EdgeInsertInfo {
         Option<ContextualExpression>,
         Vec<ContextualExpression>,
     )>,
+    /// IF NOT EXISTS flag
+    pub if_not_exists: bool,
 }
 
 // ==================== UPDATE Info Structures ====================
@@ -88,6 +92,10 @@ pub struct EdgeDeleteInfo {
     pub space_name: String,
     pub edge_type: Option<String>,
     /// (src, dst, rank) tuples
-    pub edges: Vec<(ContextualExpression, ContextualExpression, Option<ContextualExpression>)>,
+    pub edges: Vec<(
+        ContextualExpression,
+        ContextualExpression,
+        Option<ContextualExpression>,
+    )>,
     pub condition: Option<ContextualExpression>,
 }

@@ -53,6 +53,7 @@ use crate::query::planning::plan::core::nodes::data_modification::{
     DeleteEdgesNode, DeleteVerticesNode, InsertEdgesNode, InsertVerticesNode, UpdateEdgesNode,
     UpdateNode, UpdateVerticesNode,
 };
+use crate::query::planning::plan::core::nodes::RemoveNode;
 use crate::query::planning::plan::core::nodes::management::edge_nodes::{
     AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
 };
@@ -232,7 +233,10 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
         DataCollect,
         visit_assign,
         AssignNode,
-        Assign
+        Assign,
+        visit_remove,
+        RemoveNode,
+        Remove
     );
 
     impl_multi_input_inputs_rewrite!(

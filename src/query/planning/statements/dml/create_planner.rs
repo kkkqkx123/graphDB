@@ -86,6 +86,7 @@ impl CreatePlanner {
             space_name,
             tags: tag_specs,
             values: vec![(vid_expr, vec![prop_values])],
+            if_not_exists: false,
         })
     }
 
@@ -107,6 +108,7 @@ impl CreatePlanner {
             edge_name: edge_type,
             prop_names,
             edges: vec![(src_vid, dst_vid, None, prop_values)],
+            if_not_exists: false,
         }
     }
 
@@ -427,6 +429,7 @@ impl CreatePlanner {
                             None,
                             props.iter().map(|(_, v)| v.clone()).collect(),
                         )],
+                        if_not_exists: false,
                     };
 
                     edge_infos.push(edge_info);

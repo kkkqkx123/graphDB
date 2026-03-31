@@ -448,7 +448,10 @@ impl StatementValidator for GoValidator {
         // 10.4 添加优化提示
         if over_edges.len() > 10 {
             info.add_optimization_hint(OptimizationHint::PerformanceWarning {
-                message: format!("GO statements contain {} edges, which may affect performance.", over_edges.len()),
+                message: format!(
+                    "GO statements contain {} edges, which may affect performance.",
+                    over_edges.len()
+                ),
                 severity: crate::query::validator::structs::validation_info::HintSeverity::Warning,
             });
         }

@@ -251,9 +251,13 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
 
                 if should_update {
                     let rank = update.rank.unwrap_or(0);
-                    if let Some(mut edge) =
-                        storage.get_edge(&self.space_name, &update.src, &update.dst, &update.edge_type, rank)?
-                    {
+                    if let Some(mut edge) = storage.get_edge(
+                        &self.space_name,
+                        &update.src,
+                        &update.dst,
+                        &update.edge_type,
+                        rank,
+                    )? {
                         for (key, value) in &update.properties {
                             edge.props.insert(key.clone(), value.clone());
                         }

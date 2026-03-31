@@ -94,13 +94,19 @@ impl PaginationValidationStrategy {
                     Ok(())
                 } else {
                     Err(ValidationError::new(
-                        format!("The {} expression must be a non-negative integer.", clause_name),
+                        format!(
+                            "The {} expression must be a non-negative integer.",
+                            clause_name
+                        ),
                         ValidationErrorType::PaginationError,
                     ))
                 }
             }
             crate::core::types::expr::Expression::Literal(_) => Err(ValidationError::new(
-                format!("The {} expression must evaluate to an integer.", clause_name),
+                format!(
+                    "The {} expression must evaluate to an integer.",
+                    clause_name
+                ),
                 ValidationErrorType::PaginationError,
             )),
             _ => {
@@ -114,13 +120,19 @@ impl PaginationValidationStrategy {
                             Ok(())
                         } else {
                             Err(ValidationError::new(
-                                format!("The {} expression must be a non-negative integer.", clause_name),
+                                format!(
+                                    "The {} expression must be a non-negative integer.",
+                                    clause_name
+                                ),
                                 ValidationErrorType::PaginationError,
                             ))
                         }
                     }
                     Ok(_) => Err(ValidationError::new(
-                        format!("The {} expression must evaluate to an integer.", clause_name),
+                        format!(
+                            "The {} expression must evaluate to an integer.",
+                            clause_name
+                        ),
                         ValidationErrorType::PaginationError,
                     )),
                     Err(e) => Err(ValidationError::new(

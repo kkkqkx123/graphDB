@@ -6,7 +6,7 @@ use crate::core::types::ContextualExpression;
 use crate::query::parser::ast::{Stmt, UpdateStmt, UpdateTarget};
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
-    nodes::{UpdateNode, UpdateTargetType, VertexUpdateInfo, EdgeUpdateInfo},
+    nodes::{EdgeUpdateInfo, UpdateNode, UpdateTargetType, VertexUpdateInfo},
 };
 use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
@@ -97,21 +97,24 @@ impl Planner for UpdatePlanner {
         let update_stmt = self.extract_update_stmt(validated.stmt())?;
 
         // Get current space name from query context
-        let space_name = qctx.space_name()
+        let space_name = qctx
+            .space_name()
             .map(|s| s.to_string())
             .unwrap_or_else(|| "default".to_string());
 
         // Build update target based on the update statement target
         let update_target = match &update_stmt.target {
             UpdateTarget::Vertex(vertex_id) => {
-                let vertex_info = self.build_vertex_update_info(
-                    &update_stmt,
-                    vertex_id.clone(),
-                    space_name,
-                )?;
+                let vertex_info =
+                    self.build_vertex_update_info(&update_stmt, vertex_id.clone(), space_name)?;
                 UpdateTargetType::Vertex(vertex_info)
             }
-            UpdateTarget::Edge { src, dst, edge_type, rank } => {
+            UpdateTarget::Edge {
+                src,
+                dst,
+                edge_type,
+                rank,
+            } => {
                 let edge_info = self.build_edge_update_info(
                     &update_stmt,
                     src.clone(),
@@ -126,9 +129,10 @@ impl Planner for UpdatePlanner {
                 // For Tag target, we need to find vertices with this tag
                 // This is a simplified implementation - in practice, you might need
                 // to scan for vertices with this tag first
-                return Err(PlannerError::PlanGenerationFailed(
-                    format!("UPDATE TAG {} not yet fully supported", tag_name)
-                ));
+                return Err(PlannerError::PlanGenerationFailed(format!(
+                    "UPDATE TAG {} not yet fully supported",
+                    tag_name
+                )));
             }
             UpdateTarget::TagOnVertex { vid, tag_name } => {
                 // Update specific tag on a specific vertex

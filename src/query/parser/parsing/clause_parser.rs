@@ -200,10 +200,18 @@ impl ClauseParser {
             ctx.expect_token(TokenKind::Assign)?;
             let value = self.parse_expression(ctx)?;
 
-            let property = match property_expr.expression() {
+            let (property, target) = match property_expr.expression() {
                 Some(expr) => match expr.inner() {
-                    CoreExpression::Property { property, .. } => property.clone(),
-                    CoreExpression::Variable(name) => name.clone(),
+                    CoreExpression::Property { object, property } => {
+                        // Check if object is a literal (e.g., 1.age) or a variable (e.g., p.age)
+                        let target = match object.as_ref() {
+                            CoreExpression::Literal(_) => Some(property_expr.clone()),
+                            CoreExpression::Variable(_) => None, // Variable-based property access
+                            _ => Some(property_expr.clone()),
+                        };
+                        (property.clone(), target)
+                    }
+                    CoreExpression::Variable(name) => (name.clone(), None),
                     _ => {
                         return Err(ParseError::new(
                             ParseErrorKind::SyntaxError,
@@ -221,7 +229,7 @@ impl ClauseParser {
                 }
             };
 
-            assignments.push(Assignment { property, value });
+            assignments.push(Assignment { property, value, target, object: None });
             if !ctx.match_token(TokenKind::Comma) {
                 break;
             }

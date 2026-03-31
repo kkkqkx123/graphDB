@@ -50,7 +50,10 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<crate::query::executor::ExecutorEnum<S>, QueryError> {
-        eprintln!("[build_executor_chain] plan_node type: {}", plan_node.name());
+        eprintln!(
+            "[build_executor_chain] plan_node type: {}",
+            plan_node.name()
+        );
 
         let mut executor = self
             .factory
@@ -207,7 +210,10 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
             .execute()
             .map_err(|e| QueryError::ExecutionError(format!("Executor execution failed: {}", e)))?;
 
-        eprintln!("[execute_plan] Executor executed, result type: {:?}", std::mem::discriminant(&result));
+        eprintln!(
+            "[execute_plan] Executor executed, result type: {:?}",
+            std::mem::discriminant(&result)
+        );
 
         if let Some(pool) = &self.object_pool {
             if !is_stateful_executor {

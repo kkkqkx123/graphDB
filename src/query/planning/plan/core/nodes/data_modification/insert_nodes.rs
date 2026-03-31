@@ -57,6 +57,11 @@ impl InsertVerticesNode {
     pub fn values(&self) -> &[(ContextualExpression, Vec<Vec<ContextualExpression>>)] {
         &self.info.values
     }
+
+    /// Get IF NOT EXISTS flag
+    pub fn if_not_exists(&self) -> bool {
+        self.info.if_not_exists
+    }
 }
 
 define_plan_node! {
@@ -93,7 +98,19 @@ impl InsertEdgesNode {
         &self.info.prop_names
     }
 
-    pub fn edges(&self) -> &[(ContextualExpression, ContextualExpression, Option<ContextualExpression>, Vec<ContextualExpression>)] {
+    pub fn edges(
+        &self,
+    ) -> &[(
+        ContextualExpression,
+        ContextualExpression,
+        Option<ContextualExpression>,
+        Vec<ContextualExpression>,
+    )] {
         &self.info.edges
+    }
+
+    /// Get IF NOT EXISTS flag
+    pub fn if_not_exists(&self) -> bool {
+        self.info.if_not_exists
     }
 }

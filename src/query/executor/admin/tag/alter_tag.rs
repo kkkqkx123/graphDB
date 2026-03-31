@@ -125,7 +125,8 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterTagExecutor<
             .collect();
 
         if !deletions.is_empty() {
-            let tag_info = storage_guard.get_tag(&self.alter_info.space_name, &self.alter_info.tag_name);
+            let tag_info =
+                storage_guard.get_tag(&self.alter_info.space_name, &self.alter_info.tag_name);
             if let Ok(Some(tag)) = tag_info {
                 for del_name in &deletions {
                     if !tag.properties.iter().any(|p| &p.name == del_name) {

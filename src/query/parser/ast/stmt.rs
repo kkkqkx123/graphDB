@@ -673,6 +673,10 @@ pub struct SetClause {
 pub struct Assignment {
     pub property: String,
     pub value: ContextualExpression,
+    /// Optional target object (e.g., vertex id for SET 1.age = 31)
+    pub target: Option<ContextualExpression>,
+    /// Optional object expression for property access (e.g., the "1" in "1.age")
+    pub object: Option<ContextualExpression>,
 }
 
 /// GO statement

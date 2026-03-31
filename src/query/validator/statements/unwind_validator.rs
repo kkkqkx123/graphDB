@@ -223,7 +223,10 @@ impl UnwindValidator {
             .is_ascii_digit()
         {
             return Err(ValidationError::new(
-                format!("Variable name '{}' cannot start with a number.", self.variable_name),
+                format!(
+                    "Variable name '{}' cannot start with a number.",
+                    self.variable_name
+                ),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -324,7 +327,10 @@ impl UnwindValidator {
                 && ref_name != "$$"
             {
                 return Err(ValidationError::new(
-                    format!("UNWIND expression references undefined variable '{}'", ref_name),
+                    format!(
+                        "UNWIND expression references undefined variable '{}'",
+                        ref_name
+                    ),
                     ValidationErrorType::SemanticError,
                 ));
             }

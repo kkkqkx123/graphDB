@@ -97,7 +97,10 @@ impl CreateTagValidator {
                 for prop in &self.properties {
                     if !seen_names.insert(&prop.name) {
                         return Err(ValidationError::new(
-                            format!("Duplicate property name '{}' in tag '{}'", prop.name, self.tag_name),
+                            format!(
+                                "Duplicate property name '{}' in tag '{}'",
+                                prop.name, self.tag_name
+                            ),
                             ValidationErrorType::SemanticError,
                         ));
                     }

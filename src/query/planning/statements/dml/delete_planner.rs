@@ -60,9 +60,7 @@ impl Planner for DeletePlanner {
         let delete_stmt = self.extract_delete_stmt(validated.stmt())?;
 
         // Get current space name from query context or use default
-        let space_name = qctx
-            .space_name()
-            .unwrap_or_else(|| "default".to_string());
+        let space_name = qctx.space_name().unwrap_or_else(|| "default".to_string());
 
         // Create the appropriate delete node based on target type
         let final_node = match &delete_stmt.target {

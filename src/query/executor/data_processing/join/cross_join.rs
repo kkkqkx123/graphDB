@@ -100,7 +100,9 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
                 .get_base()
                 .context
                 .get_result(var)
-                .ok_or_else(|| QueryError::ExecutionError(format!("Input variable not found: {}", var)))?;
+                .ok_or_else(|| {
+                    QueryError::ExecutionError(format!("Input variable not found: {}", var))
+                })?;
 
             let dataset = match result {
                 ExecutionResult::Values(values) => {

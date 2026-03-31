@@ -377,7 +377,10 @@ impl SchemaValidator {
                             DataType::Int | DataType::Int64 | DataType::Int32 | DataType::VID
                         ) {
                             return Err(CoreValidationError::new(
-                                format!("{} vertex ID expectation {:?} type, actually an integer", role, vid_type),
+                                format!(
+                                    "{} vertex ID expectation {:?} type, actually an integer",
+                                    role, vid_type
+                                ),
                                 ValidationErrorType::TypeMismatch,
                             ));
                         }

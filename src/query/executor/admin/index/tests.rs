@@ -35,7 +35,13 @@ mod tests {
         };
         let index = Index::new(index_config);
 
-        let mut executor = CreateTagIndexExecutor::new(1, storage, "test_space".to_string(), index, create_test_context());
+        let mut executor = CreateTagIndexExecutor::new(
+            1,
+            storage,
+            "test_space".to_string(),
+            index,
+            create_test_context(),
+        );
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -62,8 +68,13 @@ mod tests {
         };
         let index = Index::new(index_config);
 
-        let mut executor =
-            CreateTagIndexExecutor::with_if_not_exists(2, storage, "test_space".to_string(), index, create_test_context());
+        let mut executor = CreateTagIndexExecutor::with_if_not_exists(
+            2,
+            storage,
+            "test_space".to_string(),
+            index,
+            create_test_context(),
+        );
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -320,7 +331,13 @@ mod tests {
             is_unique: false,
         };
         let index = Index::new(index_config);
-        let mut executor = CreateTagIndexExecutor::new(15, storage, "test_space".to_string(), index, create_test_context());
+        let mut executor = CreateTagIndexExecutor::new(
+            15,
+            storage,
+            "test_space".to_string(),
+            index,
+            create_test_context(),
+        );
 
         assert!(!executor.is_open());
         assert!(executor.open().is_ok());
@@ -345,7 +362,13 @@ mod tests {
             is_unique: false,
         };
         let index = Index::new(index_config);
-        let executor = CreateTagIndexExecutor::new(16, storage, "test_space".to_string(), index, create_test_context());
+        let executor = CreateTagIndexExecutor::new(
+            16,
+            storage,
+            "test_space".to_string(),
+            index,
+            create_test_context(),
+        );
 
         assert_eq!(executor.id(), 16);
         assert_eq!(executor.name(), "CreateTagIndexExecutor");

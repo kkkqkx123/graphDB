@@ -196,7 +196,13 @@ impl EdgeStorage {
             if *edge.src == *vertex_id || *edge.dst == *vertex_id {
                 {
                     let mut writer = self.inner.writer.lock();
-                    writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type, edge.ranking)?;
+                    writer.delete_edge(
+                        space,
+                        &edge.src,
+                        &edge.dst,
+                        &edge.edge_type,
+                        edge.ranking,
+                    )?;
                 }
                 let indexes = self
                     .state
@@ -293,7 +299,13 @@ impl EdgeStorage {
             if *edge.src == *src && *edge.dst == *dst && edge.ranking == rank {
                 {
                     let mut writer = self.inner.writer.lock();
-                    writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type, edge.ranking)?;
+                    writer.delete_edge(
+                        space,
+                        &edge.src,
+                        &edge.dst,
+                        &edge.edge_type,
+                        edge.ranking,
+                    )?;
                 }
                 let indexes = self
                     .state

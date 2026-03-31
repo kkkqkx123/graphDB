@@ -1,6 +1,7 @@
 //! Maintenance Operation Planner
 //! Handling query planning related to maintenance tasks (such as SUBMIT JOB, etc.)
 
+use crate::core::types::PropertyDef;
 use crate::query::parser::ast::{AlterTarget, CreateTarget, IndexType, ShowTarget, Stmt};
 use crate::query::planning::plan::core::nodes::management::edge_nodes::EdgeAlterInfo;
 use crate::query::planning::plan::core::nodes::management::index_nodes::IndexManageInfo;
@@ -9,8 +10,8 @@ use crate::query::planning::plan::core::nodes::management::space_nodes::{
 };
 use crate::query::planning::plan::core::nodes::management::tag_nodes::TagAlterInfo;
 use crate::query::planning::plan::core::nodes::{
-    AlterEdgeNode, AlterTagNode, CreateEdgeNode, CreateTagNode, EdgeManageInfo,
-    ShowCreateTagNode, TagManageInfo,
+    AlterEdgeNode, AlterTagNode, CreateEdgeNode, CreateTagNode, EdgeManageInfo, ShowCreateTagNode,
+    TagManageInfo,
 };
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id, AlterSpaceNode, ArgumentNode, ClearSpaceNode, PlanNodeEnum,
@@ -19,7 +20,6 @@ use crate::query::planning::plan::core::{
 use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
-use crate::core::types::PropertyDef;
 use std::sync::Arc;
 
 /// Maintenance Operation Planner
@@ -240,7 +240,8 @@ impl Planner for MaintainPlanner {
                         .with_deletions(deletions.clone());
 
                     for change in changes {
-                        let prop = PropertyDef::new(change.new_name.clone(), change.data_type.clone());
+                        let prop =
+                            PropertyDef::new(change.new_name.clone(), change.data_type.clone());
                         alter_info.additions.push(prop);
                         alter_info.deletions.push(change.old_name.clone());
                     }
@@ -266,7 +267,8 @@ impl Planner for MaintainPlanner {
                         .with_deletions(deletions.clone());
 
                     for change in changes {
-                        let prop = PropertyDef::new(change.new_name.clone(), change.data_type.clone());
+                        let prop =
+                            PropertyDef::new(change.new_name.clone(), change.data_type.clone());
                         alter_info.additions.push(prop);
                         alter_info.deletions.push(change.old_name.clone());
                     }

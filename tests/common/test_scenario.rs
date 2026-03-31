@@ -336,10 +336,14 @@ impl TestScenario {
             };
 
             // Check if any row contains all expected values (subset match)
-            let found = rows.iter().any(|row| {
-                expected.iter().all(|exp_val| row.contains(exp_val))
-            });
-            assert!(found, "Expected to find row containing {:?} in results, actual rows: {:?}", expected, rows);
+            let found = rows
+                .iter()
+                .any(|row| expected.iter().all(|exp_val| row.contains(exp_val)));
+            assert!(
+                found,
+                "Expected to find row containing {:?} in results, actual rows: {:?}",
+                expected, rows
+            );
         } else {
             panic!("No result to check");
         }
@@ -427,7 +431,11 @@ impl TestScenario {
 
     /// Assert edge exists
     pub fn assert_edge_exists(self, src: i64, dst: i64, edge_type: &str) -> Self {
-        let space_name = self.current_space.as_ref().map(|s| s.space_name.clone()).unwrap_or_default();
+        let space_name = self
+            .current_space
+            .as_ref()
+            .map(|s| s.space_name.clone())
+            .unwrap_or_default();
         let src_val = Value::Int(src);
         let dst_val = Value::Int(dst);
         let found = {
@@ -435,9 +443,9 @@ impl TestScenario {
             let edges = storage_guard
                 .scan_edges_by_type(&space_name, edge_type)
                 .unwrap_or_default();
-            edges.iter().any(|e| {
-                *e.src() == src_val && *e.dst() == dst_val && e.edge_type == edge_type
-            })
+            edges
+                .iter()
+                .any(|e| *e.src() == src_val && *e.dst() == dst_val && e.edge_type == edge_type)
         };
         assert!(
             found,
@@ -449,7 +457,11 @@ impl TestScenario {
 
     /// Assert edge does not exist
     pub fn assert_edge_not_exists(self, src: i64, dst: i64, edge_type: &str) -> Self {
-        let space_name = self.current_space.as_ref().map(|s| s.space_name.clone()).unwrap_or_default();
+        let space_name = self
+            .current_space
+            .as_ref()
+            .map(|s| s.space_name.clone())
+            .unwrap_or_default();
         let src_val = Value::Int(src);
         let dst_val = Value::Int(dst);
         let found = {
@@ -457,9 +469,9 @@ impl TestScenario {
             let edges = storage_guard
                 .scan_edges_by_type(&space_name, edge_type)
                 .unwrap_or_default();
-            edges.iter().any(|e| {
-                *e.src() == src_val && *e.dst() == dst_val && e.edge_type == edge_type
-            })
+            edges
+                .iter()
+                .any(|e| *e.src() == src_val && *e.dst() == dst_val && e.edge_type == edge_type)
         };
         assert!(
             !found,
@@ -506,7 +518,11 @@ impl TestScenario {
     /// Assert vertex count
     pub fn assert_vertex_count(mut self, tag: &str, expected: usize) -> Self {
         // Directly query storage to count vertices with the given tag
-        let space_name = self.current_space.as_ref().map(|s| s.space_name.clone()).unwrap_or_default();
+        let space_name = self
+            .current_space
+            .as_ref()
+            .map(|s| s.space_name.clone())
+            .unwrap_or_default();
         let actual = {
             let storage_guard = self.storage.lock();
             storage_guard
@@ -514,7 +530,7 @@ impl TestScenario {
                 .map(|vertices| vertices.len())
                 .unwrap_or(0)
         };
-        
+
         assert_eq!(
             actual, expected,
             "Expected {} vertices with tag {}, got {}",
@@ -526,7 +542,11 @@ impl TestScenario {
     /// Assert edge count
     pub fn assert_edge_count(mut self, edge_type: &str, expected: usize) -> Self {
         // Directly query storage to count edges with the given type
-        let space_name = self.current_space.as_ref().map(|s| s.space_name.clone()).unwrap_or_default();
+        let space_name = self
+            .current_space
+            .as_ref()
+            .map(|s| s.space_name.clone())
+            .unwrap_or_default();
         let actual = {
             let storage_guard = self.storage.lock();
             storage_guard
@@ -534,7 +554,7 @@ impl TestScenario {
                 .map(|edges| edges.len())
                 .unwrap_or(0)
         };
-        
+
         assert_eq!(
             actual, expected,
             "Expected {} edges with type {}, got {}",

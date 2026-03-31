@@ -155,7 +155,10 @@ impl MatchValidator {
         if let (Some(skip), Some(limit)) = (match_stmt.skip, match_stmt.limit) {
             if skip >= limit {
                 return Err(ValidationError::new(
-                    format!("The SKIP value ({}) must be less than the LIMIT value ({}).", skip, limit),
+                    format!(
+                        "The SKIP value ({}) must be less than the LIMIT value ({}).",
+                        skip, limit
+                    ),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -170,7 +173,10 @@ impl MatchValidator {
             Pattern::Node(node_pattern) => {
                 if node_pattern.variable.is_none() && node_pattern.labels.is_empty() {
                     return Err(ValidationError::new(
-                        format!("The anonymous node at pattern {} must specify a label.", idx + 1),
+                        format!(
+                            "The anonymous node at pattern {} must specify a label.",
+                            idx + 1
+                        ),
                         ValidationErrorType::SemanticError,
                     ));
                 }
@@ -274,7 +280,10 @@ impl MatchValidator {
                     if let Some(ref alias_name) = alias {
                         if alias_name.is_empty() {
                             return Err(ValidationError::new(
-                                format!("The alias of the {}th return item cannot be null.", idx + 1),
+                                format!(
+                                    "The alias of the {}th return item cannot be null.",
+                                    idx + 1
+                                ),
                                 ValidationErrorType::SemanticError,
                             ));
                         }
@@ -305,7 +314,11 @@ impl MatchValidator {
         for var_name in variables {
             if !self.aliases.contains_key(&var_name) {
                 return Err(ValidationError::new(
-                    format!("The {}th return item references the undefined variable '{}'.", idx + 1, var_name),
+                    format!(
+                        "The {}th return item references the undefined variable '{}'.",
+                        idx + 1,
+                        var_name
+                    ),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -339,7 +352,11 @@ impl MatchValidator {
             for var_name in variables {
                 if !self.aliases.contains_key(&var_name) {
                     return Err(ValidationError::new(
-                        format!("The {}th sort item references the undefined variable '{}'", idx + 1, var_name),
+                        format!(
+                            "The {}th sort item references the undefined variable '{}'",
+                            idx + 1,
+                            var_name
+                        ),
                         ValidationErrorType::SemanticError,
                     ));
                 }
@@ -368,7 +385,11 @@ impl MatchValidator {
             for var_name in variables {
                 if !aliases.contains_key(&var_name) {
                     return Err(ValidationError::new(
-                        format!("The {}th expression references the undefined alias '{}'", idx + 1, var_name),
+                        format!(
+                            "The {}th expression references the undefined alias '{}'",
+                            idx + 1,
+                            var_name
+                        ),
                         ValidationErrorType::SemanticError,
                     ));
                 }

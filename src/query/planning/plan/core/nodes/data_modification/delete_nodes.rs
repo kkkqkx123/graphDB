@@ -76,7 +76,13 @@ impl DeleteEdgesNode {
         self.info.edge_type.as_deref()
     }
 
-    pub fn edges(&self) -> &[(ContextualExpression, ContextualExpression, Option<ContextualExpression>)] {
+    pub fn edges(
+        &self,
+    ) -> &[(
+        ContextualExpression,
+        ContextualExpression,
+        Option<ContextualExpression>,
+    )] {
         &self.info.edges
     }
 

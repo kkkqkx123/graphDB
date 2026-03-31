@@ -85,9 +85,19 @@ impl<S: StorageClient> GetEdgesExecutor<S> {
 
         let edges = if let Some(ref edge_type) = self.edge_type {
             let result = storage.scan_edges_by_type("default", edge_type)?;
-            println!("[GetEdgesExecutor] scan_edges_by_type({:?}) returned {} edges", edge_type, result.len());
+            println!(
+                "[GetEdgesExecutor] scan_edges_by_type({:?}) returned {} edges",
+                edge_type,
+                result.len()
+            );
             for e in &result {
-                println!("[GetEdgesExecutor]   edge: {} -> {} type={} rank={}", e.src(), e.dst(), e.edge_type, e.ranking());
+                println!(
+                    "[GetEdgesExecutor]   edge: {} -> {} type={} rank={}",
+                    e.src(),
+                    e.dst(),
+                    e.edge_type,
+                    e.ranking()
+                );
             }
             result
         } else {

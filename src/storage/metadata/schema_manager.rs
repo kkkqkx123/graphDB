@@ -1,4 +1,4 @@
-use crate::core::types::{EdgeTypeInfo, SpaceInfo, TagInfo};
+use crate::core::types::{EdgeTypeInfo, Index, SpaceInfo, TagInfo};
 use crate::core::StorageError;
 use crate::storage::Schema;
 
@@ -28,4 +28,7 @@ pub trait SchemaManager: Send + Sync + std::fmt::Debug {
 
     fn get_tag_schema(&self, space: &str, tag: &str) -> Result<Schema, StorageError>;
     fn get_edge_type_schema(&self, space: &str, edge: &str) -> Result<Schema, StorageError>;
+
+    fn list_tag_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError>;
+    fn list_edge_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError>;
 }

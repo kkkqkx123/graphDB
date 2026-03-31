@@ -443,7 +443,13 @@ fn test_storage_edge_get() {
 
     // query side
     let retrieved = get_storage(&storage)
-        .get_edge("edge_get_space", &Value::Int(10), &Value::Int(20), "KNOWS")
+        .get_edge(
+            "edge_get_space",
+            &Value::Int(10),
+            &Value::Int(20),
+            "KNOWS",
+            0,
+        )
         .expect("获取边失败");
     assert!(retrieved.is_some(), "The edge should be present");
 
@@ -474,6 +480,7 @@ fn test_storage_edge_delete() {
         &Value::Int(100),
         &Value::Int(200),
         "KNOWS",
+        0,
     );
     assert_ok(result);
 
@@ -484,6 +491,7 @@ fn test_storage_edge_delete() {
             &Value::Int(100),
             &Value::Int(200),
             "KNOWS",
+            0,
         )
         .expect("获取边失败");
     assert!(retrieved.is_none(), "The edge should have been deleted.");

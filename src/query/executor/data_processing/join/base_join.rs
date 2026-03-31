@@ -89,7 +89,10 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
             .context
             .get_result(&self.left_var)
             .ok_or_else(|| {
-                QueryError::ExecutionError(format!("Left input variable not found: {}", self.left_var))
+                QueryError::ExecutionError(format!(
+                    "Left input variable not found: {}",
+                    self.left_var
+                ))
             })?;
 
         let right_result = self
@@ -97,7 +100,10 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
             .context
             .get_result(&self.right_var)
             .ok_or_else(|| {
-                QueryError::ExecutionError(format!("Right input variable not found: {}", self.right_var))
+                QueryError::ExecutionError(format!(
+                    "Right input variable not found: {}",
+                    self.right_var
+                ))
             })?;
 
         let left_dataset = match left_result {

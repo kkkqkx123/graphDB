@@ -5,8 +5,8 @@
 use crate::core::error::QueryError;
 use crate::query::executor::base::{ExecutionContext, ExecutorConfig, IndexScanConfig};
 use crate::query::executor::data_access::{
-    GetEdgesExecutor, GetNeighborsExecutor, GetVerticesExecutor, GetVerticesParams, IndexScanExecutor,
-    ScanEdgesExecutor,
+    GetEdgesExecutor, GetNeighborsExecutor, GetVerticesExecutor, GetVerticesParams,
+    IndexScanExecutor, ScanEdgesExecutor,
 };
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::factory::parsers::{parse_edge_direction, parse_vertex_ids};
@@ -140,6 +140,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
                     .index_name()
                     .chars()
                     .fold(0i32, |acc, c| acc.wrapping_mul(31).wrapping_add(c as i32)),
+                index_name: node.index_name().to_string(),
                 scan_type: node.scan_type().as_str().to_string(),
                 scan_limits: node.scan_limits().to_vec(),
                 filter: node.filter().and_then(|f| f.get_expression()),
@@ -184,12 +185,13 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
                 space_id: node.space_id(),
                 tag_id: node.tag_id(),
                 index_id: node.index_id(),
+                index_name: node.index_name().to_string(),
                 scan_type: node.scan_type().as_str().to_string(),
                 scan_limits: node.scan_limits().to_vec(),
                 filter: node.filter().and_then(|f| f.get_expression()),
                 return_columns: node.return_columns().to_vec(),
                 limit: node.limit().map(|l| l as usize),
-                is_edge: false, // `is_edge = false` – This indicates that the tag index scanning has been completed.
+                is_edge: false,
             },
         );
         Ok(ExecutorEnum::IndexScan(executor))

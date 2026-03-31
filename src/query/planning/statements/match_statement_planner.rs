@@ -490,7 +490,9 @@ impl MatchStatementPlanner {
         // Create a Hashne connection node.
         let join_node =
             HashInnerJoinNode::new(left_root.clone(), right_root.clone(), hash_keys, probe_keys)
-                .map_err(|e| PlannerError::JoinFailed(format!("Intra-hash connection failed: {}", e)))?;
+                .map_err(|e| {
+                    PlannerError::JoinFailed(format!("Intra-hash connection failed: {}", e))
+                })?;
 
         Ok(SubPlan {
             root: Some(join_node.into_enum()),
@@ -767,7 +769,9 @@ impl MatchStatementPlanner {
             left_root.clone(),
             true, // `distinct = true` – to remove duplicates.
         )
-        .map_err(|e| PlannerError::PlanGenerationFailed(format!("Concatenation operation failed: {}", e)))?;
+        .map_err(|e| {
+            PlannerError::PlanGenerationFailed(format!("Concatenation operation failed: {}", e))
+        })?;
 
         Ok(SubPlan {
             root: Some(union_node.into_enum()),

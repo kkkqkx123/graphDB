@@ -56,6 +56,7 @@ impl InsertPlanner {
         space_name: String,
         tags: Vec<crate::query::parser::ast::TagInsertSpec>,
         values: Vec<VertexRow>,
+        if_not_exists: bool,
     ) -> Result<VertexInsertInfo, PlannerError> {
         // Please provide the text you would like to have translated, as well as the specific instructions regarding the conversion of tag specifications. I will then assist you with the translation.
         let tag_specs: Vec<TagInsertSpec> = tags
@@ -77,6 +78,7 @@ impl InsertPlanner {
             space_name,
             tags: tag_specs,
             values: converted_values,
+            if_not_exists,
         })
     }
 
@@ -92,12 +94,14 @@ impl InsertPlanner {
             Option<ContextualExpression>,
             Vec<ContextualExpression>,
         )>,
+        if_not_exists: bool,
     ) -> EdgeInsertInfo {
         EdgeInsertInfo {
             space_name,
             edge_name,
             prop_names,
             edges,
+            if_not_exists,
         }
     }
 
@@ -154,7 +158,7 @@ impl Planner for InsertPlanner {
                     ));
                 }
                 let info =
-                    self.build_vertex_insert_info(space_name, tags.clone(), values.clone())?;
+                    self.build_vertex_insert_info(space_name, tags.clone(), values.clone(), insert_stmt.if_not_exists)?;
                 (
                     PlanNodeEnum::InsertVertices(InsertVerticesNode::new(next_node_id(), info)),
                     count,
@@ -171,6 +175,7 @@ impl Planner for InsertPlanner {
                     edge_name.clone(),
                     prop_names.clone(),
                     edges.clone(),
+                    insert_stmt.if_not_exists,
                 );
                 (
                     PlanNodeEnum::InsertEdges(InsertEdgesNode::new(next_node_id(), info)),

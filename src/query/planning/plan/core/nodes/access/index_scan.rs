@@ -141,6 +141,7 @@ define_plan_node! {
         space_id: u64,
         tag_id: i32,
         index_id: i32,
+        index_name: String,
         scan_type: ScanType,
         scan_limits: Vec<IndexLimit>,
         filter: Option<ContextualExpression>,
@@ -153,12 +154,13 @@ define_plan_node! {
 }
 
 impl IndexScanNode {
-    pub fn new(space_id: u64, tag_id: i32, index_id: i32, scan_type: ScanType) -> Self {
+    pub fn new(space_id: u64, tag_id: i32, index_id: i32, index_name: String, scan_type: ScanType) -> Self {
         Self {
             id: next_node_id(),
             space_id,
             tag_id,
             index_id,
+            index_name,
             scan_type,
             scan_limits: Vec::new(),
             filter: None,
@@ -170,12 +172,12 @@ impl IndexScanNode {
         }
     }
 
-    /// Create a new IndexScanNode from a string.
-    pub fn new_with_str(space_id: u64, tag_id: i32, index_id: i32, scan_type: &str) -> Self {
+    pub fn new_with_str(space_id: u64, tag_id: i32, index_id: i32, index_name: &str, scan_type: &str) -> Self {
         Self::new(
             space_id,
             tag_id,
             index_id,
+            index_name.to_string(),
             ScanType::from_str_with_default(scan_type),
         )
     }
@@ -200,8 +202,8 @@ impl IndexScanNode {
         self.tag_id <= 0
     }
 
-    pub fn index_name(&self) -> String {
-        format!("index_{}", self.index_id)
+    pub fn index_name(&self) -> &str {
+        &self.index_name
     }
 
     pub fn space_id(&self) -> u64 {
