@@ -50,7 +50,8 @@ use crate::query::planning::plan::core::nodes::control_flow::control_flow_node::
 };
 use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
 use crate::query::planning::plan::core::nodes::data_modification::{
-    InsertEdgesNode, InsertVerticesNode,
+    DeleteEdgesNode, DeleteVerticesNode, InsertEdgesNode, InsertVerticesNode, UpdateEdgesNode,
+    UpdateNode, UpdateVerticesNode,
 };
 use crate::query::planning::plan::core::nodes::management::edge_nodes::{
     AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
@@ -405,7 +406,22 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
         InsertVertices,
         visit_insert_edges,
         InsertEdgesNode,
-        InsertEdges
+        InsertEdges,
+        visit_update,
+        UpdateNode,
+        Update,
+        visit_update_vertices,
+        UpdateVerticesNode,
+        UpdateVertices,
+        visit_update_edges,
+        UpdateEdgesNode,
+        UpdateEdges,
+        visit_delete_vertices,
+        DeleteVerticesNode,
+        DeleteVertices,
+        visit_delete_edges,
+        DeleteEdgesNode,
+        DeleteEdges
     );
 
     impl_multi_input_deps_rewrite!(

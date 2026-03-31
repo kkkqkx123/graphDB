@@ -1,3 +1,4 @@
+pub mod macros;
 pub mod path_algorithms;
 pub mod traversal_node;
 
