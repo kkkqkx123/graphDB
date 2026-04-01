@@ -5,7 +5,7 @@
 use std::borrow::Cow;
 
 use super::plan_node_enum::PlanNodeEnum;
-use super::plan_node_traits::{MultipleInputNode, SingleInputNode};
+use super::plan_node_traits::{MultipleInputNode, SingleInputNode, PlanNode};
 
 /// Generate a macro for the `match` branch of `PlanNodeEnum` (including default values)
 ///

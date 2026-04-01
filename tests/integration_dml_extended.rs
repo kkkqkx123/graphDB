@@ -63,6 +63,7 @@ fn test_insert_multiple_vertices() {
         });
 }
 
+#[allow(clippy::approx_constant)]
 #[test]
 fn test_insert_vertex_with_all_types() {
     TestScenario::new()

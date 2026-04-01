@@ -19,8 +19,25 @@ impl InnerJoinNode {
         hash_keys: Vec<ContextualExpression>,
         probe_keys: Vec<ContextualExpression>,
     ) -> Result<Self, crate::query::planning::planner::PlannerError> {
+        // Merge column names, avoiding duplicates
         let mut col_names = left.col_names().to_vec();
-        col_names.extend(right.col_names().iter().cloned());
+        let right_col_names = right.col_names();
+
+        // Add right column names, skipping duplicates
+        for col in right_col_names {
+            if !col_names.contains(col) {
+                col_names.push(col.clone());
+            } else {
+                // If duplicate, add a suffix to make it unique
+                let mut idx = 1;
+                let mut new_col = format!("{}_{}", col, idx);
+                while col_names.contains(&new_col) {
+                    idx += 1;
+                    new_col = format!("{}_{}", col, idx);
+                }
+                col_names.push(new_col);
+            }
+        }
 
         let deps = vec![left.clone(), right.clone()];
 
@@ -34,6 +51,10 @@ impl InnerJoinNode {
             output_var: None,
             col_names,
         })
+    }
+
+    pub fn right(&self) -> &crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        &self.right
     }
 }
 
@@ -50,8 +71,25 @@ impl LeftJoinNode {
         hash_keys: Vec<ContextualExpression>,
         probe_keys: Vec<ContextualExpression>,
     ) -> Result<Self, crate::query::planning::planner::PlannerError> {
+        // Merge column names, avoiding duplicates
         let mut col_names = left.col_names().to_vec();
-        col_names.extend(right.col_names().iter().cloned());
+        let right_col_names = right.col_names();
+
+        // Add right column names, skipping duplicates
+        for col in right_col_names {
+            if !col_names.contains(col) {
+                col_names.push(col.clone());
+            } else {
+                // If duplicate, add a suffix to make it unique
+                let mut idx = 1;
+                let mut new_col = format!("{}_{}", col, idx);
+                while col_names.contains(&new_col) {
+                    idx += 1;
+                    new_col = format!("{}_{}", col, idx);
+                }
+                col_names.push(new_col);
+            }
+        }
 
         let deps = vec![left.clone(), right.clone()];
 
@@ -80,13 +118,38 @@ impl CrossJoinNode {
         left: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         right: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) -> Result<Self, crate::query::planning::planner::PlannerError> {
+        use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
+        use crate::query::planning::plan::core::node_id_generator::next_node_id;
+
+        // Merge column names, avoiding duplicates
         let mut col_names = left.col_names().to_vec();
-        col_names.extend(right.col_names().iter().cloned());
+        let right_col_names = right.col_names();
+
+        eprintln!("[CrossJoinNode::new] left col_names: {:?}", col_names);
+        eprintln!("[CrossJoinNode::new] right col_names: {:?}", right_col_names);
+
+        // Add right column names, skipping duplicates
+        for col in right_col_names {
+            if !col_names.contains(col) {
+                col_names.push(col.clone());
+            } else {
+                // If duplicate, add a suffix to make it unique
+                let mut idx = 1;
+                let mut new_col = format!("{}_{}", col, idx);
+                while col_names.contains(&new_col) {
+                    idx += 1;
+                    new_col = format!("{}_{}", col, idx);
+                }
+                col_names.push(new_col);
+            }
+        }
+
+        eprintln!("[CrossJoinNode::new] merged col_names: {:?}", col_names);
 
         let deps = vec![left.clone(), right.clone()];
 
         Ok(Self {
-            id: -1,
+            id: next_node_id(),
             left: Box::new(left),
             right: Box::new(right),
             deps,
@@ -109,8 +172,25 @@ impl HashInnerJoinNode {
         hash_keys: Vec<ContextualExpression>,
         probe_keys: Vec<ContextualExpression>,
     ) -> Result<Self, crate::query::planning::planner::PlannerError> {
+        // Merge column names, avoiding duplicates
         let mut col_names = left.col_names().to_vec();
-        col_names.extend(right.col_names().iter().cloned());
+        let right_col_names = right.col_names();
+
+        // Add right column names, skipping duplicates
+        for col in right_col_names {
+            if !col_names.contains(col) {
+                col_names.push(col.clone());
+            } else {
+                // If duplicate, add a suffix to make it unique
+                let mut idx = 1;
+                let mut new_col = format!("{}_{}", col, idx);
+                while col_names.contains(&new_col) {
+                    idx += 1;
+                    new_col = format!("{}_{}", col, idx);
+                }
+                col_names.push(new_col);
+            }
+        }
 
         let deps = vec![left.clone(), right.clone()];
 
@@ -171,8 +251,25 @@ impl FullOuterJoinNode {
         hash_keys: Vec<ContextualExpression>,
         probe_keys: Vec<ContextualExpression>,
     ) -> Result<Self, crate::query::planning::planner::PlannerError> {
+        // Merge column names, avoiding duplicates
         let mut col_names = left.col_names().to_vec();
-        col_names.extend(right.col_names().iter().cloned());
+        let right_col_names = right.col_names();
+
+        // Add right column names, skipping duplicates
+        for col in right_col_names {
+            if !col_names.contains(col) {
+                col_names.push(col.clone());
+            } else {
+                // If duplicate, add a suffix to make it unique
+                let mut idx = 1;
+                let mut new_col = format!("{}_{}", col, idx);
+                while col_names.contains(&new_col) {
+                    idx += 1;
+                    new_col = format!("{}_{}", col, idx);
+                }
+                col_names.push(new_col);
+            }
+        }
 
         let deps = vec![left.clone(), right.clone()];
 

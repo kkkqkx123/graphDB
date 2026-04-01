@@ -81,6 +81,25 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         }
     }
 
+    pub fn with_context(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        context: crate::query::executor::base::ExecutionContext,
+        config: JoinConfigWithDesc,
+    ) -> Self {
+        Self {
+            base: BaseExecutor::with_context(id, "BaseJoinExecutor".to_string(), storage, context),
+            left_var: config.left_var,
+            right_var: config.right_var,
+            hash_keys: config.hash_keys,
+            probe_keys: config.probe_keys,
+            col_names: config.col_names,
+            description: config.description,
+            exchange: false,
+            rhs_output_col_idxs: None,
+        }
+    }
+
     /// Check the input dataset.
     pub fn check_input_datasets(&mut self) -> Result<(DataSet, DataSet), QueryError> {
         // Obtain the left and right input datasets from the execution context.
@@ -128,6 +147,16 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
                 }
             }
             ExecutionResult::DataSet(dataset) => dataset.clone(),
+            ExecutionResult::Vertices(vertices) => {
+                // Convert Vertices to DataSet
+                let rows: Vec<Vec<Value>> = vertices.iter().map(|v| vec![Value::Vertex(Box::new(v.clone()))]).collect();
+                // For Vertices input, use a default column name
+                // The actual column name will be set by the caller based on the join side
+                DataSet {
+                    col_names: vec!["_vertex".to_string()],
+                    rows,
+                }
+            }
             _ => {
                 return Err(QueryError::ExecutionError(
                     "左输入不是有效的数据集".to_string(),
@@ -157,6 +186,16 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
                 }
             }
             ExecutionResult::DataSet(dataset) => dataset.clone(),
+            ExecutionResult::Vertices(vertices) => {
+                // Convert Vertices to DataSet
+                let rows: Vec<Vec<Value>> = vertices.iter().map(|v| vec![Value::Vertex(Box::new(v.clone()))]).collect();
+                // For Vertices input, use a default column name
+                // The actual column name will be set by the caller based on the join side
+                DataSet {
+                    col_names: vec!["_vertex".to_string()],
+                    rows,
+                }
+            }
             _ => {
                 return Err(QueryError::ExecutionError(
                     "右输入不是有效的数据集".to_string(),

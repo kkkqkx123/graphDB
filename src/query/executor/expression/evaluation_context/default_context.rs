@@ -53,7 +53,7 @@ impl DefaultExpressionContext {
     /// Copy all variables from the ExecutionContext to the new DefaultExpressionContext.
     pub fn from_execution_context(ctx: &crate::query::executor::base::ExecutionContext) -> Self {
         Self {
-            variables: ctx.variables.clone(),
+            variables: ctx.variables.lock().clone(),
         }
     }
 
@@ -62,7 +62,7 @@ impl DefaultExpressionContext {
     /// Synchronize all variables from the current DefaultExpressionContext to the ExecutionContext.
     pub fn sync_to_execution_context(
         self,
-        ctx: &mut crate::query::executor::base::ExecutionContext,
+        ctx: &crate::query::executor::base::ExecutionContext,
     ) {
         for (name, value) in self.variables {
             ctx.set_variable(name, value);

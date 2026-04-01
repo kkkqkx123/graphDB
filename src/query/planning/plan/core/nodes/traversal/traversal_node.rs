@@ -88,25 +88,127 @@ impl ExpandNode {
     }
 }
 
-define_plan_node! {
-    pub struct ExpandAllNode {
-        space_id: u64,
-        edge_types: Vec<String>,
-        direction: String,
-        any_edge_type: bool,
-        step_limit: Option<u32>,
-        step_limits: Option<Vec<u32>>,
-        join_input: bool,
-        sample: bool,
-        edge_props: Vec<EdgeProp>,
-        vertex_props: Vec<TagProp>,
-        filter: Option<ContextualExpression>,
-        filter_serializable: Option<SerializableExpression>,
-        src_vids: Vec<crate::core::Value>,
-        include_empty_paths: bool,
+impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode for ExpandAllNode {
+    fn id(&self) -> i64 {
+        self.id
     }
-    enum: ExpandAll
-    input: MultipleInputNode
+
+    fn name(&self) -> &'static str {
+        "ExpandAllNode"
+    }
+
+    fn output_var(&self) -> Option<&str> {
+        self.output_var.as_deref()
+    }
+
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+
+    fn set_output_var(&mut self, var: String) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn into_enum(self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::ExpandAll(self)
+    }
+}
+
+impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNodeClonable for ExpandAllNode {
+    fn clone_plan_node(&self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::ExpandAll(self.clone())
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::ExpandAll(cloned)
+    }
+}
+
+impl crate::query::planning::plan::core::nodes::base::plan_node_traits::MultipleInputNode for ExpandAllNode {
+    fn inputs(&self) -> &[crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum] {
+        &self.deps
+    }
+
+    fn inputs_mut(&mut self) -> &mut Vec<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum> {
+        &mut self.deps
+    }
+
+    fn add_input(&mut self, input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
+        self.deps.push(input);
+    }
+
+    fn remove_input(&mut self, index: usize) -> Result<(), String> {
+        if index < self.deps.len() {
+            self.deps.remove(index);
+            Ok(())
+        } else {
+            Err(format!("索引 {} 超出范围", index))
+        }
+    }
+}
+
+/// ExpandAllNode - Plan node for expanding all paths from a starting vertex
+///
+/// This node is used in MATCH queries to traverse edges and find connected vertices.
+/// It can take input from:
+/// 1. src_vids - Direct vertex IDs specified in the query
+/// 2. input_var - Variable name to look up in ExecutionContext (for joining with previous results)
+/// 3. input nodes - Child plan nodes that provide input
+#[derive(Debug)]
+pub struct ExpandAllNode {
+    id: i64,
+    deps: Vec<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
+    space_id: u64,
+    edge_types: Vec<String>,
+    direction: String,
+    any_edge_type: bool,
+    step_limit: Option<u32>,
+    step_limits: Option<Vec<u32>>,
+    join_input: bool,
+    sample: bool,
+    edge_props: Vec<EdgeProp>,
+    vertex_props: Vec<TagProp>,
+    filter: Option<ContextualExpression>,
+    filter_serializable: Option<SerializableExpression>,
+    src_vids: Vec<crate::core::Value>,
+    include_empty_paths: bool,
+    output_var: Option<String>,
+    col_names: Vec<String>,
+    /// Input variable name for getting input from ExecutionContext
+    input_var: Option<String>,
+}
+
+impl Clone for ExpandAllNode {
+    fn clone(&self) -> Self {
+        use crate::query::planning::plan::core::node_id_generator::next_node_id;
+        Self {
+            id: next_node_id(),
+            deps: self.deps.clone(),
+            space_id: self.space_id,
+            edge_types: self.edge_types.clone(),
+            direction: self.direction.clone(),
+            any_edge_type: self.any_edge_type,
+            step_limit: self.step_limit,
+            step_limits: self.step_limits.clone(),
+            join_input: self.join_input,
+            sample: self.sample,
+            edge_props: self.edge_props.clone(),
+            vertex_props: self.vertex_props.clone(),
+            filter: self.filter.clone(),
+            filter_serializable: self.filter_serializable.clone(),
+            src_vids: self.src_vids.clone(),
+            include_empty_paths: self.include_empty_paths,
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            input_var: self.input_var.clone(),
+        }
+    }
 }
 
 impl ExpandAllNode {
@@ -130,6 +232,7 @@ impl ExpandAllNode {
             include_empty_paths: true, // Default to true for backward compatibility
             output_var: None,
             col_names: Vec::new(),
+            input_var: None,
         }
     }
 
@@ -241,6 +344,64 @@ impl ExpandAllNode {
         if let Some(ref ser_expr) = self.filter_serializable {
             self.filter = Some(ser_expr.clone().to_contextual(ctx));
         }
+    }
+
+    pub fn get_input_var(&self) -> Option<&str> {
+        self.input_var.as_deref()
+    }
+
+    pub fn set_input_var(&mut self, input_var: String) {
+        self.input_var = Some(input_var);
+    }
+
+    pub fn dependencies(&self) -> &[crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum] {
+        &self.deps
+    }
+}
+
+impl crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable for ExpandAllNode {
+    fn estimate_memory(&self) -> usize {
+        let base = std::mem::size_of::<ExpandAllNode>();
+
+        // Estimate edge_types Vec<String>
+        let edge_types_size = std::mem::size_of::<Vec<String>>()
+            + self.edge_types.iter().map(|s| std::mem::size_of::<String>() + s.capacity()).sum::<usize>();
+
+        // Estimate direction String
+        let direction_size = std::mem::size_of::<String>() + self.direction.capacity();
+
+        // Estimate step_limits Vec<u32>
+        let step_limits_size = self.step_limits.as_ref()
+            .map(|v| std::mem::size_of::<Vec<u32>>() + v.len() * std::mem::size_of::<u32>())
+            .unwrap_or(0);
+
+        // Estimate edge_props Vec<EdgeProp>
+        let edge_props_size = std::mem::size_of::<Vec<EdgeProp>>()
+            + self.edge_props.len() * std::mem::size_of::<EdgeProp>();
+
+        // Estimate vertex_props Vec<TagProp>
+        let vertex_props_size = std::mem::size_of::<Vec<TagProp>>()
+            + self.vertex_props.len() * std::mem::size_of::<TagProp>();
+
+        // Estimate src_vids Vec<Value>
+        let src_vids_size = std::mem::size_of::<Vec<crate::core::Value>>()
+            + self.src_vids.len() * std::mem::size_of::<crate::core::Value>();
+
+        // Estimate output_var Option<String>
+        let output_var_size = std::mem::size_of::<Option<String>>()
+            + self.output_var.as_ref().map(|s| std::mem::size_of::<String>() + s.capacity()).unwrap_or(0);
+
+        // Estimate col_names Vec<String>
+        let col_names_size = std::mem::size_of::<Vec<String>>()
+            + self.col_names.iter().map(|s| std::mem::size_of::<String>() + s.capacity()).sum::<usize>();
+
+        // Estimate input_var Option<String>
+        let input_var_size = std::mem::size_of::<Option<String>>()
+            + self.input_var.as_ref().map(|s| std::mem::size_of::<String>() + s.capacity()).unwrap_or(0);
+
+        base + edge_types_size + direction_size + step_limits_size
+            + edge_props_size + vertex_props_size + src_vids_size
+            + output_var_size + col_names_size + input_var_size
     }
 }
 

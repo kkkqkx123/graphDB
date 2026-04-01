@@ -47,11 +47,21 @@ pub struct MatchStatementPlanner {
     expr_context: Option<Arc<ExpressionAnalysisContext>>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct MatchPlannerConfig {
     pub default_limit: usize,
     pub max_limit: usize,
     pub enable_index_optimization: bool,
+}
+
+impl Default for MatchPlannerConfig {
+    fn default() -> Self {
+        Self {
+            default_limit: 10000,
+            max_limit: 100000,
+            enable_index_optimization: true,
+        }
+    }
 }
 
 impl Default for MatchStatementPlanner {
@@ -87,6 +97,7 @@ impl Planner for MatchStatementPlanner {
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         let space_id = qctx.space_id().unwrap_or(1);
+        let space_name = qctx.space_name().unwrap_or_else(|| "default".to_string());
 
         // Use the verification information to optimize the planning process.
         let validation_info = &validated.validation_info;
@@ -100,7 +111,7 @@ impl Planner for MatchStatementPlanner {
         }
 
         // Optimize the planning using alias mapping.
-        self.plan_match_pattern(validated, space_id, validation_info, &qctx)
+        self.plan_match_pattern(validated, space_id, &space_name, validation_info, &qctx)
     }
 }
 
@@ -126,40 +137,34 @@ impl MatchStatementPlanner {
         &self,
         validated: &ValidatedStatement,
         space_id: u64,
+        space_name: &str,
         validation_info: &ValidationInfo,
         qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         let stmt = validated.stmt();
         match stmt {
             crate::query::parser::ast::Stmt::Match(match_stmt) => {
-                // Optimize the planning using the verification information.
-                // Use the index hints.
                 for hint in &validation_info.index_hints {
                     if hint.estimated_selectivity < 0.1 {
                         log::debug!("使用高选择性索引: {}", hint.index_name);
                     }
                 }
 
-                // Optimize the order of connections using semantic information.
                 let referenced_tags = &validation_info.semantic_info.referenced_tags;
                 if !referenced_tags.is_empty() {
                     log::debug!("引用的标签: {:?}", referenced_tags);
                 }
 
-                // Handle path pattern
                 let mut plan = if match_stmt.patterns.is_empty() {
-                    // Use the default node scanning when no path pattern is available.
-                    self.plan_node_pattern(space_id)?
+                    self.plan_node_pattern(space_id, space_name)?
                 } else {
-                    // Process the first path pattern.
                     let first_pattern = &match_stmt.patterns[0];
-                    self.plan_path_pattern(first_pattern, space_id, validation_info, qctx)?
+                    self.plan_path_pattern(first_pattern, space_id, space_name, validation_info, qctx)?
                 };
 
-                // Handling additional path patterns (using cross-connections)
                 for pattern in match_stmt.patterns.iter().skip(1) {
                     let path_plan =
-                        self.plan_path_pattern(pattern, space_id, validation_info, qctx)?;
+                        self.plan_path_pattern(pattern, space_id, space_name, validation_info, qctx)?;
                     plan = self.cross_join_plans(plan, path_plan)?;
                 }
 
@@ -192,6 +197,7 @@ impl MatchStatementPlanner {
         &self,
         pattern: &Pattern,
         space_id: u64,
+        space_name: &str,
         validation_info: &ValidationInfo,
         qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
@@ -207,11 +213,13 @@ impl MatchStatementPlanner {
                 for element in path.elements.iter() {
                     match element {
                         PathElement::Node(node) => {
-                            // Planning the node scanning process
-                            let node_plan = self.plan_pattern_node(node, space_id)?;
+                            let node_plan = self.plan_pattern_node(node, space_id, space_name)?;
+                            eprintln!("[plan_path_pattern] Node plan root type: {:?}", node_plan.root.as_ref().map(|r| r.name()));
 
                             plan = if let Some(existing_root) = plan.root.take() {
+                                eprintln!("[plan_path_pattern] existing_root type: {:?}, prev_node_alias: {:?}", existing_root.name(), prev_node_alias);
                                 if let Some(ref alias) = prev_node_alias {
+                                    eprintln!("[plan_path_pattern] Calling join_node_plans with left_alias: {}, right_alias: {:?}", alias, node.variable);
                                     self.join_node_plans(
                                         SubPlan::new(Some(existing_root), plan.tail),
                                         node_plan,
@@ -236,14 +244,19 @@ impl MatchStatementPlanner {
                             prev_node_alias = node.variable.clone();
                         }
                         PathElement::Edge(edge) => {
-                            // Planning while expanding
                             if prev_node_alias.is_none() {
                                 return Err(PlannerError::PlanGenerationFailed(
                                     "边模式必须跟随节点模式".to_string(),
                                 ));
                             }
 
-                            let edge_plan = self.plan_pattern_edge(edge, space_id)?;
+                            // Create edge expansion plan with proper input variable
+                            let edge_plan = self.plan_pattern_edge_with_input(
+                                edge,
+                                space_id,
+                                prev_node_alias.as_deref().unwrap(),
+                            )?;
+
                             plan = if let Some(existing_root) = plan.root.take() {
                                 self.cross_join_plans(
                                     SubPlan::new(Some(existing_root), plan.tail),
@@ -252,12 +265,16 @@ impl MatchStatementPlanner {
                             } else {
                                 edge_plan
                             };
+
+                            // After edge expansion, the next node should join with "dst" column
+                            // which contains the destination vertex of the edge
+                            prev_node_alias = Some("dst".to_string());
                         }
                         PathElement::Alternative(patterns) => {
-                            // Handle alternative paths: Combine multiple path options into a union set.
                             let alt_plan = self.plan_alternative_patterns(
                                 patterns,
                                 space_id,
+                                space_name,
                                 prev_node_alias.as_deref(),
                                 validation_info,
                                 qctx,
@@ -272,10 +289,10 @@ impl MatchStatementPlanner {
                             };
                         }
                         PathElement::Optional(elem) => {
-                            // Handle optional paths: Use a left join to retain all data from the left side.
                             let opt_plan = self.plan_optional_element(
                                 elem,
                                 space_id,
+                                space_name,
                                 prev_node_alias.as_deref(),
                                 validation_info,
                                 qctx,
@@ -290,11 +307,11 @@ impl MatchStatementPlanner {
                             };
                         }
                         PathElement::Repeated(elem, rep_type) => {
-                            // Handling duplicate paths: Implementing variable-length paths using loop nodes
                             let rep_plan = self.plan_repeated_element(
                                 elem,
                                 *rep_type,
                                 space_id,
+                                space_name,
                                 prev_node_alias.as_deref(),
                                 validation_info,
                                 self.expr_context.as_ref().ok_or_else(|| {
@@ -317,8 +334,7 @@ impl MatchStatementPlanner {
 
                 Ok(plan)
             }
-            // Delegations in non-path mode are processed by plan_pattern.
-            _ => self.plan_pattern(pattern, space_id, validation_info, qctx),
+            _ => self.plan_pattern(pattern, space_id, space_name, validation_info, qctx),
         }
     }
 
@@ -327,10 +343,12 @@ impl MatchStatementPlanner {
         &self,
         node: &crate::query::parser::ast::pattern::NodePattern,
         space_id: u64,
+        space_name: &str,
     ) -> Result<SubPlan, PlannerError> {
-        // Create a node scanning process.
-        let space_name = "default";
-        let scan_node = ScanVerticesNode::new(space_id, space_name);
+        let mut scan_node = ScanVerticesNode::new(space_id, space_name);
+        // Set the column name to the node variable name so that subsequent join operations can find the variable
+        let var_name = node.variable.clone().unwrap_or_else(|| "n".to_string());
+        scan_node.set_col_names(vec![var_name]);
         let mut plan = SubPlan::from_root(scan_node.into_enum());
 
         // If there is a label filtering option, please add the filter.
@@ -341,11 +359,14 @@ impl MatchStatementPlanner {
                 .expect("expr_context should be set");
             let label_filter =
                 Self::build_label_filter_expression(&node.variable, &node.labels, expr_ctx);
+            let root_node = plan.root.as_ref().expect("plan的root应该存在");
+            eprintln!("[plan_pattern_node] Before FilterNode, root col_names: {:?}", root_node.col_names());
             let filter_node = FilterNode::new(
-                plan.root.as_ref().expect("plan的root应该存在").clone(),
+                root_node.clone(),
                 label_filter,
             )
             .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
+            eprintln!("[plan_pattern_node] After FilterNode, filter col_names: {:?}", filter_node.col_names());
             plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
         }
 
@@ -397,6 +418,71 @@ impl MatchStatementPlanner {
             expand_node.set_any_edge_type(true);
         }
 
+        // Set the column name to the edge variable name so that subsequent join operations can find the variable
+        let edge_var = edge.variable.clone().unwrap_or_else(|| "e".to_string());
+        expand_node.set_col_names(vec![edge_var]);
+
+        let mut plan = SubPlan::from_root(expand_node.into_enum());
+
+        // If there is attribute filtering, add the filter.
+        if let Some(ref props) = edge.properties {
+            let filter_node = FilterNode::new(
+                plan.root.as_ref().expect("plan的root应该存在").clone(),
+                props.clone(),
+            )
+            .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
+            plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
+        }
+
+        // If there is predicate filtering, add the filter.
+        if !edge.predicates.is_empty() {
+            for pred in &edge.predicates {
+                let filter_node = FilterNode::new(
+                    plan.root.as_ref().expect("plan的root应该存在").clone(),
+                    pred.clone(),
+                )
+                .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
+                plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
+            }
+        }
+
+        Ok(plan)
+    }
+
+    /// Planning mode edge with input variable
+    ///
+    /// This method creates an edge expansion plan that takes the source node as input.
+    /// The ExpandAll node will use the input variable to get the source vertices from ExecutionContext.
+    fn plan_pattern_edge_with_input(
+        &self,
+        edge: &crate::query::parser::ast::pattern::EdgePattern,
+        space_id: u64,
+        input_var: &str,
+    ) -> Result<SubPlan, PlannerError> {
+        let direction = match edge.direction {
+            crate::query::parser::ast::types::EdgeDirection::Out => "out",
+            crate::query::parser::ast::types::EdgeDirection::In => "in",
+            crate::query::parser::ast::types::EdgeDirection::Both => "both",
+        };
+
+        let edge_types = match &edge.edge_types {
+            types if !types.is_empty() => types.clone(),
+            _ => vec![],
+        };
+
+        let mut expand_node = ExpandAllNode::new(space_id, edge_types, direction);
+
+        if edge.edge_types.is_empty() {
+            expand_node.set_any_edge_type(true);
+        }
+
+        // Set the input variable so ExpandAll can get source vertices from ExecutionContext
+        expand_node.set_input_var(input_var.to_string());
+
+        // Set the column names to match ExpandAll's output format: ["src", "edge", "dst"]
+        // This allows subsequent operations to access source vertex, edge, and destination vertex
+        expand_node.set_col_names(vec!["src".to_string(), "edge".to_string(), "dst".to_string()]);
+
         let mut plan = SubPlan::from_root(expand_node.into_enum());
 
         // If there is attribute filtering, add the filter.
@@ -438,8 +524,59 @@ impl MatchStatementPlanner {
             None => return Ok(left),
         };
 
-        let join_node = CrossJoinNode::new(left_root.clone(), right_root.clone())
+        // If right_root is ExpandAllNode, we need to set its input_var
+        // But we don't know the CrossJoin node's ID yet, so we'll use a special marker
+        // and update it later when we know the actual ID
+        eprintln!("[cross_join_plans] right_root type: {:?}, is_expand_all: {}", right_root.name(), right_root.as_expand_all().is_some());
+        let (right_root, needs_id_update) = if let Some(expand_all) = right_root.as_expand_all() {
+            eprintln!("[cross_join_plans] ExpandAllNode found, input_var: {:?}", expand_all.get_input_var());
+            if expand_all.get_input_var().is_none() {
+                // Use a marker that indicates we need to update with the actual ID later
+                let marker_var = "__CROSSJOIN_ID_MARKER__".to_string();
+                eprintln!("[cross_join_plans] Setting input_var to marker");
+                let mut new_expand = expand_all.clone();
+                new_expand.set_input_var(marker_var);
+                (new_expand.into_enum(), true)
+            } else {
+                (right_root.clone(), false)
+            }
+        } else {
+            (right_root.clone(), false)
+        };
+
+        // Create the join node
+        let mut join_node = CrossJoinNode::new(left_root.clone(), right_root.clone())
             .map_err(|e| PlannerError::JoinFailed(format!("Cross-connection failed: {}", e)))?;
+
+        // If we used a marker, update it with the actual join node ID
+        if needs_id_update {
+            let join_id = join_node.id();
+            let actual_var = format!("left_{}", join_id);
+            eprintln!("[cross_join_plans] Updating marker to actual var: {}", actual_var);
+            
+            // Update the right child (ExpandAllNode) with the actual variable name
+            if let Some(expand_all) = join_node.right_input().as_expand_all() {
+                let mut new_expand = expand_all.clone();
+                new_expand.set_input_var(actual_var);
+                // Recreate the join node with the updated right child
+                join_node = CrossJoinNode::new(left_root.clone(), new_expand.into_enum())
+                    .map_err(|e| PlannerError::JoinFailed(format!("Cross-connection failed: {}", e)))?;
+            }
+        }
+
+        // Set the output_var of the CrossJoinNode to match the left_var
+        // This ensures that parent nodes (like HashInnerJoin) can find the result
+        use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
+        let output_var = if let Some(expand_all) = join_node.right_input().as_expand_all() {
+            expand_all.get_input_var().map(|v| v.to_string())
+        } else {
+            None
+        };
+        
+        if let Some(var) = output_var {
+            eprintln!("[cross_join_plans] Setting CrossJoinNode output_var to: {}", var);
+            join_node.set_output_var(var);
+        }
 
         Ok(SubPlan {
             root: Some(join_node.into_enum()),
@@ -500,8 +637,7 @@ impl MatchStatementPlanner {
         })
     }
 
-    fn plan_node_pattern(&self, space_id: u64) -> Result<SubPlan, PlannerError> {
-        let space_name = "default";
+    fn plan_node_pattern(&self, space_id: u64, space_name: &str) -> Result<SubPlan, PlannerError> {
         let scan_node = ScanVerticesNode::new(space_id, space_name);
         Ok(SubPlan::from_root(scan_node.into_enum()))
     }
@@ -612,9 +748,12 @@ impl MatchStatementPlanner {
                                 expression,
                                 alias,
                             } => {
+                                let col_alias = alias.clone().unwrap_or_else(|| {
+                                    expression.to_expression_string()
+                                });
                                 columns.push(YieldColumn {
                                     expression: expression.clone(),
-                                    alias: alias.clone().unwrap_or_default(),
+                                    alias: col_alias,
                                     is_matched: false,
                                 });
                             }
@@ -672,6 +811,7 @@ impl MatchStatementPlanner {
         &self,
         patterns: &[Pattern],
         space_id: u64,
+        space_name: &str,
         _prev_alias: Option<&str>,
         validation_info: &ValidationInfo,
         qctx: &Arc<QueryContext>,
@@ -682,12 +822,10 @@ impl MatchStatementPlanner {
             ));
         }
 
-        // Plan the first path option
-        let mut plan = self.plan_pattern(&patterns[0], space_id, validation_info, qctx)?;
+        let mut plan = self.plan_pattern(&patterns[0], space_id, space_name, validation_info, qctx)?;
 
-        // Merge the remaining path options using the union operation.
         for pattern in patterns.iter().skip(1) {
-            let pattern_plan = self.plan_pattern(pattern, space_id, validation_info, qctx)?;
+            let pattern_plan = self.plan_pattern(pattern, space_id, space_name, validation_info, qctx)?;
             plan = self.union_plans(plan, pattern_plan)?;
         }
 
@@ -699,13 +837,14 @@ impl MatchStatementPlanner {
         &self,
         pattern: &Pattern,
         space_id: u64,
+        space_name: &str,
         validation_info: &ValidationInfo,
         _qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         match pattern {
-            Pattern::Node(node) => self.plan_pattern_node(node, space_id),
+            Pattern::Node(node) => self.plan_pattern_node(node, space_id, space_name),
             Pattern::Edge(edge) => self.plan_pattern_edge(edge, space_id),
-            Pattern::Path(_) => self.plan_path_pattern(pattern, space_id, validation_info, _qctx),
+            Pattern::Path(_) => self.plan_path_pattern(pattern, space_id, space_name, validation_info, _qctx),
             Pattern::Variable(var) => self.plan_variable_pattern(var, space_id, validation_info),
         }
     }
@@ -787,13 +926,13 @@ impl MatchStatementPlanner {
         &self,
         element: &PathElement,
         space_id: u64,
+        space_name: &str,
         _prev_alias: Option<&str>,
         _validation_info: &ValidationInfo,
         _qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        // Planning for optional elements
         let opt_plan = match element {
-            PathElement::Node(node) => self.plan_pattern_node(node, space_id)?,
+            PathElement::Node(node) => self.plan_pattern_node(node, space_id, space_name)?,
             PathElement::Edge(edge) => self.plan_pattern_edge(edge, space_id)?,
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(
@@ -841,13 +980,13 @@ impl MatchStatementPlanner {
         element: &PathElement,
         rep_type: RepetitionType,
         space_id: u64,
+        space_name: &str,
         _prev_alias: Option<&str>,
         _validation_info: &ValidationInfo,
         expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Result<SubPlan, PlannerError> {
-        // Basic plan for planning repeated elements
         let base_plan = match element {
-            PathElement::Node(node) => self.plan_pattern_node(node, space_id)?,
+            PathElement::Node(node) => self.plan_pattern_node(node, space_id, space_name)?,
             PathElement::Edge(edge) => self.plan_pattern_edge(edge, space_id)?,
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(

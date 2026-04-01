@@ -236,8 +236,56 @@ impl MatchValidator {
                         self.aliases.insert(var.clone(), AliasType::Edge);
                     }
                 }
-                Pattern::Path(_path) => {}
+                Pattern::Path(path) => {
+                    self.collect_aliases_from_path(path)?;
+                }
                 Pattern::Variable(_var) => {}
+            }
+        }
+        Ok(())
+    }
+
+    /// Collect aliases from path pattern
+    fn collect_aliases_from_path(
+        &mut self,
+        path: &crate::query::parser::ast::PathPattern,
+    ) -> Result<(), ValidationError> {
+        use crate::query::parser::ast::PathElement;
+
+        for element in &path.elements {
+            self.collect_aliases_from_path_element(element)?;
+        }
+        Ok(())
+    }
+
+    /// Collect aliases from path element
+    fn collect_aliases_from_path_element(
+        &mut self,
+        element: &crate::query::parser::ast::PathElement,
+    ) -> Result<(), ValidationError> {
+        use crate::query::parser::ast::PathElement;
+
+        match element {
+            PathElement::Node(node) => {
+                if let Some(ref var) = node.variable {
+                    self.aliases.insert(var.clone(), AliasType::Node);
+                }
+            }
+            PathElement::Edge(edge) => {
+                if let Some(ref var) = edge.variable {
+                    self.aliases.insert(var.clone(), AliasType::Edge);
+                }
+            }
+            PathElement::Alternative(patterns) => {
+                for pattern in patterns {
+                    self.collect_aliases_from_patterns(&[pattern.clone()])?;
+                }
+            }
+            PathElement::Optional(inner) => {
+                self.collect_aliases_from_path_element(inner)?;
+            }
+            PathElement::Repeated(inner, _) => {
+                self.collect_aliases_from_path_element(inner)?;
             }
         }
         Ok(())

@@ -335,6 +335,7 @@ mod tests {
                         lit(Value::Int(30)),
                     ]],
                 }],
+                false,
             )
             .expect("Failed to build vertex insert info");
         assert_eq!(info.space_name, "test_space");
@@ -357,6 +358,7 @@ mod tests {
                 Some(lit(Value::Int(0))),
                 vec![lit(Value::String("2023".to_string()))],
             )],
+            false,
         );
         assert_eq!(info.space_name, "test_space");
         assert_eq!(info.edge_name, "follow");

@@ -8,6 +8,7 @@
 //! Support for the shortest path with weights
 //! Improve the logic for path filtering.
 
+use crate::core::Value;
 use crate::query::parser::ast::Stmt;
 use crate::query::planning::plan::core::nodes::traversal::{AllPathsNode, ShortestPathNode};
 use crate::query::planning::plan::core::PlanNode;
@@ -48,20 +49,31 @@ impl Planner for PathPlanner {
             }
         };
 
-        // Create the starting node.
         let start_node = StartNode::new();
         let start_node_enum = PlanNodeEnum::Start(start_node);
 
         let edge_types = self.get_edge_types_from_stmt(find_path_stmt);
         let max_steps = self.get_max_steps_from_stmt(find_path_stmt);
 
-        // Select different planning strategies depending on the type of query.
+        let start_vertex_ids = self.extract_vertex_ids_from_exprs(&find_path_stmt.from.vertices);
+        let end_vertex_ids = self.extract_vertex_ids_from_expr(&find_path_stmt.to);
+
         let root_node = if self.is_shortest_path_stmt(find_path_stmt) {
-            // Shortest path query
-            self.build_shortest_path_plan(start_node_enum.clone(), edge_types, max_steps)?
+            self.build_shortest_path_plan(
+                start_node_enum.clone(),
+                edge_types,
+                max_steps,
+                start_vertex_ids,
+                end_vertex_ids,
+            )?
         } else {
-            // All path queries
-            self.build_all_paths_plan(start_node_enum.clone(), edge_types, max_steps)?
+            self.build_all_paths_plan(
+                start_node_enum.clone(),
+                edge_types,
+                max_steps,
+                start_vertex_ids,
+                end_vertex_ids,
+            )?
         };
 
         let sub_plan = SubPlan {
@@ -78,37 +90,37 @@ impl Planner for PathPlanner {
 }
 
 impl PathPlanner {
-    /// Constructing the shortest path plan
     fn build_shortest_path_plan(
         &self,
         left_input: PlanNodeEnum,
         edge_types: Vec<String>,
         max_steps: usize,
+        start_vertex_ids: Vec<Value>,
+        end_vertex_ids: Vec<Value>,
     ) -> Result<PlanNodeEnum, PlannerError> {
-        // Create the input node (destination) on the right side.
         let right_node = StartNode::new();
         let right_node_enum = PlanNodeEnum::Start(right_node);
 
-        // Create a ShortestPath plan node.
-        let shortest_path_node =
+        let mut shortest_path_node =
             ShortestPathNode::new(left_input, right_node_enum, edge_types, max_steps);
+        shortest_path_node.set_start_vertex_ids(start_vertex_ids);
+        shortest_path_node.set_end_vertex_ids(end_vertex_ids);
 
         Ok(shortest_path_node.into_enum())
     }
 
-    /// Construct all path plans.
     fn build_all_paths_plan(
         &self,
         left_input: PlanNodeEnum,
         edge_types: Vec<String>,
         max_steps: usize,
+        start_vertex_ids: Vec<Value>,
+        end_vertex_ids: Vec<Value>,
     ) -> Result<PlanNodeEnum, PlannerError> {
-        // Create the input node (destination) on the right side.
         let right_node = StartNode::new();
         let right_node_enum = PlanNodeEnum::Start(right_node);
 
-        // Create an AllPaths plan node.
-        let all_paths_node = AllPathsNode::new(
+        let mut all_paths_node = AllPathsNode::new(
             left_input,
             right_node_enum,
             max_steps,
@@ -117,16 +129,16 @@ impl PathPlanner {
             max_steps,
             false,
         );
+        all_paths_node.set_start_vertex_ids(start_vertex_ids);
+        all_paths_node.set_end_vertex_ids(end_vertex_ids);
 
         Ok(all_paths_node.into_enum())
     }
 
-    /// Determine whether it is a query for the shortest path.
     fn is_shortest_path_stmt(&self, stmt: &crate::query::parser::ast::FindPathStmt) -> bool {
         stmt.shortest
     }
 
-    /// Extract the edge type from the statement.
     fn get_edge_types_from_stmt(
         &self,
         stmt: &crate::query::parser::ast::FindPathStmt,
@@ -137,9 +149,30 @@ impl PathPlanner {
             .unwrap_or_default()
     }
 
-    /// Extract the maximum number of steps from the statement.
     fn get_max_steps_from_stmt(&self, stmt: &crate::query::parser::ast::FindPathStmt) -> usize {
         stmt.max_steps.unwrap_or(10)
+    }
+
+    fn extract_vertex_ids_from_exprs(
+        &self,
+        exprs: &[crate::core::types::ContextualExpression],
+    ) -> Vec<Value> {
+        let mut ids = Vec::new();
+        for expr in exprs {
+            if let Some(meta) = expr.expression() {
+                if let Some(value) = meta.as_literal() {
+                    ids.push(value.clone());
+                }
+            }
+        }
+        ids
+    }
+
+    fn extract_vertex_ids_from_expr(
+        &self,
+        expr: &crate::core::types::ContextualExpression,
+    ) -> Vec<Value> {
+        self.extract_vertex_ids_from_exprs(std::slice::from_ref(expr))
     }
 }
 

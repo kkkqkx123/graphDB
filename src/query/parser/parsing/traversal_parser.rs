@@ -46,6 +46,14 @@ impl TraversalParser {
             None
         };
 
+        let (order_by, limit, skip) = if let Some(ref rc) = return_clause {
+            let limit = rc.limit.as_ref().map(|l| l.count);
+            let skip = rc.skip.as_ref().map(|s| s.count);
+            (rc.order_by.clone(), limit, skip)
+        } else {
+            (None, None, None)
+        };
+
         let end_span = ctx.current_span();
         let span = ctx.merge_span(start_span.start, end_span.end);
 
@@ -54,9 +62,9 @@ impl TraversalParser {
             patterns,
             where_clause,
             return_clause,
-            order_by: None,
-            limit: None,
-            skip: None,
+            order_by,
+            limit,
+            skip,
             optional,
         }))
     }
@@ -206,12 +214,16 @@ impl TraversalParser {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Get)?;
 
-        // Optional WITH EDGE clause
-        let _with_edge = ctx.match_token(TokenKind::With) && ctx.match_token(TokenKind::Edge);
-
         ctx.expect_token(TokenKind::Subgraph)?;
 
-        // Analysis steps
+        let with_prop = ctx.match_token(TokenKind::With) && ctx.match_token(TokenKind::Prop);
+
+        let _with_edge = if !with_prop {
+            ctx.match_token(TokenKind::With) && ctx.match_token(TokenKind::Edge)
+        } else {
+            false
+        };
+
         let steps = if ctx.match_token(TokenKind::Step) {
             self.parse_steps(ctx)?
         } else {
@@ -269,6 +281,8 @@ impl TraversalParser {
             if ctx.check_token(TokenKind::LeftArrow)
                 || ctx.check_token(TokenKind::RightArrow)
                 || ctx.check_token(TokenKind::Minus)
+                || ctx.check_token(TokenKind::Arrow)
+                || ctx.check_token(TokenKind::BackArrow)
             {
                 return self.parse_path_pattern(ctx, node);
             }
@@ -362,6 +376,8 @@ impl TraversalParser {
         while ctx.check_token(TokenKind::LeftArrow)
             || ctx.check_token(TokenKind::RightArrow)
             || ctx.check_token(TokenKind::Minus)
+            || ctx.check_token(TokenKind::Arrow)
+            || ctx.check_token(TokenKind::BackArrow)
         {
             let edge = self.parse_edge_pattern(ctx)?;
             elements.push(PathElement::Edge(edge));
@@ -387,12 +403,10 @@ impl TraversalParser {
         let start_span = ctx.current_span();
         let mut direction = EdgeDirection::Out;
 
-        // Analysis direction
-        if ctx.match_token(TokenKind::LeftArrow) {
+        if ctx.match_token(TokenKind::BackArrow) || ctx.match_token(TokenKind::LeftArrow) {
             direction = EdgeDirection::In;
         }
 
-        // Expectations – [or –]
         ctx.expect_token(TokenKind::Minus)?;
 
         let mut variable = None;
@@ -400,9 +414,7 @@ impl TraversalParser {
         let mut properties = None;
         let mut range = None;
 
-        // 解析详细的边模式 [variable:Type|Type {props}]
         if ctx.match_token(TokenKind::LBracket) {
-            // Analyzing variable names (optional)
             if let TokenKind::Identifier(ref name) = ctx.current_token().kind.clone() {
                 let name = name.clone();
                 ctx.next_token();
@@ -414,7 +426,6 @@ impl TraversalParser {
                 }
             }
 
-            // Analyzing edge types
             if ctx.match_token(TokenKind::Colon) {
                 loop {
                     let edge_type = ctx.expect_identifier()?;
@@ -425,13 +436,11 @@ impl TraversalParser {
                 }
             }
 
-            // Parse attribute (optional)
             if ctx.match_token(TokenKind::LBrace) {
                 properties = Some(self.parse_properties_expr(ctx)?);
                 ctx.expect_token(TokenKind::RBrace)?;
             }
 
-            // 解析范围（可选）如 *[1..3]
             if ctx.match_token(TokenKind::Star) {
                 if ctx.match_token(TokenKind::LBracket) {
                     let min = if matches!(ctx.current_token().kind, TokenKind::IntegerLiteral(_)) {
@@ -465,16 +474,28 @@ impl TraversalParser {
             ctx.expect_token(TokenKind::RBracket)?;
         }
 
-        // Expectations
-        ctx.expect_token(TokenKind::Minus)?;
-
-        // Analyze the arrow on the right side.
-        if ctx.match_token(TokenKind::RightArrow) {
+        if ctx.match_token(TokenKind::Arrow) {
             if direction == EdgeDirection::In {
                 direction = EdgeDirection::Both;
             } else {
                 direction = EdgeDirection::Out;
             }
+        } else if ctx.match_token(TokenKind::Minus) {
+            if direction == EdgeDirection::Out {
+                direction = EdgeDirection::Both;
+            }
+        } else if ctx.match_token(TokenKind::RightArrow) {
+            if direction == EdgeDirection::In {
+                direction = EdgeDirection::Both;
+            } else {
+                direction = EdgeDirection::Out;
+            }
+        } else {
+            return Err(ParseError::new(
+                ParseErrorKind::SyntaxError,
+                "Expected '-', '->', or '<-' after edge pattern".to_string(),
+                ctx.current_position(),
+            ));
         }
 
         let end_span = ctx.current_span();
@@ -571,7 +592,7 @@ impl TraversalParser {
         &mut self,
         ctx: &mut ParseContext,
     ) -> Result<ContextualExpression, ParseError> {
-        let expr = CoreExpression::variable("true");
+        let expr = CoreExpression::literal(true);
         let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.expression_context().register_expression(expr_meta);
         Ok(ContextualExpression::new(

@@ -186,8 +186,8 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
                 )))
             })?;
 
-        let left_values = execution_result_to_values(left_result)?;
-        let right_values = execution_result_to_values(right_result)?;
+        let left_values = execution_result_to_values(&left_result)?;
+        let right_values = execution_result_to_values(&right_result)?;
 
         let mut expr_context = DefaultExpressionContext::new();
 

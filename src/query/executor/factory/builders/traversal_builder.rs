@@ -17,6 +17,7 @@ use crate::query::planning::plan::core::nodes::traversal::{
     AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
 };
 use crate::query::planning::plan::core::nodes::{ExpandAllNode, ExpandNode, TraverseNode};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::{MultipleInputNode, PlanNode};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -62,17 +63,35 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         // Parameters of ExpandAllExecutor::new: id, storage, edge_direction, edge_types, any_edge_type, max_depth, expr_context
         // ExpandAllNode 的 direction() 返回 &str，需要转换为 EdgeDirection
         let edge_direction = EdgeDirection::from(node.direction());
-        let executor = ExpandAllExecutor::new(
+        let mut executor = ExpandAllExecutor::with_context(
             node.id(),
             storage,
             edge_direction,
             Some(node.edge_types().to_vec()),
             false, // any_edge_type
             node.step_limit().map(|s| s as usize),
-            context.expression_context().clone(),
+            context.clone(),
         )
         .with_src_vids(node.src_vids().to_vec())
         .with_include_empty_paths(node.include_empty_paths());
+
+        // If input_var is set, use it to get input from ExecutionContext
+        if let Some(input_var) = node.get_input_var() {
+            eprintln!("[build_expand_all] setting input_var from node: {}", input_var);
+            executor = executor.with_input_var(input_var.to_string());
+        } else {
+            // If there are input nodes, get the input variable name from the first input node
+            let inputs = node.inputs();
+            eprintln!("[build_expand_all] inputs count: {}", inputs.len());
+            if !inputs.is_empty() {
+                eprintln!("[build_expand_all] first input output_var: {:?}", inputs[0].output_var());
+                if let Some(input_var) = inputs[0].output_var() {
+                    eprintln!("[build_expand_all] setting input_var from first input: {}", input_var);
+                    executor = executor.with_input_var(input_var.to_string());
+                }
+            }
+        }
+
         Ok(ExecutorEnum::ExpandAll(executor))
     }
 
@@ -104,8 +123,8 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         let executor = AllPathsExecutor::new(
             ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
             AllPathsConfig {
-                left_start_ids: Vec::new(), // Please provide the text you would like to have translated.
-                right_start_ids: Vec::new(), // Please provide the text you would like to have translated.
+                left_start_ids: node.start_vertex_ids().to_vec(),
+                right_start_ids: node.end_vertex_ids().to_vec(),
                 max_hops: node.max_hop(),
                 edge_types: Some(node.edge_types().to_vec()),
                 direction: EdgeDirection::Out,
@@ -122,11 +141,10 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::data_processing::graph_traversal::algorithms::ShortestPathAlgorithmType;
 
-        //  Obtain the start and end ID from the input.
-        let start_vertex_ids: Vec<crate::core::Value> = Vec::new();
-        let _end_vertex_ids: Vec<crate::core::Value> = Vec::new();
+        let start_vertex_ids = node.start_vertex_ids().to_vec();
+        let end_vertex_ids = node.end_vertex_ids().to_vec();
 
-        let executor = ShortestPathExecutor::new(
+        let mut executor = ShortestPathExecutor::new(
             ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
             ShortestPathConfig {
                 start_vertex_ids,
@@ -135,6 +153,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
             },
             ShortestPathAlgorithmType::BFS,
         );
+        executor.set_end_vertex_ids(end_vertex_ids);
         Ok(ExecutorEnum::ShortestPath(executor))
     }
 

@@ -1,6 +1,6 @@
 //! Implementation of string functions
 
-use crate::core::error::ExpressionError;
+use crate::core::error::{ExpressionError, ExpressionErrorType};
 use crate::core::value::NullType;
 use crate::core::Value;
 
@@ -168,11 +168,32 @@ fn execute_replace(args: &[Value]) -> Result<Value, ExpressionError> {
     }
 }
 
-define_binary_string_bool_fn!(
-    execute_contains,
-    |s: &str, sub: &str| s.contains(sub),
-    "contains"
-);
+fn execute_contains(
+    args: &[Value],
+) -> Result<Value, ExpressionError> {
+    if args.len() != 2 {
+        return Err(ExpressionError::new(
+            ExpressionErrorType::InvalidArgumentCount,
+            "contains函数需要2个参数",
+        ));
+    }
+    match (&args[0], &args[1]) {
+        (Value::String(s), Value::String(sub)) => Ok(Value::Bool(s.contains(sub.as_str()))),
+        (Value::List(list), Value::String(target)) => {
+            Ok(Value::Bool(list.values.iter().any(|v| {
+                matches!(v, Value::String(s) if s == target)
+            })))
+        }
+        (Value::List(list), Value::Int(target)) => {
+            Ok(Value::Bool(list.values.iter().any(|v| {
+                matches!(v, Value::Int(i) if *i == *target)
+            })))
+        }
+        (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
+        _ => Err(ExpressionError::type_error("contains函数需要字符串或列表类型")),
+    }
+}
+
 define_binary_string_bool_fn!(
     execute_starts_with,
     |s: &str, prefix: &str| s.starts_with(prefix),

@@ -185,18 +185,26 @@ impl CollectionOperationEvaluator {
         }
 
         match object {
-            Value::Vertex(vertex) => vertex.properties.get(property).cloned().ok_or_else(|| {
-                ExpressionError::runtime_error(format!(
-                    "Vertex attribute not present: {}",
-                    property
-                ))
-            }),
-            Value::Edge(edge) => edge.properties().get(property).cloned().ok_or_else(|| {
-                ExpressionError::runtime_error(format!("Edge attribute not present: {}", property))
-            }),
-            Value::Map(map) => map.get(property).cloned().ok_or_else(|| {
-                ExpressionError::runtime_error(format!("Mapping key does not exist: {}", property))
-            }),
+            Value::Vertex(vertex) => {
+                if let Some(val) = vertex.properties.get(property) {
+                    return Ok(val.clone());
+                }
+                for tag in &vertex.tags {
+                    if let Some(val) = tag.properties.get(property) {
+                        return Ok(val.clone());
+                    }
+                }
+                Ok(Value::Null(crate::core::value::NullType::Null))
+            }
+            Value::Edge(edge) => Ok(edge
+                .properties()
+                .get(property)
+                .cloned()
+                .unwrap_or(Value::Null(crate::core::value::NullType::Null))),
+            Value::Map(map) => Ok(map
+                .get(property)
+                .cloned()
+                .unwrap_or(Value::Null(crate::core::value::NullType::Null))),
             Value::List(list) => {
                 if let Ok(index) = property.parse::<isize>() {
                     let adjusted_index = if index < 0 {

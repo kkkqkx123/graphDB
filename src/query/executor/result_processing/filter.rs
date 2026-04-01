@@ -22,6 +22,131 @@ use crate::query::executor::expression::{DefaultExpressionContext, ExpressionCon
 use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::storage::StorageClient;
 
+fn extract_variable_names(expr: &Expression) -> Vec<String> {
+    let mut names = Vec::new();
+    fn collect(expr: &Expression, names: &mut Vec<String>) {
+        match expr {
+            Expression::Variable(name) => {
+                if !names.contains(name) {
+                    names.push(name.clone());
+                }
+            }
+            Expression::Property { object, .. } => collect(object, names),
+            Expression::Binary { left, right, .. } => {
+                collect(left, names);
+                collect(right, names);
+            }
+            Expression::Unary { operand, .. } => collect(operand, names),
+            Expression::Function { args, .. } => {
+                for arg in args {
+                    collect(arg, names);
+                }
+            }
+            Expression::Aggregate { arg, .. } => collect(arg, names),
+            Expression::List(elements) => {
+                for elem in elements {
+                    collect(elem, names);
+                }
+            }
+            Expression::Map(entries) => {
+                for (_, val_expr) in entries {
+                    collect(val_expr, names);
+                }
+            }
+            Expression::Case {
+                test_expr,
+                conditions,
+                default,
+            } => {
+                if let Some(te) = test_expr {
+                    collect(te, names);
+                }
+                for (cond, val) in conditions {
+                    collect(cond, names);
+                    collect(val, names);
+                }
+                if let Some(d) = default {
+                    collect(d, names);
+                }
+            }
+            Expression::TypeCast { expression, .. } => collect(expression, names),
+            Expression::Subscript { collection, index } => {
+                collect(collection, names);
+                collect(index, names);
+            }
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
+                collect(collection, names);
+                if let Some(s) = start {
+                    collect(s, names);
+                }
+                if let Some(e) = end {
+                    collect(e, names);
+                }
+            }
+            Expression::Path(elements) => {
+                for elem in elements {
+                    collect(elem, names);
+                }
+            }
+            Expression::LabelTagProperty { tag, .. } => collect(tag, names),
+            Expression::Predicate { args, .. } => {
+                for arg in args {
+                    collect(arg, names);
+                }
+            }
+            Expression::Reduce {
+                initial,
+                source,
+                mapping,
+                ..
+            } => {
+                collect(initial, names);
+                collect(source, names);
+                collect(mapping, names);
+            }
+            Expression::PathBuild(elements) => {
+                for elem in elements {
+                    collect(elem, names);
+                }
+            }
+            Expression::ListComprehension {
+                source, filter, map, ..
+            } => {
+                collect(source, names);
+                if let Some(f) = filter {
+                    collect(f, names);
+                }
+                if let Some(m) = map {
+                    collect(m, names);
+                }
+            }
+            Expression::Literal(_)
+            | Expression::Label(_)
+            | Expression::TagProperty { .. }
+            | Expression::EdgeProperty { .. }
+            | Expression::Parameter(_) => {}
+        }
+    }
+    collect(expr, &mut names);
+    names
+}
+
+const INTERNAL_VARIABLES: &[&str] = &[
+    "_vertex",
+    "_edge",
+    "id",
+    "value",
+    "row",
+    "src",
+    "dst",
+    "edge_type",
+    "ranking",
+];
+
 /// FilterExecutor – The filter execution component
 ///
 /// Implementing the functionality to filter query results based on certain conditions
@@ -89,16 +214,20 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
 
     /// Filter the input data.
     fn filter_input(&self, input: ExecutionResult) -> DBResult<ExecutionResult> {
+        eprintln!("[FilterExecutor] filter_input called with input type: {:?}", std::mem::discriminant(&input));
         match input {
             ExecutionResult::DataSet(mut dataset) => {
+                eprintln!("[FilterExecutor] input is DataSet, col_names: {:?}", dataset.col_names);
                 self.apply_filter(&mut dataset)?;
                 Ok(ExecutionResult::DataSet(dataset))
             }
             ExecutionResult::Values(values) => {
+                eprintln!("[FilterExecutor] input is Values, len: {}", values.len());
                 let filtered_values = self.filter_values(values)?;
                 Ok(ExecutionResult::Values(filtered_values))
             }
             ExecutionResult::Vertices(vertices) => {
+                eprintln!("[FilterExecutor] input is Vertices, len: {}", vertices.len());
                 let filtered_vertices = self.filter_vertices(vertices)?;
                 Ok(ExecutionResult::Vertices(filtered_vertices))
             }
@@ -229,6 +358,15 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
 
     /// List of filter values
     fn filter_values(&self, values: Vec<crate::core::Value>) -> DBResult<Vec<crate::core::Value>> {
+        if values.len() == 1 {
+            if let crate::core::Value::DataSet(mut dataset) = values[0].clone() {
+                eprintln!("[FilterExecutor] filter_values: input is DataSet with col_names: {:?}, rows: {}", dataset.col_names, dataset.rows.len());
+                self.apply_filter(&mut dataset)?;
+                eprintln!("[FilterExecutor] filter_values: output is DataSet with rows: {}", dataset.rows.len());
+                return Ok(vec![crate::core::Value::DataSet(dataset)]);
+            }
+        }
+        
         let mut filtered_values = Vec::new();
 
         for value in values {
@@ -260,16 +398,27 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
     ) -> DBResult<Vec<crate::core::Vertex>> {
         let mut filtered_vertices = Vec::new();
 
+        let var_names = extract_variable_names(&self.condition);
+        let external_vars: Vec<&str> = var_names
+            .iter()
+            .filter(|n| !INTERNAL_VARIABLES.contains(&n.as_str()))
+            .map(String::as_str)
+            .collect();
+
         for vertex in vertices {
-            // Constructing the context for the expression
             let mut context = DefaultExpressionContext::new();
-            // Setting vertex information
             context.set_variable(
                 "_vertex".to_string(),
                 Value::Vertex(Box::new(vertex.clone())),
             );
 
-            // Evaluating the filtering criteria
+            for var_name in &external_vars {
+                context.set_variable(
+                    var_name.to_string(),
+                    Value::Vertex(Box::new(vertex.clone())),
+                );
+            }
+
             let condition_result = ExpressionEvaluator::evaluate(&self.condition, &mut context)
                 .map_err(|e| {
                     DBError::Expression(crate::core::error::ExpressionError::function_error(
@@ -277,7 +426,6 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
                     ))
                 })?;
 
-            // If the condition is true, retain that vertex.
             if let crate::core::Value::Bool(true) = condition_result {
                 filtered_vertices.push(vertex);
             }
@@ -290,13 +438,21 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
     fn filter_edges(&self, edges: Vec<crate::core::Edge>) -> DBResult<Vec<crate::core::Edge>> {
         let mut filtered_edges = Vec::new();
 
+        let var_names = extract_variable_names(&self.condition);
+        let external_vars: Vec<&str> = var_names
+            .iter()
+            .filter(|n| !INTERNAL_VARIABLES.contains(&n.as_str()))
+            .map(String::as_str)
+            .collect();
+
         for edge in edges {
-            // Constructing the context for the expression
             let mut context = DefaultExpressionContext::new();
-            // Set border information
             context.set_variable("_edge".to_string(), Value::Edge(edge.clone()));
 
-            // Evaluating the filtering criteria
+            for var_name in &external_vars {
+                context.set_variable(var_name.to_string(), Value::Edge(edge.clone()));
+            }
+
             let condition_result = ExpressionEvaluator::evaluate(&self.condition, &mut context)
                 .map_err(|e| {
                     DBError::Expression(crate::core::error::ExpressionError::function_error(
@@ -304,7 +460,6 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
                     ))
                 })?;
 
-            // If the condition is true, keep that edge.
             if let crate::core::Value::Bool(true) = condition_result {
                 filtered_edges.push(edge);
             }

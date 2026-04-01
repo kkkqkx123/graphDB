@@ -81,6 +81,9 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         let hash_keys: Vec<crate::core::types::ContextualExpression> = node.hash_keys().to_vec();
         let probe_keys: Vec<crate::core::types::ContextualExpression> = node.probe_keys().to_vec();
 
+        eprintln!("[build_hash_inner_join] left_var: {}, right_var: {}", left_var, right_var);
+        eprintln!("[build_hash_inner_join] hash_keys count: {}, probe_keys count: {}", hash_keys.len(), probe_keys.len());
+
         let config = InnerJoinConfig {
             id: node.id(),
             hash_keys,
@@ -91,7 +94,7 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         };
 
         let executor =
-            HashInnerJoinExecutor::new(storage, context.expression_context().clone(), config);
+            HashInnerJoinExecutor::with_context(storage, context.clone(), config);
         Ok(ExecutorEnum::HashInnerJoin(executor))
     }
 
@@ -176,25 +179,30 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // The CrossJoinExecutor requires a list of input variables of type Vec<String>.
-        let left_var = node
-            .left_input()
-            .output_var()
-            .map(|v| v.to_string())
-            .unwrap_or_else(|| format!("left_{}", node.id()));
-        let right_var = node
-            .right_input()
-            .output_var()
-            .map(|v| v.to_string())
-            .unwrap_or_else(|| format!("right_{}", node.id()));
+        // Check if right child is ExpandAllNode with input_var set
+        let (left_var, right_var) = if let Some(expand_all) = node.right_input().as_expand_all() {
+            if let Some(input_var) = expand_all.get_input_var() {
+                eprintln!("[build_cross_join] Using ExpandAllNode's input_var as left_var: {}", input_var);
+                (input_var.to_string(), node.right_input().output_var().map(|v| v.to_string()).unwrap_or_else(|| format!("right_{}", node.id())))
+            } else {
+                let left_var = node.left_input().output_var().map(|v| v.to_string()).unwrap_or_else(|| format!("left_{}", node.id()));
+                let right_var = node.right_input().output_var().map(|v| v.to_string()).unwrap_or_else(|| format!("right_{}", node.id()));
+                (left_var, right_var)
+            }
+        } else {
+            let left_var = node.left_input().output_var().map(|v| v.to_string()).unwrap_or_else(|| format!("left_{}", node.id()));
+            let right_var = node.right_input().output_var().map(|v| v.to_string()).unwrap_or_else(|| format!("right_{}", node.id()));
+            (left_var, right_var)
+        };
 
         let input_vars = vec![left_var, right_var];
 
-        let executor = CrossJoinExecutor::new(
+        let executor = CrossJoinExecutor::with_context(
             node.id(),
             storage,
             input_vars,
             node.col_names().to_vec(),
-            context.expression_context().clone(),
+            context.clone(),
         );
         Ok(ExecutorEnum::CrossJoin(executor))
     }

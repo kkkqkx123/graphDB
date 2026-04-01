@@ -55,17 +55,23 @@ impl SelfLoopDedup {
     }
 }
 
+/// Unique identifier for a path based on its vertex sequence
+type PathKey = Vec<Value>;
+
 /// Caching of path results: Using NPath to reduce memory usage
 #[derive(Debug, Clone)]
 struct PathResultCache {
     /// Use NPath to store intermediate results and share prefixes.
     npaths: Vec<Arc<NPath>>,
+    /// Track seen paths to avoid duplicates
+    seen_paths: HashSet<PathKey>,
 }
 
 impl PathResultCache {
     fn new(limit: usize) -> Self {
         Self {
             npaths: Vec::with_capacity(limit.min(1024)), // Pre-allocate capacity, but not more than 1024 units, to avoid memory waste.
+            seen_paths: HashSet::new(),
         }
     }
 
@@ -73,9 +79,21 @@ impl PathResultCache {
         self.npaths.len()
     }
 
-    /// Add NPath to the cache.
-    fn push(&mut self, npath: Arc<NPath>) {
-        self.npaths.push(npath);
+    /// Generate a unique key for an NPath based on vertex sequence
+    fn generate_path_key(npath: &NPath) -> PathKey {
+        npath.iter_vertices().map(|v| v.vid.as_ref().clone()).collect()
+    }
+
+    /// Add NPath to the cache with deduplication.
+    /// Returns true if the path was added (not a duplicate), false otherwise.
+    fn push(&mut self, npath: Arc<NPath>) -> bool {
+        let key = Self::generate_path_key(&npath);
+        if self.seen_paths.insert(key) {
+            self.npaths.push(npath);
+            true
+        } else {
+            false
+        }
     }
 
     /// Batch conversion to Path format
@@ -438,8 +456,19 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         let mut full_path = left_path.clone();
 
         // Collect all the steps (edges and vertices) of the right path.
-        // Right path structure: End <- ... <- A <- Junction (Extending from the end point towards the junction point)
-        // Junction -> A -> ... -> End
+        // Right path NPath structure: each node has (vertex, edge, parent).
+        // edge represents the edge connecting vertex to parent.
+        // Since expand_right uses EdgeDirection::In, for NPath([4, 2]):
+        //   - node: vertex=2, edge=edge_2_4(src=2,dst=4), parent=vertex=4
+        //   - This means: from 4, we went backwards to 2 via edge 2->4
+        //
+        // iter() returns nodes from junction (end) towards destination (root):
+        //   1. (vertex=2, edge=edge_2_4) - junction step
+        //   2. (vertex=4, edge=None) - destination (root)
+        //
+        // To build forward path from junction to destination:
+        //   junction(2) -> destination(4) via edge 2->4
+        //   The edge already has the correct direction: src=junction, dst=next
         let right_steps: Vec<(Arc<Edge>, Arc<Vertex>)> = right_path
             .iter()
             .filter_map(|node| {
@@ -448,21 +477,24 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             })
             .collect();
 
-        // Reverse and connect (skipping the intersection point itself, starting from the node before it).
-        for (edge, vertex) in right_steps.into_iter().rev() {
-            // Skip the intersection.
-            if vertex.vid.as_ref() == &junction_id {
-                continue;
-            }
-            // Create reverse edges (from the intersection points outwards).
+        // Process steps in order (from junction towards destination).
+        // Each step: (edge, vertex) where edge connects vertex to its parent.
+        // edge.src = vertex, edge.dst = parent (in the reverse direction).
+        // For forward path: we go from vertex towards parent, so edge direction is correct.
+        for (edge, vertex) in right_steps {
+            let next_vid = edge.dst.as_ref().clone();
             let reversed_edge = Arc::new(Edge::new(
-                vertex.vid.as_ref().clone(),
                 full_path.end_vertex().vid.as_ref().clone(),
+                next_vid.clone(),
                 edge.edge_type.clone(),
                 edge.ranking,
                 edge.props.clone(),
             ));
-            full_path = NPath::extend(Arc::new(full_path), reversed_edge, vertex);
+            if let Some(parent_npath) = right_path.iter().find(|n| {
+                n.vertex().vid.as_ref() == &next_vid
+            }) {
+                full_path = NPath::extend(Arc::new(full_path), reversed_edge, parent_npath.vertex().clone());
+            }
         }
 
         Some(full_path)

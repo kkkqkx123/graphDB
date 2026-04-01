@@ -4,6 +4,7 @@
 //! The selection of the algorithm was completed during the Planner phase; this module only contains the planning nodes related to the specific algorithm.
 
 use crate::core::types::ContextualExpression;
+use crate::core::Value;
 use crate::define_binary_input_node;
 use crate::query::planning::plan::core::node_id_generator::next_node_id;
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
@@ -165,6 +166,8 @@ define_binary_input_node! {
         limit: i64,
         offset: i64,
         filter: Option<ContextualExpression>,
+        start_vertex_ids: Vec<Value>,
+        end_vertex_ids: Vec<Value>,
     }
     enum: AllPaths
     input: BinaryInputNode
@@ -196,9 +199,27 @@ impl AllPathsNode {
             limit: -1,
             offset: 0,
             filter: None,
+            start_vertex_ids: Vec::new(),
+            end_vertex_ids: Vec::new(),
             output_var: None,
             col_names: vec!["path".to_string()],
         }
+    }
+
+    pub fn start_vertex_ids(&self) -> &[Value] {
+        &self.start_vertex_ids
+    }
+
+    pub fn end_vertex_ids(&self) -> &[Value] {
+        &self.end_vertex_ids
+    }
+
+    pub fn set_start_vertex_ids(&mut self, ids: Vec<Value>) {
+        self.start_vertex_ids = ids;
+    }
+
+    pub fn set_end_vertex_ids(&mut self, ids: Vec<Value>) {
+        self.end_vertex_ids = ids;
     }
 
     pub fn min_hop(&self) -> usize {
@@ -261,6 +282,8 @@ define_binary_input_node! {
         weight_expression: Option<String>,
         heuristic_expression: Option<String>,
         no_reverse: bool,
+        start_vertex_ids: Vec<Value>,
+        end_vertex_ids: Vec<Value>,
     }
     enum: ShortestPath
     input: BinaryInputNode
@@ -285,6 +308,8 @@ impl ShortestPathNode {
             weight_expression: None,
             heuristic_expression: None,
             no_reverse: false,
+            start_vertex_ids: Vec::new(),
+            end_vertex_ids: Vec::new(),
             output_var: None,
             col_names: vec!["path".to_string()],
         }
@@ -292,6 +317,22 @@ impl ShortestPathNode {
 
     pub fn max_step(&self) -> usize {
         self.max_step
+    }
+
+    pub fn start_vertex_ids(&self) -> &[Value] {
+        &self.start_vertex_ids
+    }
+
+    pub fn end_vertex_ids(&self) -> &[Value] {
+        &self.end_vertex_ids
+    }
+
+    pub fn set_start_vertex_ids(&mut self, ids: Vec<Value>) {
+        self.start_vertex_ids = ids;
+    }
+
+    pub fn set_end_vertex_ids(&mut self, ids: Vec<Value>) {
+        self.end_vertex_ids = ids;
     }
 
     pub fn set_weight_expression(&mut self, expression: String) {

@@ -34,6 +34,8 @@ pub struct ExpandAllExecutor<S: StorageClient + Send + 'static> {
     pub src_vids: Vec<Value>,
     // Whether to include empty paths (paths with no edges) in the result
     pub include_empty_paths: bool,
+    // Input variable name for getting input from ExecutionContext
+    pub input_var: Option<String>,
 }
 
 // Manual Debug implementation for ExpandAllExecutor to avoid requiring Debug trait for Executor trait object
@@ -73,6 +75,32 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             visited_nodes: HashSet::new(),
             src_vids: Vec::new(),
             include_empty_paths: true, // Default to true for backward compatibility
+            input_var: None,
+        }
+    }
+
+    pub fn with_context(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        edge_direction: EdgeDirection,
+        edge_types: Option<Vec<String>>,
+        any_edge_type: bool,
+        max_depth: Option<usize>,
+        context: crate::query::executor::base::ExecutionContext,
+    ) -> Self {
+        Self {
+            base: BaseExecutor::with_context(id, "ExpandAllExecutor".to_string(), storage, context),
+            edge_direction,
+            edge_types,
+            any_edge_type,
+            max_depth,
+            input_executor: None,
+            npath_cache: Vec::new(),
+            path_cache: Vec::new(),
+            visited_nodes: HashSet::new(),
+            src_vids: Vec::new(),
+            include_empty_paths: true,
+            input_var: None,
         }
     }
 
@@ -83,6 +111,11 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
 
     pub fn with_include_empty_paths(mut self, include: bool) -> Self {
         self.include_empty_paths = include;
+        self
+    }
+
+    pub fn with_input_var(mut self, input_var: String) -> Self {
+        self.input_var = Some(input_var);
         self
     }
 
@@ -186,12 +219,17 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
     }
 
     /// Construct the extended result.
+    ///
+    /// Returns a DataSet with columns ["src", "edge", "dst"] for each path step.
+    /// This format allows subsequent operations to easily access the source vertex,
+    /// edge, and destination vertex separately.
     fn build_expansion_result(&self) -> ExecutionResult {
         // Convert NPath to Path for output.
         let paths: Vec<Path> = self.npath_cache.iter().map(|np| np.to_path()).collect();
 
-        // Convert the path into a list of values.
-        let mut path_values = Vec::new();
+        // Build a DataSet with separate columns for src, edge, and dst
+        let mut dataset = crate::core::DataSet::new();
+        dataset.col_names = vec!["src".to_string(), "edge".to_string(), "dst".to_string()];
 
         for path in &paths {
             // Skip empty paths if include_empty_paths is false
@@ -199,21 +237,28 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                 continue;
             }
 
-            let mut path_value = Vec::new();
-
-            // Add a starting node.
-            path_value.push(Value::Vertex(path.src.clone()));
-
-            // Add the edges and nodes for each step.
+            // For each step in the path, create a row with src, edge, dst
             for step in &path.steps {
-                path_value.push(Value::Edge((*step.edge).clone()));
-                path_value.push(Value::Vertex(Box::new((*step.dst).clone())));
+                let row = vec![
+                    Value::Vertex(path.src.clone()),
+                    Value::Edge((*step.edge).clone()),
+                    Value::Vertex(Box::new((*step.dst).clone())),
+                ];
+                dataset.rows.push(row);
             }
 
-            path_values.push(Value::List(List::from(path_value)));
+            // If include_empty_paths is true and path has no steps, add a row with just src
+            if self.include_empty_paths && path.steps.is_empty() {
+                let row = vec![
+                    Value::Vertex(path.src.clone()),
+                    Value::Null(crate::core::NullType::Null),
+                    Value::Null(crate::core::NullType::Null),
+                ];
+                dataset.rows.push(row);
+            }
         }
 
-        ExecutionResult::Values(path_values)
+        ExecutionResult::DataSet(dataset)
     }
 }
 
@@ -237,6 +282,14 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
         // First, execute the input executor (if it exists).
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute()?
+        } else if let Some(ref input_var) = self.input_var {
+            // Try to get input from ExecutionContext
+            eprintln!("[ExpandAllExecutor] Trying to get input from context, var: {}", input_var);
+            self.base.context.get_result(input_var)
+                .unwrap_or_else(|| {
+                    eprintln!("[ExpandAllExecutor] Input var not found in context: {}", input_var);
+                    ExecutionResult::Vertices(Vec::new())
+                })
         } else {
             // If no actuator is specified, return an empty result.
             ExecutionResult::Vertices(Vec::new())
@@ -280,7 +333,29 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
                                 vertices.push(vertex);
                             }
                         }
+                        Value::DataSet(dataset) => {
+                            // Extract vertices from DataSet rows
+                            for row in &dataset.rows {
+                                for value in row {
+                                    if let Value::Vertex(vertex) = value {
+                                        vertices.push(*vertex.clone());
+                                    }
+                                }
+                            }
+                        }
                         _ => continue,
+                    }
+                }
+                vertices
+            }
+            ExecutionResult::DataSet(dataset) => {
+                // Extract vertices from DataSet rows
+                // For DataSet from ExpandAll, columns are ["src", "edge", "dst"]
+                // We use the "src" column (index 0) as input vertices
+                let mut vertices = Vec::new();
+                for row in &dataset.rows {
+                    if let Some(Value::Vertex(vertex)) = row.first() {
+                        vertices.push(*vertex.clone());
                     }
                 }
                 vertices

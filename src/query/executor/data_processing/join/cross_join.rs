@@ -57,6 +57,31 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
         }
     }
 
+    pub fn with_context(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        input_vars: Vec<String>,
+        col_names: Vec<String>,
+        context: crate::query::executor::base::ExecutionContext,
+    ) -> Self {
+        Self {
+            base_executor: BaseJoinExecutor::with_context(
+                id,
+                storage,
+                context,
+                crate::query::executor::base::JoinConfigWithDesc {
+                    left_var: String::new(),  // Left variable (not used)
+                    right_var: String::new(), // Right variable (not used)
+                    hash_keys: Vec::new(),    // Hash key (not used)
+                    probe_keys: Vec::new(),   // Detection key (not used)
+                    col_names,
+                    description: String::new(),
+                },
+            ),
+            input_vars,
+        }
+    }
+
     /// Perform the Cartesian product of two tables.
     fn execute_two_way_cartesian_product(
         &self,
@@ -64,7 +89,10 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
         right_dataset: &DataSet,
     ) -> Result<DataSet, QueryError> {
         let mut result = DataSet::new();
-        result.col_names = self.base_executor.get_col_names().clone();
+        // Merge column names from both inputs
+        let mut col_names = left_dataset.col_names.clone();
+        col_names.extend(right_dataset.col_names.iter().cloned());
+        result.col_names = col_names;
 
         // Calculate the size of the result set and pre-allocate memory accordingly.
         let estimated_size = left_dataset.rows.len() * right_dataset.rows.len();
@@ -177,12 +205,14 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
 
 impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
+        eprintln!("[CrossJoinExecutor] execute called, input_vars: {:?}", self.input_vars);
         // Select the implementation method based on the number of inputs.
         let result = if self.input_vars.len() == 2 {
             // Cartesian product of two sets
             let left_var = &self.input_vars[0];
             let right_var = &self.input_vars[1];
 
+            eprintln!("[CrossJoinExecutor] looking for left_var: {}", left_var);
             let left_result = self
                 .base_executor
                 .get_base()
@@ -194,7 +224,9 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                         left_var
                     )))
                 })?;
+            eprintln!("[CrossJoinExecutor] left_result type: {:?}", std::mem::discriminant(&left_result));
 
+            eprintln!("[CrossJoinExecutor] looking for right_var: {}", right_var);
             let right_result = self
                 .base_executor
                 .get_base()
@@ -206,9 +238,11 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                         right_var
                     )))
                 })?;
+            eprintln!("[CrossJoinExecutor] right_result type: {:?}", std::mem::discriminant(&right_result));
 
             let left_dataset = match left_result {
                 ExecutionResult::Values(values) => {
+                    eprintln!("[CrossJoinExecutor] left_result is Values, len: {}", values.len());
                     if let Some(Value::DataSet(dataset)) = values.first() {
                         dataset.clone()
                     } else {
@@ -219,7 +253,27 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                         ));
                     }
                 }
+                ExecutionResult::DataSet(dataset) => {
+                    eprintln!("[CrossJoinExecutor] left_result is DataSet, rows: {}", dataset.rows.len());
+                    dataset.clone()
+                }
+                ExecutionResult::Vertices(vertices) => {
+                    eprintln!("[CrossJoinExecutor] left_result is Vertices, len: {}", vertices.len());
+                    // Convert Vertices to DataSet
+                    let rows: Vec<Vec<Value>> = vertices.iter().map(|v| vec![Value::Vertex(Box::new(v.clone()))]).collect();
+                    // Use the column names from the base_executor instead of hardcoding
+                    let col_names = if self.base_executor.get_col_names().is_empty() {
+                        vec!["_vertex".to_string()]
+                    } else {
+                        self.base_executor.get_col_names().to_vec()
+                    };
+                    DataSet {
+                        col_names,
+                        rows,
+                    }
+                }
                 _ => {
+                    eprintln!("[CrossJoinExecutor] left_result is other type: {:?}", std::mem::discriminant(&left_result));
                     return Err(DBError::Query(
                         crate::core::error::QueryError::ExecutionError(
                             "左输入不是有效的数据集".to_string(),
@@ -230,14 +284,56 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
 
             let right_dataset = match right_result {
                 ExecutionResult::Values(values) => {
-                    if let Some(Value::DataSet(dataset)) = values.first() {
-                        dataset.clone()
+                    eprintln!("[CrossJoinExecutor] right_result is Values, len: {}", values.len());
+                    if values.is_empty() {
+                        // Return empty dataset with appropriate column names
+                        let col_names = if self.base_executor.get_col_names().is_empty() {
+                            vec!["_empty".to_string()]
+                        } else {
+                            self.base_executor.get_col_names().to_vec()
+                        };
+                        let empty_dataset = DataSet {
+                            col_names,
+                            rows: Vec::new(),
+                        };
+                        return Ok(ExecutionResult::Values(vec![Value::DataSet(empty_dataset)]));
+                    }
+                    if let Some(first) = values.first() {
+                        eprintln!("[CrossJoinExecutor] right_result first value type: {:?}", std::mem::discriminant(first));
+                        match first {
+                            Value::DataSet(dataset) => dataset.clone(),
+                            Value::List(_) => {
+                                // Convert List values to DataSet
+                                // Each List represents a path from ExpandAllExecutor
+                                let rows: Vec<Vec<Value>> = values.iter().map(|v| vec![v.clone()]).collect();
+                                DataSet {
+                                    col_names: vec!["_path".to_string()],
+                                    rows,
+                                }
+                            }
+                            _ => {
+                                return Err(DBError::Query(
+                                    crate::core::error::QueryError::ExecutionError(
+                                        "右输入不是有效的数据集".to_string(),
+                                    ),
+                                ));
+                            }
+                        }
                     } else {
                         return Err(DBError::Query(
                             crate::core::error::QueryError::ExecutionError(
                                 "右输入不是有效的数据集".to_string(),
                             ),
                         ));
+                    }
+                }
+                ExecutionResult::DataSet(dataset) => dataset.clone(),
+                ExecutionResult::Vertices(vertices) => {
+                    // Convert Vertices to DataSet
+                    let rows: Vec<Vec<Value>> = vertices.iter().map(|v| vec![Value::Vertex(Box::new(v.clone()))]).collect();
+                    DataSet {
+                        col_names: vec!["_vertex".to_string()],
+                        rows,
                     }
                 }
                 _ => {
@@ -249,8 +345,12 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                 }
             };
 
-            self.execute_two_way_cartesian_product(&left_dataset, &right_dataset)
-                .map_err(DBError::from)?
+            eprintln!("[CrossJoinExecutor] left_dataset rows: {}, col_names: {:?}", left_dataset.rows.len(), left_dataset.col_names);
+            eprintln!("[CrossJoinExecutor] right_dataset rows: {}, col_names: {:?}", right_dataset.rows.len(), right_dataset.col_names);
+            let result = self.execute_two_way_cartesian_product(&left_dataset, &right_dataset)
+                .map_err(DBError::from)?;
+            eprintln!("[CrossJoinExecutor] result rows: {}, col_names: {:?}", result.rows.len(), result.col_names);
+            result
         } else {
             // Cartesian product of multiple tables
             self.execute_optimized_cartesian_product()

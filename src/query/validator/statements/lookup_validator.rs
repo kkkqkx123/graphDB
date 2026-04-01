@@ -330,15 +330,8 @@ impl LookupValidator {
         yield_columns: &[LookupYieldColumn],
         is_yield_all: bool,
     ) -> Result<(), ValidationError> {
-        if is_yield_all {
+        if is_yield_all || yield_columns.is_empty() {
             return Ok(());
-        }
-
-        if yield_columns.is_empty() {
-            return Err(ValidationError::new(
-                "LOOKUP must have YIELD clause or YIELD *".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
         }
 
         let mut seen_names: HashMap<String, usize> = HashMap::new();

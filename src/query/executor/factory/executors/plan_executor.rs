@@ -3,6 +3,7 @@
 //! Responsible for executing the execution plan and managing the lifecycle of the executor tree.
 
 use crate::core::error::QueryError;
+use crate::core::Value;
 use crate::query::executor::base::{ExecutionContext, ExecutionResult, Executor, InputExecutor};
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::object_pool::ThreadSafeExecutorPool;
@@ -42,7 +43,8 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
     ///
     /// For `SingleInputNode` plan nodes (e.g. Project, Filter), this creates the executor
     /// for the node itself, then recursively builds its child executor and connects it
-    /// via `set_input`. For `BinaryInputNode` plan nodes (e.g. Join), both children are built.
+    /// via `set_input`. For `BinaryInputNode` plan nodes (e.g. Join), both children are built
+    /// and executed to store their results in the execution context.
     /// For `ZeroInputNode` plan nodes (leaf nodes), only the executor itself is created.
     fn build_executor_chain(
         &mut self,
@@ -62,13 +64,84 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
         let children = plan_node.children();
         eprintln!("[build_executor_chain] children count: {}", children.len());
 
-        if !children.is_empty() {
-            eprintln!("[build_executor_chain] building child executor...");
-            let child_executor =
-                self.build_executor_chain(children[0], storage.clone(), context)?;
-            eprintln!("[build_executor_chain] setting input...");
-            executor.set_input(child_executor);
-            eprintln!("[build_executor_chain] input set");
+        match children.len() {
+            0 => {
+                // ZeroInputNode: no child nodes to process
+            }
+            1 => {
+                // SingleInputNode: build child and set as input
+                eprintln!("[build_executor_chain] building child executor...");
+                eprintln!("[build_executor_chain] child type: {}", children[0].name());
+                let child_executor =
+                    self.build_executor_chain(children[0], storage.clone(), context)?;
+                eprintln!("[build_executor_chain] setting input...");
+                executor.set_input(child_executor);
+                eprintln!("[build_executor_chain] input set");
+            }
+            2 => {
+                // BinaryInputNode (e.g., Join): build and execute both children
+                eprintln!("[build_executor_chain] building left child executor...");
+                let mut left_executor =
+                    self.build_executor_chain(children[0], storage.clone(), context)?;
+                eprintln!("[build_executor_chain] executing left child...");
+                let left_result = left_executor.execute().map_err(|e| {
+                    QueryError::ExecutionError(format!("Left child execution failed: {}", e))
+                })?;
+
+                // Get left variable name from node's output_var or use default
+                // If right child is ExpandAllNode with input_var set, use that as the left variable name
+                let left_var = if let Some(expand_all) = children[1].as_expand_all() {
+                    if let Some(input_var) = expand_all.get_input_var() {
+                        eprintln!("[build_executor_chain] Using ExpandAllNode's input_var as left_var: {}", input_var);
+                        input_var.to_string()
+                    } else {
+                        children[0]
+                            .output_var()
+                            .map(|v| v.to_string())
+                            .unwrap_or_else(|| format!("left_{}", plan_node.id()))
+                    }
+                } else {
+                    children[0]
+                        .output_var()
+                        .map(|v| v.to_string())
+                        .unwrap_or_else(|| format!("left_{}", plan_node.id()))
+                };
+                eprintln!("[build_executor_chain] left_var: {}, result type: {:?}", left_var, std::mem::discriminant(&left_result));
+                context.set_result(left_var.clone(), left_result);
+                eprintln!("[build_executor_chain] left result stored, checking: {:?}", context.get_result(&left_var).map(|r| std::mem::discriminant(&r)));
+
+                eprintln!("[build_executor_chain] building right child executor...");
+                eprintln!("[build_executor_chain] right child type: {}", children[1].name());
+                let mut right_executor =
+                    self.build_executor_chain(children[1], storage.clone(), context)?;
+                eprintln!("[build_executor_chain] executing right child...");
+                let right_result = right_executor.execute().map_err(|e| {
+                    QueryError::ExecutionError(format!("Right child execution failed: {}", e))
+                })?;
+
+                // Get right variable name from node's output_var or use default
+                let right_var = children[1]
+                    .output_var()
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| format!("right_{}", plan_node.id()));
+                eprintln!("[build_executor_chain] right_var: {}, result type: {:?}", right_var, std::mem::discriminant(&right_result));
+                if let ExecutionResult::Values(values) = &right_result {
+                    if let Some(Value::DataSet(dataset)) = values.first() {
+                        eprintln!("[build_executor_chain] right_dataset rows: {}, col_names: {:?}", dataset.rows.len(), dataset.col_names);
+                    }
+                }
+                context.set_result(right_var, right_result);
+                eprintln!("[build_executor_chain] right result stored");
+            }
+            _ => {
+                // MultipleInputNode: handle similarly to SingleInputNode for now
+                eprintln!("[build_executor_chain] building child executor...");
+                let child_executor =
+                    self.build_executor_chain(children[0], storage.clone(), context)?;
+                eprintln!("[build_executor_chain] setting input...");
+                executor.set_input(child_executor);
+                eprintln!("[build_executor_chain] input set");
+            }
         }
 
         eprintln!("[build_executor_chain] returning executor");

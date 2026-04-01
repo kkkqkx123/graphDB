@@ -191,11 +191,13 @@ impl Planner for LookupPlanner {
             current_node = PlanNodeEnum::Filter(filter_node);
         }
 
-        let yield_columns = Self::build_yield_columns(lookup_stmt, validated)?;
-        let project_node = ProjectNode::new(current_node, yield_columns).map_err(|e| {
-            PlannerError::PlanGenerationFailed(format!("Failed to create ProjectNode: {}", e))
-        })?;
-        current_node = PlanNodeEnum::Project(project_node);
+        if lookup_stmt.yield_clause.is_some() {
+            let yield_columns = Self::build_yield_columns(lookup_stmt, validated)?;
+            let project_node = ProjectNode::new(current_node, yield_columns).map_err(|e| {
+                PlannerError::PlanGenerationFailed(format!("Failed to create ProjectNode: {}", e))
+            })?;
+            current_node = PlanNodeEnum::Project(project_node);
+        }
 
         let arg_node = ArgumentNode::new(0, "lookup_input");
         let sub_plan = SubPlan {
@@ -230,7 +232,7 @@ impl LookupPlanner {
         }
 
         if columns.is_empty() {
-            let expr = Expression::Variable("*".to_string());
+            let expr = Expression::Variable("_vertex".to_string());
             let meta = crate::core::types::expr::ExpressionMeta::new(expr);
             let id = validated.expr_context().register_expression(meta);
             let ctx_expr =

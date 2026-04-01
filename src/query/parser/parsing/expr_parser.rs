@@ -406,9 +406,15 @@ impl<'a> ExprParser<'a> {
             | TokenKind::Max => {
                 let func_name = token.lexeme.clone();
                 ctx.next_token();
-                ctx.expect_token(TokenKind::LParen)?;
                 let span = ctx.merge_span(start_pos, ctx.current_position());
-                self.parse_function_call(func_name, span, ctx)
+                if ctx.match_token(TokenKind::LParen) {
+                    self.parse_function_call(func_name, span, ctx)
+                } else {
+                    Ok(ParseResult {
+                        expr: Expression::variable(func_name),
+                        span,
+                    })
+                }
             }
             TokenKind::List => {
                 ctx.next_token();

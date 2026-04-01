@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::types::ContextualExpression;
+use crate::core::Expression;
 use crate::core::Value;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::Executor;
@@ -22,6 +23,131 @@ use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::ExecutionResult;
 use crate::storage::StorageClient;
+
+fn extract_variable_names(expr: &Expression) -> Vec<String> {
+    let mut names = Vec::new();
+    fn collect(expr: &Expression, names: &mut Vec<String>) {
+        match expr {
+            Expression::Variable(name) => {
+                if !names.contains(name) {
+                    names.push(name.clone());
+                }
+            }
+            Expression::Property { object, .. } => collect(object, names),
+            Expression::Binary { left, right, .. } => {
+                collect(left, names);
+                collect(right, names);
+            }
+            Expression::Unary { operand, .. } => collect(operand, names),
+            Expression::Function { args, .. } => {
+                for arg in args {
+                    collect(arg, names);
+                }
+            }
+            Expression::Aggregate { arg, .. } => collect(arg, names),
+            Expression::List(elements) => {
+                for elem in elements {
+                    collect(elem, names);
+                }
+            }
+            Expression::Map(entries) => {
+                for (_, val_expr) in entries {
+                    collect(val_expr, names);
+                }
+            }
+            Expression::Case {
+                test_expr,
+                conditions,
+                default,
+            } => {
+                if let Some(te) = test_expr {
+                    collect(te, names);
+                }
+                for (cond, val) in conditions {
+                    collect(cond, names);
+                    collect(val, names);
+                }
+                if let Some(d) = default {
+                    collect(d, names);
+                }
+            }
+            Expression::TypeCast { expression, .. } => collect(expression, names),
+            Expression::Subscript { collection, index } => {
+                collect(collection, names);
+                collect(index, names);
+            }
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
+                collect(collection, names);
+                if let Some(s) = start {
+                    collect(s, names);
+                }
+                if let Some(e) = end {
+                    collect(e, names);
+                }
+            }
+            Expression::Path(elements) => {
+                for elem in elements {
+                    collect(elem, names);
+                }
+            }
+            Expression::LabelTagProperty { tag, .. } => collect(tag, names),
+            Expression::Predicate { args, .. } => {
+                for arg in args {
+                    collect(arg, names);
+                }
+            }
+            Expression::Reduce {
+                initial,
+                source,
+                mapping,
+                ..
+            } => {
+                collect(initial, names);
+                collect(source, names);
+                collect(mapping, names);
+            }
+            Expression::PathBuild(elements) => {
+                for elem in elements {
+                    collect(elem, names);
+                }
+            }
+            Expression::ListComprehension {
+                source, filter, map, ..
+            } => {
+                collect(source, names);
+                if let Some(f) = filter {
+                    collect(f, names);
+                }
+                if let Some(m) = map {
+                    collect(m, names);
+                }
+            }
+            Expression::Literal(_)
+            | Expression::Label(_)
+            | Expression::TagProperty { .. }
+            | Expression::EdgeProperty { .. }
+            | Expression::Parameter(_) => {}
+        }
+    }
+    collect(expr, &mut names);
+    names
+}
+
+const INTERNAL_VARIABLES: &[&str] = &[
+    "_vertex",
+    "_edge",
+    "id",
+    "value",
+    "row",
+    "src",
+    "dst",
+    "edge_type",
+    "ranking",
+];
 
 /// Projection column definition
 #[derive(Debug, Clone)]
@@ -228,31 +354,49 @@ impl<S: StorageClient> ProjectExecutor<S> {
     ) -> DBResult<crate::core::value::DataSet> {
         let mut result_dataset = crate::core::value::DataSet::new();
 
-        // Set column names
         result_dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
 
-        // Project each vertex.
+        let mut all_var_names = Vec::new();
+        for column in &self.columns {
+            if let Some(meta) = column.expression.expression() {
+                let names = extract_variable_names(meta.inner());
+                for name in names {
+                    if !all_var_names.contains(&name) {
+                        all_var_names.push(name);
+                    }
+                }
+            }
+        }
+        let external_vars: Vec<&str> = all_var_names
+            .iter()
+            .filter(|n| !INTERNAL_VARIABLES.contains(&n.as_str()))
+            .map(String::as_str)
+            .collect();
+
         for vertex in vertices {
             let mut context = DefaultExpressionContext::new();
-            // Setting vertex information
             context.set_variable(
                 "_vertex".to_string(),
                 Value::Vertex(Box::new(vertex.clone())),
             );
 
-            // Set the vertex ID as a variable.
             context.set_variable("id".to_string(), *vertex.vid.clone());
 
-            // Set the vertex properties as variables as well, so that the InputProperty can access them.
             for (prop_name, prop_value) in &vertex.properties {
                 context.set_variable(prop_name.clone(), prop_value.clone());
             }
 
-            // Set tag properties as variables so that the projection can access them.
             for tag in &vertex.tags {
                 for (prop_name, prop_value) in &tag.properties {
                     context.set_variable(prop_name.clone(), prop_value.clone());
                 }
+            }
+
+            for var_name in &external_vars {
+                context.set_variable(
+                    var_name.to_string(),
+                    Value::Vertex(Box::new(vertex.clone())),
+                );
             }
 
             let mut projected_row = Vec::new();
@@ -287,16 +431,29 @@ impl<S: StorageClient> ProjectExecutor<S> {
     ) -> DBResult<crate::core::value::DataSet> {
         let mut result_dataset = crate::core::value::DataSet::new();
 
-        // Set column names
         result_dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
 
-        // Project each edge.
+        let mut all_var_names = Vec::new();
+        for column in &self.columns {
+            if let Some(meta) = column.expression.expression() {
+                let names = extract_variable_names(meta.inner());
+                for name in names {
+                    if !all_var_names.contains(&name) {
+                        all_var_names.push(name);
+                    }
+                }
+            }
+        }
+        let external_vars: Vec<&str> = all_var_names
+            .iter()
+            .filter(|n| !INTERNAL_VARIABLES.contains(&n.as_str()))
+            .map(String::as_str)
+            .collect();
+
         for edge in edges {
             let mut context = DefaultExpressionContext::new();
-            // Set border information
             context.set_variable("_edge".to_string(), Value::Edge(edge.clone()));
 
-            // Set the edge properties as variables.
             context.set_variable("src".to_string(), *edge.src.clone());
             context.set_variable("dst".to_string(), *edge.dst.clone());
             context.set_variable(
@@ -304,6 +461,10 @@ impl<S: StorageClient> ProjectExecutor<S> {
                 Value::String(edge.edge_type.clone()),
             );
             context.set_variable("ranking".to_string(), Value::Int(edge.ranking));
+
+            for var_name in &external_vars {
+                context.set_variable(var_name.to_string(), Value::Edge(edge.clone()));
+            }
 
             let mut projected_row = Vec::new();
             for column in &self.columns {
