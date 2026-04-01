@@ -122,7 +122,6 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteTagExecutor<S> {
                         continue;
                     }
                     Err(e) => {
-                        eprintln!("Get vertex {:?} Failed: {:?}", vertex_id, e);
                         continue;
                     }
                 }
@@ -136,7 +135,6 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteTagExecutor<S> {
                 }
                 Err(e) => {
                     // Logging errors but continuing to process other vertices
-                    eprintln!("Delete vertex {:?} failed to label: {:?}", vertex_id, e);
                 }
             }
         }

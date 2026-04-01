@@ -548,10 +548,6 @@ fn test_log_timestamp_format() {
     let log_file = &log_files[0];
     let content = fs::read_to_string(log_file.path()).expect("读取日志文件失败");
 
-    // Print the log content for debugging purposes.
-    println!("日志文件路径: {:?}", log_file.path());
-    println!("日志内容:\n{}", content);
-
     // Verify the content of the log files.
     assert!(
         content.contains("时间戳格式测试日志"),

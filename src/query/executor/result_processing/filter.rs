@@ -217,36 +217,22 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
 
     /// Filter the input data.
     fn filter_input(&self, input: ExecutionResult) -> DBResult<ExecutionResult> {
-        eprintln!(
-            "[FilterExecutor] filter_input called with input type: {:?}",
-            std::mem::discriminant(&input)
-        );
         match input {
             ExecutionResult::DataSet(mut dataset) => {
-                eprintln!(
-                    "[FilterExecutor] input is DataSet, col_names: {:?}",
-                    dataset.col_names
-                );
                 self.apply_filter(&mut dataset)?;
                 Ok(ExecutionResult::DataSet(dataset))
             }
             ExecutionResult::Values(values) => {
-                eprintln!("[FilterExecutor] input is Values, len: {}", values.len());
                 let filtered_values = self.filter_values(values)?;
                 // If filtered_values contains a single DataSet, unwrap it to avoid nesting
                 if filtered_values.len() == 1 {
                     if let Value::DataSet(dataset) = &filtered_values[0] {
-                        eprintln!("[FilterExecutor] Unwrapping nested DataSet from Values");
                         return Ok(ExecutionResult::DataSet(dataset.clone()));
                     }
                 }
                 Ok(ExecutionResult::Values(filtered_values))
             }
             ExecutionResult::Vertices(vertices) => {
-                eprintln!(
-                    "[FilterExecutor] input is Vertices, len: {}",
-                    vertices.len()
-                );
                 let filtered_vertices = self.filter_vertices(vertices)?;
                 Ok(ExecutionResult::Vertices(filtered_vertices))
             }
@@ -286,31 +272,10 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
 
             // Set the column names as variables.
             for (i, col_name) in dataset.col_names.iter().enumerate() {
-                if i < row.len() {
-                    context.set_variable(col_name.clone(), row[i].clone());
-                }
-            }
-
-            // Debug: print all variables for the first row
-            if row_idx == 0 {
-                eprintln!(
-                    "[FilterExecutor] apply_filter_single: col_names = {:?}",
-                    dataset.col_names
-                );
-                eprintln!(
-                    "[FilterExecutor] apply_filter_single: row.len() = {}, row = {:?}",
-                    row.len(),
-                    row
-                );
-                for (i, col_name) in dataset.col_names.iter().enumerate() {
                     if i < row.len() {
-                        eprintln!(
-                            "[FilterExecutor] apply_filter_single: variable {} = {:?}",
-                            col_name, row[i]
-                        );
+                        context.set_variable(col_name.clone(), row[i].clone());
                     }
                 }
-            }
 
             // Handle table.column format: create table map variables
             let mut table_maps: std::collections::HashMap<
@@ -354,14 +319,6 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
                         format!("Failed to evaluate filter condition: {}", e),
                     ))
                 })?;
-
-            // Debug: print condition result for first few rows
-            if row_idx < 5 {
-                eprintln!(
-                    "[FilterExecutor] apply_filter_single: row {} condition_result = {:?}",
-                    row_idx, condition_result
-                );
-            }
 
             if let crate::core::Value::Bool(true) = condition_result {
                 filtered_rows.push(row.clone());
@@ -408,12 +365,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
     fn filter_values(&self, values: Vec<crate::core::Value>) -> DBResult<Vec<crate::core::Value>> {
         if values.len() == 1 {
             if let crate::core::Value::DataSet(mut dataset) = values[0].clone() {
-                eprintln!("[FilterExecutor] filter_values: input is DataSet with col_names: {:?}, rows: {}", dataset.col_names, dataset.rows.len());
                 self.apply_filter(&mut dataset)?;
-                eprintln!(
-                    "[FilterExecutor] filter_values: output is DataSet with rows: {}",
-                    dataset.rows.len()
-                );
                 return Ok(vec![crate::core::Value::DataSet(dataset)]);
             }
         }

@@ -42,7 +42,6 @@ fn test_parser_match_statement_basic() {
     let result = parser.parse();
     // The current parser may have syntactic limitations and we accept success or failure
     // Mainly to test that the parser doesn't crash
-    println!("MATCH解析结果: {:?}", result);
     // As long as the parser returns a result (either success or failure), the test passes!
     let _ = result;
 }
@@ -53,7 +52,6 @@ fn test_parser_go_statement() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("GO解析结果: {:?}", result);
     // The parser should be able to handle GO statements
     let _ = result;
 }
@@ -64,7 +62,6 @@ fn test_parser_use_statement() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("USE解析结果: {:?}", result);
     // The USE statement should parse successfully
     let _ = result;
 }
@@ -80,7 +77,6 @@ fn test_parser_create_tag() {
     for query in queries {
         let mut parser = Parser::new(query);
         let result = parser.parse();
-        println!("'{}' 解析结果: {:?}", query, result);
         // Record results without mandating success
         let _ = result;
     }
@@ -93,7 +89,6 @@ fn test_parser_show_statements() {
     for query in queries {
         let mut parser = Parser::new(query);
         let result = parser.parse();
-        println!("'{}' 解析结果: {:?}", query, result);
         // The SHOW statement should usually parse successfully!
         let _ = result;
     }
@@ -105,7 +100,6 @@ fn test_parser_insert_vertex() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("INSERT VERTEX解析结果: {:?}", result);
     let _ = result;
 }
 
@@ -116,7 +110,6 @@ fn test_parser_invalid_syntax() {
 
     let result = parser.parse();
     // Invalid syntax should return an error
-    println!("无效语法解析结果: {:?}", result);
     assert!(result.is_err(), "Invalid syntax should return an error");
 }
 
@@ -217,7 +210,6 @@ fn test_planner_match_statement() {
 
     // If parsing fails, skip this test
     if result.is_err() {
-        println!("MATCH解析失败，跳过规划器测试: {:?}", result.err());
         return;
     }
 
@@ -264,7 +256,6 @@ fn test_pipeline_manager_create_tag() {
     let result = pipeline_manager.execute_query(query);
 
     // Implementation may succeed or fail, depending on the specific implementation
-    println!("CREATE TAG执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
 
@@ -320,7 +311,6 @@ fn test_complete_query_flow_show_spaces() {
         }
         Err(e) => {
             // Certain errors are acceptable, depending on the current state of implementation.
-            println!("查询执行返回错误: {:?}", e);
         }
     }
 }
@@ -346,7 +336,6 @@ fn test_complete_query_flow_with_metrics() {
             // Verify the execution results and indicators.
         }
         Err(e) => {
-            println!("带指标的查询执行返回错误: {:?}", e);
         }
     }
 }
@@ -372,8 +361,6 @@ fn test_query_flow_create_and_desc_tag() {
     let desc_result = pipeline_manager.execute_query(desc_query);
 
     // Both operations should be completed.
-    println!("CREATE TAG结果: {:?}", create_result);
-    println!("DESC TAG结果: {:?}", desc_result);
     assert!(create_result.is_ok() || create_result.is_err());
     assert!(desc_result.is_ok() || desc_result.is_err());
 }
@@ -463,6 +450,5 @@ fn test_sequential_query_execution() {
     for i in 0..5 {
         let query = "SHOW SPACES";
         let result = pipeline_manager.execute_query(query);
-        println!("顺序查询 {} 完成，成功: {}", i, result.is_ok());
     }
 }

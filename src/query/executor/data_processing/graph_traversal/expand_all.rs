@@ -273,33 +273,18 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExpandAllExecutor<S
 
 impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        eprintln!(
-            "[ExpandAllExecutor] Starting execution, src_vids: {:?}",
-            self.src_vids
-        );
-
         // First, execute the input executor (if it exists).
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute()?
         } else if let Some(ref input_var) = self.input_var {
             // Try to get input from ExecutionContext
-            eprintln!(
-                "[ExpandAllExecutor] Trying to get input from context, var: {}",
-                input_var
-            );
             self.base.context.get_result(input_var).unwrap_or_else(|| {
-                eprintln!(
-                    "[ExpandAllExecutor] Input var not found in context: {}",
-                    input_var
-                );
                 ExecutionResult::Vertices(Vec::new())
             })
         } else {
             // If no actuator is specified, return an empty result.
             ExecutionResult::Vertices(Vec::new())
         };
-
-        eprintln!("[ExpandAllExecutor] Input result: {:?}", input_result);
 
         // Extract the input node.
         let mut input_nodes = match input_result {
@@ -368,9 +353,6 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
                     0 // Default to first column ("src")
                 };
 
-                eprintln!("[ExpandAllExecutor] Extracting vertices from DataSet, input_var: {:?}, col_idx: {}, col_names: {:?}", 
-                    self.input_var, col_idx, dataset.col_names);
-
                 for row in &dataset.rows {
                     if let Some(Value::Vertex(vertex)) = row.get(col_idx) {
                         vertices.push(*vertex.clone());
@@ -383,29 +365,19 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
 
         // If src_vids is set (from GO FROM clause), add those vertices as input nodes
         if !self.src_vids.is_empty() {
-            eprintln!("[ExpandAllExecutor] Loading src_vids from storage");
             let storage = self.get_storage().lock();
             for vid in &self.src_vids {
-                eprintln!("[ExpandAllExecutor] Looking up vertex with vid: {:?}", vid);
                 match storage.get_vertex("default", vid) {
                     Ok(Some(vertex)) => {
-                        eprintln!("[ExpandAllExecutor] Found vertex: {:?}", vertex);
                         input_nodes.push(vertex);
                     }
                     Ok(None) => {
-                        eprintln!("[ExpandAllExecutor] Vertex not found for vid: {:?}", vid);
                     }
                     Err(e) => {
-                        eprintln!("[ExpandAllExecutor] Error looking up vertex: {:?}", e);
                     }
                 }
             }
         }
-
-        eprintln!(
-            "[ExpandAllExecutor] Total input_nodes: {}",
-            input_nodes.len()
-        );
 
         // Determine the maximum depth.
         let max_depth = self.max_depth.unwrap_or(3); // The default depth is 3.

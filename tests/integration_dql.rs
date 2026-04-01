@@ -27,7 +27,6 @@ fn test_match_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("MATCH basic parsing result: {:?}", result);
     let _ = result;
 }
 
@@ -37,7 +36,6 @@ fn test_match_parser_with_where() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("MATCH with WHERE parsing result: {:?}", result);
     let _ = result;
 }
 
@@ -47,7 +45,6 @@ fn test_match_parser_with_edge() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("MATCH with edge parsing result: {:?}", result);
     let _ = result;
 }
 
@@ -57,7 +54,6 @@ fn test_match_parser_with_order_limit() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("MATCH with ORDER BY and LIMIT parsing result: {:?}", result);
     let _ = result;
 }
 
@@ -67,7 +63,6 @@ fn test_match_parser_complex() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("MATCH complex query parsing result: {:?}", result);
     let _ = result;
 }
 
@@ -214,7 +209,6 @@ fn test_go_parser_with_where() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("GO with WHERE parsing result: {:?}", result);
     let _ = result;
 }
 
@@ -905,10 +899,8 @@ fn test_dangling_edge_detection_and_repair() {
     let mut storage_guard = storage.lock();
 
     let dangling_result = storage_guard.find_dangling_edges("test_space");
-    println!("Dangling edge detection result: {:?}", dangling_result);
 
     let repair_result = storage_guard.repair_dangling_edges("test_space");
-    println!("Dangling edge repair result: {:?}", repair_result);
 
     assert!(dangling_result.is_ok() || dangling_result.is_err());
     assert!(repair_result.is_ok() || repair_result.is_err());
@@ -926,7 +918,6 @@ fn test_dangling_edge_workflow() {
     let space_info = graphdb::core::types::SpaceInfo::new("dangling_test".to_string());
 
     let create_result = storage_guard.create_space(&space_info);
-    println!("Create space result: {:?}", create_result);
 
     use std::collections::HashMap;
     let mut tag_props = HashMap::new();
@@ -944,7 +935,6 @@ fn test_dangling_edge_workflow() {
     );
 
     let insert_result = storage_guard.insert_vertex("dangling_test", vertex);
-    println!("Insert vertex result: {:?}", insert_result);
 
     let mut props = HashMap::new();
     props.insert(
@@ -961,13 +951,10 @@ fn test_dangling_edge_workflow() {
     );
 
     let edge_result = storage_guard.insert_edge("dangling_test", edge);
-    println!("Insert dangling edge result: {:?}", edge_result);
 
     let dangling = storage_guard.find_dangling_edges("dangling_test");
-    println!("Detected dangling edges: {:?}", dangling);
 
     let repaired = storage_guard.repair_dangling_edges("dangling_test");
-    println!("Repaired dangling edges count: {:?}", repaired);
 
     assert!(create_result.is_ok() || create_result.is_err());
     assert!(insert_result.is_ok() || insert_result.is_err());
@@ -1062,7 +1049,6 @@ fn test_yield_standalone() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("Standalone YIELD parsing result: {:?}", result);
     let _ = result;
 }
 
@@ -1072,7 +1058,6 @@ fn test_yield_standalone_with_where() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("Standalone YIELD with WHERE parsing result: {:?}", result);
     let _ = result;
 }
 

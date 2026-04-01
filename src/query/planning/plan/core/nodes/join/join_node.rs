@@ -126,12 +126,6 @@ impl CrossJoinNode {
         let mut col_names = left.col_names().to_vec();
         let right_col_names = right.col_names();
 
-        eprintln!("[CrossJoinNode::new] left col_names: {:?}", col_names);
-        eprintln!(
-            "[CrossJoinNode::new] right col_names: {:?}",
-            right_col_names
-        );
-
         // Add right column names, skipping duplicates
         for col in right_col_names {
             if !col_names.contains(col) {
@@ -147,8 +141,6 @@ impl CrossJoinNode {
                 col_names.push(new_col);
             }
         }
-
-        eprintln!("[CrossJoinNode::new] merged col_names: {:?}", col_names);
 
         let deps = vec![left.clone(), right.clone()];
 

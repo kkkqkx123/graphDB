@@ -79,25 +79,12 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
 
         // If input_var is set, use it to get input from ExecutionContext
         if let Some(input_var) = node.get_input_var() {
-            eprintln!(
-                "[build_expand_all] setting input_var from node: {}",
-                input_var
-            );
             executor = executor.with_input_var(input_var.to_string());
         } else {
             // If there are input nodes, get the input variable name from the first input node
             let inputs = node.inputs();
-            eprintln!("[build_expand_all] inputs count: {}", inputs.len());
             if !inputs.is_empty() {
-                eprintln!(
-                    "[build_expand_all] first input output_var: {:?}",
-                    inputs[0].output_var()
-                );
                 if let Some(input_var) = inputs[0].output_var() {
-                    eprintln!(
-                        "[build_expand_all] setting input_var from first input: {}",
-                        input_var
-                    );
                     executor = executor.with_input_var(input_var.to_string());
                 }
             }

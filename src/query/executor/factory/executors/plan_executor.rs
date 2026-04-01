@@ -52,17 +52,11 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<crate::query::executor::ExecutorEnum<S>, QueryError> {
-        eprintln!(
-            "[build_executor_chain] plan_node type: {}",
-            plan_node.name()
-        );
-
         let mut executor = self
             .factory
             .create_executor(plan_node, storage.clone(), context)?;
 
         let children = plan_node.children();
-        eprintln!("[build_executor_chain] children count: {}", children.len());
 
         match children.len() {
             0 => {
@@ -70,20 +64,14 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
             }
             1 => {
                 // SingleInputNode: build child and set as input
-                eprintln!("[build_executor_chain] building child executor...");
-                eprintln!("[build_executor_chain] child type: {}", children[0].name());
                 let child_executor =
                     self.build_executor_chain(children[0], storage.clone(), context)?;
-                eprintln!("[build_executor_chain] setting input...");
                 executor.set_input(child_executor);
-                eprintln!("[build_executor_chain] input set");
             }
             2 => {
                 // BinaryInputNode (e.g., Join): build and execute both children
-                eprintln!("[build_executor_chain] building left child executor...");
                 let mut left_executor =
                     self.build_executor_chain(children[0], storage.clone(), context)?;
-                eprintln!("[build_executor_chain] executing left child...");
                 let left_result = left_executor.execute().map_err(|e| {
                     QueryError::ExecutionError(format!("Left child execution failed: {}", e))
                 })?;
@@ -94,18 +82,7 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
                     .output_var()
                     .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("left_{}", plan_node.id()));
-                eprintln!(
-                    "[build_executor_chain] left_var: {}, result type: {:?}",
-                    left_var,
-                    std::mem::discriminant(&left_result)
-                );
                 context.set_result(left_var.clone(), left_result.clone());
-                eprintln!(
-                    "[build_executor_chain] left result stored, checking: {:?}",
-                    context
-                        .get_result(&left_var)
-                        .map(|r| std::mem::discriminant(&r))
-                );
 
                 // If right child (or its descendants) is ExpandAllNode with input_var,
                 // also store the result under that variable name
@@ -126,19 +103,12 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
 
                 if let Some(input_var) = find_expand_all_input_var(children[1]) {
                     if input_var != left_var {
-                        eprintln!("[build_executor_chain] Also storing left result under ExpandAllNode's input_var: {}", input_var);
                         context.set_result(input_var, left_result);
                     }
                 }
 
-                eprintln!("[build_executor_chain] building right child executor...");
-                eprintln!(
-                    "[build_executor_chain] right child type: {}",
-                    children[1].name()
-                );
                 let mut right_executor =
                     self.build_executor_chain(children[1], storage.clone(), context)?;
-                eprintln!("[build_executor_chain] executing right child...");
                 let right_result = right_executor.execute().map_err(|e| {
                     QueryError::ExecutionError(format!("Right child execution failed: {}", e))
                 })?;
@@ -148,35 +118,20 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
                     .output_var()
                     .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("right_{}", plan_node.id()));
-                eprintln!(
-                    "[build_executor_chain] right_var: {}, result type: {:?}",
-                    right_var,
-                    std::mem::discriminant(&right_result)
-                );
                 if let ExecutionResult::Values(values) = &right_result {
                     if let Some(Value::DataSet(dataset)) = values.first() {
-                        eprintln!(
-                            "[build_executor_chain] right_dataset rows: {}, col_names: {:?}",
-                            dataset.rows.len(),
-                            dataset.col_names
-                        );
                     }
                 }
                 context.set_result(right_var, right_result);
-                eprintln!("[build_executor_chain] right result stored");
             }
             _ => {
                 // MultipleInputNode: handle similarly to SingleInputNode for now
-                eprintln!("[build_executor_chain] building child executor...");
                 let child_executor =
                     self.build_executor_chain(children[0], storage.clone(), context)?;
-                eprintln!("[build_executor_chain] setting input...");
                 executor.set_input(child_executor);
-                eprintln!("[build_executor_chain] input set");
             }
         }
 
-        eprintln!("[build_executor_chain] returning executor");
         Ok(executor)
     }
 
@@ -315,10 +270,7 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
             .execute()
             .map_err(|e| QueryError::ExecutionError(format!("Executor execution failed: {}", e)))?;
 
-        eprintln!(
-            "[execute_plan] Executor executed, result type: {:?}",
-            std::mem::discriminant(&result)
-        );
+
 
         if let Some(pool) = &self.object_pool {
             if !is_stateful_executor {

@@ -706,7 +706,7 @@ mod tests {
         let right_values: Vec<Value> = vec![];
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
+        let context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
         context.set_result(
             "left".to_string(),
             ExecutionResult::Values(left_values.clone()),
@@ -752,7 +752,7 @@ mod tests {
         let right_values = vec![Value::Int(1), Value::Int(2)];
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
+        let context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
         context.set_result(
             "left".to_string(),
             ExecutionResult::Values(left_values.clone()),

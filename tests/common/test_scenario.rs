@@ -56,18 +56,11 @@ impl TestScenario {
 
     /// Execute a DDL statement
     pub fn exec_ddl(mut self, query: &str) -> Self {
-        println!("[exec_ddl] Executing query: {}", query);
-        println!(
-            "[exec_ddl] Current space: {:?}",
-            self.current_space.as_ref().map(|s| &s.space_name)
-        );
         match self
             .pipeline
             .execute_query_with_space(query, self.current_space.clone())
         {
             Ok(result) => {
-                println!("[exec_ddl] Query executed successfully: {:?}", result);
-                // Check if the result itself is an error
                 match &result {
                     ExecutionResult::Error(e) => {
                         self.last_error = Some(e.clone());
@@ -80,7 +73,6 @@ impl TestScenario {
                 }
             }
             Err(e) => {
-                println!("[exec_ddl] Query execution failed: {:?}", e);
                 self.last_error = Some(format!("{:?}", e));
                 self.last_result = None;
             }
@@ -90,14 +82,11 @@ impl TestScenario {
 
     /// Execute a DML statement
     pub fn exec_dml(mut self, query: &str) -> Self {
-        eprintln!("[exec_dml] Executing query: {}", query);
         match self
             .pipeline
             .execute_query_with_space(query, self.current_space.clone())
         {
             Ok(result) => {
-                eprintln!("[exec_dml] Result: {:?}", result);
-                // Check if the result itself is an error
                 match &result {
                     ExecutionResult::Error(e) => {
                         self.last_error = Some(e.clone());
@@ -110,7 +99,6 @@ impl TestScenario {
                 }
             }
             Err(e) => {
-                eprintln!("[exec_dml] Error: {:?}", e);
                 self.last_error = Some(format!("{:?}", e));
                 self.last_result = None;
             }
@@ -120,14 +108,11 @@ impl TestScenario {
 
     /// Execute a query
     pub fn query(mut self, query: &str) -> Self {
-        eprintln!("[query] Executing query: {}", query);
         match self
             .pipeline
             .execute_query_with_space(query, self.current_space.clone())
         {
             Ok(result) => {
-                eprintln!("[query] Result: {:?}", result);
-                // Check if the result itself is an error
                 match &result {
                     ExecutionResult::Error(e) => {
                         self.last_error = Some(e.clone());
@@ -140,7 +125,6 @@ impl TestScenario {
                 }
             }
             Err(e) => {
-                eprintln!("[query] Error: {:?}", e);
                 self.last_error = Some(format!("{:?}", e));
                 self.last_result = None;
             }
@@ -153,12 +137,9 @@ impl TestScenario {
     /// Setup graph space
     pub fn setup_space(mut self, space_name: &str) -> Self {
         let query = format!("CREATE SPACE IF NOT EXISTS {}", space_name);
-        println!("[setup_space] Executing query: {}", query);
 
-        // CREATE SPACE does not require a space context, so we pass None
         match self.pipeline.execute_query_with_space(&query, None) {
             Ok(result) => {
-                println!("[setup_space] Query executed successfully: {:?}", result);
                 match &result {
                     ExecutionResult::Success | ExecutionResult::Empty => {
                         self.last_result = Some(result);
@@ -176,7 +157,6 @@ impl TestScenario {
                 }
             }
             Err(e) => {
-                println!("[setup_space] Query execution failed: {:?}", e);
                 self.last_error = Some(format!("{:?}", e));
                 self.last_result = None;
                 return self;
@@ -187,11 +167,9 @@ impl TestScenario {
             let storage_guard = self.storage.lock();
             storage_guard.get_space(space_name)
         };
-        println!("[setup_space] Got space result: {:?}", space_result);
 
         match space_result {
             Ok(Some(space)) => {
-                println!("[setup_space] Space found: {:?}", space);
                 self.current_space = Some(space);
             }
             Ok(None) => {

@@ -45,19 +45,10 @@ impl RowExpressionContext {
 
     /// Retrieve values based on column names.
     pub fn get_value_by_name(&self, name: &str) -> Option<&Value> {
-        eprintln!(
-            "[RowExpressionContext] get_value_by_name: name={}, col_name_index keys: {:?}",
-            name,
-            self.col_name_index.keys().collect::<Vec<_>>()
-        );
         let result = self
             .col_name_index
             .get(name)
             .and_then(|&idx| self.row.get(idx));
-        eprintln!(
-            "[RowExpressionContext] get_value_by_name result: {:?}",
-            result.is_some()
-        );
         result
     }
 }
@@ -72,20 +63,10 @@ impl crate::query::executor::expression::evaluator::traits::ExpressionContext
         }
 
         // Then check the column names (it is possible to access the column names as variables).
-        eprintln!(
-            "[RowExpressionContext] Looking for variable: {}, col_name_index: {:?}",
-            name,
-            self.col_name_index.keys().collect::<Vec<_>>()
-        );
         if let Some(value) = self.get_value_by_name(name) {
-            eprintln!(
-                "[RowExpressionContext] Found variable: {} = {:?}",
-                name, value
-            );
             return Some(value.clone());
         }
 
-        eprintln!("[RowExpressionContext] Variable not found: {}", name);
         None
     }
 

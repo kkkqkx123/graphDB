@@ -149,7 +149,6 @@ fn test_c_api_execute_simple_query() {
                     .to_string_lossy()
                     .to_string()
             };
-            eprintln!("错误码: {}, 错误信息: {}", rc, msg);
         }
     }
 
@@ -292,9 +291,6 @@ fn test_c_api_transaction_begin_commit() {
     assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32);
     assert!(!txn.is_null());
 
-    // Print the address of the transaction handler (for debugging purposes)
-    eprintln!("事务句柄地址: {:?}", txn);
-
     // Submit the transaction
     let rc = unsafe { graphdb::api::embedded::c_api::transaction::graphdb_txn_commit(txn) };
 
@@ -307,7 +303,6 @@ fn test_c_api_transaction_begin_commit() {
                     .to_string_lossy()
                     .to_string()
             };
-            eprintln!("事务提交失败 - 错误码: {}, 错误信息: {}", rc, msg);
         }
     }
 

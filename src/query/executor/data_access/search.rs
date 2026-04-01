@@ -487,6 +487,18 @@ impl<S: StorageClient> IndexScanExecutor<S> {
             })
             .collect()
     }
+
+    /// Comparing two values
+    fn compare_values(a: &Value, b: &Value) -> Option<std::cmp::Ordering> {
+        match (a, b) {
+            (Value::Int(a_i), Value::Int(b_i)) => Some(a_i.cmp(b_i)),
+            (Value::Float(a_f), Value::Float(b_f)) => a_f.partial_cmp(b_f),
+            (Value::Int(a_i), Value::Float(b_f)) => (*a_i as f64).partial_cmp(b_f),
+            (Value::Float(a_f), Value::Int(b_i)) => a_f.partial_cmp(&(*b_i as f64)),
+            (Value::String(a_s), Value::String(b_s)) => Some(a_s.cmp(b_s)),
+            _ => None,
+        }
+    }
 }
 
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor<S> {

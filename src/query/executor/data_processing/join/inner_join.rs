@@ -149,34 +149,20 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
 
         // Helper function to get column names from dataset or extract from key expression
         let get_col_names = |dataset: &DataSet, key_expr: &Expression| -> Vec<String> {
-            eprintln!(
-                "[get_col_names] dataset.col_names: {:?}, key_expr: {:?}",
-                dataset.col_names, key_expr
-            );
             if dataset.col_names.len() == 1 && dataset.col_names[0] == "_vertex" {
                 // If the dataset has only one column named "_vertex", try to extract the variable name from the key expression
                 if let Expression::Variable(var_name) = key_expr {
-                    eprintln!(
-                        "[get_col_names] Using variable name from key_expr: {}",
-                        var_name
-                    );
                     vec![var_name.clone()]
                 } else {
-                    eprintln!("[get_col_names] Using dataset col_names (key_expr is not Variable)");
                     dataset.col_names.clone()
                 }
             } else {
-                eprintln!("[get_col_names] Using dataset col_names (not single _vertex column)");
                 dataset.col_names.clone()
             }
         };
 
-        eprintln!("[InnerJoinExecutor] exchange = {}", exchange);
-
         let (hash_key, probe_key, build_dataset, probe_dataset, build_col_names, probe_col_names) =
             if exchange {
-                // When exchanging, swap the hash and probe keys as well
-                eprintln!("[InnerJoinExecutor] Exchanging: left and right datasets swapped");
                 let build_col_names = get_col_names(right_dataset, &probe_keys[0]);
                 let probe_col_names = get_col_names(left_dataset, &hash_keys[0]);
                 (
@@ -202,69 +188,26 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
 
         let mut hash_table: HashMap<Value, Vec<Vec<Value>>> = HashMap::new();
 
-        eprintln!(
-            "[InnerJoinExecutor] hash_key: {:?}, probe_key: {:?}",
-            hash_key, probe_key
-        );
-        eprintln!(
-            "[InnerJoinExecutor] build_col_names: {:?}, probe_col_names: {:?}",
-            build_col_names, probe_col_names
-        );
-
         for row in &build_dataset.rows {
-            eprintln!("[InnerJoinExecutor] processing build row: {:?}", row);
             let mut context = RowExpressionContext::from_dataset(row, &build_col_names);
-            eprintln!(
-                "[InnerJoinExecutor] context created with col_names: {:?}",
-                build_col_names
-            );
             let key = ExpressionEvaluator::evaluate(&hash_key, &mut context).map_err(|e| {
-                eprintln!(
-                    "[InnerJoinExecutor] Key evaluation failed for hash_key {:?}: {}",
-                    hash_key, e
-                );
                 QueryError::ExecutionError(format!("Key evaluation failed: {}", e))
             })?;
-            eprintln!("[InnerJoinExecutor] build row: {:?}, key: {:?}", row, key);
 
             hash_table.entry(key).or_default().push(row.to_vec());
         }
-        eprintln!(
-            "[InnerJoinExecutor] hash_table keys: {:?}",
-            hash_table.keys().collect::<Vec<_>>()
-        );
 
         let mut result = DataSet::new();
         result.col_names = self.base_executor.get_col_names().clone();
         let output_col_names = result.col_names.clone();
 
-        eprintln!(
-            "[InnerJoinExecutor] Processing {} probe rows",
-            probe_dataset.rows.len()
-        );
         for (idx, probe_row) in probe_dataset.rows.iter().enumerate() {
-            eprintln!("[InnerJoinExecutor] probe_row[{}]: {:?}", idx, probe_row);
-            let mut context = RowExpressionContext::from_dataset(probe_row, &probe_col_names);
-            let probe_key_val = match ExpressionEvaluator::evaluate(&probe_key, &mut context) {
-                Ok(k) => {
-                    eprintln!("[InnerJoinExecutor] probe_row[{}] key: {:?}", idx, k);
-                    k
-                }
-                Err(e) => {
-                    eprintln!(
-                        "[InnerJoinExecutor] probe_row[{}] key evaluation failed: {}",
-                        idx, e
-                    );
-                    continue;
-                }
-            };
+            let mut probe_context = RowExpressionContext::from_dataset(probe_row, &probe_col_names);
+            let probe_key_val = ExpressionEvaluator::evaluate(&probe_key, &mut probe_context).map_err(|e| {
+                QueryError::ExecutionError(format!("Key evaluation failed: {}", e))
+            })?;
 
             if let Some(matching_rows) = hash_table.get(&probe_key_val) {
-                eprintln!(
-                    "[InnerJoinExecutor] probe_row[{}] found {} matching rows",
-                    idx,
-                    matching_rows.len()
-                );
                 for build_row in matching_rows {
                     // When exchange is true, build_row comes from right_dataset and probe_row comes from left_dataset
                     // But output_col_names is in left-then-right order, so we need to swap the arguments
@@ -287,11 +230,6 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
                     };
                     result.rows.push(new_row);
                 }
-            } else {
-                eprintln!(
-                    "[InnerJoinExecutor] probe_row[{}] no matching rows for key {:?}",
-                    idx, probe_key_val
-                );
             }
         }
 
@@ -471,16 +409,6 @@ impl<S: StorageClient + Send + 'static> Executor<S> for InnerJoinExecutor<S> {
             return Ok(ExecutionResult::Values(vec![Value::DataSet(empty_result)]));
         }
 
-        eprintln!(
-            "[InnerJoinExecutor] left_dataset rows: {}, col_names: {:?}",
-            left_dataset.rows.len(),
-            left_dataset.col_names
-        );
-        eprintln!(
-            "[InnerJoinExecutor] right_dataset rows: {}, col_names: {:?}",
-            right_dataset.rows.len(),
-            right_dataset.col_names
-        );
         let result = if self.use_multi_key {
             self.execute_multi_key_join(&left_dataset, &right_dataset)
                 .map_err(DBError::from)?
@@ -488,8 +416,6 @@ impl<S: StorageClient + Send + 'static> Executor<S> for InnerJoinExecutor<S> {
             self.execute_single_key_join(&left_dataset, &right_dataset)
                 .map_err(DBError::from)?
         };
-        eprintln!("[InnerJoinExecutor] result rows: {}", result.rows.len());
-
         self.base_executor
             .get_base_mut()
             .get_stats_mut()

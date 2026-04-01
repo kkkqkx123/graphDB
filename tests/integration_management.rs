@@ -84,7 +84,6 @@ fn test_use_execution_basic() {
     let query = "USE test_space";
     let result = pipeline_manager.execute_query(query);
 
-    println!("USE基础执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
 
@@ -103,7 +102,6 @@ fn test_use_execution_nonexistent() {
     let query = "USE nonexistent_space_xyz";
     let result = pipeline_manager.execute_query(query);
 
-    println!("USE不存在空间执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
 
@@ -188,7 +186,6 @@ fn test_show_execution_spaces() {
     let query = "SHOW SPACES";
     let result = pipeline_manager.execute_query(query);
 
-    println!("SHOW SPACES执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
 
@@ -207,7 +204,6 @@ fn test_show_execution_tags() {
     let query = "SHOW TAGS";
     let result = pipeline_manager.execute_query(query);
 
-    println!("SHOW TAGS执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
 
@@ -226,7 +222,6 @@ fn test_show_execution_edges() {
     let query = "SHOW EDGES";
     let result = pipeline_manager.execute_query(query);
 
-    println!("SHOW EDGES执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
 
@@ -291,7 +286,6 @@ fn test_explain_execution_match() {
     let query = "EXPLAIN MATCH (n:Person) RETURN n";
     let result = pipeline_manager.execute_query(query);
 
-    println!("EXPLAIN MATCH执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
 
@@ -310,7 +304,6 @@ fn test_explain_execution_go() {
     let query = "EXPLAIN GO FROM 1 OVER KNOWS";
     let result = pipeline_manager.execute_query(query);
 
-    println!("EXPLAIN GO执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
 
@@ -407,7 +400,6 @@ fn test_return_execution_basic() {
     let query = "RETURN 'Hello World'";
     let result = pipeline_manager.execute_query(query);
 
-    println!("RETURN基础执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
 
@@ -468,7 +460,6 @@ fn test_with_execution_basic() {
     let query = "WITH 1 AS x RETURN x";
     let result = pipeline_manager.execute_query(query);
 
-    println!("WITH基础执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
 
@@ -533,7 +524,6 @@ fn test_unwind_execution_basic() {
     let query = "UNWIND [1, 2, 3] AS n RETURN n";
     let result = pipeline_manager.execute_query(query);
 
-    println!("UNWIND基础执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
 
@@ -598,7 +588,6 @@ fn test_pipe_execution_basic() {
     let query = "GO FROM 1 OVER KNOWS | YIELD target.name";
     let result = pipeline_manager.execute_query(query);
 
-    println!("PIPE基础执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
 
@@ -626,7 +615,6 @@ fn test_management_show_operations() {
 
     for (i, query) in show_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
-        println!("SHOW操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
 }
@@ -652,7 +640,6 @@ fn test_management_explain_operations() {
 
     for (i, query) in explain_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
-        println!("EXPLAIN操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
 }
@@ -678,7 +665,6 @@ fn test_auxiliary_return_operations() {
 
     for (i, query) in return_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
-        println!("RETURN操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
 }
@@ -703,7 +689,6 @@ fn test_auxiliary_unwind_operations() {
 
     for (i, query) in unwind_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
-        println!("UNWIND操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
 }
@@ -728,7 +713,6 @@ fn test_auxiliary_pipe_operations() {
 
     for (i, query) in pipe_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
-        println!("PIPE操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
 }
@@ -782,7 +766,6 @@ fn test_management_combined_operations() {
 
     for (i, query) in combined_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
-        println!("组合操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
 }
@@ -807,7 +790,6 @@ fn test_auxiliary_with_operations() {
 
     for (i, query) in with_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
-        println!("WITH操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
 }
@@ -829,7 +811,6 @@ fn test_management_performance() {
 
     for i in 0..iterations {
         let result = pipeline_manager.execute_query(query);
-        println!("性能测试 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
 }
@@ -1069,7 +1050,6 @@ fn test_new_management_features() {
 
     for (i, query) in new_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
-        println!("新管理功能 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
 }

@@ -225,15 +225,8 @@ impl MatchStatementPlanner {
                     match element {
                         PathElement::Node(node) => {
                             let node_plan = self.plan_pattern_node(node, space_id, space_name)?;
-                            eprintln!(
-                                "[plan_path_pattern] Node plan root type: {:?}",
-                                node_plan.root.as_ref().map(|r| r.name())
-                            );
-
                             plan = if let Some(existing_root) = plan.root.take() {
-                                eprintln!("[plan_path_pattern] existing_root type: {:?}, prev_node_alias: {:?}", existing_root.name(), prev_node_alias);
                                 if let Some(ref alias) = prev_node_alias {
-                                    eprintln!("[plan_path_pattern] Calling join_node_plans with left_alias: {}, right_alias: {:?}", alias, node.variable);
                                     self.join_node_plans(
                                         SubPlan::new(Some(existing_root), plan.tail),
                                         node_plan,
@@ -273,7 +266,6 @@ impl MatchStatementPlanner {
                             plan = if let Some(existing_root) = plan.root.take() {
                                 // Use HashInnerJoin to connect the previous node with the edge expansion
                                 // The previous node's alias should match with "src" column of ExpandAll
-                                eprintln!("[plan_path_pattern] Edge: Using HashInnerJoin with left_alias: {}, right_alias: src", input_alias);
                                 self.join_node_plans(
                                     SubPlan::new(Some(existing_root), plan.tail),
                                     edge_plan,
@@ -381,16 +373,8 @@ impl MatchStatementPlanner {
             let label_filter =
                 Self::build_label_filter_expression(&node.variable, &node.labels, expr_ctx);
             let root_node = plan.root.as_ref().expect("plan的root应该存在");
-            eprintln!(
-                "[plan_pattern_node] Before FilterNode, root col_names: {:?}",
-                root_node.col_names()
-            );
             let filter_node = FilterNode::new(root_node.clone(), label_filter)
                 .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
-            eprintln!(
-                "[plan_pattern_node] After FilterNode, filter col_names: {:?}",
-                filter_node.col_names()
-            );
             plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
         }
 
@@ -552,23 +536,10 @@ impl MatchStatementPlanner {
             None => return Ok(left),
         };
 
-        // If right_root is ExpandAllNode, we need to set its input_var
-        // But we don't know the CrossJoin node's ID yet, so we'll use a special marker
-        // and update it later when we know the actual ID
-        eprintln!(
-            "[cross_join_plans] right_root type: {:?}, is_expand_all: {}",
-            right_root.name(),
-            right_root.as_expand_all().is_some()
-        );
         let (right_root, needs_id_update) = if let Some(expand_all) = right_root.as_expand_all() {
-            eprintln!(
-                "[cross_join_plans] ExpandAllNode found, input_var: {:?}",
-                expand_all.get_input_var()
-            );
             if expand_all.get_input_var().is_none() {
                 // Use a marker that indicates we need to update with the actual ID later
                 let marker_var = "__CROSSJOIN_ID_MARKER__".to_string();
-                eprintln!("[cross_join_plans] Setting input_var to marker");
                 let mut new_expand = expand_all.clone();
                 new_expand.set_input_var(marker_var);
                 (new_expand.into_enum(), true)
@@ -587,10 +558,6 @@ impl MatchStatementPlanner {
         if needs_id_update {
             let join_id = join_node.id();
             let actual_var = format!("left_{}", join_id);
-            eprintln!(
-                "[cross_join_plans] Updating marker to actual var: {}",
-                actual_var
-            );
 
             // Update the right child (ExpandAllNode) with the actual variable name
             if let Some(expand_all) = join_node.right_input().as_expand_all() {
@@ -614,10 +581,6 @@ impl MatchStatementPlanner {
         };
 
         if let Some(var) = output_var {
-            eprintln!(
-                "[cross_join_plans] Setting CrossJoinNode output_var to: {}",
-                var
-            );
             join_node.set_output_var(var);
         }
 
@@ -661,11 +624,6 @@ impl MatchStatementPlanner {
         let left_var = format!("left_{}", join_id);
         let right_var = format!("right_{}", join_id);
 
-        eprintln!(
-            "[join_node_plans] Setting left_var: {}, right_var: {}",
-            left_var, right_var
-        );
-
         // Set output_var for left and right inputs so that extract_join_vars can find them
         // This ensures that when build_executor_chain stores the results, the variable names match
         left_root.set_output_var(left_var);
@@ -691,10 +649,6 @@ impl MatchStatementPlanner {
         if let Some(scan_node) = right_root.as_scan_vertices() {
             let right_col_names = scan_node.col_names();
             if right_col_names.len() == 1 && right_col_names[0] != probe_alias {
-                eprintln!(
-                    "[join_node_plans] Updating right column name from '{}' to '{}'",
-                    right_col_names[0], probe_alias
-                );
                 let mut new_scan = scan_node.clone();
                 new_scan.set_col_names(vec![probe_alias.to_string()]);
                 right_root = new_scan.into_enum();

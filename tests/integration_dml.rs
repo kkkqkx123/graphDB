@@ -181,7 +181,6 @@ fn test_create_parser_vertex() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("CREATE vertex parsing result: {:?}", result);
     let _ = result;
 }
 
@@ -191,7 +190,6 @@ fn test_create_parser_edge() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("CREATE edge parsing result: {:?}", result);
     let _ = result;
 }
 
@@ -201,7 +199,6 @@ fn test_create_parser_multiple() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("CREATE multiple vertices parsing result: {:?}", result);
     let _ = result;
 }
 
@@ -689,7 +686,6 @@ fn test_merge_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("MERGE basic parsing result: {:?}", result);
     let _ = result;
 }
 
@@ -699,7 +695,6 @@ fn test_merge_parser_on_match() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("MERGE with ON MATCH parsing result: {:?}", result);
     let _ = result;
 }
 
@@ -709,7 +704,6 @@ fn test_merge_parser_on_create() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("MERGE with ON CREATE parsing result: {:?}", result);
     let _ = result;
 }
 
@@ -719,10 +713,6 @@ fn test_merge_parser_both() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!(
-        "MERGE with ON MATCH and ON CREATE parsing result: {:?}",
-        result
-    );
     let _ = result;
 }
 

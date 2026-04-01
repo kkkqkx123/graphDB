@@ -327,11 +327,6 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                     vertex_id,
                     info.properties.len()
                 );
-                eprintln!(
-                    "[build_update] vertex_id={:?}, properties_count={}",
-                    vertex_id,
-                    info.properties.len()
-                );
 
                 let mut properties = HashMap::new();
                 for (key, value_expr) in &info.properties {
@@ -340,10 +335,6 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                         "[build_update] property '{}' expression={:?}",
                         key,
                         expr_opt
-                    );
-                    eprintln!(
-                        "[build_update] property '{}' expression={:?}",
-                        key, expr_opt
                     );
                     let value = expr_opt
                         .and_then(|e| Self::evaluate_literal(&e))

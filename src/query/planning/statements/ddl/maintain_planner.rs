@@ -103,9 +103,7 @@ impl Planner for MaintainPlanner {
             PlanNodeEnum::Project(project_node)
         } else if stmt_type.starts_with("CREATE") {
             // Operation to create a type
-            println!("[MaintainPlanner] Processing CREATE statement");
             if let Stmt::Create(create_stmt) = validated.stmt() {
-                println!("[MaintainPlanner] Create target: {:?}", create_stmt.target);
                 if let CreateTarget::Index {
                     index_type,
                     name,

@@ -86,7 +86,6 @@ fn test_create_cypher_node_complex_props() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("复杂属性解析结果: {:?}", result);
     // Assertions are not mandatory for now, as some features may still be under development
 }
 
@@ -127,7 +126,6 @@ fn test_create_cypher_edge_bidirectional() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("双向边解析结果: {:?}", result);
     // Bidirectional edges may not be supported at this time, just record the results
 }
 
@@ -137,7 +135,6 @@ fn test_create_cypher_edge_left_to_right() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("反向边解析结果: {:?}", result);
     // Reverse edges may not be supported at this time, just record the results
 }
 
@@ -175,7 +172,6 @@ fn test_create_cypher_long_path() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("长路径解析结果: {:?}", result);
     // Longer paths may not be supported at this time, just record the results
 }
 
@@ -201,7 +197,6 @@ fn test_create_cypher_mixed_patterns() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("混合模式解析结果: {:?}", result);
     // Mixed mode may not be supported at this time, just record the results
 }
 
@@ -231,7 +226,6 @@ fn test_create_cypher_node_execution() {
     let query = "CREATE (n:Person {name: 'Alice', age: 30})";
     let result = pipeline_manager.execute_query(query);
 
-    println!("CREATE节点执行结果: {:?}", result);
     // Record results, do not force assertions as features may still be under development
 }
 
@@ -259,7 +253,6 @@ fn test_create_cypher_edge_execution() {
     let query = "CREATE (a:Person {name: 'Alice'})-[:KNOWS {since: '2020-01-01'}]->(b:Person {name: 'Bob'})";
     let result = pipeline_manager.execute_query(query);
 
-    println!("CREATE边执行结果: {:?}", result);
     // Record results, do not force assertions as features may still be under development
 }
 
@@ -271,7 +264,6 @@ fn test_create_cypher_invalid_syntax() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("无效语法解析结果: {:?}", result);
     // Should return an error, but only log the result for now
 }
 
@@ -281,7 +273,6 @@ fn test_create_cypher_empty_label() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("空标签解析结果: {:?}", result);
     // Record results, which may or may not be supported
 }
 
@@ -291,7 +282,6 @@ fn test_create_cypher_nested_props() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    println!("嵌套属性解析结果: {:?}", result);
     // Nested attributes may not be supported at the moment, just record the results
 }
 
@@ -372,9 +362,6 @@ fn test_cypher_vs_ngql_create_node() {
     let mut ngql_parser = Parser::new(ngql_query);
     let ngql_result = ngql_parser.parse();
 
-    println!("Cypher解析结果: {:?}", cypher_result);
-    println!("NGQL解析结果: {:?}", ngql_result);
-
     // Both should be successfully parsed
     assert!(
         cypher_result.is_ok(),
@@ -397,9 +384,6 @@ fn test_cypher_vs_ngql_create_edge() {
     let ngql_query = "INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01')";
     let mut ngql_parser = Parser::new(ngql_query);
     let ngql_result = ngql_parser.parse();
-
-    println!("Cypher解析结果: {:?}", cypher_result);
-    println!("NGQL解析结果: {:?}", ngql_result);
 
     // Cypher syntax should parse successfully
     assert!(
