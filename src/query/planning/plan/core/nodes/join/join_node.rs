@@ -53,7 +53,9 @@ impl InnerJoinNode {
         })
     }
 
-    pub fn right(&self) -> &crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    pub fn right(
+        &self,
+    ) -> &crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         &self.right
     }
 }
@@ -118,7 +120,6 @@ impl CrossJoinNode {
         left: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         right: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) -> Result<Self, crate::query::planning::planner::PlannerError> {
-        use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
         use crate::query::planning::plan::core::node_id_generator::next_node_id;
 
         // Merge column names, avoiding duplicates
@@ -126,7 +127,10 @@ impl CrossJoinNode {
         let right_col_names = right.col_names();
 
         eprintln!("[CrossJoinNode::new] left col_names: {:?}", col_names);
-        eprintln!("[CrossJoinNode::new] right col_names: {:?}", right_col_names);
+        eprintln!(
+            "[CrossJoinNode::new] right col_names: {:?}",
+            right_col_names
+        );
 
         // Add right column names, skipping duplicates
         for col in right_col_names {

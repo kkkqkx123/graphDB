@@ -60,10 +60,7 @@ impl DefaultExpressionContext {
     /// Synchronize the variable back to the ExecutionContext.
     ///
     /// Synchronize all variables from the current DefaultExpressionContext to the ExecutionContext.
-    pub fn sync_to_execution_context(
-        self,
-        ctx: &crate::query::executor::base::ExecutionContext,
-    ) {
+    pub fn sync_to_execution_context(self, ctx: &crate::query::executor::base::ExecutionContext) {
         for (name, value) in self.variables {
             ctx.set_variable(name, value);
         }

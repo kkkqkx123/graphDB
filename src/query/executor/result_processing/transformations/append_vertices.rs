@@ -364,7 +364,7 @@ mod tests {
         let input_result = ExecutionResult::Values(vids);
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
+        let context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
         context.set_result("input".to_string(), input_result);
 
         let src_expression = Expression::Variable("_".to_string());

@@ -272,8 +272,8 @@ impl LookupPlanner {
         index_columns: &[String],
         limits: &mut Vec<IndexLimit>,
     ) {
-        match expr {
-            Expression::Binary { left, op, right } => match op {
+        if let Expression::Binary { left, op, right } = expr {
+            match op {
                 BinaryOperator::Equal => {
                     if let Some((col, val)) = Self::extract_comparison(left, right, index_columns) {
                         limits.push(IndexLimit::equal(col, val));
@@ -379,8 +379,7 @@ impl LookupPlanner {
                     Self::extract_conditions(right, index_columns, limits);
                 }
                 _ => {}
-            },
-            _ => {}
+            }
         }
     }
 

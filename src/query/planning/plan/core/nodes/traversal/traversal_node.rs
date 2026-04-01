@@ -113,33 +113,58 @@ impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode
         self.col_names = names;
     }
 
-    fn into_enum(self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::ExpandAll(self)
+    fn into_enum(
+        self,
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::ExpandAll(
+            self,
+        )
     }
 }
 
-impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNodeClonable for ExpandAllNode {
-    fn clone_plan_node(&self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::ExpandAll(self.clone())
+impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNodeClonable
+    for ExpandAllNode
+{
+    fn clone_plan_node(
+        &self,
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::ExpandAll(
+            self.clone(),
+        )
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    fn clone_with_new_id(
+        &self,
+        new_id: i64,
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::ExpandAll(cloned)
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::ExpandAll(
+            cloned,
+        )
     }
 }
 
-impl crate::query::planning::plan::core::nodes::base::plan_node_traits::MultipleInputNode for ExpandAllNode {
-    fn inputs(&self) -> &[crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum] {
+impl crate::query::planning::plan::core::nodes::base::plan_node_traits::MultipleInputNode
+    for ExpandAllNode
+{
+    fn inputs(
+        &self,
+    ) -> &[crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum] {
         &self.deps
     }
 
-    fn inputs_mut(&mut self) -> &mut Vec<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum> {
+    fn inputs_mut(
+        &mut self,
+    ) -> &mut Vec<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>
+    {
         &mut self.deps
     }
 
-    fn add_input(&mut self, input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
+    fn add_input(
+        &mut self,
+        input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+    ) {
         self.deps.push(input);
     }
 
@@ -354,24 +379,34 @@ impl ExpandAllNode {
         self.input_var = Some(input_var);
     }
 
-    pub fn dependencies(&self) -> &[crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum] {
+    pub fn dependencies(
+        &self,
+    ) -> &[crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum] {
         &self.deps
     }
 }
 
-impl crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable for ExpandAllNode {
+impl crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable
+    for ExpandAllNode
+{
     fn estimate_memory(&self) -> usize {
         let base = std::mem::size_of::<ExpandAllNode>();
 
         // Estimate edge_types Vec<String>
         let edge_types_size = std::mem::size_of::<Vec<String>>()
-            + self.edge_types.iter().map(|s| std::mem::size_of::<String>() + s.capacity()).sum::<usize>();
+            + self
+                .edge_types
+                .iter()
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
+                .sum::<usize>();
 
         // Estimate direction String
         let direction_size = std::mem::size_of::<String>() + self.direction.capacity();
 
         // Estimate step_limits Vec<u32>
-        let step_limits_size = self.step_limits.as_ref()
+        let step_limits_size = self
+            .step_limits
+            .as_ref()
             .map(|v| std::mem::size_of::<Vec<u32>>() + v.len() * std::mem::size_of::<u32>())
             .unwrap_or(0);
 
@@ -389,19 +424,37 @@ impl crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryE
 
         // Estimate output_var Option<String>
         let output_var_size = std::mem::size_of::<Option<String>>()
-            + self.output_var.as_ref().map(|s| std::mem::size_of::<String>() + s.capacity()).unwrap_or(0);
+            + self
+                .output_var
+                .as_ref()
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
+                .unwrap_or(0);
 
         // Estimate col_names Vec<String>
         let col_names_size = std::mem::size_of::<Vec<String>>()
-            + self.col_names.iter().map(|s| std::mem::size_of::<String>() + s.capacity()).sum::<usize>();
+            + self
+                .col_names
+                .iter()
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
+                .sum::<usize>();
 
         // Estimate input_var Option<String>
         let input_var_size = std::mem::size_of::<Option<String>>()
-            + self.input_var.as_ref().map(|s| std::mem::size_of::<String>() + s.capacity()).unwrap_or(0);
+            + self
+                .input_var
+                .as_ref()
+                .map(|s| std::mem::size_of::<String>() + s.capacity())
+                .unwrap_or(0);
 
-        base + edge_types_size + direction_size + step_limits_size
-            + edge_props_size + vertex_props_size + src_vids_size
-            + output_var_size + col_names_size + input_var_size
+        base + edge_types_size
+            + direction_size
+            + step_limits_size
+            + edge_props_size
+            + vertex_props_size
+            + src_vids_size
+            + output_var_size
+            + col_names_size
+            + input_var_size
     }
 }
 

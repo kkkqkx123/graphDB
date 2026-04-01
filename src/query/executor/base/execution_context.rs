@@ -2,9 +2,9 @@
 //!
 //! Manage the intermediate results and variables during the execution of the executor.
 
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 use super::execution_result::ExecutionResult;
 use crate::core::Value;

@@ -116,7 +116,10 @@ fn extract_variable_names(expr: &Expression) -> Vec<String> {
                 }
             }
             Expression::ListComprehension {
-                source, filter, map, ..
+                source,
+                filter,
+                map,
+                ..
             } => {
                 collect(source, names);
                 if let Some(f) = filter {
@@ -530,10 +533,10 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
             ExecutionResult::Values(values) => {
                 // If values contains a single DataSet, use it directly instead of wrapping it
                 if values.len() == 1 {
-                    if let Value::DataSet(mut dataset) = values[0].clone() {
+                    if let Value::DataSet(dataset) = &values[0] {
                         eprintln!("[ProjectExecutor] Unwrapping nested DataSet with col_names: {:?}, rows: {}", dataset.col_names, dataset.rows.len());
                         // Apply projection to the unwrapped dataset
-                        let projected_dataset = self.project_dataset(dataset)?;
+                        let projected_dataset = self.project_dataset(dataset.clone())?;
                         return Ok(ExecutionResult::DataSet(projected_dataset));
                     }
                 }

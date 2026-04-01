@@ -206,12 +206,8 @@ impl<S: StorageClient> IndexScanExecutor<S> {
 
                                 if passes_end {
                                     // Create edge key: src:dst:ranking
-                                    let edge_key = format!(
-                                        "{}:{}:{}",
-                                        edge.src.to_string(),
-                                        edge.dst.to_string(),
-                                        edge.ranking
-                                    );
+                                    let edge_key =
+                                        format!("{}:{}:{}", edge.src, edge.dst, edge.ranking);
                                     results.push(Value::String(edge_key));
                                 }
                             }
@@ -333,73 +329,6 @@ impl<S: StorageClient> IndexScanExecutor<S> {
             "ranking" => Some(Value::Int(edge.ranking)),
             _ => None,
         }
-    }
-
-    /// Getting the value of an attribute of an entity for range filtering
-    fn get_entity_property_for_filter(
-        &self,
-        storage: &S,
-        id: &Value,
-        column_name: &str,
-    ) -> Option<Value> {
-        let space_name = match self.get_space_name(storage) {
-            Ok(name) => name,
-            Err(_) => return None,
-        };
-
-        if self.is_edge {
-            // Edge type: ID format should be src:dst:ranking
-            if let Value::String(edge_key) = id {
-                let parts: Vec<&str> = edge_key.split(':').collect();
-                if parts.len() >= 2 {
-                    let src = Value::String(parts[0].to_string());
-                    let dst = Value::String(parts[1].to_string());
-                    let schema_name = match self.get_schema_name(storage) {
-                        Ok(name) => name,
-                        Err(_) => return None,
-                    };
-
-                    if let Ok(Some(edge)) =
-                        storage.get_edge(&space_name, &src, &dst, &schema_name, 0)
-                    {
-                        // Find from the properties of the edge
-                        if let Some(value) = edge.props.get(column_name) {
-                            return Some(value.clone());
-                        }
-                        // special field
-                        match column_name {
-                            "src" => return Some((*edge.src).clone()),
-                            "dst" => return Some((*edge.dst).clone()),
-                            "edge_type" => return Some(Value::String(edge.edge_type.clone())),
-                            "ranking" => return Some(Value::Int(edge.ranking)),
-                            _ => return None,
-                        }
-                    }
-                }
-            }
-        } else {
-            // Vertex Type
-            if let Ok(Some(vertex)) = storage.get_vertex(&space_name, id) {
-                // Find from vertex's attributes
-                if let Some(value) = vertex.properties.get(column_name) {
-                    return Some(value.clone());
-                }
-                // Find from tag's attributes
-                for tag in &vertex.tags {
-                    if let Some(value) = tag.properties.get(column_name) {
-                        return Some(value.clone());
-                    }
-                }
-                // special field
-                match column_name {
-                    "vid" => return Some((*vertex.vid).clone()),
-                    "id" => return Some(Value::Int(vertex.id)),
-                    _ => return None,
-                }
-            }
-        }
-
-        None
     }
 
     /// Get the complete vertex or edge based on the ID list
@@ -557,54 +486,6 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                 _ => entity,
             })
             .collect()
-    }
-
-    /// Checks if the value is within the specified range
-    fn value_in_range(
-        value: &Value,
-        start: &Value,
-        end: &Value,
-        include_begin: bool,
-        include_end: bool,
-    ) -> bool {
-        use std::cmp::Ordering;
-
-        // Compare Starting Boundaries
-        let pass_start = match Self::compare_values(value, start) {
-            Some(Ordering::Greater) => true,
-            Some(Ordering::Equal) => include_begin,
-            Some(Ordering::Less) => false,
-            None => false,
-        };
-
-        if !pass_start {
-            return false;
-        }
-
-        // Comparison End Boundary
-        match Self::compare_values(value, end) {
-            Some(Ordering::Less) => true,
-            Some(Ordering::Equal) => include_end,
-            Some(Ordering::Greater) => false,
-            None => false,
-        }
-    }
-
-    /// Comparing two values
-    fn compare_values(a: &Value, b: &Value) -> Option<std::cmp::Ordering> {
-        match (a, b) {
-            (Value::Int(a_i), Value::Int(b_i)) => Some(a_i.cmp(b_i)),
-            (Value::Float(a_f), Value::Float(b_f)) => a_f.partial_cmp(b_f),
-            (Value::Int(a_i), Value::Float(b_f)) => (*a_i as f64).partial_cmp(b_f),
-            (Value::Float(a_f), Value::Int(b_i)) => a_f.partial_cmp(&(*b_i as f64)),
-            (Value::String(a_s), Value::String(b_s)) => Some(a_s.cmp(b_s)),
-            _ => None,
-        }
-    }
-
-    /// Check if two values are equal
-    fn values_equal(a: &Value, b: &Value) -> bool {
-        matches!(Self::compare_values(a, b), Some(std::cmp::Ordering::Equal))
     }
 }
 

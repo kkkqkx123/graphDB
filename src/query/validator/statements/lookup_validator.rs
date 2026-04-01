@@ -220,24 +220,20 @@ impl LookupValidator {
             // Type was not specified, try to infer from schema
             // First try as Tag
             match schema_manager.as_ref().get_tag(space_name, label) {
-                Ok(Some(_tag_info)) => {
-                    return Ok((LookupIndexType::Single(label.to_string()), false));
-                }
+                Ok(Some(_tag_info)) => Ok((LookupIndexType::Single(label.to_string()), false)),
                 Ok(None) => {
                     // Tag not found, try as Edge
                     match schema_manager.as_ref().get_edge_type(space_name, label) {
                         Ok(Some(_edge_info)) => {
-                            return Ok((LookupIndexType::Single(label.to_string()), true));
+                            Ok((LookupIndexType::Single(label.to_string()), true))
                         }
-                        Ok(None) => {
-                            return Err(ValidationError::new(
-                                format!(
-                                    "Tag or Edge type '{}' not found in space '{}'",
-                                    label, space_name
-                                ),
-                                ValidationErrorType::SemanticError,
-                            ));
-                        }
+                        Ok(None) => Err(ValidationError::new(
+                            format!(
+                                "Tag or Edge type '{}' not found in space '{}'",
+                                label, space_name
+                            ),
+                            ValidationErrorType::SemanticError,
+                        )),
                         Err(e) => {
                             return Err(ValidationError::new(
                                 format!("Failed to get edge type '{}': {}", label, e),

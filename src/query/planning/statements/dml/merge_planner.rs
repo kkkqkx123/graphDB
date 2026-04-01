@@ -100,43 +100,30 @@ impl MergePlanner {
         props_expr: &ContextualExpression,
         expr_context: &Arc<crate::query::validator::context::ExpressionAnalysisContext>,
     ) -> Result<(Vec<String>, Vec<ContextualExpression>, ContextualExpression), PlannerError> {
-        let expr_opt = props_expr.get_expression();
+        if let Some(Expression::Map(entries)) = props_expr.get_expression() {
+            let mut prop_names = Vec::new();
+            let mut prop_values = Vec::new();
 
-        if let Some(expr) = expr_opt {
-            if let Expression::Map(entries) = expr {
-                let mut prop_names = Vec::new();
-                let mut prop_values = Vec::new();
+            for (key, value) in entries {
+                prop_names.push(key.clone());
 
-                for (key, value) in entries {
-                    prop_names.push(key.clone());
-
-                    let value_meta = ExpressionMeta::new(value.clone());
-                    let value_id = expr_context.register_expression(value_meta);
-                    let ctx_value = ContextualExpression::new(value_id, expr_context.clone());
-                    prop_values.push(ctx_value);
-                }
-
-                let vid_expr = if let Some(first_value) = prop_values.first() {
-                    if let Some(first_expr) = first_value.get_expression() {
-                        if let Expression::Literal(Value::Int(i)) = first_expr {
-                            let vid_meta = ExpressionMeta::new(Expression::Literal(Value::Int(i)));
-                            let vid_id = expr_context.register_expression(vid_meta);
-                            ContextualExpression::new(vid_id, expr_context.clone())
-                        } else {
-                            self.create_vid_expression(expr_context)?
-                        }
-                    } else {
-                        self.create_vid_expression(expr_context)?
-                    }
-                } else {
-                    self.create_vid_expression(expr_context)?
-                };
-
-                Ok((prop_names, prop_values, vid_expr))
-            } else {
-                let vid_expr = self.create_vid_expression(expr_context)?;
-                Ok((vec![], vec![], vid_expr))
+                let value_meta = ExpressionMeta::new(value.clone());
+                let value_id = expr_context.register_expression(value_meta);
+                let ctx_value = ContextualExpression::new(value_id, expr_context.clone());
+                prop_values.push(ctx_value);
             }
+
+            let vid_expr = if let Some(Expression::Literal(Value::Int(i))) =
+                prop_values.first().and_then(|v| v.get_expression())
+            {
+                let vid_meta = ExpressionMeta::new(Expression::Literal(Value::Int(i)));
+                let vid_id = expr_context.register_expression(vid_meta);
+                ContextualExpression::new(vid_id, expr_context.clone())
+            } else {
+                self.create_vid_expression(expr_context)?
+            };
+
+            Ok((prop_names, prop_values, vid_expr))
         } else {
             let vid_expr = self.create_vid_expression(expr_context)?;
             Ok((vec![], vec![], vid_expr))

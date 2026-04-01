@@ -234,12 +234,12 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                     // Use scan and delete approach for edges without specific rank
                     let edges = storage
                         .scan_edges_by_type(&self.space_name, edge_type)
-                        .map_err(|e| crate::core::error::DBError::Storage(e))?;
+                        .map_err(crate::core::error::DBError::Storage)?;
                     for edge in edges {
                         if *edge.src == *src && *edge.dst == *dst {
                             storage
                                 .delete_edge(&self.space_name, src, dst, edge_type, edge.ranking)
-                                .map_err(|e| crate::core::error::DBError::Storage(e))?;
+                                .map_err(crate::core::error::DBError::Storage)?;
                             total_deleted += 1;
                             break;
                         }

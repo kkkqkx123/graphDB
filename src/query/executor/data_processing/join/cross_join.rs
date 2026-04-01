@@ -107,10 +107,22 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
         }
         result.col_names = col_names;
 
-        eprintln!("[execute_two_way_cartesian_product] left_dataset col_names: {:?}", left_dataset.col_names);
-        eprintln!("[execute_two_way_cartesian_product] left_dataset rows: {:?}", left_dataset.rows);
-        eprintln!("[execute_two_way_cartesian_product] right_dataset col_names: {:?}", right_dataset.col_names);
-        eprintln!("[execute_two_way_cartesian_product] right_dataset rows: {:?}", right_dataset.rows);
+        eprintln!(
+            "[execute_two_way_cartesian_product] left_dataset col_names: {:?}",
+            left_dataset.col_names
+        );
+        eprintln!(
+            "[execute_two_way_cartesian_product] left_dataset rows: {:?}",
+            left_dataset.rows
+        );
+        eprintln!(
+            "[execute_two_way_cartesian_product] right_dataset col_names: {:?}",
+            right_dataset.col_names
+        );
+        eprintln!(
+            "[execute_two_way_cartesian_product] right_dataset rows: {:?}",
+            right_dataset.rows
+        );
 
         // Calculate the size of the result set and pre-allocate memory accordingly.
         let estimated_size = left_dataset.rows.len() * right_dataset.rows.len();
@@ -128,8 +140,14 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
             }
         }
 
-        eprintln!("[execute_two_way_cartesian_product] result col_names: {:?}", result.col_names);
-        eprintln!("[execute_two_way_cartesian_product] result rows: {:?}", result.rows);
+        eprintln!(
+            "[execute_two_way_cartesian_product] result col_names: {:?}",
+            result.col_names
+        );
+        eprintln!(
+            "[execute_two_way_cartesian_product] result rows: {:?}",
+            result.rows
+        );
 
         Ok(result)
     }
@@ -227,7 +245,10 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
 
 impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        eprintln!("[CrossJoinExecutor] execute called, input_vars: {:?}", self.input_vars);
+        eprintln!(
+            "[CrossJoinExecutor] execute called, input_vars: {:?}",
+            self.input_vars
+        );
         // Select the implementation method based on the number of inputs.
         let result = if self.input_vars.len() == 2 {
             // Cartesian product of two sets
@@ -246,7 +267,10 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                         left_var
                     )))
                 })?;
-            eprintln!("[CrossJoinExecutor] left_result type: {:?}", std::mem::discriminant(&left_result));
+            eprintln!(
+                "[CrossJoinExecutor] left_result type: {:?}",
+                std::mem::discriminant(&left_result)
+            );
 
             eprintln!("[CrossJoinExecutor] looking for right_var: {}", right_var);
             let right_result = self
@@ -260,11 +284,17 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                         right_var
                     )))
                 })?;
-            eprintln!("[CrossJoinExecutor] right_result type: {:?}", std::mem::discriminant(&right_result));
+            eprintln!(
+                "[CrossJoinExecutor] right_result type: {:?}",
+                std::mem::discriminant(&right_result)
+            );
 
             let left_dataset = match left_result {
                 ExecutionResult::Values(values) => {
-                    eprintln!("[CrossJoinExecutor] left_result is Values, len: {}", values.len());
+                    eprintln!(
+                        "[CrossJoinExecutor] left_result is Values, len: {}",
+                        values.len()
+                    );
                     if let Some(Value::DataSet(dataset)) = values.first() {
                         dataset.clone()
                     } else {
@@ -276,37 +306,49 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                     }
                 }
                 ExecutionResult::DataSet(dataset) => {
-                    eprintln!("[CrossJoinExecutor] left_result is DataSet, rows: {}", dataset.rows.len());
+                    eprintln!(
+                        "[CrossJoinExecutor] left_result is DataSet, rows: {}",
+                        dataset.rows.len()
+                    );
                     dataset.clone()
                 }
                 ExecutionResult::Vertices(vertices) => {
-                    eprintln!("[CrossJoinExecutor] left_result is Vertices, len: {}", vertices.len());
+                    eprintln!(
+                        "[CrossJoinExecutor] left_result is Vertices, len: {}",
+                        vertices.len()
+                    );
                     // Convert Vertices to DataSet
-                    let rows: Vec<Vec<Value>> = vertices.iter().map(|v| vec![Value::Vertex(Box::new(v.clone()))]).collect();
+                    let rows: Vec<Vec<Value>> = vertices
+                        .iter()
+                        .map(|v| vec![Value::Vertex(Box::new(v.clone()))])
+                        .collect();
                     // Use the column names from the base_executor instead of hardcoding
                     let col_names = if self.base_executor.get_col_names().is_empty() {
                         vec!["_vertex".to_string()]
                     } else {
                         self.base_executor.get_col_names().to_vec()
                     };
-                    DataSet {
-                        col_names,
-                        rows,
-                    }
+                    DataSet { col_names, rows }
                 }
                 _ => {
-                    eprintln!("[CrossJoinExecutor] left_result is other type: {:?}", std::mem::discriminant(&left_result));
+                    eprintln!(
+                        "[CrossJoinExecutor] left_result is other type: {:?}",
+                        std::mem::discriminant(&left_result)
+                    );
                     return Err(DBError::Query(
                         crate::core::error::QueryError::ExecutionError(
                             "左输入不是有效的数据集".to_string(),
                         ),
-                    ))
+                    ));
                 }
             };
 
             let right_dataset = match right_result {
                 ExecutionResult::Values(values) => {
-                    eprintln!("[CrossJoinExecutor] right_result is Values, len: {}", values.len());
+                    eprintln!(
+                        "[CrossJoinExecutor] right_result is Values, len: {}",
+                        values.len()
+                    );
                     if values.is_empty() {
                         // Return empty dataset with appropriate column names
                         let col_names = if self.base_executor.get_col_names().is_empty() {
@@ -321,13 +363,17 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                         return Ok(ExecutionResult::Values(vec![Value::DataSet(empty_dataset)]));
                     }
                     if let Some(first) = values.first() {
-                        eprintln!("[CrossJoinExecutor] right_result first value type: {:?}", std::mem::discriminant(first));
+                        eprintln!(
+                            "[CrossJoinExecutor] right_result first value type: {:?}",
+                            std::mem::discriminant(first)
+                        );
                         match first {
                             Value::DataSet(dataset) => dataset.clone(),
                             Value::List(_) => {
                                 // Convert List values to DataSet
                                 // Each List represents a path from ExpandAllExecutor
-                                let rows: Vec<Vec<Value>> = values.iter().map(|v| vec![v.clone()]).collect();
+                                let rows: Vec<Vec<Value>> =
+                                    values.iter().map(|v| vec![v.clone()]).collect();
                                 DataSet {
                                     col_names: vec!["_path".to_string()],
                                     rows,
@@ -352,7 +398,10 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                 ExecutionResult::DataSet(dataset) => dataset.clone(),
                 ExecutionResult::Vertices(vertices) => {
                     // Convert Vertices to DataSet
-                    let rows: Vec<Vec<Value>> = vertices.iter().map(|v| vec![Value::Vertex(Box::new(v.clone()))]).collect();
+                    let rows: Vec<Vec<Value>> = vertices
+                        .iter()
+                        .map(|v| vec![Value::Vertex(Box::new(v.clone()))])
+                        .collect();
                     DataSet {
                         col_names: vec!["_vertex".to_string()],
                         rows,
@@ -367,11 +416,24 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                 }
             };
 
-            eprintln!("[CrossJoinExecutor] left_dataset rows: {}, col_names: {:?}", left_dataset.rows.len(), left_dataset.col_names);
-            eprintln!("[CrossJoinExecutor] right_dataset rows: {}, col_names: {:?}", right_dataset.rows.len(), right_dataset.col_names);
-            let result = self.execute_two_way_cartesian_product(&left_dataset, &right_dataset)
+            eprintln!(
+                "[CrossJoinExecutor] left_dataset rows: {}, col_names: {:?}",
+                left_dataset.rows.len(),
+                left_dataset.col_names
+            );
+            eprintln!(
+                "[CrossJoinExecutor] right_dataset rows: {}, col_names: {:?}",
+                right_dataset.rows.len(),
+                right_dataset.col_names
+            );
+            let result = self
+                .execute_two_way_cartesian_product(&left_dataset, &right_dataset)
                 .map_err(DBError::from)?;
-            eprintln!("[CrossJoinExecutor] result rows: {}, col_names: {:?}", result.rows.len(), result.col_names);
+            eprintln!(
+                "[CrossJoinExecutor] result rows: {}, col_names: {:?}",
+                result.rows.len(),
+                result.col_names
+            );
             result
         } else {
             // Cartesian product of multiple tables

@@ -250,8 +250,6 @@ impl MatchValidator {
         &mut self,
         path: &crate::query::parser::ast::PathPattern,
     ) -> Result<(), ValidationError> {
-        use crate::query::parser::ast::PathElement;
-
         for element in &path.elements {
             self.collect_aliases_from_path_element(element)?;
         }
@@ -278,7 +276,7 @@ impl MatchValidator {
             }
             PathElement::Alternative(patterns) => {
                 for pattern in patterns {
-                    self.collect_aliases_from_patterns(&[pattern.clone()])?;
+                    self.collect_aliases_from_patterns(std::slice::from_ref(pattern))?;
                 }
             }
             PathElement::Optional(inner) => {

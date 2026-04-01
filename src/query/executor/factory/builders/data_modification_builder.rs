@@ -9,9 +9,8 @@ use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::data_modification::{InsertExecutor, RemoveExecutor, RemoveItem};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::planning::plan::core::nodes::{
-    DeleteEdgesNode, DeleteVerticesNode, EdgeUpdateInfo, InsertEdgesNode, InsertVerticesNode,
-    RemoveNode, UpdateEdgesNode, UpdateNode, UpdateTargetType, UpdateVerticesNode,
-    VertexUpdateInfo,
+    DeleteEdgesNode, DeleteVerticesNode, InsertEdgesNode, InsertVerticesNode, RemoveNode,
+    UpdateEdgesNode, UpdateNode, UpdateTargetType, UpdateVerticesNode,
 };
 use crate::storage::StorageClient;
 use parking_lot::Mutex;

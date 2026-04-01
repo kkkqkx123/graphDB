@@ -149,7 +149,10 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
             ExecutionResult::DataSet(dataset) => dataset.clone(),
             ExecutionResult::Vertices(vertices) => {
                 // Convert Vertices to DataSet
-                let rows: Vec<Vec<Value>> = vertices.iter().map(|v| vec![Value::Vertex(Box::new(v.clone()))]).collect();
+                let rows: Vec<Vec<Value>> = vertices
+                    .iter()
+                    .map(|v| vec![Value::Vertex(Box::new(v.clone()))])
+                    .collect();
                 // For Vertices input, use a default column name
                 // The actual column name will be set by the caller based on the join side
                 DataSet {
@@ -188,7 +191,10 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
             ExecutionResult::DataSet(dataset) => dataset.clone(),
             ExecutionResult::Vertices(vertices) => {
                 // Convert Vertices to DataSet
-                let rows: Vec<Vec<Value>> = vertices.iter().map(|v| vec![Value::Vertex(Box::new(v.clone()))]).collect();
+                let rows: Vec<Vec<Value>> = vertices
+                    .iter()
+                    .map(|v| vec![Value::Vertex(Box::new(v.clone()))])
+                    .collect();
                 // For Vertices input, use a default column name
                 // The actual column name will be set by the caller based on the join side
                 DataSet {

@@ -379,7 +379,7 @@ mod tests {
 
         // Create an execution context.
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context);
+        let context = crate::query::executor::base::ExecutionContext::new(expr_context);
         context.set_result("input".to_string(), input_result);
 
         // Create the UnwindExecutor

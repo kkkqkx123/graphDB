@@ -2,7 +2,6 @@
 //!
 //! Query planning for handling DELETE VERTEX/EDGE/TAG statements
 
-use crate::core::types::ContextualExpression;
 use crate::query::parser::ast::{DeleteStmt, DeleteTarget, Stmt};
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,

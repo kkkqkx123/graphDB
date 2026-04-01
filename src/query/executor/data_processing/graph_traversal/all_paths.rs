@@ -81,7 +81,10 @@ impl PathResultCache {
 
     /// Generate a unique key for an NPath based on vertex sequence
     fn generate_path_key(npath: &NPath) -> PathKey {
-        npath.iter_vertices().map(|v| v.vid.as_ref().clone()).collect()
+        npath
+            .iter_vertices()
+            .map(|v| v.vid.as_ref().clone())
+            .collect()
     }
 
     /// Add NPath to the cache with deduplication.
@@ -481,7 +484,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         // Each step: (edge, vertex) where edge connects vertex to its parent.
         // edge.src = vertex, edge.dst = parent (in the reverse direction).
         // For forward path: we go from vertex towards parent, so edge direction is correct.
-        for (edge, vertex) in right_steps {
+        for (edge, _vertex) in right_steps {
             let next_vid = edge.dst.as_ref().clone();
             let reversed_edge = Arc::new(Edge::new(
                 full_path.end_vertex().vid.as_ref().clone(),
@@ -490,10 +493,15 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                 edge.ranking,
                 edge.props.clone(),
             ));
-            if let Some(parent_npath) = right_path.iter().find(|n| {
-                n.vertex().vid.as_ref() == &next_vid
-            }) {
-                full_path = NPath::extend(Arc::new(full_path), reversed_edge, parent_npath.vertex().clone());
+            if let Some(parent_npath) = right_path
+                .iter()
+                .find(|n| n.vertex().vid.as_ref() == &next_vid)
+            {
+                full_path = NPath::extend(
+                    Arc::new(full_path),
+                    reversed_edge,
+                    parent_npath.vertex().clone(),
+                );
             }
         }
 

@@ -519,7 +519,7 @@ impl TestScenario {
     }
 
     /// Assert vertex count
-    pub fn assert_vertex_count(mut self, tag: &str, expected: usize) -> Self {
+    pub fn assert_vertex_count(self, tag: &str, expected: usize) -> Self {
         // Directly query storage to count vertices with the given tag
         let space_name = self
             .current_space
@@ -543,7 +543,7 @@ impl TestScenario {
     }
 
     /// Assert edge count
-    pub fn assert_edge_count(mut self, edge_type: &str, expected: usize) -> Self {
+    pub fn assert_edge_count(self, edge_type: &str, expected: usize) -> Self {
         // Directly query storage to count edges with the given type
         let space_name = self
             .current_space

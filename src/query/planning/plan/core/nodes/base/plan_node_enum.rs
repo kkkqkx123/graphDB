@@ -6,7 +6,9 @@
 use std::collections::HashSet;
 
 use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::{SingleInputNode, PlanNode};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
+    PlanNode, SingleInputNode,
+};
 use crate::query::planning::plan::core::nodes::data_modification::{
     DeleteEdgesNode, DeleteVerticesNode, InsertEdgesNode, InsertVerticesNode, UpdateEdgesNode,
     UpdateNode, UpdateVerticesNode,

@@ -222,14 +222,13 @@ mod tests {
         };
         let index = Index::new(index_config);
 
-        let mut executor =
-            CreateEdgeIndexExecutor::with_if_not_exists(
-                9,
-                storage,
-                "test_space".to_string(),
-                index,
-                create_test_context(),
-            );
+        let mut executor = CreateEdgeIndexExecutor::with_if_not_exists(
+            9,
+            storage,
+            "test_space".to_string(),
+            index,
+            create_test_context(),
+        );
 
         let result = executor.execute();
         assert!(result.is_ok());

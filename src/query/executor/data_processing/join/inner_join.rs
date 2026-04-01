@@ -108,7 +108,12 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
         };
 
         Self {
-            base_executor: BaseJoinExecutor::with_context(config.id, storage, context, join_config_with_desc),
+            base_executor: BaseJoinExecutor::with_context(
+                config.id,
+                storage,
+                context,
+                join_config_with_desc,
+            ),
             single_key_hash_table: None,
             multi_key_hash_table: None,
             use_multi_key,
@@ -144,11 +149,17 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
 
         // Helper function to get column names from dataset or extract from key expression
         let get_col_names = |dataset: &DataSet, key_expr: &Expression| -> Vec<String> {
-            eprintln!("[get_col_names] dataset.col_names: {:?}, key_expr: {:?}", dataset.col_names, key_expr);
+            eprintln!(
+                "[get_col_names] dataset.col_names: {:?}, key_expr: {:?}",
+                dataset.col_names, key_expr
+            );
             if dataset.col_names.len() == 1 && dataset.col_names[0] == "_vertex" {
                 // If the dataset has only one column named "_vertex", try to extract the variable name from the key expression
                 if let Expression::Variable(var_name) = key_expr {
-                    eprintln!("[get_col_names] Using variable name from key_expr: {}", var_name);
+                    eprintln!(
+                        "[get_col_names] Using variable name from key_expr: {}",
+                        var_name
+                    );
                     vec![var_name.clone()]
                 } else {
                     eprintln!("[get_col_names] Using dataset col_names (key_expr is not Variable)");
@@ -161,58 +172,76 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
         };
 
         eprintln!("[InnerJoinExecutor] exchange = {}", exchange);
-        
-        let (hash_key, probe_key, build_dataset, probe_dataset, build_col_names, probe_col_names) = if exchange {
-            // When exchanging, swap the hash and probe keys as well
-            eprintln!("[InnerJoinExecutor] Exchanging: left and right datasets swapped");
-            let build_col_names = get_col_names(right_dataset, &probe_keys[0]);
-            let probe_col_names = get_col_names(left_dataset, &hash_keys[0]);
-            (
-                probe_keys[0].clone(),
-                hash_keys[0].clone(),
-                right_dataset,
-                left_dataset,
-                build_col_names,
-                probe_col_names,
-            )
-        } else {
-            let build_col_names = get_col_names(left_dataset, &hash_keys[0]);
-            let probe_col_names = get_col_names(right_dataset, &probe_keys[0]);
-            (
-                hash_keys[0].clone(),
-                probe_keys[0].clone(),
-                left_dataset,
-                right_dataset,
-                build_col_names,
-                probe_col_names,
-            )
-        };
+
+        let (hash_key, probe_key, build_dataset, probe_dataset, build_col_names, probe_col_names) =
+            if exchange {
+                // When exchanging, swap the hash and probe keys as well
+                eprintln!("[InnerJoinExecutor] Exchanging: left and right datasets swapped");
+                let build_col_names = get_col_names(right_dataset, &probe_keys[0]);
+                let probe_col_names = get_col_names(left_dataset, &hash_keys[0]);
+                (
+                    probe_keys[0].clone(),
+                    hash_keys[0].clone(),
+                    right_dataset,
+                    left_dataset,
+                    build_col_names,
+                    probe_col_names,
+                )
+            } else {
+                let build_col_names = get_col_names(left_dataset, &hash_keys[0]);
+                let probe_col_names = get_col_names(right_dataset, &probe_keys[0]);
+                (
+                    hash_keys[0].clone(),
+                    probe_keys[0].clone(),
+                    left_dataset,
+                    right_dataset,
+                    build_col_names,
+                    probe_col_names,
+                )
+            };
 
         let mut hash_table: HashMap<Value, Vec<Vec<Value>>> = HashMap::new();
 
-        eprintln!("[InnerJoinExecutor] hash_key: {:?}, probe_key: {:?}", hash_key, probe_key);
-        eprintln!("[InnerJoinExecutor] build_col_names: {:?}, probe_col_names: {:?}", build_col_names, probe_col_names);
+        eprintln!(
+            "[InnerJoinExecutor] hash_key: {:?}, probe_key: {:?}",
+            hash_key, probe_key
+        );
+        eprintln!(
+            "[InnerJoinExecutor] build_col_names: {:?}, probe_col_names: {:?}",
+            build_col_names, probe_col_names
+        );
 
         for row in &build_dataset.rows {
             eprintln!("[InnerJoinExecutor] processing build row: {:?}", row);
             let mut context = RowExpressionContext::from_dataset(row, &build_col_names);
-            eprintln!("[InnerJoinExecutor] context created with col_names: {:?}", build_col_names);
-            let key = ExpressionEvaluator::evaluate(&hash_key, &mut context)
-                .map_err(|e| {
-                    eprintln!("[InnerJoinExecutor] Key evaluation failed for hash_key {:?}: {}", hash_key, e);
-                    QueryError::ExecutionError(format!("Key evaluation failed: {}", e))
-                })?;
+            eprintln!(
+                "[InnerJoinExecutor] context created with col_names: {:?}",
+                build_col_names
+            );
+            let key = ExpressionEvaluator::evaluate(&hash_key, &mut context).map_err(|e| {
+                eprintln!(
+                    "[InnerJoinExecutor] Key evaluation failed for hash_key {:?}: {}",
+                    hash_key, e
+                );
+                QueryError::ExecutionError(format!("Key evaluation failed: {}", e))
+            })?;
             eprintln!("[InnerJoinExecutor] build row: {:?}, key: {:?}", row, key);
 
             hash_table.entry(key).or_default().push(row.to_vec());
         }
-        eprintln!("[InnerJoinExecutor] hash_table keys: {:?}", hash_table.keys().collect::<Vec<_>>());
+        eprintln!(
+            "[InnerJoinExecutor] hash_table keys: {:?}",
+            hash_table.keys().collect::<Vec<_>>()
+        );
 
         let mut result = DataSet::new();
         result.col_names = self.base_executor.get_col_names().clone();
         let output_col_names = result.col_names.clone();
 
-        eprintln!("[InnerJoinExecutor] Processing {} probe rows", probe_dataset.rows.len());
+        eprintln!(
+            "[InnerJoinExecutor] Processing {} probe rows",
+            probe_dataset.rows.len()
+        );
         for (idx, probe_row) in probe_dataset.rows.iter().enumerate() {
             eprintln!("[InnerJoinExecutor] probe_row[{}]: {:?}", idx, probe_row);
             let mut context = RowExpressionContext::from_dataset(probe_row, &probe_col_names);
@@ -222,13 +251,20 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
                     k
                 }
                 Err(e) => {
-                    eprintln!("[InnerJoinExecutor] probe_row[{}] key evaluation failed: {}", idx, e);
+                    eprintln!(
+                        "[InnerJoinExecutor] probe_row[{}] key evaluation failed: {}",
+                        idx, e
+                    );
                     continue;
                 }
             };
 
             if let Some(matching_rows) = hash_table.get(&probe_key_val) {
-                eprintln!("[InnerJoinExecutor] probe_row[{}] found {} matching rows", idx, matching_rows.len());
+                eprintln!(
+                    "[InnerJoinExecutor] probe_row[{}] found {} matching rows",
+                    idx,
+                    matching_rows.len()
+                );
                 for build_row in matching_rows {
                     // When exchange is true, build_row comes from right_dataset and probe_row comes from left_dataset
                     // But output_col_names is in left-then-right order, so we need to swap the arguments
@@ -252,7 +288,10 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
                     result.rows.push(new_row);
                 }
             } else {
-                eprintln!("[InnerJoinExecutor] probe_row[{}] no matching rows for key {:?}", idx, probe_key_val);
+                eprintln!(
+                    "[InnerJoinExecutor] probe_row[{}] no matching rows for key {:?}",
+                    idx, probe_key_val
+                );
             }
         }
 
@@ -282,7 +321,7 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
                     continue;
                 }
             }
-            
+
             // If not found, try to strip suffix (e.g., "src_1" -> "src")
             // This handles the case where HashInnerJoinNode adds suffixes to duplicate column names
             let base_name = if let Some(underscore_pos) = col_name.rfind('_') {
@@ -300,7 +339,7 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
             } else {
                 col_name
             };
-            
+
             if let Some(idx) = left_col_names.iter().position(|c| c == base_name) {
                 if let Some(val) = left_row.get(idx) {
                     result.push(val.clone());
@@ -334,26 +373,27 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
             return Err(QueryError::ExecutionError("哈希键或探测键为空".to_string()));
         }
 
-        let (hash_keys, probe_keys, build_dataset, probe_dataset, build_col_names, probe_col_names) = if exchange {
-            // When exchanging, swap the hash and probe keys as well
-            (
-                probe_keys,
-                hash_keys,
-                right_dataset,
-                left_dataset,
-                &right_dataset.col_names,
-                &left_dataset.col_names,
-            )
-        } else {
-            (
-                hash_keys,
-                probe_keys,
-                left_dataset,
-                right_dataset,
-                &left_dataset.col_names,
-                &right_dataset.col_names,
-            )
-        };
+        let (hash_keys, probe_keys, build_dataset, probe_dataset, build_col_names, probe_col_names) =
+            if exchange {
+                // When exchanging, swap the hash and probe keys as well
+                (
+                    probe_keys,
+                    hash_keys,
+                    right_dataset,
+                    left_dataset,
+                    &right_dataset.col_names,
+                    &left_dataset.col_names,
+                )
+            } else {
+                (
+                    hash_keys,
+                    probe_keys,
+                    left_dataset,
+                    right_dataset,
+                    &left_dataset.col_names,
+                    &right_dataset.col_names,
+                )
+            };
 
         let mut hash_table: HashMap<Vec<Value>, Vec<Vec<Value>>> = HashMap::new();
 
@@ -431,8 +471,16 @@ impl<S: StorageClient + Send + 'static> Executor<S> for InnerJoinExecutor<S> {
             return Ok(ExecutionResult::Values(vec![Value::DataSet(empty_result)]));
         }
 
-        eprintln!("[InnerJoinExecutor] left_dataset rows: {}, col_names: {:?}", left_dataset.rows.len(), left_dataset.col_names);
-        eprintln!("[InnerJoinExecutor] right_dataset rows: {}, col_names: {:?}", right_dataset.rows.len(), right_dataset.col_names);
+        eprintln!(
+            "[InnerJoinExecutor] left_dataset rows: {}, col_names: {:?}",
+            left_dataset.rows.len(),
+            left_dataset.col_names
+        );
+        eprintln!(
+            "[InnerJoinExecutor] right_dataset rows: {}, col_names: {:?}",
+            right_dataset.rows.len(),
+            right_dataset.col_names
+        );
         let result = if self.use_multi_key {
             self.execute_multi_key_join(&left_dataset, &right_dataset)
                 .map_err(DBError::from)?

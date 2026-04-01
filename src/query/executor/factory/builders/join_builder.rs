@@ -81,8 +81,15 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         let hash_keys: Vec<crate::core::types::ContextualExpression> = node.hash_keys().to_vec();
         let probe_keys: Vec<crate::core::types::ContextualExpression> = node.probe_keys().to_vec();
 
-        eprintln!("[build_hash_inner_join] left_var: {}, right_var: {}", left_var, right_var);
-        eprintln!("[build_hash_inner_join] hash_keys count: {}, probe_keys count: {}", hash_keys.len(), probe_keys.len());
+        eprintln!(
+            "[build_hash_inner_join] left_var: {}, right_var: {}",
+            left_var, right_var
+        );
+        eprintln!(
+            "[build_hash_inner_join] hash_keys count: {}, probe_keys count: {}",
+            hash_keys.len(),
+            probe_keys.len()
+        );
 
         let config = InnerJoinConfig {
             id: node.id(),
@@ -93,8 +100,7 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
             col_names: node.col_names().to_vec(),
         };
 
-        let executor =
-            HashInnerJoinExecutor::with_context(storage, context.clone(), config);
+        let executor = HashInnerJoinExecutor::with_context(storage, context.clone(), config);
         Ok(ExecutorEnum::HashInnerJoin(executor))
     }
 
@@ -182,16 +188,41 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         // Check if right child is ExpandAllNode with input_var set
         let (left_var, right_var) = if let Some(expand_all) = node.right_input().as_expand_all() {
             if let Some(input_var) = expand_all.get_input_var() {
-                eprintln!("[build_cross_join] Using ExpandAllNode's input_var as left_var: {}", input_var);
-                (input_var.to_string(), node.right_input().output_var().map(|v| v.to_string()).unwrap_or_else(|| format!("right_{}", node.id())))
+                eprintln!(
+                    "[build_cross_join] Using ExpandAllNode's input_var as left_var: {}",
+                    input_var
+                );
+                (
+                    input_var.to_string(),
+                    node.right_input()
+                        .output_var()
+                        .map(|v| v.to_string())
+                        .unwrap_or_else(|| format!("right_{}", node.id())),
+                )
             } else {
-                let left_var = node.left_input().output_var().map(|v| v.to_string()).unwrap_or_else(|| format!("left_{}", node.id()));
-                let right_var = node.right_input().output_var().map(|v| v.to_string()).unwrap_or_else(|| format!("right_{}", node.id()));
+                let left_var = node
+                    .left_input()
+                    .output_var()
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| format!("left_{}", node.id()));
+                let right_var = node
+                    .right_input()
+                    .output_var()
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| format!("right_{}", node.id()));
                 (left_var, right_var)
             }
         } else {
-            let left_var = node.left_input().output_var().map(|v| v.to_string()).unwrap_or_else(|| format!("left_{}", node.id()));
-            let right_var = node.right_input().output_var().map(|v| v.to_string()).unwrap_or_else(|| format!("right_{}", node.id()));
+            let left_var = node
+                .left_input()
+                .output_var()
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| format!("left_{}", node.id()));
+            let right_var = node
+                .right_input()
+                .output_var()
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| format!("right_{}", node.id()));
             (left_var, right_var)
         };
 

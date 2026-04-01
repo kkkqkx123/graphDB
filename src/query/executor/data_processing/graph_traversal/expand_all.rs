@@ -2,7 +2,6 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::core::error::DBResult;
-use crate::core::value::list::List;
 use crate::core::{Edge, NPath, Path, Value, Vertex};
 use crate::query::validator::context::ExpressionAnalysisContext;
 
@@ -284,12 +283,17 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
             input_exec.execute()?
         } else if let Some(ref input_var) = self.input_var {
             // Try to get input from ExecutionContext
-            eprintln!("[ExpandAllExecutor] Trying to get input from context, var: {}", input_var);
-            self.base.context.get_result(input_var)
-                .unwrap_or_else(|| {
-                    eprintln!("[ExpandAllExecutor] Input var not found in context: {}", input_var);
-                    ExecutionResult::Vertices(Vec::new())
-                })
+            eprintln!(
+                "[ExpandAllExecutor] Trying to get input from context, var: {}",
+                input_var
+            );
+            self.base.context.get_result(input_var).unwrap_or_else(|| {
+                eprintln!(
+                    "[ExpandAllExecutor] Input var not found in context: {}",
+                    input_var
+                );
+                ExecutionResult::Vertices(Vec::new())
+            })
         } else {
             // If no actuator is specified, return an empty result.
             ExecutionResult::Vertices(Vec::new())
@@ -352,17 +356,21 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
                 // Extract vertices from DataSet rows
                 // Use input_var to determine which column to use as input vertices
                 let mut vertices = Vec::new();
-                
+
                 // Find the column index for input_var
                 let col_idx = if let Some(ref input_var) = self.input_var {
-                    dataset.col_names.iter().position(|c| c == input_var).unwrap_or(0)
+                    dataset
+                        .col_names
+                        .iter()
+                        .position(|c| c == input_var)
+                        .unwrap_or(0)
                 } else {
                     0 // Default to first column ("src")
                 };
-                
+
                 eprintln!("[ExpandAllExecutor] Extracting vertices from DataSet, input_var: {:?}, col_idx: {}, col_names: {:?}", 
                     self.input_var, col_idx, dataset.col_names);
-                
+
                 for row in &dataset.rows {
                     if let Some(Value::Vertex(vertex)) = row.get(col_idx) {
                         vertices.push(*vertex.clone());

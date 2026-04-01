@@ -168,9 +168,7 @@ fn execute_replace(args: &[Value]) -> Result<Value, ExpressionError> {
     }
 }
 
-fn execute_contains(
-    args: &[Value],
-) -> Result<Value, ExpressionError> {
+fn execute_contains(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 2 {
         return Err(ExpressionError::new(
             ExpressionErrorType::InvalidArgumentCount,
@@ -179,18 +177,20 @@ fn execute_contains(
     }
     match (&args[0], &args[1]) {
         (Value::String(s), Value::String(sub)) => Ok(Value::Bool(s.contains(sub.as_str()))),
-        (Value::List(list), Value::String(target)) => {
-            Ok(Value::Bool(list.values.iter().any(|v| {
-                matches!(v, Value::String(s) if s == target)
-            })))
-        }
-        (Value::List(list), Value::Int(target)) => {
-            Ok(Value::Bool(list.values.iter().any(|v| {
-                matches!(v, Value::Int(i) if *i == *target)
-            })))
-        }
+        (Value::List(list), Value::String(target)) => Ok(Value::Bool(
+            list.values
+                .iter()
+                .any(|v| matches!(v, Value::String(s) if s == target)),
+        )),
+        (Value::List(list), Value::Int(target)) => Ok(Value::Bool(
+            list.values
+                .iter()
+                .any(|v| matches!(v, Value::Int(i) if *i == *target)),
+        )),
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("contains函数需要字符串或列表类型")),
+        _ => Err(ExpressionError::type_error(
+            "contains函数需要字符串或列表类型",
+        )),
     }
 }
 

@@ -114,7 +114,10 @@ fn extract_variable_names(expr: &Expression) -> Vec<String> {
                 }
             }
             Expression::ListComprehension {
-                source, filter, map, ..
+                source,
+                filter,
+                map,
+                ..
             } => {
                 collect(source, names);
                 if let Some(f) = filter {
@@ -214,10 +217,16 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
 
     /// Filter the input data.
     fn filter_input(&self, input: ExecutionResult) -> DBResult<ExecutionResult> {
-        eprintln!("[FilterExecutor] filter_input called with input type: {:?}", std::mem::discriminant(&input));
+        eprintln!(
+            "[FilterExecutor] filter_input called with input type: {:?}",
+            std::mem::discriminant(&input)
+        );
         match input {
             ExecutionResult::DataSet(mut dataset) => {
-                eprintln!("[FilterExecutor] input is DataSet, col_names: {:?}", dataset.col_names);
+                eprintln!(
+                    "[FilterExecutor] input is DataSet, col_names: {:?}",
+                    dataset.col_names
+                );
                 self.apply_filter(&mut dataset)?;
                 Ok(ExecutionResult::DataSet(dataset))
             }
@@ -234,7 +243,10 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
                 Ok(ExecutionResult::Values(filtered_values))
             }
             ExecutionResult::Vertices(vertices) => {
-                eprintln!("[FilterExecutor] input is Vertices, len: {}", vertices.len());
+                eprintln!(
+                    "[FilterExecutor] input is Vertices, len: {}",
+                    vertices.len()
+                );
                 let filtered_vertices = self.filter_vertices(vertices)?;
                 Ok(ExecutionResult::Vertices(filtered_vertices))
             }
@@ -278,14 +290,24 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
                     context.set_variable(col_name.clone(), row[i].clone());
                 }
             }
-            
+
             // Debug: print all variables for the first row
             if row_idx == 0 {
-                eprintln!("[FilterExecutor] apply_filter_single: col_names = {:?}", dataset.col_names);
-                eprintln!("[FilterExecutor] apply_filter_single: row.len() = {}, row = {:?}", row.len(), row);
+                eprintln!(
+                    "[FilterExecutor] apply_filter_single: col_names = {:?}",
+                    dataset.col_names
+                );
+                eprintln!(
+                    "[FilterExecutor] apply_filter_single: row.len() = {}, row = {:?}",
+                    row.len(),
+                    row
+                );
                 for (i, col_name) in dataset.col_names.iter().enumerate() {
                     if i < row.len() {
-                        eprintln!("[FilterExecutor] apply_filter_single: variable {} = {:?}", col_name, row[i]);
+                        eprintln!(
+                            "[FilterExecutor] apply_filter_single: variable {} = {:?}",
+                            col_name, row[i]
+                        );
                     }
                 }
             }
@@ -332,10 +354,13 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
                         format!("Failed to evaluate filter condition: {}", e),
                     ))
                 })?;
-            
+
             // Debug: print condition result for first few rows
             if row_idx < 5 {
-                eprintln!("[FilterExecutor] apply_filter_single: row {} condition_result = {:?}", row_idx, condition_result);
+                eprintln!(
+                    "[FilterExecutor] apply_filter_single: row {} condition_result = {:?}",
+                    row_idx, condition_result
+                );
             }
 
             if let crate::core::Value::Bool(true) = condition_result {
@@ -385,11 +410,14 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
             if let crate::core::Value::DataSet(mut dataset) = values[0].clone() {
                 eprintln!("[FilterExecutor] filter_values: input is DataSet with col_names: {:?}, rows: {}", dataset.col_names, dataset.rows.len());
                 self.apply_filter(&mut dataset)?;
-                eprintln!("[FilterExecutor] filter_values: output is DataSet with rows: {}", dataset.rows.len());
+                eprintln!(
+                    "[FilterExecutor] filter_values: output is DataSet with rows: {}",
+                    dataset.rows.len()
+                );
                 return Ok(vec![crate::core::Value::DataSet(dataset)]);
             }
         }
-        
+
         let mut filtered_values = Vec::new();
 
         for value in values {

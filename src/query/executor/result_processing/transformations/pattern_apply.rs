@@ -358,7 +358,7 @@ mod tests {
     fn test_pattern_apply_single_key_positive() {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
+        let context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
 
         let left_values = vec![Value::Int(1), Value::Int(2), Value::Int(3)];
         let right_values = vec![Value::Int(2), Value::Int(4)];
@@ -390,7 +390,7 @@ mod tests {
     fn test_pattern_apply_single_key_anti_predicate() {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
+        let context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
 
         let left_values = vec![Value::Int(1), Value::Int(2), Value::Int(3)];
         let right_values = vec![Value::Int(2), Value::Int(4)];
@@ -423,7 +423,7 @@ mod tests {
     fn test_pattern_apply_zero_key_exists() {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
+        let context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
 
         let left_values = vec![Value::Int(1), Value::Int(2)];
         let right_values = vec![Value::Int(10), Value::Int(20)];
