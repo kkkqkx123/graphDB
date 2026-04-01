@@ -520,11 +520,13 @@ fn test_complex_social_network_query() {
         )
         .assert_success()
         // Complex query: Find friends of friends who live in LA
+        // Note: There are 2 paths to David (via Bob and via Charlie), so we get 2 rows
+        // Using DISTINCT to get unique results
         .query(
             r#"
             MATCH (a:Person)-[:KNOWS]->(b:Person)-[:KNOWS]->(c:Person)
             WHERE a.name == 'Alice' AND c.city == 'LA'
-            RETURN c.name, c.age
+            RETURN DISTINCT c.name, c.age
         "#,
         )
         .assert_success()
@@ -558,6 +560,7 @@ fn test_aggregation_query() {
         "#,
         )
         .assert_success()
+        .debug_print_result()
         .assert_result_count(2);
 }
 

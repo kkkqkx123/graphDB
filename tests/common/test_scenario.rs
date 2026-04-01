@@ -246,6 +246,37 @@ impl TestScenario {
         self
     }
 
+    /// Print the last result for debugging (only in test mode)
+    #[cfg(test)]
+    pub fn debug_print_result(self) -> Self {
+        eprintln!("\n=== Debug: Last Query Result ===");
+        if let Some(ref result) = self.last_result {
+            match result {
+                ExecutionResult::DataSet(ds) => {
+                    eprintln!("Columns: {:?}", ds.col_names);
+                    eprintln!("Rows ({}):", ds.rows.len());
+                    for (i, row) in ds.rows.iter().enumerate() {
+                        eprintln!("  Row {}: {:?}", i, row);
+                    }
+                }
+                ExecutionResult::Result(r) => {
+                    eprintln!("Columns: {:?}", r.col_names());
+                    eprintln!("Rows ({}):", r.rows().len());
+                    for (i, row) in r.rows().iter().enumerate() {
+                        eprintln!("  Row {}: {:?}", i, row);
+                    }
+                }
+                _ => {
+                    eprintln!("Result: {:?}", result);
+                }
+            }
+        } else {
+            eprintln!("No result available");
+        }
+        eprintln!("================================\n");
+        self
+    }
+
     /// Assert result count
     pub fn assert_result_count(self, expected: usize) -> Self {
         let actual = self.last_result.as_ref().map(|r| r.count()).unwrap_or(0);

@@ -18,9 +18,10 @@ use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
 use crate::query::planning::plan::core::nodes::ExpandAllNode;
 use crate::query::planning::plan::core::nodes::{
-    ArgumentNode, LeftJoinNode, LimitNode, LoopNode, ProjectNode, ScanVerticesNode, SortItem,
+    AggregateNode, ArgumentNode, DedupNode, LeftJoinNode, LimitNode, LoopNode, ProjectNode, ScanVerticesNode, SortItem,
     SortNode, UnionNode,
 };
+use crate::core::types::operators::AggregateFunction;
 use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::planning::statements::statement_planner::StatementPlanner;
@@ -187,6 +188,11 @@ impl MatchStatementPlanner {
                     plan = self.plan_project(plan, columns, space_id)?;
                 }
 
+                // Handle DISTINCT keyword
+                if self.extract_distinct_flag(stmt) {
+                    plan = self.plan_dedup(plan)?;
+                }
+
                 if let Some(order_by) = self.extract_order_by(stmt)? {
                     plan = self.plan_sort(plan, order_by, space_id)?;
                 }
@@ -221,6 +227,7 @@ impl MatchStatementPlanner {
                 let mut plan = SubPlan::new(None, None);
                 let mut prev_node_alias: Option<String> = None;
                 let mut is_first_node = true;
+                let mut is_first_edge = true;
 
                 // Convert elements to a vector for indexed access
                 let elements: Vec<_> = path.elements.iter().collect();
@@ -276,22 +283,35 @@ impl MatchStatementPlanner {
                                 self.plan_pattern_edge_with_input(edge, space_id, input_alias, dst_var)?;
 
                             plan = if let Some(existing_root) = plan.root.take() {
-                                // Use HashInnerJoin to connect the previous node with the edge expansion
-                                // The previous node's alias should match with "src" column of ExpandAll
-                                self.join_node_plans(
-                                    SubPlan::new(Some(existing_root), plan.tail),
-                                    edge_plan,
-                                    input_alias,
-                                    &Some("src".to_string()),
-                                    self.expr_context.as_ref().ok_or_else(|| {
-                                        PlannerError::PlanGenerationFailed(
-                                            "Expression context is unavailable".to_string(),
-                                        )
-                                    })?,
-                                )?
+                                if is_first_edge {
+                                    // For the first edge, directly connect the node scan to edge expansion
+                                    // by setting the input_var of ExpandAllNode to use the output of ScanVerticesNode
+                                    // This avoids the Cartesian product issue
+                                    self.connect_node_to_edge_expansion(
+                                        SubPlan::new(Some(existing_root), plan.tail),
+                                        edge_plan,
+                                        input_alias,
+                                    )?
+                                } else {
+                                    // For subsequent edges, use HashInnerJoin to connect
+                                    // The previous edge's dst column should match with the next edge's src column
+                                    let prev_dst_var = input_alias;
+                                    self.join_edge_expansions(
+                                        SubPlan::new(Some(existing_root), plan.tail),
+                                        edge_plan,
+                                        prev_dst_var,
+                                        self.expr_context.as_ref().ok_or_else(|| {
+                                            PlannerError::PlanGenerationFailed(
+                                                "Expression context is unavailable".to_string(),
+                                            )
+                                        })?,
+                                    )?
+                                }
                             } else {
                                 edge_plan
                             };
+
+                            is_first_edge = false;
 
                             // After edge expansion, the next node should use the dst column
                             // which is named after the next node's variable
@@ -513,12 +533,14 @@ impl MatchStatementPlanner {
         // Set the input variable so ExpandAll can get source vertices from ExecutionContext
         expand_node.set_input_var(input_var.to_string());
 
-        // Set the column names to match ExpandAll's output format: ["src", "edge", dst_var]
-        // Use dst_var if provided, otherwise use "dst"
-        // This allows subsequent operations to reference the destination node by its variable name
+        // Set the column names to match ExpandAll's output format: [input_var, "edge", dst_var]
+        // Use input_var as the first column name so subsequent operations can reference the source node
+        // Use dst_var if provided, otherwise use "dst" for the destination column
+        // This allows subsequent operations to reference both source and destination nodes by their variable names
+        let src_col_name = input_var.to_string();
         let dst_col_name = dst_var.unwrap_or("dst").to_string();
         expand_node.set_col_names(vec![
-            "src".to_string(),
+            src_col_name,
             "edge".to_string(),
             dst_col_name,
         ]);
@@ -701,6 +723,102 @@ impl MatchStatementPlanner {
         })
     }
 
+    /// Connect a node scan plan to an edge expansion plan
+    ///
+    /// This method directly connects the node scan output to the edge expansion input
+    /// by adding the node scan as an input dependency of the ExpandAllNode.
+    /// This avoids the Cartesian product issue that occurs with CrossJoinNode.
+    fn connect_node_to_edge_expansion(
+        &self,
+        node_plan: SubPlan,
+        edge_plan: SubPlan,
+        node_alias: &str,
+    ) -> Result<SubPlan, PlannerError> {
+        use crate::query::planning::plan::core::nodes::base::plan_node_traits::{MultipleInputNode, PlanNode};
+
+        let node_root = node_plan
+            .root
+            .as_ref()
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("Node plan has no root".to_string()))?;
+
+        let edge_root = edge_plan
+            .root
+            .as_ref()
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("Edge plan has no root".to_string()))?;
+
+        // If the edge root is an ExpandAllNode, add the node scan as an input
+        if let Some(expand_all) = edge_root.as_expand_all() {
+            let mut new_expand = expand_all.clone();
+
+            // Add the node scan as an input dependency
+            // This ensures that the ExpandAllNode will receive the node scan's output as input
+            new_expand.add_input(node_root.clone());
+
+            // Set the input_var to the node_alias so ExpandAllExecutor can find the input
+            // The node scan's output will be stored in ExecutionContext under this variable name
+            new_expand.set_input_var(node_alias.to_string());
+
+            // Set the output_var to help subsequent operations find the result
+            new_expand.set_output_var(format!("expand_{}", new_expand.id()));
+
+            Ok(SubPlan {
+                root: Some(new_expand.into_enum()),
+                tail: node_plan.tail.or(edge_plan.tail),
+            })
+        } else {
+            // If not an ExpandAllNode, fall back to cross_join_plans
+            self.cross_join_plans(node_plan, edge_plan)
+        }
+    }
+
+    /// Join two edge expansion plans
+    ///
+    /// This method connects the output of a previous edge expansion (dst column)
+    /// to the input of the next edge expansion (src column).
+    /// The connection is made by adding the left plan as an input dependency of the right plan's ExpandAllNode.
+    fn join_edge_expansions(
+        &self,
+        left_plan: SubPlan,
+        right_plan: SubPlan,
+        left_dst_alias: &str,
+        _expr_context: &Arc<ExpressionAnalysisContext>,
+    ) -> Result<SubPlan, PlannerError> {
+        use crate::query::planning::plan::core::nodes::base::plan_node_traits::MultipleInputNode;
+
+        let left_root = left_plan
+            .root
+            .as_ref()
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("Left plan has no root".to_string()))?;
+
+        let right_root = right_plan
+            .root
+            .as_ref()
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("Right plan has no root".to_string()))?;
+
+        // If right_root is an ExpandAllNode, add the left plan as an input
+        if let Some(expand_all) = right_root.as_expand_all() {
+            let mut new_expand = expand_all.clone();
+
+            // Add the left plan (previous edge expansion) as an input dependency
+            new_expand.add_input(left_root.clone());
+
+            // Set the input_var to the left_dst_alias so ExpandAllExecutor can find the input
+            // The previous edge expansion's output will be stored in ExecutionContext under this variable name
+            new_expand.set_input_var(left_dst_alias.to_string());
+
+            // Set the output_var to help subsequent operations find the result
+            new_expand.set_output_var(format!("expand_{}", new_expand.id()));
+
+            Ok(SubPlan {
+                root: Some(new_expand.into_enum()),
+                tail: left_plan.tail.or(right_plan.tail),
+            })
+        } else {
+            // If not an ExpandAllNode, fall back to cross_join_plans
+            self.cross_join_plans(left_plan, right_plan)
+        }
+    }
+
     fn plan_node_pattern(&self, space_id: u64, space_name: &str) -> Result<SubPlan, PlannerError> {
         let scan_node = ScanVerticesNode::new(space_id, space_name);
         Ok(SubPlan::from_root(scan_node.into_enum()))
@@ -732,11 +850,125 @@ impl MatchStatementPlanner {
             .as_ref()
             .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
 
-        let project_node = ProjectNode::new(input_node.clone(), columns)?;
-        Ok(SubPlan::new(
-            Some(project_node.into_enum()),
-            input_plan.tail,
-        ))
+        // Check if any column contains an aggregate function
+        let has_aggregate = columns.iter().any(|col| {
+            if let Some(expr_meta) = col.expression.expression() {
+                Self::expression_contains_aggregate(expr_meta.inner())
+            } else {
+                false
+            }
+        });
+
+        if has_aggregate {
+            // For aggregate queries:
+            // 1. First create a ProjectNode to convert input to DataSet with the required columns
+            // 2. Then create an AggregateNode to perform aggregation
+            let (group_keys, agg_functions) = Self::extract_aggregate_info(&columns)?;
+
+            // Create projection columns for all non-aggregate expressions (group keys)
+            let project_columns: Vec<YieldColumn> = columns
+                .iter()
+                .filter(|col| {
+                    if let Some(expr_meta) = col.expression.expression() {
+                        !Self::expression_contains_aggregate(expr_meta.inner())
+                    } else {
+                        false
+                    }
+                })
+                .cloned()
+                .collect();
+
+            // Create ProjectNode to convert Vertices to DataSet
+            let project_node = ProjectNode::new(input_node.clone(), project_columns)?;
+            let project_plan = SubPlan::new(
+                Some(project_node.into_enum()),
+                input_plan.tail,
+            );
+
+            // Create AggregateNode with the projected input
+            let aggregate_node = AggregateNode::new(
+                project_plan.root.clone().unwrap(),
+                group_keys,
+                agg_functions,
+            )?;
+            Ok(SubPlan::new(
+                Some(aggregate_node.into_enum()),
+                project_plan.tail,
+            ))
+        } else {
+            // For non-aggregate queries, create a ProjectNode
+            let project_node = ProjectNode::new(input_node.clone(), columns)?;
+            Ok(SubPlan::new(
+                Some(project_node.into_enum()),
+                input_plan.tail,
+            ))
+        }
+    }
+
+    /// Check if an expression contains an aggregate function
+    fn expression_contains_aggregate(expr: &crate::core::Expression) -> bool {
+        use crate::core::Expression;
+        match expr {
+            Expression::Aggregate { .. } => true,
+            Expression::Binary { left, right, .. } => {
+                Self::expression_contains_aggregate(left) || Self::expression_contains_aggregate(right)
+            }
+            Expression::Unary { operand, .. } => {
+                Self::expression_contains_aggregate(operand)
+            }
+            Expression::Function { args, .. } => {
+                args.iter().any(|arg| Self::expression_contains_aggregate(arg))
+            }
+            _ => false,
+        }
+    }
+
+    /// Extract group keys and aggregate functions from columns
+    fn extract_aggregate_info(
+        columns: &[YieldColumn],
+    ) -> Result<(Vec<String>, Vec<AggregateFunction>), PlannerError> {
+        let mut group_keys = Vec::new();
+        let mut agg_functions = Vec::new();
+
+        for col in columns {
+            if let Some(expr_meta) = col.expression.expression() {
+                let expr = expr_meta.inner();
+                if Self::expression_contains_aggregate(expr) {
+                    // This column has an aggregate function
+                    if let Some(agg_func) = Self::extract_aggregate_function(expr) {
+                        agg_functions.push(agg_func);
+                    }
+                } else {
+                    // This column is a group key
+                    // Use the expression string as the key, which preserves property access like "p.category"
+                    let key = col.expression.to_expression_string();
+                    if !group_keys.contains(&key) {
+                        group_keys.push(key);
+                    }
+                }
+            }
+        }
+
+        Ok((group_keys, agg_functions))
+    }
+
+    /// Extract an AggregateFunction from an expression
+    fn extract_aggregate_function(expr: &crate::core::Expression) -> Option<AggregateFunction> {
+        use crate::core::Expression;
+        match expr {
+            Expression::Aggregate { func, .. } => Some(func.clone()),
+            Expression::Binary { left, right, .. } => {
+                Self::extract_aggregate_function(left)
+                    .or_else(|| Self::extract_aggregate_function(right))
+            }
+            Expression::Unary { operand, .. } => {
+                Self::extract_aggregate_function(operand)
+            }
+            Expression::Function { args, .. } => {
+                args.iter().find_map(|arg| Self::extract_aggregate_function(arg))
+            }
+            _ => None,
+        }
     }
 
     fn plan_sort(
@@ -785,6 +1017,16 @@ impl MatchStatementPlanner {
         Ok(SubPlan::new(Some(limit_node_enum), input_plan.tail))
     }
 
+    fn plan_dedup(&self, input_plan: SubPlan) -> Result<SubPlan, PlannerError> {
+        let input_node = input_plan
+            .root()
+            .as_ref()
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
+
+        let dedup_node = DedupNode::new(input_node.clone())?;
+        Ok(SubPlan::new(Some(dedup_node.into_enum()), input_plan.tail))
+    }
+
     fn extract_where_condition(
         &self,
         stmt: &crate::query::parser::ast::Stmt,
@@ -794,6 +1036,15 @@ impl MatchStatementPlanner {
                 Ok(match_stmt.where_clause.clone())
             }
             _ => Ok(None),
+        }
+    }
+
+    fn extract_distinct_flag(&self, stmt: &crate::query::parser::ast::Stmt) -> bool {
+        match stmt {
+            crate::query::parser::ast::Stmt::Match(match_stmt) => {
+                match_stmt.return_clause.as_ref().map(|r| r.distinct).unwrap_or(false)
+            }
+            _ => false,
         }
     }
 

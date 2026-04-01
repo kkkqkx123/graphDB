@@ -260,33 +260,51 @@ impl<S: StorageClient> AggregateExecutor<S> {
     }
 
     fn process_input(&mut self) -> DBResult<crate::core::value::DataSet> {
-        if let Some(ref mut input_exec) = self.input_executor {
-            let input_result = input_exec.execute()?;
-
-            match input_result {
-                ExecutionResult::DataSet(dataset) => self.aggregate_dataset(dataset),
-                _ => Err(crate::core::error::DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(
-                        "Aggregate executor expects DataSet input".to_string(),
-                    ),
-                )),
-            }
+        let input_result = if let Some(ref mut input_exec) = self.input_executor {
+            input_exec.execute()?
         } else if let Some(input) = &self.base.input {
-            match input {
-                ExecutionResult::DataSet(dataset) => self.aggregate_dataset(dataset.clone()),
-                _ => Err(crate::core::error::DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(
-                        "Aggregate executor expects DataSet input".to_string(),
-                    ),
-                )),
-            }
+            input.clone()
         } else {
-            Err(crate::core::error::DBError::Query(
+            return Err(crate::core::error::DBError::Query(
                 crate::core::error::QueryError::ExecutionError(
                     "Aggregate executor requires input executor".to_string(),
                 ),
-            ))
+            ));
+        };
+
+        match input_result {
+            ExecutionResult::DataSet(dataset) => self.aggregate_dataset(dataset),
+            ExecutionResult::Vertices(vertices) => {
+                // Convert Vertices to DataSet for aggregation
+                let dataset = self.vertices_to_dataset(vertices);
+                self.aggregate_dataset(dataset)
+            }
+            _ => Err(crate::core::error::DBError::Query(
+                crate::core::error::QueryError::ExecutionError(
+                    "Aggregate executor expects DataSet or Vertices input".to_string(),
+                ),
+            )),
         }
+    }
+
+    /// Convert Vertices to a DataSet for aggregation
+    fn vertices_to_dataset(&self, vertices: Vec<crate::core::Vertex>) -> crate::core::value::DataSet {
+        let mut dataset = crate::core::value::DataSet::new();
+        // Use the first group key as the column name, or default to "vertex"
+        let col_name = self.group_keys.first()
+            .and_then(|expr| match expr {
+                Expression::Variable(name) => Some(name.clone()),
+                _ => None,
+            })
+            .unwrap_or_else(|| "vertex".to_string());
+        dataset.col_names = vec![col_name];
+
+        for vertex in vertices {
+            let row = vec![crate::core::Value::Vertex(Box::new(vertex))];
+            dataset.rows.push(row);
+        }
+
+        dataset
     }
 
     fn aggregate_dataset(

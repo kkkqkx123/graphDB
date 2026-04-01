@@ -6,6 +6,7 @@
 
 pub mod assertions;
 pub mod data_fixtures;
+pub mod debug_helpers;
 pub mod query_helpers;
 pub mod storage_helpers;
 pub mod test_scenario;

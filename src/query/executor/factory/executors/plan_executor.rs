@@ -8,10 +8,26 @@ use crate::query::executor::base::{ExecutionContext, ExecutionResult, Executor, 
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::object_pool::ThreadSafeExecutorPool;
 use crate::query::planning::plan::ExecutionPlan;
+use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::QueryContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
+
+/// Find the input_var from an ExpandAllNode in the plan tree
+fn find_expand_all_input_var(node: &PlanNodeEnum) -> Option<String> {
+    if let Some(expand_all) = node.as_expand_all() {
+        expand_all.get_input_var().map(|v| v.to_string())
+    } else {
+        // Recursively check all children
+        for child in node.children() {
+            if let Some(var) = find_expand_all_input_var(child) {
+                return Some(var);
+            }
+        }
+        None
+    }
+}
 
 /// Plan Executor
 pub struct PlanExecutor<S: StorageClient + Send + 'static> {
@@ -87,22 +103,6 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
                 // If right child (or its descendants) is ExpandAllNode with input_var,
                 // also store the result under that variable name
                 // This allows ExpandAllExecutor to find the input using its input_var
-                fn find_expand_all_input_var(
-                    node: &crate::query::planning::plan::PlanNodeEnum,
-                ) -> Option<String> {
-                    if let Some(expand_all) = node.as_expand_all() {
-                        expand_all.get_input_var().map(|v| v.to_string())
-                    } else {
-                        // Recursively check all children
-                        for child in node.children() {
-                            if let Some(var) = find_expand_all_input_var(child) {
-                                return Some(var);
-                            }
-                        }
-                        None
-                    }
-                }
-
                 if let Some(input_var) = find_expand_all_input_var(children[1]) {
                     if input_var != left_var {
                         context.set_result(input_var, left_result);
@@ -127,10 +127,37 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
                 context.set_result(right_var, right_result);
             }
             _ => {
-                // MultipleInputNode: handle similarly to SingleInputNode for now
-                let child_executor =
-                    self.build_executor_chain(children[0], storage.clone(), context)?;
-                executor.set_input(child_executor);
+                // MultipleInputNode (e.g., ExpandAllNode with multiple inputs):
+                // Execute all children and store their results in ExecutionContext
+                // The executor will use input_var to find the appropriate input
+                for (i, child) in children.iter().enumerate() {
+                    let mut child_executor =
+                        self.build_executor_chain(child, storage.clone(), context)?;
+                    let child_result = child_executor.execute().map_err(|e| {
+                        QueryError::ExecutionError(format!("Child {} execution failed: {}", i, e))
+                    })?;
+
+                    // Store the result in ExecutionContext using the child's output_var
+                    let child_var = child
+                        .output_var()
+                        .map(|v| v.to_string())
+                        .unwrap_or_else(|| format!("child_{}_{}", plan_node.id(), i));
+                    context.set_result(child_var, child_result);
+                }
+
+                // If the plan node has an input_var, also store the first child's result under that name
+                // This allows the executor to find the input using input_var
+                if let Some(input_var) = find_expand_all_input_var(plan_node) {
+                    if let Some(first_child) = children.first() {
+                        let first_var = first_child
+                            .output_var()
+                            .map(|v| v.to_string())
+                            .unwrap_or_else(|| format!("child_{}_0", plan_node.id()));
+                        if let Some(result) = context.get_result(&first_var) {
+                            context.set_result(input_var, result);
+                        }
+                    }
+                }
             }
         }
 
