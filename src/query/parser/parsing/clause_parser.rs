@@ -249,7 +249,7 @@ impl ClauseParser {
         let edge_types = self.parse_edge_types(ctx)?;
 
         // Analysis direction (optional)
-        let direction = if ctx.match_token(TokenKind::In) {
+        let direction = if ctx.match_token(TokenKind::In) || ctx.match_token(TokenKind::Reversely) {
             EdgeDirection::In
         } else if ctx.match_token(TokenKind::Bidirect) {
             EdgeDirection::Both

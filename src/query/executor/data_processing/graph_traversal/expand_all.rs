@@ -35,6 +35,8 @@ pub struct ExpandAllExecutor<S: StorageClient + Send + 'static> {
     pub include_empty_paths: bool,
     // Input variable name for getting input from ExecutionContext
     pub input_var: Option<String>,
+    // Column names for the output DataSet
+    pub col_names: Vec<String>,
 }
 
 // Manual Debug implementation for ExpandAllExecutor to avoid requiring Debug trait for Executor trait object
@@ -75,6 +77,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             src_vids: Vec::new(),
             include_empty_paths: true, // Default to true for backward compatibility
             input_var: None,
+            col_names: vec!["src".to_string(), "edge".to_string(), "dst".to_string()],
         }
     }
 
@@ -100,6 +103,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             src_vids: Vec::new(),
             include_empty_paths: true,
             input_var: None,
+            col_names: vec!["src".to_string(), "edge".to_string(), "dst".to_string()],
         }
     }
 
@@ -115,6 +119,11 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
 
     pub fn with_input_var(mut self, input_var: String) -> Self {
         self.input_var = Some(input_var);
+        self
+    }
+
+    pub fn with_col_names(mut self, col_names: Vec<String>) -> Self {
+        self.col_names = col_names;
         self
     }
 
@@ -219,7 +228,8 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
 
     /// Construct the extended result.
     ///
-    /// Returns a DataSet with columns ["src", "edge", "dst"] for each path step.
+    /// Returns a DataSet with columns from self.col_names (typically ["src", "edge", "dst"] or
+    /// with a custom dst column name like ["src", "edge", "b"]) for each path step.
     /// This format allows subsequent operations to easily access the source vertex,
     /// edge, and destination vertex separately.
     fn build_expansion_result(&self) -> ExecutionResult {
@@ -227,8 +237,11 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
         let paths: Vec<Path> = self.npath_cache.iter().map(|np| np.to_path()).collect();
 
         // Build a DataSet with separate columns for src, edge, and dst
+        // Use the configured column names, which may include custom dst column names
         let mut dataset = crate::core::DataSet::new();
-        dataset.col_names = vec!["src".to_string(), "edge".to_string(), "dst".to_string()];
+        dataset.col_names = self.col_names.clone();
+
+        let target_depth = self.max_depth.unwrap_or(1);
 
         for path in &paths {
             // Skip empty paths if include_empty_paths is false
@@ -236,24 +249,39 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                 continue;
             }
 
-            // For each step in the path, create a row with src, edge, dst
-            for step in &path.steps {
-                let row = vec![
-                    Value::Vertex(path.src.clone()),
-                    Value::Edge((*step.edge).clone()),
-                    Value::Vertex(Box::new((*step.dst).clone())),
-                ];
-                dataset.rows.push(row);
-            }
+            // For GO queries (include_empty_paths is false), only return the last step of paths
+            // with exactly the target depth
+            // For other queries (include_empty_paths is true), return all steps
+            if self.include_empty_paths {
+                // For each step in the path, create a row with src, edge, dst
+                for step in &path.steps {
+                    let row = vec![
+                        Value::Vertex(path.src.clone()),
+                        Value::Edge((*step.edge).clone()),
+                        Value::Vertex(Box::new((*step.dst).clone())),
+                    ];
+                    dataset.rows.push(row);
+                }
 
-            // If include_empty_paths is true and path has no steps, add a row with just src
-            if self.include_empty_paths && path.steps.is_empty() {
-                let row = vec![
-                    Value::Vertex(path.src.clone()),
-                    Value::Null(crate::core::NullType::Null),
-                    Value::Null(crate::core::NullType::Null),
-                ];
-                dataset.rows.push(row);
+                // If include_empty_paths is true and path has no steps, add a row with just src
+                if path.steps.is_empty() {
+                    let row = vec![
+                        Value::Vertex(path.src.clone()),
+                        Value::Null(crate::core::NullType::Null),
+                        Value::Null(crate::core::NullType::Null),
+                    ];
+                    dataset.rows.push(row);
+                }
+            } else if path.steps.len() == target_depth {
+                // For GO queries, only add the last step
+                if let Some(last_step) = path.steps.last() {
+                    let row = vec![
+                        Value::Vertex(path.src.clone()),
+                        Value::Edge((*last_step.edge).clone()),
+                        Value::Vertex(Box::new((*last_step.dst).clone())),
+                    ];
+                    dataset.rows.push(row);
+                }
             }
         }
 
@@ -273,6 +301,12 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExpandAllExecutor<S
 
 impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
+        // Clear caches to ensure fresh results for each execution
+        // This prevents duplicate results when the executor is reused
+        self.npath_cache.clear();
+        self.path_cache.clear();
+        self.visited_nodes.clear();
+
         // First, execute the input executor (if it exists).
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute()?

@@ -96,6 +96,7 @@ pub enum TokenKind {
     Both,
     Out,
     In,
+    Reversely,
     No,
     Overwrite,
     Show,

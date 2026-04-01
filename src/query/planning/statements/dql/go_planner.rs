@@ -117,8 +117,13 @@ impl Planner for GoPlanner {
         // Create ExpandAllNode to traverse edges
         let mut expand_all_node = ExpandAllNode::new(1, edge_types, direction_str);
 
-        // Set step_limit to 1 for GO FROM (one step traversal)
-        expand_all_node.set_step_limit(1);
+        // Set step_limit based on GO statement steps
+        let step_limit = match go_stmt.steps {
+            crate::query::parser::ast::Steps::Fixed(n) => n as u32,
+            crate::query::parser::ast::Steps::Range { min: _, max } => max as u32,
+            crate::query::parser::ast::Steps::Variable(_) => 1,
+        };
+        expand_all_node.set_step_limit(step_limit);
 
         // Don't include empty paths for GO FROM queries
         expand_all_node.set_include_empty_paths(false);
@@ -192,7 +197,7 @@ impl GoPlanner {
             }
         } else {
             let expr_meta = crate::core::types::expr::ExpressionMeta::new(
-                crate::core::Expression::Variable("_expandall_dst".to_string()),
+                crate::core::Expression::Variable("dst".to_string()),
             );
             let id = expr_context.register_expression(expr_meta);
             let ctx_expr = ContextualExpression::new(id, expr_context.clone());
@@ -203,13 +208,13 @@ impl GoPlanner {
             });
 
             let expr_meta = crate::core::types::expr::ExpressionMeta::new(
-                crate::core::Expression::Variable("_expandall_props".to_string()),
+                crate::core::Expression::Variable("edge".to_string()),
             );
             let id = expr_context.register_expression(expr_meta);
             let ctx_expr = ContextualExpression::new(id, expr_context.clone());
             columns.push(crate::core::YieldColumn {
                 expression: ctx_expr,
-                alias: "properties".to_string(),
+                alias: "edge".to_string(),
                 is_matched: false,
             });
         }

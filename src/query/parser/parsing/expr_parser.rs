@@ -359,6 +359,17 @@ impl<'a> ExprParser<'a> {
                     })
                 }
             }
+            // Allow certain keywords to be used as variable names in expressions
+            TokenKind::Edge => {
+                ctx.next_token();
+                let span = ctx.merge_span(start_pos, ctx.current_position());
+                let mut expr = Expression::variable("edge".to_string());
+                if ctx.match_token(TokenKind::Dot) {
+                    let prop_name = ctx.expect_identifier()?;
+                    expr = Expression::property(expr, prop_name);
+                }
+                Ok(ParseResult { expr, span })
+            }
             TokenKind::IntegerLiteral(n) => {
                 ctx.next_token();
                 let span = ctx.merge_span(start_pos, ctx.current_position());

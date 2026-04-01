@@ -220,35 +220,35 @@ impl MatchStatementPlanner {
 
                 let mut plan = SubPlan::new(None, None);
                 let mut prev_node_alias: Option<String> = None;
+                let mut is_first_node = true;
 
-                for element in path.elements.iter() {
-                    match element {
+                // Convert elements to a vector for indexed access
+                let elements: Vec<_> = path.elements.iter().collect();
+                let mut i = 0;
+
+                while i < elements.len() {
+                    match elements[i] {
                         PathElement::Node(node) => {
-                            let node_plan = self.plan_pattern_node(node, space_id, space_name)?;
-                            plan = if let Some(existing_root) = plan.root.take() {
-                                if let Some(ref alias) = prev_node_alias {
-                                    self.join_node_plans(
-                                        SubPlan::new(Some(existing_root), plan.tail),
-                                        node_plan,
-                                        alias,
-                                        &node.variable,
-                                        self.expr_context.as_ref().ok_or_else(|| {
-                                            PlannerError::PlanGenerationFailed(
-                                                "Expression context is unavailable".to_string(),
-                                            )
-                                        })?,
-                                    )?
-                                } else {
+                            if is_first_node {
+                                // First node: scan all vertices
+                                let node_plan = self.plan_pattern_node(node, space_id, space_name)?;
+                                plan = if let Some(existing_root) = plan.root.take() {
                                     self.cross_join_plans(
                                         SubPlan::new(Some(existing_root), plan.tail),
                                         node_plan,
                                     )?
-                                }
+                                } else {
+                                    node_plan
+                                };
+                                prev_node_alias = node.variable.clone();
+                                is_first_node = false;
                             } else {
-                                node_plan
-                            };
-
-                            prev_node_alias = node.variable.clone();
+                                // Subsequent nodes: use dst column from previous edge expansion
+                                // No need to scan vertices - just update the variable alias
+                                // The actual node data comes from the edge expansion's dst column
+                                prev_node_alias = node.variable.clone();
+                            }
+                            i += 1;
                         }
                         PathElement::Edge(edge) => {
                             if prev_node_alias.is_none() {
@@ -259,9 +259,21 @@ impl MatchStatementPlanner {
 
                             let input_alias = prev_node_alias.as_deref().unwrap();
 
-                            // Create edge expansion plan with proper input variable
+                            // Look ahead to find the next node's variable name
+                            // This will be used as the dst column name in ExpandAll
+                            let dst_var = if i + 1 < elements.len() {
+                                if let PathElement::Node(next_node) = elements[i + 1] {
+                                    next_node.variable.as_deref()
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            };
+
+                            // Create edge expansion plan with proper input variable and dst variable
                             let edge_plan =
-                                self.plan_pattern_edge_with_input(edge, space_id, input_alias)?;
+                                self.plan_pattern_edge_with_input(edge, space_id, input_alias, dst_var)?;
 
                             plan = if let Some(existing_root) = plan.root.take() {
                                 // Use HashInnerJoin to connect the previous node with the edge expansion
@@ -281,9 +293,10 @@ impl MatchStatementPlanner {
                                 edge_plan
                             };
 
-                            // After edge expansion, the next node should join with "dst" column
-                            // which contains the destination vertex of the edge
-                            prev_node_alias = Some("dst".to_string());
+                            // After edge expansion, the next node should use the dst column
+                            // which is named after the next node's variable
+                            prev_node_alias = dst_var.map(|s| s.to_string());
+                            i += 1;
                         }
                         PathElement::Alternative(patterns) => {
                             let alt_plan = self.plan_alternative_patterns(
@@ -426,6 +439,9 @@ impl MatchStatementPlanner {
             expand_node.set_any_edge_type(true);
         }
 
+        // Set step limit to 1 for single edge pattern like (n)-[e]->(m)
+        expand_node.set_step_limit(1);
+
         // Set the column name to the edge variable name so that subsequent join operations can find the variable
         let edge_var = edge.variable.clone().unwrap_or_else(|| "e".to_string());
         expand_node.set_col_names(vec![edge_var]);
@@ -461,11 +477,18 @@ impl MatchStatementPlanner {
     ///
     /// This method creates an edge expansion plan that takes the source node as input.
     /// The ExpandAll node will use the input variable to get the source vertices from ExecutionContext.
+    ///
+    /// # Arguments
+    /// * `edge` - The edge pattern to plan
+    /// * `space_id` - The space ID
+    /// * `input_var` - The variable name for the source node
+    /// * `dst_var` - Optional variable name for the destination node. If provided, the dst column will use this name.
     fn plan_pattern_edge_with_input(
         &self,
         edge: &crate::query::parser::ast::pattern::EdgePattern,
         space_id: u64,
         input_var: &str,
+        dst_var: Option<&str>,
     ) -> Result<SubPlan, PlannerError> {
         let direction = match edge.direction {
             crate::query::parser::ast::types::EdgeDirection::Out => "out",
@@ -484,16 +507,24 @@ impl MatchStatementPlanner {
             expand_node.set_any_edge_type(true);
         }
 
+        // Set step limit to 1 for single edge pattern like (n)-[e]->(m)
+        expand_node.set_step_limit(1);
+
         // Set the input variable so ExpandAll can get source vertices from ExecutionContext
         expand_node.set_input_var(input_var.to_string());
 
-        // Set the column names to match ExpandAll's output format: ["src", "edge", "dst"]
-        // This allows subsequent operations to access source vertex, edge, and destination vertex
+        // Set the column names to match ExpandAll's output format: ["src", "edge", dst_var]
+        // Use dst_var if provided, otherwise use "dst"
+        // This allows subsequent operations to reference the destination node by its variable name
+        let dst_col_name = dst_var.unwrap_or("dst").to_string();
         expand_node.set_col_names(vec![
             "src".to_string(),
             "edge".to_string(),
-            "dst".to_string(),
+            dst_col_name,
         ]);
+
+        // Disable empty paths for MATCH queries - we only want actual edge expansions
+        expand_node.set_include_empty_paths(false);
 
         let mut plan = SubPlan::from_root(expand_node.into_enum());
 

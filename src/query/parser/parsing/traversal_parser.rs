@@ -230,7 +230,8 @@ impl TraversalParser {
             Steps::Fixed(1)
         };
 
-        ctx.expect_token(TokenKind::From)?;
+        // Support optional FROM keyword for backward compatibility
+        ctx.match_token(TokenKind::From);
         let from_span = ctx.current_span();
         let vertices = self.parse_expression_list(ctx)?;
         let from_clause = FromClause {

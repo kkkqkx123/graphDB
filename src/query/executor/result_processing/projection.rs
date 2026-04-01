@@ -212,6 +212,24 @@ impl<S: StorageClient> ProjectExecutor<S> {
             }
         }
 
+        // Map GO query special variables: $$ -> dst, $^ -> src, target -> dst, edge -> edge
+        if let Some(dst_idx) = col_names.iter().position(|c| c == "dst") {
+            if dst_idx < row.len() {
+                context.set_variable("$$".to_string(), row[dst_idx].clone());
+                context.set_variable("target".to_string(), row[dst_idx].clone());
+            }
+        }
+        if let Some(src_idx) = col_names.iter().position(|c| c == "src") {
+            if src_idx < row.len() {
+                context.set_variable("$^".to_string(), row[src_idx].clone());
+            }
+        }
+        if let Some(edge_idx) = col_names.iter().position(|c| c == "edge") {
+            if edge_idx < row.len() {
+                context.set_variable("edge".to_string(), row[edge_idx].clone());
+            }
+        }
+
         // Handle table.column format: create table map variables
         let mut table_maps: std::collections::HashMap<
             String,
@@ -300,6 +318,24 @@ impl<S: StorageClient> ProjectExecutor<S> {
                             for (i, col_name) in col_names.iter().enumerate() {
                                 if i < row.len() {
                                     context.set_variable(col_name.clone(), row[i].clone());
+                                }
+                            }
+
+                            // Map GO query special variables: $$ -> dst, $^ -> src, target -> dst, edge -> edge
+                            if let Some(dst_idx) = col_names.iter().position(|c| c == "dst") {
+                                if dst_idx < row.len() {
+                                    context.set_variable("$$".to_string(), row[dst_idx].clone());
+                                    context.set_variable("target".to_string(), row[dst_idx].clone());
+                                }
+                            }
+                            if let Some(src_idx) = col_names.iter().position(|c| c == "src") {
+                                if src_idx < row.len() {
+                                    context.set_variable("$^".to_string(), row[src_idx].clone());
+                                }
+                            }
+                            if let Some(edge_idx) = col_names.iter().position(|c| c == "edge") {
+                                if edge_idx < row.len() {
+                                    context.set_variable("edge".to_string(), row[edge_idx].clone());
                                 }
                             }
 

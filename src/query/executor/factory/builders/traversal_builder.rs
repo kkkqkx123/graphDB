@@ -90,6 +90,12 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
             }
         }
 
+        // Set column names from the node configuration
+        // This allows custom dst column names for variable binding in multi-hop queries
+        if !node.col_names().is_empty() {
+            executor = executor.with_col_names(node.col_names().to_vec());
+        }
+
         Ok(ExecutorEnum::ExpandAll(executor))
     }
 
@@ -152,6 +158,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
             ShortestPathAlgorithmType::BFS,
         );
         executor.set_end_vertex_ids(end_vertex_ids);
+        executor.max_depth = Some(node.max_step());
         Ok(ExecutorEnum::ShortestPath(executor))
     }
 

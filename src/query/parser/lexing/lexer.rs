@@ -346,6 +346,7 @@ impl<'a> Lexer<'a> {
             "BOTH" => Tk::Both,
             "OUT" => Tk::Out,
             "IN" => Tk::In,
+            "REVERSELY" => Tk::Reversely,
             "NO" => Tk::No,
             "OVERWRITE" => Tk::Overwrite,
             "SHOW" => Tk::Show,

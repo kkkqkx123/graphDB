@@ -92,11 +92,13 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
                 ) -> Option<String> {
                     if let Some(expand_all) = node.as_expand_all() {
                         expand_all.get_input_var().map(|v| v.to_string())
-                    } else if let Some(join) = node.as_hash_inner_join() {
-                        // Check both left and right inputs of the join
-                        find_expand_all_input_var(join.left_input())
-                            .or_else(|| find_expand_all_input_var(join.right_input()))
                     } else {
+                        // Recursively check all children
+                        for child in node.children() {
+                            if let Some(var) = find_expand_all_input_var(child) {
+                                return Some(var);
+                            }
+                        }
                         None
                     }
                 }
