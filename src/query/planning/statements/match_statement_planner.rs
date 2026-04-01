@@ -250,17 +250,29 @@ impl MatchStatementPlanner {
                                 ));
                             }
 
+                            let input_alias = prev_node_alias.as_deref().unwrap();
+
                             // Create edge expansion plan with proper input variable
                             let edge_plan = self.plan_pattern_edge_with_input(
                                 edge,
                                 space_id,
-                                prev_node_alias.as_deref().unwrap(),
+                                input_alias,
                             )?;
 
                             plan = if let Some(existing_root) = plan.root.take() {
-                                self.cross_join_plans(
+                                // Use HashInnerJoin to connect the previous node with the edge expansion
+                                // The previous node's alias should match with "src" column of ExpandAll
+                                eprintln!("[plan_path_pattern] Edge: Using HashInnerJoin with left_alias: {}, right_alias: src", input_alias);
+                                self.join_node_plans(
                                     SubPlan::new(Some(existing_root), plan.tail),
                                     edge_plan,
+                                    input_alias,
+                                    &Some("src".to_string()),
+                                    self.expr_context.as_ref().ok_or_else(|| {
+                                        PlannerError::PlanGenerationFailed(
+                                            "Expression context is unavailable".to_string(),
+                                        )
+                                    })?,
                                 )?
                             } else {
                                 edge_plan
@@ -590,25 +602,40 @@ impl MatchStatementPlanner {
     /// 这用于处理路径模式中的连续节点，如 MATCH (a)-[]->(b) 中 a 和 b 的连接。
     fn join_node_plans(
         &self,
-        left: SubPlan,
-        right: SubPlan,
+        mut left: SubPlan,
+        mut right: SubPlan,
         left_alias: &str,
         right_alias: &Option<String>,
         expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Result<SubPlan, PlannerError> {
         use crate::query::planning::plan::core::nodes::HashInnerJoinNode;
+        use crate::query::planning::plan::core::node_id_generator::next_node_id;
 
-        let left_root = match left.root {
-            Some(ref r) => r,
+        // Take ownership of the root nodes
+        let mut left_root = match left.root.take() {
+            Some(r) => r,
             None => return Ok(right),
         };
 
-        let right_root = match right.root {
-            Some(ref r) => r,
+        let mut right_root = match right.root.take() {
+            Some(r) => r,
             None => return Ok(left),
         };
 
         let ctx = expr_context.clone();
+
+        // Generate unique variable names for left and right inputs
+        // These variable names will be used by extract_join_vars in join_builder.rs
+        let join_id = next_node_id();
+        let left_var = format!("left_{}", join_id);
+        let right_var = format!("right_{}", join_id);
+        
+        eprintln!("[join_node_plans] Setting left_var: {}, right_var: {}", left_var, right_var);
+        
+        // Set output_var for left and right inputs so that extract_join_vars can find them
+        // This ensures that when build_executor_chain stores the results, the variable names match
+        left_root.set_output_var(left_var);
+        right_root.set_output_var(right_var);
 
         // Constructing hash key and probe key expressions
         // The left table uses existing aliases as hash keys.
@@ -624,12 +651,28 @@ impl MatchStatementPlanner {
         let probe_key_id = ctx.register_expression(probe_key_meta);
         let probe_keys = vec![ContextualExpression::new(probe_key_id, ctx)];
 
-        // Create a Hashne connection node.
-        let join_node =
-            HashInnerJoinNode::new(left_root.clone(), right_root.clone(), hash_keys, probe_keys)
+        // If right_root is a ScanVerticesNode and probe_alias is not the same as its column name,
+        // we need to update the column name to match the probe_alias
+        // This ensures that after join, the column name matches the variable name used in filter conditions
+        if let Some(scan_node) = right_root.as_scan_vertices() {
+            let right_col_names = scan_node.col_names();
+            if right_col_names.len() == 1 && right_col_names[0] != probe_alias {
+                eprintln!("[join_node_plans] Updating right column name from '{}' to '{}'", right_col_names[0], probe_alias);
+                let mut new_scan = scan_node.clone();
+                new_scan.set_col_names(vec![probe_alias.to_string()]);
+                right_root = new_scan.into_enum();
+            }
+        }
+
+        // Create a Hashne connection node with the roots that have output_var set
+        let mut join_node =
+            HashInnerJoinNode::new(left_root, right_root, hash_keys, probe_keys)
                 .map_err(|e| {
                     PlannerError::JoinFailed(format!("Intra-hash connection failed: {}", e))
                 })?;
+
+        // Set output_var to help parent nodes find the result
+        join_node.set_output_var(format!("join_result_{}", join_id));
 
         Ok(SubPlan {
             root: Some(join_node.into_enum()),

@@ -350,11 +350,21 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
             }
             ExecutionResult::DataSet(dataset) => {
                 // Extract vertices from DataSet rows
-                // For DataSet from ExpandAll, columns are ["src", "edge", "dst"]
-                // We use the "src" column (index 0) as input vertices
+                // Use input_var to determine which column to use as input vertices
                 let mut vertices = Vec::new();
+                
+                // Find the column index for input_var
+                let col_idx = if let Some(ref input_var) = self.input_var {
+                    dataset.col_names.iter().position(|c| c == input_var).unwrap_or(0)
+                } else {
+                    0 // Default to first column ("src")
+                };
+                
+                eprintln!("[ExpandAllExecutor] Extracting vertices from DataSet, input_var: {:?}, col_idx: {}, col_names: {:?}", 
+                    self.input_var, col_idx, dataset.col_names);
+                
                 for row in &dataset.rows {
-                    if let Some(Value::Vertex(vertex)) = row.first() {
+                    if let Some(Value::Vertex(vertex)) = row.get(col_idx) {
                         vertices.push(*vertex.clone());
                     }
                 }

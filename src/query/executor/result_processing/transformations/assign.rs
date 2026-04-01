@@ -182,11 +182,11 @@ mod tests {
         // Check whether the variables are set correctly.
         assert_eq!(
             executor.base.context.get_variable("var1"),
-            Some(&Value::Int(42))
+            Some(Value::Int(42))
         );
         assert_eq!(
             executor.base.context.get_variable("var2"),
-            Some(&Value::String("hello".to_string()))
+            Some(Value::String("hello".to_string()))
         );
     }
 }

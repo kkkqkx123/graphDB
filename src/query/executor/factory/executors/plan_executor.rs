@@ -88,27 +88,37 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
                     QueryError::ExecutionError(format!("Left child execution failed: {}", e))
                 })?;
 
-                // Get left variable name from node's output_var or use default
-                // If right child is ExpandAllNode with input_var set, use that as the left variable name
-                let left_var = if let Some(expand_all) = children[1].as_expand_all() {
-                    if let Some(input_var) = expand_all.get_input_var() {
-                        eprintln!("[build_executor_chain] Using ExpandAllNode's input_var as left_var: {}", input_var);
-                        input_var.to_string()
-                    } else {
-                        children[0]
-                            .output_var()
-                            .map(|v| v.to_string())
-                            .unwrap_or_else(|| format!("left_{}", plan_node.id()))
-                    }
-                } else {
-                    children[0]
-                        .output_var()
-                        .map(|v| v.to_string())
-                        .unwrap_or_else(|| format!("left_{}", plan_node.id()))
-                };
+                // Get left variable name from left child's output_var
+                // This must match the variable name used by the join executor (from extract_join_vars)
+                let left_var = children[0]
+                    .output_var()
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| format!("left_{}", plan_node.id()));
                 eprintln!("[build_executor_chain] left_var: {}, result type: {:?}", left_var, std::mem::discriminant(&left_result));
-                context.set_result(left_var.clone(), left_result);
+                context.set_result(left_var.clone(), left_result.clone());
                 eprintln!("[build_executor_chain] left result stored, checking: {:?}", context.get_result(&left_var).map(|r| std::mem::discriminant(&r)));
+
+                // If right child (or its descendants) is ExpandAllNode with input_var, 
+                // also store the result under that variable name
+                // This allows ExpandAllExecutor to find the input using its input_var
+                fn find_expand_all_input_var(node: &crate::query::planning::plan::PlanNodeEnum) -> Option<String> {
+                    if let Some(expand_all) = node.as_expand_all() {
+                        expand_all.get_input_var().map(|v| v.to_string())
+                    } else if let Some(join) = node.as_hash_inner_join() {
+                        // Check both left and right inputs of the join
+                        find_expand_all_input_var(join.left_input())
+                            .or_else(|| find_expand_all_input_var(join.right_input()))
+                    } else {
+                        None
+                    }
+                }
+                
+                if let Some(input_var) = find_expand_all_input_var(children[1]) {
+                    if input_var != left_var {
+                        eprintln!("[build_executor_chain] Also storing left result under ExpandAllNode's input_var: {}", input_var);
+                        context.set_result(input_var, left_result);
+                    }
+                }
 
                 eprintln!("[build_executor_chain] building right child executor...");
                 eprintln!("[build_executor_chain] right child type: {}", children[1].name());

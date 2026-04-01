@@ -224,6 +224,13 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
             ExecutionResult::Values(values) => {
                 eprintln!("[FilterExecutor] input is Values, len: {}", values.len());
                 let filtered_values = self.filter_values(values)?;
+                // If filtered_values contains a single DataSet, unwrap it to avoid nesting
+                if filtered_values.len() == 1 {
+                    if let Value::DataSet(dataset) = &filtered_values[0] {
+                        eprintln!("[FilterExecutor] Unwrapping nested DataSet from Values");
+                        return Ok(ExecutionResult::DataSet(dataset.clone()));
+                    }
+                }
                 Ok(ExecutionResult::Values(filtered_values))
             }
             ExecutionResult::Vertices(vertices) => {
@@ -262,13 +269,24 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
     fn apply_filter_single(&self, dataset: &mut DataSet) -> DBResult<()> {
         let mut filtered_rows = Vec::new();
 
-        for row in &dataset.rows {
+        for (row_idx, row) in dataset.rows.iter().enumerate() {
             let mut context = DefaultExpressionContext::new();
 
             // Set the column names as variables.
             for (i, col_name) in dataset.col_names.iter().enumerate() {
                 if i < row.len() {
                     context.set_variable(col_name.clone(), row[i].clone());
+                }
+            }
+            
+            // Debug: print all variables for the first row
+            if row_idx == 0 {
+                eprintln!("[FilterExecutor] apply_filter_single: col_names = {:?}", dataset.col_names);
+                eprintln!("[FilterExecutor] apply_filter_single: row.len() = {}, row = {:?}", row.len(), row);
+                for (i, col_name) in dataset.col_names.iter().enumerate() {
+                    if i < row.len() {
+                        eprintln!("[FilterExecutor] apply_filter_single: variable {} = {:?}", col_name, row[i]);
+                    }
                 }
             }
 
@@ -314,6 +332,11 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
                         format!("Failed to evaluate filter condition: {}", e),
                     ))
                 })?;
+            
+            // Debug: print condition result for first few rows
+            if row_idx < 5 {
+                eprintln!("[FilterExecutor] apply_filter_single: row {} condition_result = {:?}", row_idx, condition_result);
+            }
 
             if let crate::core::Value::Bool(true) = condition_result {
                 filtered_rows.push(row.clone());

@@ -89,10 +89,28 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
         right_dataset: &DataSet,
     ) -> Result<DataSet, QueryError> {
         let mut result = DataSet::new();
-        // Merge column names from both inputs
+        // Merge column names from both inputs, avoiding duplicates
         let mut col_names = left_dataset.col_names.clone();
-        col_names.extend(right_dataset.col_names.iter().cloned());
+        for col in &right_dataset.col_names {
+            if !col_names.contains(col) {
+                col_names.push(col.clone());
+            } else {
+                // If duplicate, add a suffix to make it unique
+                let mut idx = 1;
+                let mut new_col = format!("{}_{}", col, idx);
+                while col_names.contains(&new_col) {
+                    idx += 1;
+                    new_col = format!("{}_{}", col, idx);
+                }
+                col_names.push(new_col);
+            }
+        }
         result.col_names = col_names;
+
+        eprintln!("[execute_two_way_cartesian_product] left_dataset col_names: {:?}", left_dataset.col_names);
+        eprintln!("[execute_two_way_cartesian_product] left_dataset rows: {:?}", left_dataset.rows);
+        eprintln!("[execute_two_way_cartesian_product] right_dataset col_names: {:?}", right_dataset.col_names);
+        eprintln!("[execute_two_way_cartesian_product] right_dataset rows: {:?}", right_dataset.rows);
 
         // Calculate the size of the result set and pre-allocate memory accordingly.
         let estimated_size = left_dataset.rows.len() * right_dataset.rows.len();
@@ -105,9 +123,13 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
             for right_row in &right_dataset.rows {
                 let mut new_row = left_row.clone();
                 new_row.extend(right_row.clone());
+                eprintln!("[execute_two_way_cartesian_product] new_row: {:?}", new_row);
                 result.rows.push(new_row);
             }
         }
+
+        eprintln!("[execute_two_way_cartesian_product] result col_names: {:?}", result.col_names);
+        eprintln!("[execute_two_way_cartesian_product] result rows: {:?}", result.rows);
 
         Ok(result)
     }

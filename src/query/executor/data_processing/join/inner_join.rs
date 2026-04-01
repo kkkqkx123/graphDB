@@ -160,8 +160,11 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
             }
         };
 
+        eprintln!("[InnerJoinExecutor] exchange = {}", exchange);
+        
         let (hash_key, probe_key, build_dataset, probe_dataset, build_col_names, probe_col_names) = if exchange {
             // When exchanging, swap the hash and probe keys as well
+            eprintln!("[InnerJoinExecutor] Exchanging: left and right datasets swapped");
             let build_col_names = get_col_names(right_dataset, &probe_keys[0]);
             let probe_col_names = get_col_names(left_dataset, &hash_keys[0]);
             (
@@ -209,24 +212,47 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
         result.col_names = self.base_executor.get_col_names().clone();
         let output_col_names = result.col_names.clone();
 
-        for probe_row in &probe_dataset.rows {
+        eprintln!("[InnerJoinExecutor] Processing {} probe rows", probe_dataset.rows.len());
+        for (idx, probe_row) in probe_dataset.rows.iter().enumerate() {
+            eprintln!("[InnerJoinExecutor] probe_row[{}]: {:?}", idx, probe_row);
             let mut context = RowExpressionContext::from_dataset(probe_row, &probe_col_names);
             let probe_key_val = match ExpressionEvaluator::evaluate(&probe_key, &mut context) {
-                Ok(k) => k,
-                Err(_) => continue,
+                Ok(k) => {
+                    eprintln!("[InnerJoinExecutor] probe_row[{}] key: {:?}", idx, k);
+                    k
+                }
+                Err(e) => {
+                    eprintln!("[InnerJoinExecutor] probe_row[{}] key evaluation failed: {}", idx, e);
+                    continue;
+                }
             };
 
             if let Some(matching_rows) = hash_table.get(&probe_key_val) {
+                eprintln!("[InnerJoinExecutor] probe_row[{}] found {} matching rows", idx, matching_rows.len());
                 for build_row in matching_rows {
-                    let new_row = Self::build_join_result_row(
-                        build_row,
-                        probe_row,
-                        &build_col_names,
-                        &probe_col_names,
-                        &output_col_names,
-                    );
+                    // When exchange is true, build_row comes from right_dataset and probe_row comes from left_dataset
+                    // But output_col_names is in left-then-right order, so we need to swap the arguments
+                    let new_row = if exchange {
+                        Self::build_join_result_row(
+                            probe_row,
+                            build_row,
+                            &probe_col_names,
+                            &build_col_names,
+                            &output_col_names,
+                        )
+                    } else {
+                        Self::build_join_result_row(
+                            build_row,
+                            probe_row,
+                            &build_col_names,
+                            &probe_col_names,
+                            &output_col_names,
+                        )
+                    };
                     result.rows.push(new_row);
                 }
+            } else {
+                eprintln!("[InnerJoinExecutor] probe_row[{}] no matching rows for key {:?}", idx, probe_key_val);
             }
         }
 
@@ -244,13 +270,46 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
         let mut result = Vec::with_capacity(output_col_names.len());
 
         for col_name in output_col_names {
+            // First try exact match
             if let Some(idx) = left_col_names.iter().position(|c| c == col_name) {
                 if let Some(val) = left_row.get(idx) {
                     result.push(val.clone());
+                    continue;
                 }
             } else if let Some(idx) = right_col_names.iter().position(|c| c == col_name) {
                 if let Some(val) = right_row.get(idx) {
                     result.push(val.clone());
+                    continue;
+                }
+            }
+            
+            // If not found, try to strip suffix (e.g., "src_1" -> "src")
+            // This handles the case where HashInnerJoinNode adds suffixes to duplicate column names
+            let base_name = if let Some(underscore_pos) = col_name.rfind('_') {
+                if underscore_pos > 0 {
+                    let suffix = &col_name[underscore_pos + 1..];
+                    if suffix.parse::<usize>().is_ok() {
+                        // This is a suffixed column name like "src_1"
+                        &col_name[..underscore_pos]
+                    } else {
+                        col_name
+                    }
+                } else {
+                    col_name
+                }
+            } else {
+                col_name
+            };
+            
+            if let Some(idx) = left_col_names.iter().position(|c| c == base_name) {
+                if let Some(val) = left_row.get(idx) {
+                    result.push(val.clone());
+                    continue;
+                }
+            } else if let Some(idx) = right_col_names.iter().position(|c| c == base_name) {
+                if let Some(val) = right_row.get(idx) {
+                    result.push(val.clone());
+                    continue;
                 }
             }
         }
@@ -329,13 +388,25 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
 
             if let Some(matching_rows) = hash_table.get(&key_values) {
                 for build_row in matching_rows {
-                    let new_row = Self::build_join_result_row(
-                        build_row,
-                        probe_row,
-                        build_col_names,
-                        probe_col_names,
-                        &output_col_names,
-                    );
+                    // When exchange is true, build_row comes from right_dataset and probe_row comes from left_dataset
+                    // But output_col_names is in left-then-right order, so we need to swap the arguments
+                    let new_row = if exchange {
+                        Self::build_join_result_row(
+                            probe_row,
+                            build_row,
+                            probe_col_names,
+                            build_col_names,
+                            &output_col_names,
+                        )
+                    } else {
+                        Self::build_join_result_row(
+                            build_row,
+                            probe_row,
+                            build_col_names,
+                            probe_col_names,
+                            &output_col_names,
+                        )
+                    };
                     result.rows.push(new_row);
                 }
             }
