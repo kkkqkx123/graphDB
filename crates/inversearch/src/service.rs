@@ -180,8 +180,8 @@ impl InversearchServiceTrait for InversearchService {
         _request: Request<GetStatsRequest>,
     ) -> Result<Response<GetStatsResponse>, Status> {
         let index = self.index.read().await;
-        // Use map.size() as document count approximation
-        let document_count = index.map.size();
+        // Use document_count() to get the actual document count
+        let document_count = index.document_count();
 
         Ok(Response::new(GetStatsResponse {
             document_count: document_count as u64,

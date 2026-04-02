@@ -21,6 +21,15 @@ lazy_static::lazy_static! {
         .expect("Failed to compile NUMERIC_SPLIT_PREV_CHAR regex");
     static ref NUMERIC_SPLIT_NEXT_CHAR: Regex = Regex::new(r"(\d{3})(\D)")
         .expect("Failed to compile NUMERIC_SPLIT_NEXT_CHAR regex");
+    // CJK characters: Chinese, Japanese, Korean
+    // 一-鿿: CJK Unified Ideographs (Chinese, Japanese Kanji, Korean Hanja)
+    // ぀-ゟ: Hiragana (Japanese)
+    // ゠-ヿ: Katakana (Japanese)
+    // 가-힯: Hangul Syllables (Korean)
+    // 㐀-䶿: CJK Extension A
+    //  0-⩭f: CJK Extension B
+    static ref CJK_REGEX: Regex = Regex::new(r"[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af\u3400-\u4dbf]")
+        .expect("Failed to compile CJK regex");
 }
 
 #[derive(Clone)]
@@ -348,16 +357,73 @@ impl Encoder {
 
     fn apply_split(&self, str: &str) -> Vec<String> {
         match &self.split {
-            SplitOption::String(s) if s.is_empty() => vec![str.to_string()],
+            SplitOption::String(s) if s.is_empty() => self.split_cjk(str),
             SplitOption::String(s) => str.split(s).map(|s| s.to_string()).collect(),
             SplitOption::Regex(regex) => {
-                regex.split(str).map(|s| s.to_string()).collect()
+                // For default whitespace regex, also handle CJK characters
+                if regex.as_str() == WHITESPACE.as_str() {
+                    self.split_with_cjk(str)
+                } else {
+                    regex.split(str).map(|s| s.to_string()).collect()
+                }
             }
             SplitOption::Bool(false) => vec![str.to_string()],
             SplitOption::Bool(true) => {
-                WHITESPACE.split(str).map(|s| s.to_string()).collect()
+                self.split_with_cjk(str)
             }
         }
+    }
+
+    /// Split text handling CJK characters properly
+    /// CJK characters are treated as individual tokens
+    fn split_with_cjk(&self, str: &str) -> Vec<String> {
+        let mut result = Vec::new();
+        let mut current_word = String::new();
+
+        for ch in str.chars() {
+            if CJK_REGEX.is_match(&ch.to_string()) {
+                // If we have accumulated non-CJK characters, add them as a word
+                if !current_word.is_empty() {
+                    result.push(current_word.clone());
+                    current_word.clear();
+                }
+                // Add CJK character as individual token
+                result.push(ch.to_string());
+            } else if ch.is_whitespace() || (!ch.is_alphanumeric() && ch != '_' && ch != '-') {
+                // Non-CJK word boundary
+                if !current_word.is_empty() {
+                    result.push(current_word.clone());
+                    current_word.clear();
+                }
+            } else {
+                // Regular character, add to current word
+                current_word.push(ch);
+            }
+        }
+
+        // Don't forget the last word
+        if !current_word.is_empty() {
+            result.push(current_word);
+        }
+
+        result
+    }
+
+    /// Split text with CJK support for empty split pattern
+    fn split_cjk(&self, str: &str) -> Vec<String> {
+        let mut result = Vec::new();
+
+        for ch in str.chars() {
+            if CJK_REGEX.is_match(&ch.to_string()) {
+                // Each CJK character is a separate token
+                result.push(ch.to_string());
+            } else if !ch.is_whitespace() {
+                // Non-CJK non-whitespace characters form tokens
+                result.push(ch.to_string());
+            }
+        }
+
+        result
     }
 
     fn has_transformations(&self) -> bool {

@@ -349,7 +349,7 @@ mod tests {
         let mut resolver = Resolver::new(vec![vec![1, 2, 3]], None);
         let inner: IntermediateSearchResults = vec![vec![2, 3, 4]];
         let other: Vec<IntermediateSearchResults> = vec![inner];
-        Handler::handle_and(&mut resolver, other, 100, 0, false, false, false);
+        Handler::handle_and(&mut resolver, other, 100, 0, false, false);
         
         let result = resolver.get();
         assert!(!result.is_empty());
@@ -360,7 +360,7 @@ mod tests {
         let mut resolver = Resolver::new(vec![vec![1, 2]], None);
         let inner: IntermediateSearchResults = vec![vec![3, 4, 5]];
         let other: Vec<IntermediateSearchResults> = vec![inner];
-        Handler::handle_or(&mut resolver, other, 100, 0, false, false, false);
+        Handler::handle_or(&mut resolver, other, 100, 0, false, false);
         
         let result = resolver.get();
         assert!(result.contains(&1) && result.contains(&2) && result.contains(&3) && result.contains(&4) && result.contains(&5));
@@ -372,7 +372,7 @@ mod tests {
         let mut resolver = Resolver::new(vec![vec![1, 2, 3, 4, 5]], None);
         let inner: IntermediateSearchResults = vec![vec![2, 3]];
         let other: Vec<IntermediateSearchResults> = vec![inner];
-        Handler::handle_not(&mut resolver, other, 100, 0, false, false, false);
+        Handler::handle_not(&mut resolver, other, 100, 0, false, false);
         
         let result = resolver.get();
         assert_eq!(result, vec![1, 4, 5]);
@@ -383,7 +383,7 @@ mod tests {
         let mut resolver = Resolver::new(vec![vec![1, 2, 3]], None);
         let inner: IntermediateSearchResults = vec![vec![2, 3, 4]];
         let other: Vec<IntermediateSearchResults> = vec![inner];
-        Handler::handle_xor(&mut resolver, other, 100, 0, false, false, false);
+        Handler::handle_xor(&mut resolver, other, 100, 0, false, false);
         
         let result = resolver.get();
         assert_eq!(result, vec![1, 4]);

@@ -293,6 +293,14 @@ impl Index {
             cache.clear();
         }
     }
+
+    /// 获取文档数量
+    pub fn document_count(&self) -> usize {
+        match &self.reg {
+            Register::Set(set) => set.size(),
+            Register::Map(map) => map.size(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

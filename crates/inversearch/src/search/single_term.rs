@@ -114,12 +114,13 @@ fn apply_limit_offset(results: &[u64], limit: usize, offset: usize) -> SearchRes
         return Vec::new();
     }
 
+    // If limit is 0, return empty results
+    if limit == 0 {
+        return Vec::new();
+    }
+
     let start = offset.min(results.len());
-    let end = if limit > 0 {
-        (start + limit).min(results.len())
-    } else {
-        results.len()
-    };
+    let end = (start + limit).min(results.len());
 
     results[start..end].to_vec()
 }
@@ -141,11 +142,12 @@ pub fn multi_term_search(
     let mut intermediate_results = Vec::new();
     
     for term in terms {
+        // Use usize::MAX to get all results for union
         let result = single_term_query(
             index,
             term,
             None,
-            0, 0, true, false, None
+            usize::MAX, 0, true, false, None
         )?;
         
         if !result.results.is_empty() {
@@ -157,15 +159,15 @@ pub fn multi_term_search(
         return Ok(Vec::new());
     }
 
-    // 执行交集操作
-    let intersected = if intermediate_results.len() == 1 {
+    // 执行并集操作 (OR logic) - 返回包含任意一个词的结果
+    let unioned = if intermediate_results.len() == 1 {
         intermediate_results.into_iter().next().unwrap()
     } else {
-        perform_intersection(&intermediate_results)
+        perform_union(&intermediate_results)
     };
 
     // 应用限制和偏移
-    Ok(apply_limit_offset(&intersected, limit, offset))
+    Ok(apply_limit_offset(&unioned, limit, offset))
 }
 
 /// 执行交集操作
@@ -206,6 +208,33 @@ fn perform_intersection(results: &[SearchResults]) -> SearchResults {
     }
 
     intersection
+}
+
+/// 执行并集操作
+fn perform_union(results: &[SearchResults]) -> SearchResults {
+    if results.is_empty() {
+        return Vec::new();
+    }
+    
+    if results.len() == 1 {
+        return results[0].clone();
+    }
+
+    let mut seen = std::collections::HashSet::new();
+    let mut union = Vec::new();
+
+    // 合并所有结果集，去重
+    for result in results {
+        for &doc_id in result {
+            if seen.insert(doc_id) {
+                union.push(doc_id);
+            }
+        }
+    }
+
+    // 排序以保持稳定的输出
+    union.sort();
+    union
 }
 
 #[cfg(test)]
@@ -284,15 +313,18 @@ mod tests {
         
         let options = SearchOptions::default();
         
-        // 多术语搜索（交集）
+        // 多术语搜索（并集/OR逻辑）
         let results = multi_term_search(&index, vec!["hello", "rust"], &options).unwrap();
         
         // 文档1: "hello world" - 只有hello
         // 文档2: "rust programming" - 只有rust  
         // 文档3: "rust programming" - 只有rust
         // 文档4: "hello rust world" - 有hello和rust
-        // 所以交集应该只返回文档4
-        assert_eq!(results.len(), 1);
+        // 所以并集应该返回文档1, 2, 3, 4（所有包含hello或rust的文档）
+        assert_eq!(results.len(), 4);
+        assert!(results.contains(&1));
+        assert!(results.contains(&2));
+        assert!(results.contains(&3));
         assert!(results.contains(&4));
         
         // 单术语搜索（退化情况）
