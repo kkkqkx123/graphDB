@@ -658,7 +658,7 @@ mod tests {
         let result = validator.validate(create_test_ast(Stmt::Go(go_stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.message.contains("重复出现"));
+        assert!(err.message.contains("repeats"));
     }
 
     #[test]

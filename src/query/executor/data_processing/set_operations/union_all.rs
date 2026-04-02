@@ -358,7 +358,7 @@ mod tests {
             crate::core::error::QueryError::ExecutionError(msg),
         )) = result
         {
-            assert!(msg.contains("列名不匹配"));
+            assert!(msg.contains("column name mismatch"));
         } else {
             panic!("Error: The expected column names do not match.");
         }

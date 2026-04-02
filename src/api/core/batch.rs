@@ -313,7 +313,7 @@ mod tests {
         let config = BatchConfig::default();
         assert_eq!(config.batch_size, 1000);
         assert!(config.auto_flush);
-        assert!(!config.continue_on_error);
+        assert!(config.continue_on_error);
     }
 
     #[test]

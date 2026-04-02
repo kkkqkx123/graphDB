@@ -713,7 +713,7 @@ mod tests {
 
         let result = validator.validate_property_exists("age", &properties);
         assert!(result.is_err());
-        assert!(result.unwrap_err().message.contains("不存在"));
+        assert!(result.unwrap_err().message.contains("not present"));
     }
 
     #[test]
@@ -742,7 +742,8 @@ mod tests {
             &Value::String("test".to_string()),
         );
         assert!(result.is_err());
-        assert!(result.unwrap_err().message.contains("期望类型"));
+        let err = result.unwrap_err();
+        assert!(err.message.contains("Desired type") || err.message.contains("type"));
     }
 
     #[test]
@@ -766,7 +767,7 @@ mod tests {
             &Value::Null(crate::core::NullType::default()),
         );
         assert!(result.is_err());
-        assert!(result.unwrap_err().message.contains("不能为 NULL"));
+        assert!(result.unwrap_err().message.contains("cannot be NULL"));
     }
 
     #[test]

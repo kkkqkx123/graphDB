@@ -432,10 +432,12 @@ impl<S: StorageClient> ProjectExecutor<S> {
             }
 
             for var_name in &external_vars {
-                context.set_variable(
-                    var_name.to_string(),
-                    Value::Vertex(Box::new(vertex.clone())),
-                );
+                if context.get_variable(var_name).is_none() {
+                    context.set_variable(
+                        var_name.to_string(),
+                        Value::Vertex(Box::new(vertex.clone())),
+                    );
+                }
             }
 
             let mut projected_row = Vec::new();
@@ -502,7 +504,9 @@ impl<S: StorageClient> ProjectExecutor<S> {
             context.set_variable("ranking".to_string(), Value::Int(edge.ranking));
 
             for var_name in &external_vars {
-                context.set_variable(var_name.to_string(), Value::Edge(edge.clone()));
+                if context.get_variable(var_name).is_none() {
+                    context.set_variable(var_name.to_string(), Value::Edge(edge.clone()));
+                }
             }
 
             let mut projected_row = Vec::new();

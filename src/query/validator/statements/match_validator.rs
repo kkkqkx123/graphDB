@@ -1067,7 +1067,7 @@ mod tests {
         let result = validator.validate_pattern(&pattern, 0);
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert!(error.message.contains("运行时计算"));
+        assert!(error.message.contains("runtime computation"));
     }
 
     #[test]

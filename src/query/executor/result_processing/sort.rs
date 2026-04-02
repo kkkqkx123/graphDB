@@ -1095,7 +1095,7 @@ mod tests {
 
         // The verification error message contains column index information.
         let error = result.unwrap_err();
-        assert!(format!("{:?}", error).contains("列索引"));
+        assert!(format!("{:?}", error).contains("column index") || format!("{:?}", error).contains("Column index"));
     }
 
     #[test]

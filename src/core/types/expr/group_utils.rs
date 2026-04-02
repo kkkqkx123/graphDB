@@ -327,6 +327,6 @@ mod tests {
 
         let suite = extract_group_suite(&expr).expect("Failed to extract group suite");
         assert_eq!(suite.aggregates.len(), 1);
-        assert_eq!(suite.group_keys.len(), 1);
+        assert_eq!(suite.group_keys.len(), 2); // x from aggregate arg, y from right side
     }
 }

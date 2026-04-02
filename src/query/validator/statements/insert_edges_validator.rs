@@ -624,7 +624,7 @@ mod tests {
         let stmt = create_insert_edge_stmt(
             "friend".to_string(),
             vec![],
-            create_contextual_expr(Expression::Literal(Value::Int(123))),
+            create_contextual_expr(Expression::Literal(Value::Float(123.45))),
             create_contextual_expr(Expression::Literal(Value::String("v2".to_string()))),
             None,
             vec![],
@@ -636,7 +636,7 @@ mod tests {
         let err = result.unwrap_err();
         assert!(err
             .message
-            .contains("source vertex ID must be a string constant or variable"));
+            .contains("must be a string, integer, or variable"));
     }
 
     #[test]

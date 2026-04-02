@@ -564,7 +564,7 @@ mod tests {
         let result = validator.validate_yield_clause(&yield_columns);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.message.contains("重复"));
+        assert!(err.message.contains("Duplicate"));
     }
 
     #[test]

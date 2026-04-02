@@ -471,7 +471,7 @@ mod tests {
         let result = validator.validate_properties_clause(properties.as_ref());
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.message.contains("重复"));
+        assert!(err.message.contains("repeated"));
     }
 
     #[test]

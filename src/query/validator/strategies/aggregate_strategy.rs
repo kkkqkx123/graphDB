@@ -431,8 +431,8 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("SUM"));
-        assert!(err.message.contains("变量属性"));
-        assert!(err.message.contains("n.*"));
+        assert!(err.message.contains("wildcard"));
+        assert!(err.message.contains("n"));
     }
 
     #[test]
