@@ -5,7 +5,7 @@ import { useDataBrowserStore } from '@/stores/dataBrowser';
 import type { FilterOperator } from '@/types/dataBrowser';
 import styles from './index.module.less';
 
-const { Option } = Select;
+
 
 const OPERATORS: { value: FilterOperator; label: string }[] = [
   { value: 'eq', label: '=' },
@@ -103,13 +103,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ properties }) => {
                 size="small"
                 style={{ width: '100%' }}
                 placeholder="Property"
-              >
-                {properties.map((prop) => (
-                  <Option key={prop} value={prop}>
-                    {prop}
-                  </Option>
-                ))}
-              </Select>
+                options={properties.map((prop) => ({
+                  label: prop,
+                  value: prop,
+                }))}
+              />
             </Col>
             <Col span={6}>
               <Select
@@ -118,13 +116,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ properties }) => {
                 size="small"
                 style={{ width: '100%' }}
                 placeholder="Operator"
-              >
-                {OPERATORS.map((op) => (
-                  <Option key={op.value} value={op.value}>
-                    {op.label}
-                  </Option>
-                ))}
-              </Select>
+                options={OPERATORS.map((op) => ({
+                  label: op.label,
+                  value: op.value,
+                }))}
+              />
             </Col>
             <Col span={8}>
               <Input

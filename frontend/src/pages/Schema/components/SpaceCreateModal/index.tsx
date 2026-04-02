@@ -3,7 +3,7 @@ import { Modal, Form, Input, Select, InputNumber, message } from 'antd';
 import { useSchemaStore, type CreateSpaceParams } from '@/stores/schema';
 import styles from './index.module.less';
 
-const { Option } = Select;
+
 
 interface SpaceCreateModalProps {
   visible: boolean;
@@ -92,10 +92,13 @@ const SpaceCreateModal: React.FC<SpaceCreateModalProps> = ({
           rules={[{ required: true, message: 'Please select Vid Type' }]}
           extra="Vid Type determines the data type of vertex IDs. INT64 is recommended for numeric IDs, FIXED_STRING(32) for string IDs."
         >
-          <Select placeholder="Select Vid Type">
-            <Option value="INT64">INT64</Option>
-            <Option value="FIXED_STRING(32)">FIXED_STRING(32)</Option>
-          </Select>
+          <Select
+            placeholder="Select Vid Type"
+            options={[
+              { label: 'INT64', value: 'INT64' },
+              { label: 'FIXED_STRING(32)', value: 'FIXED_STRING(32)' },
+            ]}
+          />
         </Form.Item>
 
         <Form.Item

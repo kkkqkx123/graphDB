@@ -27,7 +27,6 @@ import type { EdgeType, PropertyDef } from '@/types/schema';
 import styles from './index.module.less';
 
 const { Title, Text } = Typography;
-const { Option } = Select;
 
 const DATA_TYPES = ['STRING', 'INT64', 'DOUBLE', 'BOOL', 'DATETIME', 'DATE', 'TIME', 'TIMESTAMP'];
 
@@ -262,11 +261,11 @@ const EdgeList: React.FC = () => {
                     value={prop.data_type}
                     onChange={(value) => handlePropertyChange(index, 'data_type', value)}
                     style={{ width: 120 }}
-                  >
-                    {DATA_TYPES.map((type) => (
-                      <Option key={type} value={type}>{type}</Option>
-                    ))}
-                  </Select>
+                    options={DATA_TYPES.map((type) => ({
+                      label: type,
+                      value: type,
+                    }))}
+                  />
                   <Input
                     placeholder="Default value (optional)"
                     value={prop.default_value || ''}

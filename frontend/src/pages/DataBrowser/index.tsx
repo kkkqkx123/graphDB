@@ -29,7 +29,6 @@ import type { TableColumnType } from 'antd';
 import styles from './index.module.less';
 
 const { TabPane } = Tabs;
-const { Option } = Select;
 
 const DataBrowser: React.FC = () => {
   const { currentSpace, tags, edgeTypes } = useSchemaStore();
@@ -378,13 +377,11 @@ const DataBrowser: React.FC = () => {
                     onChange={setSelectedTag}
                     style={{ width: 200 }}
                     allowClear
-                  >
-                    {tags.map((tag) => (
-                      <Option key={tag.name} value={tag.name}>
-                        {tag.name}
-                      </Option>
-                    ))}
-                  </Select>
+                    options={tags.map((tag) => ({
+                      label: tag.name,
+                      value: tag.name,
+                    }))}
+                  />
                 </div>
 
                 {filterPanelVisible && <FilterPanel properties={vertexProperties} />}
@@ -424,13 +421,11 @@ const DataBrowser: React.FC = () => {
                     onChange={setSelectedEdgeType}
                     style={{ width: 200 }}
                     allowClear
-                  >
-                    {edgeTypes.map((type) => (
-                      <Option key={type.name} value={type.name}>
-                        {type.name}
-                      </Option>
-                    ))}
-                  </Select>
+                    options={edgeTypes.map((type) => ({
+                      label: type.name,
+                      value: type.name,
+                    }))}
+                  />
                 </div>
 
                 {filterPanelVisible && <FilterPanel properties={edgeProperties} />}

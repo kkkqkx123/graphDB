@@ -12,7 +12,6 @@ import { parseQueryResultToGraph } from '@/utils/cytoscapeConfig';
 import styles from './index.module.less';
 
 const { TextArea } = Input;
-const { Option } = Select;
 
 const QUERY_TEMPLATES = [
   { label: 'Show all nodes (limit 50)', value: 'MATCH (n) RETURN n LIMIT 50' },
@@ -72,13 +71,11 @@ const GraphPage: React.FC = () => {
               onChange={(value) => setQuery(value)}
               style={{ width: 250 }}
               allowClear
-            >
-              {QUERY_TEMPLATES.map((t) => (
-                <Option key={t.value} value={t.value}>
-                  {t.label}
-                </Option>
-              ))}
-            </Select>
+              options={QUERY_TEMPLATES.map((t) => ({
+                label: t.label,
+                value: t.value,
+              }))}
+            />
           </Space>
         </div>
 

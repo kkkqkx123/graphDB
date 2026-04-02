@@ -1,10 +1,12 @@
 import React, { useEffect, useCallback } from 'react';
 import { Form, Input, Button, Card, Checkbox, Spin, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useConnectionStore } from '@/stores/connection';
 import styles from './index.module.less';
 
 const Login: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { login, isLoading, loadSavedConnection } = useConnectionStore();
   const [form] = Form.useForm();
@@ -36,10 +38,10 @@ const Login: React.FC = () => {
     
     try {
       await login(username, password, rememberMe);
-      message.success('Logged in successfully');
+      message.success(t('login.loginSuccess'));
       navigate('/');
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Login failed';
+      const errorMessage = err instanceof Error ? err.message : t('login.loginFailed');
       message.error(errorMessage);
     }
   };
@@ -50,7 +52,7 @@ const Login: React.FC = () => {
 
   return (
     <div className={styles.loginPage}>
-      <Card className={styles.loginCard} title="GraphDB Studio">
+      <Card className={styles.loginCard} title={t('login.title')}>
         <Spin spinning={isLoading}>
           <Form
             form={form}
@@ -64,29 +66,29 @@ const Login: React.FC = () => {
           >
             <Form.Item
               name="username"
-              label="Username"
-              rules={[{ required: true, message: 'Please enter username' }]}
+              label={t('common.username')}
+              rules={[{ required: true, message: t('login.usernameRequired') }]}
             >
-              <Input placeholder="Enter username" />
+              <Input placeholder={t('login.usernamePlaceholder')} />
             </Form.Item>
 
             <Form.Item
               name="password"
-              label="Password"
-              rules={[{ required: true, message: 'Please enter password' }]}
+              label={t('common.password')}
+              rules={[{ required: true, message: t('login.passwordRequired') }]}
             >
-              <Input.Password placeholder="Enter password" />
+              <Input.Password placeholder={t('login.passwordPlaceholder')} />
             </Form.Item>
 
             <Form.Item name="rememberMe" valuePropName="checked">
               <Checkbox onChange={(e) => handleRememberMeChange(e.target.checked)}>
-                Remember me
+                {t('common.rememberMe')}
               </Checkbox>
             </Form.Item>
 
             <Form.Item>
               <Button type="primary" htmlType="submit" block loading={isLoading}>
-                Login
+                {t('common.login')}
               </Button>
             </Form.Item>
           </Form>

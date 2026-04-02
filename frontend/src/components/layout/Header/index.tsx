@@ -2,13 +2,16 @@ import React from 'react';
 import { Layout, Button, Space, Badge, Dropdown, Divider } from 'antd';
 import { DatabaseOutlined, LogoutOutlined, UserOutlined, DisconnectOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useConnectionStore } from '@/stores/connection';
 import SpaceSelector from '@/components/business/SpaceSelector';
+import LanguageSwitcher from '@/components/common/LanguageSwitcher';
 import styles from './index.module.less';
 
 const { Header: AntHeader } = Layout;
 
 const Header: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { isVerified, connectionInfo, logout, isLoading } = useConnectionStore();
 
@@ -24,7 +27,7 @@ const Header: React.FC = () => {
   const menuItems = [
     {
       key: 'logout',
-      label: 'Logout',
+      label: t('common.logout'),
       icon: <LogoutOutlined />,
       onClick: handleLogout,
     },
@@ -34,7 +37,7 @@ const Header: React.FC = () => {
     <AntHeader className={styles.header}>
       <div className={styles.headerLeft}>
         <DatabaseOutlined className={styles.logo} />
-        <span className={styles.title}>GraphDB Studio</span>
+        <span className={styles.title}>{t('header.title')}</span>
         {isVerified && (
           <>
             <Divider type="vertical" className={styles.divider} />
@@ -45,11 +48,12 @@ const Header: React.FC = () => {
 
       <div className={styles.headerRight}>
         <Space size="large">
+          <LanguageSwitcher />
           <Badge
             status={isVerified ? 'success' : 'error'}
             text={
               <span className={styles.statusText}>
-                {isVerified ? 'Connected' : 'Disconnected'}
+                {isVerified ? t('common.connected') : t('common.disconnected')}
               </span>
             }
           />
@@ -68,7 +72,7 @@ const Header: React.FC = () => {
                   loading={isLoading}
                   className={styles.disconnectBtn}
                 >
-                  Logout
+                  {t('common.logout')}
                 </Button>
               </Dropdown>
             </>

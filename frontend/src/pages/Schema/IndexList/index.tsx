@@ -30,7 +30,6 @@ import type { IndexInfo } from '@/types/schema';
 import styles from './index.module.less';
 
 const { Title, Text } = Typography;
-const { Option } = Select;
 
 type IndexStatus = 'creating' | 'finished' | 'failed' | 'rebuilding';
 
@@ -329,10 +328,11 @@ const IndexList: React.FC = () => {
                 setSelectedEntity('');
                 setSelectedFields([]);
               }}
-            >
-              <Option value="TAG">Tag</Option>
-              <Option value="EDGE">Edge</Option>
-            </Select>
+              options={[
+                { label: 'Tag', value: 'TAG' },
+                { label: 'Edge', value: 'EDGE' },
+              ]}
+            />
           </Form.Item>
 
           <Form.Item
@@ -346,19 +346,12 @@ const IndexList: React.FC = () => {
                 setSelectedEntity(value);
                 setSelectedFields([]);
               }}
-            >
-              {indexType === 'TAG'
-                ? tags.map((tag) => (
-                    <Option key={tag.name} value={tag.name}>
-                      {tag.name}
-                    </Option>
-                  ))
-                : edgeTypes.map((edge) => (
-                    <Option key={edge.name} value={edge.name}>
-                      {edge.name}
-                    </Option>
-                  ))}
-            </Select>
+              options={
+                indexType === 'TAG'
+                  ? tags.map((tag) => ({ label: tag.name, value: tag.name }))
+                  : edgeTypes.map((edge) => ({ label: edge.name, value: edge.name }))
+              }
+            />
           </Form.Item>
 
           <Form.Item
@@ -371,12 +364,10 @@ const IndexList: React.FC = () => {
               value={selectedFields}
               onChange={setSelectedFields}
               disabled={!selectedEntity}
-            >
-              {getEntityProperties(indexType, selectedEntity).map((field) => (
-                <Option key={field} value={field}>
-                  {field}
-                </Option>
-              ))}
+              options={getEntityProperties(indexType, selectedEntity).map((field) => ({
+                label: field,
+                value: field,
+              }))}
             </Select>
           </Form.Item>
         </Form>
