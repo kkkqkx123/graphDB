@@ -1,195 +1,21 @@
-use serde::{Deserialize, Serialize};
+//! DescribeVisitor - Description of visitors to the planned node
+//!
+//! Use the Visitor pattern with zero-cost abstraction for distribution at compile time.
+//! Collects node descriptions along with their dependencies for building complete plan graphs.
 
-/// Node description key-value pair
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Pair {
-    pub key: String,
-    pub value: String,
-}
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
+    MultipleInputNode, PlanNode, SingleInputNode,
+};
+use crate::query::planning::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor;
+use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::explain::description::PlanNodeDescription;
 
-impl Pair {
-    pub fn new(key: impl Into<String>, value: impl Into<String>) -> Self {
-        Self {
-            key: key.into(),
-            value: value.into(),
-        }
-    }
-}
-
-/// Branch information
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PlanNodeBranchInfo {
-    pub is_do_branch: bool,
-    pub condition_node_id: i64,
-}
-
-impl PlanNodeBranchInfo {
-    pub fn new(is_do_branch: bool, condition_node_id: i64) -> Self {
-        Self {
-            is_do_branch,
-            condition_node_id,
-        }
-    }
-}
-
-/// Performance statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProfilingStats {
-    pub rows: i64,
-    pub exec_duration_in_us: i64,
-    pub total_duration_in_us: i64,
-    pub other_stats: std::collections::HashMap<String, String>,
-}
-
-impl ProfilingStats {
-    pub fn new() -> Self {
-        Self {
-            rows: 0,
-            exec_duration_in_us: 0,
-            total_duration_in_us: 0,
-            other_stats: std::collections::HashMap::new(),
-        }
-    }
-}
-
-impl Default for ProfilingStats {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Plan Node Description
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PlanNodeDescription {
-    pub name: String,
-    pub id: i64,
-    pub output_var: String,
-    pub description: Option<Vec<Pair>>,
-    pub profiles: Option<Vec<ProfilingStats>>,
-    pub branch_info: Option<PlanNodeBranchInfo>,
-    pub dependencies: Option<Vec<i64>>,
-}
-
-impl PlanNodeDescription {
-    pub fn new(name: impl Into<String>, id: i64) -> Self {
-        Self {
-            name: name.into(),
-            id,
-            output_var: String::new(),
-            description: None,
-            profiles: None,
-            branch_info: None,
-            dependencies: None,
-        }
-    }
-
-    pub fn with_output_var(mut self, output_var: impl Into<String>) -> Self {
-        self.output_var = output_var.into();
-        self
-    }
-
-    pub fn add_description(&mut self, key: impl Into<String>, value: impl Into<String>) {
-        if self.description.is_none() {
-            self.description = Some(Vec::new());
-        }
-        self.description
-            .as_mut()
-            .expect("description should be Some after initialization")
-            .push(Pair::new(key, value));
-    }
-
-    pub fn with_description(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
-        self.add_description(key, value);
-        self
-    }
-
-    pub fn set_dependencies(&mut self, deps: Vec<i64>) {
-        self.dependencies = Some(deps);
-    }
-
-    pub fn with_dependencies(mut self, deps: Vec<i64>) -> Self {
-        self.dependencies = Some(deps);
-        self
-    }
-
-    pub fn set_branch_info(&mut self, branch_info: PlanNodeBranchInfo) {
-        self.branch_info = Some(branch_info);
-    }
-
-    pub fn with_branch_info(mut self, branch_info: PlanNodeBranchInfo) -> Self {
-        self.branch_info = Some(branch_info);
-        self
-    }
-
-    pub fn add_profile(&mut self, profile: ProfilingStats) {
-        if self.profiles.is_none() {
-            self.profiles = Some(Vec::new());
-        }
-        self.profiles
-            .as_mut()
-            .expect("profiles should be Some after initialization")
-            .push(profile);
-    }
-}
-
-/// Plan Description
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PlanDescription {
-    pub plan_node_descs: Vec<PlanNodeDescription>,
-    pub node_index_map: std::collections::HashMap<i64, usize>,
-    pub format: String,
-    pub optimize_time_in_us: i64,
-}
-
-impl PlanDescription {
-    pub fn new() -> Self {
-        Self {
-            plan_node_descs: Vec::new(),
-            node_index_map: std::collections::HashMap::new(),
-            format: String::new(),
-            optimize_time_in_us: 0,
-        }
-    }
-
-    pub fn add_node_desc(&mut self, desc: PlanNodeDescription) -> usize {
-        let index = self.plan_node_descs.len();
-        let node_id = desc.id;
-        self.plan_node_descs.push(desc);
-        self.node_index_map.insert(node_id, index);
-        index
-    }
-
-    pub fn get_node_desc(&self, node_id: i64) -> Option<&PlanNodeDescription> {
-        self.node_index_map
-            .get(&node_id)
-            .and_then(|&index| self.plan_node_descs.get(index))
-    }
-
-    pub fn get_node_desc_mut(&mut self, node_id: i64) -> Option<&mut PlanNodeDescription> {
-        if let Some(&index) = self.node_index_map.get(&node_id) {
-            self.plan_node_descs.get_mut(index)
-        } else {
-            None
-        }
-    }
-}
-
-impl Default for PlanDescription {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
+// Import all node types
 use crate::query::planning::plan::core::nodes::access::graph_scan_node::{
     EdgeIndexScanNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode,
     ScanVerticesNode,
 };
 use crate::query::planning::plan::core::nodes::access::index_scan::IndexScanNode;
-use crate::query::planning::plan::core::nodes::base::plan_node_enum::*;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
-    MultipleInputNode, PlanNode, SingleInputNode,
-};
-use crate::query::planning::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor;
 use crate::query::planning::plan::core::nodes::control_flow::control_flow_node::{
     ArgumentNode, LoopNode, PassThroughNode, SelectNode,
 };
@@ -237,9 +63,6 @@ use crate::query::planning::plan::core::nodes::traversal::traversal_node::{
 };
 
 /// DescribeVisitor – Description of visitors to the planned node
-///
-/// Use the Visitor pattern with zero-cost abstraction for distribution at compile time.
-/// Collects node descriptions along with their dependencies for building complete plan graphs.
 pub struct DescribeVisitor {
     descriptions: Vec<PlanNodeDescription>,
     visited_ids: std::collections::HashSet<i64>,
@@ -302,15 +125,140 @@ impl Default for DescribeVisitor {
     }
 }
 
+// ============================================
+// Macros for generating visitor methods
+// ============================================
+
+/// Generate simple visit methods that only create a description with name
+macro_rules! impl_simple_visit {
+    ($($method:ident => $name:expr, $type:ty),* $(,)?) => {
+        $(
+            fn $method(&mut self, node: &$type) {
+                self.create_description($name, node);
+            }
+        )*
+    };
+}
+
+/// Generate visit methods for single-input nodes
+macro_rules! impl_single_input_visit {
+    ($($method:ident => $name:expr, $type:ty),* $(,)?) => {
+        $(
+            fn $method(&mut self, node: &$type) {
+                let deps = self.collect_single_input_deps(node.input());
+                self.create_description_with_deps($name, node, deps);
+            }
+        )*
+    };
+}
+
+/// Generate visit methods for binary-input nodes
+macro_rules! impl_binary_input_visit {
+    ($($method:ident => $name:expr, $type:ty),* $(,)?) => {
+        $(
+            fn $method(&mut self, node: &$type) {
+                let deps = self.collect_binary_input_deps(node.left_input(), node.right_input());
+                self.create_description_with_deps($name, node, deps);
+            }
+        )*
+    };
+}
+
+/// Generate visit methods for multiple-input nodes (using inputs() method)
+macro_rules! impl_multi_input_visit {
+    ($($method:ident => $name:expr, $type:ty),* $(,)?) => {
+        $(
+            fn $method(&mut self, node: &$type) {
+                let deps = self.collect_multiple_input_deps(node.inputs());
+                self.create_description_with_deps($name, node, deps);
+            }
+        )*
+    };
+}
+
+/// Generate visit methods for multiple-input nodes (using dependencies() method)
+macro_rules! impl_deps_visit {
+    ($($method:ident => $name:expr, $type:ty),* $(,)?) => {
+        $(
+            fn $method(&mut self, node: &$type) {
+                let deps: Vec<i64> = node.dependencies().iter().map(|d| d.id()).collect();
+                self.create_description_with_deps($name, node, deps);
+            }
+        )*
+    };
+}
+
 impl PlanNodeVisitor for DescribeVisitor {
     type Result = ();
 
     fn visit_default(&mut self) {}
 
-    fn visit_start(&mut self, node: &StartNode) {
-        self.create_description("Start", node);
-    }
+    // Simple nodes (no inputs)
+    impl_simple_visit!(
+        visit_start => "Start", StartNode,
+        visit_argument => "Argument", ArgumentNode,
+        visit_pass_through => "PassThrough", PassThroughNode,
+        visit_create_space => "CreateSpace", CreateSpaceNode,
+        visit_drop_space => "DropSpace", DropSpaceNode,
+        visit_desc_space => "DescSpace", DescSpaceNode,
+        visit_show_spaces => "ShowSpaces", ShowSpacesNode,
+        visit_create_tag => "CreateTag", CreateTagNode,
+        visit_alter_tag => "AlterTag", AlterTagNode,
+        visit_desc_tag => "DescTag", DescTagNode,
+        visit_drop_tag => "DropTag", DropTagNode,
+        visit_show_tags => "ShowTags", ShowTagsNode,
+        visit_create_edge => "CreateEdge", CreateEdgeNode,
+        visit_alter_edge => "AlterEdge", AlterEdgeNode,
+        visit_desc_edge => "DescEdge", DescEdgeNode,
+        visit_drop_edge => "DropEdge", DropEdgeNode,
+        visit_show_edges => "ShowEdges", ShowEdgesNode,
+        visit_create_tag_index => "CreateTagIndex", CreateTagIndexNode,
+        visit_drop_tag_index => "DropTagIndex", DropTagIndexNode,
+        visit_desc_tag_index => "DescTagIndex", DescTagIndexNode,
+        visit_show_tag_indexes => "ShowTagIndexes", ShowTagIndexesNode,
+        visit_create_edge_index => "CreateEdgeIndex", CreateEdgeIndexNode,
+        visit_drop_edge_index => "DropEdgeIndex", DropEdgeIndexNode,
+        visit_desc_edge_index => "DescEdgeIndex", DescEdgeIndexNode,
+        visit_show_edge_indexes => "ShowEdgeIndexes", ShowEdgeIndexesNode,
+        visit_rebuild_tag_index => "RebuildTagIndex", RebuildTagIndexNode,
+        visit_rebuild_edge_index => "RebuildEdgeIndex", RebuildEdgeIndexNode,
+        visit_create_user => "CreateUser", CreateUserNode,
+        visit_alter_user => "AlterUser", AlterUserNode,
+        visit_drop_user => "DropUser", DropUserNode,
+        visit_change_password => "ChangePassword", ChangePasswordNode,
+    );
 
+    // Single-input nodes
+    impl_single_input_visit!(
+        visit_filter => "Filter", FilterNode,
+        visit_aggregate => "Aggregate", AggregateNode,
+        visit_dedup => "Dedup", DedupNode,
+        visit_data_collect => "DataCollect", DataCollectNode,
+        visit_unwind => "Unwind", UnwindNode,
+        visit_assign => "Assign", AssignNode,
+    );
+
+    // Binary-input nodes (joins)
+    impl_binary_input_visit!(
+        visit_cross_join => "CrossJoin", CrossJoinNode,
+        visit_full_outer_join => "FullOuterJoin", FullOuterJoinNode,
+        visit_pattern_apply => "PatternApply", PatternApplyNode,
+        visit_roll_up_apply => "RollUpApply", RollUpApplyNode,
+    );
+
+    // Multi-input nodes (using inputs())
+    impl_multi_input_visit!(
+        visit_expand => "Expand", ExpandNode,
+        visit_expand_all => "ExpandAll", ExpandAllNode,
+    );
+
+    // Multi-input nodes (using dependencies())
+    impl_deps_visit!(
+        visit_minus => "Minus", MinusNode,
+        visit_intersect => "Intersect", IntersectNode,
+    );
+
+    // Custom implementations for nodes with special handling
     fn visit_project(&mut self, node: &ProjectNode) {
         let deps = self.collect_single_input_deps(node.input());
         let mut desc = PlanNodeDescription::new("Project", node.id());
@@ -319,7 +267,6 @@ impl PlanNodeVisitor for DescribeVisitor {
         }
         desc.set_dependencies(deps);
 
-        // Add column information
         let columns: Vec<String> = node.columns().iter().map(|col| col.alias.clone()).collect();
         if !columns.is_empty() {
             desc.add_description("columns", columns.join(", "));
@@ -337,7 +284,6 @@ impl PlanNodeVisitor for DescribeVisitor {
         }
         desc.set_dependencies(deps);
 
-        // Add sort key information
         let sort_items = node.sort_items();
         let key_strs: Vec<String> = sort_items
             .iter()
@@ -399,7 +345,6 @@ impl PlanNodeVisitor for DescribeVisitor {
         }
         desc.set_dependencies(deps);
 
-        // Add join key information
         let hash_keys: Vec<String> = node
             .hash_keys()
             .iter()
@@ -448,11 +393,6 @@ impl PlanNodeVisitor for DescribeVisitor {
 
         self.descriptions.push(desc);
         self.visited_ids.insert(node.id());
-    }
-
-    fn visit_cross_join(&mut self, node: &CrossJoinNode) {
-        let deps = self.collect_binary_input_deps(node.left_input(), node.right_input());
-        self.create_description_with_deps("CrossJoin", node, deps);
     }
 
     fn visit_hash_inner_join(&mut self, node: &HashInnerJoinNode) {
@@ -511,11 +451,6 @@ impl PlanNodeVisitor for DescribeVisitor {
 
         self.descriptions.push(desc);
         self.visited_ids.insert(node.id());
-    }
-
-    fn visit_full_outer_join(&mut self, node: &FullOuterJoinNode) {
-        let deps = self.collect_binary_input_deps(node.left_input(), node.right_input());
-        self.create_description_with_deps("FullOuterJoin", node, deps);
     }
 
     fn visit_get_vertices(&mut self, node: &GetVerticesNode) {
@@ -623,42 +558,6 @@ impl PlanNodeVisitor for DescribeVisitor {
         self.visited_ids.insert(node.id());
     }
 
-    fn visit_expand(&mut self, node: &ExpandNode) {
-        let deps = self.collect_multiple_input_deps(node.inputs());
-        let mut desc = PlanNodeDescription::new("Expand", node.id());
-        if let Some(var) = node.output_var() {
-            desc = desc.with_output_var(var.to_string());
-        }
-        desc.set_dependencies(deps);
-
-        let edge_types = node.edge_types();
-        if !edge_types.is_empty() {
-            desc.add_description("edge_types", edge_types.join(", "));
-        }
-        desc.add_description("direction", format!("{:?}", node.direction()));
-
-        self.descriptions.push(desc);
-        self.visited_ids.insert(node.id());
-    }
-
-    fn visit_expand_all(&mut self, node: &ExpandAllNode) {
-        let deps = self.collect_multiple_input_deps(node.inputs());
-        let mut desc = PlanNodeDescription::new("ExpandAll", node.id());
-        if let Some(var) = node.output_var() {
-            desc = desc.with_output_var(var.to_string());
-        }
-        desc.set_dependencies(deps);
-
-        let edge_types = node.edge_types();
-        if !edge_types.is_empty() {
-            desc.add_description("edge_types", edge_types.join(", "));
-        }
-        desc.add_description("direction", format!("{:?}", node.direction()));
-
-        self.descriptions.push(desc);
-        self.visited_ids.insert(node.id());
-    }
-
     fn visit_traverse(&mut self, node: &TraverseNode) {
         let deps = self.collect_single_input_deps(node.input());
         let mut desc = PlanNodeDescription::new("Traverse", node.id());
@@ -679,7 +578,6 @@ impl PlanNodeVisitor for DescribeVisitor {
     }
 
     fn visit_append_vertices(&mut self, node: &AppendVerticesNode) {
-        // AppendVerticesNode has no input, it's a leaf node
         let mut desc = PlanNodeDescription::new("AppendVertices", node.id());
         if let Some(var) = node.output_var() {
             desc = desc.with_output_var(var.to_string());
@@ -689,56 +587,12 @@ impl PlanNodeVisitor for DescribeVisitor {
         self.visited_ids.insert(node.id());
     }
 
-    fn visit_filter(&mut self, node: &FilterNode) {
-        let deps = self.collect_single_input_deps(node.input());
-        let mut desc = PlanNodeDescription::new("Filter", node.id());
-        if let Some(var) = node.output_var() {
-            desc = desc.with_output_var(var.to_string());
-        }
-        desc.set_dependencies(deps);
-
-        // Note: Filter condition details would require access to condition_serializable
-        // which is not publicly accessible. Consider adding a getter method to FilterNode.
-
-        self.descriptions.push(desc);
-        self.visited_ids.insert(node.id());
-    }
-
-    fn visit_aggregate(&mut self, node: &AggregateNode) {
-        let deps = self.collect_single_input_deps(node.input());
-        let mut desc = PlanNodeDescription::new("Aggregate", node.id());
-        if let Some(var) = node.output_var() {
-            desc = desc.with_output_var(var.to_string());
-        }
-        desc.set_dependencies(deps);
-
-        // Add group by and aggregate function info
-        let group_keys = node.group_keys();
-        if !group_keys.is_empty() {
-            desc.add_description("group_by", group_keys.join(", "));
-        }
-
-        let agg_funcs = node.aggregation_functions();
-        if !agg_funcs.is_empty() {
-            let func_names: Vec<String> = agg_funcs.iter().map(|f| f.name().to_string()).collect();
-            desc.add_description("aggregates", func_names.join(", "));
-        }
-
-        self.descriptions.push(desc);
-        self.visited_ids.insert(node.id());
-    }
-
-    fn visit_argument(&mut self, node: &ArgumentNode) {
-        self.create_description("Argument", node);
-    }
-
     fn visit_loop(&mut self, node: &LoopNode) {
         let mut desc = PlanNodeDescription::new("Loop", node.id());
         if let Some(var) = node.output_var() {
             desc = desc.with_output_var(var.to_string());
         }
 
-        // LoopNode has body instead of input
         if let Some(ref body) = node.body() {
             desc.set_dependencies(vec![body.id()]);
         }
@@ -747,18 +601,12 @@ impl PlanNodeVisitor for DescribeVisitor {
         self.visited_ids.insert(node.id());
     }
 
-    fn visit_pass_through(&mut self, node: &PassThroughNode) {
-        // PassThroughNode is a ZeroInputNode, no dependencies
-        self.create_description("PassThrough", node);
-    }
-
     fn visit_select(&mut self, node: &SelectNode) {
         let mut desc = PlanNodeDescription::new("Select", node.id());
         if let Some(var) = node.output_var() {
             desc = desc.with_output_var(var.to_string());
         }
 
-        // SelectNode has if_branch and else_branch
         let mut deps = Vec::new();
         if let Some(ref if_branch) = node.if_branch() {
             deps.push(if_branch.id());
@@ -774,26 +622,6 @@ impl PlanNodeVisitor for DescribeVisitor {
         self.visited_ids.insert(node.id());
     }
 
-    fn visit_data_collect(&mut self, node: &DataCollectNode) {
-        let deps = self.collect_single_input_deps(node.input());
-        self.create_description_with_deps("DataCollect", node, deps);
-    }
-
-    fn visit_dedup(&mut self, node: &DedupNode) {
-        let deps = self.collect_single_input_deps(node.input());
-        self.create_description_with_deps("Dedup", node, deps);
-    }
-
-    fn visit_pattern_apply(&mut self, node: &PatternApplyNode) {
-        let deps = self.collect_binary_input_deps(node.left_input(), node.right_input());
-        self.create_description_with_deps("PatternApply", node, deps);
-    }
-
-    fn visit_roll_up_apply(&mut self, node: &RollUpApplyNode) {
-        let deps = self.collect_binary_input_deps(node.left_input(), node.right_input());
-        self.create_description_with_deps("RollUpApply", node, deps);
-    }
-
     fn visit_union(&mut self, node: &UnionNode) {
         let deps = self.collect_single_input_deps(node.input());
         let mut desc = PlanNodeDescription::new("Union", node.id());
@@ -805,28 +633,6 @@ impl PlanNodeVisitor for DescribeVisitor {
 
         self.descriptions.push(desc);
         self.visited_ids.insert(node.id());
-    }
-
-    fn visit_minus(&mut self, node: &MinusNode) {
-        // MinusNode has main input and minus_input in deps
-        let deps: Vec<i64> = node.dependencies().iter().map(|d| d.id()).collect();
-        self.create_description_with_deps("Minus", node, deps);
-    }
-
-    fn visit_intersect(&mut self, node: &IntersectNode) {
-        // IntersectNode has main input and intersect_input in deps
-        let deps: Vec<i64> = node.dependencies().iter().map(|d| d.id()).collect();
-        self.create_description_with_deps("Intersect", node, deps);
-    }
-
-    fn visit_unwind(&mut self, node: &UnwindNode) {
-        let deps = self.collect_single_input_deps(node.input());
-        self.create_description_with_deps("Unwind", node, deps);
-    }
-
-    fn visit_assign(&mut self, node: &AssignNode) {
-        let deps = self.collect_single_input_deps(node.input());
-        self.create_description_with_deps("Assign", node, deps);
     }
 
     fn visit_index_scan(&mut self, node: &IndexScanNode) {
@@ -904,117 +710,5 @@ impl PlanNodeVisitor for DescribeVisitor {
 
         self.descriptions.push(desc);
         self.visited_ids.insert(node.id());
-    }
-
-    fn visit_create_space(&mut self, node: &CreateSpaceNode) {
-        self.create_description("CreateSpace", node);
-    }
-
-    fn visit_drop_space(&mut self, node: &DropSpaceNode) {
-        self.create_description("DropSpace", node);
-    }
-
-    fn visit_desc_space(&mut self, node: &DescSpaceNode) {
-        self.create_description("DescSpace", node);
-    }
-
-    fn visit_show_spaces(&mut self, node: &ShowSpacesNode) {
-        self.create_description("ShowSpaces", node);
-    }
-
-    fn visit_create_tag(&mut self, node: &CreateTagNode) {
-        self.create_description("CreateTag", node);
-    }
-
-    fn visit_alter_tag(&mut self, node: &AlterTagNode) {
-        self.create_description("AlterTag", node);
-    }
-
-    fn visit_desc_tag(&mut self, node: &DescTagNode) {
-        self.create_description("DescTag", node);
-    }
-
-    fn visit_drop_tag(&mut self, node: &DropTagNode) {
-        self.create_description("DropTag", node);
-    }
-
-    fn visit_show_tags(&mut self, node: &ShowTagsNode) {
-        self.create_description("ShowTags", node);
-    }
-
-    fn visit_create_edge(&mut self, node: &CreateEdgeNode) {
-        self.create_description("CreateEdge", node);
-    }
-
-    fn visit_alter_edge(&mut self, node: &AlterEdgeNode) {
-        self.create_description("AlterEdge", node);
-    }
-
-    fn visit_desc_edge(&mut self, node: &DescEdgeNode) {
-        self.create_description("DescEdge", node);
-    }
-
-    fn visit_drop_edge(&mut self, node: &DropEdgeNode) {
-        self.create_description("DropEdge", node);
-    }
-
-    fn visit_show_edges(&mut self, node: &ShowEdgesNode) {
-        self.create_description("ShowEdges", node);
-    }
-
-    fn visit_create_tag_index(&mut self, node: &CreateTagIndexNode) {
-        self.create_description("CreateTagIndex", node);
-    }
-
-    fn visit_drop_tag_index(&mut self, node: &DropTagIndexNode) {
-        self.create_description("DropTagIndex", node);
-    }
-
-    fn visit_desc_tag_index(&mut self, node: &DescTagIndexNode) {
-        self.create_description("DescTagIndex", node);
-    }
-
-    fn visit_show_tag_indexes(&mut self, node: &ShowTagIndexesNode) {
-        self.create_description("ShowTagIndexes", node);
-    }
-
-    fn visit_create_edge_index(&mut self, node: &CreateEdgeIndexNode) {
-        self.create_description("CreateEdgeIndex", node);
-    }
-
-    fn visit_drop_edge_index(&mut self, node: &DropEdgeIndexNode) {
-        self.create_description("DropEdgeIndex", node);
-    }
-
-    fn visit_desc_edge_index(&mut self, node: &DescEdgeIndexNode) {
-        self.create_description("DescEdgeIndex", node);
-    }
-
-    fn visit_show_edge_indexes(&mut self, node: &ShowEdgeIndexesNode) {
-        self.create_description("ShowEdgeIndexes", node);
-    }
-
-    fn visit_rebuild_tag_index(&mut self, node: &RebuildTagIndexNode) {
-        self.create_description("RebuildTagIndex", node);
-    }
-
-    fn visit_rebuild_edge_index(&mut self, node: &RebuildEdgeIndexNode) {
-        self.create_description("RebuildEdgeIndex", node);
-    }
-
-    fn visit_create_user(&mut self, node: &CreateUserNode) {
-        self.create_description("CreateUser", node);
-    }
-
-    fn visit_alter_user(&mut self, node: &AlterUserNode) {
-        self.create_description("AlterUser", node);
-    }
-
-    fn visit_drop_user(&mut self, node: &DropUserNode) {
-        self.create_description("DropUser", node);
-    }
-
-    fn visit_change_password(&mut self, node: &ChangePasswordNode) {
-        self.create_description("ChangePassword", node);
     }
 }

@@ -1,5 +1,6 @@
 pub mod core;
 pub mod execution_plan;
+pub mod explain;
 
 pub use core::PlanNodeEnum;
 pub use execution_plan::{ExecutionPlan, SubPlan};

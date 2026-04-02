@@ -564,6 +564,641 @@ fn test_aggregation_query() {
         .assert_result_count(2);
 }
 
+// ==================== UNWIND Statement Tests ====================
+
+#[test]
+fn test_unwind_basic_list() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .query("UNWIND [1, 2, 3] AS n RETURN n")
+        .assert_success()
+        .assert_result_count(3);
+}
+
+#[test]
+fn test_unwind_with_match() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, tags STRING)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(name, tags) VALUES 1:('Alice', 'friend,colleague'), 2:('Bob', 'family')")
+        .assert_success()
+        .query("MATCH (n:Person) UNWIND split(n.tags, ',') AS tag RETURN n.name, tag")
+        .assert_success()
+        .assert_result_count(3);
+}
+
+#[test]
+fn test_unwind_empty_list() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .query("UNWIND [] AS n RETURN n")
+        .assert_success()
+        .assert_result_empty();
+}
+
+// ==================== Aggregate Functions Tests ====================
+
+#[test]
+fn test_aggregate_count() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Product(category STRING)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Product(category) VALUES 
+                1:('Electronics'),
+                2:('Electronics'),
+                3:('Furniture'),
+                4:('Electronics')
+        "#,
+        )
+        .assert_success()
+        .query("MATCH (p:Product) RETURN count(*) AS total")
+        .assert_success()
+        .assert_result_count(1);
+}
+
+#[test]
+fn test_aggregate_sum() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Product(name STRING, price DOUBLE)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Product(name, price) VALUES 
+                1:('Laptop', 999.99),
+                2:('Mouse', 29.99),
+                3:('Keyboard', 79.99)
+        "#,
+        )
+        .assert_success()
+        .query("MATCH (p:Product) RETURN SUM(p.price) AS total_price")
+        .assert_success()
+        .assert_result_count(1);
+}
+
+#[test]
+fn test_aggregate_avg() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Person(name, age) VALUES 
+                1:('Alice', 30),
+                2:('Bob', 25),
+                3:('Charlie', 35)
+        "#,
+        )
+        .assert_success()
+        .query("MATCH (p:Person) RETURN AVG(p.age) AS avg_age")
+        .assert_success()
+        .assert_result_count(1);
+}
+
+#[test]
+fn test_aggregate_max_min() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Product(name STRING, price DOUBLE)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Product(name, price) VALUES 
+                1:('Laptop', 999.99),
+                2:('Mouse', 29.99),
+                3:('Keyboard', 79.99)
+        "#,
+        )
+        .assert_success()
+        .query("MATCH (p:Product) RETURN MAX(p.price) AS max_price, MIN(p.price) AS min_price")
+        .assert_success()
+        .assert_result_count(1);
+}
+
+#[test]
+fn test_aggregate_collect() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Person(name) VALUES 
+                1:('Alice'),
+                2:('Bob'),
+                3:('Charlie')
+        "#,
+        )
+        .assert_success()
+        .query("MATCH (p:Person) RETURN COLLECT(p.name) AS names")
+        .assert_success()
+        .assert_result_count(1);
+}
+
+// ==================== GROUP BY Tests ====================
+
+#[test]
+fn test_group_by_basic() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Product(name STRING, category STRING, price DOUBLE)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Product(name, category, price) VALUES 
+                1:('Laptop', 'Electronics', 999.99),
+                2:('Mouse', 'Electronics', 29.99),
+                3:('Keyboard', 'Electronics', 79.99),
+                4:('Desk', 'Furniture', 299.99),
+                5:('Chair', 'Furniture', 199.99)
+        "#,
+        )
+        .assert_success()
+        .query(
+            r#"
+            MATCH (p:Product) 
+            RETURN p.category, COUNT(*) AS count, SUM(p.price) AS total
+            GROUP BY p.category
+        "#,
+        )
+        .assert_success()
+        .assert_result_count(2);
+}
+
+#[test]
+fn test_group_by_with_having() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Product(name STRING, category STRING, price DOUBLE)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Product(name, category, price) VALUES 
+                1:('Laptop', 'Electronics', 999.99),
+                2:('Mouse', 'Electronics', 29.99),
+                3:('Keyboard', 'Electronics', 79.99),
+                4:('Desk', 'Furniture', 299.99)
+        "#,
+        )
+        .assert_success()
+        .query(
+            r#"
+            MATCH (p:Product) 
+            RETURN p.category, COUNT(*) AS count
+            GROUP BY p.category
+            HAVING COUNT(*) > 2
+        "#,
+        )
+        .assert_success()
+        .assert_result_count(1);
+}
+
+// ==================== SUBGRAPH Extended Tests ====================
+
+#[test]
+fn test_subgraph_with_steps() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .assert_success()
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Person(name) VALUES 
+                1:('Alice'),
+                2:('Bob'),
+                3:('Charlie'),
+                4:('David')
+        "#,
+        )
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT EDGE KNOWS(since) VALUES 
+                1 -> 2:('2020-01-01'),
+                2 -> 3:('2021-01-01'),
+                3 -> 4:('2022-01-01')
+        "#,
+        )
+        .assert_success()
+        .query("GET SUBGRAPH 2 STEPS FROM 1")
+        .assert_success();
+}
+
+#[test]
+fn test_subgraph_with_edge_filter() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .assert_success()
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .assert_success()
+        .exec_ddl("CREATE EDGE FOLLOWS(since DATE)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Person(name) VALUES 
+                1:('Alice'),
+                2:('Bob'),
+                3:('Charlie')
+        "#,
+        )
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT EDGE KNOWS(since) VALUES 
+                1 -> 2:('2020-01-01')
+        "#,
+        )
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT EDGE FOLLOWS(since) VALUES 
+                1 -> 3:('2021-01-01')
+        "#,
+        )
+        .assert_success()
+        .query("GET SUBGRAPH FROM 1 OVER KNOWS")
+        .assert_success();
+}
+
+// ==================== Pipe Operation Tests ====================
+
+#[test]
+fn test_pipe_basic() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .assert_success()
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .assert_success()
+        .exec_ddl("CREATE EDGE FRIEND(since DATE)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Person(name) VALUES 
+                1:('Alice'),
+                2:('Bob'),
+                3:('Charlie')
+        "#,
+        )
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT EDGE KNOWS(since) VALUES 
+                1 -> 2:('2020-01-01')
+        "#,
+        )
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT EDGE FRIEND(since) VALUES 
+                2 -> 3:('2021-01-01')
+        "#,
+        )
+        .assert_success()
+        .query("GO FROM 1 OVER KNOWS YIELD target.id AS id | GO FROM $-.id OVER FRIEND")
+        .assert_success()
+        .assert_result_count(1);
+}
+
+#[test]
+fn test_pipe_with_yield() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .assert_success()
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Person(name, age) VALUES 
+                1:('Alice', 30),
+                2:('Bob', 25)
+        "#,
+        )
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT EDGE KNOWS(since) VALUES 
+                1 -> 2:('2020-01-01')
+        "#,
+        )
+        .assert_success()
+        .query("GO FROM 1 OVER KNOWS YIELD target.id AS id, target.age AS age | YIELD $-.id, $-.age")
+        .assert_success()
+        .assert_result_count(1);
+}
+
+// ==================== Explain/Profile Tests ====================
+
+#[test]
+fn test_explain_match() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .assert_success()
+        .query("EXPLAIN MATCH (n:Person) RETURN n")
+        .assert_success();
+}
+
+#[test]
+fn test_explain_go() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .assert_success()
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .assert_success()
+        .query("EXPLAIN GO FROM 1 OVER KNOWS")
+        .assert_success();
+}
+
+#[test]
+fn test_profile_query() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .assert_success()
+        .query("PROFILE MATCH (n:Person) RETURN n")
+        .assert_success();
+}
+
+// ==================== Cypher Style RETURN/WITH Tests ====================
+
+#[test]
+fn test_cypher_return_basic() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Person(name, age) VALUES 
+                1:('Alice', 30),
+                2:('Bob', 25)
+        "#,
+        )
+        .assert_success()
+        .query("MATCH (n:Person) RETURN n.name AS name, n.age AS age ORDER BY age")
+        .assert_success()
+        .assert_result_count(2);
+}
+
+#[test]
+fn test_cypher_return_distinct() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, city STRING)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Person(name, city) VALUES 
+                1:('Alice', 'NYC'),
+                2:('Bob', 'NYC'),
+                3:('Charlie', 'LA')
+        "#,
+        )
+        .assert_success()
+        .query("MATCH (n:Person) RETURN DISTINCT n.city AS city")
+        .assert_success()
+        .assert_result_count(2);
+}
+
+#[test]
+fn test_cypher_with_clause() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Person(name, age) VALUES 
+                1:('Alice', 30),
+                2:('Bob', 25),
+                3:('Charlie', 35)
+        "#,
+        )
+        .assert_success()
+        .query(
+            r#"
+            MATCH (n:Person) 
+            WITH n.age AS age WHERE age > 25 
+            RETURN age
+        "#,
+        )
+        .assert_success()
+        .assert_result_count(2);
+}
+
+#[test]
+fn test_cypher_with_order_by() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Person(name, age) VALUES 
+                1:('Alice', 30),
+                2:('Bob', 25),
+                3:('Charlie', 35)
+        "#,
+        )
+        .assert_success()
+        .query(
+            r#"
+            MATCH (n:Person) 
+            WITH n.name AS name, n.age AS age 
+            RETURN name, age ORDER BY age DESC LIMIT 2
+        "#,
+        )
+        .assert_success()
+        .assert_result_count(2);
+}
+
+// ==================== Edge Cases and Boundary Tests ====================
+
+#[test]
+fn test_empty_result_set() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)")
+        .assert_success()
+        .query("MATCH (n:Person) WHERE n.age > 100 RETURN n")
+        .assert_success()
+        .assert_result_empty();
+}
+
+#[test]
+fn test_large_limit() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Person(name) VALUES 
+                1:('Alice'),
+                2:('Bob'),
+                3:('Charlie')
+        "#,
+        )
+        .assert_success()
+        .query("MATCH (n:Person) RETURN n LIMIT 1000")
+        .assert_success()
+        .assert_result_count(3);
+}
+
+#[test]
+fn test_zero_limit() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .assert_success()
+        .query("MATCH (n:Person) RETURN n LIMIT 0")
+        .assert_success()
+        .assert_result_empty();
+}
+
+#[test]
+fn test_self_loop_edge() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .assert_success()
+        .exec_ddl("CREATE EDGE SELF_LOOP(notes STRING)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice')")
+        .assert_success()
+        .exec_dml("INSERT EDGE SELF_LOOP(notes) VALUES 1 -> 1:('self reference')")
+        .assert_success()
+        .query("MATCH (n:Person)-[:SELF_LOOP]->(n:Person) RETURN n.name")
+        .assert_success()
+        .assert_result_count(1);
+}
+
+#[test]
+fn test_multiple_edge_types() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .assert_success()
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .assert_success()
+        .exec_ddl("CREATE EDGE FOLLOWS(since DATE)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Person(name) VALUES 
+                1:('Alice'),
+                2:('Bob'),
+                3:('Charlie')
+        "#,
+        )
+        .assert_success()
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01')")
+        .assert_success()
+        .exec_dml("INSERT EDGE FOLLOWS(since) VALUES 1 -> 3:('2021-01-01')")
+        .assert_success()
+        .query("MATCH (n:Person)-[:KNOWS|:FOLLOWS]->(m:Person) RETURN n.name, m.name")
+        .assert_success()
+        .assert_result_count(2);
+}
+
+#[test]
+fn test_null_property_handling() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, nickname STRING)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Person(name, nickname) VALUES
+                1:('Alice', 'Ali'),
+                2:('Bob', '')
+        "#,
+        )
+        .assert_success()
+        .query("MATCH (n:Person) RETURN n.name, n.nickname")
+        .assert_success()
+        .assert_result_count(2);
+}
+
+#[test]
+fn test_deep_traversal() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .assert_success()
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Person(name) VALUES
+                1:('Alice'),
+                2:('Bob'),
+                3:('Charlie'),
+                4:('David'),
+                5:('Eve')
+        "#,
+        )
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT EDGE KNOWS(since) VALUES
+                1 -> 2:('2020-01-01'),
+                2 -> 3:('2020-02-01'),
+                3 -> 4:('2020-03-01'),
+                4 -> 5:('2020-04-01')
+        "#,
+        )
+        .assert_success()
+        .query("MATCH (a:Person)-[:KNOWS]->(b:Person)-[:KNOWS]->(c:Person)-[:KNOWS]->(d:Person)-[:KNOWS]->(e:Person) WHERE a.name == 'Alice' RETURN e.name")
+        .assert_success()
+        .assert_result_count(1);
+}
+
 // ==================== Error Handling Tests ====================
 
 #[test]
@@ -594,8 +1229,106 @@ fn test_query_nonexistent_property() {
         .assert_success()
         .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice')")
         .assert_success()
-        // Query non-existent property
         .query("MATCH (n:Person) RETURN n.nonexistent")
         .assert_success()
         .assert_result_count(1);
 }
+
+#[test]
+fn test_type_mismatch_error() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)")
+        .assert_success()
+        .query("MATCH (n:Person) WHERE n.age == 'thirty' RETURN n")
+        .assert_success();
+}
+
+#[test]
+fn test_invalid_edge_direction() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .assert_success()
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .assert_success()
+        .query("MATCH (n:Person)<-[:KNOWS]-(m:Person) RETURN n, m")
+        .assert_success();
+}
+
+#[test]
+fn test_empty_string_property() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('')")
+        .assert_success()
+        .query("MATCH (n:Person) WHERE n.name == '' RETURN n")
+        .assert_success()
+        .assert_result_count(1);
+}
+
+#[test]
+fn test_very_long_string_property() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(description STRING)")
+        .assert_success()
+        .exec_dml(
+            &format!("INSERT VERTEX Person(description) VALUES 1:(\'{}\')", "a".repeat(1000)),
+        )
+        .assert_success()
+        .query("MATCH (n:Person) RETURN n.description")
+        .assert_success()
+        .assert_result_count(1);
+}
+
+#[test]
+fn test_special_characters_in_string() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Person(name) VALUES
+                1:('Alice\'s "special" name'),
+                2:('Bob\nNewline'),
+                3:('Charlie\tTab')
+        "#,
+        )
+        .assert_success()
+        .query("MATCH (n:Person) RETURN n.name")
+        .assert_success()
+        .assert_result_count(3);
+}
+
+#[test]
+fn test_numeric_edge_cases() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Product(price DOUBLE)")
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX Product(price) VALUES
+                1:(0.0),
+                2:(-99.99),
+                3:(999999999.99)
+        "#,
+        )
+        .assert_success()
+        .query("MATCH (p:Product) RETURN p.price ORDER BY p.price")
+        .assert_success()
+        .assert_result_count(3);
+} 
+

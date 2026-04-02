@@ -92,11 +92,15 @@ impl<'a> ChildRewriteVisitor<'a> {
     }
 }
 
-/// A method for rewriting a single-input node
+// ============================================
+// Macros for generating visitor methods
+// ============================================
+
+/// Generate a rewrite method for single-input nodes
 macro_rules! impl_single_input_rewrite {
-    ($($method:ident, $node_type:ty, $enum_variant:ident),* $(,)?) => {
+    ($($method:ident => $type:ty, $enum_variant:ident),* $(,)?) => {
         $(
-            fn $method(&mut self, node: &$node_type) -> Self::Result {
+            fn $method(&mut self, node: &$type) -> Self::Result {
                 let input_node = node.input().clone_plan_node();
                 let node_id = self.ctx.allocate_node_id();
                 let new_input = self.rewriter.rewrite_node(self.ctx, &input_node, node_id)?;
@@ -108,11 +112,11 @@ macro_rules! impl_single_input_rewrite {
     };
 }
 
-/// A method for rewriting the generation of dual-input nodes
+/// Generate a rewrite method for binary-input nodes
 macro_rules! impl_binary_input_rewrite {
-    ($($method:ident, $node_type:ty, $enum_variant:ident),* $(,)?) => {
+    ($($method:ident => $type:ty, $enum_variant:ident),* $(,)?) => {
         $(
-            fn $method(&mut self, node: &$node_type) -> Self::Result {
+            fn $method(&mut self, node: &$type) -> Self::Result {
                 let left = node.left_input().clone_plan_node();
                 let right = node.right_input().clone_plan_node();
                 let left_id = self.ctx.allocate_node_id();
@@ -128,18 +132,18 @@ macro_rules! impl_binary_input_rewrite {
     };
 }
 
-/// A method for rewriting code that generates multiple input nodes (using dependencies)
+/// Generate a rewrite method for multiple-input nodes (using dependencies)
 macro_rules! impl_multi_input_deps_rewrite {
-    ($($method:ident, $node_type:ty, $enum_variant:ident),* $(,)?) => {
+    ($($method:ident => $type:ty, $enum_variant:ident),* $(,)?) => {
         $(
-            fn $method(&mut self, node: &$node_type) -> Self::Result {
+            fn $method(&mut self, node: &$type) -> Self::Result {
                 let deps: Vec<PlanNodeEnum> = node
                     .dependencies()
                     .iter()
-                    .map(|dep| dep.clone())
+                    .cloned()
                     .collect();
                 let mut new_deps = Vec::new();
-                for dep in deps.iter() {
+                for dep in &deps {
                     let node_id = self.ctx.allocate_node_id();
                     let new_dep = self.rewriter.rewrite_node(self.ctx, dep, node_id)?;
                     new_deps.push(new_dep);
@@ -152,18 +156,18 @@ macro_rules! impl_multi_input_deps_rewrite {
     };
 }
 
-/// A rewritten method for generating multiple input nodes (using `inputs`)
+/// Generate a rewrite method for multiple-input nodes (using inputs)
 macro_rules! impl_multi_input_inputs_rewrite {
-    ($($method:ident, $node_type:ty, $enum_variant:ident),* $(,)?) => {
+    ($($method:ident => $type:ty, $enum_variant:ident),* $(,)?) => {
         $(
-            fn $method(&mut self, node: &$node_type) -> Self::Result {
+            fn $method(&mut self, node: &$type) -> Self::Result {
                 let deps: Vec<PlanNodeEnum> = node
                     .inputs()
                     .iter()
-                    .map(|dep| dep.clone())
+                    .cloned()
                     .collect();
                 let mut new_deps = Vec::new();
-                for dep in deps.iter() {
+                for dep in &deps {
                     let node_id = self.ctx.allocate_node_id();
                     let new_dep = self.rewriter.rewrite_node(self.ctx, dep, node_id)?;
                     new_deps.push(new_dep);
@@ -176,11 +180,11 @@ macro_rules! impl_multi_input_inputs_rewrite {
     };
 }
 
-/// Generate a rewritten method that does not contain any input nodes.
-macro_rules! impl_no_input_rewrite {
-    ($($method:ident, $node_type:ty, $enum_variant:ident),* $(,)?) => {
+/// Generate a rewrite method for leaf nodes (no inputs)
+macro_rules! impl_leaf_node_rewrite {
+    ($($method:ident => $type:ty, $enum_variant:ident),* $(,)?) => {
         $(
-            fn $method(&mut self, node: &$node_type) -> Self::Result {
+            fn $method(&mut self, node: &$type) -> Self::Result {
                 Ok(PlanNodeEnum::$enum_variant(node.clone()))
             }
         )*
@@ -194,261 +198,108 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
         unreachable!("visit_default should not be called - all node types should have specific visit methods")
     }
 
+    // Single-input nodes
     impl_single_input_rewrite!(
-        visit_filter,
-        FilterNode,
-        Filter,
-        visit_project,
-        ProjectNode,
-        Project,
-        visit_aggregate,
-        AggregateNode,
-        Aggregate,
-        visit_sort,
-        SortNode,
-        Sort,
-        visit_limit,
-        LimitNode,
-        Limit,
-        visit_topn,
-        TopNNode,
-        TopN,
-        visit_sample,
-        SampleNode,
-        Sample,
-        visit_dedup,
-        DedupNode,
-        Dedup,
-        visit_unwind,
-        UnwindNode,
-        Unwind,
-        visit_pattern_apply,
-        PatternApplyNode,
-        PatternApply,
-        visit_roll_up_apply,
-        RollUpApplyNode,
-        RollUpApply,
-        visit_data_collect,
-        DataCollectNode,
-        DataCollect,
-        visit_assign,
-        AssignNode,
-        Assign,
-        visit_remove,
-        RemoveNode,
-        Remove
+        visit_filter => FilterNode, Filter,
+        visit_project => ProjectNode, Project,
+        visit_aggregate => AggregateNode, Aggregate,
+        visit_sort => SortNode, Sort,
+        visit_limit => LimitNode, Limit,
+        visit_topn => TopNNode, TopN,
+        visit_sample => SampleNode, Sample,
+        visit_dedup => DedupNode, Dedup,
+        visit_unwind => UnwindNode, Unwind,
+        visit_pattern_apply => PatternApplyNode, PatternApply,
+        visit_roll_up_apply => RollUpApplyNode, RollUpApply,
+        visit_data_collect => DataCollectNode, DataCollect,
+        visit_assign => AssignNode, Assign,
+        visit_remove => RemoveNode, Remove,
     );
 
+    // Multi-input nodes (using inputs)
     impl_multi_input_inputs_rewrite!(
-        visit_expand,
-        ExpandNode,
-        Expand,
-        visit_expand_all,
-        ExpandAllNode,
-        ExpandAll,
-        visit_append_vertices,
-        AppendVerticesNode,
-        AppendVertices,
-        visit_get_vertices,
-        GetVerticesNode,
-        GetVertices,
-        visit_get_neighbors,
-        GetNeighborsNode,
-        GetNeighbors
+        visit_expand => ExpandNode, Expand,
+        visit_expand_all => ExpandAllNode, ExpandAll,
+        visit_append_vertices => AppendVerticesNode, AppendVertices,
+        visit_get_vertices => GetVerticesNode, GetVertices,
+        visit_get_neighbors => GetNeighborsNode, GetNeighbors,
     );
 
+    // Binary-input nodes (joins)
     impl_binary_input_rewrite!(
-        visit_hash_inner_join,
-        HashInnerJoinNode,
-        HashInnerJoin,
-        visit_hash_left_join,
-        HashLeftJoinNode,
-        HashLeftJoin,
-        visit_inner_join,
-        InnerJoinNode,
-        InnerJoin,
-        visit_left_join,
-        LeftJoinNode,
-        LeftJoin,
-        visit_cross_join,
-        CrossJoinNode,
-        CrossJoin,
-        visit_full_outer_join,
-        FullOuterJoinNode,
-        FullOuterJoin,
-        visit_multi_shortest_path,
-        MultiShortestPathNode,
-        MultiShortestPath,
-        visit_bfs_shortest,
-        BFSShortestNode,
-        BFSShortest,
-        visit_all_paths,
-        AllPathsNode,
-        AllPaths,
-        visit_shortest_path,
-        ShortestPathNode,
-        ShortestPath
+        visit_hash_inner_join => HashInnerJoinNode, HashInnerJoin,
+        visit_hash_left_join => HashLeftJoinNode, HashLeftJoin,
+        visit_inner_join => InnerJoinNode, InnerJoin,
+        visit_left_join => LeftJoinNode, LeftJoin,
+        visit_cross_join => CrossJoinNode, CrossJoin,
+        visit_full_outer_join => FullOuterJoinNode, FullOuterJoin,
+        visit_multi_shortest_path => MultiShortestPathNode, MultiShortestPath,
+        visit_bfs_shortest => BFSShortestNode, BFSShortest,
+        visit_all_paths => AllPathsNode, AllPaths,
+        visit_shortest_path => ShortestPathNode, ShortestPath,
     );
 
-    impl_no_input_rewrite!(
-        visit_get_edges,
-        GetEdgesNode,
-        GetEdges,
-        visit_scan_vertices,
-        ScanVerticesNode,
-        ScanVertices,
-        visit_scan_edges,
-        ScanEdgesNode,
-        ScanEdges,
-        visit_edge_index_scan,
-        EdgeIndexScanNode,
-        EdgeIndexScan,
-        visit_argument,
-        ArgumentNode,
-        Argument,
-        visit_pass_through,
-        PassThroughNode,
-        PassThrough,
-        visit_start,
-        StartNode,
-        Start,
-        visit_create_space,
-        CreateSpaceNode,
-        CreateSpace,
-        visit_drop_space,
-        DropSpaceNode,
-        DropSpace,
-        visit_desc_space,
-        DescSpaceNode,
-        DescSpace,
-        visit_show_spaces,
-        ShowSpacesNode,
-        ShowSpaces,
-        visit_switch_space,
-        SwitchSpaceNode,
-        SwitchSpace,
-        visit_create_tag,
-        CreateTagNode,
-        CreateTag,
-        visit_alter_tag,
-        AlterTagNode,
-        AlterTag,
-        visit_desc_tag,
-        DescTagNode,
-        DescTag,
-        visit_drop_tag,
-        DropTagNode,
-        DropTag,
-        visit_show_tags,
-        ShowTagsNode,
-        ShowTags,
-        visit_show_create_tag,
-        ShowCreateTagNode,
-        ShowCreateTag,
-        visit_create_edge,
-        CreateEdgeNode,
-        CreateEdge,
-        visit_alter_edge,
-        AlterEdgeNode,
-        AlterEdge,
-        visit_desc_edge,
-        DescEdgeNode,
-        DescEdge,
-        visit_drop_edge,
-        DropEdgeNode,
-        DropEdge,
-        visit_show_edges,
-        ShowEdgesNode,
-        ShowEdges,
-        visit_create_tag_index,
-        CreateTagIndexNode,
-        CreateTagIndex,
-        visit_drop_tag_index,
-        DropTagIndexNode,
-        DropTagIndex,
-        visit_desc_tag_index,
-        DescTagIndexNode,
-        DescTagIndex,
-        visit_show_tag_indexes,
-        ShowTagIndexesNode,
-        ShowTagIndexes,
-        visit_create_edge_index,
-        CreateEdgeIndexNode,
-        CreateEdgeIndex,
-        visit_drop_edge_index,
-        DropEdgeIndexNode,
-        DropEdgeIndex,
-        visit_desc_edge_index,
-        DescEdgeIndexNode,
-        DescEdgeIndex,
-        visit_show_edge_indexes,
-        ShowEdgeIndexesNode,
-        ShowEdgeIndexes,
-        visit_rebuild_tag_index,
-        RebuildTagIndexNode,
-        RebuildTagIndex,
-        visit_rebuild_edge_index,
-        RebuildEdgeIndexNode,
-        RebuildEdgeIndex,
-        visit_create_user,
-        CreateUserNode,
-        CreateUser,
-        visit_alter_user,
-        AlterUserNode,
-        AlterUser,
-        visit_drop_user,
-        DropUserNode,
-        DropUser,
-        visit_change_password,
-        ChangePasswordNode,
-        ChangePassword,
-        visit_index_scan,
-        IndexScanNode,
-        IndexScan,
-        visit_insert_vertices,
-        InsertVerticesNode,
-        InsertVertices,
-        visit_insert_edges,
-        InsertEdgesNode,
-        InsertEdges,
-        visit_update,
-        UpdateNode,
-        Update,
-        visit_update_vertices,
-        UpdateVerticesNode,
-        UpdateVertices,
-        visit_update_edges,
-        UpdateEdgesNode,
-        UpdateEdges,
-        visit_delete_vertices,
-        DeleteVerticesNode,
-        DeleteVertices,
-        visit_delete_edges,
-        DeleteEdgesNode,
-        DeleteEdges
+    // Leaf nodes (no inputs)
+    impl_leaf_node_rewrite!(
+        visit_get_edges => GetEdgesNode, GetEdges,
+        visit_scan_vertices => ScanVerticesNode, ScanVertices,
+        visit_scan_edges => ScanEdgesNode, ScanEdges,
+        visit_edge_index_scan => EdgeIndexScanNode, EdgeIndexScan,
+        visit_argument => ArgumentNode, Argument,
+        visit_pass_through => PassThroughNode, PassThrough,
+        visit_start => StartNode, Start,
+        visit_create_space => CreateSpaceNode, CreateSpace,
+        visit_drop_space => DropSpaceNode, DropSpace,
+        visit_desc_space => DescSpaceNode, DescSpace,
+        visit_show_spaces => ShowSpacesNode, ShowSpaces,
+        visit_switch_space => SwitchSpaceNode, SwitchSpace,
+        visit_create_tag => CreateTagNode, CreateTag,
+        visit_alter_tag => AlterTagNode, AlterTag,
+        visit_desc_tag => DescTagNode, DescTag,
+        visit_drop_tag => DropTagNode, DropTag,
+        visit_show_tags => ShowTagsNode, ShowTags,
+        visit_show_create_tag => ShowCreateTagNode, ShowCreateTag,
+        visit_create_edge => CreateEdgeNode, CreateEdge,
+        visit_alter_edge => AlterEdgeNode, AlterEdge,
+        visit_desc_edge => DescEdgeNode, DescEdge,
+        visit_drop_edge => DropEdgeNode, DropEdge,
+        visit_show_edges => ShowEdgesNode, ShowEdges,
+        visit_create_tag_index => CreateTagIndexNode, CreateTagIndex,
+        visit_drop_tag_index => DropTagIndexNode, DropTagIndex,
+        visit_desc_tag_index => DescTagIndexNode, DescTagIndex,
+        visit_show_tag_indexes => ShowTagIndexesNode, ShowTagIndexes,
+        visit_create_edge_index => CreateEdgeIndexNode, CreateEdgeIndex,
+        visit_drop_edge_index => DropEdgeIndexNode, DropEdgeIndex,
+        visit_desc_edge_index => DescEdgeIndexNode, DescEdgeIndex,
+        visit_show_edge_indexes => ShowEdgeIndexesNode, ShowEdgeIndexes,
+        visit_rebuild_tag_index => RebuildTagIndexNode, RebuildTagIndex,
+        visit_rebuild_edge_index => RebuildEdgeIndexNode, RebuildEdgeIndex,
+        visit_create_user => CreateUserNode, CreateUser,
+        visit_alter_user => AlterUserNode, AlterUser,
+        visit_drop_user => DropUserNode, DropUser,
+        visit_change_password => ChangePasswordNode, ChangePassword,
+        visit_index_scan => IndexScanNode, IndexScan,
+        visit_insert_vertices => InsertVerticesNode, InsertVertices,
+        visit_insert_edges => InsertEdgesNode, InsertEdges,
+        visit_update => UpdateNode, Update,
+        visit_update_vertices => UpdateVerticesNode, UpdateVertices,
+        visit_update_edges => UpdateEdgesNode, UpdateEdges,
+        visit_delete_vertices => DeleteVerticesNode, DeleteVertices,
+        visit_delete_edges => DeleteEdgesNode, DeleteEdges,
     );
 
+    // Multi-input nodes (using dependencies)
     impl_multi_input_deps_rewrite!(
-        visit_materialize,
-        MaterializeNode,
-        Materialize,
-        visit_union,
-        UnionNode,
-        Union,
-        visit_minus,
-        MinusNode,
-        Minus,
-        visit_intersect,
-        IntersectNode,
-        Intersect,
-        visit_traverse,
-        TraverseNode,
-        Traverse
+        visit_materialize => MaterializeNode, Materialize,
+        visit_union => UnionNode, Union,
+        visit_minus => MinusNode, Minus,
+        visit_intersect => IntersectNode, Intersect,
+        visit_traverse => TraverseNode, Traverse,
     );
 
+    // Custom implementations for nodes with special handling
     fn visit_loop(&mut self, node: &LoopNode) -> Self::Result {
-        let body = node.body().clone();
-        if let Some(body_node) = body {
+        if let Some(body_node) = node.body().clone() {
             let node_id = self.ctx.allocate_node_id();
             let new_body = self.rewriter.rewrite_node(self.ctx, &body_node, node_id)?;
             let mut new_node = node.clone();
@@ -470,9 +321,7 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
 
         if let Some(else_branch) = node.else_branch().clone() {
             let node_id = self.ctx.allocate_node_id();
-            let new_else = self
-                .rewriter
-                .rewrite_node(self.ctx, &else_branch, node_id)?;
+            let new_else = self.rewriter.rewrite_node(self.ctx, &else_branch, node_id)?;
             new_node.set_else_branch(new_else);
         }
 

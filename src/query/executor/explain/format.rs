@@ -5,7 +5,7 @@
 //! - Dot format: Graphviz DOT format for visualization
 //! - Tree format: Hierarchical tree structure showing plan relationships
 
-use crate::query::planning::plan::core::explain::{PlanDescription, PlanNodeDescription};
+use crate::query::planning::plan::explain::{PlanDescription, PlanNodeDescription};
 
 /// Format plan description as a table
 pub fn format_plan_as_table(plan_desc: &PlanDescription) -> String {
@@ -312,7 +312,7 @@ fn truncate_or_pad(s: &str, width: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planning::plan::core::explain::PlanNodeDescription;
+    use crate::query::planning::plan::explain::PlanNodeDescription;
 
     #[test]
     fn test_format_plan_as_table() {

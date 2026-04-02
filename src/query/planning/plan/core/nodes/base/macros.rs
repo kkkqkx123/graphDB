@@ -156,8 +156,8 @@ macro_rules! define_enum_category {
 macro_rules! define_enum_describe {
     ($enum_type:ident, $(($variant:ident, $name:expr)),* $(,)?) => {
         impl $enum_type {
-            pub fn describe(&self) -> $crate::query::planning::plan::core::explain::PlanNodeDescription {
-                use $crate::query::planning::plan::core::explain::PlanNodeDescription;
+            pub fn describe(&self) -> $crate::query::planning::plan::explain::PlanNodeDescription {
+                use $crate::query::planning::plan::explain::PlanNodeDescription;
                 match self {
                     $($enum_type::$variant(node) => {
                         let mut desc = PlanNodeDescription::new($name, node.id());
