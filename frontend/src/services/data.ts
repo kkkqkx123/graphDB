@@ -25,3 +25,5 @@ export const dataService = {
     },
   },
 };
+
+export default dataService;

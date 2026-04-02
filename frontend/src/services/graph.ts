@@ -37,3 +37,5 @@ export const graphService = {
     },
   },
 };
+
+export default graphService;

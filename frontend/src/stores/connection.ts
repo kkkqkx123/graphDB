@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { storage } from '@/utils/storage';
 import { connectionService } from '@/services/connection';
-import { STORAGE_KEYS, DEFAULT_VALUES } from '@/utils/constant';
+import { STORAGE_KEYS, DEFAULT_VALUES } from '@/utils/constants';
 
 export interface ConnectionInfo {
   username: string;

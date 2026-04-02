@@ -97,3 +97,5 @@ export const schemaService = {
     },
   },
 };
+
+export default schemaService;

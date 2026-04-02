@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useConnectionStore } from '@/stores/connection';
-import { HEALTH_CHECK_INTERVAL } from '@/utils/constant';
+import { HEALTH_CHECK_INTERVAL } from '@/utils/constants';
 import { message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 

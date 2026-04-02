@@ -2,7 +2,7 @@ import { post, get, _delete } from '@/utils/http';
 import type { HistoryItem, HistoryParams, FavoriteItem, FavoriteParams, UpdateFavoriteParams } from '@/types/query';
 import type { PaginatedResponse } from '@/types/api';
 
-export const queryService = {
+export const queryHistoryService = {
   history: {
     add: async (params: HistoryParams): Promise<HistoryItem> => {
       const response = await post('/v1/queries/history')(params) as HistoryItem;
@@ -53,3 +53,5 @@ export const queryService = {
     },
   },
 };
+
+export default queryHistoryService;

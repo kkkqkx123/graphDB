@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { schemaService } from '@/services/schemaService';
+import { schemaService } from '@/services/schema';
 import { queryService } from '@/services/query';
 import type {
   Space,
