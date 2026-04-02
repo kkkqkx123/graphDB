@@ -151,25 +151,38 @@ pub trait ExpressionVisitor {
     }
 
     /// Accessing Literal Expressions
-    fn visit_literal(&mut self, value: &Value);
+    fn visit_literal(&mut self, _value: &Value) {}
 
     /// Accessing variable expressions
-    fn visit_variable(&mut self, name: &str);
+    fn visit_variable(&mut self, _name: &str) {}
 
     /// Accessing Property Expressions
-    fn visit_property(&mut self, object: &Expression, property: &str);
+    fn visit_property(&mut self, object: &Expression, _property: &str) {
+        self.visit(object);
+    }
 
     /// Accessing binary arithmetic expressions
-    fn visit_binary(&mut self, op: BinaryOperator, left: &Expression, right: &Expression);
+    fn visit_binary(&mut self, _op: BinaryOperator, left: &Expression, right: &Expression) {
+        self.visit(left);
+        self.visit(right);
+    }
 
     /// Accessing unary arithmetic expressions
-    fn visit_unary(&mut self, op: UnaryOperator, operand: &Expression);
+    fn visit_unary(&mut self, _op: UnaryOperator, operand: &Expression) {
+        self.visit(operand);
+    }
 
     /// Accessing function call expressions
-    fn visit_function(&mut self, name: &str, args: &[Expression]);
+    fn visit_function(&mut self, _name: &str, args: &[Expression]) {
+        for arg in args {
+            self.visit(arg);
+        }
+    }
 
     /// Accessing Aggregate Function Expressions
-    fn visit_aggregate(&mut self, func: &AggregateFunction, arg: &Expression, distinct: bool);
+    fn visit_aggregate(&mut self, _func: &AggregateFunction, arg: &Expression, _distinct: bool) {
+        self.visit(arg);
+    }
 
     /// Accessing Conditional Expressions
     fn visit_case(
@@ -177,19 +190,43 @@ pub trait ExpressionVisitor {
         test_expr: Option<&Expression>,
         conditions: &[(Expression, Expression)],
         default: Option<&Expression>,
-    );
+    ) {
+        if let Some(test) = test_expr {
+            self.visit(test);
+        }
+        for (when, then) in conditions {
+            self.visit(when);
+            self.visit(then);
+        }
+        if let Some(default_expr) = default {
+            self.visit(default_expr);
+        }
+    }
 
     /// Accessing List Expressions
-    fn visit_list(&mut self, items: &[Expression]);
+    fn visit_list(&mut self, items: &[Expression]) {
+        for item in items {
+            self.visit(item);
+        }
+    }
 
     /// Accessing mapping expressions
-    fn visit_map(&mut self, entries: &[(String, Expression)]);
+    fn visit_map(&mut self, entries: &[(String, Expression)]) {
+        for (_, value) in entries {
+            self.visit(value);
+        }
+    }
 
     /// Access to type conversion expressions
-    fn visit_type_cast(&mut self, expression: &Expression, target_type: &DataType);
+    fn visit_type_cast(&mut self, expression: &Expression, _target_type: &DataType) {
+        self.visit(expression);
+    }
 
     /// Access subscript access expression
-    fn visit_subscript(&mut self, collection: &Expression, index: &Expression);
+    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) {
+        self.visit(collection);
+        self.visit(index);
+    }
 
     /// Access Range Expressions
     fn visit_range(
@@ -197,48 +234,82 @@ pub trait ExpressionVisitor {
         collection: &Expression,
         start: Option<&Expression>,
         end: Option<&Expression>,
-    );
+    ) {
+        self.visit(collection);
+        if let Some(start_expr) = start {
+            self.visit(start_expr);
+        }
+        if let Some(end_expr) = end {
+            self.visit(end_expr);
+        }
+    }
 
     /// Access path expression
-    fn visit_path(&mut self, items: &[Expression]);
+    fn visit_path(&mut self, items: &[Expression]) {
+        for item in items {
+            self.visit(item);
+        }
+    }
 
     /// Accessing tag expressions
-    fn visit_label(&mut self, label: &str);
+    fn visit_label(&mut self, _label: &str) {}
 
     /// Access List Derivation Expressions
     fn visit_list_comprehension(
         &mut self,
-        variable: &str,
+        _variable: &str,
         source: &Expression,
         filter: Option<&Expression>,
         map: Option<&Expression>,
-    );
+    ) {
+        self.visit(source);
+        if let Some(filter_expr) = filter {
+            self.visit(filter_expr);
+        }
+        if let Some(map_expr) = map {
+            self.visit(map_expr);
+        }
+    }
 
     /// Dynamic access expressions for accessing tag attributes
-    fn visit_label_tag_property(&mut self, tag: &Expression, property: &str);
+    fn visit_label_tag_property(&mut self, tag: &Expression, _property: &str) {
+        self.visit(tag);
+    }
 
     /// Access Tag Attribute Access Expressions
-    fn visit_tag_property(&mut self, tag_name: &str, property: &str);
+    fn visit_tag_property(&mut self, _tag_name: &str, _property: &str) {}
 
     /// Accessing edge attribute access expressions
-    fn visit_edge_property(&mut self, edge_name: &str, property: &str);
+    fn visit_edge_property(&mut self, _edge_name: &str, _property: &str) {}
 
     /// Access predicate expressions
-    fn visit_predicate(&mut self, func: &str, args: &[Expression]);
+    fn visit_predicate(&mut self, _func: &str, args: &[Expression]) {
+        for arg in args {
+            self.visit(arg);
+        }
+    }
 
     /// Accessing Reduce Expressions
     fn visit_reduce(
         &mut self,
-        accumulator: &str,
+        _accumulator: &str,
         initial: &Expression,
-        variable: &str,
+        _variable: &str,
         source: &Expression,
         mapping: &Expression,
-    );
+    ) {
+        self.visit(initial);
+        self.visit(source);
+        self.visit(mapping);
+    }
 
     /// Access Path Construction Expressions
-    fn visit_path_build(&mut self, items: &[Expression]);
+    fn visit_path_build(&mut self, items: &[Expression]) {
+        for item in items {
+            self.visit(item);
+        }
+    }
 
     /// Accessing query parameter expressions
-    fn visit_parameter(&mut self, name: &str);
+    fn visit_parameter(&mut self, _name: &str) {}
 }

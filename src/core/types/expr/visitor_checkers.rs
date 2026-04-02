@@ -4,12 +4,12 @@
 //!
 //! # Available checkers
 //!
-//! - [`ConstantChecker`] - 检查表达式是否为常量表达式
-//! - [`PropertyContainsChecker`] - 检查表达式是否包含指定的属性名
-//! - [`WildcardReplacer`] - 替换表达式中的通配符变量
-//! - [`AggregateFunctionChecker`] - 检查表达式是否包含聚合函数
-//! - [`VariableContainsChecker`] - 检查表达式是否包含指定变量
-//! - [`PathBuildContainsChecker`] - 检查表达式是否包含PathBuild
+//! - [`ConstantChecker`] - Check if the expression is a constant expression
+//! - [`PropertyContainsChecker`] - Check if the expression contains the specified property name
+//! - [`WildcardReplacer`] - Replace wildcard variables in expressions
+//! - [`AggregateFunctionChecker`] - Check if the expression contains aggregate functions
+//! - [`VariableContainsChecker`] - Check if the expression contains the specified variable
+//! - [`PathBuildContainsChecker`] - Check if the expression contains PathBuild
 
 use crate::core::types::expr::visitor::ExpressionVisitor;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
@@ -291,7 +291,7 @@ impl ExpressionVisitor for ConstantChecker {
 ///
 /// Check whether the expression contains the specified attribute name.
 ///
-/// # 示例
+/// # Examples
 ///
 /// ```rust
 /// use crate::core::types::expr::visitor::PropertyContainsChecker;
@@ -313,7 +313,7 @@ pub struct PropertyContainsChecker {
 impl PropertyContainsChecker {
     /// Creating a new attribute that includes a checker
     ///
-    /// # 参数
+    /// # Parameters
     /// `property_names`: A list of property names to be checked.
     pub fn new(property_names: Vec<String>) -> Self {
         Self {
@@ -324,11 +324,11 @@ impl PropertyContainsChecker {
 
     /// Check whether the expression contains the specified attribute name.
     ///
-    /// # 参数
-    /// - `expr`: 要检查的表达式
-    /// - `property_names`: 要检查的属性名列表
+    /// # Parameters
+    /// - `expr`: expression to be checked
+    /// - `property_names`: list of property names to be checked
     ///
-    /// # 返回
+    /// # Returns
     /// `true`: The expression contains the specified attribute.
     /// `false`: The expression does not contain the specified attribute.
     pub fn check(expr: &Expression, property_names: &[String]) -> bool {
@@ -575,7 +575,7 @@ impl ExpressionVisitor for PropertyContainsChecker {
 ///
 /// Replace the wildcard variables (`*` or `_`) in the expression with specific aliases.
 ///
-/// # 示例
+/// # Examples
 ///
 /// ```rust
 /// use crate::core::types::expr::visitor::WildcardReplacer;
@@ -594,7 +594,7 @@ pub struct WildcardReplacer {
 impl WildcardReplacer {
     /// Create a new wildcard replacer.
     ///
-    /// # 参数
+    /// # Parameters
     /// `alias`: A synonym used to replace wildcards.
     pub fn new(alias: &str) -> Self {
         Self {
@@ -604,10 +604,10 @@ impl WildcardReplacer {
 
     /// Replace the wildcards in the expression.
     ///
-    /// # 参数
+    /// # Parameters
     /// `expr`: The expression that needs to be replaced.
     ///
-    /// # 返回
+    /// # Returns
     /// The replaced expression
     pub fn replace(&self, expr: &Expression) -> Expression {
         self.replace_internal(expr)
@@ -760,7 +760,7 @@ impl WildcardReplacer {
 ///
 /// Check whether the expression contains aggregate functions.
 ///
-/// # 示例
+/// # Examples
 ///
 /// ```rust
 /// use crate::core::types::expr::visitor::AggregateFunctionChecker;
@@ -788,10 +788,10 @@ impl AggregateFunctionChecker {
 
     /// Check whether the expression contains aggregate functions.
     ///
-    /// # 参数
-    /// - `expr`: 要检查的表达式
+    /// # Parameters
+    /// - `expr`: expression to be checked
     ///
-    /// # 返回
+    /// # Returns
     /// - `true`: expression contains aggregate functions
     /// - `false`: expression does not contain an aggregate function
     pub fn check(expr: &Expression) -> bool {
@@ -1028,7 +1028,7 @@ impl ExpressionVisitor for AggregateFunctionChecker {
 ///
 /// Checks if the expression contains the specified variable name.
 ///
-/// # 示例
+/// # Examples
 ///
 /// ```rust
 /// use crate::core::types::expr::visitor::VariableContainsChecker;
@@ -1050,7 +1050,7 @@ pub struct VariableContainsChecker {
 impl VariableContainsChecker {
     /// Create a new variable inclusion checker
     ///
-    /// # 参数
+    /// # Parameters
     /// - `variable_name`: Name of the variable to be checked
     pub fn new(variable_name: &str) -> Self {
         Self {
@@ -1061,11 +1061,11 @@ impl VariableContainsChecker {
 
     /// Checks if the expression contains the specified variable name
     ///
-    /// # 参数
-    /// - `expr`: 要检查的表达式
-    /// - `variable_name`: 要检查的变量名
+    /// # Parameters
+    /// - `expr`: expression to be checked
+    /// - `variable_name`: variable name to be checked
     ///
-    /// # 返回
+    /// # Returns
     /// - `true`: The expression contains the specified variable.
     /// - `false`: The expression does not contain the specified variable.
     pub fn check(expr: &Expression, variable_name: &str) -> bool {
@@ -1308,7 +1308,7 @@ impl ExpressionVisitor for VariableContainsChecker {
 ///
 /// Checks if the expression contains a PathBuild expression.
 ///
-/// # 示例
+/// # Examples
 ///
 /// ```rust
 /// use crate::core::types::expr::visitor::PathBuildContainsChecker;
@@ -1336,10 +1336,10 @@ impl PathBuildContainsChecker {
 
     /// Checks if the expression contains PathBuild.
     ///
-    /// # 参数
-    /// - `expr`: 要检查的表达式
+    /// # Parameters
+    /// - `expr`: expression to be checked
     ///
-    /// # 返回
+    /// # Returns
     /// - `true`: The expression contains PathBuild.
     /// - `false`: The expression does not contain PathBuild.
     pub fn check(expr: &Expression) -> bool {

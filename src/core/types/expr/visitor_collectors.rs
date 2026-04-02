@@ -4,9 +4,9 @@
 //!
 //! # Available collectors
 //!
-//! - [`PropertyCollector`] - 收集表达式中所有使用的属性名
-//! - [`VariableCollector`] - 收集表达式中所有使用的变量名
-//! - [`FunctionCollector`] - 收集表达式中所有使用的函数名
+//! - [`PropertyCollector`] - Collect all property names used in the expression
+//! - [`VariableCollector`] - Collect all variable names used in the expression
+//! - [`FunctionCollector`] - Collect all function names used in the expression
 
 use crate::core::types::expr::visitor::ExpressionVisitor;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
@@ -196,7 +196,7 @@ impl ExpressionVisitor for PropertyCollector {
 ///
 /// Collect all the OR conditions in the expression and check whether they can be converted into IN conditions.
 ///
-/// # 示例
+/// # Examples
 ///
 /// ```rust
 /// use crate::core::types::expr::visitor::OrConditionCollector;
@@ -444,7 +444,7 @@ impl ExpressionVisitor for OrConditionCollector {
 ///
 /// Collect all attribute predicates from the expression (attribute + operator + value).
 ///
-/// # 示例
+/// # Examples
 ///
 /// ```rust
 /// use crate::core::types::expr::visitor::PropertyPredicateCollector;
@@ -667,7 +667,7 @@ impl ExpressionVisitor for PropertyPredicateCollector {
 ///
 /// Collect all the variable names that are used in the expression.
 ///
-/// # 示例
+/// # Examples
 ///
 /// ```rust
 /// use crate::core::types::expr::visitor::VariableCollector;
@@ -690,7 +690,7 @@ impl VariableCollector {
         Self::default()
     }
 
-    /// 清空收集器
+    /// Clear the collector
     pub fn clear(&mut self) {
         self.variables.clear();
     }
@@ -848,7 +848,7 @@ impl ExpressionVisitor for VariableCollector {
 ///
 /// Collect all the function names that are used in the expression.
 ///
-/// # 示例
+/// # Examples
 ///
 /// ```rust
 /// use crate::core::types::expr::visitor::FunctionCollector;
@@ -871,7 +871,7 @@ impl FunctionCollector {
         Self::default()
     }
 
-    /// 清空收集器
+    /// Clear the collector
     pub fn clear(&mut self) {
         self.functions.clear();
     }
