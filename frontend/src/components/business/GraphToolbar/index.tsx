@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Space, Select, Tooltip } from 'antd';
+import { Space, Select } from 'antd';
 import {
   ZoomInOutlined,
   ZoomOutOutlined,
@@ -7,6 +7,7 @@ import {
   ReloadOutlined,
   ClearOutlined,
 } from '@ant-design/icons';
+import IconButton from '@/components/common/IconButton';
 import { useGraphStore } from '@/stores/graph';
 import { getLayoutOptions } from '@/utils/graphLayout';
 import styles from './index.module.less';
@@ -52,24 +53,32 @@ const GraphToolbar: React.FC<GraphToolbarProps> = ({ cy }) => {
   return (
     <div className={styles.toolbar}>
       <Space>
-        <Tooltip title="Zoom In">
-          <Button icon={<ZoomInOutlined />} onClick={handleZoomIn} size="small" />
-        </Tooltip>
-        <Tooltip title="Zoom Out">
-          <Button icon={<ZoomOutOutlined />} onClick={handleZoomOut} size="small" />
-        </Tooltip>
+        <IconButton
+          title="Zoom In"
+          icon={<ZoomInOutlined />}
+          onClick={handleZoomIn}
+        />
+        <IconButton
+          title="Zoom Out"
+          icon={<ZoomOutOutlined />}
+          onClick={handleZoomOut}
+        />
         <span className={styles.zoomLevel}>{Math.round(zoom * 100)}%</span>
         <div className={styles.divider} />
-        <Tooltip title="Fit to Screen">
-          <Button icon={<ExpandOutlined />} onClick={handleFit} size="small">
-            Fit
-          </Button>
-        </Tooltip>
-        <Tooltip title="Reset Layout">
-          <Button icon={<ReloadOutlined />} onClick={handleReset} size="small">
-            Reset
-          </Button>
-        </Tooltip>
+        <IconButton
+          title="Fit to Screen"
+          icon={<ExpandOutlined />}
+          onClick={handleFit}
+        >
+          Fit
+        </IconButton>
+        <IconButton
+          title="Reset Layout"
+          icon={<ReloadOutlined />}
+          onClick={handleReset}
+        >
+          Reset
+        </IconButton>
         <div className={styles.divider} />
         <Select
           value={layout}
@@ -81,11 +90,13 @@ const GraphToolbar: React.FC<GraphToolbarProps> = ({ cy }) => {
         {selectionCount > 0 && (
           <>
             <div className={styles.divider} />
-            <Tooltip title="Clear Selection">
-              <Button icon={<ClearOutlined />} onClick={clearSelection} size="small">
-                Clear ({selectionCount})
-              </Button>
-            </Tooltip>
+            <IconButton
+              title="Clear Selection"
+              icon={<ClearOutlined />}
+              onClick={clearSelection}
+            >
+              Clear ({selectionCount})
+            </IconButton>
           </>
         )}
       </Space>

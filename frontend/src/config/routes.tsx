@@ -2,19 +2,20 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
+import LoadingFallback from '@/components/common/LoadingFallback';
 
+// eslint-disable-next-line react-refresh/only-export-components
 const Login = lazy(() => import('@/pages/Login'));
+// eslint-disable-next-line react-refresh/only-export-components
 const MainPage = lazy(() => import('@/pages/MainPage'));
+// eslint-disable-next-line react-refresh/only-export-components
 const Console = lazy(() => import('@/pages/Console'));
+// eslint-disable-next-line react-refresh/only-export-components
 const Schema = lazy(() => import('@/pages/Schema'));
+// eslint-disable-next-line react-refresh/only-export-components
 const Graph = lazy(() => import('@/pages/Graph'));
+// eslint-disable-next-line react-refresh/only-export-components
 const DataBrowser = lazy(() => import('@/pages/DataBrowser'));
-
-const LoadingFallback = () => (
-  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-    Loading...
-  </div>
-);
 
 const router = createBrowserRouter([
   {

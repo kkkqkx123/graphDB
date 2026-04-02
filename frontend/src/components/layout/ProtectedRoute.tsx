@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useConnectionStore } from '@/stores/connection';
-import { Spin } from 'antd';
+import LoadingScreen from '@/components/common/LoadingScreen';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isConnected, isVerified, checkHealth } = useConnectionStore();
@@ -20,11 +20,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }, [isConnected, isVerified, checkHealth]);
 
   if (isChecking) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <Spin size="large" />
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!isVerified) {

@@ -1,8 +1,8 @@
 import React from 'react';
-import { Card, Descriptions, Button, Space, Tag, Tooltip } from 'antd';
-import { CopyOutlined, CloseOutlined } from '@ant-design/icons';
+import { Card, Descriptions, Button, Tag } from 'antd';
+import { CloseOutlined } from '@ant-design/icons';
+import CopyableText from '@/components/common/CopyableText';
 import { useGraphStore } from '@/stores/graph';
-import { copyToClipboard } from '@/utils/function';
 import styles from './index.module.less';
 
 const DetailPanel: React.FC = () => {
@@ -10,27 +10,13 @@ const DetailPanel: React.FC = () => {
 
   if (!detailPanelVisible || !detailData) return null;
 
-  const handleCopyId = () => {
-    copyToClipboard(detailData.id);
-  };
-
   const renderNodeDetail = () => {
     const node = detailData as import('@/stores/graph').NodeDetail;
     return (
       <>
         <Descriptions column={1} size="small" bordered>
           <Descriptions.Item label="ID">
-            <Space>
-              <span className={styles.idText}>{node.id}</span>
-              <Tooltip title="Copy ID">
-                <Button
-                  icon={<CopyOutlined />}
-                  size="small"
-                  type="text"
-                  onClick={handleCopyId}
-                />
-              </Tooltip>
-            </Space>
+            <CopyableText text={node.id} title="Copy ID" className={styles.idText} />
           </Descriptions.Item>
           <Descriptions.Item label="Tag">
             <Tag color="blue">{node.tag}</Tag>
@@ -58,26 +44,16 @@ const DetailPanel: React.FC = () => {
       <>
         <Descriptions column={1} size="small" bordered>
           <Descriptions.Item label="ID">
-            <Space>
-              <span className={styles.idText}>{edge.id}</span>
-              <Tooltip title="Copy ID">
-                <Button
-                  icon={<CopyOutlined />}
-                  size="small"
-                  type="text"
-                  onClick={handleCopyId}
-                />
-              </Tooltip>
-            </Space>
+            <CopyableText text={edge.id} title="Copy ID" className={styles.idText} />
           </Descriptions.Item>
           <Descriptions.Item label="Type">
             <Tag color="green">{edge.type}</Tag>
           </Descriptions.Item>
           <Descriptions.Item label="Source">
-            <span className={styles.idText}>{edge.source}</span>
+            <CopyableText text={edge.source} title="Copy Source" className={styles.idText} />
           </Descriptions.Item>
           <Descriptions.Item label="Target">
-            <span className={styles.idText}>{edge.target}</span>
+            <CopyableText text={edge.target} title="Copy Target" className={styles.idText} />
           </Descriptions.Item>
           <Descriptions.Item label="Rank">{edge.rank}</Descriptions.Item>
         </Descriptions>

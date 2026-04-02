@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { Layout, Spin } from 'antd';
+import { Layout } from 'antd';
 import Header from '../Header';
 import Sidebar from '../Sidebar';
+import LoadingScreen from '@/components/common/LoadingScreen';
 import { useHealthCheck } from '@/hooks/useHealthCheck';
 import { useConnectionStore } from '@/stores/connection';
 import styles from './index.module.less';
@@ -39,16 +40,13 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     };
 
     performInitialCheck();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useHealthCheck(true);
 
   if (isInitialCheck) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <Spin size="large" />
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return (
