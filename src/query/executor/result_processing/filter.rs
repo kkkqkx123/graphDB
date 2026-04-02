@@ -272,10 +272,10 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
 
             // Set the column names as variables.
             for (i, col_name) in dataset.col_names.iter().enumerate() {
-                    if i < row.len() {
-                        context.set_variable(col_name.clone(), row[i].clone());
-                    }
+                if i < row.len() {
+                    context.set_variable(col_name.clone(), row[i].clone());
                 }
+            }
 
             // Handle table.column format: create table map variables
             let mut table_maps: std::collections::HashMap<
@@ -582,7 +582,9 @@ mod tests {
 
     #[test]
     fn test_filter_executor_basic() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
 
         // Create test data
         let mut dataset = DataSet::new();

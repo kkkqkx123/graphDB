@@ -325,7 +325,8 @@ impl<S: StorageClient> ProjectExecutor<S> {
                             if let Some(dst_idx) = col_names.iter().position(|c| c == "dst") {
                                 if dst_idx < row.len() {
                                     context.set_variable("$$".to_string(), row[dst_idx].clone());
-                                    context.set_variable("target".to_string(), row[dst_idx].clone());
+                                    context
+                                        .set_variable("target".to_string(), row[dst_idx].clone());
                                 }
                             }
                             if let Some(src_idx) = col_names.iter().position(|c| c == "src") {
@@ -684,7 +685,9 @@ mod tests {
 
     #[test]
     fn test_simple_projection() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let expr = crate::core::Expression::Variable("col1".to_string());

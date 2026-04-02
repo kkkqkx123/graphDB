@@ -132,7 +132,7 @@ impl<S: StorageClient + Send + Sync + 'static> RemoveExecutor<S> {
         for remove_item in &self.remove_items {
             let expression = remove_item.expression.get_expression().ok_or_else(|| {
                 DBError::Query(crate::core::error::QueryError::ExecutionError(
-                    "REMOVE 表达式不存在".to_string(),
+                    "REMOVE expression does not exist".to_string(),
                 ))
             })?;
 

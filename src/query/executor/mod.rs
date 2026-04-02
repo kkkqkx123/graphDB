@@ -64,7 +64,7 @@ pub use admin::{
 // Re-export pipeline executors
 pub use pipeline_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
 
-// Re-export graph traversal executors (图遍历执行器)
+// Re-export graph traversal executors (graph traversal executor)
 pub use data_processing::graph_traversal::algorithms::BFSShortestExecutor;
 
 // Re-export explain/profile executors
@@ -128,7 +128,7 @@ mod consistency_tests {
         let right = ArgumentNode::new(2, "right_var");
         let cross_join_node =
             CrossJoinNode::new(NodeEnum::Argument(left), NodeEnum::Argument(right))
-                .expect("创建 CrossJoinNode 失败");
+                .expect("Failed to create CrossJoinNode");
         let plan_node = PlanNodeEnum::CrossJoin(cross_join_node);
 
         // Verify that the PlanNodeEnum implementation satisfies the NodeTypeMapping requirements.

@@ -201,7 +201,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                 }
             };
 
-            // 使用 NPath 扩展，O(1) 操作
+            // Using NPath expansion, O(1) operation
             let new_npath = Arc::new(NPath::extend(
                 current_npath.clone(),
                 Arc::new(edge),
@@ -211,7 +211,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             // Marked as visited
             self.visited_nodes.insert(neighbor_id.clone());
 
-            // Recursive expansion (continuing to expand in order to obtain more edges, even if the vertex is “悬挂”/not directly connected to other nodes in the graph).
+            // Recursive expansion (continuing to expand in order to obtain more edges, even if the vertex is "hanging"/not directly connected to other nodes in the graph).
             let mut expanded_npaths =
                 self.expand_paths_recursive(&new_npath, current_depth + 1, max_depth)?;
             all_npaths.append(&mut expanded_npaths);
@@ -312,9 +312,10 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
             input_exec.execute()?
         } else if let Some(ref input_var) = self.input_var {
             // Try to get input from ExecutionContext
-            self.base.context.get_result(input_var).unwrap_or_else(|| {
-                ExecutionResult::Vertices(Vec::new())
-            })
+            self.base
+                .context
+                .get_result(input_var)
+                .unwrap_or_else(|| ExecutionResult::Vertices(Vec::new()))
         } else {
             // If no actuator is specified, return an empty result.
             ExecutionResult::Vertices(Vec::new())

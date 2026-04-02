@@ -22,9 +22,9 @@ use super::types::{
     AlgorithmStats, Interims, SelfLoopDedup, TerminationMap,
 };
 
-/// Multi-source shortest path actuator
+/// Multi-source shortest path executor
 ///
-/// 同时处理多组(src, dst)路径查找请求
+/// Handle multiple (src, dst) path lookup requests simultaneously
 /// Supports single/multiple shortest paths using bi-directional BFS algorithm
 pub struct MultiShortestPathExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
@@ -332,7 +332,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
                 // Find a match at the intersection
                 for (left_src, left_paths) in left_src_map {
                     for (right_src, right_paths) in right_src_map {
-                        // 检查是否是有效的(src, dst)对
+                        // Check whether it is a valid (src, dst) pair
                         if self.is_valid_pair(left_src, right_src) {
                             path_pairs.push((
                                 left_src.clone(),
@@ -377,7 +377,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         Ok(false)
     }
 
-    /// 检查是否是有效的(src, dst)对
+    /// Check whether it is a valid (src, dst) pair
     fn is_valid_pair(&self, src: &Value, dst: &Value) -> bool {
         if let Some(pairs) = self.termination_map.get(src) {
             pairs.iter().any(|(d, found)| d == dst && *found)

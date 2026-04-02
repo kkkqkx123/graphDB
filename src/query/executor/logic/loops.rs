@@ -712,7 +712,9 @@ mod tests {
 
     #[test]
     fn test_while_loop_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let storage_clone = storage.clone();
 
         let condition = Expression::binary(

@@ -339,7 +339,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
                 // Check the memory limitations.
                 if self.current_memory_usage + memory_usage > self.memory_limit {
                     return Err(crate::query::QueryError::ExecutionError(
-                        "内存限制超出".to_string(),
+                        "Memory limit exceeded".to_string(),
                     ));
                 }
 
@@ -373,7 +373,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
 
                 if self.current_memory_usage + memory_usage > self.memory_limit {
                     return Err(crate::query::QueryError::ExecutionError(
-                        "内存限制超出".to_string(),
+                        "Memory limit exceeded".to_string(),
                     ));
                 }
 
@@ -584,7 +584,9 @@ mod tests {
 
     #[test]
     fn test_dedup_executor_full_strategy() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
 
         let mut executor = DedupExecutor::new(1, storage.clone(), DedupStrategy::Full, None);
 

@@ -15,7 +15,9 @@ mod tests {
     use std::sync::Arc;
 
     fn create_test_graph(_test_name: &str) -> Arc<Mutex<MockStorage>> {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let space = "default";
 
         // Create test diagrams: A -> B -> C, A -> D

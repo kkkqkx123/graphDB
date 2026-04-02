@@ -296,7 +296,9 @@ mod tests {
 
     #[test]
     fn test_limit_executor_basic() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
 
         // Create test data
         let mut dataset = DataSet::new();

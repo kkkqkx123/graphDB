@@ -366,7 +366,9 @@ mod tests {
 
     #[test]
     fn test_unwind_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
 
         // Create the input data
         let list_value = Value::List(List::from(vec![

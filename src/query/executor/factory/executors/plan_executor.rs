@@ -294,8 +294,6 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
             .execute()
             .map_err(|e| QueryError::ExecutionError(format!("Executor execution failed: {}", e)))?;
 
-
-
         if let Some(pool) = &self.object_pool {
             if !is_stateful_executor {
                 pool.release(executor_type, executor);

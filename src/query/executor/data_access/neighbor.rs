@@ -145,7 +145,7 @@ impl<S: StorageClient + 'static> GetNeighborsExecutor<S> {
         }
 
         if failed_count > 0 {
-            log::warn!("获取邻居顶点失败: {} 个", failed_count);
+            log::warn!("Failed to get neighbor vertices: {} ", failed_count);
         }
 
         Ok(neighbors)

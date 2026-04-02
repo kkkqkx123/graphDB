@@ -9,6 +9,7 @@
 //!   - LIMIT/SKIP – Pagination options
 //!   - Selection of intelligent scanning strategies (index scanning, attribute scanning, full table scanning)
 
+use crate::core::types::operators::AggregateFunction;
 use crate::core::types::ContextualExpression;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::pattern::{PathElement, Pattern, RepetitionType};
@@ -18,10 +19,9 @@ use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
 use crate::query::planning::plan::core::nodes::ExpandAllNode;
 use crate::query::planning::plan::core::nodes::{
-    AggregateNode, ArgumentNode, DedupNode, LeftJoinNode, LimitNode, LoopNode, ProjectNode, ScanVerticesNode, SortItem,
-    SortNode, UnionNode,
+    AggregateNode, ArgumentNode, DedupNode, LeftJoinNode, LimitNode, LoopNode, ProjectNode,
+    ScanVerticesNode, SortItem, SortNode, UnionNode,
 };
-use crate::core::types::operators::AggregateFunction;
 use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::planning::statements::statement_planner::StatementPlanner;
@@ -238,7 +238,8 @@ impl MatchStatementPlanner {
                         PathElement::Node(node) => {
                             if is_first_node {
                                 // First node: scan all vertices
-                                let node_plan = self.plan_pattern_node(node, space_id, space_name)?;
+                                let node_plan =
+                                    self.plan_pattern_node(node, space_id, space_name)?;
                                 plan = if let Some(existing_root) = plan.root.take() {
                                     self.cross_join_plans(
                                         SubPlan::new(Some(existing_root), plan.tail),
@@ -279,8 +280,12 @@ impl MatchStatementPlanner {
                             };
 
                             // Create edge expansion plan with proper input variable and dst variable
-                            let edge_plan =
-                                self.plan_pattern_edge_with_input(edge, space_id, input_alias, dst_var)?;
+                            let edge_plan = self.plan_pattern_edge_with_input(
+                                edge,
+                                space_id,
+                                input_alias,
+                                dst_var,
+                            )?;
 
                             plan = if let Some(existing_root) = plan.root.take() {
                                 if is_first_edge {
@@ -539,11 +544,7 @@ impl MatchStatementPlanner {
         // This allows subsequent operations to reference both source and destination nodes by their variable names
         let src_col_name = input_var.to_string();
         let dst_col_name = dst_var.unwrap_or("dst").to_string();
-        expand_node.set_col_names(vec![
-            src_col_name,
-            "edge".to_string(),
-            dst_col_name,
-        ]);
+        expand_node.set_col_names(vec![src_col_name, "edge".to_string(), dst_col_name]);
 
         // Disable empty paths for MATCH queries - we only want actual edge expansions
         expand_node.set_include_empty_paths(false);
@@ -654,17 +655,17 @@ impl MatchStatementPlanner {
         edge_plan: SubPlan,
         node_alias: &str,
     ) -> Result<SubPlan, PlannerError> {
-        use crate::query::planning::plan::core::nodes::base::plan_node_traits::{MultipleInputNode, PlanNode};
+        use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
+            MultipleInputNode, PlanNode,
+        };
 
-        let node_root = node_plan
-            .root
-            .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("Node plan has no root".to_string()))?;
+        let node_root = node_plan.root.as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("Node plan has no root".to_string())
+        })?;
 
-        let edge_root = edge_plan
-            .root
-            .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("Edge plan has no root".to_string()))?;
+        let edge_root = edge_plan.root.as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("Edge plan has no root".to_string())
+        })?;
 
         // If the edge root is an ExpandAllNode, add the node scan as an input
         if let Some(expand_all) = edge_root.as_expand_all() {
@@ -705,15 +706,13 @@ impl MatchStatementPlanner {
     ) -> Result<SubPlan, PlannerError> {
         use crate::query::planning::plan::core::nodes::base::plan_node_traits::MultipleInputNode;
 
-        let left_root = left_plan
-            .root
-            .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("Left plan has no root".to_string()))?;
+        let left_root = left_plan.root.as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("Left plan has no root".to_string())
+        })?;
 
-        let right_root = right_plan
-            .root
-            .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("Right plan has no root".to_string()))?;
+        let right_root = right_plan.root.as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("Right plan has no root".to_string())
+        })?;
 
         // If right_root is an ExpandAllNode, add the left plan as an input
         if let Some(expand_all) = right_root.as_expand_all() {
@@ -800,10 +799,7 @@ impl MatchStatementPlanner {
 
             // Create ProjectNode to convert Vertices to DataSet
             let project_node = ProjectNode::new(input_node.clone(), project_columns)?;
-            let project_plan = SubPlan::new(
-                Some(project_node.into_enum()),
-                input_plan.tail,
-            );
+            let project_plan = SubPlan::new(Some(project_node.into_enum()), input_plan.tail);
 
             // Create AggregateNode with the projected input
             let aggregate_node = AggregateNode::new(
@@ -831,11 +827,10 @@ impl MatchStatementPlanner {
         match expr {
             Expression::Aggregate { .. } => true,
             Expression::Binary { left, right, .. } => {
-                Self::expression_contains_aggregate(left) || Self::expression_contains_aggregate(right)
+                Self::expression_contains_aggregate(left)
+                    || Self::expression_contains_aggregate(right)
             }
-            Expression::Unary { operand, .. } => {
-                Self::expression_contains_aggregate(operand)
-            }
+            Expression::Unary { operand, .. } => Self::expression_contains_aggregate(operand),
             Expression::Function { args, .. } => {
                 args.iter().any(Self::expression_contains_aggregate)
             }
@@ -877,13 +872,9 @@ impl MatchStatementPlanner {
         use crate::core::Expression;
         match expr {
             Expression::Aggregate { func, .. } => Some(func.clone()),
-            Expression::Binary { left, right, .. } => {
-                Self::extract_aggregate_function(left)
-                    .or_else(|| Self::extract_aggregate_function(right))
-            }
-            Expression::Unary { operand, .. } => {
-                Self::extract_aggregate_function(operand)
-            }
+            Expression::Binary { left, right, .. } => Self::extract_aggregate_function(left)
+                .or_else(|| Self::extract_aggregate_function(right)),
+            Expression::Unary { operand, .. } => Self::extract_aggregate_function(operand),
             Expression::Function { args, .. } => {
                 args.iter().find_map(Self::extract_aggregate_function)
             }
@@ -961,9 +952,11 @@ impl MatchStatementPlanner {
 
     fn extract_distinct_flag(&self, stmt: &crate::query::parser::ast::Stmt) -> bool {
         match stmt {
-            crate::query::parser::ast::Stmt::Match(match_stmt) => {
-                match_stmt.return_clause.as_ref().map(|r| r.distinct).unwrap_or(false)
-            }
+            crate::query::parser::ast::Stmt::Match(match_stmt) => match_stmt
+                .return_clause
+                .as_ref()
+                .map(|r| r.distinct)
+                .unwrap_or(false),
             _ => false,
         }
     }

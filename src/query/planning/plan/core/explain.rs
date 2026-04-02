@@ -226,7 +226,9 @@ use crate::query::planning::plan::core::nodes::management::user_nodes::{
 use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
 use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
 use crate::query::planning::plan::core::nodes::operation::sample_node::SampleNode;
-use crate::query::planning::plan::core::nodes::operation::sort_node::{LimitNode, SortNode, TopNNode};
+use crate::query::planning::plan::core::nodes::operation::sort_node::{
+    LimitNode, SortNode, TopNNode,
+};
 use crate::query::planning::plan::core::nodes::traversal::path_algorithms::{
     AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
 };
@@ -318,11 +320,7 @@ impl PlanNodeVisitor for DescribeVisitor {
         desc.set_dependencies(deps);
 
         // Add column information
-        let columns: Vec<String> = node
-            .columns()
-            .iter()
-            .map(|col| col.alias.clone())
-            .collect();
+        let columns: Vec<String> = node.columns().iter().map(|col| col.alias.clone()).collect();
         if !columns.is_empty() {
             desc.add_description("columns", columns.join(", "));
         }

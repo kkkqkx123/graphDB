@@ -501,7 +501,9 @@ mod tests {
 
     #[test]
     fn test_sample_executor_random() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
 
         // Create test data
         let values: Vec<crate::core::Value> = (1..=100).map(crate::core::Value::Int).collect();

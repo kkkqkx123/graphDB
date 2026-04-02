@@ -335,8 +335,7 @@ fn test_complete_query_flow_with_metrics() {
         Ok((_exec_result, _metrics)) => {
             // Verify the execution results and indicators.
         }
-        Err(_e) => {
-        }
+        Err(_e) => {}
     }
 }
 

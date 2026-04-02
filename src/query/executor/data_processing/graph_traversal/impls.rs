@@ -40,7 +40,7 @@ macro_rules! impl_graph_traversal_executor_with_stats {
             fn validate_config(&self) -> Result<(), String> {
                 if let Some(max_depth) = self.max_depth {
                     if max_depth == 0 {
-                        return Err("最大深度不能为0".to_string());
+                        return Err("Maximum depth cannot be 0".to_string());
                     }
                 }
                 Ok(())
@@ -96,7 +96,7 @@ impl<S: crate::storage::StorageClient> GraphTraversalExecutor<S> for ShortestPat
         // Special validation of the shortest path
         if let Some(max_depth) = self.max_depth {
             if max_depth == 0 {
-                return Err("最短路径的最大深度不能为0".to_string());
+                return Err("Maximum depth of shortest path cannot be 0".to_string());
             }
         }
 
@@ -112,10 +112,12 @@ impl<S: crate::storage::StorageClient> GraphTraversalExecutor<S> for ShortestPat
 
         // Verify the configuration of the starting and ending nodes.
         if self.get_start_vertex_ids().is_empty() {
-            return Err("最短路径必须配置至少一个起始节点".to_string());
+            return Err(
+                "Shortest path must be configured with at least one start node".to_string(),
+            );
         }
         if self.get_end_vertex_ids().is_empty() {
-            return Err("最短路径必须配置至少一个结束节点".to_string());
+            return Err("Shortest path must be configured with at least one end node".to_string());
         }
 
         Ok(())

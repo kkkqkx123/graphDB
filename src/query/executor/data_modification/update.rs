@@ -324,7 +324,7 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
             crate::core::Value::Bool(b) => Ok(b),
             _ => Err(crate::core::error::DBError::Query(
                 crate::core::error::QueryError::ExecutionError(
-                    "条件表达式必须返回布尔值".to_string(),
+                    "Conditional expression must return a boolean value".to_string(),
                 ),
             )),
         }

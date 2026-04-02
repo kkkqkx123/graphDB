@@ -131,6 +131,6 @@ impl<S: StorageClient> Executor<S> for AllPathsExecutor<S> {
 
 impl<S: StorageClient> HasStorage<S> for AllPathsExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("存储未初始化")
+        self.base.storage.as_ref().expect("Storage not initialized")
     }
 }

@@ -1,6 +1,6 @@
 //! The AllPaths executor
 //!
-//! 基于 Nebula 3.8.0 的 AllPathsExecutor 实现，使用 NPath 链表结构优化内存
+//! Implementation of AllPathsExecutor based on Nebula 3.8.0, using NPath linked list structure to optimize memory
 //! Functional features:
 //! Bidirectional BFS (Breadth-First Search) algorithm
 //! Use the NPath linked list structure to share path prefixes.
@@ -311,7 +311,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                     .expect("AllPathsExecutor storage not set");
                 let storage = storage.lock();
                 if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
-                    // 使用 NPath 扩展，O(1) 操作，共享前缀
+                    // Using NPath expansion, O(1) operation, sharing prefixes
                     let new_npath = Arc::new(NPath::extend(
                         current_npath.clone(),
                         Arc::new(edge.clone()),

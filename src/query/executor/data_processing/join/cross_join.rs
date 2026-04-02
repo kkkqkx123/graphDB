@@ -260,9 +260,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                         ));
                     }
                 }
-                ExecutionResult::DataSet(dataset) => {
-                    dataset.clone()
-                }
+                ExecutionResult::DataSet(dataset) => dataset.clone(),
                 ExecutionResult::Vertices(vertices) => {
                     // Convert Vertices to DataSet
                     let rows: Vec<Vec<Value>> = vertices
@@ -416,7 +414,9 @@ pub mod tests {
 
     #[test]
     fn test_cross_join_two_tables() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 

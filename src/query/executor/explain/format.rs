@@ -87,8 +87,9 @@ pub fn format_plan_as_dot(plan_desc: &PlanDescription) -> String {
     let mut output = String::new();
 
     output.push_str("digraph G {\n");
-    output.push_str("    rankdir=BT;\n");  // Bottom to top layout for better flow visualization
-    output.push_str("    node[shape=box, style=filled, fillcolor=lightblue, fontname=\"Arial\"];\n");
+    output.push_str("    rankdir=BT;\n"); // Bottom to top layout for better flow visualization
+    output
+        .push_str("    node[shape=box, style=filled, fillcolor=lightblue, fontname=\"Arial\"];\n");
     output.push_str("    edge[arrowhead=none, fontname=\"Arial\"];\n\n");
 
     // Find root nodes (nodes that are not dependencies of any other node)
@@ -128,7 +129,10 @@ pub fn format_plan_as_dot(plan_desc: &PlanDescription) -> String {
                 if edge_label.is_empty() {
                     output.push_str(&format!("    {} -> {};\n", node.id, dep_id));
                 } else {
-                    output.push_str(&format!("    {} -> {} [{}];\n", node.id, dep_id, edge_label));
+                    output.push_str(&format!(
+                        "    {} -> {} [{}];\n",
+                        node.id, dep_id, edge_label
+                    ));
                 }
             }
         }
@@ -162,8 +166,15 @@ pub fn format_plan_as_tree(plan_desc: &PlanDescription) -> String {
     // Find root nodes (nodes that are not dependencies of any other node)
     let mut root_nodes: Vec<&PlanNodeDescription> = Vec::new();
     for node in &plan_desc.plan_node_descs {
-        let is_root = parent_map.get(&node.id).map(|v| v.is_empty()).unwrap_or(true)
-            && node.dependencies.as_ref().map(|d| !d.is_empty()).unwrap_or(false);
+        let is_root = parent_map
+            .get(&node.id)
+            .map(|v| v.is_empty())
+            .unwrap_or(true)
+            && node
+                .dependencies
+                .as_ref()
+                .map(|d| !d.is_empty())
+                .unwrap_or(false);
         if is_root || !parent_map.contains_key(&node.id) {
             root_nodes.push(node);
         }
@@ -183,7 +194,14 @@ pub fn format_plan_as_tree(plan_desc: &PlanDescription) -> String {
         if idx > 0 {
             output.push('\n');
         }
-        format_tree_node(&mut output, root, &node_map, 0, true, &std::collections::HashSet::new());
+        format_tree_node(
+            &mut output,
+            root,
+            &node_map,
+            0,
+            true,
+            &std::collections::HashSet::new(),
+        );
     }
 
     output
@@ -201,7 +219,10 @@ fn format_tree_node(
     // Check for cycles
     if visited.contains(&node.id) {
         let indent = "  ".repeat(depth);
-        output.push_str(&format!("{}[{}] {} (cycle detected)\n", indent, node.id, node.name));
+        output.push_str(&format!(
+            "{}[{}] {} (cycle detected)\n",
+            indent, node.id, node.name
+        ));
         return;
     }
 

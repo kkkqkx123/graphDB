@@ -60,18 +60,16 @@ impl TestScenario {
             .pipeline
             .execute_query_with_space(query, self.current_space.clone())
         {
-            Ok(result) => {
-                match &result {
-                    ExecutionResult::Error(e) => {
-                        self.last_error = Some(e.clone());
-                        self.last_result = Some(result);
-                    }
-                    _ => {
-                        self.last_result = Some(result);
-                        self.last_error = None;
-                    }
+            Ok(result) => match &result {
+                ExecutionResult::Error(e) => {
+                    self.last_error = Some(e.clone());
+                    self.last_result = Some(result);
                 }
-            }
+                _ => {
+                    self.last_result = Some(result);
+                    self.last_error = None;
+                }
+            },
             Err(e) => {
                 self.last_error = Some(format!("{:?}", e));
                 self.last_result = None;
@@ -86,18 +84,16 @@ impl TestScenario {
             .pipeline
             .execute_query_with_space(query, self.current_space.clone())
         {
-            Ok(result) => {
-                match &result {
-                    ExecutionResult::Error(e) => {
-                        self.last_error = Some(e.clone());
-                        self.last_result = Some(result);
-                    }
-                    _ => {
-                        self.last_result = Some(result);
-                        self.last_error = None;
-                    }
+            Ok(result) => match &result {
+                ExecutionResult::Error(e) => {
+                    self.last_error = Some(e.clone());
+                    self.last_result = Some(result);
                 }
-            }
+                _ => {
+                    self.last_result = Some(result);
+                    self.last_error = None;
+                }
+            },
             Err(e) => {
                 self.last_error = Some(format!("{:?}", e));
                 self.last_result = None;
@@ -112,18 +108,16 @@ impl TestScenario {
             .pipeline
             .execute_query_with_space(query, self.current_space.clone())
         {
-            Ok(result) => {
-                match &result {
-                    ExecutionResult::Error(e) => {
-                        self.last_error = Some(e.clone());
-                        self.last_result = Some(result);
-                    }
-                    _ => {
-                        self.last_result = Some(result);
-                        self.last_error = None;
-                    }
+            Ok(result) => match &result {
+                ExecutionResult::Error(e) => {
+                    self.last_error = Some(e.clone());
+                    self.last_result = Some(result);
                 }
-            }
+                _ => {
+                    self.last_result = Some(result);
+                    self.last_error = None;
+                }
+            },
             Err(e) => {
                 self.last_error = Some(format!("{:?}", e));
                 self.last_result = None;
@@ -139,23 +133,21 @@ impl TestScenario {
         let query = format!("CREATE SPACE IF NOT EXISTS {}", space_name);
 
         match self.pipeline.execute_query_with_space(&query, None) {
-            Ok(result) => {
-                match &result {
-                    ExecutionResult::Success | ExecutionResult::Empty => {
-                        self.last_result = Some(result);
-                        self.last_error = None;
-                    }
-                    ExecutionResult::Error(e) => {
-                        self.last_error = Some(format!("CREATE SPACE failed: {}", e));
-                        self.last_result = Some(result);
-                        return self;
-                    }
-                    _ => {
-                        self.last_result = Some(result);
-                        self.last_error = None;
-                    }
+            Ok(result) => match &result {
+                ExecutionResult::Success | ExecutionResult::Empty => {
+                    self.last_result = Some(result);
+                    self.last_error = None;
                 }
-            }
+                ExecutionResult::Error(e) => {
+                    self.last_error = Some(format!("CREATE SPACE failed: {}", e));
+                    self.last_result = Some(result);
+                    return self;
+                }
+                _ => {
+                    self.last_result = Some(result);
+                    self.last_error = None;
+                }
+            },
             Err(e) => {
                 self.last_error = Some(format!("{:?}", e));
                 self.last_result = None;

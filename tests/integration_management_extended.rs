@@ -237,13 +237,15 @@ fn test_group_by_basic() {
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, age INT, city STRING)")
         .assert_success()
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX Person(name, age, city) VALUES
                 1:('Alice', 30, 'NYC'),
                 2:('Bob', 25, 'LA'),
                 3:('Charlie', 35, 'NYC'),
                 4:('David', 28, 'LA')
-        "#)
+        "#,
+        )
         .assert_success()
         .query("GROUP BY city YIELD city, count(*) AS count")
         .assert_success()
@@ -257,13 +259,15 @@ fn test_group_by_with_aggregation() {
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Product(name STRING, category STRING, price DOUBLE)")
         .assert_success()
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX Product(name, category, price) VALUES
                 1:('Laptop', 'Electronics', 999.99),
                 2:('Mouse', 'Electronics', 29.99),
                 3:('Desk', 'Furniture', 299.99),
                 4:('Chair', 'Furniture', 199.99)
-        "#)
+        "#,
+        )
         .assert_success()
         .query("GROUP BY category YIELD category, avg(price) AS avg_price, count(*) AS count")
         .assert_success()
@@ -331,12 +335,14 @@ fn test_return_distinct() {
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, city STRING)")
         .assert_success()
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX Person(name, city) VALUES
                 1:('Alice', 'NYC'),
                 2:('Bob', 'NYC'),
                 3:('Charlie', 'LA')
-        "#)
+        "#,
+        )
         .assert_success()
         .query("MATCH (n:Person) RETURN DISTINCT n.city")
         .assert_success()
@@ -379,19 +385,23 @@ fn test_with_match() {
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, age INT)")
         .assert_success()
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX Person(name, age) VALUES
                 1:('Alice', 30),
                 2:('Bob', 25),
                 3:('Charlie', 35)
-        "#)
+        "#,
+        )
         .assert_success()
-        .query(r#"
+        .query(
+            r#"
             MATCH (n:Person)
             WITH n.name AS name, n.age AS age
             WHERE age > 25
             RETURN name, age
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_result_count(2);
 }
@@ -432,18 +442,22 @@ fn test_unwind_with_match() {
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX Person(name) VALUES
                 1:('Alice'),
                 2:('Bob')
-        "#)
+        "#,
+        )
         .assert_success()
-        .query(r#"
+        .query(
+            r#"
             MATCH (n:Person)
             WITH n.name AS names
             UNWIND names AS name
             RETURN name
-        "#)
+        "#,
+        )
         .assert_success();
 }
 
@@ -476,21 +490,25 @@ fn test_pipe_multiple_stages() {
         .assert_success()
         .exec_ddl("CREATE EDGE KNOWS(since DATE)")
         .assert_success()
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX Person(name, age) VALUES
                 1:('Alice', 30),
                 2:('Bob', 25),
                 3:('Charlie', 35)
-        "#)
+        "#,
+        )
         .assert_success()
         .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01'), 1 -> 3:('2021-01-01')")
         .assert_success()
-        .query(r#"
+        .query(
+            r#"
             GO FROM 1 OVER KNOWS
             | YIELD target.name AS name, target.age AS age
             | WHERE age > 25
             | RETURN name
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_result_count(1);
 }
@@ -550,11 +568,13 @@ fn test_union_basic() {
         .assert_success()
         .exec_dml("INSERT EDGE FOLLOWS(since) VALUES 1 -> 3:('2021-01-01')")
         .assert_success()
-        .query(r#"
+        .query(
+            r#"
             GO FROM 1 OVER KNOWS YIELD target.name AS name
             UNION
             GO FROM 1 OVER FOLLOWS YIELD target.name AS name
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_result_count(2);
 }
@@ -576,11 +596,13 @@ fn test_intersect_basic() {
         .assert_success()
         .exec_dml("INSERT EDGE FOLLOWS(since) VALUES 1 -> 2:('2020-01-01')")
         .assert_success()
-        .query(r#"
+        .query(
+            r#"
             GO FROM 1 OVER KNOWS YIELD target.name AS name
             INTERSECT
             GO FROM 1 OVER FOLLOWS YIELD target.name AS name
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_result_count(1);
 }
@@ -602,11 +624,13 @@ fn test_minus_basic() {
         .assert_success()
         .exec_dml("INSERT EDGE FOLLOWS(since) VALUES 1 -> 2:('2020-01-01')")
         .assert_success()
-        .query(r#"
+        .query(
+            r#"
             GO FROM 1 OVER KNOWS YIELD target.name AS name
             MINUS
             GO FROM 1 OVER FOLLOWS YIELD target.name AS name
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_result_count(1);
 }
@@ -624,20 +648,24 @@ fn test_management_workflow_complete() {
         .exec_ddl("CREATE EDGE KNOWS(since DATE, strength DOUBLE)")
         .assert_success()
         // Insert data
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX Person(name, age, city) VALUES
                 1:('Alice', 30, 'NYC'),
                 2:('Bob', 25, 'LA'),
                 3:('Charlie', 35, 'NYC'),
                 4:('David', 28, 'LA')
-        "#)
+        "#,
+        )
         .assert_success()
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT EDGE KNOWS(since, strength) VALUES
                 1 -> 2:('2020-01-01', 0.9),
                 1 -> 3:('2021-01-01', 0.8),
                 2 -> 4:('2022-01-01', 0.7)
-        "#)
+        "#,
+        )
         .assert_success()
         // Show operations
         .query("SHOW TAGS")
@@ -653,19 +681,23 @@ fn test_management_workflow_complete() {
         .query("PROFILE GO FROM 1 OVER KNOWS")
         .assert_success()
         // Complex pipeline
-        .query(r#"
+        .query(
+            r#"
             GO FROM 1 OVER KNOWS
             | YIELD target.name AS name, target.age AS age, target.city AS city
             | WHERE age > 25
             | RETURN name, city
-        "#)
+        "#,
+        )
         .assert_success()
         // Group by
-        .query(r#"
+        .query(
+            r#"
             MATCH (n:Person)
             WITH n.city AS city, n.age AS age
             GROUP BY city YIELD city, avg(age) AS avg_age
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_result_count(2);
 }
@@ -683,13 +715,15 @@ fn test_pipe_with_unwind() {
         .assert_success()
         .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01'), 1 -> 3:('2021-01-01')")
         .assert_success()
-        .query(r#"
+        .query(
+            r#"
             GO FROM 1 OVER KNOWS
             | YIELD target.name AS name
             | COLLECT LIST(name) AS names
             | UNWIND names AS n
             | RETURN n
-        "#)
+        "#,
+        )
         .assert_success();
 }
 
@@ -700,12 +734,14 @@ fn test_return_with_aggregation() {
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, age INT)")
         .assert_success()
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX Person(name, age) VALUES
                 1:('Alice', 30),
                 2:('Bob', 25),
                 3:('Charlie', 35)
-        "#)
+        "#,
+        )
         .assert_success()
         .query("MATCH (n:Person) RETURN count(*) AS total, avg(n.age) AS avg_age")
         .assert_success()

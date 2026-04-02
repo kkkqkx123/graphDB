@@ -150,7 +150,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                 }
 
                 if failed_count > 0 {
-                    log::warn!("获取顶点失败: {} 个", failed_count);
+                    log::warn!("Failed to get vertices: {} ", failed_count);
                 }
 
                 Ok(result_vertices)
@@ -159,15 +159,9 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                 let storage = self.get_storage().lock();
 
                 match storage.get_vertex(&self.space_name, &ids[0]) {
-                    Ok(Some(vertex)) => {
-                        Ok(vec![vertex])
-                    }
-                    Ok(None) => {
-                        Ok(vec![])
-                    }
-                    Err(e) => {
-                        Err(crate::core::error::DBError::Storage(e))
-                    }
+                    Ok(Some(vertex)) => Ok(vec![vertex]),
+                    Ok(None) => Ok(vec![]),
+                    Err(e) => Err(crate::core::error::DBError::Storage(e)),
                 }
             }
             Some(_) => Ok(Vec::new()),
@@ -228,7 +222,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                                     }
                                 }
                                 Err(e) => {
-                                    log::warn!("顶点过滤表达式评估失败: {}", e);
+                                    log::warn!("Vertex filter expression evaluation failed: {}", e);
                                     false
                                 }
                             }

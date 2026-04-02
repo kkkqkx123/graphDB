@@ -615,11 +615,7 @@ fn test_profile_parser_go() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(
-        result.is_ok(),
-        "PROFILE GO解析应该成功: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "PROFILE GO解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("PROFILE语句解析应该成功");
     assert_eq!(stmt.ast.stmt.kind(), "PROFILE");
@@ -1158,11 +1154,7 @@ fn test_management_kill_query_operations() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let kill_queries = [
-        "KILL QUERY 123",
-        "KILL QUERY 456",
-        "KILL QUERY 789",
-    ];
+    let kill_queries = ["KILL QUERY 123", "KILL QUERY 456", "KILL QUERY 789"];
 
     for query in &kill_queries {
         let result = pipeline_manager.execute_query(query);

@@ -22,7 +22,11 @@ pub fn format_query_plan(plan: &ExecutionPlan) -> String {
     output
 }
 
-fn format_plan_node(output: &mut String, node: &graphdb::query::planning::plan::PlanNodeEnum, indent: usize) {
+fn format_plan_node(
+    output: &mut String,
+    node: &graphdb::query::planning::plan::PlanNodeEnum,
+    indent: usize,
+) {
     let prefix = "  ".repeat(indent);
 
     // Get node information
@@ -31,8 +35,10 @@ fn format_plan_node(output: &mut String, node: &graphdb::query::planning::plan::
     let output_var = node.output_var().unwrap_or("None");
     let col_names = node.col_names();
 
-    output.push_str(&format!("{}[{}] {} (id={}, output_var={})\n",
-        prefix, indent, node_name, node_id, output_var));
+    output.push_str(&format!(
+        "{}[{}] {} (id={}, output_var={})\n",
+        prefix, indent, node_name, node_id, output_var
+    ));
 
     // Add column names if available
     if !col_names.is_empty() {
@@ -44,8 +50,10 @@ fn format_plan_node(output: &mut String, node: &graphdb::query::planning::plan::
         let input_var = expand_all.get_input_var().unwrap_or("None");
         let edge_types = expand_all.edge_types();
         let direction = expand_all.direction();
-        output.push_str(&format!("{}    input_var: {}, edge_types: {:?}, direction: {}\n",
-            prefix, input_var, edge_types, direction));
+        output.push_str(&format!(
+            "{}    input_var: {}, edge_types: {:?}, direction: {}\n",
+            prefix, input_var, edge_types, direction
+        ));
     }
 
     if let Some(scan) = node.as_scan_vertices() {
@@ -103,7 +111,8 @@ fn format_value(value: &Value) -> String {
             format!("[{}]", items.join(", "))
         }
         Value::Map(m) => {
-            let items: Vec<String> = m.iter()
+            let items: Vec<String> = m
+                .iter()
                 .map(|(k, v)| format!("{}: {}", k, format_value(v)))
                 .collect();
             format!("{{{}}}", items.join(", "))

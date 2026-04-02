@@ -353,7 +353,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
         // Traverse the edge layer in reverse order.
         for edge_layer in all_edges.iter().rev() {
             if let Some(edge) = edge_layer.get(&current_vid) {
-                // 反向搜索时，使用 edge.dst 作为下一个顶点
+                // When searching in the reverse direction, use edge.dst as the next vertex
                 let next_vid = if reverse {
                     (*edge.dst).clone()
                 } else {

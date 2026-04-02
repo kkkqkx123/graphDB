@@ -34,7 +34,7 @@ impl MultiPathRequest {
 }
 
 /// Multi-source shortest path termination mapping table
-/// 用于跟踪所有(src, dst)对的完成状态
+/// Track the completion status of all (src, dst) pairs
 pub type TerminationMap = HashMap<Value, Vec<(Value, bool)>>;
 
 /// Intermediate path mapping

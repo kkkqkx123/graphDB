@@ -190,9 +190,8 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
 
         for row in &build_dataset.rows {
             let mut context = RowExpressionContext::from_dataset(row, &build_col_names);
-            let key = ExpressionEvaluator::evaluate(&hash_key, &mut context).map_err(|e| {
-                QueryError::ExecutionError(format!("Key evaluation failed: {}", e))
-            })?;
+            let key = ExpressionEvaluator::evaluate(&hash_key, &mut context)
+                .map_err(|e| QueryError::ExecutionError(format!("Key evaluation failed: {}", e)))?;
 
             hash_table.entry(key).or_default().push(row.to_vec());
         }
@@ -203,9 +202,8 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
 
         for probe_row in &probe_dataset.rows {
             let mut probe_context = RowExpressionContext::from_dataset(probe_row, &probe_col_names);
-            let probe_key_val = ExpressionEvaluator::evaluate(&probe_key, &mut probe_context).map_err(|e| {
-                QueryError::ExecutionError(format!("Key evaluation failed: {}", e))
-            })?;
+            let probe_key_val = ExpressionEvaluator::evaluate(&probe_key, &mut probe_context)
+                .map_err(|e| QueryError::ExecutionError(format!("Key evaluation failed: {}", e)))?;
 
             if let Some(matching_rows) = hash_table.get(&probe_key_val) {
                 for build_row in matching_rows {
@@ -569,7 +567,9 @@ mod tests {
 
     #[test]
     fn test_inner_join_single_key_with_expression() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let expr_context = Arc::new(ExpressionContextStruct::new());
 
         let expr1 = Expression::variable("id");

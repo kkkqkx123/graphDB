@@ -354,7 +354,9 @@ mod tests {
 
     #[test]
     fn test_append_vertices_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
 
         let vids = vec![
             Value::String("vertex1".to_string()),

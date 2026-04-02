@@ -356,7 +356,9 @@ mod tests {
 
     #[test]
     fn test_pattern_apply_single_key_positive() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
 

@@ -154,7 +154,9 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
             }
 
             left_edges.push(HashMap::new());
-            let left_step_edges = left_edges.last_mut().expect("left_edges不应为空");
+            let left_step_edges = left_edges
+                .last_mut()
+                .expect("left_edges should not be empty");
 
             // Leftward expansion
             while let Some((current_id, current_npath)) = state.left_queue.pop_front() {
@@ -191,7 +193,7 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
                     }
 
                     if let Ok(Some(neighbor_vertex)) = self.get_vertex(&neighbor_id) {
-                        // 使用 NPath 扩展，O(1) 操作
+                        // Using NPath expansion, O(1) operation
                         let new_npath = Arc::new(NPath::extend(
                             current_npath.clone(),
                             Arc::new(edge.clone()),
@@ -213,7 +215,9 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
             }
 
             right_edges.push(HashMap::new());
-            let right_step_edges = right_edges.last_mut().expect("right_edges不应为空");
+            let right_step_edges = right_edges
+                .last_mut()
+                .expect("right_edges should not be empty");
 
             // Rightward expansion
             while let Some((current_id, current_npath)) = state.right_queue.pop_front() {
@@ -238,7 +242,7 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
                     }
 
                     if let Ok(Some(neighbor_vertex)) = self.get_vertex(&neighbor_id) {
-                        // 使用 NPath 扩展，O(1) 操作
+                        // Using NPath expansion, O(1) operation
                         let new_npath = Arc::new(NPath::extend(
                             current_npath.clone(),
                             Arc::new(edge.clone()),

@@ -136,7 +136,7 @@ mod tests {
     #[test]
     fn test_executor_lifecycle() {
         let storage = Arc::new(Mutex::new(
-            MockStorage::new().expect("创建MockStorage应该成功"),
+            MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor = ChangePasswordExecutor::new(
@@ -158,7 +158,7 @@ mod tests {
     #[test]
     fn test_executor_stats() {
         let storage = Arc::new(Mutex::new(
-            MockStorage::new().expect("创建MockStorage应该成功"),
+            MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let executor = ChangePasswordExecutor::new(

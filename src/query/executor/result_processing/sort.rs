@@ -974,7 +974,9 @@ mod tests {
 
         let config = SortConfig::default();
 
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
 
         let mut executor = SortExecutor::new(1, storage, sort_keys, None, config)
             .expect("SortExecutor::new should succeed");
@@ -1095,7 +1097,10 @@ mod tests {
 
         // The verification error message contains column index information.
         let error = result.unwrap_err();
-        assert!(format!("{:?}", error).contains("column index") || format!("{:?}", error).contains("Column index"));
+        assert!(
+            format!("{:?}", error).contains("column index")
+                || format!("{:?}", error).contains("Column index")
+        );
     }
 
     #[test]

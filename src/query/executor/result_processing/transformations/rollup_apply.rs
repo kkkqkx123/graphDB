@@ -549,7 +549,9 @@ mod tests {
 
     #[test]
     fn test_rollup_apply_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
 
         let left_values = vec![Value::Int(1), Value::Int(2)];
         let right_values = vec![Value::Int(1), Value::Int(1), Value::Int(2)];

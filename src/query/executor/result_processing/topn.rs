@@ -47,22 +47,22 @@ impl SortColumn {
 /// Top N error types
 #[derive(Debug, thiserror::Error)]
 pub enum TopNError {
-    #[error("执行器已打开")]
+    #[error("Executor already open")]
     ExecutorAlreadyOpen,
 
-    #[error("内存限制超出")]
+    #[error("Memory limit exceeded")]
     MemoryLimitExceeded,
 
-    #[error("无效的列索引: {0}")]
+    #[error("Invalid column index: {0}")]
     InvalidColumnIndex(usize),
 
-    #[error("排序值提取失败: {0}")]
+    #[error("Sort value extraction failed: {0}")]
     SortValueExtractionFailed(String),
 
-    #[error("堆操作失败: {0}")]
+    #[error("Heap operation failed: {0}")]
     HeapOperationFailed(String),
 
-    #[error("输入执行器错误: {0}")]
+    #[error("Input executor error: {0}")]
     InputExecutorError(#[from] DBError),
 }
 
@@ -721,7 +721,7 @@ impl<S: StorageClient> TopNExecutor<S> {
             .into_iter()
             .skip(start)
             .take(end - start)
-            .map(|row| row.into_iter().next().expect("row不应为空"))
+            .map(|row| row.into_iter().next().expect("row should not be empty"))
             .collect())
     }
 
@@ -1294,7 +1294,9 @@ mod tests {
 
     #[test]
     fn test_topn_executor_basic() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
 
         // Create test data
         let mut dataset = DataSet::new();

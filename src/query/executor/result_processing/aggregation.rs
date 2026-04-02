@@ -288,10 +288,15 @@ impl<S: StorageClient> AggregateExecutor<S> {
     }
 
     /// Convert Vertices to a DataSet for aggregation
-    fn vertices_to_dataset(&self, vertices: Vec<crate::core::Vertex>) -> crate::core::value::DataSet {
+    fn vertices_to_dataset(
+        &self,
+        vertices: Vec<crate::core::Vertex>,
+    ) -> crate::core::value::DataSet {
         let mut dataset = crate::core::value::DataSet::new();
         // Use the first group key as the column name, or default to "vertex"
-        let col_name = self.group_keys.first()
+        let col_name = self
+            .group_keys
+            .first()
             .and_then(|expr| match expr {
                 Expression::Variable(name) => Some(name.clone()),
                 _ => None,
