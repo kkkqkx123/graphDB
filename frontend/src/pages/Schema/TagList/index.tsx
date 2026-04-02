@@ -26,6 +26,7 @@ import {
 import { useSchemaStore } from '@/stores/schema';
 import type { Tag as TagType, PropertyDef } from '@/types/schema';
 import EditModal from '../components/EditModal';
+import TTLForm from '../components/TTLForm';
 import styles from './index.module.less';
 
 const { Title, Text } = Typography;
@@ -68,10 +69,17 @@ const TagList: React.FC = () => {
     try {
       const values = await form.validateFields();
       if (currentSpace) {
-        await createTag(currentSpace, {
+        const params: { name: string; properties: PropertyDef[]; ttlCol?: string; ttlDuration?: number } = {
           name: values.name,
           properties: properties,
-        });
+        };
+
+        if (values.ttlCol && values.ttlDuration) {
+          params.ttlCol = values.ttlCol;
+          params.ttlDuration = values.ttlDuration;
+        }
+
+        await createTag(currentSpace, params);
         message.success(`Tag "${values.name}" created successfully`);
         setCreateModalVisible(false);
         form.resetFields();
@@ -304,6 +312,8 @@ const TagList: React.FC = () => {
               </Button>
             </div>
           </Form.Item>
+
+          <TTLForm form={form} properties={properties} />
         </Form>
       </Modal>
 

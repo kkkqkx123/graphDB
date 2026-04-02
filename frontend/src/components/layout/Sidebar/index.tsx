@@ -11,6 +11,7 @@ import {
   ShareAltOutlined,
   FileSearchOutlined,
   EyeOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import styles from './index.module.less';
@@ -65,6 +66,12 @@ const Sidebar: React.FC = () => {
           label: 'Visualization',
           onClick: () => navigate('/schema/visualization'),
         },
+        {
+          key: '/schema/stats',
+          icon: <BarChartOutlined />,
+          label: 'Statistics',
+          onClick: () => navigate('/schema/stats'),
+        },
       ],
     },
     {
@@ -89,6 +96,7 @@ const Sidebar: React.FC = () => {
     if (path.startsWith('/schema/edges')) return '/schema/edges';
     if (path.startsWith('/schema/indexes')) return '/schema/indexes';
     if (path.startsWith('/schema/visualization')) return '/schema/visualization';
+    if (path.startsWith('/schema/stats')) return '/schema/stats';
     if (path.startsWith('/schema')) return '/schema';
     if (path.startsWith('/graph')) return '/graph';
     if (path.startsWith('/data-browser')) return '/data-browser';

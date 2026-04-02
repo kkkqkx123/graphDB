@@ -74,11 +74,15 @@ export interface IndexInfo {
 export interface CreateTagParams {
   name: string;
   properties: PropertyDef[];
+  ttlCol?: string;
+  ttlDuration?: number;
 }
 
 export interface CreateEdgeTypeParams {
   name: string;
   properties: PropertyDef[];
+  ttlCol?: string;
+  ttlDuration?: number;
 }
 
 export interface CreateIndexParams {
