@@ -716,7 +716,7 @@ impl RedbStorage {
         let vertex_id = self.vertex_storage.insert(space, &vertex).await?;
         
         // 2. 同步到全文索引
-        if let Some(ref manager) = self.fulltext_manager {
+        if let Some(crates manager) = self.fulltext_manager {
             let space_id = self.get_space_id(space)?;
             for tag in vertex.tags() {
                 manager.on_vertex_change(

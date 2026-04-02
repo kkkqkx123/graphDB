@@ -4,7 +4,7 @@
 
 本文档描述 GraphDB 全文检索功能的 SQL 语法和 Rust API 接口。
 
-全文检索通过 gRPC 与外部服务（ref/bm25 或 ref/inversearch）通信实现。
+全文检索通过 gRPC 与外部服务（crates/bm25 或 crates/inversearch）通信实现。
 
 ---
 
@@ -372,7 +372,7 @@ match storage.fulltext_search("idx_name", "query", 10).await {
     }
     Err(FulltextError::ServiceUnavailable(msg)) => {
         eprintln!("全文检索服务不可用: {}", msg);
-        eprintln!("请确保服务已启动: ./ref/bm25/target/release/bm25-service");
+        eprintln!("请确保服务已启动: ./crates/bm25/target/release/bm25-service");
     }
     Err(FulltextError::IndexNotFound(name)) => {
         eprintln!("索引不存在: {}", name);

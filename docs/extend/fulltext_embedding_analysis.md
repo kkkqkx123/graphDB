@@ -2,7 +2,7 @@
 
 ## 执行摘要
 
-基于对 `ref/bm25` 和 `ref/inversearch` 目录的详细分析，**两个包都可以直接作为嵌入式库使用**，无需重大调整。两个项目都已经通过条件编译（feature flags）很好地分离了库功能和服务功能。
+基于对 `crates/bm25` 和 `crates/inversearch` 目录的详细分析，**两个包都可以直接作为嵌入式库使用**，无需重大调整。两个项目都已经通过条件编译（feature flags）很好地分离了库功能和服务功能。
 
 ---
 
@@ -238,10 +238,10 @@ impl SearchEngine for InversearchSearchEngine { ... }
 ```toml
 [dependencies]
 # BM25 - 纯库模式（不含 service feature）
-bm25-service = { path = "../ref/bm25", default-features = false }
+bm25-service = { path = "../crates/bm25", default-features = false }
 
 # Inversearch - 纯库模式（不含 service feature）
-inversearch-service = { path = "../ref/inversearch", default-features = false, features = ["cache", "store"] }
+inversearch-service = { path = "../crates/inversearch", default-features = false, features = ["cache", "store"] }
 ```
 
 ### 4.3 关键适配点
@@ -269,8 +269,8 @@ GraphDB
   │   └─ ...
   │
   └─ Cargo.toml
-      ├─ bm25-service = { path = "../ref/bm25", default-features = false }
-      └─ inversearch-service = { path = "../ref/inversearch", default-features = false }
+      ├─ bm25-service = { path = "../crates/bm25", default-features = false }
+      └─ inversearch-service = { path = "../crates/inversearch", default-features = false }
 ```
 
 ---
