@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, Space, Tooltip } from 'antd';
-import { CopyOutlined } from '@ant/icons';
+import { CopyOutlined } from '@ant-design/icons';
 import { copyToClipboard } from '@/utils/function';
 import styles from './index.module.less';
 

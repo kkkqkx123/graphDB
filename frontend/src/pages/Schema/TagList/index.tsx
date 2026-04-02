@@ -20,10 +20,12 @@ import {
   ReloadOutlined,
   EyeOutlined,
   DeleteOutlined,
+  EditOutlined,
   TagOutlined,
 } from '@ant-design/icons';
 import { useSchemaStore } from '@/stores/schema';
 import type { Tag as TagType, PropertyDef } from '@/types/schema';
+import EditModal from '../components/EditModal';
 import styles from './index.module.less';
 
 const { Title, Text } = Typography;
@@ -44,6 +46,7 @@ const TagList: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedTag, setSelectedTag] = useState<TagType | null>(null);
   const [form] = Form.useForm();
   const [properties, setProperties] = useState<PropertyDef[]>([]);
@@ -95,6 +98,18 @@ const TagList: React.FC = () => {
   const handleViewDetail = (tag: TagType) => {
     setSelectedTag(tag);
     setDetailModalVisible(true);
+  };
+
+  const handleEdit = (tag: TagType) => {
+    setSelectedTag(tag);
+    setEditModalVisible(true);
+  };
+
+  const handleEditSuccess = () => {
+    setEditModalVisible(false);
+    if (currentSpace) {
+      fetchTags(currentSpace);
+    }
   };
 
   const handleAddProperty = () => {
@@ -152,6 +167,13 @@ const TagList: React.FC = () => {
               type="text"
               icon={<EyeOutlined />}
               onClick={() => handleViewDetail(record)}
+            />
+          </Tooltip>
+          <Tooltip title="Edit">
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
             />
           </Tooltip>
           <Tooltip title="Delete">
@@ -317,6 +339,19 @@ const TagList: React.FC = () => {
           </div>
         )}
       </Modal>
+
+      {/* Edit Modal */}
+      {selectedTag && currentSpace && (
+        <EditModal
+          visible={editModalVisible}
+          type="TAG"
+          name={selectedTag.name}
+          space={currentSpace}
+          initialProperties={selectedTag.properties}
+          onCancel={() => setEditModalVisible(false)}
+          onSuccess={handleEditSuccess}
+        />
+      )}
     </div>
   );
 };

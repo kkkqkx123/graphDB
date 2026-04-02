@@ -368,7 +368,7 @@ const IndexList: React.FC = () => {
                 label: field,
                 value: field,
               }))}
-            </Select>
+            />
           </Form.Item>
         </Form>
       </Modal>

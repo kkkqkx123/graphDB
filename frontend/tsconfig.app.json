@@ -37,7 +37,7 @@
       "@types/*": ["./src/types/*"],
       "@assets/*": ["./src/assets/*"],
       "@config/*": ["./src/config/*"],
-      "@locales/*": ["./src/locales/*"],
+      "@locales/*": ["./src/i18n/locales/*"],
       "@styles/*": ["./src/styles/*"]
     }
   },

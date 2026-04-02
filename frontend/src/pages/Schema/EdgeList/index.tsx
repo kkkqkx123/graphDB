@@ -20,10 +20,12 @@ import {
   ReloadOutlined,
   EyeOutlined,
   DeleteOutlined,
+  EditOutlined,
   ShareAltOutlined,
 } from '@ant-design/icons';
 import { useSchemaStore } from '@/stores/schema';
 import type { EdgeType, PropertyDef } from '@/types/schema';
+import EditModal from '../components/EditModal';
 import styles from './index.module.less';
 
 const { Title, Text } = Typography;
@@ -44,6 +46,7 @@ const EdgeList: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedEdge, setSelectedEdge] = useState<EdgeType | null>(null);
   const [form] = Form.useForm();
   const [properties, setProperties] = useState<PropertyDef[]>([]);
@@ -95,6 +98,18 @@ const EdgeList: React.FC = () => {
   const handleViewDetail = (edge: EdgeType) => {
     setSelectedEdge(edge);
     setDetailModalVisible(true);
+  };
+
+  const handleEdit = (edge: EdgeType) => {
+    setSelectedEdge(edge);
+    setEditModalVisible(true);
+  };
+
+  const handleEditSuccess = () => {
+    setEditModalVisible(false);
+    if (currentSpace) {
+      fetchEdgeTypes(currentSpace);
+    }
   };
 
   const handleAddProperty = () => {
@@ -152,6 +167,13 @@ const EdgeList: React.FC = () => {
               type="text"
               icon={<EyeOutlined />}
               onClick={() => handleViewDetail(record)}
+            />
+          </Tooltip>
+          <Tooltip title="Edit">
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
             />
           </Tooltip>
           <Tooltip title="Delete">
@@ -317,6 +339,19 @@ const EdgeList: React.FC = () => {
           </div>
         )}
       </Modal>
+
+      {/* Edit Modal */}
+      {selectedEdge && currentSpace && (
+        <EditModal
+          visible={editModalVisible}
+          type="EDGE"
+          name={selectedEdge.name}
+          space={currentSpace}
+          initialProperties={selectedEdge.properties}
+          onCancel={() => setEditModalVisible(false)}
+          onSuccess={handleEditSuccess}
+        />
+      )}
     </div>
   );
 };
