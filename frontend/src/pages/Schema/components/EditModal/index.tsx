@@ -42,20 +42,6 @@ const EditModal: React.FC<EditModalProps> = ({
 
   const { updateTag, updateEdgeType } = useSchemaStore();
 
-  // Initialize properties when modal opens
-  useEffect(() => {
-    if (visible && initialProperties) {
-      const propsWithStatus: PropertyItem[] = initialProperties.map((p) => ({
-        ...p,
-        status: 'existing',
-        originalName: p.name,
-      }));
-      setProperties(propsWithStatus);
-      form.setFieldsValue({ properties: propsWithStatus });
-      updateGQLPreview(propsWithStatus);
-    }
-  }, [visible, initialProperties, form]);
-
   // Generate ALTER GQL statement
   const generateAlterGQL = useCallback((props: PropertyItem[]): string => {
     const statements: string[] = [];
@@ -93,14 +79,6 @@ const EditModal: React.FC<EditModalProps> = ({
     return `ALTER ${type} ${name} ${statements.join(' ')};`;
   }, [type, name]);
 
-  const updateGQLPreview = useCallback(
-    (props: PropertyItem[]) => {
-      const generated = generateAlterGQL(props);
-      setGql(generated);
-    },
-    [generateAlterGQL]
-  );
-
   const handleAddProperty = () => {
     const newProp: PropertyItem = {
       name: '',
@@ -111,7 +89,6 @@ const EditModal: React.FC<EditModalProps> = ({
     const newProperties = [...properties, newProp];
     setProperties(newProperties);
     form.setFieldsValue({ properties: newProperties });
-    updateGQLPreview(newProperties);
   };
 
   const handleDeleteProperty = (index: number) => {
@@ -130,7 +107,6 @@ const EditModal: React.FC<EditModalProps> = ({
 
     setProperties(newProperties);
     form.setFieldsValue({ properties: newProperties });
-    updateGQLPreview(newProperties);
   };
 
   const handlePropertyChange = (
@@ -150,8 +126,28 @@ const EditModal: React.FC<EditModalProps> = ({
     }
 
     setProperties(newProperties);
-    updateGQLPreview(newProperties);
   };
+
+  // Initialize properties when modal opens
+  useEffect(() => {
+    if (visible && initialProperties) {
+      const propsWithStatus: PropertyItem[] = initialProperties.map((p) => ({
+        ...p,
+        status: 'existing',
+        originalName: p.name,
+      }));
+      setProperties(propsWithStatus);
+      form.setFieldsValue({ properties: propsWithStatus });
+    }
+  }, [visible, initialProperties, form]);
+
+  // Update GQL preview when properties change
+  useEffect(() => {
+    if (properties.length > 0) {
+      const generated = generateAlterGQL(properties);
+      setGql(generated);
+    }
+  }, [properties, generateAlterGQL]);
 
   const handleSubmit = async () => {
     try {

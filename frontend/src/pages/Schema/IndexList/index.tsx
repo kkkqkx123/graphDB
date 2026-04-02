@@ -13,8 +13,6 @@ import {
   Tag,
   Input,
   Modal,
-  Form,
-  Select,
   Badge,
 } from 'antd';
 import {
@@ -26,6 +24,7 @@ import {
   FileSearchOutlined,
 } from '@ant-design/icons';
 import { useSchemaStore } from '@/stores/schema';
+import CreateIndexModal from './components/CreateIndexModal';
 import type { IndexInfo } from '@/types/schema';
 import styles from './index.module.less';
 
@@ -44,12 +43,7 @@ const IndexList: React.FC = () => {
     isLoadingIndexes,
     indexesError,
     currentSpace,
-    tags,
-    edgeTypes,
     fetchIndexes,
-    fetchTags,
-    fetchEdgeTypes,
-    createIndex,
     deleteIndex,
     rebuildIndex,
   } = useSchemaStore();
@@ -58,18 +52,12 @@ const IndexList: React.FC = () => {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<IndexWithStatus | null>(null);
-  const [form] = Form.useForm();
-  const [indexType, setIndexType] = useState<'TAG' | 'EDGE'>('TAG');
-  const [selectedEntity, setSelectedEntity] = useState<string>('');
-  const [selectedFields, setSelectedFields] = useState<string[]>([]);
 
   useEffect(() => {
     if (currentSpace) {
       fetchIndexes(currentSpace);
-      fetchTags(currentSpace);
-      fetchEdgeTypes(currentSpace);
     }
-  }, [currentSpace, fetchIndexes, fetchTags, fetchEdgeTypes]);
+  }, [currentSpace, fetchIndexes]);
 
   const handleRefresh = () => {
     if (currentSpace) {
@@ -78,26 +66,10 @@ const IndexList: React.FC = () => {
     }
   };
 
-  const handleCreate = async () => {
-    try {
-      const values = await form.validateFields();
-      if (currentSpace) {
-        await createIndex(currentSpace, {
-          name: values.name,
-          index_type: values.indexType,
-          entity_type: values.indexType,
-          entity_name: selectedEntity,
-          fields: selectedFields,
-        });
-        message.success(`Index "${values.name}" created successfully`);
-        setCreateModalVisible(false);
-        form.resetFields();
-        setSelectedEntity('');
-        setSelectedFields([]);
-      }
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create index';
-      message.error(errorMessage);
+  const handleCreateSuccess = () => {
+    setCreateModalVisible(false);
+    if (currentSpace) {
+      fetchIndexes(currentSpace);
     }
   };
 
@@ -128,16 +100,6 @@ const IndexList: React.FC = () => {
   const handleViewDetail = (index: IndexWithStatus) => {
     setSelectedIndex(index);
     setDetailModalVisible(true);
-  };
-
-  const getEntityProperties = (entityType: 'TAG' | 'EDGE', entityName: string): string[] => {
-    if (entityType === 'TAG') {
-      const tag = tags.find((t) => t.name === entityName);
-      return tag?.properties.map((p) => p.name) || [];
-    } else {
-      const edge = edgeTypes.find((e) => e.name === entityName);
-      return edge?.properties.map((p) => p.name) || [];
-    }
   };
 
   const getStatusBadge = (status?: IndexStatus) => {
@@ -292,86 +254,12 @@ const IndexList: React.FC = () => {
       </Card>
 
       {/* Create Index Modal */}
-      <Modal
-        title="Create Index"
-        open={createModalVisible}
-        onOk={handleCreate}
-        onCancel={() => {
-          setCreateModalVisible(false);
-          form.resetFields();
-          setSelectedEntity('');
-          setSelectedFields([]);
-        }}
-        width={600}
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="name"
-            label="Index Name"
-            rules={[
-              { required: true, message: 'Please enter index name' },
-              { pattern: /^[a-zA-Z][a-zA-Z0-9_]*$/, message: 'Must start with letter, alphanumeric and underscores only' },
-            ]}
-          >
-            <Input placeholder="Enter index name" />
-          </Form.Item>
-
-          <Form.Item
-            name="indexType"
-            label="Index Type"
-            rules={[{ required: true, message: 'Please select index type' }]}
-          >
-            <Select
-              placeholder="Select index type"
-              onChange={(value: 'TAG' | 'EDGE') => {
-                setIndexType(value);
-                setSelectedEntity('');
-                setSelectedFields([]);
-              }}
-              options={[
-                { label: 'Tag', value: 'TAG' },
-                { label: 'Edge', value: 'EDGE' },
-              ]}
-            />
-          </Form.Item>
-
-          <Form.Item
-            label="Select Entity"
-            required
-          >
-            <Select
-              placeholder={`Select ${indexType.toLowerCase()}`}
-              value={selectedEntity}
-              onChange={(value) => {
-                setSelectedEntity(value);
-                setSelectedFields([]);
-              }}
-              options={
-                indexType === 'TAG'
-                  ? tags.map((tag) => ({ label: tag.name, value: tag.name }))
-                  : edgeTypes.map((edge) => ({ label: edge.name, value: edge.name }))
-              }
-            />
-          </Form.Item>
-
-          <Form.Item
-            label="Select Fields"
-            required
-          >
-            <Select
-              mode="multiple"
-              placeholder="Select fields to index"
-              value={selectedFields}
-              onChange={setSelectedFields}
-              disabled={!selectedEntity}
-              options={getEntityProperties(indexType, selectedEntity).map((field) => ({
-                label: field,
-                value: field,
-              }))}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+      <CreateIndexModal
+        visible={createModalVisible}
+        space={currentSpace}
+        onCancel={() => setCreateModalVisible(false)}
+        onSuccess={handleCreateSuccess}
+      />
 
       {/* Detail Modal */}
       <Modal
