@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Card,
   Table,
@@ -45,12 +45,27 @@ const EdgeList: React.FC = () => {
   } = useSchemaStore();
 
   const [searchText, setSearchText] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedEdge, setSelectedEdge] = useState<EdgeType | null>(null);
   const [form] = Form.useForm();
   const [properties, setProperties] = useState<PropertyDef[]>([]);
+
+  // Filtered and paginated edges
+  const filteredEdges = useMemo(() => {
+    if (!searchText.trim()) return edgeTypes;
+    return edgeTypes.filter((edge) =>
+      edge.name.toLowerCase().includes(searchText.toLowerCase())
+    );
+  }, [edgeTypes, searchText]);
+
+  const paginatedEdges = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredEdges.slice(start, start + pageSize);
+  }, [filteredEdges, currentPage, pageSize]);
 
   useEffect(() => {
     if (currentSpace) {
@@ -61,8 +76,15 @@ const EdgeList: React.FC = () => {
   const handleRefresh = () => {
     if (currentSpace) {
       fetchEdgeTypes(currentSpace);
+      setSearchText('');
+      setCurrentPage(1);
       message.success('Edge type list refreshed');
     }
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchText(e.target.value);
+    setCurrentPage(1);
   };
 
   const handleCreate = async () => {
@@ -134,9 +156,7 @@ const EdgeList: React.FC = () => {
     setProperties(newProperties);
   };
 
-  const filteredEdges = edgeTypes.filter((edge) =>
-    edge.name.toLowerCase().includes(searchText.toLowerCase())
-  );
+
 
   const columns = [
     {
@@ -222,7 +242,8 @@ const EdgeList: React.FC = () => {
             <Input.Search
               placeholder="Search edge types..."
               value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+              onChange={handleSearchChange}
+              allowClear
               style={{ width: 200 }}
             />
             <Tooltip title="Refresh">
@@ -243,11 +264,28 @@ const EdgeList: React.FC = () => {
             <Empty description={edgeTypesError} />
           ) : (
             <Table
-              dataSource={filteredEdges}
+              dataSource={paginatedEdges}
               columns={columns}
               rowKey="id"
-              pagination={{ pageSize: 10 }}
-              locale={{ emptyText: <Empty description="No edge types found" /> }}
+              pagination={{
+                current: currentPage,
+                pageSize: pageSize,
+                total: filteredEdges.length,
+                onChange: (page, size) => {
+                  setCurrentPage(page);
+                  if (size) setPageSize(size);
+                },
+                showSizeChanger: true,
+                showTotal: (total) => `Total ${total} edge types`,
+                pageSizeOptions: ['10', '20', '50', '100'],
+              }}
+              locale={{
+                emptyText: searchText ? (
+                  <Empty description={`No edge types found matching "${searchText}"`} />
+                ) : (
+                  <Empty description="No edge types found" />
+                )
+              }}
             />
           )}
         </Spin>

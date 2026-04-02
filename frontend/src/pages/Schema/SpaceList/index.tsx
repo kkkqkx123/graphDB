@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Card,
   Table,
@@ -11,6 +11,7 @@ import {
   Spin,
   Typography,
   Tag,
+  Input,
 } from 'antd';
 import {
   PlusOutlined,
@@ -19,6 +20,8 @@ import {
   DeleteOutlined,
   DatabaseOutlined,
   FileTextOutlined,
+  SearchOutlined,
+  ClearOutlined,
 } from '@ant-design/icons';
 import { useSchemaStore } from '@/stores/schema';
 import type { Space } from '@/types/schema';
@@ -63,13 +66,44 @@ const SpaceList: React.FC = () => {
   const [ddlModalVisible, setDDLModalVisible] = useState(false);
   const [selectedSpace, setSelectedSpace] = useState<Space | null>(null);
 
+  // Search and pagination state
+  const [searchText, setSearchText] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Filtered spaces based on search
+  const filteredSpaces = useMemo(() => {
+    if (!searchText.trim()) return spaces;
+    return spaces.filter((space) =>
+      space.name.toLowerCase().includes(searchText.toLowerCase())
+    );
+  }, [spaces, searchText]);
+
+  // Paginated spaces
+  const paginatedSpaces = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredSpaces.slice(start, start + pageSize);
+  }, [filteredSpaces, currentPage, pageSize]);
+
   useEffect(() => {
     fetchSpaces();
   }, [fetchSpaces]);
 
   const handleRefresh = () => {
     fetchSpaces();
+    setSearchText('');
+    setCurrentPage(1);
     message.success('Space list refreshed');
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchText(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleClearSearch = () => {
+    setSearchText('');
+    setCurrentPage(1);
   };
 
   const handleCreateSuccess = () => {
@@ -211,6 +245,22 @@ const SpaceList: React.FC = () => {
               Space Management
             </Title>
             <AntSpace>
+              <Input
+                placeholder="Search spaces..."
+                prefix={<SearchOutlined />}
+                suffix={
+                  searchText ? (
+                    <ClearOutlined
+                      onClick={handleClearSearch}
+                      style={{ cursor: 'pointer' }}
+                    />
+                  ) : null
+                }
+                value={searchText}
+                onChange={handleSearchChange}
+                style={{ width: 200 }}
+                allowClear
+              />
               <Tooltip title="Refresh">
                 <Button
                   icon={<ReloadOutlined />}
@@ -238,16 +288,31 @@ const SpaceList: React.FC = () => {
           <Spin spinning={isLoadingSpaces}>
             <Table
               columns={columns}
-              dataSource={spaces}
+              dataSource={paginatedSpaces}
               rowKey="id"
-              pagination={false}
+              pagination={{
+                current: currentPage,
+                pageSize: pageSize,
+                total: filteredSpaces.length,
+                onChange: (page, size) => {
+                  setCurrentPage(page);
+                  if (size) setPageSize(size);
+                },
+                showSizeChanger: true,
+                showTotal: (total) => `Total ${total} spaces`,
+                pageSizeOptions: ['10', '20', '50', '100'],
+              }}
               onRow={(record) => ({
                 onClick: () => handleRowClick(record),
                 className: currentSpace === record.name ? styles.currentRow : '',
               })}
               rowClassName={() => styles.row}
               locale={{
-                emptyText: <EmptyState onCreate={() => setCreateModalVisible(true)} />,
+                emptyText: searchText ? (
+                  <Empty description={`No spaces found matching "${searchText}"`} />
+                ) : (
+                  <EmptyState onCreate={() => setCreateModalVisible(true)} />
+                ),
               }}
             />
           </Spin>

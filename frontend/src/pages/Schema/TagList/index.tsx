@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Card,
   Table,
@@ -45,12 +45,27 @@ const TagList: React.FC = () => {
   } = useSchemaStore();
 
   const [searchText, setSearchText] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedTag, setSelectedTag] = useState<TagType | null>(null);
   const [form] = Form.useForm();
   const [properties, setProperties] = useState<PropertyDef[]>([]);
+
+  // Filtered and paginated tags
+  const filteredTags = useMemo(() => {
+    if (!searchText.trim()) return tags;
+    return tags.filter((tag) =>
+      tag.name.toLowerCase().includes(searchText.toLowerCase())
+    );
+  }, [tags, searchText]);
+
+  const paginatedTags = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredTags.slice(start, start + pageSize);
+  }, [filteredTags, currentPage, pageSize]);
 
   useEffect(() => {
     if (currentSpace) {
@@ -61,8 +76,15 @@ const TagList: React.FC = () => {
   const handleRefresh = () => {
     if (currentSpace) {
       fetchTags(currentSpace);
+      setSearchText('');
+      setCurrentPage(1);
       message.success('Tag list refreshed');
     }
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchText(e.target.value);
+    setCurrentPage(1);
   };
 
   const handleCreate = async () => {
@@ -134,9 +156,7 @@ const TagList: React.FC = () => {
     setProperties(newProperties);
   };
 
-  const filteredTags = tags.filter((tag) =>
-    tag.name.toLowerCase().includes(searchText.toLowerCase())
-  );
+
 
   const columns = [
     {
@@ -222,7 +242,8 @@ const TagList: React.FC = () => {
             <Input.Search
               placeholder="Search tags..."
               value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+              onChange={handleSearchChange}
+              allowClear
               style={{ width: 200 }}
             />
             <Tooltip title="Refresh">
@@ -243,11 +264,28 @@ const TagList: React.FC = () => {
             <Empty description={tagsError} />
           ) : (
             <Table
-              dataSource={filteredTags}
+              dataSource={paginatedTags}
               columns={columns}
               rowKey="id"
-              pagination={{ pageSize: 10 }}
-              locale={{ emptyText: <Empty description="No tags found" /> }}
+              pagination={{
+                current: currentPage,
+                pageSize: pageSize,
+                total: filteredTags.length,
+                onChange: (page, size) => {
+                  setCurrentPage(page);
+                  if (size) setPageSize(size);
+                },
+                showSizeChanger: true,
+                showTotal: (total) => `Total ${total} tags`,
+                pageSizeOptions: ['10', '20', '50', '100'],
+              }}
+              locale={{ 
+                emptyText: searchText ? (
+                  <Empty description={`No tags found matching "${searchText}"`} />
+                ) : (
+                  <Empty description="No tags found" />
+                )
+              }}
             />
           )}
         </Spin>

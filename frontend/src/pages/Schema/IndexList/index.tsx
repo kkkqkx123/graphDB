@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Card,
   Table,
@@ -49,9 +49,24 @@ const IndexList: React.FC = () => {
   } = useSchemaStore();
 
   const [searchText, setSearchText] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<IndexWithStatus | null>(null);
+
+  // Filtered and paginated indexes
+  const filteredIndexes = useMemo(() => {
+    if (!searchText.trim()) return indexes;
+    return indexes.filter((index) =>
+      index.name.toLowerCase().includes(searchText.toLowerCase())
+    );
+  }, [indexes, searchText]);
+
+  const paginatedIndexes = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredIndexes.slice(start, start + pageSize);
+  }, [filteredIndexes, currentPage, pageSize]);
 
   useEffect(() => {
     if (currentSpace) {
@@ -62,8 +77,15 @@ const IndexList: React.FC = () => {
   const handleRefresh = () => {
     if (currentSpace) {
       fetchIndexes(currentSpace);
+      setSearchText('');
+      setCurrentPage(1);
       message.success('Index list refreshed');
     }
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchText(e.target.value);
+    setCurrentPage(1);
   };
 
   const handleCreateSuccess = () => {
@@ -117,9 +139,7 @@ const IndexList: React.FC = () => {
     }
   };
 
-  const filteredIndexes = indexes.filter((index) =>
-    index.name.toLowerCase().includes(searchText.toLowerCase())
-  );
+
 
   const columns = [
     {
@@ -222,7 +242,8 @@ const IndexList: React.FC = () => {
             <Input.Search
               placeholder="Search indexes..."
               value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+              onChange={handleSearchChange}
+              allowClear
               style={{ width: 200 }}
             />
             <Tooltip title="Refresh">
@@ -243,11 +264,28 @@ const IndexList: React.FC = () => {
             <Empty description={indexesError} />
           ) : (
             <Table
-              dataSource={filteredIndexes}
+              dataSource={paginatedIndexes}
               columns={columns}
               rowKey="id"
-              pagination={{ pageSize: 10 }}
-              locale={{ emptyText: <Empty description="No indexes found" /> }}
+              pagination={{
+                current: currentPage,
+                pageSize: pageSize,
+                total: filteredIndexes.length,
+                onChange: (page, size) => {
+                  setCurrentPage(page);
+                  if (size) setPageSize(size);
+                },
+                showSizeChanger: true,
+                showTotal: (total) => `Total ${total} indexes`,
+                pageSizeOptions: ['10', '20', '50', '100'],
+              }}
+              locale={{
+                emptyText: searchText ? (
+                  <Empty description={`No indexes found matching "${searchText}"`} />
+                ) : (
+                  <Empty description="No indexes found" />
+                )
+              }}
             />
           )}
         </Spin>
