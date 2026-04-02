@@ -17,7 +17,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     };
 
     verifyConnection();
-  }, []);
+  }, [isConnected, isVerified, checkHealth]);
 
   if (isChecking) {
     return (

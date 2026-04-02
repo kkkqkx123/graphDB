@@ -156,6 +156,9 @@ export const useConnectionStore = create<ConnectionState>()(
       partialize: (state) => ({
         connectionInfo: state.connectionInfo,
         rememberMe: state.rememberMe,
+        isConnected: state.isConnected,
+        isVerified: state.isVerified,
+        sessionId: state.sessionId,
       }),
     }
   )

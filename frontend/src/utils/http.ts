@@ -52,7 +52,7 @@ const initService = (service?: AxiosInstance) => {
       if (error.response) {
         const { status, data } = error.response;
         const { hideErrMsg } = error.response.config || {};
-        
+
         if (data?.error?.message) {
           if (!hideErrMsg) {
             message.error(data.error.message);
@@ -69,12 +69,12 @@ const initService = (service?: AxiosInstance) => {
           localStorage.removeItem('sessionId');
           window.location.href = '/login';
         }
-        
-        return data;
+
+        return Promise.reject(error);
       } else if (!axios.isCancel(error)) {
         message.error(`Network Error: ${error.message}`);
       }
-      
+
       return Promise.reject(error);
     }
   );
