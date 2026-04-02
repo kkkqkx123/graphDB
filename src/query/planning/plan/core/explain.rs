@@ -281,10 +281,6 @@ impl DescribeVisitor {
         self.visited_ids.insert(node.id());
     }
 
-    fn get_dependency_ids(&self, node_enum: &PlanNodeEnum) -> Vec<i64> {
-        vec![node_enum.id()]
-    }
-
     fn collect_single_input_deps(&self, input: &PlanNodeEnum) -> Vec<i64> {
         vec![input.id()]
     }

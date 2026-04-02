@@ -405,10 +405,8 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
                     Ok(Some(vertex)) => {
                         input_nodes.push(vertex);
                     }
-                    Ok(None) => {
-                    }
-                    Err(e) => {
-                    }
+                    Ok(None) => {}
+                    Err(_) => {}
                 }
             }
         }

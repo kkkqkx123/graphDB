@@ -11,7 +11,7 @@ use crate::query::executor::factory::builders::{
     DataProcessingBuilder, JoinBuilder, SetOperationBuilder, TransformationBuilder,
     TraversalBuilder,
 };
-use crate::query::executor::factory::validators::{RecursionDetector, SafetyValidator};
+use crate::query::executor::factory::validators::RecursionDetector;
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -27,8 +27,6 @@ pub struct ExecutorFactory<S: StorageClient + Send + 'static> {
     pub(crate) storage: Option<Arc<Mutex<S>>>,
     pub(crate) config: ExecutorSafetyConfig,
     pub(crate) recursion_detector: RecursionDetector,
-    #[allow(dead_code)]
-    pub(crate) safety_validator: SafetyValidator<S>,
 }
 
 impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
@@ -36,13 +34,11 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     pub fn new() -> Self {
         let config = ExecutorSafetyConfig::default();
         let recursion_detector = RecursionDetector::new(config.max_recursion_depth);
-        let safety_validator = SafetyValidator::new(config.clone());
 
         Self {
             storage: None,
             config,
             recursion_detector,
-            safety_validator,
         }
     }
 
@@ -399,12 +395,10 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             // Re-obtain the variable reference
             let config = self.config.clone();
             let max_recursion_depth = config.max_recursion_depth;
-            let safety_validator = SafetyValidator::new(config.clone());
             let mut temp_factory = ExecutorFactory {
                 storage: self.storage.clone(),
                 config,
                 recursion_detector: RecursionDetector::new(max_recursion_depth),
-                safety_validator,
             };
 
             temp_factory.create_executor(body, storage.clone(), context)?
@@ -456,12 +450,10 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
 
             let config = self.config.clone();
             let max_recursion_depth = config.max_recursion_depth;
-            let safety_validator = SafetyValidator::new(config.clone());
             let mut temp_factory = ExecutorFactory {
                 storage: self.storage.clone(),
                 config,
                 recursion_detector: RecursionDetector::new(max_recursion_depth),
-                safety_validator,
             };
 
             temp_factory.create_executor(if_node, storage.clone(), context)?
@@ -472,12 +464,10 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             if let Some(else_node) = node.else_branch().as_ref() {
                 let config = self.config.clone();
                 let max_recursion_depth = config.max_recursion_depth;
-                let safety_validator = SafetyValidator::new(config.clone());
                 let mut temp_factory = ExecutorFactory {
                     storage: self.storage.clone(),
                     config,
                     recursion_detector: RecursionDetector::new(max_recursion_depth),
-                    safety_validator,
                 };
 
                 Some(temp_factory.create_executor(else_node, storage.clone(), context)?)
@@ -505,7 +495,6 @@ impl<S: StorageClient + 'static> Clone for ExecutorFactory<S> {
             storage: self.storage.clone(),
             config: self.config.clone(),
             recursion_detector: RecursionDetector::new(self.config.max_recursion_depth),
-            safety_validator: SafetyValidator::new(self.config.clone()),
         }
     }
 }

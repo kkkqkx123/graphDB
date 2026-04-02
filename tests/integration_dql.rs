@@ -952,9 +952,9 @@ fn test_dangling_edge_workflow() {
 
     let edge_result = storage_guard.insert_edge("dangling_test", edge);
 
-    let dangling = storage_guard.find_dangling_edges("dangling_test");
+    let _dangling = storage_guard.find_dangling_edges("dangling_test");
 
-    let repaired = storage_guard.repair_dangling_edges("dangling_test");
+    let _repaired = storage_guard.repair_dangling_edges("dangling_test");
 
     assert!(create_result.is_ok() || create_result.is_err());
     assert!(insert_result.is_ok() || insert_result.is_err());

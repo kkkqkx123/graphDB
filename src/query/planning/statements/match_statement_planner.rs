@@ -643,86 +643,6 @@ impl MatchStatementPlanner {
         })
     }
 
-    /// Plan to connect two nodes (based on aliases)
-    ///
-    /// When there is an alias for the previous node, a hash-based internal connection is used to establish the connection based on the node ID.
-    /// 这用于处理路径模式中的连续节点，如 MATCH (a)-[]->(b) 中 a 和 b 的连接。
-    fn join_node_plans(
-        &self,
-        mut left: SubPlan,
-        mut right: SubPlan,
-        left_alias: &str,
-        right_alias: &Option<String>,
-        expr_context: &Arc<ExpressionAnalysisContext>,
-    ) -> Result<SubPlan, PlannerError> {
-        use crate::query::planning::plan::core::node_id_generator::next_node_id;
-        use crate::query::planning::plan::core::nodes::HashInnerJoinNode;
-
-        // Take ownership of the root nodes
-        let mut left_root = match left.root.take() {
-            Some(r) => r,
-            None => return Ok(right),
-        };
-
-        let mut right_root = match right.root.take() {
-            Some(r) => r,
-            None => return Ok(left),
-        };
-
-        let ctx = expr_context.clone();
-
-        // Generate unique variable names for left and right inputs
-        // These variable names will be used by extract_join_vars in join_builder.rs
-        let join_id = next_node_id();
-        let left_var = format!("left_{}", join_id);
-        let right_var = format!("right_{}", join_id);
-
-        // Set output_var for left and right inputs so that extract_join_vars can find them
-        // This ensures that when build_executor_chain stores the results, the variable names match
-        left_root.set_output_var(left_var);
-        right_root.set_output_var(right_var);
-
-        // Constructing hash key and probe key expressions
-        // The left table uses existing aliases as hash keys.
-        let hash_key_expr = crate::core::Expression::variable(left_alias);
-        let hash_key_meta = crate::core::types::expr::ExpressionMeta::new(hash_key_expr);
-        let hash_key_id = ctx.register_expression(hash_key_meta);
-        let hash_keys = vec![ContextualExpression::new(hash_key_id, ctx.clone())];
-
-        // The right table uses the variable name of the new node or the default name as the detection key.
-        let probe_alias = right_alias.as_deref().unwrap_or("n");
-        let probe_key_expr = crate::core::Expression::variable(probe_alias);
-        let probe_key_meta = crate::core::types::expr::ExpressionMeta::new(probe_key_expr);
-        let probe_key_id = ctx.register_expression(probe_key_meta);
-        let probe_keys = vec![ContextualExpression::new(probe_key_id, ctx)];
-
-        // If right_root is a ScanVerticesNode and probe_alias is not the same as its column name,
-        // we need to update the column name to match the probe_alias
-        // This ensures that after join, the column name matches the variable name used in filter conditions
-        if let Some(scan_node) = right_root.as_scan_vertices() {
-            let right_col_names = scan_node.col_names();
-            if right_col_names.len() == 1 && right_col_names[0] != probe_alias {
-                let mut new_scan = scan_node.clone();
-                new_scan.set_col_names(vec![probe_alias.to_string()]);
-                right_root = new_scan.into_enum();
-            }
-        }
-
-        // Create a Hashne connection node with the roots that have output_var set
-        let mut join_node = HashInnerJoinNode::new(left_root, right_root, hash_keys, probe_keys)
-            .map_err(|e| {
-                PlannerError::JoinFailed(format!("Intra-hash connection failed: {}", e))
-            })?;
-
-        // Set output_var to help parent nodes find the result
-        join_node.set_output_var(format!("join_result_{}", join_id));
-
-        Ok(SubPlan {
-            root: Some(join_node.into_enum()),
-            tail: left.tail.or(right.tail),
-        })
-    }
-
     /// Connect a node scan plan to an edge expansion plan
     ///
     /// This method directly connects the node scan output to the edge expansion input
@@ -917,7 +837,7 @@ impl MatchStatementPlanner {
                 Self::expression_contains_aggregate(operand)
             }
             Expression::Function { args, .. } => {
-                args.iter().any(|arg| Self::expression_contains_aggregate(arg))
+                args.iter().any(Self::expression_contains_aggregate)
             }
             _ => false,
         }
@@ -965,7 +885,7 @@ impl MatchStatementPlanner {
                 Self::extract_aggregate_function(operand)
             }
             Expression::Function { args, .. } => {
-                args.iter().find_map(|arg| Self::extract_aggregate_function(arg))
+                args.iter().find_map(Self::extract_aggregate_function)
             }
             _ => None,
         }

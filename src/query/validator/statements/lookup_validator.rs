@@ -235,18 +235,18 @@ impl LookupValidator {
                             ValidationErrorType::SemanticError,
                         )),
                         Err(e) => {
-                            return Err(ValidationError::new(
+                            Err(ValidationError::new(
                                 format!("Failed to get edge type '{}': {}", label, e),
                                 ValidationErrorType::SemanticError,
-                            ));
+                            ))
                         }
                     }
                 }
                 Err(e) => {
-                    return Err(ValidationError::new(
+                    Err(ValidationError::new(
                         format!("Failed to get tag '{}': {}", label, e),
                         ValidationErrorType::SemanticError,
-                    ));
+                    ))
                 }
             }
         }

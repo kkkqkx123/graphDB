@@ -165,7 +165,7 @@ impl<S: StorageClient + Send + Sync + 'static> InsertExecutor<S> {
 
         if let Some(vertices) = &self.vertex_data {
             let mut storage = self.get_storage().lock();
-            for (idx, vertex) in vertices.iter().enumerate() {
+            for vertex in vertices.iter() {
                 // If IF NOT EXISTS is enabled, check whether the vertex already exists.
                 if self.if_not_exists
                     && storage.get_vertex(&self.space_name, &vertex.vid)?.is_some()

@@ -164,7 +164,7 @@ pub fn format_plan_as_tree(plan_desc: &PlanDescription) -> String {
     for node in &plan_desc.plan_node_descs {
         let is_root = parent_map.get(&node.id).map(|v| v.is_empty()).unwrap_or(true)
             && node.dependencies.as_ref().map(|d| !d.is_empty()).unwrap_or(false);
-        if is_root || parent_map.get(&node.id).is_none() {
+        if is_root || !parent_map.contains_key(&node.id) {
             root_nodes.push(node);
         }
     }
@@ -172,7 +172,7 @@ pub fn format_plan_as_tree(plan_desc: &PlanDescription) -> String {
     // If no clear root found, use nodes with no parents
     if root_nodes.is_empty() {
         for node in &plan_desc.plan_node_descs {
-            if parent_map.get(&node.id).is_none() {
+            if !parent_map.contains_key(&node.id) {
                 root_nodes.push(node);
             }
         }
@@ -181,7 +181,7 @@ pub fn format_plan_as_tree(plan_desc: &PlanDescription) -> String {
     // Format tree starting from root nodes
     for (idx, root) in root_nodes.iter().enumerate() {
         if idx > 0 {
-            output.push_str("\n");
+            output.push('\n');
         }
         format_tree_node(&mut output, root, &node_map, 0, true, &std::collections::HashSet::new());
     }

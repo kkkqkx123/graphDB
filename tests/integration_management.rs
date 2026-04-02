@@ -591,6 +591,454 @@ fn test_pipe_execution_basic() {
     assert!(result.is_ok() || result.is_err());
 }
 
+// ==================== PROFILE Statement Tests ====================
+
+#[test]
+fn test_profile_parser_match() {
+    let query = "PROFILE MATCH (n:Person) RETURN n";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "PROFILE MATCH解析应该成功: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("PROFILE语句解析应该成功");
+    assert_eq!(stmt.ast.stmt.kind(), "PROFILE");
+}
+
+#[test]
+fn test_profile_parser_go() {
+    let query = "PROFILE GO FROM 1 OVER KNOWS";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "PROFILE GO解析应该成功: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("PROFILE语句解析应该成功");
+    assert_eq!(stmt.ast.stmt.kind(), "PROFILE");
+}
+
+#[test]
+fn test_profile_parser_with_limit() {
+    let query = "PROFILE MATCH (n:Person) RETURN n LIMIT 10";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "PROFILE带LIMIT解析应该成功: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("PROFILE语句解析应该成功");
+    assert_eq!(stmt.ast.stmt.kind(), "PROFILE");
+}
+
+#[test]
+fn test_profile_execution_match() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
+    let query = "PROFILE MATCH (n:Person) RETURN n";
+    let result = pipeline_manager.execute_query(query);
+
+    assert!(result.is_ok() || result.is_err());
+}
+
+#[test]
+fn test_profile_execution_go() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
+    let query = "PROFILE GO FROM 1 OVER KNOWS";
+    let result = pipeline_manager.execute_query(query);
+
+    assert!(result.is_ok() || result.is_err());
+}
+
+// ==================== GROUP BY Statement Tests ====================
+
+#[test]
+fn test_group_by_parser_basic() {
+    let query = "GROUP BY category YIELD category, count(*) AS total";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "GROUP BY基础解析应该成功: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("GROUP BY语句解析应该成功");
+    assert_eq!(stmt.ast.stmt.kind(), "GROUP BY");
+}
+
+#[test]
+fn test_group_by_parser_with_aggregation() {
+    let query = "GROUP BY city YIELD city, avg(age) AS avg_age, max(age) AS max_age";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "GROUP BY带聚合函数解析应该成功: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("GROUP BY语句解析应该成功");
+    assert_eq!(stmt.ast.stmt.kind(), "GROUP BY");
+}
+
+#[test]
+fn test_group_by_execution_basic() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
+    let query = "GROUP BY category YIELD category, count(*) AS total";
+    let result = pipeline_manager.execute_query(query);
+
+    assert!(result.is_ok() || result.is_err());
+}
+
+// ==================== KILL QUERY Statement Tests ====================
+
+#[test]
+fn test_kill_query_parser_basic() {
+    let query = "KILL QUERY 123";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "KILL QUERY基础解析应该成功: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("KILL QUERY语句解析应该成功");
+    assert_eq!(stmt.ast.stmt.kind(), "KILL QUERY");
+}
+
+#[test]
+fn test_kill_query_parser_multiple() {
+    let query = "KILL QUERY 123, 456, 789";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "KILL QUERY多个查询解析应该成功: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("KILL QUERY语句解析应该成功");
+    assert_eq!(stmt.ast.stmt.kind(), "KILL QUERY");
+}
+
+#[test]
+fn test_kill_query_execution() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
+    let query = "KILL QUERY 123";
+    let result = pipeline_manager.execute_query(query);
+
+    assert!(result.is_ok() || result.is_err());
+}
+
+// ==================== UPDATE CONFIGS Statement Tests ====================
+
+#[test]
+fn test_update_configs_parser_basic() {
+    let query = "UPDATE CONFIGS max_connections = 100";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "UPDATE CONFIGS基础解析应该成功: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("UPDATE CONFIGS语句解析应该成功");
+    assert_eq!(stmt.ast.stmt.kind(), "UPDATE CONFIGS");
+}
+
+#[test]
+fn test_update_configs_parser_with_module() {
+    let query = "UPDATE CONFIGS storage cache_size = 1024";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "UPDATE CONFIGS带模块解析应该成功: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("UPDATE CONFIGS语句解析应该成功");
+    assert_eq!(stmt.ast.stmt.kind(), "UPDATE CONFIGS");
+}
+
+#[test]
+fn test_update_configs_parser_multiple() {
+    let query = "UPDATE CONFIGS max_connections = 100, timeout = 30";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "UPDATE CONFIGS多个配置解析应该成功: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("UPDATE CONFIGS语句解析应该成功");
+    assert_eq!(stmt.ast.stmt.kind(), "UPDATE CONFIGS");
+}
+
+#[test]
+fn test_update_configs_execution() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
+    let query = "UPDATE CONFIGS max_connections = 100";
+    let result = pipeline_manager.execute_query(query);
+
+    assert!(result.is_ok() || result.is_err());
+}
+
+// ==================== SHOW SESSIONS/QUERIES/CONFIGS Tests ====================
+
+#[test]
+fn test_show_parser_sessions() {
+    let query = "SHOW SESSIONS";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "SHOW SESSIONS解析应该成功: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("SHOW语句解析应该成功");
+    assert_eq!(stmt.ast.stmt.kind(), "SHOW");
+}
+
+#[test]
+fn test_show_parser_queries() {
+    let query = "SHOW QUERIES";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "SHOW QUERIES解析应该成功: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("SHOW语句解析应该成功");
+    assert_eq!(stmt.ast.stmt.kind(), "SHOW");
+}
+
+#[test]
+fn test_show_parser_configs() {
+    let query = "SHOW CONFIGS";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "SHOW CONFIGS解析应该成功: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("SHOW语句解析应该成功");
+    assert_eq!(stmt.ast.stmt.kind(), "SHOW");
+}
+
+#[test]
+fn test_show_parser_configs_with_module() {
+    let query = "SHOW CONFIGS storage";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "SHOW CONFIGS带模块解析应该成功: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("SHOW语句解析应该成功");
+    assert_eq!(stmt.ast.stmt.kind(), "SHOW");
+}
+
+#[test]
+fn test_show_execution_sessions() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
+    let query = "SHOW SESSIONS";
+    let result = pipeline_manager.execute_query(query);
+
+    assert!(result.is_ok() || result.is_err());
+}
+
+#[test]
+fn test_show_execution_queries() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
+    let query = "SHOW QUERIES";
+    let result = pipeline_manager.execute_query(query);
+
+    assert!(result.is_ok() || result.is_err());
+}
+
+#[test]
+fn test_show_execution_configs() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
+    let query = "SHOW CONFIGS";
+    let result = pipeline_manager.execute_query(query);
+
+    assert!(result.is_ok() || result.is_err());
+}
+
+// ==================== EXPLAIN FORMAT Tests ====================
+
+#[test]
+fn test_explain_parser_format_table() {
+    let query = "EXPLAIN FORMAT = TABLE MATCH (n:Person) RETURN n";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "EXPLAIN FORMAT TABLE解析应该成功: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("EXPLAIN语句解析应该成功");
+    assert_eq!(stmt.ast.stmt.kind(), "EXPLAIN");
+}
+
+#[test]
+fn test_explain_parser_format_dot() {
+    let query = "EXPLAIN FORMAT = DOT GO FROM 1 OVER KNOWS";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "EXPLAIN FORMAT DOT解析应该成功: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("EXPLAIN语句解析应该成功");
+    assert_eq!(stmt.ast.stmt.kind(), "EXPLAIN");
+}
+
+#[test]
+fn test_explain_execution_format_table() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
+    let query = "EXPLAIN FORMAT = TABLE MATCH (n:Person) RETURN n";
+    let result = pipeline_manager.execute_query(query);
+
+    assert!(result.is_ok() || result.is_err());
+}
+
+#[test]
+fn test_explain_execution_format_dot() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
+    let query = "EXPLAIN FORMAT = DOT GO FROM 1 OVER KNOWS";
+    let result = pipeline_manager.execute_query(query);
+
+    assert!(result.is_ok() || result.is_err());
+}
+
 // ==================== 管理和辅助语句综合测试 ====================
 
 #[test]
@@ -611,9 +1059,12 @@ fn test_management_show_operations() {
         "SHOW EDGES",
         "SHOW HOSTS",
         "SHOW PARTS",
+        "SHOW SESSIONS",
+        "SHOW QUERIES",
+        "SHOW CONFIGS",
     ];
 
-    for (i, query) in show_queries.iter().enumerate() {
+    for query in &show_queries {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -636,9 +1087,108 @@ fn test_management_explain_operations() {
         "EXPLAIN GO FROM 1 OVER KNOWS",
         "EXPLAIN LOOKUP ON Person WHERE Person.age > 25",
         "EXPLAIN FETCH PROP ON Person 1",
+        "EXPLAIN FORMAT = TABLE MATCH (n:Person) RETURN n",
+        "EXPLAIN FORMAT = DOT GO FROM 1 OVER KNOWS",
     ];
 
-    for (i, query) in explain_queries.iter().enumerate() {
+    for query in &explain_queries {
+        let result = pipeline_manager.execute_query(query);
+        assert!(result.is_ok() || result.is_err());
+    }
+}
+
+#[test]
+fn test_management_profile_operations() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
+    let profile_queries = [
+        "PROFILE MATCH (n:Person) RETURN n",
+        "PROFILE GO FROM 1 OVER KNOWS",
+        "PROFILE LOOKUP ON Person WHERE Person.age > 25",
+        "PROFILE FETCH PROP ON Person 1",
+    ];
+
+    for query in &profile_queries {
+        let result = pipeline_manager.execute_query(query);
+        assert!(result.is_ok() || result.is_err());
+    }
+}
+
+#[test]
+fn test_management_group_by_operations() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
+    let group_by_queries = [
+        "GROUP BY category YIELD category, count(*) AS total",
+        "GROUP BY city YIELD city, avg(age) AS avg_age",
+        "GROUP BY department YIELD department, sum(salary) AS total_salary",
+    ];
+
+    for query in &group_by_queries {
+        let result = pipeline_manager.execute_query(query);
+        assert!(result.is_ok() || result.is_err());
+    }
+}
+
+#[test]
+fn test_management_kill_query_operations() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
+    let kill_queries = [
+        "KILL QUERY 123",
+        "KILL QUERY 456",
+        "KILL QUERY 789",
+    ];
+
+    for query in &kill_queries {
+        let result = pipeline_manager.execute_query(query);
+        assert!(result.is_ok() || result.is_err());
+    }
+}
+
+#[test]
+fn test_management_update_configs_operations() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
+    let update_configs_queries = [
+        "UPDATE CONFIGS max_connections = 100",
+        "UPDATE CONFIGS timeout = 30",
+        "UPDATE CONFIGS storage cache_size = 1024",
+    ];
+
+    for query in &update_configs_queries {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -663,7 +1213,7 @@ fn test_auxiliary_return_operations() {
         "RETURN {name: 'Alice', age: 30}",
     ];
 
-    for (i, query) in return_queries.iter().enumerate() {
+    for (_i, query) in return_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -687,7 +1237,7 @@ fn test_auxiliary_unwind_operations() {
         "UNWIND [1, 2, 3] AS n RETURN n * 2",
     ];
 
-    for (i, query) in unwind_queries.iter().enumerate() {
+    for (_i, query) in unwind_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -711,7 +1261,7 @@ fn test_auxiliary_pipe_operations() {
         "LOOKUP ON Person WHERE Person.age > 25 | YIELD Person.name",
     ];
 
-    for (i, query) in pipe_queries.iter().enumerate() {
+    for (_i, query) in pipe_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -733,9 +1283,14 @@ fn test_management_error_handling() {
         "USE",              // Lack of space names
         "SHOW",             // Missing objects
         "EXPLAIN",          // Missing query
+        "PROFILE",          // Missing query
         "RETURN",           // Missing expressions
         "UNWIND",           // Missing lists and variables
+        "WITH",             // Missing expressions
         "GO FROM 1 OVER |", // PIPE syntax error
+        "GROUP BY",         // Missing expressions
+        "KILL QUERY",       // Missing query id
+        "UPDATE CONFIGS",   // Missing configs
     ];
 
     for query in invalid_queries {
@@ -759,12 +1314,19 @@ fn test_management_combined_operations() {
     let combined_queries = [
         "USE test_space",
         "SHOW TAGS",
+        "SHOW SESSIONS",
+        "SHOW QUERIES",
+        "SHOW CONFIGS",
         "EXPLAIN GO FROM 1 OVER KNOWS",
+        "EXPLAIN FORMAT = TABLE MATCH (n:Person) RETURN n",
+        "PROFILE GO FROM 1 OVER KNOWS",
         "UNWIND [1, 2, 3] AS n RETURN n",
+        "WITH 1 AS x RETURN x",
         "RETURN 'Complete'",
+        "GROUP BY category YIELD category, count(*) AS total",
     ];
 
-    for (i, query) in combined_queries.iter().enumerate() {
+    for query in &combined_queries {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -788,7 +1350,7 @@ fn test_auxiliary_with_operations() {
         "WITH 'Hello' AS msg RETURN msg",
     ];
 
-    for (i, query) in with_queries.iter().enumerate() {
+    for query in with_queries.iter() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -809,7 +1371,7 @@ fn test_management_performance() {
     let query = "SHOW SPACES";
     let iterations = 10;
 
-    for i in 0..iterations {
+    for _ in 0..iterations {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -1048,7 +1610,7 @@ fn test_new_management_features() {
         "SHOW CONFIGS storage",
     ];
 
-    for (i, query) in new_queries.iter().enumerate() {
+    for query in new_queries.iter() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }

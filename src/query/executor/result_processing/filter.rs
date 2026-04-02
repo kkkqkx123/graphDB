@@ -267,7 +267,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
     fn apply_filter_single(&self, dataset: &mut DataSet) -> DBResult<()> {
         let mut filtered_rows = Vec::new();
 
-        for (row_idx, row) in dataset.rows.iter().enumerate() {
+        for row in &dataset.rows {
             let mut context = DefaultExpressionContext::new();
 
             // Set the column names as variables.

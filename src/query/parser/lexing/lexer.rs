@@ -882,14 +882,6 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    #[allow(dead_code)]
-    fn is_multitoken_keyword(&self, token: &Token) -> bool {
-        matches!(
-            token.kind,
-            Tk::NotIn | Tk::IsNull | Tk::IsNotNull | Tk::IsEmpty | Tk::IsNotEmpty
-        )
-    }
-
     pub fn current_position(&self) -> Position {
         Position::new(self.line, self.column)
     }

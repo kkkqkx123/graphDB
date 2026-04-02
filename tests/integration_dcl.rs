@@ -454,7 +454,7 @@ fn test_dcl_user_lifecycle() {
         "DROP USER testuser",
     ];
 
-    for (i, query) in lifecycle_queries.iter().enumerate() {
+    for query in lifecycle_queries.iter() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -478,14 +478,14 @@ fn test_dcl_multiple_users() {
         "CREATE USER charlie WITH PASSWORD 'charlie123'",
     ];
 
-    for (i, query) in create_queries.iter().enumerate() {
+    for query in create_queries.iter() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
 
     let drop_queries = ["DROP USER alice", "DROP USER bob", "DROP USER charlie"];
 
-    for (i, query) in drop_queries.iter().enumerate() {
+    for query in drop_queries.iter() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -510,7 +510,7 @@ fn test_dcl_if_not_exists_if_exists() {
         "DROP USER IF EXISTS testuser", // Repeated deletions…
     ];
 
-    for (i, query) in queries.iter().enumerate() {
+    for query in queries.iter() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -563,7 +563,7 @@ fn test_dcl_password_security() {
         "CHANGE PASSWORD 'N3wS3cur3P@ssw0rd!2024' TO 'An0th3rS3cur3P@ssw0rd!2024'",
     ];
 
-    for (i, query) in password_queries.iter().enumerate() {
+    for query in password_queries.iter() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -590,7 +590,7 @@ fn test_dcl_user_management_workflow() {
         "DROP USER admin",
     ];
 
-    for (i, query) in workflow_queries.iter().enumerate() {
+    for query in workflow_queries.iter() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -617,7 +617,7 @@ fn test_dcl_special_usernames() {
         "DROP USER user.789",
     ];
 
-    for (i, query) in special_username_queries.iter().enumerate() {
+    for query in special_username_queries.iter() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -722,7 +722,7 @@ fn test_grant_revoke_execution() {
         "DROP USER alice",
     ];
 
-    for (i, query) in queries.iter().enumerate() {
+    for query in queries.iter() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -764,7 +764,7 @@ fn test_describe_user_execution() {
         "DROP USER alice",
     ];
 
-    for (i, query) in queries.iter().enumerate() {
+    for query in queries.iter() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -808,7 +808,7 @@ fn test_show_users_execution() {
         "DROP USER bob",
     ];
 
-    for (i, query) in queries.iter().enumerate() {
+    for query in queries.iter() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -869,7 +869,7 @@ fn test_show_roles_execution() {
         "DROP USER alice",
     ];
 
-    for (i, query) in queries.iter().enumerate() {
+    for query in queries.iter() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -908,7 +908,7 @@ fn test_new_dcl_statements_lifecycle() {
         "DROP USER adminuser",
     ];
 
-    for (i, query) in lifecycle_queries.iter().enumerate() {
+    for query in lifecycle_queries.iter() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }

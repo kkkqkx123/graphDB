@@ -520,24 +520,6 @@ impl<S: StorageClient> TopNExecutor<S> {
         Ok(sort_values)
     }
 
-    /// Compare two values
-    #[allow(dead_code)]
-    fn compare_values(
-        &self,
-        a: &Value,
-        b: &Value,
-        order: &crate::query::executor::result_processing::sort::SortOrder,
-    ) -> Ordering {
-        let comparison = a.partial_cmp(b).unwrap_or(Ordering::Equal);
-
-        match order {
-            crate::query::executor::result_processing::sort::SortOrder::Asc => comparison,
-            crate::query::executor::result_processing::sort::SortOrder::Desc => {
-                comparison.reverse()
-            }
-        }
-    }
-
     /// Determine whether it is in ascending order.
     fn is_ascending(&self) -> bool {
         self.sort_keys

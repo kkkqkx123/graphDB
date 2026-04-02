@@ -75,7 +75,7 @@ impl ClientSession {
     }
 
     pub fn idle_seconds(&self) -> u64 {
-        self.idle_start_time.read().elapsed().as_millis() as u64
+        self.idle_start_time.read().elapsed().as_secs()
     }
 
     pub fn charge(&self) {
@@ -299,7 +299,7 @@ mod tests {
         let idle1 = client_session.idle_seconds();
         assert_eq!(idle1, 0);
 
-        std::thread::sleep(std::time::Duration::from_millis(100));
+        std::thread::sleep(std::time::Duration::from_millis(1100));
         let idle2 = client_session.idle_seconds();
         assert!(idle2 > 0);
 

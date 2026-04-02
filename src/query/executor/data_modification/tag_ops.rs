@@ -121,7 +121,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteTagExecutor<S> {
                         // Vertex does not exist, skip
                         continue;
                     }
-                    Err(e) => {
+                    Err(_) => {
                         continue;
                     }
                 }
@@ -133,7 +133,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteTagExecutor<S> {
                 Ok(deleted_count) => {
                     total_deleted += deleted_count;
                 }
-                Err(e) => {
+                Err(_) => {
                     // Logging errors but continuing to process other vertices
                 }
             }

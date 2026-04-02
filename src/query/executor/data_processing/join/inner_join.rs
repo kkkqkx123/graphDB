@@ -201,7 +201,7 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
         result.col_names = self.base_executor.get_col_names().clone();
         let output_col_names = result.col_names.clone();
 
-        for (idx, probe_row) in probe_dataset.rows.iter().enumerate() {
+        for probe_row in &probe_dataset.rows {
             let mut probe_context = RowExpressionContext::from_dataset(probe_row, &probe_col_names);
             let probe_key_val = ExpressionEvaluator::evaluate(&probe_key, &mut probe_context).map_err(|e| {
                 QueryError::ExecutionError(format!("Key evaluation failed: {}", e))

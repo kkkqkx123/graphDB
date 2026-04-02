@@ -240,28 +240,6 @@ impl YieldClausePlanner {
             _ => "expr".to_string(),
         }
     }
-
-    /// Check whether the expression contains aggregate functions.
-    ///
-    /// Used to determine whether aggregation processing is required.
-    #[allow(dead_code)]
-    fn has_aggregate_expression(expression: &crate::core::Expression) -> bool {
-        use crate::core::Expression;
-
-        match expression {
-            Expression::Function { name, .. } => {
-                // Common aggregate functions
-                let agg_functions = ["count", "sum", "avg", "min", "max", "collect"];
-                agg_functions.contains(&name.to_lowercase().as_str())
-            }
-            Expression::Aggregate { .. } => true,
-            Expression::Binary { left, right, .. } => {
-                Self::has_aggregate_expression(left) || Self::has_aggregate_expression(right)
-            }
-            Expression::Unary { operand, .. } => Self::has_aggregate_expression(operand),
-            _ => false,
-        }
-    }
 }
 
 impl Default for YieldClausePlanner {

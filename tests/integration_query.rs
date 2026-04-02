@@ -309,7 +309,7 @@ fn test_complete_query_flow_show_spaces() {
             // Verify the execution results.
             // The type of the result to be returned should be verified based on the actual implementation.
         }
-        Err(e) => {
+        Err(_e) => {
             // Certain errors are acceptable, depending on the current state of implementation.
         }
     }
@@ -335,7 +335,7 @@ fn test_complete_query_flow_with_metrics() {
         Ok((_exec_result, _metrics)) => {
             // Verify the execution results and indicators.
         }
-        Err(e) => {
+        Err(_e) => {
         }
     }
 }
@@ -447,8 +447,8 @@ fn test_sequential_query_execution() {
     );
 
     // Executing multiple queries in sequence
-    for i in 0..5 {
+    for _i in 0..5 {
         let query = "SHOW SPACES";
-        let result = pipeline_manager.execute_query(query);
+        let _result = pipeline_manager.execute_query(query);
     }
 }

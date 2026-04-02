@@ -144,7 +144,7 @@ fn test_c_api_execute_simple_query() {
     if rc != graphdb_error_code_t::GRAPHDB_OK as i32 {
         let error_msg = graphdb::api::embedded::c_api::error::graphdb_get_last_error_message();
         if !error_msg.is_null() {
-            let msg = unsafe {
+            let _msg = unsafe {
                 std::ffi::CStr::from_ptr(error_msg)
                     .to_string_lossy()
                     .to_string()
@@ -298,7 +298,7 @@ fn test_c_api_transaction_begin_commit() {
     if rc != graphdb_error_code_t::GRAPHDB_OK as i32 {
         let error_msg = graphdb::api::embedded::c_api::error::graphdb_get_last_error_message();
         if !error_msg.is_null() {
-            let msg = unsafe {
+            let _msg = unsafe {
                 std::ffi::CStr::from_ptr(error_msg)
                     .to_string_lossy()
                     .to_string()

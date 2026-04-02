@@ -6,7 +6,6 @@
 
 use graphdb::core::{DataSet, Value};
 use graphdb::query::planning::plan::ExecutionPlan;
-use graphdb::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 
 /// Formats a query plan into a human-readable string representation
 pub fn format_query_plan(plan: &ExecutionPlan) -> String {
@@ -54,7 +53,7 @@ fn format_plan_node(output: &mut String, node: &graphdb::query::planning::plan::
         output.push_str(&format!("{}    space: {}\n", prefix, space));
     }
 
-    if let Some(filter) = node.as_filter() {
+    if let Some(_filter) = node.as_filter() {
         // Try to get filter condition as string
         output.push_str(&format!("{}    (filter condition)\n", prefix));
     }

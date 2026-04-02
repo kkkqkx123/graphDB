@@ -85,7 +85,7 @@ fn test_create_cypher_node_complex_props() {
     })"#;
     let mut parser = Parser::new(query);
 
-    let result = parser.parse();
+    let _result = parser.parse();
     // Assertions are not mandatory for now, as some features may still be under development
 }
 
@@ -125,7 +125,7 @@ fn test_create_cypher_edge_bidirectional() {
     let query = "CREATE (a)-[:COLLEAGUE]-(b)";
     let mut parser = Parser::new(query);
 
-    let result = parser.parse();
+    let _result = parser.parse();
     // Bidirectional edges may not be supported at this time, just record the results
 }
 
@@ -134,7 +134,7 @@ fn test_create_cypher_edge_left_to_right() {
     let query = "CREATE (a)<-[:FOLLOWS]-(b)";
     let mut parser = Parser::new(query);
 
-    let result = parser.parse();
+    let _result = parser.parse();
     // Reverse edges may not be supported at this time, just record the results
 }
 
@@ -171,7 +171,7 @@ fn test_create_cypher_long_path() {
     let query = "CREATE (a:Person)-[:KNOWS]->(b:Person)-[:WORKS_AT]->(c:Company)";
     let mut parser = Parser::new(query);
 
-    let result = parser.parse();
+    let _result = parser.parse();
     // Longer paths may not be supported at this time, just record the results
 }
 
@@ -196,7 +196,7 @@ fn test_create_cypher_mixed_patterns() {
     let query = "CREATE (a:Person {name: 'Alice'}), (a)-[:KNOWS]->(b:Person {name: 'Bob'})";
     let mut parser = Parser::new(query);
 
-    let result = parser.parse();
+    let _result = parser.parse();
     // Mixed mode may not be supported at this time, just record the results
 }
 
@@ -224,7 +224,7 @@ fn test_create_cypher_node_execution() {
 
     // Create nodes (Schema should be inferred automatically)
     let query = "CREATE (n:Person {name: 'Alice', age: 30})";
-    let result = pipeline_manager.execute_query(query);
+    let _result = pipeline_manager.execute_query(query);
 
     // Record results, do not force assertions as features may still be under development
 }
@@ -251,7 +251,7 @@ fn test_create_cypher_edge_execution() {
 
     // Create edges (Schema should be inferred automatically)
     let query = "CREATE (a:Person {name: 'Alice'})-[:KNOWS {since: '2020-01-01'}]->(b:Person {name: 'Bob'})";
-    let result = pipeline_manager.execute_query(query);
+    let _result = pipeline_manager.execute_query(query);
 
     // Record results, do not force assertions as features may still be under development
 }
@@ -263,7 +263,7 @@ fn test_create_cypher_invalid_syntax() {
     let query = "CREATE n:Person {name: 'Alice'}"; // missing brackets
     let mut parser = Parser::new(query);
 
-    let result = parser.parse();
+    let _result = parser.parse();
     // Should return an error, but only log the result for now
 }
 
@@ -272,7 +272,7 @@ fn test_create_cypher_empty_label() {
     let query = "CREATE (n {})"; // No tags.
     let mut parser = Parser::new(query);
 
-    let result = parser.parse();
+    let _result = parser.parse();
     // Record results, which may or may not be supported
 }
 
@@ -281,7 +281,7 @@ fn test_create_cypher_nested_props() {
     let query = "CREATE (n:Person {address: {city: 'Beijing', street: 'Main St'}})";
     let mut parser = Parser::new(query);
 
-    let result = parser.parse();
+    let _result = parser.parse();
     // Nested attributes may not be supported at the moment, just record the results
 }
 
@@ -360,7 +360,7 @@ fn test_cypher_vs_ngql_create_node() {
     // NGQL style
     let ngql_query = "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)";
     let mut ngql_parser = Parser::new(ngql_query);
-    let ngql_result = ngql_parser.parse();
+    let _ = ngql_parser.parse();
 
     // Both should be successfully parsed
     assert!(
@@ -383,7 +383,7 @@ fn test_cypher_vs_ngql_create_edge() {
     // NGQL style
     let ngql_query = "INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01')";
     let mut ngql_parser = Parser::new(ngql_query);
-    let ngql_result = ngql_parser.parse();
+    let _ = ngql_parser.parse();
 
     // Cypher syntax should parse successfully
     assert!(

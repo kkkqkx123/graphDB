@@ -69,23 +69,6 @@ impl RemoveValidator {
         }
     }
 
-    /// Verify the removal of attribute access.
-    #[allow(dead_code)]
-    fn validate_property_access(
-        &self,
-        object: &ContextualExpression,
-        property: &str,
-    ) -> Result<(), ValidationError> {
-        let expr_meta = object.expression().ok_or_else(|| {
-            ValidationError::new(
-                "属性访问对象表达式无效".to_string(),
-                ValidationErrorType::SemanticError,
-            )
-        })?;
-        let expr = expr_meta.inner();
-        self.validate_property_access_internal(expr, property)
-    }
-
     /// Internal method: Verification of attribute access removal
     fn validate_property_access_internal(
         &self,

@@ -3,7 +3,6 @@
 //! Responsible for executing the execution plan and managing the lifecycle of the executor tree.
 
 use crate::core::error::QueryError;
-use crate::core::Value;
 use crate::query::executor::base::{ExecutionContext, ExecutionResult, Executor, InputExecutor};
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::object_pool::ThreadSafeExecutorPool;
@@ -120,10 +119,6 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
                     .output_var()
                     .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("right_{}", plan_node.id()));
-                if let ExecutionResult::Values(values) = &right_result {
-                    if let Some(Value::DataSet(dataset)) = values.first() {
-                    }
-                }
                 context.set_result(right_var, right_result);
             }
             _ => {

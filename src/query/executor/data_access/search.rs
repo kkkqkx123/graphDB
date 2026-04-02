@@ -90,30 +90,6 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         }
     }
 
-    /// Get the schema name (tag or edge type name)
-    fn get_schema_name(&self, storage: &S) -> DBResult<String> {
-        let space_name = self.get_space_name(storage)?;
-
-        if self.is_edge {
-            let edge_types = storage
-                .list_edge_types(&space_name)
-                .map_err(DBError::Storage)?;
-            if let Some(edge_type_info) = edge_types.iter().find(|e| e.edge_type_id == self.tag_id)
-            {
-                Ok(edge_type_info.edge_type_name.clone())
-            } else {
-                Ok(format!("edge_type_{}", self.tag_id.abs()))
-            }
-        } else {
-            let tags = storage.list_tags(&space_name).map_err(DBError::Storage)?;
-            if let Some(tag_info) = tags.iter().find(|t| t.tag_id == self.tag_id) {
-                Ok(tag_info.tag_name.clone())
-            } else {
-                Ok(format!("tag_{}", self.tag_id))
-            }
-        }
-    }
-
     /// Perform an index lookup
     fn lookup_by_index(&self, storage: &S) -> DBResult<Vec<Value>> {
         let space_name = self.get_space_name(storage)?;

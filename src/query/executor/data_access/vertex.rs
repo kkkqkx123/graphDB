@@ -137,7 +137,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                         Ok(None) => {
                             failed_count += 1;
                         }
-                        Err(e) => {
+                        Err(_) => {
                             failed_count += 1;
                         }
                     }

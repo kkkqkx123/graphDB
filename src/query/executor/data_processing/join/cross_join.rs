@@ -351,10 +351,8 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                 }
             };
 
-            let result = self
-                .execute_two_way_cartesian_product(&left_dataset, &right_dataset)
-                .map_err(DBError::from)?;
-            result
+            self.execute_two_way_cartesian_product(&left_dataset, &right_dataset)
+                .map_err(DBError::from)?
         } else {
             // Cartesian product of multiple tables
             self.execute_optimized_cartesian_product()
