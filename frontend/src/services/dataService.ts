@@ -9,7 +9,7 @@ export const dataService = {
       tagName: string,
       params?: VertexListParams
     ): Promise<PaginatedResponse<Vertex>> => {
-      const response = await get(`/api/v1/data/spaces/${spaceName}/tags/${tagName}/vertices`)(params) as PaginatedResponse<Vertex>;
+      const response = await get(`/v1/data/spaces/${spaceName}/tags/${tagName}/vertices`)(params) as PaginatedResponse<Vertex>;
       return response;
     },
   },
@@ -20,7 +20,7 @@ export const dataService = {
       edgeName: string,
       params?: EdgeListParams
     ): Promise<PaginatedResponse<Edge>> => {
-      const response = await get(`/api/v1/data/spaces/${spaceName}/edge-types/${edgeName}/edges`)(params) as PaginatedResponse<Edge>;
+      const response = await get(`/v1/data/spaces/${spaceName}/edge-types/${edgeName}/edges`)(params) as PaginatedResponse<Edge>;
       return response;
     },
   },

@@ -15,85 +15,85 @@ import type {
 export const schemaService = {
   spaces: {
     list: async (): Promise<Space[]> => {
-      const response = await get('/api/v1/schema/spaces')() as Space[];
+      const response = await get('/v1/schema/spaces')() as Space[];
       return response;
     },
 
     getDetail: async (name: string): Promise<SpaceDetail> => {
-      const response = await get(`/api/v1/schema/spaces/${name}/details`)() as SpaceDetail;
+      const response = await get(`/v1/schema/spaces/${name}/details`)() as SpaceDetail;
       return response;
     },
 
     getStatistics: async (name: string): Promise<SpaceDetail['statistics']> => {
-      const response = await get(`/api/v1/schema/spaces/${name}/statistics`)() as SpaceDetail['statistics'];
+      const response = await get(`/v1/schema/spaces/${name}/statistics`)() as SpaceDetail['statistics'];
       return response;
     },
   },
 
   tags: {
     list: async (spaceName: string): Promise<Tag[]> => {
-      const response = await get(`/api/v1/schema/spaces/${spaceName}/tags`)() as Tag[];
+      const response = await get(`/v1/schema/spaces/${spaceName}/tags`)() as Tag[];
       return response;
     },
 
     create: async (spaceName: string, params: CreateTagParams): Promise<Tag> => {
-      const response = await post(`/api/v1/schema/spaces/${spaceName}/tags`)(params) as Tag;
+      const response = await post(`/v1/schema/spaces/${spaceName}/tags`)(params) as Tag;
       return response;
     },
 
     getDetail: async (spaceName: string, tagName: string): Promise<TagDetail> => {
-      const response = await get(`/api/v1/schema/spaces/${spaceName}/tags/${tagName}`)() as TagDetail;
+      const response = await get(`/v1/schema/spaces/${spaceName}/tags/${tagName}`)() as TagDetail;
       return response;
     },
 
     delete: async (spaceName: string, tagName: string): Promise<void> => {
-      await _delete(`/api/v1/schema/spaces/${spaceName}/tags/${tagName}`)();
+      await _delete(`/v1/schema/spaces/${spaceName}/tags/${tagName}`)();
     },
   },
 
   edgeTypes: {
     list: async (spaceName: string): Promise<EdgeType[]> => {
-      const response = await get(`/api/v1/schema/spaces/${spaceName}/edge-types`)() as EdgeType[];
+      const response = await get(`/v1/schema/spaces/${spaceName}/edge-types`)() as EdgeType[];
       return response;
     },
 
     create: async (spaceName: string, params: CreateEdgeTypeParams): Promise<EdgeType> => {
-      const response = await post(`/api/v1/schema/spaces/${spaceName}/edge-types`)(params) as EdgeType;
+      const response = await post(`/v1/schema/spaces/${spaceName}/edge-types`)(params) as EdgeType;
       return response;
     },
 
     getDetail: async (spaceName: string, edgeName: string): Promise<EdgeTypeDetail> => {
-      const response = await get(`/api/v1/schema/spaces/${spaceName}/edge-types/${edgeName}`)() as EdgeTypeDetail;
+      const response = await get(`/v1/schema/spaces/${spaceName}/edge-types/${edgeName}`)() as EdgeTypeDetail;
       return response;
     },
 
     delete: async (spaceName: string, edgeName: string): Promise<void> => {
-      await _delete(`/api/v1/schema/spaces/${spaceName}/edge-types/${edgeName}`)();
+      await _delete(`/v1/schema/spaces/${spaceName}/edge-types/${edgeName}`)();
     },
   },
 
   indexes: {
     list: async (spaceName: string): Promise<IndexInfo[]> => {
-      const response = await get(`/api/v1/schema/spaces/${spaceName}/indexes`)() as IndexInfo[];
+      const response = await get(`/v1/schema/spaces/${spaceName}/indexes`)() as IndexInfo[];
       return response;
     },
 
     create: async (spaceName: string, params: CreateIndexParams): Promise<IndexInfo> => {
-      const response = await post(`/api/v1/schema/spaces/${spaceName}/indexes`)(params) as IndexInfo;
+      const response = await post(`/v1/schema/spaces/${spaceName}/indexes`)(params) as IndexInfo;
       return response;
     },
 
     getDetail: async (spaceName: string, indexName: string): Promise<IndexInfo> => {
-      const response = await get(`/api/v1/schema/spaces/${spaceName}/indexes/${indexName}`)() as IndexInfo;
+      const response = await get(`/v1/schema/spaces/${spaceName}/indexes/${indexName}`)() as IndexInfo;
       return response;
     },
 
     delete: async (spaceName: string, indexName: string): Promise<void> => {
-      await _delete(`/api/v1/schema/spaces/${spaceName}/indexes/${indexName}`)();
+      await _delete(`/v1/schema/spaces/${spaceName}/indexes/${indexName}`)();
     },
 
     rebuild: async (spaceName: string, indexName: string): Promise<void> => {
-      await post(`/api/v1/schema/spaces/${spaceName}/indexes/${indexName}/rebuild`)();
+      await post(`/v1/schema/spaces/${spaceName}/indexes/${indexName}/rebuild`)();
     },
   },
 };

@@ -28,7 +28,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    port: 3011,
     proxy: {
       '/v1': {
         target: 'http://localhost:9758',
@@ -37,7 +37,6 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:9758',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '/api'),
       },
     },
   },
