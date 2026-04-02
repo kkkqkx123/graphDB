@@ -32,6 +32,7 @@ export interface Tag {
   id: number;
   name: string;
   properties: PropertyDef[];
+  comment?: string;
   created_at: number;
 }
 
@@ -47,6 +48,7 @@ export interface EdgeType {
   id: number;
   name: string;
   properties: PropertyDef[];
+  comment?: string;
   created_at: number;
 }
 
@@ -144,4 +146,11 @@ export interface UpdateTagParams {
 export interface UpdateEdgeTypeParams {
   add_properties?: PropertyDef[];
   drop_properties?: string[];
+}
+
+export interface DDLData {
+  space: string;
+  tags: string[];
+  edges: string[];
+  indexes: string[];
 }

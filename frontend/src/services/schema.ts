@@ -10,6 +10,7 @@ import type {
   CreateTagParams,
   CreateEdgeTypeParams,
   CreateIndexParams,
+  DDLData,
 } from '@/types/schema';
 
 export const schemaService = {
@@ -95,6 +96,11 @@ export const schemaService = {
     rebuild: async (spaceName: string, indexName: string): Promise<void> => {
       await post(`/v1/schema/spaces/${spaceName}/indexes/${indexName}/rebuild`)();
     },
+  },
+
+  exportDDL: async (spaceName: string): Promise<DDLData> => {
+    const response = await get(`/v1/schema/spaces/${spaceName}/ddl`)() as DDLData;
+    return response;
   },
 };
 

@@ -18,11 +18,13 @@ import {
   EyeOutlined,
   DeleteOutlined,
   DatabaseOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { useSchemaStore } from '@/stores/schema';
 import type { Space } from '@/types/schema';
 import SpaceCreateModal from '../components/SpaceCreateModal';
 import SpaceDetailModal from '../components/SpaceDetailModal';
+import DDLExportModal from './components/DDLExportModal';
 import styles from './index.module.less';
 
 const { Title, Text } = Typography;
@@ -58,6 +60,7 @@ const SpaceList: React.FC = () => {
 
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [ddlModalVisible, setDDLModalVisible] = useState(false);
   const [selectedSpace, setSelectedSpace] = useState<Space | null>(null);
 
   useEffect(() => {
@@ -91,6 +94,16 @@ const SpaceList: React.FC = () => {
 
   const handleCloseDetail = () => {
     setDetailModalVisible(false);
+    setSelectedSpace(null);
+  };
+
+  const handleShowDDL = (space: Space) => {
+    setSelectedSpace(space);
+    setDDLModalVisible(true);
+  };
+
+  const handleCloseDDL = () => {
+    setDDLModalVisible(false);
     setSelectedSpace(null);
   };
 
@@ -131,7 +144,7 @@ const SpaceList: React.FC = () => {
     {
       title: 'Actions',
       key: 'actions',
-      width: 150,
+      width: 200,
       render: (_: unknown, record: Space) => (
         <AntSpace size="small">
           <Tooltip title="View Details">
@@ -141,6 +154,16 @@ const SpaceList: React.FC = () => {
               onClick={(e) => {
                 e.stopPropagation();
                 handleViewDetail(record);
+              }}
+            />
+          </Tooltip>
+          <Tooltip title="Export DDL">
+            <Button
+              icon={<FileTextOutlined />}
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleShowDDL(record);
               }}
             />
           </Tooltip>
@@ -241,6 +264,12 @@ const SpaceList: React.FC = () => {
         visible={detailModalVisible}
         space={selectedSpace}
         onClose={handleCloseDetail}
+      />
+
+      <DDLExportModal
+        visible={ddlModalVisible}
+        space={selectedSpace?.name || ''}
+        onCancel={handleCloseDDL}
       />
     </div>
   );
