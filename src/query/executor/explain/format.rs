@@ -3,6 +3,7 @@
 //! Provides formatting for query plan descriptions in different output formats:
 //! - Table format (default): Human-readable tabular output
 //! - Dot format: Graphviz DOT format for visualization
+//! - Tree format: Hierarchical tree structure showing plan relationships
 
 use crate::query::planning::plan::core::explain::{PlanDescription, PlanNodeDescription};
 
@@ -10,57 +11,72 @@ use crate::query::planning::plan::core::explain::{PlanDescription, PlanNodeDescr
 pub fn format_plan_as_table(plan_desc: &PlanDescription) -> String {
     let mut output = String::new();
 
-    // Header
-    output.push_str("+----+---------------+--------------+------------------+--------------------------------------------------+\n");
-    output.push_str("| id | name          | dependencies | profiling_data   | operator info                                    |\n");
-    output.push_str("+----+---------------+--------------+------------------+--------------------------------------------------+\n");
+    // Header with clear column names
+    output.push_str("+------+------------------+------------+------------------+--------------------------------------------------+------------------+\n");
+    output.push_str("| id   | name             | deps       | profiling_data   | operator_info                                    | output_var       |\n");
+    output.push_str("+------+------------------+------------+------------------+--------------------------------------------------+------------------+\n");
 
     // Rows
     for node in &plan_desc.plan_node_descs {
-        let id = format!("{:>2}", node.id);
-        let name = truncate_or_pad(&node.name, 13);
+        let id = format!("{:>4}", node.id);
+        let name = truncate_or_pad(&node.name, 16);
 
+        // Format dependencies
         let deps = node
             .dependencies
             .as_ref()
             .map(|d| {
-                d.iter()
-                    .map(|id| id.to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ")
+                if d.is_empty() {
+                    "-".to_string()
+                } else {
+                    d.iter()
+                        .map(|id| id.to_string())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                }
             })
-            .unwrap_or_default();
-        let deps = truncate_or_pad(&deps, 12);
+            .unwrap_or_else(|| "-".to_string());
+        let deps = truncate_or_pad(&deps, 10);
 
+        // Format profiling data
         let profile = if let Some(ref profiles) = node.profiles {
             profiles
                 .iter()
-                .map(|p| format!("rows: {}, time: {}us", p.rows, p.exec_duration_in_us))
+                .map(|p| format!("rows:{},time:{}us", p.rows, p.exec_duration_in_us))
                 .collect::<Vec<_>>()
-                .join("\n")
+                .join(";")
         } else {
-            "N/A".to_string()
+            "-".to_string()
         };
         let profile = truncate_or_pad(&profile, 16);
 
+        // Format operator info
         let info = node
             .description
             .as_ref()
             .map(|descs| {
                 descs
                     .iter()
-                    .map(|p| format!("{}: {}", p.key, p.value))
+                    .map(|p| format!("{}:{}", p.key, p.value))
                     .collect::<Vec<_>>()
-                    .join(", ")
+                    .join(",")
             })
-            .unwrap_or_default();
+            .unwrap_or_else(|| "-".to_string());
         let info = truncate_or_pad(&info, 48);
 
+        // Format output variable
+        let output_var_str = if node.output_var.is_empty() {
+            "-"
+        } else {
+            &node.output_var
+        };
+        let output_var = truncate_or_pad(output_var_str, 16);
+
         output.push_str(&format!(
-            "| {} | {} | {} | {} | {} |\n",
-            id, name, deps, profile, info
+            "| {} | {} | {} | {} | {} | {} |\n",
+            id, name, deps, profile, info, output_var
         ));
-        output.push_str("+----+---------------+--------------+------------------+--------------------------------------------------+\n");
+        output.push_str("+------+------------------+------------+------------------+--------------------------------------------------+------------------+\n");
     }
 
     output
@@ -71,32 +87,171 @@ pub fn format_plan_as_dot(plan_desc: &PlanDescription) -> String {
     let mut output = String::new();
 
     output.push_str("digraph G {\n");
-    output.push_str("    node[shape=box, style=filled, fillcolor=lightblue];\n");
-    output.push_str("    edge[arrowhead=none];\n\n");
+    output.push_str("    rankdir=BT;\n");  // Bottom to top layout for better flow visualization
+    output.push_str("    node[shape=box, style=filled, fillcolor=lightblue, fontname=\"Arial\"];\n");
+    output.push_str("    edge[arrowhead=none, fontname=\"Arial\"];\n\n");
+
+    // Find root nodes (nodes that are not dependencies of any other node)
+    let mut all_deps = std::collections::HashSet::new();
+    for node in &plan_desc.plan_node_descs {
+        if let Some(ref deps) = node.dependencies {
+            for dep_id in deps {
+                all_deps.insert(*dep_id);
+            }
+        }
+    }
 
     // Nodes
     for node in &plan_desc.plan_node_descs {
         let label = format_plan_node_label(node);
+        let is_root = !all_deps.contains(&node.id);
+        let fillcolor = if is_root { "lightgreen" } else { "lightblue" };
         output.push_str(&format!(
-            "    {}[label={}];\n",
+            "    {}[label={}, fillcolor={}];\n",
             node.id,
-            escape_dot_label(&label)
+            escape_dot_label(&label),
+            fillcolor
         ));
     }
 
     output.push('\n');
 
-    // Edges
+    // Edges with labels showing the relationship
     for node in &plan_desc.plan_node_descs {
         if let Some(ref deps) = node.dependencies {
-            for dep_id in deps {
-                output.push_str(&format!("    {} -> {};\n", node.id, dep_id));
+            for (idx, dep_id) in deps.iter().enumerate() {
+                let edge_label = if deps.len() > 1 {
+                    format!("label=\"input{}\"", idx + 1)
+                } else {
+                    "".to_string()
+                };
+                if edge_label.is_empty() {
+                    output.push_str(&format!("    {} -> {};\n", node.id, dep_id));
+                } else {
+                    output.push_str(&format!("    {} -> {} [{}];\n", node.id, dep_id, edge_label));
+                }
             }
         }
     }
 
     output.push('}');
     output
+}
+
+/// Format plan description as a tree structure
+pub fn format_plan_as_tree(plan_desc: &PlanDescription) -> String {
+    let mut output = String::new();
+
+    // Build a map of node id to node for quick lookup
+    let node_map: std::collections::HashMap<i64, &PlanNodeDescription> = plan_desc
+        .plan_node_descs
+        .iter()
+        .map(|n| (n.id, n))
+        .collect();
+
+    // Build parent relationships
+    let mut parent_map: std::collections::HashMap<i64, Vec<i64>> = std::collections::HashMap::new();
+    for node in &plan_desc.plan_node_descs {
+        if let Some(ref deps) = node.dependencies {
+            for dep_id in deps {
+                parent_map.entry(*dep_id).or_default().push(node.id);
+            }
+        }
+    }
+
+    // Find root nodes (nodes that are not dependencies of any other node)
+    let mut root_nodes: Vec<&PlanNodeDescription> = Vec::new();
+    for node in &plan_desc.plan_node_descs {
+        let is_root = parent_map.get(&node.id).map(|v| v.is_empty()).unwrap_or(true)
+            && node.dependencies.as_ref().map(|d| !d.is_empty()).unwrap_or(false);
+        if is_root || parent_map.get(&node.id).is_none() {
+            root_nodes.push(node);
+        }
+    }
+
+    // If no clear root found, use nodes with no parents
+    if root_nodes.is_empty() {
+        for node in &plan_desc.plan_node_descs {
+            if parent_map.get(&node.id).is_none() {
+                root_nodes.push(node);
+            }
+        }
+    }
+
+    // Format tree starting from root nodes
+    for (idx, root) in root_nodes.iter().enumerate() {
+        if idx > 0 {
+            output.push_str("\n");
+        }
+        format_tree_node(&mut output, root, &node_map, 0, true, &std::collections::HashSet::new());
+    }
+
+    output
+}
+
+/// Recursively format a tree node
+fn format_tree_node(
+    output: &mut String,
+    node: &PlanNodeDescription,
+    node_map: &std::collections::HashMap<i64, &PlanNodeDescription>,
+    depth: usize,
+    is_last: bool,
+    visited: &std::collections::HashSet<i64>,
+) {
+    // Check for cycles
+    if visited.contains(&node.id) {
+        let indent = "  ".repeat(depth);
+        output.push_str(&format!("{}[{}] {} (cycle detected)\n", indent, node.id, node.name));
+        return;
+    }
+
+    // Format current node
+    let _indent = if depth > 0 {
+        let prefix = "  ".repeat(depth - 1);
+        if is_last {
+            format!("{}└── ", prefix)
+        } else {
+            format!("{}├── ", prefix)
+        }
+    } else {
+        String::new()
+    };
+
+    // Build node info string
+    let mut info_parts = vec![format!("[{}] {}", node.id, node.name)];
+
+    if let Some(ref desc) = node.description {
+        for pair in desc.iter().take(3) {
+            info_parts.push(format!("{}:{}", pair.key, pair.value));
+        }
+    }
+
+    if !node.output_var.is_empty() {
+        info_parts.push(format!("-> {}", &node.output_var));
+    }
+
+    output.push_str(&format!("{}\n", info_parts.join(" | ")));
+
+    // Mark as visited
+    let mut new_visited = visited.clone();
+    new_visited.insert(node.id);
+
+    // Format children (dependencies)
+    if let Some(ref deps) = node.dependencies {
+        let dep_count = deps.len();
+        for (idx, dep_id) in deps.iter().enumerate() {
+            if let Some(dep_node) = node_map.get(dep_id) {
+                format_tree_node(
+                    output,
+                    dep_node,
+                    node_map,
+                    depth + 1,
+                    idx == dep_count - 1,
+                    &new_visited,
+                );
+            }
+        }
+    }
 }
 
 /// Format a single plan node label for DOT output
