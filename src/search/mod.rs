@@ -1,16 +1,24 @@
 pub mod adapters;
+pub mod cache;
 pub mod config;
 pub mod engine;
 pub mod error;
 pub mod factory;
+pub mod index_cache;
 pub mod manager;
 pub mod metadata;
+pub mod metrics;
 pub mod result;
+pub mod warmup;
 
+pub use cache::SearchCache;
 pub use config::{FulltextConfig, SyncConfig, SyncMode, Bm25Config};
 pub use engine::{EngineType, SearchEngine};
 pub use error::{Result, SearchError};
 pub use factory::SearchEngineFactory;
+pub use index_cache::IndexCache;
 pub use manager::FulltextIndexManager;
 pub use metadata::{IndexMetadata, IndexKey, IndexStatus};
+pub use metrics::FulltextMetrics;
 pub use result::{IndexStats, SearchResult};
+pub use warmup::IndexWarmer;

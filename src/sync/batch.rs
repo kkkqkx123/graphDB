@@ -107,6 +107,41 @@ impl BatchProcessor {
 
         results
     }
+
+    /// Optimized batch commit with parallel processing
+    pub async fn optimized_commit(&mut self) -> Result<(), BatchError> {
+        // Group by index
+        let mut batches: std::collections::HashMap<_, Vec<_>> = std::collections::HashMap::new();
+
+        for ((space_id, tag, field), docs) in &self.buffers {
+            if !docs.is_empty() {
+                batches.insert((*space_id, tag.clone(), field.clone()), docs.clone());
+            }
+        }
+
+        // Parallel commit
+        let futures: Vec<_> = batches.into_iter()
+            .map(|(key, docs)| {
+                let coordinator = self.coordinator.clone();
+                async move {
+                    let (space_id, tag, field) = key;
+                    if let Some(engine) = coordinator.get_engine(space_id, &tag, &field) {
+                        engine.index_batch(docs).await.map_err(|e| BatchError::IndexError(e.to_string()))?;
+                        engine.commit().await.map_err(|e| BatchError::CommitError(e.to_string()))?;
+                    }
+                    Ok::<_, BatchError>(())
+                }
+            })
+            .collect();
+
+        // Wait for all commits to complete
+        for result in futures::future::join_all(futures).await {
+            result?;
+        }
+
+        self.buffers.clear();
+        Ok(())
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

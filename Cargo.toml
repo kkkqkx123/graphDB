@@ -18,7 +18,7 @@ clap = { version = "4.5.53", features = ["derive"] }
 log = "0.4.29"
 flexi_logger = { version = "0.31", features = ["async"] }
 thiserror = "2.0.17"
-moka = { version = "0.12", features = ["sync"] }
+moka = { version = "0.12", features = ["sync", "future"] }
 lru = "0.16.2"
 bincode = { version = "2.0.1", features = ["serde", "derive"] }
 toml = "0.9.8"
@@ -34,6 +34,7 @@ parking_lot = "0.12"
 crossbeam-utils = "0.8"
 sysinfo = "0.30"
 dec = "0.4.11"
+futures = "0.3"
 
 axum = { version = "0.8", features = ["macros"], optional = true }
 tower = { version = "0.5", optional = true }
@@ -85,6 +86,7 @@ cbindgen = "0.29"
 [dev-dependencies]
 tokio-test = "0.4.4"
 tempfile = "3.23.0"
+criterion = { version = "0.5", features = ["async_tokio"] }
 
 [profile.dev]
 opt-level = 0

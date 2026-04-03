@@ -11,6 +11,9 @@ pub struct FulltextConfig {
     pub sync: SyncConfig,
     pub bm25: Bm25Config,
     pub inversearch: InversearchConfig,
+    pub cache_size: usize,
+    pub max_result_cache: usize,
+    pub result_cache_ttl_secs: u64,
 }
 
 impl Default for FulltextConfig {
@@ -22,6 +25,9 @@ impl Default for FulltextConfig {
             sync: SyncConfig::default(),
             bm25: Bm25Config::default(),
             inversearch: InversearchConfig::default(),
+            cache_size: 100,
+            max_result_cache: 1000,
+            result_cache_ttl_secs: 60,
         }
     }
 }
