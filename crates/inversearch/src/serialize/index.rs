@@ -3,10 +3,10 @@
 //! 提供 Index 类型的导入导出功能实现
 
 use crate::error::Result;
-use crate::Index;
-use crate::serialize::types::*;
-use crate::serialize::format;
 use crate::serialize::compression;
+use crate::serialize::format;
+use crate::serialize::types::*;
+use crate::Index;
 use std::collections::HashMap;
 
 impl Index {
@@ -51,20 +51,20 @@ impl Index {
     /// 导出主索引
     fn export_main_index(&self) -> HashMap<String, Vec<u64>> {
         let mut result = HashMap::new();
-        
+
         for doc_ids in self.map.index.values() {
             for (term_str, ids) in doc_ids {
                 result.insert(term_str.clone(), ids.clone());
             }
         }
-        
+
         result
     }
 
     /// 导出上下文索引
     fn export_context_index(&self) -> HashMap<String, HashMap<String, Vec<u64>>> {
         let mut result = HashMap::new();
-        
+
         for ctx_map in self.ctx.index.values() {
             let mut ctx_data = HashMap::new();
             for (ctx_term, doc_ids) in ctx_map {
@@ -73,7 +73,7 @@ impl Index {
             let ctx_key_str = format!("ctx_{}", result.len());
             result.insert(ctx_key_str, ctx_data);
         }
-        
+
         result
     }
 
@@ -88,14 +88,13 @@ impl Index {
                     }
                 }
                 RegistryData::Set(doc_ids)
-            },
+            }
             crate::index::Register::Map(map) => {
                 let mut result = HashMap::new();
                 for map_data in map.index.values() {
                     for (&doc_id, refs) in map_data {
-                        let ref_data: Vec<IndexRefData> = refs.iter()
-                            .map(IndexRefData::from_index_ref)
-                            .collect();
+                        let ref_data: Vec<IndexRefData> =
+                            refs.iter().map(IndexRefData::from_index_ref).collect();
                         result.insert(doc_id, ref_data);
                     }
                 }
@@ -108,9 +107,10 @@ impl Index {
     pub fn import(&mut self, data: IndexExportData, _config: &SerializeConfig) -> Result<()> {
         // 验证版本兼容性
         if data.version != "0.1.0" {
-            return Err(crate::error::InversearchError::Serialization(
-                format!("Unsupported version: {}", data.version)
-            ));
+            return Err(crate::error::InversearchError::Serialization(format!(
+                "Unsupported version: {}",
+                data.version
+            )));
         }
 
         // 应用导入的配置
@@ -121,10 +121,10 @@ impl Index {
 
         // 导入主索引
         self.import_main_index(&data.data.main_index)?;
-        
+
         // 导入上下文索引
         self.import_context_index(&data.data.context_index)?;
-        
+
         // 导入注册表
         self.import_registry(&data.data.registry)?;
 
@@ -144,7 +144,10 @@ impl Index {
     }
 
     /// 导入上下文索引
-    pub fn import_context_index(&mut self, data: &HashMap<String, HashMap<String, Vec<u64>>>) -> Result<()> {
+    pub fn import_context_index(
+        &mut self,
+        data: &HashMap<String, HashMap<String, Vec<u64>>>,
+    ) -> Result<()> {
         for (ctx_key, ctx_data) in data {
             let ctx_hash = self.keystore_hash_str(ctx_key);
             self.ctx.index.insert(ctx_hash, HashMap::new());
@@ -166,26 +169,27 @@ impl Index {
                     let doc_hash = self.keystore_hash(&doc_id.to_string());
                     items_to_insert.push((doc_hash, doc_id));
                 }
-                
+
                 if let crate::index::Register::Set(set) = &mut self.reg {
                     for (doc_hash, doc_id) in items_to_insert {
-                        set.index.entry(doc_hash).or_insert_with(std::collections::HashSet::new);
+                        set.index
+                            .entry(doc_hash)
+                            .or_insert_with(std::collections::HashSet::new);
                         if let Some(set_data) = set.index.get_mut(&doc_hash) {
                             set_data.insert(doc_id);
                         }
                     }
                 }
-            },
+            }
             RegistryData::Map(doc_map) => {
                 let mut items_to_insert = Vec::new();
                 for (&doc_id, refs) in doc_map {
                     let doc_hash = self.keystore_hash(&doc_id.to_string());
-                    let index_refs: Vec<crate::index::IndexRef> = refs.iter()
-                        .map(|r| r.to_index_ref())
-                        .collect();
+                    let index_refs: Vec<crate::index::IndexRef> =
+                        refs.iter().map(|r| r.to_index_ref()).collect();
                     items_to_insert.push((doc_hash, doc_id, index_refs));
                 }
-                
+
                 if let crate::index::Register::Map(map) = &mut self.reg {
                     for (doc_hash, doc_id, index_refs) in items_to_insert {
                         map.index.entry(doc_hash).or_insert_with(HashMap::new);
@@ -208,21 +212,25 @@ impl Index {
     /// 从JSON字符串反序列化
     pub fn from_json(json_str: &str, config: &SerializeConfig) -> Result<Index> {
         let data = format::from_json_str(json_str)?;
-        
+
         let mut index = Index::new(crate::index::IndexOptions::default())?;
         index.import(data, config)?;
-        
+
         Ok(index)
     }
 
     /// 序列化为二进制格式
     pub fn to_binary(&self, config: &SerializeConfig) -> Result<Vec<u8>> {
         let data = self.export(config)?;
-        
+
         let serialized = format::serialize_to_bytes(&data, &config.format)?;
 
         if config.compression {
-            compression::compress_data(&serialized, config.compression_algorithm, config.compression_level)
+            compression::compress_data(
+                &serialized,
+                config.compression_algorithm,
+                config.compression_level,
+            )
         } else {
             Ok(serialized)
         }
@@ -289,13 +297,22 @@ impl Index {
     /// 应用导入的配置
     fn apply_config(&mut self, config: &IndexConfigExport) -> Result<()> {
         self.resolution = config.index_options.resolution.unwrap_or(9);
-        self.resolution_ctx = config.index_options.context.as_ref()
+        self.resolution_ctx = config
+            .index_options
+            .context
+            .as_ref()
             .and_then(|c| c.resolution)
             .unwrap_or(self.resolution);
-        self.depth = config.index_options.context.as_ref()
+        self.depth = config
+            .index_options
+            .context
+            .as_ref()
             .and_then(|c| c.depth)
             .unwrap_or(0);
-        self.bidirectional = config.index_options.context.as_ref()
+        self.bidirectional = config
+            .index_options
+            .context
+            .as_ref()
             .and_then(|c| c.bidirectional)
             .unwrap_or(false);
         self.fastupdate = config.index_options.fastupdate.unwrap_or(false);
@@ -320,16 +337,27 @@ mod tests {
     #[test]
     fn test_export_import_json() {
         let mut original_index = Index::default();
-        original_index.add(1, "hello world", false).expect("add should succeed");
-        original_index.add(2, "rust programming", false).expect("add should succeed");
-        original_index.add(3, "hello rust", false).expect("add should succeed");
+        original_index
+            .add(1, "hello world", false)
+            .expect("add should succeed");
+        original_index
+            .add(2, "rust programming", false)
+            .expect("add should succeed");
+        original_index
+            .add(3, "hello rust", false)
+            .expect("add should succeed");
 
         let config = SerializeConfig::default();
-        let json_str = original_index.to_json(&config).expect("to_json should succeed");
+        let json_str = original_index
+            .to_json(&config)
+            .expect("to_json should succeed");
 
-        let imported_index = Index::from_json(&json_str, &config).expect("from_json should succeed");
+        let imported_index =
+            Index::from_json(&json_str, &config).expect("from_json should succeed");
 
-        let results = imported_index.search_simple("hello").expect("search should succeed");
+        let results = imported_index
+            .search_simple("hello")
+            .expect("search should succeed");
         assert!(results.contains(&1));
         assert!(results.contains(&3));
         assert!(!results.contains(&2));
@@ -338,15 +366,24 @@ mod tests {
     #[test]
     fn test_export_import_binary() {
         let mut original_index = Index::default();
-        original_index.add(1, "test document", false).expect("add should succeed");
-        original_index.add(2, "another test", false).expect("add should succeed");
+        original_index
+            .add(1, "test document", false)
+            .expect("add should succeed");
+        original_index
+            .add(2, "another test", false)
+            .expect("add should succeed");
 
         let config = SerializeConfig::default();
-        let binary_data = original_index.to_binary(&config).expect("to_binary should succeed");
+        let binary_data = original_index
+            .to_binary(&config)
+            .expect("to_binary should succeed");
 
-        let imported_index = Index::from_binary(&binary_data, &config).expect("from_binary should succeed");
+        let imported_index =
+            Index::from_binary(&binary_data, &config).expect("from_binary should succeed");
 
-        let results = imported_index.search_simple("test").expect("search should succeed");
+        let results = imported_index
+            .search_simple("test")
+            .expect("search should succeed");
         assert_eq!(results.len(), 2);
         assert!(results.contains(&1));
         assert!(results.contains(&2));
@@ -355,17 +392,26 @@ mod tests {
     #[test]
     fn test_serialize_format_variants() {
         let mut index = Index::default();
-        index.add(1, "test document", false).expect("add should succeed");
-        index.add(2, "another test", false).expect("add should succeed");
+        index
+            .add(1, "test document", false)
+            .expect("add should succeed");
+        index
+            .add(2, "another test", false)
+            .expect("add should succeed");
 
         let json_config = SerializeConfig {
             format: SerializeFormat::Json,
             compression: false,
             ..SerializeConfig::default()
         };
-        let json_data = index.to_binary(&json_config).expect("to_binary with JSON should succeed");
-        let imported_json = Index::from_binary(&json_data, &json_config).expect("from_binary with JSON should succeed");
-        let results = imported_json.search_simple("test").expect("search should succeed");
+        let json_data = index
+            .to_binary(&json_config)
+            .expect("to_binary with JSON should succeed");
+        let imported_json = Index::from_binary(&json_data, &json_config)
+            .expect("from_binary with JSON should succeed");
+        let results = imported_json
+            .search_simple("test")
+            .expect("search should succeed");
         assert_eq!(results.len(), 2);
 
         let mp_config = SerializeConfig {
@@ -373,9 +419,14 @@ mod tests {
             compression: false,
             ..SerializeConfig::default()
         };
-        let mp_data = index.to_binary(&mp_config).expect("to_binary with MessagePack should succeed");
-        let imported_mp = Index::from_binary(&mp_data, &mp_config).expect("from_binary with MessagePack should succeed");
-        let results = imported_mp.search_simple("test").expect("search should succeed");
+        let mp_data = index
+            .to_binary(&mp_config)
+            .expect("to_binary with MessagePack should succeed");
+        let imported_mp = Index::from_binary(&mp_data, &mp_config)
+            .expect("from_binary with MessagePack should succeed");
+        let results = imported_mp
+            .search_simple("test")
+            .expect("search should succeed");
         assert_eq!(results.len(), 2);
 
         let cbor_config = SerializeConfig {
@@ -383,9 +434,14 @@ mod tests {
             compression: false,
             ..SerializeConfig::default()
         };
-        let cbor_data = index.to_binary(&cbor_config).expect("to_binary with CBOR should succeed");
-        let imported_cbor = Index::from_binary(&cbor_data, &cbor_config).expect("from_binary with CBOR should succeed");
-        let results = imported_cbor.search_simple("test").expect("search should succeed");
+        let cbor_data = index
+            .to_binary(&cbor_config)
+            .expect("to_binary with CBOR should succeed");
+        let imported_cbor = Index::from_binary(&cbor_data, &cbor_config)
+            .expect("from_binary with CBOR should succeed");
+        let results = imported_cbor
+            .search_simple("test")
+            .expect("search should succeed");
         assert_eq!(results.len(), 2);
     }
 }

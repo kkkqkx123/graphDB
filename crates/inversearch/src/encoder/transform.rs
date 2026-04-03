@@ -159,10 +159,10 @@ impl<T: TextTransformer> TextTransformer for CachedTransformer<T> {
                 return cached.clone();
             }
         }
-        
+
         // Slow path: transform and cache
         let transformed = self.inner.transform(text.clone());
-        
+
         {
             let mut cache = self.cache.write().unwrap();
             if cache.len() >= self.max_cache_size {
@@ -173,7 +173,7 @@ impl<T: TextTransformer> TextTransformer for CachedTransformer<T> {
             }
             cache.insert(text, transformed.clone());
         }
-        
+
         transformed
     }
 }

@@ -1,13 +1,13 @@
+pub mod tokenizer;
 mod transform;
 mod validator;
-pub mod tokenizer;
 
+pub use tokenizer::{Tokenizer, TokenizerMode};
 pub use transform::*;
 pub use validator::EncoderValidator;
-pub use tokenizer::{Tokenizer, TokenizerMode};
 
-use crate::r#type::EncoderOptions;
 use crate::error::Result;
+use crate::r#type::EncoderOptions;
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, RwLock};
@@ -85,10 +85,10 @@ impl Encoder {
     pub fn new(options: EncoderOptions) -> Result<Self> {
         // Validate configuration before creating encoder
         EncoderValidator::validate(&options)?;
-        
+
         // Clone options for later use to avoid borrowing issues
         let options_clone = options.clone();
-        
+
         // Extract values from options
         let normalize_flag = options.normalize;
         let split_string = options.split;
@@ -103,7 +103,7 @@ impl Encoder {
         let maxlength_val = options.maxlength;
         let rtl_flag = options.rtl;
         let cache_flag = options.cache;
-        
+
         let normalize = match normalize_flag {
             Some(true) => NormalizeOption::Bool(true),
             Some(false) => NormalizeOption::Bool(false),
@@ -136,11 +136,10 @@ impl Encoder {
             replacer
                 .into_iter()
                 .map(|(pattern, replacement)| {
-                    let regex = Regex::new(&pattern)
-                        .unwrap_or_else(|e| {
-                            eprintln!("Failed to compile regex pattern '{}': {}", pattern, e);
-                            Regex::new("").expect("Failed to create empty regex")
-                        });
+                    let regex = Regex::new(&pattern).unwrap_or_else(|e| {
+                        eprintln!("Failed to compile regex pattern '{}': {}", pattern, e);
+                        Regex::new("").expect("Failed to create empty regex")
+                    });
                     (regex, replacement)
                 })
                 .collect()
@@ -219,12 +218,8 @@ impl Encoder {
         }
 
         if self.numeric && s.len() > 3 {
-            s = NUMERIC_SPLIT_PREV_CHAR
-                .replace_all(&s, "$1 $2")
-                .to_string();
-            s = NUMERIC_SPLIT_NEXT_CHAR
-                .replace_all(&s, "$1 $2")
-                .to_string();
+            s = NUMERIC_SPLIT_PREV_CHAR.replace_all(&s, "$1 $2").to_string();
+            s = NUMERIC_SPLIT_NEXT_CHAR.replace_all(&s, "$1 $2").to_string();
             s = NUMERIC_SPLIT_LENGTH.replace_all(&s, "$1 ").to_string();
         }
 
@@ -349,7 +344,8 @@ impl Encoder {
         match &self.normalize {
             NormalizeOption::Bool(true) => {
                 use unicode_normalization::UnicodeNormalization;
-                NORMALIZE.replace_all(str.chars().nfkd().collect::<String>().as_str(), "")
+                NORMALIZE
+                    .replace_all(str.chars().nfkd().collect::<String>().as_str(), "")
                     .to_lowercase()
             }
             NormalizeOption::Bool(false) => str.to_lowercase(),
@@ -370,9 +366,7 @@ impl Encoder {
                 }
             }
             SplitOption::Bool(false) => vec![str.to_string()],
-            SplitOption::Bool(true) => {
-                self.split_with_cjk(str)
-            }
+            SplitOption::Bool(true) => self.split_with_cjk(str),
         }
     }
 
@@ -682,9 +676,9 @@ impl Encoder {
             mapper: self.mapper.clone(),
             stemmer: self.stemmer.clone(),
             replacer: self.replacer.as_ref().map(|r| {
-                r.iter().map(|(regex, replacement)| {
-                    (regex.as_str().to_string(), replacement.clone())
-                }).collect()
+                r.iter()
+                    .map(|(regex, replacement)| (regex.as_str().to_string(), replacement.clone()))
+                    .collect()
             }),
             minlength: Some(self.minlength),
             maxlength: Some(self.maxlength),
@@ -695,13 +689,15 @@ impl Encoder {
 
 impl Default for Encoder {
     fn default() -> Self {
-        Encoder::new(EncoderOptions::default()).expect("Default encoder configuration should be valid")
+        Encoder::new(EncoderOptions::default())
+            .expect("Default encoder configuration should be valid")
     }
 }
 
 pub fn fallback_encoder(str: &str) -> Vec<String> {
     use unicode_normalization::UnicodeNormalization;
-    NORMALIZE.replace_all(str.chars().nfkd().collect::<String>().as_str(), "")
+    NORMALIZE
+        .replace_all(str.chars().nfkd().collect::<String>().as_str(), "")
         .to_lowercase()
         .split_whitespace()
         .map(|s| s.to_string())
@@ -762,7 +758,9 @@ mod tests {
             ..Default::default()
         };
         let encoder = Encoder::new(options).expect("Failed to create encoder");
-        let result = encoder.encode("the cat and the dog").expect("Failed to encode");
+        let result = encoder
+            .encode("the cat and the dog")
+            .expect("Failed to encode");
         assert_eq!(result, vec!["cat", "dog"]);
     }
 
@@ -811,7 +809,7 @@ mod tests {
     #[test]
     fn test_trait_based_transformer() {
         let mut encoder = Encoder::default();
-        
+
         // Test custom prepare transformer
         encoder.set_prepare_function(|text| text.replace("hello", "hi"));
         let result = encoder.encode("hello world").expect("Failed to encode");
@@ -824,7 +822,7 @@ mod tests {
             dedupe: false,
             ..Default::default()
         }; // Disable deduplication for this test
-        
+
         // Test custom filter
         encoder.set_filter_function(|word| word.len() > 3);
         let result = encoder.encode("hi hello world").expect("Failed to encode");
@@ -834,7 +832,7 @@ mod tests {
     #[test]
     fn test_trait_based_finalizer() {
         let mut encoder = Encoder::default();
-        
+
         // Test custom finalizer
         encoder.set_finalize_function(|mut tokens| {
             tokens.retain(|t| t != "world");
@@ -851,7 +849,7 @@ mod tests {
             maxlength: Some(5),
             ..Default::default()
         };
-        
+
         let result = Encoder::new(options);
         assert!(result.is_err());
     }
@@ -864,7 +862,7 @@ mod tests {
             filter.push(format!("word{}", i));
         }
         options.filter = Some(filter);
-        
+
         let result = Encoder::new(options);
         assert!(result.is_err());
     }

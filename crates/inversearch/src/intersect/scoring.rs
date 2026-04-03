@@ -1,9 +1,9 @@
 //! 评分模块
-//! 
+//!
 //! 实现高级评分算法，包括TF-IDF、BM25等
 
-use std::collections::HashMap;
 use crate::r#type::IntermediateSearchResults;
+use std::collections::HashMap;
 
 /// 带评分的ID
 #[derive(Debug, Clone, PartialEq)]
@@ -53,13 +53,13 @@ impl TfIdfScorer {
             total_documents,
         }
     }
-    
+
     /// 计算词频
     fn calculate_tf(&self, _term: &str, doc: &ScoredId) -> f32 {
         // 简化实现：使用计数作为词频
         doc.count as f32
     }
-    
+
     /// 计算逆文档频率
     fn calculate_idf(&self, term: &str) -> f32 {
         let df = self.document_frequency.get(term).unwrap_or(&1);
@@ -70,19 +70,21 @@ impl TfIdfScorer {
 impl ScoringAlgorithm for TfIdfScorer {
     fn calculate_score(&self, doc: &ScoredId, query_terms: &[String], config: &ScoreConfig) -> f32 {
         let mut score = 0.0;
-        
+
         for term in query_terms {
             let tf = self.calculate_tf(term, doc);
             let idf = self.calculate_idf(term);
             score += tf * idf;
         }
-        
+
         // 应用配置
-        score * config.boost_factor
-            .max(config.min_score)
-            .min(config.max_score)
+        score
+            * config
+                .boost_factor
+                .max(config.min_score)
+                .min(config.max_score)
     }
-    
+
     fn name(&self) -> &str {
         "TF-IDF"
     }
@@ -110,15 +112,15 @@ impl Bm25Scorer {
             b,
         }
     }
-    
+
     /// 计算BM25分数
     fn calculate_bm25(&self, term_freq: usize, doc_id: u64, _doc_count: usize) -> f32 {
         let doc_len = *self.document_length.get(&doc_id).unwrap_or(&0) as f32;
         let normalized_length = doc_len / self.average_document_length;
-        
+
         let numerator = term_freq as f32 * (self.k1 + 1.0);
         let denominator = term_freq as f32 + self.k1 * (1.0 - self.b + self.b * normalized_length);
-        
+
         if denominator > 0.0 {
             numerator / denominator
         } else {
@@ -130,20 +132,22 @@ impl Bm25Scorer {
 impl ScoringAlgorithm for Bm25Scorer {
     fn calculate_score(&self, doc: &ScoredId, query_terms: &[String], config: &ScoreConfig) -> f32 {
         let mut score = 0.0;
-        
+
         for _term in query_terms {
             // 简化实现：假设每个查询词出现一次
             let term_freq = 1;
             let bm25_score = self.calculate_bm25(term_freq, doc.id, 0);
             score += bm25_score;
         }
-        
+
         // 应用配置
-        score * config.boost_factor
-            .max(config.min_score)
-            .min(config.max_score)
+        score
+            * config
+                .boost_factor
+                .max(config.min_score)
+                .min(config.max_score)
     }
-    
+
     fn name(&self) -> &str {
         "BM25"
     }
@@ -161,11 +165,14 @@ impl Default for ScoreManager {
             algorithms: HashMap::new(),
             default_algorithm: "tfidf".to_string(),
         };
-        
+
         // 添加默认算法
         manager.add_algorithm("tfidf", Box::new(TfIdfScorer::new(HashMap::new(), 1000)));
-        manager.add_algorithm("bm25", Box::new(Bm25Scorer::new(HashMap::new(), 100.0, 1.2, 0.75)));
-        
+        manager.add_algorithm(
+            "bm25",
+            Box::new(Bm25Scorer::new(HashMap::new(), 100.0, 1.2, 0.75)),
+        );
+
         manager
     }
 }
@@ -174,11 +181,11 @@ impl ScoreManager {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     pub fn add_algorithm(&mut self, name: &str, algorithm: Box<dyn ScoringAlgorithm>) {
         self.algorithms.insert(name.to_string(), algorithm);
     }
-    
+
     pub fn score_documents(
         &self,
         documents: Vec<ScoredId>,
@@ -187,17 +194,20 @@ impl ScoreManager {
         config: &ScoreConfig,
     ) -> Vec<ScoredId> {
         let algorithm_name = algorithm.unwrap_or(&self.default_algorithm);
-        
+
         if let Some(scorer) = self.algorithms.get(algorithm_name) {
-            documents.into_iter().map(|mut doc| {
-                doc.score = scorer.calculate_score(&doc, query_terms, config);
-                doc
-            }).collect()
+            documents
+                .into_iter()
+                .map(|mut doc| {
+                    doc.score = scorer.calculate_score(&doc, query_terms, config);
+                    doc
+                })
+                .collect()
         } else {
             documents
         }
     }
-    
+
     pub fn get_available_algorithms(&self) -> Vec<&str> {
         self.algorithms.keys().map(|s| s.as_str()).collect()
     }
@@ -211,7 +221,7 @@ pub fn score_search_results(
     config: &ScoreConfig,
 ) -> Vec<ScoredId> {
     let mut scored_results = Vec::new();
-    
+
     for result_array in results {
         for (pos, &id) in result_array.iter().enumerate() {
             let scored_id = ScoredId {
@@ -223,7 +233,7 @@ pub fn score_search_results(
             scored_results.push(scored_id);
         }
     }
-    
+
     // 使用评分管理器进行评分
     let manager = ScoreManager::new();
     manager.score_documents(scored_results, query_terms, algorithm, config)
@@ -240,12 +250,12 @@ mod tests {
         assert!(algorithms.contains(&"tfidf"));
         assert!(algorithms.contains(&"bm25"));
     }
-    
+
     #[test]
     fn test_tfidf_scorer() {
         let mut df = HashMap::new();
         df.insert("test".to_string(), 10);
-        
+
         let scorer = TfIdfScorer::new(df, 100);
         let doc = ScoredId {
             id: 1,
@@ -253,7 +263,7 @@ mod tests {
             count: 5,
             positions: vec![0, 1, 2],
         };
-        
+
         let config = ScoreConfig::default();
         let score = scorer.calculate_score(&doc, &["test".to_string()], &config);
         assert!(score >= 0.0);

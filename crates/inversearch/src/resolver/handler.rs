@@ -1,5 +1,5 @@
-use crate::resolver::{Resolver, ResolverOptions, resolve_default};
 use crate::r#type::{IntermediateSearchResults, SearchResults};
+use crate::resolver::{resolve_default, Resolver, ResolverOptions};
 
 pub struct Handler;
 
@@ -43,7 +43,7 @@ impl Handler {
 
                 if resolution > 0 {
                     resolver.result = crate::resolver::and::intersect_and(all_results, limit);
-                    
+
                     if offset > 0 {
                         let result_clone = resolver.result.clone();
                         resolver.result = result_clone
@@ -96,7 +96,7 @@ impl Handler {
             }
         } else {
             resolver.result = crate::resolver::or::union_op(other_results, resolver.boostval);
-            
+
             if limit > 0 || offset > 0 {
                 let result_clone = resolver.result.clone();
                 resolver.result = result_clone
@@ -139,7 +139,8 @@ impl Handler {
         }
 
         let exclude_flat: SearchResults = other_results.into_iter().flatten().flatten().collect();
-        resolver.result = crate::resolver::not::exclusion(resolver.result.clone(), &exclude_flat, limit);
+        resolver.result =
+            crate::resolver::not::exclusion(resolver.result.clone(), &exclude_flat, limit);
 
         if resolve {
             let resolved = resolve_default(&resolver.result, limit, 0, enrich);
@@ -171,7 +172,7 @@ impl Handler {
             }
         } else {
             resolver.result = crate::resolver::xor::xor_op(other_results, resolver.boostval);
-            
+
             if limit > 0 || offset > 0 {
                 let result_clone = resolver.result.clone();
                 resolver.result = result_clone
@@ -201,10 +202,7 @@ impl Handler {
         resolver
     }
 
-    pub fn handle_with_options(
-        resolver: &mut Resolver,
-        options: &ResolverOptions,
-    ) {
+    pub fn handle_with_options(resolver: &mut Resolver, options: &ResolverOptions) {
         let index = match resolver.index.as_ref() {
             Some(idx) => idx,
             None => return,
@@ -235,10 +233,7 @@ impl Handler {
         }
     }
 
-    pub fn handle_nested(
-        resolver: &mut Resolver,
-        options_list: Vec<ResolverOptions>,
-    ) {
+    pub fn handle_nested(resolver: &mut Resolver, options_list: Vec<ResolverOptions>) {
         if options_list.is_empty() {
             return;
         }
@@ -276,10 +271,7 @@ impl Handler {
         }
     }
 
-    pub fn execute_chain(
-        resolver: &mut Resolver,
-        operations: Vec<(String, ResolverOptions)>,
-    ) {
+    pub fn execute_chain(resolver: &mut Resolver, operations: Vec<(String, ResolverOptions)>) {
         let mut current = resolver.clone();
 
         for (method, options) in operations {
@@ -312,20 +304,52 @@ impl Handler {
                     match method.as_str() {
                         "and" => {
                             current.result = vec![result_ids.clone()];
-                            let op_results: Vec<IntermediateSearchResults> = vec![current.result.clone()];
-                            Handler::handle_and(&mut current, op_results, limit, offset, enrich, resolve);
+                            let op_results: Vec<IntermediateSearchResults> =
+                                vec![current.result.clone()];
+                            Handler::handle_and(
+                                &mut current,
+                                op_results,
+                                limit,
+                                offset,
+                                enrich,
+                                resolve,
+                            );
                         }
                         "or" => {
-                            let op_results: Vec<IntermediateSearchResults> = vec![vec![result_ids.clone()]];
-                            Handler::handle_or(&mut current, op_results, limit, offset, enrich, resolve);
+                            let op_results: Vec<IntermediateSearchResults> =
+                                vec![vec![result_ids.clone()]];
+                            Handler::handle_or(
+                                &mut current,
+                                op_results,
+                                limit,
+                                offset,
+                                enrich,
+                                resolve,
+                            );
                         }
                         "not" => {
-                            let op_results: Vec<IntermediateSearchResults> = vec![vec![result_ids.clone()]];
-                            Handler::handle_not(&mut current, op_results, limit, offset, enrich, resolve);
+                            let op_results: Vec<IntermediateSearchResults> =
+                                vec![vec![result_ids.clone()]];
+                            Handler::handle_not(
+                                &mut current,
+                                op_results,
+                                limit,
+                                offset,
+                                enrich,
+                                resolve,
+                            );
                         }
                         "xor" => {
-                            let op_results: Vec<IntermediateSearchResults> = vec![vec![result_ids.clone()]];
-                            Handler::handle_xor(&mut current, op_results, limit, offset, enrich, resolve);
+                            let op_results: Vec<IntermediateSearchResults> =
+                                vec![vec![result_ids.clone()]];
+                            Handler::handle_xor(
+                                &mut current,
+                                op_results,
+                                limit,
+                                offset,
+                                enrich,
+                                resolve,
+                            );
                         }
                         _ => {
                             current.result = vec![result_ids];
@@ -350,7 +374,7 @@ mod tests {
         let inner: IntermediateSearchResults = vec![vec![2, 3, 4]];
         let other: Vec<IntermediateSearchResults> = vec![inner];
         Handler::handle_and(&mut resolver, other, 100, 0, false, false);
-        
+
         let result = resolver.get();
         assert!(!result.is_empty());
     }
@@ -361,9 +385,15 @@ mod tests {
         let inner: IntermediateSearchResults = vec![vec![3, 4, 5]];
         let other: Vec<IntermediateSearchResults> = vec![inner];
         Handler::handle_or(&mut resolver, other, 100, 0, false, false);
-        
+
         let result = resolver.get();
-        assert!(result.contains(&1) && result.contains(&2) && result.contains(&3) && result.contains(&4) && result.contains(&5));
+        assert!(
+            result.contains(&1)
+                && result.contains(&2)
+                && result.contains(&3)
+                && result.contains(&4)
+                && result.contains(&5)
+        );
         assert_eq!(result.len(), 5);
     }
 
@@ -373,7 +403,7 @@ mod tests {
         let inner: IntermediateSearchResults = vec![vec![2, 3]];
         let other: Vec<IntermediateSearchResults> = vec![inner];
         Handler::handle_not(&mut resolver, other, 100, 0, false, false);
-        
+
         let result = resolver.get();
         assert_eq!(result, vec![1, 4, 5]);
     }
@@ -384,7 +414,7 @@ mod tests {
         let inner: IntermediateSearchResults = vec![vec![2, 3, 4]];
         let other: Vec<IntermediateSearchResults> = vec![inner];
         Handler::handle_xor(&mut resolver, other, 100, 0, false, false);
-        
+
         let result = resolver.get();
         assert_eq!(result, vec![1, 4]);
     }

@@ -35,8 +35,8 @@ pub mod r#async;
 pub mod chunked;
 
 // 重新导出常用类型
-pub use types::*;
-pub use format::*;
+pub use chunked::{ChunkDataProvider, ChunkedSerializer};
 pub use compression::*;
-pub use r#async::{AsyncSerializer, AsyncDocumentSerializer};
-pub use chunked::{ChunkedSerializer, ChunkDataProvider};
+pub use format::*;
+pub use r#async::{AsyncDocumentSerializer, AsyncSerializer};
+pub use types::*;

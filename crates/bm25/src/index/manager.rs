@@ -1,10 +1,7 @@
-use tantivy::{
-    schema::*,
-    Index, IndexWriter, IndexReader, ReloadPolicy,
-};
+use anyhow::Result;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
-use anyhow::Result;
+use tantivy::{schema::*, Index, IndexReader, IndexWriter, ReloadPolicy};
 
 #[derive(Debug, Clone)]
 pub struct IndexManagerConfig {
@@ -114,14 +111,16 @@ impl IndexManager {
     }
 
     fn create_reader(&self) -> Result<IndexReader> {
-        Ok(self.index.reader_builder()
+        Ok(self
+            .index
+            .reader_builder()
             .reload_policy(ReloadPolicy::OnCommitWithDelay)
             .try_into()?)
     }
 
     pub fn reload_reader(&self) -> Result<IndexReader> {
         let new_reader = self.create_reader()?;
-        
+
         if let Ok(mut writer_guard) = self.cached_reader.write() {
             *writer_guard = Some(new_reader.clone());
         }

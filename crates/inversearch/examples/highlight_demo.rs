@@ -1,6 +1,4 @@
-use inversearch_service::{
-    highlight::*, encoder::Encoder, 
-};
+use inversearch_service::{encoder::Encoder, highlight::*};
 use serde_json::json;
 use std::collections::HashMap;
 
@@ -33,7 +31,7 @@ fn main() {
 
     let config = HighlightConfig::from_options(&highlight_options).unwrap();
     let result = highlight_document("Rust", &document, "content", &encoder, &config).unwrap();
-    
+
     if let Some(highlighted) = result {
         println!("Original content: {}", document["content"]);
         println!("Highlighted result: {}", highlighted);
@@ -41,7 +39,7 @@ fn main() {
 
     // 示例2: 多字段搜索结果高亮
     println!("\n=== 多字段搜索结果高亮示例 ===");
-    
+
     let mut results = vec![
         FieldSearchResult {
             field: "title".to_string(),
@@ -66,16 +64,14 @@ fn main() {
         },
         FieldSearchResult {
             field: "content".to_string(),
-            result: vec![
-                EnrichedSearchResult {
-                    id: 1,
-                    doc: Some(json!({
-                        "title": "Rust Programming Language",
-                        "content": "Rust provides memory safety guarantees without garbage collector."
-                    })),
-                    highlight: None,
-                },
-            ],
+            result: vec![EnrichedSearchResult {
+                id: 1,
+                doc: Some(json!({
+                    "title": "Rust Programming Language",
+                    "content": "Rust provides memory safety guarantees without garbage collector."
+                })),
+                highlight: None,
+            }],
         },
     ];
 
@@ -86,7 +82,9 @@ fn main() {
 
     // 使用处理器进行高亮
     let mut processor = HighlightProcessor::new();
-    processor.highlight_fields("Rust", &mut results, &encoders, None, &highlight_options).unwrap();
+    processor
+        .highlight_fields("Rust", &mut results, &encoders, None, &highlight_options)
+        .unwrap();
 
     // 显示结果
     for field_result in &results {
@@ -100,37 +98,41 @@ fn main() {
 
     // 示例3: 使用pluck模式只高亮特定字段
     println!("\n=== Pluck模式示例 ===");
-    
+
     let mut pluck_results = vec![
         FieldSearchResult {
             field: "title".to_string(),
-            result: vec![
-                EnrichedSearchResult {
-                    id: 1,
-                    doc: Some(json!({
-                        "title": "Rust Programming Language",
-                        "content": "Rust provides memory safety guarantees."
-                    })),
-                    highlight: None,
-                },
-            ],
+            result: vec![EnrichedSearchResult {
+                id: 1,
+                doc: Some(json!({
+                    "title": "Rust Programming Language",
+                    "content": "Rust provides memory safety guarantees."
+                })),
+                highlight: None,
+            }],
         },
         FieldSearchResult {
             field: "content".to_string(),
-            result: vec![
-                EnrichedSearchResult {
-                    id: 1,
-                    doc: Some(json!({
-                        "title": "Rust Programming Language",
-                        "content": "Rust provides memory safety guarantees."
-                    })),
-                    highlight: None,
-                },
-            ],
+            result: vec![EnrichedSearchResult {
+                id: 1,
+                doc: Some(json!({
+                    "title": "Rust Programming Language",
+                    "content": "Rust provides memory safety guarantees."
+                })),
+                highlight: None,
+            }],
         },
     ];
 
-    processor.highlight_fields("Rust", &mut pluck_results, &encoders, Some("title"), &highlight_options).unwrap();
+    processor
+        .highlight_fields(
+            "Rust",
+            &mut pluck_results,
+            &encoders,
+            Some("title"),
+            &highlight_options,
+        )
+        .unwrap();
 
     println!("Only highlight title field:");
     for field_result in &pluck_results {
@@ -138,7 +140,10 @@ fn main() {
             if let Some(highlight) = &search_result.highlight {
                 println!("  Field {} highlight: {}", field_result.field, highlight);
             } else if field_result.field != "title" {
-                println!("  Field {} not highlighted (as expected)", field_result.field);
+                println!(
+                    "  Field {} not highlighted (as expected)",
+                    field_result.field
+                );
             }
         }
     }

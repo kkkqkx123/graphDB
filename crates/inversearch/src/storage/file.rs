@@ -2,12 +2,12 @@
 //!
 //! 提供基于文件的持久化存储后端
 
-use crate::r#type::{SearchResults, EnrichedSearchResults, DocId};
 use crate::error::Result;
-use crate::Index;
-use crate::storage::common::{StorageInterface, StorageInfo, StorageMetrics, FileStorageData};
-use crate::storage::common::io::{save_to_file, load_from_file};
+use crate::r#type::{DocId, EnrichedSearchResults, SearchResults};
 use crate::storage::base::StorageBase;
+use crate::storage::common::io::{load_from_file, save_to_file};
+use crate::storage::common::{FileStorageData, StorageInfo, StorageInterface, StorageMetrics};
+use crate::Index;
 use std::path::PathBuf;
 
 /// 文件存储
@@ -119,7 +119,15 @@ impl StorageInterface for FileStorage {
         Ok(())
     }
 
-    async fn get(&self, key: &str, ctx: Option<&str>, limit: usize, offset: usize, _resolve: bool, _enrich: bool) -> Result<SearchResults> {
+    async fn get(
+        &self,
+        key: &str,
+        ctx: Option<&str>,
+        limit: usize,
+        offset: usize,
+        _resolve: bool,
+        _enrich: bool,
+    ) -> Result<SearchResults> {
         let start_time = self.base.record_operation_start();
         let results = self.base.get(key, ctx, limit, offset);
         self.base.record_operation_completion(start_time);
@@ -207,7 +215,10 @@ mod tests {
         let mut storage2 = FileStorage::new(dir_path.to_str().unwrap().to_string());
         storage2.open().await.unwrap();
 
-        let results2 = storage2.get("test", None, 10, 0, true, false).await.unwrap();
+        let results2 = storage2
+            .get("test", None, 10, 0, true, false)
+            .await
+            .unwrap();
         assert_eq!(results2.len(), 2);
 
         storage2.destroy().await.unwrap();

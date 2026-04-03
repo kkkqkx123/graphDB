@@ -59,11 +59,7 @@ pub fn find_best_match(
 
             best_match_str = format!(
                 "{}{}{}{}{}",
-                prefix,
-                markup_open,
-                match_content,
-                markup_close,
-                suffix
+                prefix, markup_open, match_content, markup_close, suffix
             );
             best_match_length = query_char_len;
             found = true;

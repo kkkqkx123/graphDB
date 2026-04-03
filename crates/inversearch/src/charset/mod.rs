@@ -1,18 +1,18 @@
-pub mod exact;
-pub mod normalize;
 pub mod cjk;
+pub mod exact;
 pub mod latin;
+pub mod normalize;
 
 // ========== 主要导出 ==========
 
 // Basic charsets
+pub use cjk::get_charset_cjk as charset_cjk;
 pub use exact::get_charset_exact as charset_exact;
 pub use normalize::get_charset_normalize as charset_normalize;
-pub use cjk::get_charset_cjk as charset_cjk;
 
-// Latin charsets  
-pub use latin::get_charset_latin_balance as charset_latin_balance;
+// Latin charsets
 pub use latin::get_charset_latin_advanced as charset_latin_advanced;
+pub use latin::get_charset_latin_balance as charset_latin_balance;
 pub use latin::get_charset_latin_extra as charset_latin_extra;
 pub use latin::get_charset_latin_soundex as charset_latin_soundex;
 

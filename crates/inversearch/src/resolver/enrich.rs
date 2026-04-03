@@ -1,4 +1,4 @@
-use crate::r#type::{SearchResults, EnrichedSearchResults, EnrichedSearchResult};
+use crate::r#type::{EnrichedSearchResult, EnrichedSearchResults, SearchResults};
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -179,10 +179,7 @@ impl Enricher {
         self
     }
 
-    pub fn apply_enrich(
-        ids: &SearchResults,
-        documents: &[Option<Value>],
-    ) -> EnrichedSearchResults {
+    pub fn apply_enrich(ids: &SearchResults, documents: &[Option<Value>]) -> EnrichedSearchResults {
         if ids.is_empty() {
             return Vec::new();
         }
@@ -213,7 +210,11 @@ impl Enricher {
         let mut enriched: EnrichedSearchResults = Vec::new();
 
         for (idx, &id) in ids.iter().enumerate() {
-            let mut doc_value = documents.get(idx).cloned().flatten().unwrap_or(Value::Object(serde_json::Map::new()));
+            let mut doc_value = documents
+                .get(idx)
+                .cloned()
+                .flatten()
+                .unwrap_or(Value::Object(serde_json::Map::new()));
 
             if let Some(Value::Object(meta_obj)) = metadata.get(&id) {
                 for (key, value) in meta_obj {
@@ -243,7 +244,11 @@ impl Enricher {
         let mut enriched: EnrichedSearchResults = Vec::new();
 
         for (idx, &id) in ids.iter().enumerate() {
-            let mut doc_value = documents.get(idx).cloned().flatten().unwrap_or(Value::Object(serde_json::Map::new()));
+            let mut doc_value = documents
+                .get(idx)
+                .cloned()
+                .flatten()
+                .unwrap_or(Value::Object(serde_json::Map::new()));
 
             if let Some(&score) = scores.get(&id) {
                 if let Some(num) = serde_json::Number::from_f64(score) {
@@ -276,10 +281,7 @@ impl Enricher {
             let doc = documents.get(idx).cloned().flatten();
 
             let highlight = if let Some(field_highlights) = highlights.get(&id) {
-                let combined: Vec<String> = field_highlights.values()
-                    .flatten()
-                    .cloned()
-                    .collect();
+                let combined: Vec<String> = field_highlights.values().flatten().cloned().collect();
                 if !combined.is_empty() {
                     Some(combined.join("..."))
                 } else {
@@ -289,11 +291,7 @@ impl Enricher {
                 None
             };
 
-            enriched.push(EnrichedSearchResult {
-                id,
-                doc,
-                highlight,
-            });
+            enriched.push(EnrichedSearchResult { id, doc, highlight });
         }
 
         enriched
@@ -312,10 +310,10 @@ impl Enricher {
 
         for (idx, &id) in ids.iter().enumerate() {
             let doc = documents.get(idx).cloned().flatten();
-            
+
             if let Some(doc_value) = doc {
                 let mut selected = Value::Object(serde_json::Map::new());
-                
+
                 for selector in selectors {
                     if let Some(field_name) = selector.alias.as_ref() {
                         if let Some(value) = doc_value.get(&selector.field_path) {
@@ -331,7 +329,7 @@ impl Enricher {
                         }
                     }
                 }
-                
+
                 enriched.push(EnrichedSearchResult {
                     id,
                     doc: Some(selected),
@@ -362,7 +360,11 @@ impl Enricher {
         let mut enriched: EnrichedSearchResults = Vec::new();
 
         for (idx, &id) in ids.iter().enumerate() {
-            let mut doc_value = documents.get(idx).cloned().flatten().unwrap_or(Value::Object(serde_json::Map::new()));
+            let mut doc_value = documents
+                .get(idx)
+                .cloned()
+                .flatten()
+                .unwrap_or(Value::Object(serde_json::Map::new()));
 
             if let Some(tags) = tag_data.get(&id) {
                 for config in tag_configs {
@@ -373,13 +375,13 @@ impl Enricher {
                                     continue;
                                 }
                             }
-                            
+
                             let final_value = if let Some(ref transform) = config.transform_fn {
                                 transform(tag_value)
                             } else {
                                 tag_value.clone()
                             };
-                            
+
                             doc_value[&tag_field] = final_value;
                         }
                     }
@@ -409,14 +411,19 @@ impl Enricher {
         let mut enriched: EnrichedSearchResults = Vec::new();
 
         for (idx, &id) in ids.iter().enumerate() {
-            let mut doc_value = documents.get(idx).cloned().flatten().unwrap_or(Value::Object(serde_json::Map::new()));
+            let mut doc_value = documents
+                .get(idx)
+                .cloned()
+                .flatten()
+                .unwrap_or(Value::Object(serde_json::Map::new()));
 
             for source in metadata_sources {
                 match source {
                     MetadataSource::Calculated(field_name) => {
                         if let Value::Object(obj) = &doc_value {
                             let field_count = obj.len();
-                            doc_value[field_name] = Value::Number(serde_json::Number::from(field_count));
+                            doc_value[field_name] =
+                                Value::Number(serde_json::Number::from(field_count));
                         }
                     }
                     MetadataSource::External(field_name) => {
@@ -459,11 +466,20 @@ mod tests {
 
         assert_eq!(enriched.len(), 3);
         assert_eq!(enriched[0].id, 0);
-        assert_eq!(enriched[0].doc.as_ref().expect("doc should exist")["name"], "test1");
+        assert_eq!(
+            enriched[0].doc.as_ref().expect("doc should exist")["name"],
+            "test1"
+        );
         assert_eq!(enriched[1].id, 1);
-        assert_eq!(enriched[1].doc.as_ref().expect("doc should exist")["name"], "test2");
+        assert_eq!(
+            enriched[1].doc.as_ref().expect("doc should exist")["name"],
+            "test2"
+        );
         assert_eq!(enriched[2].id, 2);
-        assert_eq!(enriched[2].doc.as_ref().expect("doc should exist")["name"], "test3");
+        assert_eq!(
+            enriched[2].doc.as_ref().expect("doc should exist")["name"],
+            "test3"
+        );
     }
 
     #[test]
@@ -491,8 +507,14 @@ mod tests {
         let enriched = Enricher::enrich_with_metadata(&ids, &documents, &metadata);
 
         assert_eq!(enriched.len(), 2);
-        assert_eq!(enriched[0].doc.as_ref().expect("doc should exist")["source"], "db1");
-        assert_eq!(enriched[1].doc.as_ref().expect("doc should exist")["source"], "db2");
+        assert_eq!(
+            enriched[0].doc.as_ref().expect("doc should exist")["source"],
+            "db1"
+        );
+        assert_eq!(
+            enriched[1].doc.as_ref().expect("doc should exist")["source"],
+            "db2"
+        );
     }
 
     #[test]
@@ -512,9 +534,18 @@ mod tests {
         let enriched = Enricher::enrich_with_scores(&ids, &documents, &scores);
 
         assert_eq!(enriched.len(), 3);
-        assert_eq!(enriched[0].doc.as_ref().expect("doc should exist")["_score"], 0.95);
-        assert_eq!(enriched[1].doc.as_ref().expect("doc should exist")["_score"], 0.85);
-        assert_eq!(enriched[2].doc.as_ref().expect("doc should exist")["_score"], 0.75);
+        assert_eq!(
+            enriched[0].doc.as_ref().expect("doc should exist")["_score"],
+            0.95
+        );
+        assert_eq!(
+            enriched[1].doc.as_ref().expect("doc should exist")["_score"],
+            0.85
+        );
+        assert_eq!(
+            enriched[2].doc.as_ref().expect("doc should exist")["_score"],
+            0.75
+        );
     }
 
     #[test]
@@ -527,7 +558,10 @@ mod tests {
 
         let mut highlights = std::collections::HashMap::new();
         let mut field_highlights = std::collections::HashMap::new();
-        field_highlights.insert("content".to_string(), vec!["<em>hello</em> world".to_string()]);
+        field_highlights.insert(
+            "content".to_string(),
+            vec!["<em>hello</em> world".to_string()],
+        );
         highlights.insert(0, field_highlights);
 
         let enriched = Enricher::apply_highlight(&ids, &documents, &highlights);

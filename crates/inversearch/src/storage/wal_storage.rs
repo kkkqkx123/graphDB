@@ -2,11 +2,11 @@
 //!
 //! 提供基于预写日志的持久化存储后端
 
-use crate::r#type::{SearchResults, EnrichedSearchResults, DocId};
 use crate::error::Result;
+use crate::r#type::{DocId, EnrichedSearchResults, SearchResults};
+use crate::storage::common::{StorageInfo, StorageInterface};
+use crate::storage::wal::{IndexChange, WALConfig, WALManager};
 use crate::Index;
-use crate::storage::common::{StorageInterface, StorageInfo};
-use crate::storage::wal::{WALManager, WALConfig, IndexChange};
 use std::collections::HashMap;
 
 /// WAL 存储
@@ -62,7 +62,15 @@ impl StorageInterface for WALStorage {
         self.wal_manager.create_snapshot(index).await
     }
 
-    async fn get(&self, _key: &str, _ctx: Option<&str>, _limit: usize, _offset: usize, _resolve: bool, _enrich: bool) -> Result<SearchResults> {
+    async fn get(
+        &self,
+        _key: &str,
+        _ctx: Option<&str>,
+        _limit: usize,
+        _offset: usize,
+        _resolve: bool,
+        _enrich: bool,
+    ) -> Result<SearchResults> {
         // WAL 存储需要通过加载索引来获取数据
         // 这里简化处理，返回空结果
         // 实际应用中应该维护一个内存索引
@@ -95,7 +103,9 @@ impl StorageInterface for WALStorage {
     async fn remove(&mut self, ids: &[DocId]) -> Result<()> {
         for &id in ids {
             self.documents.remove(&id);
-            self.wal_manager.record_change(IndexChange::Remove { doc_id: id }).await?;
+            self.wal_manager
+                .record_change(IndexChange::Remove { doc_id: id })
+                .await?;
         }
         Ok(())
     }

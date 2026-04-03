@@ -2,7 +2,7 @@
 //!
 //! 定义所有存储实现共享的通用数据结构和类型
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// 存储信息
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,6 +23,9 @@ pub struct FileStorageData {
     pub version: String,
     pub timestamp: String,
     pub data: std::collections::HashMap<String, Vec<crate::r#type::DocId>>,
-    pub context_data: std::collections::HashMap<String, std::collections::HashMap<String, Vec<crate::r#type::DocId>>>,
+    pub context_data: std::collections::HashMap<
+        String,
+        std::collections::HashMap<String, Vec<crate::r#type::DocId>>,
+    >,
     pub documents: std::collections::HashMap<crate::r#type::DocId, String>,
 }

@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use crate::encoder::Encoder;
 use crate::error::Result;
 use crate::DocId;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HighlightOptions {
@@ -41,13 +41,13 @@ pub struct HighlightConfig {
 impl HighlightConfig {
     pub fn from_options(options: &HighlightOptions) -> Result<Self> {
         let template = options.template.clone();
-        
-        let markup_open_pos = template.find("$1")
-            .ok_or_else(|| crate::error::InversearchError::Encoder(
-                crate::error::EncoderError::Encoding(
-                    "Invalid highlight template. The replacement pattern \"$1\" was not found".to_string()
-                )
-            ))?;
+
+        let markup_open_pos = template.find("$1").ok_or_else(|| {
+            crate::error::InversearchError::Encoder(crate::error::EncoderError::Encoding(
+                "Invalid highlight template. The replacement pattern \"$1\" was not found"
+                    .to_string(),
+            ))
+        })?;
 
         let markup_open = template[..markup_open_pos].to_string();
         let markup_close = template[markup_open_pos + 2..].to_string();
@@ -105,8 +105,7 @@ pub struct FieldSearchResult {
 
 pub type FieldSearchResults = Vec<FieldSearchResult>;
 
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct EncoderCache {
     cache: HashMap<String, Vec<String>>,
 }

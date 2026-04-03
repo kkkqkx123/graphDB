@@ -2,11 +2,11 @@
 //!
 //! 提供大数据的分块导入导出功能
 
+use crate::error::Result;
 use crate::serialize::types::*;
 use crate::Index;
-use crate::error::Result;
-use std::collections::HashMap;
 use bincode;
+use std::collections::HashMap;
 
 const CHUNK_SIZE_REG: usize = 250000;
 const CHUNK_SIZE_MAP: usize = 5000;
@@ -64,7 +64,7 @@ impl ChunkedSerializer {
                 for &doc_id in doc_ids {
                     items.push(doc_id.to_string());
                 }
-            },
+            }
             RegistryData::Map(map) => {
                 for doc_id in map.keys() {
                     items.push(doc_id.to_string());
@@ -97,7 +97,8 @@ impl ChunkedSerializer {
     where
         F: FnMut(ChunkData) -> Result<()>,
     {
-        let items: Vec<(String, Vec<u64>)> = main_index.iter()
+        let items: Vec<(String, Vec<u64>)> = main_index
+            .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
 
@@ -126,7 +127,8 @@ impl ChunkedSerializer {
     where
         F: FnMut(ChunkData) -> Result<()>,
     {
-        let items: Vec<(String, HashMap<String, Vec<u64>>)> = context_index.iter()
+        let items: Vec<(String, HashMap<String, Vec<u64>>)> = context_index
+            .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
 
@@ -169,19 +171,20 @@ impl ChunkedSerializer {
                             }
                         }
                     }
-                },
+                }
                 ChunkDataType::MainIndex => {
                     let items: Vec<(String, Vec<u64>)> = bincode::deserialize(&chunk.data)?;
                     for (key, value) in items {
                         main_index_data.insert(key, value);
                     }
-                },
+                }
                 ChunkDataType::ContextIndex => {
-                    let items: Vec<(String, HashMap<String, Vec<u64>>)> = bincode::deserialize(&chunk.data)?;
+                    let items: Vec<(String, HashMap<String, Vec<u64>>)> =
+                        bincode::deserialize(&chunk.data)?;
                     for (key, value) in items {
                         context_index_data.insert(key, value);
                     }
-                },
+                }
             }
         }
 
@@ -259,10 +262,12 @@ mod tests {
         let mut chunks = Vec::new();
 
         // 分块导出
-        serializer.export_chunked(&index, |chunk| {
-            chunks.push(chunk);
-            Ok(())
-        }).unwrap();
+        serializer
+            .export_chunked(&index, |chunk| {
+                chunks.push(chunk);
+                Ok(())
+            })
+            .unwrap();
 
         // 验证分块
         assert!(!chunks.is_empty());
@@ -270,7 +275,9 @@ mod tests {
         // 分块导入
         let mut imported_index = Index::default();
         let mut provider = ChunkDataProvider::new(chunks);
-        serializer.import_chunked(&mut imported_index, || provider.fetch_next()).unwrap();
+        serializer
+            .import_chunked(&mut imported_index, || provider.fetch_next())
+            .unwrap();
 
         // 验证导入结果
         let results = imported_index.search_simple("hello").unwrap();
@@ -297,10 +304,10 @@ mod tests {
         ];
 
         let mut provider = ChunkDataProvider::new(chunks);
-        
+
         assert!(provider.has_more());
         assert_eq!(provider.total_chunks(), 2);
-        
+
         let chunk1 = provider.fetch_next().unwrap().unwrap();
         assert_eq!(chunk1.chunk_index, 0);
 
@@ -309,7 +316,7 @@ mod tests {
 
         assert!(!provider.has_more());
         assert!(provider.fetch_next().unwrap().is_none());
-        
+
         provider.reset();
         assert!(provider.has_more());
     }

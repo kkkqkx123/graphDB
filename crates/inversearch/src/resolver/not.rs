@@ -1,6 +1,10 @@
 use crate::r#type::{IntermediateSearchResults, SearchResults};
 
-pub fn exclusion(arrays: IntermediateSearchResults, exclude: &SearchResults, limit: usize) -> IntermediateSearchResults {
+pub fn exclusion(
+    arrays: IntermediateSearchResults,
+    exclude: &SearchResults,
+    limit: usize,
+) -> IntermediateSearchResults {
     let exclude_set: std::collections::HashSet<u64> = exclude.iter().cloned().collect();
     let mut result: IntermediateSearchResults = Vec::new();
     let mut count = 0;

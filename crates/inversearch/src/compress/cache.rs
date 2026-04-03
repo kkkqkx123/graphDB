@@ -1,8 +1,8 @@
-use std::sync::{Mutex, OnceLock};
-use std::num::NonZeroUsize;
-use lru::LruCache;
 use crate::compress::lcg::lcg;
 use crate::compress::radix::to_radix_u64;
+use lru::LruCache;
+use std::num::NonZeroUsize;
+use std::sync::{Mutex, OnceLock};
 
 pub struct CompressCache {
     cache: Mutex<LruCache<String, String>>,
@@ -148,7 +148,7 @@ mod tests {
         cache.insert("key2".to_string(), "value2".to_string());
         cache.insert("key3".to_string(), "value3".to_string());
         cache.insert("key4".to_string(), "value4".to_string());
-        
+
         assert_eq!(cache.len(), 3);
     }
 

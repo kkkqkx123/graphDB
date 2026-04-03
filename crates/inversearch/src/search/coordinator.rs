@@ -14,9 +14,9 @@
 //! let result = coordinator.search("rust programming")?;
 //! ```
 
-use crate::{SearchResult, Document, SearchOptions};
 use crate::error::Result;
 use crate::DocId;
+use crate::{Document, SearchOptions, SearchResult};
 use std::collections::{HashMap, HashSet};
 
 // Type alias for complex type
@@ -266,9 +266,14 @@ impl<'a> SearchCoordinator<'a> {
             };
 
             let field_query = field_search.query.as_ref().unwrap_or(&self.options.query);
-            
+
             let base_weight = field_search.weight;
-            let field_boost = self.options.boost.get(&field_search.name).copied().unwrap_or(self.options.default_weight);
+            let field_boost = self
+                .options
+                .boost
+                .get(&field_search.name)
+                .copied()
+                .unwrap_or(self.options.default_weight);
             let final_weight = self.apply_weight_strategy(base_weight, field_boost);
 
             let search_opts = SearchOptions {
@@ -336,7 +341,12 @@ impl<'a> SearchCoordinator<'a> {
             };
 
             let field_query = field_search.query.as_ref().unwrap_or(&self.options.query);
-            let field_boost = self.options.boost.get(&field_search.name).copied().unwrap_or(1.0);
+            let field_boost = self
+                .options
+                .boost
+                .get(&field_search.name)
+                .copied()
+                .unwrap_or(1.0);
 
             let search_opts = SearchOptions {
                 query: Some(field_query.clone()),
@@ -347,16 +357,17 @@ impl<'a> SearchCoordinator<'a> {
             };
 
             let result = crate::search::search(field.index(), &search_opts)?;
-            field_results.push((field_search.name.clone(), result.results, field_boost * field_search.weight));
+            field_results.push((
+                field_search.name.clone(),
+                result.results,
+                field_boost * field_search.weight,
+            ));
         }
 
         let merged = self.merge_results(&field_results);
         let scores = self.calculate_scores(&field_results, &merged);
 
-        let scored: Vec<(DocId, f32)> = merged
-            .into_iter()
-            .zip(scores)
-            .collect();
+        let scored: Vec<(DocId, f32)> = merged.into_iter().zip(scores).collect();
 
         Ok(scored)
     }
@@ -486,9 +497,21 @@ mod tests {
 
         let mut doc = Document::new(config).expect("Document::new should succeed");
 
-        doc.add(1, &json!({"title": "Rust Programming", "content": "Learn Rust today"})).expect("add doc 1 should succeed");
-        doc.add(2, &json!({"title": "JavaScript Guide", "content": "JavaScript tutorial"})).expect("add doc 2 should succeed");
-        doc.add(3, &json!({"title": "Rust vs Go", "content": "Comparing Rust and Go"})).expect("add doc 3 should succeed");
+        doc.add(
+            1,
+            &json!({"title": "Rust Programming", "content": "Learn Rust today"}),
+        )
+        .expect("add doc 1 should succeed");
+        doc.add(
+            2,
+            &json!({"title": "JavaScript Guide", "content": "JavaScript tutorial"}),
+        )
+        .expect("add doc 2 should succeed");
+        doc.add(
+            3,
+            &json!({"title": "Rust vs Go", "content": "Comparing Rust and Go"}),
+        )
+        .expect("add doc 3 should succeed");
 
         doc
     }
@@ -497,11 +520,11 @@ mod tests {
     fn test_search_coordinator_basic() {
         let doc = create_test_document();
         let mut coordinator = SearchCoordinator::new(&doc);
-        
+
         coordinator.add_field("title", 2.0);
         coordinator.add_field("content", 1.0);
         coordinator.options.query = "Rust".to_string();
-        
+
         let result = coordinator.search().expect("search should succeed");
 
         // 应该找到包含 "Rust" 的文档 (1 和 3)
@@ -518,7 +541,9 @@ mod tests {
         coordinator.add_field("content", 1.0);
         coordinator.options.query = "Rust".to_string();
 
-        let scored = coordinator.search_with_scores().expect("search_with_scores should succeed");
+        let scored = coordinator
+            .search_with_scores()
+            .expect("search_with_scores should succeed");
 
         assert!(!scored.is_empty());
         // 文档1和3都包含 Rust

@@ -17,8 +17,8 @@
 //! let ids = tag_system.query("category", "tech");
 //! ```
 
-use serde_json::Value;
 use crate::DocId;
+use serde_json::Value;
 use std::collections::HashMap;
 
 type TagFilterFn = Box<dyn Fn(&Value) -> bool + Send + Sync>;
@@ -39,8 +39,8 @@ impl TagConfig {
     }
 
     /// 添加过滤器
-    pub fn with_filter<F>(mut self, filter: F) -> Self 
-    where 
+    pub fn with_filter<F>(mut self, filter: F) -> Self
+    where
         F: Fn(&Value) -> bool + 'static + Send + Sync,
     {
         self.filter = Some(Box::new(filter));
@@ -71,10 +71,7 @@ impl TagSystem {
 
     /// 添加标签配置（简化版）
     pub fn add_config_str(&mut self, field: String, filter: Option<TagFilterFn>) {
-        let config = TagConfig {
-            field,
-            filter,
-        };
+        let config = TagConfig { field, filter };
         self.configs.push(config);
         self.indexes.push(HashMap::new());
     }
@@ -87,7 +84,7 @@ impl TagSystem {
     /// 为文档添加标签
     pub fn add_tags(&mut self, doc_id: DocId, tags: &[(&str, &Value)]) {
         let mut doc_tag_list = Vec::new();
-        
+
         for (field, value) in tags {
             if let Some(idx) = self.configs.iter().position(|c| c.field == *field) {
                 let config = &self.configs[idx];
@@ -96,7 +93,7 @@ impl TagSystem {
                         continue;
                     }
                 }
-                
+
                 let tag_str = value.as_str().unwrap_or_default();
                 if let Some(index) = self.indexes.get_mut(idx) {
                     let ids = index.entry(tag_str.to_string()).or_default();
@@ -107,7 +104,7 @@ impl TagSystem {
                 doc_tag_list.push((idx, tag_str.to_string()));
             }
         }
-        
+
         if !doc_tag_list.is_empty() {
             self.doc_tags.insert(doc_id, doc_tag_list);
         }
@@ -130,8 +127,7 @@ impl TagSystem {
 
     /// 按标签查询文档
     pub fn query(&self, field: &str, tag: &str) -> Option<&Vec<DocId>> {
-        let idx = self.configs.iter()
-            .position(|c| c.field == field)?;
+        let idx = self.configs.iter().position(|c| c.field == field)?;
         self.indexes[idx].get(tag)
     }
 
@@ -141,22 +137,19 @@ impl TagSystem {
             Some(i) => i,
             None => return Vec::new(),
         };
-        
+
         let mut result: Option<Vec<DocId>> = None;
         for tag in tags {
             if let Some(ids) = self.indexes[idx].get(*tag) {
                 if let Some(ref mut combined) = result {
                     let set: std::collections::HashSet<&DocId> = combined.iter().collect();
-                    *combined = ids.iter()
-                        .filter(|id| set.contains(id))
-                        .copied()
-                        .collect();
+                    *combined = ids.iter().filter(|id| set.contains(id)).copied().collect();
                 } else {
                     result = Some(ids.clone());
                 }
             }
         }
-        
+
         result.unwrap_or_default()
     }
 
@@ -166,14 +159,14 @@ impl TagSystem {
             Some(i) => i,
             None => return Vec::new(),
         };
-        
+
         let mut result = std::collections::HashSet::new();
         for tag in tags {
             if let Some(ids) = self.indexes[idx].get(*tag) {
                 result.extend(ids);
             }
         }
-        
+
         result.into_iter().collect()
     }
 
@@ -210,13 +203,13 @@ mod tests {
     fn test_add_and_query() {
         let mut tag_system = TagSystem::new();
         tag_system.add_config_str("category".to_string(), None);
-        
+
         tag_system.add_tags(1, &[("category", &json!("tech"))]);
         tag_system.add_tags(2, &[("category", &json!("science"))]);
-        
+
         let tech_docs = tag_system.query("category", "tech");
         assert_eq!(tech_docs, Some(&vec![1]));
-        
+
         let science_docs = tag_system.query("category", "science");
         assert_eq!(science_docs, Some(&vec![2]));
     }
@@ -225,11 +218,11 @@ mod tests {
     fn test_query_multi() {
         let mut tag_system = TagSystem::new();
         tag_system.add_config_str("status".to_string(), None);
-        
+
         tag_system.add_tags(1, &[("status", &json!("active"))]);
         tag_system.add_tags(2, &[("status", &json!("active"))]);
         tag_system.add_tags(3, &[("status", &json!("inactive"))]);
-        
+
         let result = tag_system.query_multi("status", &["active"]);
         assert!(result.contains(&1));
         assert!(result.contains(&2));
@@ -240,23 +233,35 @@ mod tests {
     fn test_remove_tags() {
         let mut tag_system = TagSystem::new();
         tag_system.add_config_str("category".to_string(), None);
-        
+
         tag_system.add_tags(1, &[("category", &json!("tech"))]);
         assert!(tag_system.query("category", "tech").is_some());
-        
+
         tag_system.remove_tags(1);
-        assert!(tag_system.query("category", "tech").is_none() || tag_system.query("category", "tech").map(|v| v.is_empty()).unwrap_or(true));
+        assert!(
+            tag_system.query("category", "tech").is_none()
+                || tag_system
+                    .query("category", "tech")
+                    .map(|v| v.is_empty())
+                    .unwrap_or(true)
+        );
     }
 
     #[test]
     fn test_with_filter() {
         let mut tag_system = TagSystem::new();
-        tag_system.add_config_str("category".to_string(), Some(Box::new(|v| v != &json!("banned"))));
-        
+        tag_system.add_config_str(
+            "category".to_string(),
+            Some(Box::new(|v| v != &json!("banned"))),
+        );
+
         tag_system.add_tags(1, &[("category", &json!("tech"))]);
         tag_system.add_tags(2, &[("category", &json!("banned"))]);
-        
+
         assert!(tag_system.query("category", "tech").is_some());
-        assert!(tag_system.query("category", "banned").map(|v| v.is_empty()).unwrap_or(true));
+        assert!(tag_system
+            .query("category", "banned")
+            .map(|v| v.is_empty())
+            .unwrap_or(true));
     }
 }

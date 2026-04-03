@@ -1,8 +1,8 @@
+use crate::document::tree::{extract_value, parse_tree};
 use crate::encoder::Encoder;
 use crate::error::Result;
-use crate::highlight::types::*;
 use crate::highlight::matcher::*;
-use crate::document::tree::{parse_tree, extract_value};
+use crate::highlight::types::*;
 use crate::DocId;
 use serde_json::Value;
 
@@ -214,8 +214,9 @@ pub fn highlight_single_document_structured(
 
     // 应用合并逻辑
     let final_highlighted_text = if let Some(merge_pattern) = &config.merge {
-        let regex = regex::Regex::new(&regex::escape(merge_pattern))
-            .map_err(|e| crate::error::InversearchError::Highlight(format!("Invalid merge pattern: {}", e)))?;
+        let regex = regex::Regex::new(&regex::escape(merge_pattern)).map_err(|e| {
+            crate::error::InversearchError::Highlight(format!("Invalid merge pattern: {}", e))
+        })?;
         regex.replace_all(&final_text, " ").to_string()
     } else {
         final_text
@@ -261,8 +262,9 @@ pub fn highlight_document(
 
     // Apply merge if configured
     if let Some(merge_pattern) = &config.merge {
-        let regex = regex::Regex::new(&regex::escape(merge_pattern))
-            .map_err(|e| crate::error::InversearchError::Highlight(format!("Invalid merge pattern: {}", e)))?;
+        let regex = regex::Regex::new(&regex::escape(merge_pattern)).map_err(|e| {
+            crate::error::InversearchError::Highlight(format!("Invalid merge pattern: {}", e))
+        })?;
         Ok(Some(regex.replace_all(&highlighted, " ").to_string()))
     } else {
         Ok(Some(highlighted))
@@ -284,12 +286,12 @@ pub fn highlight_document_structured(
     }
 
     let mut highlight = highlight_single_document_structured(query, &content, encoder, config)?;
-    
+
     // 如果没有匹配，返回 None
     if highlight.total_matches == 0 {
         return Ok(None);
     }
-    
+
     highlight.id = doc_id;
     highlight.fields[0].field = field_path.to_string();
 
@@ -336,9 +338,26 @@ fn apply_boundary_simple(
         let end_usize = std::cmp::min(text.len(), end as usize);
 
         let result = if start_usize > 0 {
-            format!("{}{}{}", ellipsis, &text[start_usize..end_usize], if end_usize < text.len() { ellipsis.clone() } else { String::new() })
+            format!(
+                "{}{}{}",
+                ellipsis,
+                &text[start_usize..end_usize],
+                if end_usize < text.len() {
+                    ellipsis.clone()
+                } else {
+                    String::new()
+                }
+            )
         } else {
-            format!("{}{}", &text[start_usize..end_usize], if end_usize < text.len() { ellipsis.clone() } else { String::new() })
+            format!(
+                "{}{}",
+                &text[start_usize..end_usize],
+                if end_usize < text.len() {
+                    ellipsis.clone()
+                } else {
+                    String::new()
+                }
+            )
         };
 
         Ok(result)

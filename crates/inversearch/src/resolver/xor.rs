@@ -62,30 +62,21 @@ mod tests {
 
     #[test]
     fn test_xor_op_no_overlap() {
-        let arrays: Vec<IntermediateSearchResults> = vec![
-            vec![vec![1, 2]],
-            vec![vec![3, 4]],
-        ];
+        let arrays: Vec<IntermediateSearchResults> = vec![vec![vec![1, 2]], vec![vec![3, 4]]];
         let result = xor_op(arrays, 0);
         assert_eq!(result, vec![vec![1, 2], vec![3, 4]]);
     }
 
     #[test]
     fn test_xor_op_with_overlap() {
-        let arrays: Vec<IntermediateSearchResults> = vec![
-            vec![vec![1, 2, 3]],
-            vec![vec![2, 3, 4]],
-        ];
+        let arrays: Vec<IntermediateSearchResults> = vec![vec![vec![1, 2, 3]], vec![vec![2, 3, 4]]];
         let result = xor_op(arrays, 0);
         assert_eq!(result, vec![vec![1], vec![4]]);
     }
 
     #[test]
     fn test_xor_op_all_overlap() {
-        let arrays: Vec<IntermediateSearchResults> = vec![
-            vec![vec![1, 2]],
-            vec![vec![1, 2]],
-        ];
+        let arrays: Vec<IntermediateSearchResults> = vec![vec![vec![1, 2]], vec![vec![1, 2]]];
         let result = xor_op(arrays, 0);
         assert!(result.iter().all(|arr| arr.is_empty()));
     }

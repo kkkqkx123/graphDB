@@ -12,9 +12,7 @@ pub struct Arena {
 impl Arena {
     /// 创建新的 Arena，默认容量
     pub fn new() -> Self {
-        Self {
-            inner: Bump::new(),
-        }
+        Self { inner: Bump::new() }
     }
 
     /// 创建新的 Arena，指定初始容量

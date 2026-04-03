@@ -1,6 +1,6 @@
-use tantivy::schema::{Schema, Field, STRING, TEXT, STORED};
-use tantivy::schema::TantivyDocument;
 use std::collections::HashMap;
+use tantivy::schema::TantivyDocument;
+use tantivy::schema::{Field, Schema, STORED, STRING, TEXT};
 
 #[derive(Debug, Clone)]
 pub struct IndexSchema {
@@ -15,7 +15,7 @@ impl IndexSchema {
         let document_id = schema_builder.add_text_field("document_id", STRING | STORED);
         let title = schema_builder.add_text_field("title", TEXT | STORED);
         let content = schema_builder.add_text_field("content", TEXT | STORED);
-        
+
         IndexSchema {
             document_id,
             title,
@@ -31,10 +31,14 @@ impl IndexSchema {
         schema_builder.build()
     }
 
-    pub fn to_document(&self, document_id: &str, fields: &HashMap<String, String>) -> TantivyDocument {
+    pub fn to_document(
+        &self,
+        document_id: &str,
+        fields: &HashMap<String, String>,
+    ) -> TantivyDocument {
         let mut doc = TantivyDocument::new();
         doc.add_text(self.document_id, document_id);
-        
+
         for (key, value) in fields {
             if key == "title" {
                 doc.add_text(self.title, value);
@@ -42,7 +46,7 @@ impl IndexSchema {
                 doc.add_text(self.content, value);
             }
         }
-        
+
         doc
     }
 }

@@ -1,5 +1,5 @@
 //! 建议系统模块
-//! 
+//!
 //! 提供搜索建议和模糊匹配功能
 
 use crate::r#type::IntermediateSearchResults;
@@ -25,14 +25,12 @@ impl Default for SuggestionConfig {
 }
 
 /// 建议结果
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct SuggestionResult {
     pub suggestions: Vec<String>,
     pub fuzzy_matches: Vec<(u64, f32)>,
     pub alternative_queries: Vec<String>,
 }
-
 
 /// 建议引擎
 pub struct SuggestionEngine {
@@ -61,14 +59,14 @@ impl SuggestionEngine {
     /// 生成查询建议
     fn generate_query_suggestions(&self, query: &str) -> Vec<String> {
         let mut suggestions = Vec::new();
-        
+
         // 简单的拼写检查建议
         if query.len() > 3 {
             // 生成一些常见的拼写变体
             let variants = self.generate_spelling_variants(query);
             suggestions.extend(variants);
         }
-        
+
         // 限制结果数量
         suggestions.truncate(self.config.max_suggestions);
         suggestions
@@ -77,7 +75,7 @@ impl SuggestionEngine {
     /// 生成拼写变体
     fn generate_spelling_variants(&self, query: &str) -> Vec<String> {
         let mut variants = Vec::new();
-        
+
         // 简单的字符交换建议
         let chars: Vec<char> = query.chars().collect();
         for i in 0..chars.len() - 1 {
@@ -85,14 +83,14 @@ impl SuggestionEngine {
             new_chars.swap(i, i + 1);
             variants.push(new_chars.iter().collect());
         }
-        
+
         variants
     }
 
     /// 生成替代查询
     fn generate_alternative_queries(&self, query: &str) -> Vec<String> {
         let mut alternatives = Vec::new();
-        
+
         // 简单的查询扩展
         if query.contains(' ') {
             let parts: Vec<&str> = query.split_whitespace().collect();
@@ -104,7 +102,7 @@ impl SuggestionEngine {
                 }
             }
         }
-        
+
         // 限制结果数量
         alternatives.truncate(self.config.max_alternatives);
         alternatives
@@ -117,7 +115,7 @@ impl SuggestionEngine {
         search_results: &IntermediateSearchResults,
     ) -> Vec<(u64, f32)> {
         let mut matches = Vec::new();
-        
+
         for result_array in search_results.iter() {
             for &id in result_array {
                 // 简化的模糊匹配算法
@@ -127,10 +125,10 @@ impl SuggestionEngine {
                 }
             }
         }
-        
+
         // 按相似度排序
         matches.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-        
+
         // 限制结果数量
         matches.truncate(self.config.max_suggestions);
         matches
@@ -140,11 +138,11 @@ impl SuggestionEngine {
     fn calculate_similarity(&self, s1: &str, s2: &str) -> f32 {
         let longer = if s1.len() > s2.len() { s1 } else { s2 };
         let shorter = if s1.len() > s2.len() { s2 } else { s1 };
-        
+
         if longer.is_empty() {
             return 1.0;
         }
-        
+
         let edit_distance = self.levenshtein_distance(longer, shorter);
         let max_len = longer.len() as f32;
         1.0 - (edit_distance as f32 / max_len)
@@ -154,14 +152,14 @@ impl SuggestionEngine {
     fn levenshtein_distance(&self, s1: &str, s2: &str) -> usize {
         let len1 = s1.chars().count();
         let len2 = s2.chars().count();
-        
+
         if len1 == 0 {
             return len2;
         }
         if len2 == 0 {
             return len1;
         }
-        
+
         let mut matrix = vec![vec![0; len2 + 1]; len1 + 1];
 
         for (i, row) in matrix.iter_mut().enumerate().take(len1 + 1) {
@@ -171,20 +169,20 @@ impl SuggestionEngine {
         for (j, cell) in matrix[0].iter_mut().enumerate().take(len2 + 1) {
             *cell = j;
         }
-        
+
         for (i, c1) in s1.chars().enumerate() {
             for (j, c2) in s2.chars().enumerate() {
                 let cost = if c1 == c2 { 0 } else { 1 };
                 matrix[i + 1][j + 1] = std::cmp::min(
                     std::cmp::min(
-                        matrix[i][j + 1] + 1,      // deletion
-                        matrix[i + 1][j] + 1,      // insertion
+                        matrix[i][j + 1] + 1, // deletion
+                        matrix[i + 1][j] + 1, // insertion
                     ),
-                    matrix[i][j] + cost,             // substitution
+                    matrix[i][j] + cost, // substitution
                 );
             }
         }
-        
+
         matrix[len1][len2]
     }
 }
@@ -241,22 +239,24 @@ mod tests {
     fn test_generate_suggestions() {
         let config = SuggestionConfig::default();
         let engine = SuggestionEngine::new(config);
-        
+
         let search_results = vec![vec![1, 2, 3], vec![4, 5, 6]];
         let suggestions = engine.generate_suggestions("test", &search_results);
-        
+
         assert!(!suggestions.suggestions.is_empty());
-        assert!(!suggestions.alternative_queries.is_empty() || suggestions.fuzzy_matches.is_empty());
+        assert!(
+            !suggestions.alternative_queries.is_empty() || suggestions.fuzzy_matches.is_empty()
+        );
     }
-    
+
     #[test]
     fn test_suggestion_scorer() {
         let config = SuggestionConfig::default();
         let scorer = SuggestionScorer::new(config);
-        
+
         let score = scorer.score_suggestion("test", "tset");
         assert!(score > 0.3); // 相似度应该比较高
-        
+
         let score2 = scorer.score_suggestion("test", "completely_different");
         assert!(score2 < 0.3); // 相似度应该很低
     }

@@ -2,8 +2,8 @@
 //!
 //! 提供跨多个字段的统一搜索接口
 
-use crate::{Document, SearchOptions, SearchResult};
 use crate::error::Result;
+use crate::{Document, SearchOptions, SearchResult};
 
 /// 多字段搜索配置
 #[derive(Clone)]
@@ -97,7 +97,7 @@ impl<'a> MultiFieldSearchConfig<'a> {
                 };
 
                 let result = crate::search::search(field.index(), &search_opts)?;
-                
+
                 for &doc_id in &result.results {
                     *field_scores.entry(doc_id).or_insert(0.0) += field_weight;
                     *all_results.entry(doc_id).or_insert(0usize) += 1;
@@ -132,12 +132,12 @@ pub fn multi_field_search(
     fields: &[&str],
 ) -> Result<SearchResult> {
     let config = MultiFieldSearchConfig::new(document);
-    
+
     let mut config = config;
     for &field in fields {
         config = config.add_field(field);
     }
-    
+
     config.search(query)
 }
 
@@ -148,12 +148,12 @@ pub fn multi_field_search_with_weights(
     fields: &[(&str, f32)],
 ) -> Result<SearchResult> {
     let config = MultiFieldSearchConfig::new(document);
-    
+
     let mut config = config;
     for &(field, weight) in fields {
         config = config.add_field_with_weight(field, weight);
     }
-    
+
     config.search(query)
 }
 
@@ -167,22 +167,34 @@ mod tests {
         let config = DocumentConfig::new()
             .add_field(FieldConfig::new("title"))
             .add_field(FieldConfig::new("content"));
-        
+
         let mut doc = Document::new(config).unwrap();
-        
-        doc.add(1, &json!({"title": "Rust Programming", "content": "Learn Rust today"})).unwrap();
-        doc.add(2, &json!({"title": "JavaScript Guide", "content": "JavaScript tutorial"})).unwrap();
-        doc.add(3, &json!({"title": "Rust vs Go", "content": "Comparing Rust and Go"})).unwrap();
-        
+
+        doc.add(
+            1,
+            &json!({"title": "Rust Programming", "content": "Learn Rust today"}),
+        )
+        .unwrap();
+        doc.add(
+            2,
+            &json!({"title": "JavaScript Guide", "content": "JavaScript tutorial"}),
+        )
+        .unwrap();
+        doc.add(
+            3,
+            &json!({"title": "Rust vs Go", "content": "Comparing Rust and Go"}),
+        )
+        .unwrap();
+
         doc
     }
 
     #[test]
     fn test_multi_field_search() {
         let doc = create_test_document();
-        
+
         let result = multi_field_search(&doc, "Rust", &["title", "content"]).unwrap();
-        
+
         assert!(result.results.contains(&1));
         assert!(result.results.contains(&3));
     }
@@ -190,9 +202,11 @@ mod tests {
     #[test]
     fn test_multi_field_search_with_weights() {
         let doc = create_test_document();
-        
-        let result = multi_field_search_with_weights(&doc, "Rust", &[("title", 2.0), ("content", 1.0)]).unwrap();
-        
+
+        let result =
+            multi_field_search_with_weights(&doc, "Rust", &[("title", 2.0), ("content", 1.0)])
+                .unwrap();
+
         assert!(result.results.contains(&1));
         assert!(result.results.contains(&3));
     }
@@ -200,25 +214,25 @@ mod tests {
     #[test]
     fn test_multi_field_config() {
         let doc = create_test_document();
-        
+
         let config = MultiFieldSearchConfig::new(&doc)
             .add_field("title")
             .add_field_with_weight("content", 0.5)
             .set_boost("title", 2.0)
             .limit(10)
             .offset(0);
-        
+
         let result = config.search("Rust").unwrap();
-        
+
         assert!(!result.results.is_empty());
     }
 
     #[test]
     fn test_multi_field_empty_query() {
         let doc = create_test_document();
-        
+
         let result = multi_field_search(&doc, "", &["title"]).unwrap();
-        
+
         assert!(result.results.is_empty());
         assert_eq!(result.total, 0);
     }
@@ -226,9 +240,9 @@ mod tests {
     #[test]
     fn test_multi_field_limit() {
         let doc = create_test_document();
-        
+
         let result = multi_field_search(&doc, "Rust", &["title", "content"]).unwrap();
-        
+
         // 应该找到2个包含 Rust 的文档
         assert_eq!(result.results.len(), 2);
     }

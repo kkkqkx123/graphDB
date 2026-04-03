@@ -1,4 +1,4 @@
-use super::{Index, DocId, TokenizeMode};
+use super::{DocId, Index, TokenizeMode};
 use crate::error::Result;
 use std::collections::HashMap;
 
@@ -28,7 +28,9 @@ pub fn add_document(
     append: bool,
     skip_update: bool,
 ) -> Result<()> {
-    if content.is_empty() || id == 0 { return Ok(()) }
+    if content.is_empty() || id == 0 {
+        return Ok(());
+    }
 
     if !skip_update && !append && index.contains(id) {
         return index.update(id, content);
@@ -80,8 +82,21 @@ pub fn add_document(
                         }
                     }
                 } else {
-                    let ctx = IndexContext { index, dupes: &mut dupes, term, score, id, append };
-                    let params = ContextParams { i, depth, rtl, encoded: &encoded, word_length };
+                    let ctx = IndexContext {
+                        index,
+                        dupes: &mut dupes,
+                        term,
+                        score,
+                        id,
+                        append,
+                    };
+                    let params = ContextParams {
+                        i,
+                        depth,
+                        rtl,
+                        encoded: &encoded,
+                        word_length,
+                    };
                     add_strict(ctx, &params);
                 }
             }
@@ -89,20 +104,28 @@ pub fn add_document(
                 if term_length > 1 {
                     for x in (1..term_length).rev() {
                         let token = &term[if rtl { term_length - 1 - x } else { x }..];
-                        let partial_score = index.get_score(
-                            resolution,
-                            word_length,
-                            i,
-                            Some(term_length),
-                            Some(x),
-                        );
+                        let partial_score =
+                            index.get_score(resolution, word_length, i, Some(term_length), Some(x));
                         index.push_index(&mut dupes, token, partial_score, id, append, None);
                     }
                 }
                 add_forward(index, &mut dupes, term, score, id, append, rtl);
                 if depth > 0 {
-                    let ctx = IndexContext { index, dupes: &mut dupes_ctx, term, score, id, append };
-                    let params = ContextParams { i, depth, rtl, encoded: &encoded, word_length };
+                    let ctx = IndexContext {
+                        index,
+                        dupes: &mut dupes_ctx,
+                        term,
+                        score,
+                        id,
+                        append,
+                    };
+                    let params = ContextParams {
+                        i,
+                        depth,
+                        rtl,
+                        encoded: &encoded,
+                        word_length,
+                    };
                     add_context(ctx, &params);
                 }
             }
@@ -110,19 +133,27 @@ pub fn add_document(
                 if term_length > 1 {
                     for x in (1..term_length).rev() {
                         let token = &term[if rtl { term_length - 1 - x } else { x }..];
-                        let partial_score = index.get_score(
-                            resolution,
-                            word_length,
-                            i,
-                            Some(term_length),
-                            Some(x),
-                        );
+                        let partial_score =
+                            index.get_score(resolution, word_length, i, Some(term_length), Some(x));
                         index.push_index(&mut dupes, token, partial_score, id, append, None);
                     }
                 }
                 if depth > 0 {
-                    let ctx = IndexContext { index, dupes: &mut dupes_ctx, term, score, id, append };
-                    let params = ContextParams { i, depth, rtl, encoded: &encoded, word_length };
+                    let ctx = IndexContext {
+                        index,
+                        dupes: &mut dupes_ctx,
+                        term,
+                        score,
+                        id,
+                        append,
+                    };
+                    let params = ContextParams {
+                        i,
+                        depth,
+                        rtl,
+                        encoded: &encoded,
+                        word_length,
+                    };
                     add_context(ctx, &params);
                 }
             }
@@ -133,14 +164,40 @@ pub fn add_document(
                     index.push_index(&mut dupes, term, score, id, append, None);
                 }
                 if depth > 0 {
-                    let ctx = IndexContext { index, dupes: &mut dupes_ctx, term, score, id, append };
-                    let params = ContextParams { i, depth, rtl, encoded: &encoded, word_length };
+                    let ctx = IndexContext {
+                        index,
+                        dupes: &mut dupes_ctx,
+                        term,
+                        score,
+                        id,
+                        append,
+                    };
+                    let params = ContextParams {
+                        i,
+                        depth,
+                        rtl,
+                        encoded: &encoded,
+                        word_length,
+                    };
                     add_context(ctx, &params);
                 }
             }
             TokenizeMode::Strict => {
-                let ctx = IndexContext { index, dupes: &mut dupes, term, score, id, append };
-                let params = ContextParams { i, depth, rtl, encoded: &encoded, word_length };
+                let ctx = IndexContext {
+                    index,
+                    dupes: &mut dupes,
+                    term,
+                    score,
+                    id,
+                    append,
+                };
+                let params = ContextParams {
+                    i,
+                    depth,
+                    rtl,
+                    encoded: &encoded,
+                    word_length,
+                };
                 add_strict(ctx, &params);
             }
         }
@@ -156,7 +213,8 @@ pub fn add_document(
 }
 
 fn add_strict(ctx: IndexContext<'_>, params: &ContextParams<'_>) {
-    ctx.index.push_index(ctx.dupes, ctx.term, ctx.score, ctx.id, ctx.append, None);
+    ctx.index
+        .push_index(ctx.dupes, ctx.term, ctx.score, ctx.id, ctx.append, None);
 
     if params.depth > 0 && params.word_length > 1 && params.i < params.word_length - 1 {
         add_context(ctx, params);
@@ -178,7 +236,10 @@ fn add_forward(
         if let Some(ch) = term.chars().nth(char_idx) {
             token.push(ch);
         } else {
-            eprintln!("Index builder: Character index {} out of bounds for term '{}'", char_idx, term);
+            eprintln!(
+                "Index builder: Character index {} out of bounds for term '{}'",
+                char_idx, term
+            );
             continue;
         }
         index.push_index(dupes, &token, score, id, append, None);
@@ -189,7 +250,11 @@ fn add_context(ctx: IndexContext<'_>, params: &ContextParams<'_>) {
     let mut dupes_inner = HashMap::new();
     let resolution = ctx.index.resolution_ctx;
     let keyword = ctx.term;
-    let size = params.depth.min(if params.rtl { params.i + 1 } else { params.word_length - params.i });
+    let size = params.depth.min(if params.rtl {
+        params.i + 1
+    } else {
+        params.word_length - params.i
+    });
 
     dupes_inner.insert(keyword.to_string(), true);
 
@@ -210,7 +275,12 @@ fn add_context(ctx: IndexContext<'_>, params: &ContextParams<'_>) {
             dupes_inner.insert(context_term.to_string(), true);
 
             let context_score = ctx.index.get_score(
-                resolution + if params.word_length / 2 > resolution { 0 } else { 1 },
+                resolution
+                    + if params.word_length / 2 > resolution {
+                        0
+                    } else {
+                        1
+                    },
                 params.word_length,
                 params.i,
                 Some(size - 1),
@@ -224,7 +294,14 @@ fn add_context(ctx: IndexContext<'_>, params: &ContextParams<'_>) {
                 (&context_term[..], keyword)
             };
 
-            ctx.index.push_index(ctx.dupes, ctx_term, context_score, ctx.id, ctx.append, Some(ctx_keyword));
+            ctx.index.push_index(
+                ctx.dupes,
+                ctx_term,
+                context_score,
+                ctx.id,
+                ctx.append,
+                Some(ctx_keyword),
+            );
         }
     }
 }
@@ -247,7 +324,7 @@ pub fn get_score(
         i + offset
     } else {
         // Match JavaScript implementation: ((resolution - 1) / total_length * (i + offset) + 1) | 0
-        
+
         ((resolution - 1) as f64 / total_length as f64 * (i + offset) as f64 + 1.0) as usize
     }
 }
@@ -267,14 +344,16 @@ mod tests {
     #[test]
     fn test_add_document() {
         let mut index = Index::default();
-        add_document(&mut index, 1, "hello world", false, false).expect("add_document should succeed");
+        add_document(&mut index, 1, "hello world", false, false)
+            .expect("add_document should succeed");
         assert!(index.contains(1));
     }
 
     #[test]
     fn test_add_document_empty() {
         let mut index = Index::default();
-        add_document(&mut index, 1, "", false, false).expect("add_document with empty content should succeed");
+        add_document(&mut index, 1, "", false, false)
+            .expect("add_document with empty content should succeed");
         assert!(!index.contains(1));
     }
 
@@ -282,7 +361,8 @@ mod tests {
     fn test_add_document_append() {
         let mut index = Index::default();
         add_document(&mut index, 1, "hello", false, false).expect("add_document should succeed");
-        add_document(&mut index, 1, "world", true, false).expect("add_document append should succeed");
+        add_document(&mut index, 1, "world", true, false)
+            .expect("add_document append should succeed");
         assert!(index.contains(1));
     }
 }

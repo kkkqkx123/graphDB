@@ -14,29 +14,23 @@
 //! - `core.rs`: 包含同步和异步Resolver方法
 //! - `enrich.rs`: 结果丰富化功能
 
-mod core;
-mod handler;
 mod and;
-mod or;
-mod not;
-mod xor;
 mod combine;
+mod core;
 mod enrich;
+mod handler;
+mod not;
+mod or;
+mod xor;
 
-pub use core::{
-    Resolver,
-    resolve_default,
-    ResolverOptions,
-    ResolverError,
-    ResolverResult,
-};
-pub use handler::Handler;
 pub use and::intersect_and;
-pub use or::union_op;
-pub use not::exclusion;
-pub use xor::xor_op;
 pub use combine::combine_search_results;
-pub use enrich::{Enricher, FieldSelector, TagIntegrationConfig, HighlightConfig, MetadataSource};
+pub use core::{resolve_default, Resolver, ResolverError, ResolverOptions, ResolverResult};
+pub use enrich::{Enricher, FieldSelector, HighlightConfig, MetadataSource, TagIntegrationConfig};
+pub use handler::Handler;
+pub use not::exclusion;
+pub use or::union_op;
+pub use xor::xor_op;
 
 #[cfg(test)]
 mod tests {

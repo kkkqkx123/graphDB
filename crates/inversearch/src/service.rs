@@ -8,15 +8,12 @@ use tonic::{transport::Server, Request, Response, Status};
 
 // Import generated proto types
 use crate::proto::inversearch_service_server::{
-    InversearchService as InversearchServiceTrait,
-    InversearchServiceServer,
+    InversearchService as InversearchServiceTrait, InversearchServiceServer,
 };
 use crate::proto::*;
 
 // Import core library types
-use crate::{
-    Index, SearchOptions,
-};
+use crate::{Index, SearchOptions};
 
 // Import storage module
 use crate::storage::common::r#trait::StorageInterface;
@@ -38,7 +35,12 @@ use crate::storage::cached::CachedStorage;
 
 // Import config
 use crate::config::Config;
-#[cfg(any(feature = "store-memory", feature = "store-file", feature = "store-redis", feature = "store-wal"))]
+#[cfg(any(
+    feature = "store-memory",
+    feature = "store-file",
+    feature = "store-redis",
+    feature = "store-wal"
+))]
 use crate::config::StorageBackend;
 
 #[cfg(feature = "store-wal")]
@@ -48,7 +50,9 @@ use crate::storage::wal::WALConfig;
 use crate::index::IndexOptions;
 
 /// Create storage based on configuration
-pub async fn create_storage_from_config(config: &Config) -> Arc<RwLock<dyn StorageInterface + Send + Sync>> {
+pub async fn create_storage_from_config(
+    config: &Config,
+) -> Arc<RwLock<dyn StorageInterface + Send + Sync>> {
     if !config.storage.enabled {
         #[cfg(feature = "store-cached")]
         return Arc::new(RwLock::new(CachedStorage::new()));
@@ -58,19 +62,23 @@ pub async fn create_storage_from_config(config: &Config) -> Arc<RwLock<dyn Stora
 
     match &config.storage.backend {
         #[cfg(feature = "store-memory")]
-        StorageBackend::Memory => {
-            Arc::new(RwLock::new(MemoryStorage::new()))
-        }
+        StorageBackend::Memory => Arc::new(RwLock::new(MemoryStorage::new())),
         #[cfg(feature = "store-file")]
         StorageBackend::File => {
-            let file_config = config.storage.file.as_ref()
+            let file_config = config
+                .storage
+                .file
+                .as_ref()
                 .map(|c| c.base_path.clone())
                 .unwrap_or_else(|| "./data".to_string());
             Arc::new(RwLock::new(FileStorage::new(file_config)))
         }
         #[cfg(feature = "store-redis")]
         StorageBackend::Redis => {
-            let redis_config = config.storage.redis.as_ref()
+            let redis_config = config
+                .storage
+                .redis
+                .as_ref()
                 .map(|c| RedisStorageConfig {
                     url: c.url.clone(),
                     pool_size: c.pool_size,
@@ -80,7 +88,10 @@ pub async fn create_storage_from_config(config: &Config) -> Arc<RwLock<dyn Stora
             match RedisStorage::new(redis_config).await {
                 Ok(storage) => Arc::new(RwLock::new(storage)),
                 Err(e) => {
-                    eprintln!("Failed to connect to Redis: {}, falling back to cached storage", e);
+                    eprintln!(
+                        "Failed to connect to Redis: {}, falling back to cached storage",
+                        e
+                    );
                     #[cfg(feature = "store-cached")]
                     return Arc::new(RwLock::new(CachedStorage::new()));
                     #[cfg(not(feature = "store-cached"))]
@@ -90,7 +101,10 @@ pub async fn create_storage_from_config(config: &Config) -> Arc<RwLock<dyn Stora
         }
         #[cfg(feature = "store-wal")]
         StorageBackend::Wal => {
-            let wal_config = config.storage.wal.as_ref()
+            let wal_config = config
+                .storage
+                .wal
+                .as_ref()
                 .map(|c| WALConfig {
                     base_path: std::path::PathBuf::from(&c.base_path),
                     max_wal_size: c.max_wal_size,
@@ -102,7 +116,10 @@ pub async fn create_storage_from_config(config: &Config) -> Arc<RwLock<dyn Stora
             match WALStorage::new(wal_config).await {
                 Ok(storage) => Arc::new(RwLock::new(storage)),
                 Err(e) => {
-                    eprintln!("Failed to initialize WAL storage: {}, falling back to cached storage", e);
+                    eprintln!(
+                        "Failed to initialize WAL storage: {}, falling back to cached storage",
+                        e
+                    );
                     #[cfg(feature = "store-cached")]
                     return Arc::new(RwLock::new(CachedStorage::new()));
                     #[cfg(not(feature = "store-cached"))]
@@ -166,7 +183,7 @@ impl InversearchService {
     pub fn with_config(config: Config) -> Self {
         let index = Index::new(IndexOptions::default()).expect("Failed to create index");
         let index = Arc::new(RwLock::new(index));
-        
+
         #[cfg(feature = "store-cached")]
         let storage: Arc<RwLock<dyn StorageInterface + Send + Sync>> =
             Arc::new(RwLock::new(CachedStorage::new()));
@@ -195,7 +212,10 @@ impl InversearchService {
     }
 
     /// Create a new service instance with custom storage and config
-    pub fn with_storage_and_config<S: StorageInterface + Send + Sync + 'static>(storage: S, config: Config) -> Self {
+    pub fn with_storage_and_config<S: StorageInterface + Send + Sync + 'static>(
+        storage: S,
+        config: Config,
+    ) -> Self {
         let index = Index::new(IndexOptions::default()).expect("Failed to create index");
         let index = Arc::new(RwLock::new(index));
         let storage = Arc::new(RwLock::new(storage));

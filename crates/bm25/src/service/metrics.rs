@@ -16,12 +16,6 @@ pub fn init_metrics() {
         "bm25_index_documents_total",
         "Total number of indexed documents"
     );
-    metrics::describe_histogram!(
-        "bm25_search_duration_seconds",
-        "Search request duration"
-    );
-    metrics::describe_histogram!(
-        "bm25_index_duration_seconds",
-        "Index operation duration"
-    );
+    metrics::describe_histogram!("bm25_search_duration_seconds", "Search request duration");
+    metrics::describe_histogram!("bm25_index_duration_seconds", "Index operation duration");
 }

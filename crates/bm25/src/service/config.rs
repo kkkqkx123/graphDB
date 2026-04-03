@@ -1,6 +1,6 @@
+use crate::config::{Bm25Config, SearchConfig};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
-use crate::config::{Bm25Config, SearchConfig};
 
 /// Service configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,14 +37,12 @@ impl Config {
     }
 
     pub fn from_env() -> anyhow::Result<Self> {
-        let server_address = std::env::var("SERVER_ADDRESS")
-            .unwrap_or_else(|_| "0.0.0.0:50051".to_string());
-        let redis_url = std::env::var("REDIS_URL")
-            .unwrap_or_else(|_| "redis://localhost:6379".to_string());
-        let data_dir = std::env::var("DATA_DIR")
-            .unwrap_or_else(|_| "./data".to_string());
-        let index_path = std::env::var("INDEX_PATH")
-            .unwrap_or_else(|_| "./index".to_string());
+        let server_address =
+            std::env::var("SERVER_ADDRESS").unwrap_or_else(|_| "0.0.0.0:50051".to_string());
+        let redis_url =
+            std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
+        let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "./data".to_string());
+        let index_path = std::env::var("INDEX_PATH").unwrap_or_else(|_| "./index".to_string());
 
         let mut bm25_config = Bm25Config::default();
         if let Ok(k1) = std::env::var("BM25_K1") {
@@ -99,7 +97,8 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             server: ServerConfig {
-                address: "0.0.0.0:50051".parse()
+                address: "0.0.0.0:50051"
+                    .parse()
                     .expect("Failed to parse default server address"),
             },
             redis: RedisConfig {

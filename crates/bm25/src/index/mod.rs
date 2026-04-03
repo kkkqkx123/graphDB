@@ -1,11 +1,11 @@
-pub mod manager;
-pub mod schema;
-pub mod document;
-pub mod delete;
 pub mod batch;
-pub mod stats;
-pub mod search;
+pub mod delete;
+pub mod document;
+pub mod manager;
 pub mod persistence;
+pub mod schema;
+pub mod search;
+pub mod stats;
 pub mod tests;
 
 pub use manager::{IndexManager, IndexManagerConfig};

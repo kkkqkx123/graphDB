@@ -10,29 +10,32 @@
 //! - `tag.rs`: 标签系统
 //! - `batch.rs`: 批量操作
 
-mod field;
-pub mod tree;
-mod tag;
 mod batch;
+mod field;
+mod tag;
+pub mod tree;
 
 use crate::search;
 
+pub use batch::{
+    Batch, BatchExecutor, BatchExecutorFn, BatchMetadata, BatchOperation, BatchResult, BatchStatus,
+};
 pub use field::{Field, FieldConfig, FieldType, Fields};
-pub use tree::{parse_tree, parse_tree_cached, TreePath, PathCache, EvaluationStrategy, PathParseError};
-pub use tag::{TagSystem, TagConfig};
-pub use batch::{Batch, BatchOperation, BatchExecutor, BatchExecutorFn, BatchResult, BatchStatus, BatchMetadata};
+pub use tag::{TagConfig, TagSystem};
+pub use tree::{
+    parse_tree, parse_tree_cached, EvaluationStrategy, PathCache, PathParseError, TreePath,
+};
 
 // 从 serialize 模块导出 Document 序列化相关类型
 pub use crate::serialize::types::{
-    DocumentExportData, DocumentInfo, FieldExportData, FieldConfigExport,
-    TagExportData, TagConfigExport, StoreExportData, DocumentRegistryData,
+    DocumentExportData, DocumentInfo, DocumentRegistryData, FieldConfigExport, FieldExportData,
+    StoreExportData, TagConfigExport, TagExportData,
 };
 
 use crate::{
-    SearchOptions, SearchResult,
-    DocId,
-    error::{Result, InversearchError as Error},
+    error::{InversearchError as Error, Result},
     keystore::KeystoreSet,
+    DocId, SearchOptions, SearchResult,
 };
 use serde_json::Value;
 use std::collections::HashMap;
@@ -62,17 +65,20 @@ impl Document {
     pub fn new(config: DocumentConfig) -> Result<Self> {
         let mut fields: Vec<Field> = Vec::new();
         let mut name_to_index = HashMap::new();
-        
+
         for field_config in config.fields.into_iter() {
             let name = field_config.name.clone();
             if name_to_index.contains_key(&name) {
-                return Err(Error::DuplicateFieldName(name.clone(), name_to_index[&name]));
+                return Err(Error::DuplicateFieldName(
+                    name.clone(),
+                    name_to_index[&name],
+                ));
             }
             let field = Field::new(field_config)?;
             name_to_index.insert(name, fields.len());
             fields.push(field);
         }
-        
+
         let tag_system = if config.tags.is_empty() {
             None
         } else {
@@ -82,19 +88,19 @@ impl Document {
             }
             Some(ts)
         };
-        
+
         let store = if config.store {
             Some(HashMap::new())
         } else {
             None
         };
-        
+
         let reg = if config.fastupdate {
             Register::Map(HashMap::new())
         } else {
             Register::Set(KeystoreSet::new(8))
         };
-        
+
         Ok(Document {
             fields,
             name_to_index,
@@ -110,29 +116,33 @@ impl Document {
         for field in &mut self.fields {
             field.add(id, content)?;
         }
-        
+
         if let Some(ref mut tag_system) = self.tag_system {
             let config_fields = tag_system.config_fields();
-            let tags: Vec<(String, Value)> = config_fields.iter()
+            let tags: Vec<(String, Value)> = config_fields
+                .iter()
                 .filter_map(|field_name| {
                     extract_simple(content, field_name).map(|v| (field_name.to_string(), v))
                 })
                 .collect();
-            let tags_refs: Vec<(&str, &Value)> = tags.iter()
-                .map(|(s, v)| (s.as_str(), v))
-                .collect();
+            let tags_refs: Vec<(&str, &Value)> =
+                tags.iter().map(|(s, v)| (s.as_str(), v)).collect();
             tag_system.add_tags(id, &tags_refs);
         }
-        
+
         match &mut self.reg {
-            Register::Set(set) => { set.add(id); }
-            Register::Map(map) => { map.insert(id, ()); }
+            Register::Set(set) => {
+                set.add(id);
+            }
+            Register::Map(map) => {
+                map.insert(id, ());
+            }
         }
-        
+
         if let Some(ref mut store) = self.store {
             store.insert(id, content.clone());
         }
-        
+
         Ok(())
     }
 
@@ -148,20 +158,24 @@ impl Document {
         for field in &mut self.fields {
             field.remove(id)?;
         }
-        
+
         if let Some(ref mut tag_system) = self.tag_system {
             tag_system.remove_tags(id);
         }
-        
+
         if let Some(ref mut store) = self.store {
             store.remove(&id);
         }
-        
+
         match &mut self.reg {
-            Register::Set(set) => { set.delete(&id); }
-            Register::Map(map) => { map.remove(&id); }
+            Register::Set(set) => {
+                set.delete(&id);
+            }
+            Register::Map(map) => {
+                map.remove(&id);
+            }
         }
-        
+
         Ok(())
     }
 
@@ -175,12 +189,12 @@ impl Document {
                 query: String::new(),
             });
         }
-        
+
         let limit = options.limit.unwrap_or(100);
         let offset = options.offset.unwrap_or(0);
-        
+
         let mut all_results: Vec<Vec<DocId>> = Vec::new();
-        
+
         for field in &self.fields {
             let field_options = SearchOptions {
                 query: options.query.clone(),
@@ -190,31 +204,31 @@ impl Document {
                 resolve: options.resolve,
                 ..Default::default()
             };
-            
+
             let result = search::search(field.index(), &field_options)?;
             if !result.results.is_empty() {
                 all_results.push(result.results);
             }
         }
-        
+
         let mut final_results: Vec<DocId> = Vec::new();
         for vec in all_results {
             final_results.extend(vec);
         }
-        
+
         final_results.sort();
         final_results.dedup();
-        
+
         let total = final_results.len();
-        
+
         if offset > 0 && offset < final_results.len() {
             final_results.drain(0..offset);
         }
-        
+
         if limit > 0 && limit < final_results.len() {
             final_results.truncate(limit);
         }
-        
+
         Ok(SearchResult {
             results: final_results,
             total,
@@ -282,8 +296,12 @@ impl Document {
             store.clear();
         }
         match &mut self.reg {
-            Register::Set(set) => { set.clear(); }
-            Register::Map(map) => { map.clear(); }
+            Register::Set(set) => {
+                set.clear();
+            }
+            Register::Map(map) => {
+                map.clear();
+            }
         }
     }
 
@@ -309,11 +327,17 @@ impl Document {
 
     /// 获取可变字段引用（内部使用）
     pub fn field_mut(&mut self, name: &str) -> Option<&mut Field> {
-        self.name_to_index.get(name).copied().map(|idx| &mut self.fields[idx])
+        self.name_to_index
+            .get(name)
+            .copied()
+            .map(|idx| &mut self.fields[idx])
     }
 
     /// 执行批量操作
-    pub fn execute_batch(&mut self, batch: &crate::document::Batch) -> crate::document::BatchResult {
+    pub fn execute_batch(
+        &mut self,
+        batch: &crate::document::Batch,
+    ) -> crate::document::BatchResult {
         let executor = crate::document::BatchExecutor::new(0);
         executor.execute_batch_mixed(batch.operations(), self)
     }
@@ -372,7 +396,11 @@ impl DocumentConfig {
     }
 
     /// 添加带过滤器的标签配置
-    pub fn add_tag_with_filter(mut self, field: &str, filter: Box<dyn Fn(&Value) -> bool + Send + Sync>) -> Self {
+    pub fn add_tag_with_filter(
+        mut self,
+        field: &str,
+        filter: Box<dyn Fn(&Value) -> bool + Send + Sync>,
+    ) -> Self {
         self.tags.push((field.to_string(), Some(filter)));
         self
     }
@@ -400,11 +428,11 @@ impl DocumentConfig {
 fn extract_simple(document: &Value, path: &str) -> Option<Value> {
     let parts: Vec<&str> = path.split('.').collect();
     let mut current = document;
-    
+
     for part in parts {
         current = current.get(part)?;
     }
-    
+
     Some(current.clone())
 }
 
@@ -425,29 +453,32 @@ mod tests {
 
     #[test]
     fn test_document_add() {
-        let config = DocumentConfig::new()
-            .add_field(FieldConfig::new("title"));
+        let config = DocumentConfig::new().add_field(FieldConfig::new("title"));
 
         let mut doc = Document::new(config).expect("Document::new should succeed");
-        doc.add(1, &json!({"title": "Hello World"})).expect("add should succeed");
+        doc.add(1, &json!({"title": "Hello World"}))
+            .expect("add should succeed");
 
         assert!(doc.contains(1));
     }
 
     #[test]
     fn test_document_search() {
-        let config = DocumentConfig::new()
-            .add_field(FieldConfig::new("title"));
+        let config = DocumentConfig::new().add_field(FieldConfig::new("title"));
 
         let mut doc = Document::new(config).expect("Document::new should succeed");
-        doc.add(1, &json!({"title": "Hello World"})).expect("add should succeed");
-        doc.add(2, &json!({"title": "Rust Programming"})).expect("add should succeed");
+        doc.add(1, &json!({"title": "Hello World"}))
+            .expect("add should succeed");
+        doc.add(2, &json!({"title": "Rust Programming"}))
+            .expect("add should succeed");
 
-        let result = doc.search(&SearchOptions {
-            query: Some("Hello".to_string()),
-            limit: Some(10),
-            ..Default::default()
-        }).expect("search should succeed");
+        let result = doc
+            .search(&SearchOptions {
+                query: Some("Hello".to_string()),
+                limit: Some(10),
+                ..Default::default()
+            })
+            .expect("search should succeed");
 
         assert_eq!(result.results.len(), 1);
         assert_eq!(result.results[0], 1);
@@ -455,11 +486,11 @@ mod tests {
 
     #[test]
     fn test_document_remove() {
-        let config = DocumentConfig::new()
-            .add_field(FieldConfig::new("title"));
+        let config = DocumentConfig::new().add_field(FieldConfig::new("title"));
 
         let mut doc = Document::new(config).expect("Document::new should succeed");
-        doc.add(1, &json!({"title": "Hello"})).expect("add should succeed");
+        doc.add(1, &json!({"title": "Hello"}))
+            .expect("add should succeed");
 
         assert!(doc.contains(1));
 
@@ -475,9 +506,11 @@ mod tests {
             .with_store();
 
         let mut doc = Document::new(config).expect("Document::new should succeed");
-        doc.add(1, &json!({"title": "Original"})).expect("add should succeed");
+        doc.add(1, &json!({"title": "Original"}))
+            .expect("add should succeed");
 
-        doc.update(1, &json!({"title": "Updated"})).expect("update should succeed");
+        doc.update(1, &json!({"title": "Updated"}))
+            .expect("update should succeed");
 
         let stored = doc.get(1);
         assert_eq!(stored.expect("get should return Some")["title"], "Updated");
@@ -485,12 +518,13 @@ mod tests {
 
     #[test]
     fn test_document_clear() {
-        let config = DocumentConfig::new()
-            .add_field(FieldConfig::new("title"));
+        let config = DocumentConfig::new().add_field(FieldConfig::new("title"));
 
         let mut doc = Document::new(config).expect("Document::new should succeed");
-        doc.add(1, &json!({"title": "Doc 1"})).expect("add should succeed");
-        doc.add(2, &json!({"title": "Doc 2"})).expect("add should succeed");
+        doc.add(1, &json!({"title": "Doc 1"}))
+            .expect("add should succeed");
+        doc.add(2, &json!({"title": "Doc 2"}))
+            .expect("add should succeed");
 
         doc.clear();
 
@@ -500,8 +534,7 @@ mod tests {
 
     #[test]
     fn test_document_batch() {
-        let config = DocumentConfig::new()
-            .add_field(FieldConfig::new("title"));
+        let config = DocumentConfig::new().add_field(FieldConfig::new("title"));
 
         let mut doc = Document::new(config).expect("Document::new should succeed");
 
@@ -512,9 +545,9 @@ mod tests {
         batch.add(1, &doc1);
         batch.add(2, &doc2);
         batch.add(3, &doc3);
-        
+
         let result = doc.execute_batch(&batch);
-        
+
         assert_eq!(result.total_operations, 3);
         assert_eq!(result.successful_operations, 3);
         assert_eq!(result.failed_operations, 0);
@@ -525,22 +558,17 @@ mod tests {
 
     #[test]
     fn test_document_batch_add() {
-        let config = DocumentConfig::new()
-            .add_field(FieldConfig::new("title"));
-        
+        let config = DocumentConfig::new().add_field(FieldConfig::new("title"));
+
         let mut doc = Document::new(config).unwrap();
-        
+
         let doc1 = json!({"title": "Doc 1"});
         let doc2 = json!({"title": "Doc 2"});
         let doc3 = json!({"title": "Doc 3"});
-        let operations = vec![
-            (1, &doc1),
-            (2, &doc2),
-            (3, &doc3),
-        ];
-        
+        let operations = vec![(1, &doc1), (2, &doc2), (3, &doc3)];
+
         let result = doc.batch_add(&operations);
-        
+
         assert_eq!(result.total_operations, 3);
         assert_eq!(result.successful_operations, 3);
         assert_eq!(result.failed_operations, 0);
@@ -556,15 +584,14 @@ mod tests {
             .with_store();
 
         let mut doc = Document::new(config).expect("Document::new should succeed");
-        doc.add(1, &json!({"title": "Original"})).expect("add should succeed");
-        doc.add(2, &json!({"title": "Original"})).expect("add should succeed");
+        doc.add(1, &json!({"title": "Original"}))
+            .expect("add should succeed");
+        doc.add(2, &json!({"title": "Original"}))
+            .expect("add should succeed");
 
         let doc1 = json!({"title": "Updated 1"});
         let doc2 = json!({"title": "Updated 2"});
-        let operations = vec![
-            (1, &doc1),
-            (2, &doc2),
-        ];
+        let operations = vec![(1, &doc1), (2, &doc2)];
 
         let result = doc.batch_update(&operations);
 
@@ -574,19 +601,27 @@ mod tests {
 
         let stored1 = doc.get(1);
         let stored2 = doc.get(2);
-        assert_eq!(stored1.expect("get should return Some")["title"], "Updated 1");
-        assert_eq!(stored2.expect("get should return Some")["title"], "Updated 2");
+        assert_eq!(
+            stored1.expect("get should return Some")["title"],
+            "Updated 1"
+        );
+        assert_eq!(
+            stored2.expect("get should return Some")["title"],
+            "Updated 2"
+        );
     }
 
     #[test]
     fn test_document_batch_remove() {
-        let config = DocumentConfig::new()
-            .add_field(FieldConfig::new("title"));
+        let config = DocumentConfig::new().add_field(FieldConfig::new("title"));
 
         let mut doc = Document::new(config).expect("Document::new should succeed");
-        doc.add(1, &json!({"title": "Doc 1"})).expect("add should succeed");
-        doc.add(2, &json!({"title": "Doc 2"})).expect("add should succeed");
-        doc.add(3, &json!({"title": "Doc 3"})).expect("add should succeed");
+        doc.add(1, &json!({"title": "Doc 1"}))
+            .expect("add should succeed");
+        doc.add(2, &json!({"title": "Doc 2"}))
+            .expect("add should succeed");
+        doc.add(3, &json!({"title": "Doc 3"}))
+            .expect("add should succeed");
 
         let operations = vec![1, 2];
         let result = doc.batch_remove(&operations);
@@ -601,12 +636,13 @@ mod tests {
 
     #[test]
     fn test_document_batch_mixed_operations() {
-        let config = DocumentConfig::new()
-            .add_field(FieldConfig::new("title"));
+        let config = DocumentConfig::new().add_field(FieldConfig::new("title"));
 
         let mut doc = Document::new(config).expect("Document::new should succeed");
-        doc.add(1, &json!({"title": "Doc 1"})).expect("add should succeed");
-        doc.add(2, &json!({"title": "Doc 2"})).expect("add should succeed");
+        doc.add(1, &json!({"title": "Doc 1"}))
+            .expect("add should succeed");
+        doc.add(2, &json!({"title": "Doc 2"}))
+            .expect("add should succeed");
 
         let mut batch = Batch::new(100);
         let doc3 = json!({"title": "Doc 3"});

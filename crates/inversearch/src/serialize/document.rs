@@ -3,8 +3,8 @@
 //! 提供 Document 类型的导入导出功能
 
 use crate::document::Document;
-use crate::serialize::types::*;
 use crate::error::Result;
+use crate::serialize::types::*;
 use bincode;
 
 impl Document {
@@ -12,7 +12,7 @@ impl Document {
     pub fn export(&self, config: &SerializeConfig) -> Result<DocumentExportData> {
         let store_enabled = self.has_store();
         let fastupdate = self.is_fastupdate();
-        
+
         let document_info = DocumentInfo {
             field_count: self.len(),
             fastupdate,
@@ -33,7 +33,7 @@ impl Document {
             // 获取字段的索引数据
             if let Some(field) = self.field(field_name) {
                 let index_data = field.index().export(config)?;
-                
+
                 fields.push(FieldExportData {
                     name: field_name.to_string(),
                     field_config,
@@ -96,13 +96,14 @@ impl Document {
     /// 导入 Document 数据
     pub fn import(&mut self, data: DocumentExportData, _config: &SerializeConfig) -> Result<()> {
         if data.version != "0.1.0" {
-            return Err(crate::error::InversearchError::Serialization(
-                format!("Unsupported version: {}", data.version)
-            ));
+            return Err(crate::error::InversearchError::Serialization(format!(
+                "Unsupported version: {}",
+                data.version
+            )));
         }
 
         self.clear();
-        
+
         // 导入字段数据
         for field_export in &data.fields {
             if let Some(field) = self.field_mut(&field_export.name) {
@@ -132,8 +133,12 @@ impl Document {
         // 导入registry数据
         for doc_id in 0..data.registry.next_doc_id {
             match self.get_reg_mut() {
-                crate::document::Register::Set(set) => { set.add(doc_id); }
-                crate::document::Register::Map(map) => { map.insert(doc_id, ()); }
+                crate::document::Register::Set(set) => {
+                    set.add(doc_id);
+                }
+                crate::document::Register::Map(map) => {
+                    map.insert(doc_id, ());
+                }
             }
         }
 
@@ -149,21 +154,21 @@ impl Document {
     /// 从 JSON 字符串反序列化
     pub fn from_json(json_str: &str, config: &SerializeConfig) -> Result<Document> {
         let data: DocumentExportData = serde_json::from_str(json_str)?;
-        
+
         let mut doc_config = crate::document::DocumentConfig::new();
-        
+
         for field_data in &data.fields {
             let field_config = crate::document::FieldConfig::new(&field_data.name);
             doc_config = doc_config.add_field(field_config);
         }
-        
+
         if data.store.is_some() {
             doc_config = doc_config.with_store();
         }
-        
+
         let mut document = Document::new(doc_config)?;
         document.import(data, config)?;
-        
+
         Ok(document)
     }
 
@@ -177,21 +182,21 @@ impl Document {
     /// 从二进制数据反序列化
     pub fn from_binary(data: &[u8], config: &SerializeConfig) -> Result<Document> {
         let data: DocumentExportData = bincode::deserialize(data)?;
-        
+
         let mut doc_config = crate::document::DocumentConfig::new();
-        
+
         for field_data in &data.fields {
             let field_config = crate::document::FieldConfig::new(&field_data.name);
             doc_config = doc_config.add_field(field_config);
         }
-        
+
         if data.store.is_some() {
             doc_config = doc_config.with_store();
         }
-        
+
         let mut document = Document::new(doc_config)?;
         document.import(data, config)?;
-        
+
         Ok(document)
     }
 }
@@ -210,14 +215,24 @@ mod tests {
             .with_store();
 
         let mut document = Document::new(config).unwrap();
-        document.add(1, &json!({"title": "Hello World", "content": "Test content"})).unwrap();
-        document.add(2, &json!({"title": "Rust Programming", "content": "Another test"})).unwrap();
+        document
+            .add(
+                1,
+                &json!({"title": "Hello World", "content": "Test content"}),
+            )
+            .unwrap();
+        document
+            .add(
+                2,
+                &json!({"title": "Rust Programming", "content": "Another test"}),
+            )
+            .unwrap();
 
         let serialize_config = SerializeConfig::default();
         let json_str = document.to_json(&serialize_config).unwrap();
-        
+
         let imported_document = Document::from_json(&json_str, &serialize_config).unwrap();
-        
+
         assert!(imported_document.contains(1));
         assert!(imported_document.contains(2));
     }
@@ -243,29 +258,38 @@ mod tests {
             .with_store();
 
         let mut document = Document::new(config).unwrap();
-        document.add(1, &json!({"title": "Hello World", "content": "Test content"})).unwrap();
-        document.add(2, &json!({"title": "Rust Programming", "content": "Another test"})).unwrap();
+        document
+            .add(
+                1,
+                &json!({"title": "Hello World", "content": "Test content"}),
+            )
+            .unwrap();
+        document
+            .add(
+                2,
+                &json!({"title": "Rust Programming", "content": "Another test"}),
+            )
+            .unwrap();
 
         let serialize_config = SerializeConfig::default();
         let binary_data = document.to_binary(&serialize_config).unwrap();
-        
+
         let imported_document = Document::from_binary(&binary_data, &serialize_config).unwrap();
-        
+
         assert!(imported_document.contains(1));
         assert!(imported_document.contains(2));
     }
 
     #[test]
     fn test_document_binary_empty() {
-        let config = DocumentConfig::new()
-            .add_field(FieldConfig::new("title"));
+        let config = DocumentConfig::new().add_field(FieldConfig::new("title"));
 
         let document = Document::new(config).unwrap();
         let serialize_config = SerializeConfig::default();
-        
+
         let binary_data = document.to_binary(&serialize_config).unwrap();
         assert!(!binary_data.is_empty());
-        
+
         let imported_document = Document::from_binary(&binary_data, &serialize_config).unwrap();
         assert!(!imported_document.contains(1));
     }

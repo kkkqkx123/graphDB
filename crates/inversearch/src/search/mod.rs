@@ -2,25 +2,23 @@
 //!
 //! 提供搜索功能，包括单术语搜索、多术语搜索和多字段搜索协调
 
-mod single_term;
 mod cache;
 mod coordinator;
 mod multi_field;
+mod single_term;
 
-use crate::r#type::{IntermediateSearchResults, SearchResults, SearchOptions};
 use crate::error::Result;
+use crate::r#type::{IntermediateSearchResults, SearchOptions, SearchResults};
 use crate::Index;
-pub use single_term::{single_term_query, multi_term_search, SingleTermResult};
-pub use cache::{SearchCache, CachedSearch, CacheStats, CacheKeyGenerator};
+pub use cache::{CacheKeyGenerator, CacheStats, CachedSearch, SearchCache};
 pub use coordinator::{
+    BoostStrategy, CombineStrategy, FieldBoostConfig, FieldSearch, MultiFieldSearchOptions,
     SearchCoordinator,
-    MultiFieldSearchOptions,
-    CombineStrategy,
-    BoostStrategy,
-    FieldBoostConfig,
-    FieldSearch,
 };
-pub use multi_field::{multi_field_search, multi_field_search_with_weights, MultiFieldSearchConfig};
+pub use multi_field::{
+    multi_field_search, multi_field_search_with_weights, MultiFieldSearchConfig,
+};
+pub use single_term::{multi_term_search, single_term_query, SingleTermResult};
 
 /// 搜索结果结构体
 #[derive(Debug, Clone)]
@@ -93,13 +91,13 @@ pub fn resolve_default_search(
     if results.is_empty() {
         return Vec::new();
     }
-    
+
     // 展平结果
     let mut flattened = Vec::new();
     for array in results {
         flattened.extend_from_slice(array);
     }
-    
+
     // 应用限制和偏移
     if offset > 0 {
         if offset >= flattened.len() {
@@ -107,10 +105,10 @@ pub fn resolve_default_search(
         }
         flattened.drain(0..offset);
     }
-    
+
     if limit > 0 && limit < flattened.len() {
         flattened.truncate(limit);
     }
-    
+
     flattened
 }

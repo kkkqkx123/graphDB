@@ -1,5 +1,5 @@
-use crate::index::{Index, DocId};
 use crate::error::Result;
+use crate::index::{DocId, Index};
 
 pub fn remove_document(index: &mut Index, id: DocId, skip_deletion: bool) -> Result<()> {
     if index.fastupdate {
@@ -96,7 +96,7 @@ fn remove_fastupdate(
 fn remove_from_index(index: &mut Index, id: DocId) -> Result<()> {
     let mut terms_to_remove_map = Vec::new();
     let mut terms_to_remove_ctx = Vec::new();
-    
+
     for (&term_hash, term_map) in index.map.index.iter_mut() {
         for (term, doc_ids) in term_map.iter_mut() {
             if let Some(pos) = doc_ids.iter().position(|x| *x == id) {
@@ -108,7 +108,7 @@ fn remove_from_index(index: &mut Index, id: DocId) -> Result<()> {
             }
         }
     }
-    
+
     for (term_hash, term) in terms_to_remove_map {
         if let Some(map) = index.map.index.get_mut(&term_hash) {
             map.remove(&term);
@@ -126,7 +126,7 @@ fn remove_from_index(index: &mut Index, id: DocId) -> Result<()> {
             }
         }
     }
-    
+
     for (term_hash, term) in terms_to_remove_ctx {
         if let Some(map) = index.ctx.index.get_mut(&term_hash) {
             map.remove(&term);

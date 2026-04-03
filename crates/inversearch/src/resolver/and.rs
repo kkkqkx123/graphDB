@@ -1,7 +1,10 @@
-use crate::r#type::IntermediateSearchResults;
 use crate::intersect::core::intersect_simple;
+use crate::r#type::IntermediateSearchResults;
 
-pub fn intersect_and(arrays: Vec<IntermediateSearchResults>, limit: usize) -> IntermediateSearchResults {
+pub fn intersect_and(
+    arrays: Vec<IntermediateSearchResults>,
+    limit: usize,
+) -> IntermediateSearchResults {
     if arrays.is_empty() {
         return vec![];
     }
@@ -56,20 +59,14 @@ mod tests {
 
     #[test]
     fn test_intersect_and_multiple() {
-        let arrays: Vec<IntermediateSearchResults> = vec![
-            vec![vec![1, 2, 3]],
-            vec![vec![2, 3, 4]],
-        ];
+        let arrays: Vec<IntermediateSearchResults> = vec![vec![vec![1, 2, 3]], vec![vec![2, 3, 4]]];
         let result = intersect_and(arrays, 100);
         assert_eq!(result, vec![vec![2, 3]]);
     }
 
     #[test]
     fn test_intersect_and_no_overlap() {
-        let arrays: Vec<IntermediateSearchResults> = vec![
-            vec![vec![1, 2, 3]],
-            vec![vec![4, 5, 6]],
-        ];
+        let arrays: Vec<IntermediateSearchResults> = vec![vec![vec![1, 2, 3]], vec![vec![4, 5, 6]]];
         let result = intersect_and(arrays, 100);
         assert!(result[0].is_empty());
     }

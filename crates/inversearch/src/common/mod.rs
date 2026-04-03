@@ -1,3 +1,3 @@
 pub mod arena;
 
-pub use arena::{Arena, ArenaTokenizer, ArenaVec, ArenaStringBuilder};
+pub use arena::{Arena, ArenaStringBuilder, ArenaTokenizer, ArenaVec};

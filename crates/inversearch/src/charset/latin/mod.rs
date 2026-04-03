@@ -1,10 +1,10 @@
-use std::collections::HashMap;
 use crate::r#type::EncoderOptions;
+use std::collections::HashMap;
 
 // ========== 基础字符映射 ==========
 fn get_soundex_map() -> HashMap<char, char> {
     let mut map = HashMap::new();
-    
+
     // 声音相似字符映射
     map.insert('b', 'p');
     map.insert('v', 'f');
@@ -20,14 +20,14 @@ fn get_soundex_map() -> HashMap<char, char> {
     map.insert('i', 'e');
     map.insert('y', 'e');
     map.insert('u', 'o');
-    
+
     map
 }
 
 // ========== 高级匹配规则 ==========
 fn get_advanced_matcher() -> HashMap<String, String> {
     let mut matcher = HashMap::new();
-    
+
     matcher.insert("ae".to_string(), "a".to_string());
     matcher.insert("oe".to_string(), "o".to_string());
     matcher.insert("sh".to_string(), "s".to_string());
@@ -35,22 +35,23 @@ fn get_advanced_matcher() -> HashMap<String, String> {
     matcher.insert("th".to_string(), "t".to_string());
     matcher.insert("ph".to_string(), "f".to_string());
     matcher.insert("pf".to_string(), "f".to_string());
-    
+
     matcher
 }
 
 // ========== 替换规则 ==========
 fn get_advanced_replacer() -> Vec<(String, String)> {
-    vec![
-        (r"([^aeo])h(.)", "$1$2"),
-        (r"([aeo])h([^aeo]|$)", "$1$2"),
-    ].into_iter().map(|(a, b)| (a.to_string(), b.to_string())).collect()
+    vec![(r"([^aeo])h(.)", "$1$2"), (r"([aeo])h([^aeo]|$)", "$1$2")]
+        .into_iter()
+        .map(|(a, b)| (a.to_string(), b.to_string()))
+        .collect()
 }
 
 fn get_compact_replacer() -> Vec<(String, String)> {
-    vec![
-        (r"(?!^)[aeo]", ""),
-    ].into_iter().map(|(a, b)| (a.to_string(), b.to_string())).collect()
+    vec![(r"(?!^)[aeo]", "")]
+        .into_iter()
+        .map(|(a, b)| (a.to_string(), b.to_string()))
+        .collect()
 }
 
 // ========== Soundex 编码 ==========
@@ -66,15 +67,18 @@ pub fn soundex_encode(string_to_encode: &str) -> String {
         None => return String::new(),
     };
     let mut encoded_string = first_char.to_string();
-    let mut last = codes.get(&first_char.to_ascii_lowercase()).copied().unwrap_or(0);
-    
+    let mut last = codes
+        .get(&first_char.to_ascii_lowercase())
+        .copied()
+        .unwrap_or(0);
+
     for char in string_to_encode.chars().skip(1) {
         // Remove all occurrences of "h" and "w"
         let char_lower = char.to_ascii_lowercase();
         if char_lower != 'h' && char_lower != 'w' {
             // Replace all consonants with digits
             let char_code = codes.get(&char_lower).copied().unwrap_or(0);
-            
+
             // Remove all occurrences of a,e,i,o,u,y except first letter
             if char_code != 0 {
                 // Replace all adjacent same digits with one digit
@@ -88,13 +92,13 @@ pub fn soundex_encode(string_to_encode: &str) -> String {
             }
         }
     }
-    
+
     encoded_string
 }
 
 fn get_soundex_codes() -> HashMap<char, i32> {
     let mut codes = HashMap::new();
-    
+
     // Vowels and y get 0
     codes.insert('a', 0);
     codes.insert('e', 0);
@@ -102,13 +106,13 @@ fn get_soundex_codes() -> HashMap<char, i32> {
     codes.insert('o', 0);
     codes.insert('u', 0);
     codes.insert('y', 0);
-    
+
     // Group 1: b, f, p, v
     codes.insert('b', 1);
     codes.insert('f', 1);
     codes.insert('p', 1);
     codes.insert('v', 1);
-    
+
     // Group 2: c, g, j, k, q, s, x, z, ß
     codes.insert('c', 2);
     codes.insert('g', 2);
@@ -119,21 +123,21 @@ fn get_soundex_codes() -> HashMap<char, i32> {
     codes.insert('x', 2);
     codes.insert('z', 2);
     codes.insert('ß', 2);
-    
+
     // Group 3: d, t
     codes.insert('d', 3);
     codes.insert('t', 3);
-    
+
     // Group 4: l
     codes.insert('l', 4);
-    
+
     // Group 5: m, n
     codes.insert('m', 5);
     codes.insert('n', 5);
-    
+
     // Group 6: r
     codes.insert('r', 6);
-    
+
     codes
 }
 
@@ -166,10 +170,10 @@ pub fn get_charset_latin_advanced() -> EncoderOptions {
     mapper.insert('t', 't');
     mapper.insert('e', 'e');
     mapper.insert('s', 's');
-    
+
     // 合并基础声音映射
     mapper.extend(get_soundex_map());
-    
+
     EncoderOptions {
         mapper: Some(mapper),
         matcher: Some(get_advanced_matcher()),
@@ -193,10 +197,10 @@ pub fn get_charset_latin_advanced() -> EncoderOptions {
 pub fn get_charset_latin_extra() -> EncoderOptions {
     let mut replacer = get_advanced_replacer();
     replacer.extend(get_compact_replacer());
-    
+
     let mut mapper = HashMap::new();
     mapper.extend(get_soundex_map());
-    
+
     EncoderOptions {
         mapper: Some(mapper),
         replacer: Some(replacer),
@@ -260,7 +264,7 @@ pub fn get_latin_polyfill() -> HashMap<char, &'static str> {
     map.insert('ü', "u");
     map.insert('ý', "y");
     map.insert('ÿ', "y");
-    
+
     // Extended Latin
     map.insert('ā', "a");
     map.insert('ă', "a");
@@ -366,7 +370,7 @@ mod tests {
         assert!(options.mapper.is_some());
         assert!(options.matcher.is_some());
         assert!(options.replacer.is_some());
-        
+
         let matcher = options.matcher.unwrap();
         assert_eq!(matcher.get("ae"), Some(&"a".to_string()));
         assert_eq!(matcher.get("oe"), Some(&"o".to_string()));
@@ -378,7 +382,7 @@ mod tests {
         assert!(options.mapper.is_some());
         assert!(options.replacer.is_some());
         assert!(options.matcher.is_some());
-        
+
         let replacer = options.replacer.unwrap();
         // Should have more replacers than just advanced due to compact
         assert!(replacer.len() > 2);

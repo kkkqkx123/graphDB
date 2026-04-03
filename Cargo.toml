@@ -48,6 +48,7 @@ async-trait = { version = "0.1", optional = true }
 # Full-text search engines
 bm25-service = { path = "crates/bm25", default-features = false }
 inversearch-service = { path = "crates/inversearch", default-features = false, features = ["cache", "store"] }
+tantivy = "0.24"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

@@ -1,6 +1,7 @@
-use crate::index::{IndexManager, IndexSchema};
 use crate::error::Result;
+use crate::index::{IndexManager, IndexSchema};
 use std::collections::HashMap;
+use tantivy::IndexWriter;
 
 pub fn batch_add_documents(
     manager: &IndexManager,
@@ -9,13 +10,28 @@ pub fn batch_add_documents(
 ) -> Result<usize> {
     let count = documents.len();
     let mut writer = manager.writer()?;
-    
+
     for (doc_id, fields) in documents {
         let doc = schema.to_document(&doc_id, &fields);
         writer.add_document(doc)?;
     }
-    
+
     writer.commit()?;
+    Ok(count)
+}
+
+pub fn batch_add_documents_with_writer(
+    writer: &mut IndexWriter,
+    schema: &IndexSchema,
+    documents: Vec<(String, HashMap<String, String>)>,
+) -> Result<usize> {
+    let count = documents.len();
+
+    for (doc_id, fields) in documents {
+        let doc = schema.to_document(&doc_id, &fields);
+        writer.add_document(doc)?;
+    }
+
     Ok(count)
 }
 
@@ -26,15 +42,32 @@ pub fn batch_update_documents(
 ) -> Result<usize> {
     let count = documents.len();
     let mut writer = manager.writer()?;
-    
+
     for (doc_id, fields) in documents {
         let doc = schema.to_document(&doc_id, &fields);
         let term = tantivy::Term::from_field_text(schema.document_id, &doc_id);
         writer.delete_term(term);
         writer.add_document(doc)?;
     }
-    
+
     writer.commit()?;
+    Ok(count)
+}
+
+pub fn batch_update_documents_with_writer(
+    writer: &mut IndexWriter,
+    schema: &IndexSchema,
+    documents: Vec<(String, HashMap<String, String>)>,
+) -> Result<usize> {
+    let count = documents.len();
+
+    for (doc_id, fields) in documents {
+        let doc = schema.to_document(&doc_id, &fields);
+        let term = tantivy::Term::from_field_text(schema.document_id, &doc_id);
+        writer.delete_term(term);
+        writer.add_document(doc)?;
+    }
+
     Ok(count)
 }
 
@@ -45,18 +78,18 @@ pub fn batch_add_documents_optimized(
     batch_size: usize,
 ) -> Result<usize> {
     let mut indexed_count = 0;
-    
+
     for batch in documents.chunks(batch_size) {
         let mut writer = manager.writer()?;
-        
+
         for (doc_id, fields) in batch {
             let doc = schema.to_document(doc_id, fields);
             writer.add_document(doc)?;
             indexed_count += 1;
         }
-        
+
         writer.commit()?;
     }
-    
+
     Ok(indexed_count)
 }

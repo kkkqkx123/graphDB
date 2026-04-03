@@ -2,8 +2,8 @@
 //!
 //! 提供所有序列化相关的核心类型定义，作为数据的唯一来源
 
-use crate::r#type::{IndexOptions, EncoderOptions};
-use serde::{Serialize, Deserialize};
+use crate::r#type::{EncoderOptions, IndexOptions};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// 序列化配置
@@ -130,7 +130,7 @@ pub struct ExportData {
 /// 注册表数据
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RegistryData {
-    Set(Vec<u64>),                    // fastupdate = false
+    Set(Vec<u64>),                        // fastupdate = false
     Map(HashMap<u64, Vec<IndexRefData>>), // fastupdate = true
 }
 
@@ -169,17 +169,9 @@ pub struct IncrementalData {
 /// 索引变更（用于增量序列化）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IndexChange {
-    Add {
-        doc_id: u64,
-        content: String,
-    },
-    Remove {
-        doc_id: u64,
-    },
-    Update {
-        doc_id: u64,
-        content: String,
-    },
+    Add { doc_id: u64, content: String },
+    Remove { doc_id: u64 },
+    Update { doc_id: u64, content: String },
 }
 
 /// 索引配置导出

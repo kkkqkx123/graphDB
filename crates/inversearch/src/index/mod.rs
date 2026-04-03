@@ -1,6 +1,6 @@
 use crate::encoder::Encoder;
-use crate::keystore::{KeystoreMap, KeystoreSet, DocId};
 use crate::error::Result;
+use crate::keystore::{DocId, KeystoreMap, KeystoreSet};
 use crate::search::SearchCache;
 use std::collections::HashMap;
 
@@ -19,8 +19,8 @@ pub enum TokenizeMode {
 // 定义对索引数组的引用枚举，包含定位信息
 #[derive(Clone)]
 pub enum IndexRef {
-    MapRef(String),      // 普通索引的键
-    CtxRef(String, String),      // 上下文索引的键 (keyword, term)
+    MapRef(String),         // 普通索引的键
+    CtxRef(String, String), // 上下文索引的键 (keyword, term)
 }
 
 #[derive(Clone)]
@@ -56,9 +56,9 @@ impl Index {
         let bidirectional = options.bidirectional.unwrap_or(false);
         let fastupdate = options.fastupdate.unwrap_or(false);
         let rtl = options.rtl.unwrap_or(false);
-        
+
         let encoder = Encoder::new(options.encoder.unwrap_or_default())?;
-        
+
         let tokenize = match options.tokenize_mode {
             Some("strict") => TokenizeMode::Strict,
             Some("forward") => TokenizeMode::Forward,
@@ -166,7 +166,9 @@ impl Index {
             if let Some(kw) = keyword {
                 let kw_key = kw.to_string();
                 let kw_hash = self.keystore_hash_str(&kw_key);
-                let doc_ids_vec = self.ctx.index
+                let doc_ids_vec = self
+                    .ctx
+                    .index
                     .entry(kw_hash)
                     .or_default()
                     .entry(term_key.clone())
@@ -191,7 +193,9 @@ impl Index {
                 }
             } else {
                 let term_hash = self.keystore_hash_str(&term_key);
-                let doc_ids_vec = self.map.index
+                let doc_ids_vec = self
+                    .map
+                    .index
                     .entry(term_hash)
                     .or_default()
                     .entry(term_key.clone())
@@ -249,12 +253,18 @@ impl Index {
         self.add(id, content, false)
     }
 
-    pub fn search(&self, options: &crate::r#type::SearchOptions) -> Result<crate::search::SearchResult> {
+    pub fn search(
+        &self,
+        options: &crate::r#type::SearchOptions,
+    ) -> Result<crate::search::SearchResult> {
         crate::search::search(self, options)
     }
 
     /// 带缓存的搜索
-    pub fn search_cached(&mut self, options: &crate::r#type::SearchOptions) -> Result<crate::search::SearchResult> {
+    pub fn search_cached(
+        &mut self,
+        options: &crate::r#type::SearchOptions,
+    ) -> Result<crate::search::SearchResult> {
         let query = options.query.as_deref().unwrap_or("");
         if query.is_empty() {
             return Ok(crate::search::SearchResult {
@@ -266,14 +276,14 @@ impl Index {
 
         // 首先执行搜索
         let result = self.search(options)?;
-        
+
         // 如果有缓存，缓存结果
         if let Some(ref mut cache) = self.cache {
             use crate::search::CacheKeyGenerator;
             let cache_key = CacheKeyGenerator::generate_search_key(query, options);
             cache.set(cache_key, result.results.clone());
         }
-        
+
         Ok(result)
     }
 
@@ -334,8 +344,8 @@ impl Default for IndexOptions {
             score: None,
             encoder: None,
             rtl: None,
-            cache_size: Some(1000),  // 默认启用缓存，大小1000
-            cache_ttl: None,         // 默认无过期时间
+            cache_size: Some(1000), // 默认启用缓存，大小1000
+            cache_ttl: None,        // 默认无过期时间
         }
     }
 }

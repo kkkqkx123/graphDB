@@ -1,9 +1,9 @@
-use crate::index::{IndexManager, IndexSchema};
 use crate::error::Result;
-use std::path::{Path, PathBuf};
+use crate::index::{IndexManager, IndexSchema};
+use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::{Read, Write};
-use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 use tantivy::schema::TantivyDocument;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -188,7 +188,12 @@ impl PersistenceManager {
         Ok(deleted)
     }
 
-    pub fn export_index(&self, manager: &IndexManager, _index_name: &str, output_file: &Path) -> Result<()> {
+    pub fn export_index(
+        &self,
+        manager: &IndexManager,
+        _index_name: &str,
+        output_file: &Path,
+    ) -> Result<()> {
         let reader = manager.reader()?;
         let searcher = reader.searcher();
 
@@ -199,7 +204,12 @@ impl PersistenceManager {
         Ok(())
     }
 
-    pub fn import_index(&self, manager: &IndexManager, schema: &IndexSchema, input_file: &Path) -> Result<u64> {
+    pub fn import_index(
+        &self,
+        manager: &IndexManager,
+        schema: &IndexSchema,
+        input_file: &Path,
+    ) -> Result<u64> {
         let mut file = File::open(input_file)?;
         let mut contents = String::new();
         file.read_to_string(&mut contents)?;
@@ -219,7 +229,10 @@ impl PersistenceManager {
     }
 
     pub fn get_index_metadata(&self, index_name: &str) -> Result<IndexMetadata> {
-        let metadata_file = self.base_path.join("metadata").join(format!("{}.json", index_name));
+        let metadata_file = self
+            .base_path
+            .join("metadata")
+            .join(format!("{}.json", index_name));
 
         if !metadata_file.exists() {
             return Ok(IndexMetadata::default());

@@ -1,12 +1,15 @@
 use async_trait::async_trait;
 use bm25_service::index::{IndexManager, IndexSchema};
-use bm25_service::index::document::add_document;
-use bm25_service::index::delete::delete_document;
+use bm25_service::index::document::{add_document, add_document_with_writer};
+use bm25_service::index::delete::{delete_document, delete_document_with_writer};
 use bm25_service::index::search::{search, SearchOptions};
 use bm25_service::index::stats::get_stats;
+use tantivy::IndexWriter;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use tokio::sync::Mutex;
 
 use crate::core::Value;
 use crate::search::engine::SearchEngine;
@@ -17,6 +20,9 @@ pub struct Bm25SearchEngine {
     manager: Arc<IndexManager>,
     schema: IndexSchema,
     index_path: std::path::PathBuf,
+    writer: Arc<Mutex<Option<IndexWriter>>>,
+    operation_count: Arc<AtomicUsize>,
+    batch_size: usize,
 }
 
 impl std::fmt::Debug for Bm25SearchEngine {
@@ -30,6 +36,10 @@ impl std::fmt::Debug for Bm25SearchEngine {
 
 impl Bm25SearchEngine {
     pub fn open_or_create(path: &Path) -> Result<Self, SearchError> {
+        Self::open_or_create_with_config(path, 100)
+    }
+
+    pub fn open_or_create_with_config(path: &Path, batch_size: usize) -> Result<Self, SearchError> {
         let schema = IndexSchema::new();
 
         let manager = if path.exists() {
@@ -42,11 +52,36 @@ impl Bm25SearchEngine {
                 .map_err(|e| SearchError::Bm25Error(e.to_string()))?
         };
 
+        let writer = manager.writer()
+            .map_err(|e| SearchError::Bm25Error(format!("Failed to create writer: {}", e)))?;
+
         Ok(Self {
             manager: Arc::new(manager),
             schema,
             index_path: path.to_path_buf(),
+            writer: Arc::new(Mutex::new(Some(writer))),
+            operation_count: Arc::new(AtomicUsize::new(0)),
+            batch_size,
         })
+    }
+
+    fn should_commit(&self) -> bool {
+        let count = self.operation_count.fetch_add(1, Ordering::Relaxed);
+        (count + 1) % self.batch_size == 0
+    }
+
+    fn reset_counter(&self) {
+        self.operation_count.store(0, Ordering::Relaxed);
+    }
+
+    async fn get_or_create_writer(&self) -> Result<IndexWriter, SearchError> {
+        let mut writer_guard: tokio::sync::MutexGuard<'_, Option<IndexWriter>> = self.writer.lock().await;
+        if writer_guard.is_none() {
+            let writer = self.manager.writer()
+                .map_err(|e| SearchError::Bm25Error(format!("Failed to create writer: {}", e)))?;
+            *writer_guard = Some(writer);
+        }
+        Ok(writer_guard.take().unwrap())
     }
 
     fn get_index_size(&self) -> Result<usize, SearchError> {
@@ -79,32 +114,57 @@ impl SearchEngine for Bm25SearchEngine {
     }
 
     async fn index(&self, doc_id: &str, content: &str) -> Result<(), SearchError> {
-        let manager = self.manager.clone();
+        let mut fields = HashMap::new();
+        fields.insert("content".to_string(), content.to_string());
+        
+        let writer = self.writer.clone();
         let schema = self.schema.clone();
         let doc_id = doc_id.to_string();
-        let content = content.to_string();
-
+        let should_commit = self.should_commit();
+        
         tokio::task::spawn_blocking(move || {
-            let mut fields = HashMap::new();
-            fields.insert("content".to_string(), content);
-            add_document(&manager, &schema, &doc_id, &fields)
-                .map_err(|e| SearchError::Bm25Error(e.to_string()))
+            let mut writer_guard = futures::executor::block_on(writer.lock());
+            if writer_guard.is_none() {
+                return Err(SearchError::Internal("Writer not initialized".to_string()));
+            }
+            
+            let writer_ref = writer_guard.as_mut().unwrap();
+            add_document_with_writer(writer_ref, &schema, &doc_id, &fields)
+                .map_err(|e| SearchError::Bm25Error(e.to_string()))?;
+            
+            if should_commit {
+                writer_ref.commit()
+                    .map_err(|e| SearchError::Bm25Error(format!("Commit failed: {}", e)))?;
+            }
+            
+            Ok(())
         })
         .await
         .map_err(|e| SearchError::Internal(e.to_string()))?
     }
 
     async fn index_batch(&self, docs: Vec<(String, String)>) -> Result<(), SearchError> {
-        let manager = self.manager.clone();
+        let writer = self.writer.clone();
         let schema = self.schema.clone();
+        let batch_count = docs.len();
 
         tokio::task::spawn_blocking(move || {
+            let mut writer_guard = futures::executor::block_on(writer.lock());
+            if writer_guard.is_none() {
+                return Err(SearchError::Internal("Writer not initialized".to_string()));
+            }
+            
+            let writer_ref = writer_guard.as_mut().unwrap();
             for (doc_id, content) in docs {
                 let mut fields = HashMap::new();
                 fields.insert("content".to_string(), content);
-                add_document(&manager, &schema, &doc_id, &fields)
+                add_document_with_writer(writer_ref, &schema, &doc_id, &fields)
                     .map_err(|e| SearchError::Bm25Error(e.to_string()))?;
             }
+            
+            writer_ref.commit()
+                .map_err(|e| SearchError::Bm25Error(format!("Commit failed: {}", e)))?;
+            
             Ok(())
         })
         .await
@@ -138,28 +198,52 @@ impl SearchEngine for Bm25SearchEngine {
     }
 
     async fn delete(&self, doc_id: &str) -> Result<(), SearchError> {
-        let manager = self.manager.clone();
+        let writer = self.writer.clone();
         let schema = self.schema.clone();
         let doc_id = doc_id.to_string();
+        let should_commit = self.should_commit();
 
         tokio::task::spawn_blocking(move || {
-            delete_document(&manager, &schema, &doc_id)
-                .map_err(|e| SearchError::Bm25Error(e.to_string()))
+            let mut writer_guard = futures::executor::block_on(writer.lock());
+            if writer_guard.is_none() {
+                return Err(SearchError::Internal("Writer not initialized".to_string()));
+            }
+            
+            let writer_ref = writer_guard.as_mut().unwrap();
+            delete_document_with_writer(writer_ref, &schema, &doc_id)
+                .map_err(|e| SearchError::Bm25Error(e.to_string()))?;
+            
+            if should_commit {
+                writer_ref.commit()
+                    .map_err(|e| SearchError::Bm25Error(format!("Commit failed: {}", e)))?;
+            }
+            
+            Ok(())
         })
         .await
         .map_err(|e| SearchError::Internal(e.to_string()))?
     }
 
     async fn delete_batch(&self, doc_ids: Vec<&str>) -> Result<(), SearchError> {
-        let manager = self.manager.clone();
+        let writer = self.writer.clone();
         let schema = self.schema.clone();
         let doc_ids: Vec<String> = doc_ids.into_iter().map(|s| s.to_string()).collect();
 
         tokio::task::spawn_blocking(move || {
+            let mut writer_guard = futures::executor::block_on(writer.lock());
+            if writer_guard.is_none() {
+                return Err(SearchError::Internal("Writer not initialized".to_string()));
+            }
+            
+            let writer_ref = writer_guard.as_mut().unwrap();
             for doc_id in doc_ids {
-                delete_document(&manager, &schema, &doc_id)
+                delete_document_with_writer(writer_ref, &schema, &doc_id)
                     .map_err(|e| SearchError::Bm25Error(e.to_string()))?;
             }
+            
+            writer_ref.commit()
+                .map_err(|e| SearchError::Bm25Error(format!("Commit failed: {}", e)))?;
+            
             Ok(())
         })
         .await
@@ -167,10 +251,22 @@ impl SearchEngine for Bm25SearchEngine {
     }
 
     async fn commit(&self) -> Result<(), SearchError> {
+        let mut writer_guard: tokio::sync::MutexGuard<'_, Option<IndexWriter>> = self.writer.lock().await;
+        if let Some(mut writer) = writer_guard.take() {
+            writer.commit()
+                .map_err(|e| SearchError::Bm25Error(format!("Commit failed: {}", e)))?;
+            *writer_guard = Some(writer);
+        }
         Ok(())
     }
 
     async fn rollback(&self) -> Result<(), SearchError> {
+        let mut writer_guard: tokio::sync::MutexGuard<'_, Option<IndexWriter>> = self.writer.lock().await;
+        if let Some(mut writer) = writer_guard.take() {
+            writer.rollback()
+                .map_err(|e| SearchError::Bm25Error(format!("Rollback failed: {}", e)))?;
+            *writer_guard = Some(writer);
+        }
         Ok(())
     }
 
@@ -194,6 +290,13 @@ impl SearchEngine for Bm25SearchEngine {
     }
 
     async fn close(&self) -> Result<(), SearchError> {
+        self.commit().await?;
+        
+        let mut writer_guard: tokio::sync::MutexGuard<'_, Option<IndexWriter>> = self.writer.lock().await;
+        *writer_guard = None;
+        
+        self.reset_counter();
+        
         Ok(())
     }
 }

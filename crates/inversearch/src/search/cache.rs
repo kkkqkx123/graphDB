@@ -1,15 +1,15 @@
 //! 缓存模块
-//! 
+//!
 //! 提供搜索结果缓存功能，提高查询性能
 
+use crate::error::Result;
+use crate::r#type::{SearchOptions, SearchResults};
 use lru::LruCache;
 use std::num::NonZeroUsize;
-use std::time::{Duration, Instant};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use crate::r#type::{SearchOptions, SearchResults};
-use crate::error::Result;
 
 /// 缓存键生成器
 pub struct CacheKeyGenerator;
@@ -18,23 +18,23 @@ impl CacheKeyGenerator {
     /// 生成搜索缓存键
     pub fn generate_search_key(query: &str, options: &SearchOptions) -> String {
         let mut key_parts = vec![query.to_lowercase()];
-        
+
         key_parts.push(format!("limit:{}", options.limit.unwrap_or(100)));
         key_parts.push(format!("offset:{}", options.offset.unwrap_or(0)));
         key_parts.push(format!("context:{}", options.context.is_some()));
         key_parts.push(format!("resolve:{}", options.resolve.unwrap_or(true)));
         key_parts.push(format!("suggest:{}", options.suggest.unwrap_or(false)));
-        
+
         if let Some(resolution) = options.resolution {
             key_parts.push(format!("resolution:{}", resolution));
         }
         if let Some(boost) = options.boost {
             key_parts.push(format!("boost:{}", boost));
         }
-        
+
         key_parts.join("|")
     }
-    
+
     /// 生成文档缓存键
     pub fn generate_document_key(doc_id: u64) -> String {
         format!("doc:{}", doc_id)
@@ -77,7 +77,7 @@ impl SearchCache {
     /// 异步获取缓存项
     pub async fn get_async(&self, key: &str) -> Option<SearchResults> {
         let mut store = self.store.write().await;
-        
+
         if let Some(entry) = store.get_mut(key) {
             if let Some(ttl) = self.default_ttl {
                 if entry.created_at.elapsed() > ttl {
@@ -86,7 +86,7 @@ impl SearchCache {
                     return None;
                 }
             }
-            
+
             entry.access_count += 1;
             self.hit_count.fetch_add(1, Ordering::Relaxed);
             Some(entry.data.clone())
@@ -132,7 +132,7 @@ impl SearchCache {
                         return None;
                     }
                 }
-                
+
                 entry.access_count += 1;
                 self.hit_count.fetch_add(1, Ordering::Relaxed);
                 Some(entry.data.clone())
@@ -295,30 +295,34 @@ where
     /// 执行带缓存的搜索（同步版本）
     pub fn search(&self, query: &str, options: &SearchOptions) -> Result<SearchResults> {
         let cache_key = CacheKeyGenerator::generate_search_key(query, options);
-        
+
         if let Some(cached_results) = self.cache.get(&cache_key) {
             return Ok(cached_results);
         }
-        
+
         let results = (self.search_fn)(query, options)?;
-        
+
         self.cache.set(cache_key, results.clone());
-        
+
         Ok(results)
     }
 
     /// 执行带缓存的搜索（异步版本）
-    pub async fn search_async(&self, query: &str, options: &SearchOptions) -> Result<SearchResults> {
+    pub async fn search_async(
+        &self,
+        query: &str,
+        options: &SearchOptions,
+    ) -> Result<SearchResults> {
         let cache_key = CacheKeyGenerator::generate_search_key(query, options);
-        
+
         if let Some(cached_results) = self.cache.get_async(&cache_key).await {
             return Ok(cached_results);
         }
-        
+
         let results = (self.search_fn)(query, options)?;
-        
+
         self.cache.set_async(cache_key, results.clone()).await;
-        
+
         Ok(results)
     }
 
@@ -355,7 +359,7 @@ mod tests {
             offset: Some(10),
             ..Default::default()
         };
-        
+
         let key = CacheKeyGenerator::generate_search_key("Hello World", &options);
         assert!(key.contains("hello world"));
         assert!(key.contains("limit:50"));
@@ -366,9 +370,9 @@ mod tests {
     fn test_search_cache_basic() {
         let cache = SearchCache::new(100, None);
         let results = vec![1, 2, 3, 4, 5];
-        
+
         cache.set("test_key".to_string(), results.clone());
-        
+
         let cached = cache.get("test_key");
         assert_eq!(cached, Some(results));
     }
@@ -376,10 +380,10 @@ mod tests {
     #[test]
     fn test_search_cache_miss() {
         let cache = SearchCache::new(100, None);
-        
+
         let cached = cache.get("nonexistent_key");
         assert!(cached.is_none());
-        
+
         let stats = cache.stats();
         assert_eq!(stats.miss_count, 1);
     }
@@ -388,11 +392,11 @@ mod tests {
     fn test_search_cache_ttl() {
         let cache = SearchCache::new(100, Some(Duration::from_millis(10)));
         let results = vec![1, 2, 3];
-        
+
         cache.set("test_key".to_string(), results.clone());
-        
+
         std::thread::sleep(Duration::from_millis(20));
-        
+
         let cached = cache.get("test_key");
         assert!(cached.is_none());
     }
@@ -400,12 +404,12 @@ mod tests {
     #[test]
     fn test_search_cache_eviction() {
         let cache = SearchCache::new(3, None);
-        
+
         cache.set("key1".to_string(), vec![1]);
         cache.set("key2".to_string(), vec![2]);
         cache.set("key3".to_string(), vec![3]);
         cache.set("key4".to_string(), vec![4]);
-        
+
         assert_eq!(cache.len(), 3);
     }
 
@@ -413,9 +417,11 @@ mod tests {
     async fn test_search_cache_async() {
         let cache = SearchCache::new(100, None);
         let results = vec![1, 2, 3, 4, 5];
-        
-        cache.set_async("test_key".to_string(), results.clone()).await;
-        
+
+        cache
+            .set_async("test_key".to_string(), results.clone())
+            .await;
+
         let cached = cache.get_async("test_key").await;
         assert_eq!(cached, Some(results));
     }
@@ -423,11 +429,11 @@ mod tests {
     #[tokio::test]
     async fn test_search_cache_stats_async() {
         let cache = SearchCache::new(100, None);
-        
+
         cache.set_async("key1".to_string(), vec![1]).await;
         cache.get_async("key1").await;
         cache.get_async("nonexistent").await;
-        
+
         let stats = cache.stats_async().await;
         assert_eq!(stats.hit_count, 1);
         assert_eq!(stats.miss_count, 1);

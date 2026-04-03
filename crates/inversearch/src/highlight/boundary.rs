@@ -1,5 +1,5 @@
-use crate::highlight::types::*;
 use crate::error::Result;
+use crate::highlight::types::*;
 
 #[derive(Debug, Clone)]
 pub struct BoundaryState {
@@ -50,11 +50,16 @@ pub fn apply_advanced_boundary(
         .sum();
 
     let markup_length = match_positions.len() * (config.template.len() - 2);
-    let ellipsis_length = if config.ellipsis.is_empty() { 0 } else { config.ellipsis.len() };
+    let ellipsis_length = if config.ellipsis.is_empty() {
+        0
+    } else {
+        config.ellipsis.len()
+    };
 
     // Check if boundary processing is needed
     if boundary_before == 0 && boundary_after == 0 {
-        let total_length: usize = terms.iter().map(|term| term.content.len()).sum::<usize>() + terms.len().saturating_sub(1);
+        let total_length: usize = terms.iter().map(|term| term.content.len()).sum::<usize>()
+            + terms.len().saturating_sub(1);
         if total_length - markup_length <= boundary_total {
             return join_boundary_terms(&terms);
         }
@@ -100,7 +105,8 @@ fn calculate_match_span(terms: &[BoundaryTerm], match_positions: &[usize]) -> (u
     let match_length: usize = terms[first_match..=last_match]
         .iter()
         .map(|term| term.content.len())
-        .sum::<usize>() + (last_match - first_match); // spaces between terms
+        .sum::<usize>()
+        + (last_match - first_match); // spaces between terms
 
     (start_len, start_len + match_length)
 }
@@ -135,10 +141,7 @@ fn calculate_boundary_range(
 }
 
 fn calculate_total_length(terms: &[BoundaryTerm]) -> usize {
-    terms
-        .iter()
-        .map(|term| term.content.len())
-        .sum::<usize>() + terms.len().saturating_sub(1)
+    terms.iter().map(|term| term.content.len()).sum::<usize>() + terms.len().saturating_sub(1)
 }
 
 fn apply_boundary_clipping(

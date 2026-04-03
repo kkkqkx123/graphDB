@@ -1,44 +1,25 @@
 //! 交集模块的统一导出
-//! 
+//!
 //! 提供所有交集相关功能的统一接口
 
+pub mod compat;
 pub mod core;
 pub mod scoring;
 pub mod suggestion;
-pub mod compat;
 
 // 重新导出核心函数
-pub use core::{
-    intersect,
-    union,
-    intersect_union,
-    intersect_simple,
-    union_simple,
-};
+pub use core::{intersect, intersect_simple, intersect_union, union, union_simple};
 
 // 重新导出评分函数
-pub use scoring::{
-    TfIdfScorer,
-    Bm25Scorer,
-    ScoreConfig,
-    ScoredId,
-};
+pub use scoring::{Bm25Scorer, ScoreConfig, ScoredId, TfIdfScorer};
 
 // 重新导出建议函数
-pub use suggestion::{
-    SuggestionConfig,
-    SuggestionEngine,
-};
+pub use suggestion::{SuggestionConfig, SuggestionEngine};
 
 // 重新导出兼容函数
 pub use compat::{
-    intersect_compatible,
-    union_compatible,
-    intersect_union_compatible,
-    convert_old_to_new,
-    convert_new_to_old,
-    flatten_intermediate,
-    rebuild_intermediate,
+    convert_new_to_old, convert_old_to_new, flatten_intermediate, intersect_compatible,
+    intersect_union_compatible, rebuild_intermediate, union_compatible,
 };
 
 /// 兼容的交集函数（旧接口）

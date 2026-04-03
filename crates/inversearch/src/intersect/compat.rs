@@ -1,9 +1,9 @@
 //! 兼容层模块
-//! 
+//!
 //! 提供新旧接口之间的兼容性支持
 
-use crate::r#type::{IntermediateSearchResults, SearchResults};
 use crate::intersect::core;
+use crate::r#type::{IntermediateSearchResults, SearchResults};
 
 /// 兼容的交集函数
 pub fn intersect_compatible(
@@ -64,7 +64,10 @@ pub fn flatten_intermediate(results: &IntermediateSearchResults) -> SearchResult
 }
 
 /// 重建函数：将单层结构重建为多层
-pub fn rebuild_intermediate(flattened: &SearchResults, chunk_size: usize) -> IntermediateSearchResults {
+pub fn rebuild_intermediate(
+    flattened: &SearchResults,
+    chunk_size: usize,
+) -> IntermediateSearchResults {
     let mut result = Vec::new();
     for chunk in flattened.chunks(chunk_size) {
         result.push(chunk.to_vec());

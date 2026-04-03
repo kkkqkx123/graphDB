@@ -1,12 +1,12 @@
-use crate::r#type::{SearchResults, EnrichedSearchResults, DocId};
 use crate::error::Result;
-use crate::Index;
+use crate::r#type::{DocId, EnrichedSearchResults, SearchResults};
 use crate::storage::common::r#trait::StorageInterface;
 use crate::storage::common::types::StorageInfo;
-use redis::{Client as RedisClient, aio::MultiplexedConnection};
+use crate::Index;
+use redis::{aio::MultiplexedConnection, Client as RedisClient};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::{Duration, Instant};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone)]
 pub struct RedisStorageConfig {
@@ -213,7 +213,15 @@ impl StorageInterface for RedisStorage {
         Ok(())
     }
 
-    async fn get(&self, key: &str, ctx: Option<&str>, limit: usize, offset: usize, _resolve: bool, _enrich: bool) -> Result<SearchResults> {
+    async fn get(
+        &self,
+        key: &str,
+        ctx: Option<&str>,
+        limit: usize,
+        offset: usize,
+        _resolve: bool,
+        _enrich: bool,
+    ) -> Result<SearchResults> {
         let mut conn = self.get_connection().await?;
 
         let redis_key = if let Some(ctx_key) = ctx {
@@ -260,8 +268,11 @@ impl StorageInterface for RedisStorage {
             if !serialized.is_empty() {
                 results.push(crate::r#type::EnrichedSearchResult {
                     id,
-                    doc: Some(serde_json::from_str(&serialized)
-                        .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?),
+                    doc: Some(
+                        serde_json::from_str(&serialized).map_err(|e| {
+                            crate::error::StorageError::Deserialization(e.to_string())
+                        })?,
+                    ),
                     highlight: None,
                 });
             }
@@ -461,8 +472,7 @@ impl RedisStorage {
 }
 
 /// 存储性能指标
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct StorageMetrics {
     pub operation_count: usize,
     pub average_latency: usize, // 微秒

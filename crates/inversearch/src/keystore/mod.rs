@@ -64,7 +64,9 @@ where
 
     pub fn has(&self, key: &K) -> bool {
         let address = self.crc(key);
-        self.index.get(&address).is_some_and(|map| map.contains_key(key))
+        self.index
+            .get(&address)
+            .is_some_and(|map| map.contains_key(key))
     }
 
     pub fn delete(&mut self, key: &K) -> bool {
@@ -190,7 +192,9 @@ where
 
     pub fn has(&self, key: &T) -> bool {
         let address = self.crc(key);
-        self.index.get(&address).is_some_and(|set| set.contains(key))
+        self.index
+            .get(&address)
+            .is_some_and(|set| set.contains(key))
     }
 
     pub fn delete(&mut self, key: &T) -> bool {
@@ -212,11 +216,17 @@ where
     }
 
     pub fn keys(&self) -> Vec<T> {
-        self.index.values().flat_map(|set| set.iter().cloned()).collect()
+        self.index
+            .values()
+            .flat_map(|set| set.iter().cloned())
+            .collect()
     }
 
     pub fn values(&self) -> Vec<T> {
-        self.index.values().flat_map(|set| set.iter().cloned()).collect()
+        self.index
+            .values()
+            .flat_map(|set| set.iter().cloned())
+            .collect()
     }
 
     pub fn size(&self) -> usize {
@@ -335,14 +345,14 @@ mod tests {
         let mut map = KeystoreMap::new(8);
         map.set("key1".to_string(), "value1".to_string());
         map.set("key2".to_string(), "value2".to_string());
-        
+
         assert_eq!(map.get(&"key1".to_string()), Some(&"value1".to_string()));
         assert_eq!(map.get(&"key2".to_string()), Some(&"value2".to_string()));
         assert_eq!(map.get(&"key3".to_string()), None);
-        
+
         assert!(map.has(&"key1".to_string()));
         assert!(!map.has(&"key3".to_string()));
-        
+
         map.delete(&"key1".to_string());
         assert!(!map.has(&"key1".to_string()));
     }
@@ -353,11 +363,11 @@ mod tests {
         set.add(1);
         set.add(2);
         set.add(3);
-        
+
         assert!(set.has(&1));
         assert!(set.has(&2));
         assert!(!set.has(&4));
-        
+
         set.delete(&2);
         assert!(!set.has(&2));
     }
@@ -368,12 +378,12 @@ mod tests {
         arr.push(1);
         arr.push(2);
         arr.push(3);
-        
+
         assert_eq!(arr.get(0), Some(&1));
         assert_eq!(arr.get(1), Some(&2));
         assert_eq!(arr.get(2), Some(&3));
         assert_eq!(arr.get(3), None);
-        
+
         assert_eq!(arr.length(), 3);
         assert!(arr.includes(&2));
         assert!(!arr.includes(&4));

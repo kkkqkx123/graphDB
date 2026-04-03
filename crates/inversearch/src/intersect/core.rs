@@ -1,5 +1,5 @@
 //! 核心交集函数模块
-//! 
+//!
 //! 提供基本的交集、并集和交集并集操作
 
 use crate::r#type::IntermediateSearchResults;
@@ -18,39 +18,39 @@ pub fn intersect(
     if arrays.is_empty() {
         return Vec::new();
     }
-    
+
     if arrays.len() == 1 {
         return arrays.clone();
     }
-    
+
     // 使用HashMap进行高效的交集计算
     let mut common_ids = HashMap::new();
-    
+
     // 统计每个ID出现的次数
     for array in arrays {
         let mut seen = HashMap::new();
         for &id in array {
             *seen.entry(id).or_insert(0) += 1;
         }
-        
+
         for (id, count) in seen {
             *common_ids.entry(id).or_insert(0) += count;
         }
     }
-    
+
     // 找出在所有数组中都出现的ID
     let threshold = arrays.len();
     let mut result = Vec::new();
-    
+
     for (id, count) in common_ids {
         if count >= threshold as u64 {
             result.push(id);
         }
     }
-    
+
     // 排序结果
     result.sort_unstable();
-    
+
     vec![result]
 }
 
@@ -59,14 +59,14 @@ pub fn union(arrays: &IntermediateSearchResults) -> IntermediateSearchResults {
     if arrays.is_empty() {
         return Vec::new();
     }
-    
+
     if arrays.len() == 1 {
         return arrays.clone();
     }
-    
+
     let mut seen = HashMap::new();
     let mut result = Vec::new();
-    
+
     // 收集所有唯一的ID
     for array in arrays {
         for &id in array {
@@ -75,10 +75,10 @@ pub fn union(arrays: &IntermediateSearchResults) -> IntermediateSearchResults {
             }
         }
     }
-    
+
     // 排序结果
     result.sort_unstable();
-    
+
     vec![result]
 }
 
@@ -97,26 +97,26 @@ pub fn intersect_union(
         // 简化实现：取第一个数组作为交集结果
         arrays[0].clone()
     };
-    
+
     // 合并mandatory数组
     let mut union_result = Vec::new();
-    
+
     // 添加交集结果
     for item in &intersection {
         union_result.push(*item);
     }
-    
+
     // 添加mandatory结果
     for mandatory_array in mandatory {
         for &id in mandatory_array {
             union_result.push(id);
         }
     }
-    
+
     // 去重并排序
     union_result.sort_unstable();
     union_result.dedup();
-    
+
     union_result
 }
 
@@ -125,36 +125,36 @@ pub fn intersect_simple(arrays: &[Vec<u64>]) -> Vec<u64> {
     if arrays.is_empty() {
         return Vec::new();
     }
-    
+
     if arrays.len() == 1 {
         return arrays[0].clone();
     }
-    
+
     // 使用HashMap进行高效的交集计算
     let mut common_ids = HashMap::new();
-    
+
     // 统计每个ID出现的次数
     for array in arrays {
         let mut seen = HashMap::new();
         for &id in array {
             *seen.entry(id).or_insert(0) += 1;
         }
-        
+
         for (id, count) in seen {
             *common_ids.entry(id).or_insert(0) += count;
         }
     }
-    
+
     // 找出在所有数组中都出现的ID
     let threshold = arrays.len();
     let mut result = Vec::new();
-    
+
     for (id, count) in common_ids {
         if count >= threshold as u64 {
             result.push(id);
         }
     }
-    
+
     // 排序结果
     result.sort_unstable();
     result
@@ -165,14 +165,14 @@ pub fn union_simple(arrays: &[Vec<u64>]) -> Vec<u64> {
     if arrays.is_empty() {
         return Vec::new();
     }
-    
+
     if arrays.len() == 1 {
         return arrays[0].clone();
     }
-    
+
     let mut seen = HashMap::new();
     let mut result = Vec::new();
-    
+
     // 收集所有唯一的ID
     for array in arrays {
         for &id in array {
@@ -181,7 +181,7 @@ pub fn union_simple(arrays: &[Vec<u64>]) -> Vec<u64> {
             }
         }
     }
-    
+
     // 排序结果
     result.sort_unstable();
     result
@@ -193,12 +193,8 @@ mod tests {
 
     #[test]
     fn test_basic_intersect() {
-        let arrays = vec![
-            vec![1, 2, 3],
-            vec![2, 3, 4],
-            vec![3, 4, 5],
-        ];
-        
+        let arrays = vec![vec![1, 2, 3], vec![2, 3, 4], vec![3, 4, 5]];
+
         let result = intersect(&arrays, 9, 10, 0, false, 0, true);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], vec![3]);
@@ -221,11 +217,8 @@ mod tests {
 
     #[test]
     fn test_basic_union() {
-        let arrays = vec![
-            vec![1, 2, 3],
-            vec![3, 4, 5],
-        ];
-        
+        let arrays = vec![vec![1, 2, 3], vec![3, 4, 5]];
+
         let result = union(&arrays);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], vec![1, 2, 3, 4, 5]);
@@ -233,38 +226,26 @@ mod tests {
 
     #[test]
     fn test_intersect_union() {
-        let arrays = vec![
-            vec![1, 2, 3],
-            vec![2, 3, 4],
-        ];
-        
-        let mandatory = vec![
-            vec![5, 6],
-        ];
-        
+        let arrays = vec![vec![1, 2, 3], vec![2, 3, 4]];
+
+        let mandatory = vec![vec![5, 6]];
+
         let result = intersect_union(&arrays, &mandatory, true);
         assert_eq!(result, vec![1, 2, 3, 5, 6]);
     }
 
     #[test]
     fn test_intersect_simple() {
-        let arrays = vec![
-            vec![1, 2, 3],
-            vec![2, 3, 4],
-            vec![3, 4, 5],
-        ];
-        
+        let arrays = vec![vec![1, 2, 3], vec![2, 3, 4], vec![3, 4, 5]];
+
         let result = intersect_simple(&arrays);
         assert_eq!(result, vec![3]);
     }
 
     #[test]
     fn test_union_simple() {
-        let arrays = vec![
-            vec![1, 2, 3],
-            vec![3, 4, 5],
-        ];
-        
+        let arrays = vec![vec![1, 2, 3], vec![3, 4, 5]];
+
         let result = union_simple(&arrays);
         assert_eq!(result, vec![1, 2, 3, 4, 5]);
     }

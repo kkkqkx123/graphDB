@@ -1,14 +1,14 @@
 use super::config::Config;
-use super::proto::{
-    BatchIndexDocumentsRequest, BatchIndexDocumentsResponse, ClearIndexRequest,
-    ClearIndexResponse, CommitIndexRequest, CommitIndexResponse, DeleteDocumentRequest, 
-    DeleteDocumentResponse, GetStatsRequest, GetStatsResponse, IndexDocumentRequest, 
-    IndexDocumentResponse, SearchRequest, SearchResponse,
-};
 use super::proto::Bm25Service as Bm25ServiceTrait;
 use super::proto::Bm25ServiceServer;
+use super::proto::{
+    BatchIndexDocumentsRequest, BatchIndexDocumentsResponse, ClearIndexRequest, ClearIndexResponse,
+    CommitIndexRequest, CommitIndexResponse, DeleteDocumentRequest, DeleteDocumentResponse,
+    GetStatsRequest, GetStatsResponse, IndexDocumentRequest, IndexDocumentResponse, SearchRequest,
+    SearchResponse,
+};
+use crate::index::{batch, delete, document, search, stats};
 use crate::{IndexManager, IndexSchema};
-use crate::index::{document, delete, batch, stats, search};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -58,7 +58,11 @@ impl Bm25ServiceTrait for BM25Service {
         request: Request<IndexDocumentRequest>,
     ) -> Result<Response<IndexDocumentResponse>, Status> {
         let req = request.into_inner();
-        tracing::info!("Received index document request: index={}, id={}", req.index_name, req.document_id);
+        tracing::info!(
+            "Received index document request: index={}, id={}",
+            req.index_name,
+            req.document_id
+        );
 
         let (manager, schema) = self.get_or_create_index(&req.index_name).await?;
         let fields: HashMap<String, String> = req.fields.into_iter().collect();
@@ -77,10 +81,15 @@ impl Bm25ServiceTrait for BM25Service {
         request: Request<BatchIndexDocumentsRequest>,
     ) -> Result<Response<BatchIndexDocumentsResponse>, Status> {
         let req = request.into_inner();
-        tracing::info!("Received batch index documents request: index={}, count={}", req.index_name, req.documents.len());
+        tracing::info!(
+            "Received batch index documents request: index={}, count={}",
+            req.index_name,
+            req.documents.len()
+        );
 
         let (manager, schema) = self.get_or_create_index(&req.index_name).await?;
-        let documents: Vec<(String, HashMap<String, String>)> = req.documents
+        let documents: Vec<(String, HashMap<String, String>)> = req
+            .documents
             .into_iter()
             .map(|doc| {
                 let fields: HashMap<String, String> = doc.fields.into_iter().collect();
@@ -103,12 +112,20 @@ impl Bm25ServiceTrait for BM25Service {
         request: Request<SearchRequest>,
     ) -> Result<Response<SearchResponse>, Status> {
         let req = request.into_inner();
-        tracing::info!("Received search request: index={}, query={}", req.index_name, req.query);
+        tracing::info!(
+            "Received search request: index={}, query={}",
+            req.index_name,
+            req.query
+        );
 
         let (manager, schema) = self.get_or_create_index(&req.index_name).await?;
 
         let options = search::SearchOptions {
-            limit: if req.limit > 0 { req.limit as usize } else { 10 },
+            limit: if req.limit > 0 {
+                req.limit as usize
+            } else {
+                10
+            },
             offset: req.offset as usize,
             field_weights: req.field_weights.into_iter().collect(),
             highlight: req.highlight,
@@ -118,14 +135,15 @@ impl Bm25ServiceTrait for BM25Service {
             .map_err(|e| Status::internal(format!("Search failed: {}", e)))?;
 
         let total_count = results.len();
-        let search_results = results.into_iter().map(|r| {
-            super::proto::SearchResult {
+        let search_results = results
+            .into_iter()
+            .map(|r| super::proto::SearchResult {
                 document_id: r.document_id,
                 score: r.score,
                 fields: r.fields,
                 highlights: r.highlights,
-            }
-        }).collect();
+            })
+            .collect();
 
         Ok(Response::new(SearchResponse {
             results: search_results,
@@ -139,7 +157,11 @@ impl Bm25ServiceTrait for BM25Service {
         request: Request<DeleteDocumentRequest>,
     ) -> Result<Response<DeleteDocumentResponse>, Status> {
         let req = request.into_inner();
-        tracing::info!("Received delete document request: index={}, id={}", req.index_name, req.document_id);
+        tracing::info!(
+            "Received delete document request: index={}, id={}",
+            req.index_name,
+            req.document_id
+        );
 
         let (manager, schema) = self.get_or_create_index(&req.index_name).await?;
 
@@ -179,9 +201,8 @@ impl Bm25ServiceTrait for BM25Service {
 
         // Get document count before clearing
         let (manager, _schema) = self.get_or_create_index(&req.index_name).await?;
-        let stats = stats::get_stats(&manager).map_err(|e| {
-            Status::internal(format!("Failed to get stats: {}", e))
-        })?;
+        let stats = stats::get_stats(&manager)
+            .map_err(|e| Status::internal(format!("Failed to get stats: {}", e)))?;
 
         let cleared_count = stats.total_documents as i32;
 
@@ -222,13 +243,16 @@ impl Bm25ServiceTrait for BM25Service {
         let stats_before = stats::get_stats(&manager)
             .map_err(|e| Status::internal(format!("Failed to get stats: {}", e)))?;
 
-        let mut writer = manager.writer()
+        let mut writer = manager
+            .writer()
             .map_err(|e| Status::internal(format!("Failed to get writer: {}", e)))?;
 
-        writer.commit()
+        writer
+            .commit()
             .map_err(|e| Status::internal(format!("Failed to commit: {}", e)))?;
 
-        manager.reload_reader()
+        manager
+            .reload_reader()
             .map_err(|e| Status::internal(format!("Failed to reload reader: {}", e)))?;
 
         tracing::info!(

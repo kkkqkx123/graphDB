@@ -1,5 +1,5 @@
-use crate::highlight::*;
 use crate::encoder::Encoder;
+use crate::highlight::*;
 use serde_json::json;
 use std::collections::HashMap;
 
@@ -52,7 +52,8 @@ fn test_multiple_matches() {
     };
     let config = HighlightConfig::from_options(&options).unwrap();
 
-    let result = highlight_single_document("hello world", "hello world test", &encoder, &config).unwrap();
+    let result =
+        highlight_single_document("hello world", "hello world test", &encoder, &config).unwrap();
     assert_eq!(result, "<b>hello</b> <b>world</b> test");
 }
 
@@ -94,8 +95,9 @@ fn test_boundary_simple() {
         "this is a long text with hello in the middle and more text after",
         &encoder,
         &config,
-    ).unwrap();
-    
+    )
+    .unwrap();
+
     assert!(result.contains("<b>hello</b>"));
     assert!(result.len() <= 50);
 }
@@ -109,13 +111,11 @@ fn test_processor_single_field() {
 
     let mut results = vec![FieldSearchResult {
         field: "title".to_string(),
-        result: vec![
-            EnrichedSearchResult {
-                id: 1,
-                doc: Some(json!({"title": "hello world"})),
-                highlight: None,
-            },
-        ],
+        result: vec![EnrichedSearchResult {
+            id: 1,
+            doc: Some(json!({"title": "hello world"})),
+            highlight: None,
+        }],
     }];
 
     let options = HighlightOptions {
@@ -126,9 +126,14 @@ fn test_processor_single_field() {
         ellipsis: None,
     };
 
-    processor.highlight_fields("hello", &mut results, &encoders, None, &options).unwrap();
-    
-    assert_eq!(results[0].result[0].highlight, Some("<b>hello</b> world".to_string()));
+    processor
+        .highlight_fields("hello", &mut results, &encoders, None, &options)
+        .unwrap();
+
+    assert_eq!(
+        results[0].result[0].highlight,
+        Some("<b>hello</b> world".to_string())
+    );
 }
 
 #[test]
@@ -142,23 +147,19 @@ fn test_processor_pluck() {
     let mut results = vec![
         FieldSearchResult {
             field: "title".to_string(),
-            result: vec![
-                EnrichedSearchResult {
-                    id: 1,
-                    doc: Some(json!({"title": "hello world", "content": "test content"})),
-                    highlight: None,
-                },
-            ],
+            result: vec![EnrichedSearchResult {
+                id: 1,
+                doc: Some(json!({"title": "hello world", "content": "test content"})),
+                highlight: None,
+            }],
         },
         FieldSearchResult {
             field: "content".to_string(),
-            result: vec![
-                EnrichedSearchResult {
-                    id: 1,
-                    doc: Some(json!({"title": "hello world", "content": "test content"})),
-                    highlight: None,
-                },
-            ],
+            result: vec![EnrichedSearchResult {
+                id: 1,
+                doc: Some(json!({"title": "hello world", "content": "test content"})),
+                highlight: None,
+            }],
         },
     ];
 
@@ -170,17 +171,24 @@ fn test_processor_pluck() {
         ellipsis: None,
     };
 
-    processor.highlight_fields("hello", &mut results, &encoders, Some("title"), &options).unwrap();
-    
+    processor
+        .highlight_fields("hello", &mut results, &encoders, Some("title"), &options)
+        .unwrap();
+
     // Only title field should be highlighted
-    assert_eq!(results[0].result[0].highlight, Some("<b>hello</b> world".to_string()));
+    assert_eq!(
+        results[0].result[0].highlight,
+        Some("<b>hello</b> world".to_string())
+    );
     assert_eq!(results[1].result[0].highlight, None);
 }
 
 #[test]
 fn test_extract_field_value() {
-    use crate::document::tree::{parse_tree, extract_value, extract_value_with_strategy, EvaluationStrategy};
-    
+    use crate::document::tree::{
+        extract_value, extract_value_with_strategy, parse_tree, EvaluationStrategy,
+    };
+
     let doc = json!({
         "title": "Test Title",
         "content": "Test Content",
@@ -192,21 +200,30 @@ fn test_extract_field_value() {
     // Test using extract_value (Lenient strategy)
     let mut marker = vec![];
     let tree_path = parse_tree("title", &mut marker);
-    assert_eq!(extract_value(&doc, &tree_path), Some("Test Title".to_string()));
-    
+    assert_eq!(
+        extract_value(&doc, &tree_path),
+        Some("Test Title".to_string())
+    );
+
     let mut marker = vec![];
     let tree_path = parse_tree("content", &mut marker);
-    assert_eq!(extract_value(&doc, &tree_path), Some("Test Content".to_string()));
-    
+    assert_eq!(
+        extract_value(&doc, &tree_path),
+        Some("Test Content".to_string())
+    );
+
     let mut marker = vec![];
     let tree_path = parse_tree("nested.field", &mut marker);
-    assert_eq!(extract_value(&doc, &tree_path), Some("Nested Value".to_string()));
-    
+    assert_eq!(
+        extract_value(&doc, &tree_path),
+        Some("Nested Value".to_string())
+    );
+
     // Non-existent field should return None in Lenient mode
     let mut marker = vec![];
     let tree_path = parse_tree("nonexistent", &mut marker);
     assert_eq!(extract_value(&doc, &tree_path), None);
-    
+
     // Test Strict strategy - non-existent field returns error
     let mut marker = vec![];
     let tree_path = parse_tree("nonexistent", &mut marker);
@@ -229,28 +246,27 @@ fn test_structured_highlight_basic() {
     };
     let config = HighlightConfig::from_options(&options).unwrap();
 
-    let result = highlight_single_document_structured(
-        "hello",
-        "hello world",
-        &encoder,
-        &config,
-    ).unwrap();
+    let result =
+        highlight_single_document_structured("hello", "hello world", &encoder, &config).unwrap();
 
     // 验证基本结构
     assert_eq!(result.total_matches, 1);
     assert_eq!(result.fields.len(), 1);
     assert_eq!(result.fields[0].matches.len(), 1);
-    
+
     // 验证匹配位置
     let match_info = &result.fields[0].matches[0];
     assert_eq!(match_info.text, "hello");
     assert_eq!(match_info.start_pos, 0);
     assert_eq!(match_info.end_pos, 5);
     assert_eq!(match_info.matched_query, "hello");
-    
+
     // 验证高亮文本
     assert!(result.fields[0].highlighted_text.is_some());
-    assert_eq!(result.fields[0].highlighted_text.as_ref().unwrap(), "<b>hello</b> world");
+    assert_eq!(
+        result.fields[0].highlighted_text.as_ref().unwrap(),
+        "<b>hello</b> world"
+    );
 }
 
 #[test]
@@ -270,30 +286,33 @@ fn test_structured_highlight_multiple_matches() {
         "hello world test hello",
         &encoder,
         &config,
-    ).unwrap();
+    )
+    .unwrap();
 
     // 验证匹配数量
     assert_eq!(result.total_matches, 3);
     assert_eq!(result.fields[0].matches.len(), 3);
-    
+
     // 验证第一个匹配
     assert_eq!(result.fields[0].matches[0].text, "hello");
     assert_eq!(result.fields[0].matches[0].start_pos, 0);
     assert_eq!(result.fields[0].matches[0].end_pos, 5);
-    
+
     // 验证第二个匹配
     assert_eq!(result.fields[0].matches[1].text, "world");
     assert_eq!(result.fields[0].matches[1].start_pos, 6);
     assert_eq!(result.fields[0].matches[1].end_pos, 11);
-    
+
     // 验证第三个匹配
     assert_eq!(result.fields[0].matches[2].text, "hello");
     assert_eq!(result.fields[0].matches[2].start_pos, 17);
     assert_eq!(result.fields[0].matches[2].end_pos, 22);
-    
+
     // 验证匹配的查询词
     assert_eq!(result.fields[0].matched_queries.len(), 1);
-    assert!(result.fields[0].matched_queries.contains(&"hello world".to_string()));
+    assert!(result.fields[0]
+        .matched_queries
+        .contains(&"hello world".to_string()));
 }
 
 #[test]
@@ -308,19 +327,18 @@ fn test_structured_highlight_no_match() {
     };
     let config = HighlightConfig::from_options(&options).unwrap();
 
-    let result = highlight_single_document_structured(
-        "foo",
-        "hello world",
-        &encoder,
-        &config,
-    ).unwrap();
+    let result =
+        highlight_single_document_structured("foo", "hello world", &encoder, &config).unwrap();
 
     // 验证无匹配
     assert_eq!(result.total_matches, 0);
     assert_eq!(result.fields[0].matches.len(), 0);
-    
+
     // 高亮文本应该保持原样
-    assert_eq!(result.fields[0].highlighted_text.as_ref().unwrap(), "hello world");
+    assert_eq!(
+        result.fields[0].highlighted_text.as_ref().unwrap(),
+        "hello world"
+    );
 }
 
 #[test]
@@ -345,11 +363,12 @@ fn test_structured_highlight_with_boundary() {
         "this is a long text with hello in the middle and more text after",
         &encoder,
         &config,
-    ).unwrap();
+    )
+    .unwrap();
 
     // 验证有匹配
     assert_eq!(result.total_matches, 1);
-    
+
     // 验证高亮文本包含匹配项
     assert!(result.fields[0].highlighted_text.is_some());
     let highlighted = result.fields[0].highlighted_text.as_ref().unwrap();
@@ -375,24 +394,19 @@ fn test_structured_highlight_document() {
         "content": "This is a test document"
     });
 
-    let result = highlight_document_structured(
-        "hello",
-        &document,
-        "title",
-        12345,
-        &encoder,
-        &config,
-    ).unwrap();
+    let result =
+        highlight_document_structured("hello", &document, "title", 12345, &encoder, &config)
+            .unwrap();
 
     assert!(result.is_some());
     let highlight = result.unwrap();
-    
+
     // 验证文档ID
     assert_eq!(highlight.id, 12345);
-    
+
     // 验证字段名
     assert_eq!(highlight.fields[0].field, "title");
-    
+
     // 验证匹配
     assert_eq!(highlight.total_matches, 1);
     assert_eq!(highlight.fields[0].matches[0].text, "Hello");
@@ -428,10 +442,7 @@ fn test_highlight_results_batch() {
         },
     ];
 
-    let documents = vec![
-        json!({"title": "hello world"}),
-        json!({"title": "foo bar"}),
-    ];
+    let documents = vec![json!({"title": "hello world"}), json!({"title": "foo bar"})];
 
     let highlights = highlight_results(
         "hello",
@@ -440,11 +451,12 @@ fn test_highlight_results_batch() {
         "title",
         &encoders,
         &options,
-    ).unwrap();
+    )
+    .unwrap();
 
     // 验证高亮结果数量
     assert_eq!(highlights.len(), 1); // 只有第一个文档有匹配
-    
+
     // 验证第一个文档的高亮
     assert_eq!(highlights[0].id, 1);
     assert_eq!(highlights[0].total_matches, 1);
@@ -493,19 +505,23 @@ fn test_highlight_results_with_complete() {
         "title",
         &encoders,
         &options,
-    ).unwrap();
+    )
+    .unwrap();
 
     // 验证完整结果
     assert_eq!(complete_result.total, 2);
     assert_eq!(complete_result.query, "hello");
     assert_eq!(complete_result.results.len(), 2);
     assert_eq!(complete_result.highlights.len(), 2);
-    
+
     // 验证第一个高亮
     assert_eq!(complete_result.highlights[0].id, 1);
     assert_eq!(complete_result.highlights[0].total_matches, 1);
-    assert!(complete_result.highlights[0].fields[0].highlighted_text
-        .as_ref().unwrap().contains("<mark>hello</mark>"));
+    assert!(complete_result.highlights[0].fields[0]
+        .highlighted_text
+        .as_ref()
+        .unwrap()
+        .contains("<mark>hello</mark>"));
 }
 
 #[test]
@@ -540,22 +556,18 @@ fn test_document_highlight_serialization() {
 
     let doc_highlight = DocumentHighlight {
         id: 12345,
-        fields: vec![
-            FieldHighlight {
-                field: "title".to_string(),
-                matches: vec![
-                    HighlightMatch {
-                        text: "hello".to_string(),
-                        start_pos: 0,
-                        end_pos: 5,
-                        matched_query: "hello".to_string(),
-                        score: None,
-                    },
-                ],
-                highlighted_text: Some("<b>hello</b> world".to_string()),
-                matched_queries: vec!["hello".to_string()],
-            },
-        ],
+        fields: vec![FieldHighlight {
+            field: "title".to_string(),
+            matches: vec![HighlightMatch {
+                text: "hello".to_string(),
+                start_pos: 0,
+                end_pos: 5,
+                matched_query: "hello".to_string(),
+                score: None,
+            }],
+            highlighted_text: Some("<b>hello</b> world".to_string()),
+            matched_queries: vec!["hello".to_string()],
+        }],
         total_matches: 1,
     };
 

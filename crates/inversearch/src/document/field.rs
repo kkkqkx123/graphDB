@@ -2,10 +2,10 @@
 //!
 //! 定义文档字段的配置和操作
 
-use crate::{DocId, EncoderOptions};
+use crate::document::tree::{extract_value, parse_tree, TreePath};
 use crate::index::IndexOptions;
 use crate::Index;
-use crate::document::tree::{parse_tree, TreePath, extract_value};
+use crate::{DocId, EncoderOptions};
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -49,7 +49,7 @@ impl FieldConfig {
     pub fn new(name: &str) -> Self {
         let mut marker = vec![];
         let extract = parse_tree(name, &mut marker);
-        
+
         FieldConfig {
             name: name.to_string(),
             field_type: FieldType::String,
@@ -73,8 +73,8 @@ impl FieldConfig {
     }
 
     /// 设置过滤器
-    pub fn with_filter<F>(mut self, filter: F) -> Self 
-    where 
+    pub fn with_filter<F>(mut self, filter: F) -> Self
+    where
         F: Fn(&Value) -> bool + 'static + Send + Sync,
     {
         self.filter = Some(Box::new(filter));
@@ -107,13 +107,10 @@ impl Field {
             fastupdate: Some(false),
             ..Default::default()
         };
-        
+
         let index = Index::new(index_options)?;
-        
-        Ok(Field {
-            config,
-            index,
-        })
+
+        Ok(Field { config, index })
     }
 
     /// 获取字段名
@@ -127,7 +124,11 @@ impl Field {
     }
 
     /// 添加文档到字段索引
-    pub fn add(&mut self, id: DocId, document: &Value) -> Result<(), crate::error::InversearchError> {
+    pub fn add(
+        &mut self,
+        id: DocId,
+        document: &Value,
+    ) -> Result<(), crate::error::InversearchError> {
         if let Some(value) = self.config.extract_value(document) {
             if let Some(ref filter) = self.config.filter {
                 if !filter(document) {
@@ -190,7 +191,9 @@ impl Fields {
 
     /// 按名称获取可变字段
     pub fn get_mut(&mut self, name: &str) -> Option<&mut Field> {
-        self.name_to_index.get(name).map(|&idx| &mut self.fields[idx])
+        self.name_to_index
+            .get(name)
+            .map(|&idx| &mut self.fields[idx])
     }
 
     /// 获取所有字段
@@ -247,26 +250,26 @@ mod tests {
     fn test_field_add() {
         let config = FieldConfig::new("user.name");
         let mut field = Field::new(config).unwrap();
-        
+
         let doc = json!({"user": {"name": "John"}});
         field.add(1, &doc).unwrap();
-        
+
         assert!(field.index.contains(1));
     }
 
     #[test]
     fn test_field_with_filter() {
-        let config = FieldConfig::new("status")
-            .with_filter(|v| v.get("status") == Some(&json!("active")));
-        
+        let config =
+            FieldConfig::new("status").with_filter(|v| v.get("status") == Some(&json!("active")));
+
         let mut field = Field::new(config).unwrap();
-        
+
         let active_doc = json!({"status": "active", "name": "Active"});
         let inactive_doc = json!({"status": "inactive", "name": "Inactive"});
-        
+
         field.add(1, &active_doc).unwrap();
         field.add(2, &inactive_doc).unwrap();
-        
+
         assert!(field.index.contains(1));
         assert!(!field.index.contains(2));
     }
@@ -274,13 +277,13 @@ mod tests {
     #[test]
     fn test_fields_collection() {
         let mut fields = Fields::new();
-        
+
         let title_field = Field::new(FieldConfig::new("title")).unwrap();
         let content_field = Field::new(FieldConfig::new("content")).unwrap();
-        
+
         fields.add(title_field);
         fields.add(content_field);
-        
+
         assert_eq!(fields.len(), 2);
         assert!(fields.get("title").is_some());
         assert!(fields.get("content").is_some());

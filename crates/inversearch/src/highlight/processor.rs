@@ -1,9 +1,9 @@
+use crate::document::tree::{extract_value_with_strategy, parse_tree, EvaluationStrategy};
 use crate::encoder::Encoder;
 use crate::error::Result;
-use crate::highlight::types::*;
 use crate::highlight::boundary::*;
 use crate::highlight::matcher::*;
-use crate::document::tree::{parse_tree, extract_value_with_strategy, EvaluationStrategy};
+use crate::highlight::types::*;
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -96,12 +96,14 @@ impl HighlightProcessor {
             return Ok(None);
         }
 
-        let highlighted = self.process_content_with_boundary(&content, query_enc, encoder, config)?;
+        let highlighted =
+            self.process_content_with_boundary(&content, query_enc, encoder, config)?;
 
         // Apply merge if configured
         let final_result = if let Some(merge_pattern) = &config.merge {
-            let regex = regex::Regex::new(&regex::escape(merge_pattern))
-                .map_err(|e| crate::error::InversearchError::Highlight(format!("Invalid merge pattern: {}", e)))?;
+            let regex = regex::Regex::new(&regex::escape(merge_pattern)).map_err(|e| {
+                crate::error::InversearchError::Highlight(format!("Invalid merge pattern: {}", e))
+            })?;
             regex.replace_all(&highlighted, " ").to_string()
         } else {
             highlighted
@@ -170,9 +172,10 @@ impl HighlightProcessor {
         }
 
         // Apply boundary processing if needed
-        let should_apply_boundary = config.boundary.as_ref().is_some_and(|b| {
-            first_match_pos >= 0 || b.before.is_some() || b.after.is_some()
-        });
+        let should_apply_boundary = config
+            .boundary
+            .as_ref()
+            .is_some_and(|b| first_match_pos >= 0 || b.before.is_some() || b.after.is_some());
         if should_apply_boundary {
             apply_advanced_boundary(boundary_terms, config)
         } else {
@@ -236,7 +239,7 @@ pub fn highlight_fields(
 // ============================================================
 
 /// 批量高亮处理搜索结果，返回结构化的文档高亮信息
-/// 
+///
 /// # 参数
 /// * `query` - 查询字符串
 /// * `results` - 搜索结果列表（不含高亮）
@@ -244,7 +247,7 @@ pub fn highlight_fields(
 /// * `field_path` - 要高亮的字段路径
 /// * `encoders` - 编码器映射
 /// * `options` - 高亮选项
-/// 
+///
 /// # 返回
 /// 文档高亮结果列表
 pub fn highlight_results(
@@ -260,10 +263,11 @@ pub fn highlight_results(
     let config = HighlightConfig::from_options(options)?;
 
     // 获取编码器（使用第一个可用的编码器）
-    let encoder = encoders.values().next()
-        .ok_or_else(|| crate::error::InversearchError::Highlight(
-            "No encoder available for highlighting".to_string()
-        ))?;
+    let encoder = encoders.values().next().ok_or_else(|| {
+        crate::error::InversearchError::Highlight(
+            "No encoder available for highlighting".to_string(),
+        )
+    })?;
 
     let mut highlights = Vec::new();
 
@@ -273,14 +277,9 @@ pub fn highlight_results(
         }
 
         let doc = &documents[idx];
-        if let Some(highlight) = highlight_document_structured(
-            query,
-            doc,
-            field_path,
-            result.id,
-            encoder,
-            &config,
-        )? {
+        if let Some(highlight) =
+            highlight_document_structured(query, doc, field_path, result.id, encoder, &config)?
+        {
             highlights.push(highlight);
         }
     }
@@ -289,7 +288,7 @@ pub fn highlight_results(
 }
 
 /// 批量高亮处理并返回完整的搜索结果（含高亮）
-/// 
+///
 /// # 参数
 /// * `query` - 查询字符串
 /// * `results` - 搜索结果列表（不含高亮）
@@ -297,7 +296,7 @@ pub fn highlight_results(
 /// * `field_path` - 要高亮的字段路径
 /// * `encoders` - 编码器映射
 /// * `options` - 高亮选项
-/// 
+///
 /// # 返回
 /// 包含高亮的完整搜索结果
 pub fn highlight_results_with_complete(

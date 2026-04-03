@@ -5,6 +5,8 @@
 use crate::error::{InversearchError, Result};
 use crate::r#type::DocId;
 use crate::Index;
+use base64::{engine::general_purpose, Engine as _};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
@@ -13,24 +15,16 @@ use std::sync::Arc;
 use tokio::fs as tokio_fs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::Mutex;
-use chrono::{DateTime, Utc};
-use base64::{Engine as _, engine::general_purpose};
 
 /// 索引变更类型
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IndexChange {
     /// 添加文档
-    Add {
-        doc_id: DocId,
-        content: String,
-    },
+    Add { doc_id: DocId, content: String },
     /// 删除文档
     Remove { doc_id: DocId },
     /// 更新文档
-    Update {
-        doc_id: DocId,
-        content: String,
-    },
+    Update { doc_id: DocId, content: String },
 }
 
 /// WAL 配置
@@ -116,10 +110,11 @@ impl WALManager {
         let config = self.config.clone();
         let last_cleanup_time = self.last_cleanup_time.clone();
         let base_path = self.config.base_path.clone();
-        
+
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(config.cleanup_interval));
-            
+            let mut interval =
+                tokio::time::interval(tokio::time::Duration::from_secs(config.cleanup_interval));
+
             loop {
                 interval.tick().await;
                 let mut last_cleanup = last_cleanup_time.lock().await;
@@ -128,35 +123,36 @@ impl WALManager {
                     let duration = now.signed_duration_since(last);
                     if duration.num_seconds() >= config.cleanup_interval as i64 {
                         *last_cleanup = Some(now);
-                        
+
                         // 执行清理逻辑
                         if let Ok(mut entries) = tokio_fs::read_dir(&base_path).await {
                             let mut wal_files = Vec::new();
-                            
+
                             while let Some(entry) = entries.next_entry().await.ok().flatten() {
                                 let path = entry.path();
                                 if let Some(file_name) = path.file_name() {
                                     let file_name_str = file_name.to_string_lossy();
-                                    if file_name_str.starts_with("wal_") && file_name_str.ends_with(".log") {
+                                    if file_name_str.starts_with("wal_")
+                                        && file_name_str.ends_with(".log")
+                                    {
                                         if let Ok(metadata) = entry.metadata().await {
                                             wal_files.push((path, metadata.modified().ok()));
                                         }
                                     }
                                 }
                             }
-                            
+
                             // 按修改时间排序
-                            wal_files.sort_by(|a, b| {
-                                match (&a.1, &b.1) {
-                                    (Some(time_a), Some(time_b)) => time_a.cmp(time_b),
-                                    (Some(_), None) => std::cmp::Ordering::Less,
-                                    (None, Some(_)) => std::cmp::Ordering::Greater,
-                                    (None, None) => std::cmp::Ordering::Equal,
-                                }
+                            wal_files.sort_by(|a, b| match (&a.1, &b.1) {
+                                (Some(time_a), Some(time_b)) => time_a.cmp(time_b),
+                                (Some(_), None) => std::cmp::Ordering::Less,
+                                (None, Some(_)) => std::cmp::Ordering::Greater,
+                                (None, None) => std::cmp::Ordering::Equal,
                             });
-                            
+
                             // 删除超过最大数量的文件
-                            let files_to_remove = wal_files.len().saturating_sub(config.max_wal_files);
+                            let files_to_remove =
+                                wal_files.len().saturating_sub(config.max_wal_files);
                             for (path, _) in wal_files.iter().take(files_to_remove) {
                                 let _ = tokio_fs::remove_file(path).await;
                             }
@@ -193,7 +189,11 @@ impl WALManager {
         }
 
         // 达到快照间隔时触发快照
-        if self.change_count.load(Ordering::Relaxed).is_multiple_of(self.config.snapshot_interval) {
+        if self
+            .change_count
+            .load(Ordering::Relaxed)
+            .is_multiple_of(self.config.snapshot_interval)
+        {
             self.trigger_snapshot().await?;
         }
 
@@ -241,7 +241,7 @@ impl WALManager {
         // 2. 创建快照
         // 注意：快照创建需要传入 Index 实例，这里简化处理
         // 实际使用时应该在外部调用 create_snapshot 方法
-        
+
         Ok(())
     }
 
@@ -285,13 +285,11 @@ impl WALManager {
         }
 
         // 按修改时间排序
-        wal_files.sort_by(|a, b| {
-            match (&a.1, &b.1) {
-                (Some(time_a), Some(time_b)) => time_a.cmp(time_b),
-                (Some(_), None) => std::cmp::Ordering::Less,
-                (None, Some(_)) => std::cmp::Ordering::Greater,
-                (None, None) => std::cmp::Ordering::Equal,
-            }
+        wal_files.sort_by(|a, b| match (&a.1, &b.1) {
+            (Some(time_a), Some(time_b)) => time_a.cmp(time_b),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => std::cmp::Ordering::Equal,
         });
 
         // 删除超过最大数量的文件
@@ -306,11 +304,11 @@ impl WALManager {
     /// 手动触发清理
     pub async fn manual_cleanup(&self) -> Result<()> {
         self.cleanup_old_wal_files().await?;
-        
+
         // 更新最后清理时间
         let mut last_cleanup = self.last_cleanup_time.lock().await;
         *last_cleanup = Some(Utc::now());
-        
+
         Ok(())
     }
 
@@ -469,12 +467,16 @@ mod tests {
         wal.record_change(IndexChange::Add {
             doc_id: 1,
             content: "hello world".to_string(),
-        }).await.unwrap();
+        })
+        .await
+        .unwrap();
 
         wal.record_change(IndexChange::Add {
             doc_id: 2,
             content: "rust programming".to_string(),
-        }).await.unwrap();
+        })
+        .await
+        .unwrap();
 
         // 验证 WAL 大小
         assert!(wal.wal_size() > 0);
@@ -497,7 +499,9 @@ mod tests {
         wal.record_change(IndexChange::Add {
             doc_id: 1,
             content: "hello world".to_string(),
-        }).await.unwrap();
+        })
+        .await
+        .unwrap();
 
         // 创建快照
         let index = Index::default();

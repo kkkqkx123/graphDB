@@ -2,11 +2,11 @@
 //!
 //! 提供基于内存的存储后端，数据不持久化
 
-use crate::r#type::{SearchResults, EnrichedSearchResults, DocId};
 use crate::error::Result;
-use crate::Index;
-use crate::storage::common::{StorageInterface, StorageInfo, StorageMetrics};
+use crate::r#type::{DocId, EnrichedSearchResults, SearchResults};
 use crate::storage::base::StorageBase;
+use crate::storage::common::{StorageInfo, StorageInterface, StorageMetrics};
+use crate::Index;
 
 /// 内存存储
 pub struct MemoryStorage {
@@ -74,7 +74,15 @@ impl StorageInterface for MemoryStorage {
         Ok(())
     }
 
-    async fn get(&self, key: &str, ctx: Option<&str>, limit: usize, offset: usize, _resolve: bool, _enrich: bool) -> Result<SearchResults> {
+    async fn get(
+        &self,
+        key: &str,
+        ctx: Option<&str>,
+        limit: usize,
+        offset: usize,
+        _resolve: bool,
+        _enrich: bool,
+    ) -> Result<SearchResults> {
         let start_time = self.base.record_operation_start();
         let results = self.base.get(key, ctx, limit, offset);
         self.base.record_operation_completion(start_time);
@@ -141,7 +149,10 @@ mod tests {
         storage.commit(&index, false, false).await.unwrap();
 
         // 测试获取
-        let results = storage.get("hello", None, 10, 0, true, false).await.unwrap();
+        let results = storage
+            .get("hello", None, 10, 0, true, false)
+            .await
+            .unwrap();
         println!("Get results: {:?}", results);
         assert_eq!(results.len(), 1);
         assert!(results.contains(&1));

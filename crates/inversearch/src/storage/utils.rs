@@ -2,7 +2,7 @@
 //!
 //! 提供各存储实现共享的辅助函数
 
-use crate::r#type::{SearchResults, DocId};
+use crate::r#type::{DocId, SearchResults};
 
 /// 应用限制和偏移的辅助函数
 pub fn apply_limit_offset(results: &[DocId], limit: usize, offset: usize) -> SearchResults {

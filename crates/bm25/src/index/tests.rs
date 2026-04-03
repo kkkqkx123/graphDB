@@ -4,25 +4,25 @@ mod test_module {
     use std::fs;
     use tempfile::{tempdir, TempDir};
 
+    use crate::index::batch::batch_add_documents_optimized;
+    use crate::index::delete::delete_document;
+    use crate::index::document::{add_document, get_document};
     use crate::index::manager::IndexManager;
     use crate::index::schema::IndexSchema;
     use crate::index::search::{search, SearchOptions};
-    use crate::index::document::{add_document, get_document};
-    use crate::index::delete::delete_document;
-    use crate::index::batch::batch_add_documents_optimized;
     use crate::index::stats::get_stats;
 
     fn create_test_manager() -> (TempDir, IndexManager, IndexSchema) {
         let temp_dir = tempdir().expect("Failed to create temp directory");
         let path = temp_dir.path().join("test_index");
-        
+
         if !path.exists() {
             fs::create_dir_all(&path).expect("Failed to create test index directory");
         }
-        
+
         let manager = IndexManager::create(&path).expect("Failed to create index manager");
         let schema = IndexSchema::new();
-        
+
         (temp_dir, manager, schema)
     }
 
@@ -57,7 +57,10 @@ mod test_module {
 
         let mut fields = HashMap::new();
         fields.insert("title".to_string(), "Test Document Title".to_string());
-        fields.insert("content".to_string(), "This is the content of the test document".to_string());
+        fields.insert(
+            "content".to_string(),
+            "This is the content of the test document".to_string(),
+        );
 
         let result = add_document(&manager, &schema, "1", &fields);
         assert!(result.is_ok());
@@ -102,7 +105,10 @@ mod test_module {
             .map(|id| {
                 let mut fields = HashMap::new();
                 fields.insert("title".to_string(), format!("Document {}", id));
-                fields.insert("content".to_string(), format!("Content for document {}", id));
+                fields.insert(
+                    "content".to_string(),
+                    format!("Content for document {}", id),
+                );
                 (id.to_string(), fields)
             })
             .collect();
@@ -128,15 +134,25 @@ mod test_module {
                 "1".to_string(),
                 vec![
                     ("title".to_string(), "Rust Programming".to_string()),
-                    ("content".to_string(), "Rust is a systems programming language".to_string()),
-                ].into_iter().collect(),
+                    (
+                        "content".to_string(),
+                        "Rust is a systems programming language".to_string(),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
             ),
             (
                 "2".to_string(),
                 vec![
                     ("title".to_string(), "TypeScript Guide".to_string()),
-                    ("content".to_string(), "TypeScript is a typed superset of JavaScript".to_string()),
-                ].into_iter().collect(),
+                    (
+                        "content".to_string(),
+                        "TypeScript is a typed superset of JavaScript".to_string(),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
             ),
         ];
 
@@ -164,7 +180,10 @@ mod test_module {
             .map(|id| {
                 let mut fields = HashMap::new();
                 fields.insert("title".to_string(), "Programming Tutorial".to_string());
-                fields.insert("content".to_string(), format!("This is programming tutorial number {}", id));
+                fields.insert(
+                    "content".to_string(),
+                    format!("This is programming tutorial number {}", id),
+                );
                 (id.to_string(), fields)
             })
             .collect();
@@ -198,7 +217,10 @@ mod test_module {
 
         let mut fields = HashMap::new();
         fields.insert("title".to_string(), "Hello World".to_string());
-        fields.insert("content".to_string(), "This is a test document with hello and world".to_string());
+        fields.insert(
+            "content".to_string(),
+            "This is a test document with hello and world".to_string(),
+        );
 
         add_document(&manager, &schema, "1", &fields).ok();
 

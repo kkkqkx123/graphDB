@@ -3,12 +3,12 @@
 //! 提供内存缓存 + 持久化存储的组合实现
 //! 作为默认存储后端，兼顾性能和数据安全
 
-use crate::r#type::{SearchResults, EnrichedSearchResults, DocId};
 use crate::error::Result;
-use crate::Index;
-use crate::storage::common::{StorageInterface, StorageInfo, FileStorageData};
-use crate::storage::common::io::{load_from_file, atomic_write, remove_file_safe};
+use crate::r#type::{DocId, EnrichedSearchResults, SearchResults};
 use crate::storage::base::StorageBase;
+use crate::storage::common::io::{atomic_write, load_from_file, remove_file_safe};
+use crate::storage::common::{FileStorageData, StorageInfo, StorageInterface};
+use crate::Index;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -27,7 +27,7 @@ impl Default for CachedStorageConfig {
     fn default() -> Self {
         Self {
             base_path: PathBuf::from("./data"),
-            auto_save_interval: 0,  // 默认不自动保存，由用户控制
+            auto_save_interval: 0, // 默认不自动保存，由用户控制
             auto_save_on_drop: true,
         }
     }
@@ -43,7 +43,7 @@ pub struct CachedStorage {
     config: CachedStorageConfig,
     base: StorageBase,
     is_open: bool,
-    is_dirty: bool,  // 标记是否有未保存的变更
+    is_dirty: bool, // 标记是否有未保存的变更
 }
 
 impl CachedStorage {
@@ -138,8 +138,12 @@ impl CachedStorage {
     /// 记录操作完成
     fn record_operation_completion(&self, start_time: Instant) {
         let latency = start_time.elapsed().as_micros() as usize;
-        self.base.operation_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        self.base.total_latency.fetch_add(latency, std::sync::atomic::Ordering::Relaxed);
+        self.base
+            .operation_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.base
+            .total_latency
+            .fetch_add(latency, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
@@ -193,7 +197,15 @@ impl StorageInterface for CachedStorage {
         Ok(())
     }
 
-    async fn get(&self, key: &str, ctx: Option<&str>, limit: usize, offset: usize, _resolve: bool, _enrich: bool) -> Result<SearchResults> {
+    async fn get(
+        &self,
+        key: &str,
+        ctx: Option<&str>,
+        limit: usize,
+        offset: usize,
+        _resolve: bool,
+        _enrich: bool,
+    ) -> Result<SearchResults> {
         let results = self.base.get(key, ctx, limit, offset);
         Ok(results)
     }
@@ -253,15 +265,25 @@ mod tests {
         storage.open().await.expect("storage.open should succeed");
 
         let mut index = Index::default();
-        index.add(1, "hello world", false).expect("add should succeed");
-        index.add(2, "rust programming", false).expect("add should succeed");
+        index
+            .add(1, "hello world", false)
+            .expect("add should succeed");
+        index
+            .add(2, "rust programming", false)
+            .expect("add should succeed");
 
         // 提交到存储
-        storage.commit(&index, false, false).await.expect("commit should succeed");
+        storage
+            .commit(&index, false, false)
+            .await
+            .expect("commit should succeed");
         assert!(storage.is_dirty());
 
         // 测试获取
-        let results = storage.get("hello", None, 10, 0, true, false).await.expect("get should succeed");
+        let results = storage
+            .get("hello", None, 10, 0, true, false)
+            .await
+            .expect("get should succeed");
         assert_eq!(results.len(), 1);
         assert!(results.contains(&1));
 
@@ -273,7 +295,10 @@ mod tests {
         let mut storage2 = CachedStorage::with_path(temp_dir.path());
         storage2.open().await.expect("storage2.open should succeed");
 
-        let results2 = storage2.get("hello", None, 10, 0, true, false).await.expect("get should succeed");
+        let results2 = storage2
+            .get("hello", None, 10, 0, true, false)
+            .await
+            .expect("get should succeed");
         assert_eq!(results2.len(), 1);
 
         storage2.destroy().await.expect("destroy should succeed");
@@ -290,8 +315,13 @@ mod tests {
             storage.open().await.expect("storage.open should succeed");
 
             let mut index = Index::default();
-            index.add(1, "persistent data", false).expect("add should succeed");
-            storage.commit(&index, false, false).await.expect("commit should succeed");
+            index
+                .add(1, "persistent data", false)
+                .expect("add should succeed");
+            storage
+                .commit(&index, false, false)
+                .await
+                .expect("commit should succeed");
 
             storage.close().await.expect("close should succeed");
         }
@@ -301,7 +331,10 @@ mod tests {
             let mut storage = CachedStorage::with_path(&path);
             storage.open().await.expect("storage.open should succeed");
 
-            let results = storage.get("persistent", None, 10, 0, true, false).await.expect("get should succeed");
+            let results = storage
+                .get("persistent", None, 10, 0, true, false)
+                .await
+                .expect("get should succeed");
             assert_eq!(results.len(), 1);
             assert!(results.contains(&1));
 

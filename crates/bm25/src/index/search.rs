@@ -1,5 +1,5 @@
-use crate::index::{IndexManager, IndexSchema};
 use crate::error::Result;
+use crate::index::{IndexManager, IndexSchema};
 use std::collections::HashMap;
 use tantivy::schema::Value;
 
@@ -65,8 +65,14 @@ pub fn search(
 
         let mut highlights = HashMap::new();
         if options.highlight {
-            highlights.insert("title".to_string(), highlight_text(&title_value, query_text));
-            highlights.insert("content".to_string(), highlight_text(&content_value, query_text));
+            highlights.insert(
+                "title".to_string(),
+                highlight_text(&title_value, query_text),
+            );
+            highlights.insert(
+                "content".to_string(),
+                highlight_text(&content_value, query_text),
+            );
         }
 
         search_results.push(SearchResult {
@@ -80,10 +86,7 @@ pub fn search(
     Ok((search_results, max_score))
 }
 
-fn parse_query(
-    query_text: &str,
-    schema: &IndexSchema,
-) -> Result<Box<dyn tantivy::query::Query>> {
+fn parse_query(query_text: &str, schema: &IndexSchema) -> Result<Box<dyn tantivy::query::Query>> {
     let terms: Vec<&str> = query_text.split_whitespace().collect();
 
     if terms.is_empty() {
@@ -103,10 +106,11 @@ fn parse_query(
         ));
 
         let content_term = tantivy::Term::from_field_text(schema.content, &term_text);
-        let content_query: Box<dyn tantivy::query::Query> = Box::new(tantivy::query::TermQuery::new(
-            content_term,
-            tantivy::schema::IndexRecordOption::WithFreqsAndPositions,
-        ));
+        let content_query: Box<dyn tantivy::query::Query> =
+            Box::new(tantivy::query::TermQuery::new(
+                content_term,
+                tantivy::schema::IndexRecordOption::WithFreqsAndPositions,
+            ));
 
         let term_query = tantivy::query::BooleanQuery::new(vec![
             (tantivy::query::Occur::Should, title_query),
@@ -120,7 +124,10 @@ fn parse_query(
     Ok(Box::new(boolean_query))
 }
 
-fn extract_field_value(doc: &tantivy::schema::TantivyDocument, field: tantivy::schema::Field) -> String {
+fn extract_field_value(
+    doc: &tantivy::schema::TantivyDocument,
+    field: tantivy::schema::Field,
+) -> String {
     if let Some(value) = doc.get_first(field) {
         return compact_value_to_string(&value);
     }

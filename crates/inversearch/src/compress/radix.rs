@@ -22,9 +22,12 @@ fn get_radix_table() -> &'static str {
 
 pub fn to_radix_u64(mut number: u64, radix: usize) -> String {
     let table = get_radix_table();
-    
+
     if radix > DEFAULT_RADIX {
-        panic!("Radix {} exceeds maximum allowed ({})", radix, DEFAULT_RADIX);
+        panic!(
+            "Radix {} exceeds maximum allowed ({})",
+            radix, DEFAULT_RADIX
+        );
     }
 
     if number == 0 {
@@ -32,7 +35,7 @@ pub fn to_radix_u64(mut number: u64, radix: usize) -> String {
     }
 
     let mut result = String::new();
-    
+
     while number > 0 {
         let rixit = number % radix as u64;
         result.insert(0, table.chars().nth(rixit as usize).unwrap_or('\0'));
@@ -80,7 +83,10 @@ pub struct RadixTable {
 impl RadixTable {
     pub fn new(radix: usize) -> Self {
         if radix > DEFAULT_RADIX {
-            panic!("Radix {} exceeds maximum allowed ({})", radix, DEFAULT_RADIX);
+            panic!(
+                "Radix {} exceeds maximum allowed ({})",
+                radix, DEFAULT_RADIX
+            );
         }
 
         let mut table = Vec::with_capacity(radix);
@@ -107,7 +113,7 @@ impl RadixTable {
         }
 
         let mut result = String::new();
-        
+
         while number > 0 {
             let rixit = number % self.radix as u64;
             result.insert(0, self.table.chars().nth(rixit as usize).unwrap_or('\0'));

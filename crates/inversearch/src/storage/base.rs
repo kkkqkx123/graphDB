@@ -2,7 +2,7 @@
 //!
 //! 提供各存储实现共享的数据结构和核心逻辑
 
-use crate::r#type::{SearchResults, EnrichedSearchResults, DocId};
+use crate::r#type::{DocId, EnrichedSearchResults, SearchResults};
 use crate::Index;
 
 use crate::storage::utils::apply_limit_offset;

@@ -1,12 +1,14 @@
 use crate::r#type::IntermediateSearchResults;
 
-pub fn combine_search_results(results: Vec<IntermediateSearchResults>) -> IntermediateSearchResults {
+pub fn combine_search_results(
+    results: Vec<IntermediateSearchResults>,
+) -> IntermediateSearchResults {
     if results.is_empty() {
         return vec![];
     }
 
     let mut combined: IntermediateSearchResults = Vec::new();
-    
+
     for result in results {
         for arr in result {
             if !arr.is_empty() {
@@ -14,7 +16,7 @@ pub fn combine_search_results(results: Vec<IntermediateSearchResults>) -> Interm
             }
         }
     }
-    
+
     combined
 }
 

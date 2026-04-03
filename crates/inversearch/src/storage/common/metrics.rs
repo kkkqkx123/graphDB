@@ -6,15 +6,13 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
 /// 存储性能指标
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct StorageMetrics {
     pub operation_count: usize,
     pub average_latency: usize, // 微秒
     pub memory_usage: usize,
     pub error_count: usize,
 }
-
 
 impl StorageMetrics {
     /// 创建空的指标

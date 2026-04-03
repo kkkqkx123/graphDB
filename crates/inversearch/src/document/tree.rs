@@ -105,7 +105,7 @@ pub fn parse_tree_cached(key: &str, marker: &mut Vec<bool>, cache: &PathCache) -
     if let Some(cached) = cache.get(key) {
         return cached;
     }
-    
+
     let result = parse_tree(key, marker);
     cache.set(key, result.clone());
     result
@@ -125,21 +125,21 @@ pub fn parse_tree_cached(key: &str, marker: &mut Vec<bool>, cache: &PathCache) -
 pub fn parse_tree(key: &str, marker: &mut Vec<bool>) -> Vec<TreePath> {
     let mut result = Vec::new();
     let mut current = key;
-    
+
     while !current.is_empty() {
         if let Some(dot_pos) = current.find('.') {
             let part = &current[..dot_pos];
             current = &current[dot_pos + 1..];
-            
+
             if let Some(start) = part.rfind('[') {
                 let end = part.len();
-                let index_part = &part[start+1..end-1];
+                let index_part = &part[start + 1..end - 1];
                 let base_field = &part[..start];
-                
+
                 if !base_field.is_empty() {
                     marker.push(true);
                 }
-                
+
                 if index_part.contains('-') && !index_part.starts_with('-') {
                     let range_parts: Vec<&str> = index_part.split('-').collect();
                     if range_parts.len() == 2 {
@@ -164,16 +164,16 @@ pub fn parse_tree(key: &str, marker: &mut Vec<bool>) -> Vec<TreePath> {
         } else {
             let part = current;
             current = "";
-            
+
             if let Some(start) = part.rfind('[') {
                 let end = part.len();
-                let index_part = &part[start+1..end-1];
+                let index_part = &part[start + 1..end - 1];
                 let base_field = &part[..start];
-                
+
                 if !base_field.is_empty() {
                     marker.push(true);
                 }
-                
+
                 if index_part.contains('-') && !index_part.starts_with('-') {
                     let range_parts: Vec<&str> = index_part.split('-').collect();
                     if range_parts.len() == 2 {
@@ -197,7 +197,7 @@ pub fn parse_tree(key: &str, marker: &mut Vec<bool>) -> Vec<TreePath> {
             }
         }
     }
-    
+
     result
 }
 
@@ -208,132 +208,166 @@ pub fn extract_value_with_strategy(
     strategy: EvaluationStrategy,
 ) -> Result<String, PathParseError> {
     let mut current = document;
-    
+
     for segment in path {
         let next = match segment {
-            TreePath::Field(name) => {
-                match current.get(name) {
-                    Some(v) => v,
+            TreePath::Field(name) => match current.get(name) {
+                Some(v) => v,
+                None => {
+                    if strategy == EvaluationStrategy::Strict {
+                        return Err(PathParseError::NotFoundError(format!(
+                            "Field '{}' not found",
+                            name
+                        )));
+                    }
+                    return Ok(String::new());
+                }
+            },
+            TreePath::Index(idx, field) => match current.get(field) {
+                Some(v) => match v.as_array() {
+                    Some(arr) => match arr.get(*idx) {
+                        Some(v) => v,
+                        None => {
+                            if strategy == EvaluationStrategy::Strict {
+                                return Err(PathParseError::OutOfBoundsError(format!(
+                                    "Index {} out of bounds for field '{}'",
+                                    idx, field
+                                )));
+                            }
+                            return Ok(String::new());
+                        }
+                    },
                     None => {
                         if strategy == EvaluationStrategy::Strict {
-                            return Err(PathParseError::NotFoundError(format!("Field '{}' not found", name)));
+                            return Err(PathParseError::TypeError(format!(
+                                "Field '{}' is not an array",
+                                field
+                            )));
                         }
                         return Ok(String::new());
                     }
+                },
+                None => {
+                    if strategy == EvaluationStrategy::Strict {
+                        return Err(PathParseError::NotFoundError(format!(
+                            "Field '{}' not found",
+                            field
+                        )));
+                    }
+                    return Ok(String::new());
                 }
-            }
-            TreePath::Index(idx, field) => {
-                match current.get(field) {
-                    Some(v) => match v.as_array() {
-                        Some(arr) => match arr.get(*idx) {
+            },
+            TreePath::NegativeIndex(idx, field) => match current.get(field) {
+                Some(v) => match v.as_array() {
+                    Some(arr) => {
+                        let pos = arr.len().saturating_sub(*idx);
+                        match arr.get(pos) {
                             Some(v) => v,
                             None => {
                                 if strategy == EvaluationStrategy::Strict {
-                                    return Err(PathParseError::OutOfBoundsError(format!("Index {} out of bounds for field '{}'", idx, field)));
+                                    return Err(PathParseError::OutOfBoundsError(format!(
+                                        "Negative index -{} out of bounds for field '{}'",
+                                        idx, field
+                                    )));
                                 }
                                 return Ok(String::new());
                             }
-                        },
-                        None => {
-                            if strategy == EvaluationStrategy::Strict {
-                                return Err(PathParseError::TypeError(format!("Field '{}' is not an array", field)));
-                            }
-                            return Ok(String::new());
                         }
-                    },
+                    }
                     None => {
                         if strategy == EvaluationStrategy::Strict {
-                            return Err(PathParseError::NotFoundError(format!("Field '{}' not found", field)));
+                            return Err(PathParseError::TypeError(format!(
+                                "Field '{}' is not an array",
+                                field
+                            )));
                         }
                         return Ok(String::new());
                     }
+                },
+                None => {
+                    if strategy == EvaluationStrategy::Strict {
+                        return Err(PathParseError::NotFoundError(format!(
+                            "Field '{}' not found",
+                            field
+                        )));
+                    }
+                    return Ok(String::new());
                 }
-            }
-            TreePath::NegativeIndex(idx, field) => {
-                match current.get(field) {
-                    Some(v) => match v.as_array() {
-                        Some(arr) => {
-                            let pos = arr.len().saturating_sub(*idx);
-                            match arr.get(pos) {
-                                Some(v) => v,
-                                None => {
-                                    if strategy == EvaluationStrategy::Strict {
-                                        return Err(PathParseError::OutOfBoundsError(format!("Negative index -{} out of bounds for field '{}'", idx, field)));
-                                    }
-                                    return Ok(String::new());
-                                }
-                            }
-                        }
-                        None => {
+            },
+            TreePath::Range(start, end, field) => match current.get(field) {
+                Some(v) => match v.as_array() {
+                    Some(arr) => {
+                        if *start >= arr.len() || *end >= arr.len() || *start > *end {
                             if strategy == EvaluationStrategy::Strict {
-                                return Err(PathParseError::TypeError(format!("Field '{}' is not an array", field)));
+                                return Err(PathParseError::OutOfBoundsError(format!(
+                                    "Range [{}-{}] out of bounds for field '{}'",
+                                    start, end, field
+                                )));
                             }
                             return Ok(String::new());
                         }
-                    },
+                        let values: Vec<&Value> = arr[*start..=*end].iter().collect();
+                        return Ok(values
+                            .iter()
+                            .filter_map(|v| v.as_str())
+                            .collect::<Vec<_>>()
+                            .join(", "));
+                    }
                     None => {
                         if strategy == EvaluationStrategy::Strict {
-                            return Err(PathParseError::NotFoundError(format!("Field '{}' not found", field)));
+                            return Err(PathParseError::TypeError(format!(
+                                "Field '{}' is not an array",
+                                field
+                            )));
                         }
                         return Ok(String::new());
                     }
+                },
+                None => {
+                    if strategy == EvaluationStrategy::Strict {
+                        return Err(PathParseError::NotFoundError(format!(
+                            "Field '{}' not found",
+                            field
+                        )));
+                    }
+                    return Ok(String::new());
                 }
-            }
-            TreePath::Range(start, end, field) => {
-                match current.get(field) {
-                    Some(v) => match v.as_array() {
-                        Some(arr) => {
-                            if *start >= arr.len() || *end >= arr.len() || *start > *end {
-                                if strategy == EvaluationStrategy::Strict {
-                                    return Err(PathParseError::OutOfBoundsError(format!("Range [{}-{}] out of bounds for field '{}'", start, end, field)));
-                                }
-                                return Ok(String::new());
-                            }
-                            let values: Vec<&Value> = arr[*start..=*end].iter().collect();
-                            return Ok(values.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(", "));
-                        }
-                        None => {
-                            if strategy == EvaluationStrategy::Strict {
-                                return Err(PathParseError::TypeError(format!("Field '{}' is not an array", field)));
-                            }
-                            return Ok(String::new());
-                        }
-                    },
-                    None => {
+            },
+            TreePath::Wildcard(pattern) => match current {
+                Value::Object(obj) => {
+                    let matched: Vec<&Value> = obj
+                        .keys()
+                        .filter(|k| k.contains(pattern))
+                        .filter_map(|k| current.get(k))
+                        .collect();
+                    if matched.is_empty() {
                         if strategy == EvaluationStrategy::Strict {
-                            return Err(PathParseError::NotFoundError(format!("Field '{}' not found", field)));
+                            return Err(PathParseError::NotFoundError(format!(
+                                "No fields matching pattern '{}'",
+                                pattern
+                            )));
                         }
                         return Ok(String::new());
                     }
+                    return Ok(matched
+                        .iter()
+                        .filter_map(|v| v.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", "));
                 }
-            }
-            TreePath::Wildcard(pattern) => {
-                match current {
-                    Value::Object(obj) => {
-                        let matched: Vec<&Value> = obj.keys()
-                            .filter(|k| k.contains(pattern))
-                            .filter_map(|k| current.get(k))
-                            .collect();
-                        if matched.is_empty() {
-                            if strategy == EvaluationStrategy::Strict {
-                                return Err(PathParseError::NotFoundError(format!("No fields matching pattern '{}'", pattern)));
-                            }
-                            return Ok(String::new());
-                        }
-                        return Ok(matched.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(", "));
+                _ => {
+                    if strategy == EvaluationStrategy::Strict {
+                        return Err(PathParseError::TypeError(
+                            "Cannot apply wildcard to non-object type".to_string(),
+                        ));
                     }
-                    _ => {
-                        if strategy == EvaluationStrategy::Strict {
-                            return Err(PathParseError::TypeError("Cannot apply wildcard to non-object type".to_string()));
-                        }
-                        return Ok(String::new());
-                    }
+                    return Ok(String::new());
                 }
-            }
+            },
         };
         current = next;
     }
-    
+
     match current {
         Value::String(s) => Ok(s.clone()),
         Value::Number(n) => Ok(n.to_string()),

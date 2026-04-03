@@ -2,10 +2,10 @@
 //!
 //! 定义存储模块的核心 trait 和抽象接口
 
-use crate::r#type::{SearchResults, EnrichedSearchResults, DocId};
 use crate::error::Result;
-use crate::Index;
+use crate::r#type::{DocId, EnrichedSearchResults, SearchResults};
 use crate::storage::common::types::StorageInfo;
+use crate::Index;
 
 /// 存储接口 - 类似JavaScript版本的StorageInterface
 #[async_trait::async_trait]
@@ -26,7 +26,15 @@ pub trait StorageInterface: Send + Sync {
     async fn commit(&mut self, index: &Index, replace: bool, append: bool) -> Result<()>;
 
     /// 获取术语结果
-    async fn get(&self, key: &str, ctx: Option<&str>, limit: usize, offset: usize, resolve: bool, enrich: bool) -> Result<SearchResults>;
+    async fn get(
+        &self,
+        key: &str,
+        ctx: Option<&str>,
+        limit: usize,
+        offset: usize,
+        resolve: bool,
+        enrich: bool,
+    ) -> Result<SearchResults>;
 
     /// 富化结果
     async fn enrich(&self, ids: &[DocId]) -> Result<EnrichedSearchResults>;

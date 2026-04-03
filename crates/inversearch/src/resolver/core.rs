@@ -1,4 +1,4 @@
-use crate::r#type::{IntermediateSearchResults, SearchResults, SearchOptions as TypeSearchOptions};
+use crate::r#type::{IntermediateSearchResults, SearchOptions as TypeSearchOptions, SearchResults};
 
 #[derive(Debug, Clone)]
 pub enum ResolverError {
@@ -13,7 +13,9 @@ impl std::fmt::Display for ResolverError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ResolverError::IndexNotSet => write!(f, "Index is not set"),
-            ResolverError::QueryExecutionFailed(msg) => write!(f, "Query execution failed: {}", msg),
+            ResolverError::QueryExecutionFailed(msg) => {
+                write!(f, "Query execution failed: {}", msg)
+            }
             ResolverError::InvalidOptions(msg) => write!(f, "Invalid options: {}", msg),
             ResolverError::EmptyResult => write!(f, "Result is empty"),
             ResolverError::InvalidParameter(msg) => write!(f, "Invalid parameter: {}", msg),
@@ -129,7 +131,10 @@ impl Resolver {
         }
     }
 
-    pub fn from_options(options: ResolverOptions, index: Option<crate::Index>) -> ResolverResult<Self> {
+    pub fn from_options(
+        options: ResolverOptions,
+        index: Option<crate::Index>,
+    ) -> ResolverResult<Self> {
         let boost = options.boost().unwrap_or(0);
 
         let mut resolver = Resolver {
@@ -211,35 +216,40 @@ impl Resolver {
     pub fn get(&mut self) -> SearchResults {
         if !self.resolved {
             self.resolved = true;
-            
+
             if self.result.is_empty() {
                 return Vec::new();
             }
-            
+
             let mut flattened = Vec::new();
             for array in &self.result {
                 flattened.extend_from_slice(array);
             }
-            
+
             flattened
         } else {
             Vec::new()
         }
     }
 
-    pub fn resolve(&mut self, limit: Option<usize>, offset: Option<usize>, enrich: bool) -> SearchResults {
+    pub fn resolve(
+        &mut self,
+        limit: Option<usize>,
+        offset: Option<usize>,
+        enrich: bool,
+    ) -> SearchResults {
         let limit = limit.unwrap_or(100);
         let offset = offset.unwrap_or(0);
-        
+
         if self.result.is_empty() {
             self.resolved = true;
             return Vec::new();
         }
-        
+
         let result = resolve_default(&self.result, limit, offset, enrich);
-        
+
         self.resolved = true;
-        
+
         result
     }
 
@@ -247,10 +257,10 @@ impl Resolver {
         if !self.result.is_empty() && !other.is_empty() {
             let current = self.result.clone();
             let arrays = vec![current, other];
-            
+
             let simple_arrays: Vec<Vec<u64>> = arrays.into_iter().flatten().collect();
             let intersection_result = crate::intersect::core::intersect_simple(&simple_arrays);
-            
+
             self.result = vec![intersection_result];
         } else if !self.result.is_empty() {
         } else if !other.is_empty() {
@@ -263,10 +273,10 @@ impl Resolver {
         if !self.result.is_empty() && !other.is_empty() {
             let mut combined = self.result.clone();
             combined.extend(other);
-            
+
             let mut seen = std::collections::HashMap::new();
             let mut unique_result = Vec::new();
-            
+
             for array in combined {
                 let mut unique_array = Vec::new();
                 for &id in &array {
@@ -279,7 +289,7 @@ impl Resolver {
                     unique_result.push(unique_array);
                 }
             }
-            
+
             self.result = unique_result;
         } else if self.result.is_empty() {
             self.result = other;
@@ -291,7 +301,7 @@ impl Resolver {
         if !self.result.is_empty() {
             let current_flat = self.flatten_results();
             let other_flat: SearchResults = other.into_iter().flatten().collect();
-            
+
             let mut check = std::collections::HashMap::new();
             for &id in &other_flat {
                 check.insert(id, true);
@@ -312,19 +322,19 @@ impl Resolver {
     pub fn xor(&mut self, other: IntermediateSearchResults) -> &mut Self {
         if !self.result.is_empty() && !other.is_empty() {
             let mut counts: std::collections::HashMap<u64, u32> = std::collections::HashMap::new();
-            
+
             for ids in &self.result {
                 for &id in ids {
                     *counts.entry(id).or_insert(0) += 1;
                 }
             }
-            
+
             for ids in &other {
                 for &id in ids {
                     *counts.entry(id).or_insert(0) += 1;
                 }
             }
-            
+
             let mut xor_result: SearchResults = Vec::new();
             for ids in &self.result {
                 for &id in ids {
@@ -333,16 +343,15 @@ impl Resolver {
                     }
                 }
             }
-            
+
             for ids in &other {
                 for &id in ids {
-                    if counts.get(&id) == Some(&1)
-                        && !xor_result.contains(&id) {
-                            xor_result.push(id);
-                        }
+                    if counts.get(&id) == Some(&1) && !xor_result.contains(&id) {
+                        xor_result.push(id);
+                    }
                 }
             }
-            
+
             self.result = vec![xor_result];
         } else if !self.result.is_empty() {
         } else if !other.is_empty() {
@@ -369,12 +378,22 @@ impl Resolver {
         self
     }
 
-    pub async fn resolve_async(&mut self, limit: Option<usize>, offset: Option<usize>, enrich: bool) -> SearchResults {
+    pub async fn resolve_async(
+        &mut self,
+        limit: Option<usize>,
+        offset: Option<usize>,
+        enrich: bool,
+    ) -> SearchResults {
         self.resolve(limit, offset, enrich)
     }
 
-    pub async fn resolve_with_callback<F>(&mut self, limit: Option<usize>, offset: Option<usize>, enrich: bool, callback: F)
-    where
+    pub async fn resolve_with_callback<F>(
+        &mut self,
+        limit: Option<usize>,
+        offset: Option<usize>,
+        enrich: bool,
+        callback: F,
+    ) where
         F: FnOnce(SearchResults),
     {
         let result = self.resolve_async(limit, offset, enrich).await;
@@ -387,8 +406,7 @@ impl Resolver {
         limit: Option<usize>,
         offset: Option<usize>,
     ) -> ResolverResult<SearchResults> {
-        let index = self.index.as_ref()
-            .ok_or(ResolverError::IndexNotSet)?;
+        let index = self.index.as_ref().ok_or(ResolverError::IndexNotSet)?;
 
         let options = crate::r#type::SearchOptions {
             query: Some(query),
@@ -411,8 +429,7 @@ impl Resolver {
         let mut current = self.clone();
 
         for (method, options) in operations {
-            let index = current.index.as_ref()
-                .ok_or(ResolverError::IndexNotSet)?;
+            let index = current.index.as_ref().ok_or(ResolverError::IndexNotSet)?;
 
             let limit = options.limit().unwrap_or(0);
             let offset = options.offset().unwrap_or(0);
@@ -437,20 +454,52 @@ impl Resolver {
 
                 match method.as_str() {
                     "and" => {
-                        let op_results: Vec<IntermediateSearchResults> = vec![vec![search_ids.clone()]];
-                        crate::resolver::handler::Handler::handle_and(&mut current, op_results, limit, offset, enrich, resolve);
+                        let op_results: Vec<IntermediateSearchResults> =
+                            vec![vec![search_ids.clone()]];
+                        crate::resolver::handler::Handler::handle_and(
+                            &mut current,
+                            op_results,
+                            limit,
+                            offset,
+                            enrich,
+                            resolve,
+                        );
                     }
                     "or" => {
-                        let op_results: Vec<IntermediateSearchResults> = vec![vec![search_ids.clone()]];
-                        crate::resolver::handler::Handler::handle_or(&mut current, op_results, limit, offset, enrich, resolve);
+                        let op_results: Vec<IntermediateSearchResults> =
+                            vec![vec![search_ids.clone()]];
+                        crate::resolver::handler::Handler::handle_or(
+                            &mut current,
+                            op_results,
+                            limit,
+                            offset,
+                            enrich,
+                            resolve,
+                        );
                     }
                     "not" => {
-                        let op_results: Vec<IntermediateSearchResults> = vec![vec![search_ids.clone()]];
-                        crate::resolver::handler::Handler::handle_not(&mut current, op_results, limit, offset, enrich, resolve);
+                        let op_results: Vec<IntermediateSearchResults> =
+                            vec![vec![search_ids.clone()]];
+                        crate::resolver::handler::Handler::handle_not(
+                            &mut current,
+                            op_results,
+                            limit,
+                            offset,
+                            enrich,
+                            resolve,
+                        );
                     }
                     "xor" => {
-                        let op_results: Vec<IntermediateSearchResults> = vec![vec![search_ids.clone()]];
-                        crate::resolver::handler::Handler::handle_xor(&mut current, op_results, limit, offset, enrich, resolve);
+                        let op_results: Vec<IntermediateSearchResults> =
+                            vec![vec![search_ids.clone()]];
+                        crate::resolver::handler::Handler::handle_xor(
+                            &mut current,
+                            op_results,
+                            limit,
+                            offset,
+                            enrich,
+                            resolve,
+                        );
                     }
                     _ => {
                         current.result = vec![search_ids];
@@ -545,7 +594,8 @@ mod tests {
         options.options.limit = Some(10);
         options.options.offset = Some(5);
 
-        let resolver = Resolver::from_options(options, None).expect("Resolver::from_options should succeed");
+        let resolver =
+            Resolver::from_options(options, None).expect("Resolver::from_options should succeed");
         assert_eq!(resolver.boostval, 0);
         assert!(!resolver.result.is_empty());
     }
@@ -555,7 +605,7 @@ mod tests {
         let result: IntermediateSearchResults = vec![vec![1, 2, 3, 4, 5]];
         let mut resolver = Resolver::new(result, None);
         resolver.limit(3);
-        
+
         let flattened = resolver.get();
         assert_eq!(flattened.len(), 3);
         assert_eq!(flattened, vec![1, 2, 3]);
@@ -566,7 +616,7 @@ mod tests {
         let result: IntermediateSearchResults = vec![vec![1, 2, 3, 4, 5]];
         let mut resolver = Resolver::new(result, None);
         resolver.offset(2);
-        
+
         let flattened = resolver.get();
         assert_eq!(flattened.len(), 3);
         assert_eq!(flattened, vec![3, 4, 5]);
@@ -577,7 +627,7 @@ mod tests {
         let result: IntermediateSearchResults = vec![vec![1, 2, 3]];
         let mut resolver = Resolver::new(result, None);
         resolver.boost(5).boost(3);
-        
+
         assert_eq!(resolver.boostval, 8);
     }
 

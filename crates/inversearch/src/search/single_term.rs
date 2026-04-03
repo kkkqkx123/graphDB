@@ -1,9 +1,9 @@
 //! 单术语搜索模块
-//! 
+//!
 //! 提供单术语和简单查询的搜索功能
 
-use crate::r#type::{SearchResults, SearchOptions};
 use crate::error::Result;
+use crate::r#type::{SearchOptions, SearchResults};
 use crate::Index;
 
 /// 单术语查询结果
@@ -48,7 +48,7 @@ pub fn single_term_query(
     }
 
     let first_term = &encoded_term[0];
-    
+
     // 根据是否有上下文选择不同的查询方式
     let results = if let Some(ctx) = context {
         // 上下文搜索
@@ -59,7 +59,7 @@ pub fn single_term_query(
     };
 
     let total = results.len();
-    
+
     Ok(SingleTermResult {
         results,
         term: term.to_string(),
@@ -100,7 +100,10 @@ fn single_context_query(
     if let Some(doc_ids) = index.ctx.get(&context_str) {
         let term_str = term.to_string();
         // 检查term是否在文档ID列表中
-        if doc_ids.iter().any(|id| *id == term_str.parse::<u64>().unwrap_or(0)) {
+        if doc_ids
+            .iter()
+            .any(|id| *id == term_str.parse::<u64>().unwrap_or(0))
+        {
             return Ok(doc_ids.clone());
         }
     }
@@ -141,16 +144,11 @@ pub fn multi_term_search(
 
     // 收集每个术语的搜索结果
     let mut intermediate_results = Vec::new();
-    
+
     for term in terms {
         // Use usize::MAX to get all results for union
-        let result = single_term_query(
-            index,
-            term,
-            None,
-            usize::MAX, 0, true, false, None
-        )?;
-        
+        let result = single_term_query(index, term, None, usize::MAX, 0, true, false, None)?;
+
         if !result.results.is_empty() {
             intermediate_results.push(result.results);
         }
@@ -177,7 +175,7 @@ fn perform_intersection(results: &[SearchResults]) -> SearchResults {
     if results.is_empty() {
         return Vec::new();
     }
-    
+
     if results.len() == 1 {
         return results[0].clone();
     }
@@ -185,7 +183,7 @@ fn perform_intersection(results: &[SearchResults]) -> SearchResults {
     // 找到最小的结果集作为基础
     let mut min_idx = 0;
     let mut min_size = results[0].len();
-    
+
     for (i, result) in results.iter().enumerate().skip(1) {
         if result.len() < min_size {
             min_size = result.len();
@@ -217,7 +215,7 @@ fn perform_union(results: &[SearchResults]) -> SearchResults {
     if results.is_empty() {
         return Vec::new();
     }
-    
+
     if results.len() == 1 {
         return results[0].clone();
     }
@@ -247,18 +245,18 @@ mod tests {
     #[test]
     fn test_single_plain_query() {
         let mut index = Index::default();
-        
+
         // 添加测试数据
         index.add(1, "hello world", false).unwrap();
         index.add(2, "hello rust", false).unwrap();
         index.add(3, "goodbye world", false).unwrap();
-        
+
         // 搜索存在的术语
         let results = single_plain_query(&index, "hello", 10, 0).unwrap();
         assert_eq!(results.len(), 2);
         assert!(results.contains(&1));
         assert!(results.contains(&2));
-        
+
         // 搜索不存在的术语
         let results = single_plain_query(&index, "nonexistent", 10, 0).unwrap();
         assert_eq!(results.len(), 0);
@@ -267,19 +265,19 @@ mod tests {
     #[test]
     fn test_apply_limit_offset() {
         let results = vec![1, 2, 3, 4, 5];
-        
+
         // 测试限制
         let limited = apply_limit_offset(&results, 3, 0);
         assert_eq!(limited, vec![1, 2, 3]);
-        
+
         // 测试偏移
         let offset = apply_limit_offset(&results, 10, 2);
         assert_eq!(offset, vec![3, 4, 5]);
-        
+
         // 测试限制和偏移
         let both = apply_limit_offset(&results, 2, 1);
         assert_eq!(both, vec![2, 3]);
-        
+
         // 测试边界条件
         let empty = apply_limit_offset(&results, 0, 10);
         assert_eq!(empty, Vec::<u64>::new());
@@ -290,14 +288,14 @@ mod tests {
         let results1 = vec![1, 2, 3, 4];
         let results2 = vec![2, 3, 5, 6];
         let results3 = vec![2, 4, 6, 7];
-        
+
         let intersection = perform_intersection(&[results1, results2, results3]);
         assert_eq!(intersection, vec![2]);
-        
+
         // 测试空结果
         let empty = perform_intersection(&[]);
         assert_eq!(empty, Vec::<u64>::new());
-        
+
         // 测试单结果
         let single = perform_intersection(&[vec![1, 2, 3]]);
         assert_eq!(single, vec![1, 2, 3]);
@@ -306,20 +304,20 @@ mod tests {
     #[test]
     fn test_multi_term_search() {
         let mut index = Index::default();
-        
+
         // 添加测试数据
         index.add(1, "hello world", false).unwrap();
         index.add(2, "rust programming", false).unwrap();
         index.add(3, "rust programming", false).unwrap();
         index.add(4, "hello rust world", false).unwrap();
-        
+
         let options = SearchOptions::default();
-        
+
         // 多术语搜索（并集/OR逻辑）
         let results = multi_term_search(&index, vec!["hello", "rust"], &options).unwrap();
-        
+
         // 文档1: "hello world" - 只有hello
-        // 文档2: "rust programming" - 只有rust  
+        // 文档2: "rust programming" - 只有rust
         // 文档3: "rust programming" - 只有rust
         // 文档4: "hello rust world" - 有hello和rust
         // 所以并集应该返回文档1, 2, 3, 4（所有包含hello或rust的文档）
@@ -328,7 +326,7 @@ mod tests {
         assert!(results.contains(&2));
         assert!(results.contains(&3));
         assert!(results.contains(&4));
-        
+
         // 单术语搜索（退化情况）
         let results = multi_term_search(&index, vec!["hello"], &options).unwrap();
         assert_eq!(results.len(), 2); // 文档1和4包含"hello"

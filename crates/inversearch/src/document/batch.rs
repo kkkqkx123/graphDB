@@ -17,8 +17,8 @@
 //! document.execute_batch(&mut batch)?;
 //! ```
 
-use serde_json::{Value, json};
 use crate::DocId;
+use serde_json::{json, Value};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// 全局批量操作 ID 计数器
@@ -188,11 +188,7 @@ where
     R: FnMut(DocId, &Value) -> Result<(), crate::error::InversearchError>,
 {
     /// 创建新的执行器
-    pub fn new(
-        add_fn: A,
-        update_fn: U,
-        remove_fn: R,
-    ) -> Self {
+    pub fn new(add_fn: A, update_fn: U, remove_fn: R) -> Self {
         BatchExecutorFn {
             add_fn,
             update_fn,
@@ -212,10 +208,7 @@ where
     }
 
     /// 执行批量操作
-    pub fn execute_batch(
-        &mut self,
-        batch: &Batch,
-    ) -> Result<(), crate::error::InversearchError> {
+    pub fn execute_batch(&mut self, batch: &Batch) -> Result<(), crate::error::InversearchError> {
         for op in &batch.operations {
             self.execute(op)?;
         }
@@ -245,7 +238,7 @@ pub struct BatchResult {
 }
 
 /// 批量操作执行器
-/// 
+///
 /// 用于执行批量文档操作，支持并行处理和自定义工作线程数
 pub struct BatchExecutor {
     parallel: bool,
@@ -379,50 +372,40 @@ impl BatchExecutor {
 
         for operation in operations {
             match operation {
-                BatchOperation::Add(id, content) => {
-                    match document.add(*id, content) {
+                BatchOperation::Add(id, content) => match document.add(*id, content) {
+                    Ok(_) => successful += 1,
+                    Err(e) => {
+                        failed += 1;
+                        errors.push((*id, e.to_string()));
+                    }
+                },
+                BatchOperation::Update(id, content) => match document.update(*id, content) {
+                    Ok(_) => successful += 1,
+                    Err(e) => {
+                        failed += 1;
+                        errors.push((*id, e.to_string()));
+                    }
+                },
+                BatchOperation::Remove(id) => match document.remove(*id) {
+                    Ok(_) => successful += 1,
+                    Err(e) => {
+                        failed += 1;
+                        errors.push((*id, e.to_string()));
+                    }
+                },
+                BatchOperation::Replace(id, content) => match document.remove(*id) {
+                    Ok(_) => match document.add(*id, content) {
                         Ok(_) => successful += 1,
                         Err(e) => {
                             failed += 1;
                             errors.push((*id, e.to_string()));
                         }
+                    },
+                    Err(e) => {
+                        failed += 1;
+                        errors.push((*id, e.to_string()));
                     }
-                }
-                BatchOperation::Update(id, content) => {
-                    match document.update(*id, content) {
-                        Ok(_) => successful += 1,
-                        Err(e) => {
-                            failed += 1;
-                            errors.push((*id, e.to_string()));
-                        }
-                    }
-                }
-                BatchOperation::Remove(id) => {
-                    match document.remove(*id) {
-                        Ok(_) => successful += 1,
-                        Err(e) => {
-                            failed += 1;
-                            errors.push((*id, e.to_string()));
-                        }
-                    }
-                }
-                BatchOperation::Replace(id, content) => {
-                    match document.remove(*id) {
-                        Ok(_) => {
-                            match document.add(*id, content) {
-                                Ok(_) => successful += 1,
-                                Err(e) => {
-                                    failed += 1;
-                                    errors.push((*id, e.to_string()));
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            failed += 1;
-                            errors.push((*id, e.to_string()));
-                        }
-                    }
-                }
+                },
             }
         }
 
@@ -451,12 +434,12 @@ mod tests {
     #[test]
     fn test_batch_add() {
         let mut batch = Batch::new(100);
-        
+
         let doc1 = json!({"title": "Doc 1"});
         let doc2 = json!({"title": "Doc 2"});
         batch.add(1, &doc1);
         batch.add(2, &doc2);
-        
+
         assert_eq!(batch.len(), 2);
         assert!(!batch.is_empty());
     }
@@ -464,61 +447,61 @@ mod tests {
     #[test]
     fn test_batch_update() {
         let mut batch = Batch::new(100);
-        
+
         let doc = json!({"title": "Updated"});
         batch.update(1, &doc);
-        
+
         assert_eq!(batch.len(), 1);
     }
 
     #[test]
     fn test_batch_remove() {
         let mut batch = Batch::new(100);
-        
+
         batch.remove(1);
         batch.remove(2);
-        
+
         assert_eq!(batch.len(), 2);
     }
 
     #[test]
     fn test_batch_mixed_operations() {
         let mut batch = Batch::new(100);
-        
+
         let doc1 = json!({"title": "New"});
         let doc2 = json!({"title": "Updated"});
         batch.add(1, &doc1);
         batch.update(2, &doc2);
         batch.remove(3);
-        
+
         assert_eq!(batch.len(), 3);
     }
 
     #[test]
     fn test_batch_clear() {
         let mut batch = Batch::new(100);
-        
+
         let doc1 = json!({"title": "Doc 1"});
         let doc2 = json!({"title": "Doc 2"});
         batch.add(1, &doc1);
         batch.add(2, &doc2);
-        
+
         batch.clear();
-        
+
         assert!(batch.is_empty());
     }
 
     #[test]
     fn test_batch_drain() {
         let mut batch = Batch::new(100);
-        
+
         let doc1 = json!({"title": "Doc 1"});
         let doc2 = json!({"title": "Doc 2"});
         batch.add(1, &doc1);
         batch.add(2, &doc2);
-        
+
         let ops = batch.drain();
-        
+
         assert!(batch.is_empty());
         assert_eq!(ops.len(), 2);
     }
@@ -530,19 +513,28 @@ mod tests {
         let doc2 = json!({"title": "Doc 2"});
         batch.add(1, &doc1);
         batch.add(2, &doc2);
-        
+
         let mut add_count = 0;
         let mut update_count = 0;
         let mut remove_count = 0;
-        
+
         let mut executor = BatchExecutorFn::new(
-            |_, _| { add_count += 1; Ok(()) },
-            |_, _| { update_count += 1; Ok(()) },
-            |_, _| { remove_count += 1; Ok(()) },
+            |_, _| {
+                add_count += 1;
+                Ok(())
+            },
+            |_, _| {
+                update_count += 1;
+                Ok(())
+            },
+            |_, _| {
+                remove_count += 1;
+                Ok(())
+            },
         );
-        
+
         executor.execute_batch(&batch).unwrap();
-        
+
         assert_eq!(add_count, 2);
         assert_eq!(update_count, 0);
         assert_eq!(remove_count, 0);
@@ -582,7 +574,7 @@ mod tests {
             errors: vec![(1, "Error".to_string()), (2, "Error".to_string())],
             duration_ms: 100,
         };
-        
+
         assert_eq!(result.batch_id, 1);
         assert_eq!(result.total_operations, 10);
         assert_eq!(result.successful_operations, 8);
@@ -601,7 +593,7 @@ mod tests {
             completed_operations: 0,
             failed_operations: 0,
         };
-        
+
         assert_eq!(metadata.batch_id, 1);
         assert_eq!(metadata.status, BatchStatus::Pending);
         assert_eq!(metadata.total_operations, 100);
@@ -632,17 +624,17 @@ mod tests {
     #[test]
     fn test_batch_should_flush() {
         let mut batch = Batch::new(10);
-        
+
         assert!(!batch.should_flush());
-        
+
         let docs: Vec<serde_json::Value> = (0..10)
             .map(|i| json!({"title": format!("Doc {}", i)}))
             .collect();
-        
+
         for (i, doc) in docs.iter().enumerate() {
             batch.add(i as DocId, doc);
         }
-        
+
         assert!(batch.should_flush());
     }
 
@@ -651,10 +643,10 @@ mod tests {
         let mut batch = Batch::new(100);
         let doc1 = json!({"title": "Original"});
         let doc2 = json!({"title": "Replaced"});
-        
+
         batch.replace(1, &doc1);
         batch.replace(2, &doc2);
-        
+
         assert_eq!(batch.len(), 2);
     }
 }
