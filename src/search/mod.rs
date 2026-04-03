@@ -1,5 +1,4 @@
 pub mod adapters;
-pub mod cache;
 pub mod config;
 pub mod engine;
 pub mod error;
@@ -11,7 +10,6 @@ pub mod metrics;
 pub mod result;
 pub mod warmup;
 
-pub use cache::SearchCache;
 pub use config::{FulltextConfig, SyncConfig, SyncMode, Bm25Config};
 pub use engine::{EngineType, SearchEngine};
 pub use error::{Result, SearchError};

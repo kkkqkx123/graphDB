@@ -11,7 +11,7 @@
 //! - `batch.rs`: 批量操作
 
 mod field;
-mod tree;
+pub mod tree;
 mod tag;
 mod batch;
 
@@ -36,6 +36,8 @@ use crate::{
 };
 use serde_json::Value;
 use std::collections::HashMap;
+
+type TagFilterFn = Box<dyn Fn(&Value) -> bool + Send + Sync>;
 
 /// 文档搜索引擎主结构
 pub struct Document {
@@ -339,7 +341,7 @@ impl Document {
 #[derive(Default)]
 pub struct DocumentConfig {
     pub fields: Vec<FieldConfig>,
-    pub tags: Vec<(String, Option<Box<dyn Fn(&Value) -> bool + Send + Sync>>)>,
+    pub tags: Vec<(String, Option<TagFilterFn>)>,
     pub store: bool,
     pub fastupdate: bool,
     pub cache: Option<usize>,
@@ -416,8 +418,8 @@ mod tests {
         let config = DocumentConfig::new()
             .add_field(FieldConfig::new("title"))
             .add_field(FieldConfig::new("content"));
-        
-        let doc = Document::new(config).unwrap();
+
+        let doc = Document::new(config).expect("Document::new should succeed");
         assert_eq!(doc.len(), 2);
     }
 
@@ -425,10 +427,10 @@ mod tests {
     fn test_document_add() {
         let config = DocumentConfig::new()
             .add_field(FieldConfig::new("title"));
-        
-        let mut doc = Document::new(config).unwrap();
-        doc.add(1, &json!({"title": "Hello World"})).unwrap();
-        
+
+        let mut doc = Document::new(config).expect("Document::new should succeed");
+        doc.add(1, &json!({"title": "Hello World"})).expect("add should succeed");
+
         assert!(doc.contains(1));
     }
 
@@ -436,17 +438,17 @@ mod tests {
     fn test_document_search() {
         let config = DocumentConfig::new()
             .add_field(FieldConfig::new("title"));
-        
-        let mut doc = Document::new(config).unwrap();
-        doc.add(1, &json!({"title": "Hello World"})).unwrap();
-        doc.add(2, &json!({"title": "Rust Programming"})).unwrap();
-        
+
+        let mut doc = Document::new(config).expect("Document::new should succeed");
+        doc.add(1, &json!({"title": "Hello World"})).expect("add should succeed");
+        doc.add(2, &json!({"title": "Rust Programming"})).expect("add should succeed");
+
         let result = doc.search(&SearchOptions {
             query: Some("Hello".to_string()),
             limit: Some(10),
             ..Default::default()
-        }).unwrap();
-        
+        }).expect("search should succeed");
+
         assert_eq!(result.results.len(), 1);
         assert_eq!(result.results[0], 1);
     }
@@ -455,14 +457,14 @@ mod tests {
     fn test_document_remove() {
         let config = DocumentConfig::new()
             .add_field(FieldConfig::new("title"));
-        
-        let mut doc = Document::new(config).unwrap();
-        doc.add(1, &json!({"title": "Hello"})).unwrap();
-        
+
+        let mut doc = Document::new(config).expect("Document::new should succeed");
+        doc.add(1, &json!({"title": "Hello"})).expect("add should succeed");
+
         assert!(doc.contains(1));
-        
-        doc.remove(1).unwrap();
-        
+
+        doc.remove(1).expect("remove should succeed");
+
         assert!(!doc.contains(1));
     }
 
@@ -471,27 +473,27 @@ mod tests {
         let config = DocumentConfig::new()
             .add_field(FieldConfig::new("title"))
             .with_store();
-        
-        let mut doc = Document::new(config).unwrap();
-        doc.add(1, &json!({"title": "Original"})).unwrap();
-        
-        doc.update(1, &json!({"title": "Updated"})).unwrap();
-        
+
+        let mut doc = Document::new(config).expect("Document::new should succeed");
+        doc.add(1, &json!({"title": "Original"})).expect("add should succeed");
+
+        doc.update(1, &json!({"title": "Updated"})).expect("update should succeed");
+
         let stored = doc.get(1);
-        assert_eq!(stored.unwrap()["title"], "Updated");
+        assert_eq!(stored.expect("get should return Some")["title"], "Updated");
     }
 
     #[test]
     fn test_document_clear() {
         let config = DocumentConfig::new()
             .add_field(FieldConfig::new("title"));
-        
-        let mut doc = Document::new(config).unwrap();
-        doc.add(1, &json!({"title": "Doc 1"})).unwrap();
-        doc.add(2, &json!({"title": "Doc 2"})).unwrap();
-        
+
+        let mut doc = Document::new(config).expect("Document::new should succeed");
+        doc.add(1, &json!({"title": "Doc 1"})).expect("add should succeed");
+        doc.add(2, &json!({"title": "Doc 2"})).expect("add should succeed");
+
         doc.clear();
-        
+
         assert!(!doc.contains(1));
         assert!(!doc.contains(2));
     }
@@ -500,9 +502,9 @@ mod tests {
     fn test_document_batch() {
         let config = DocumentConfig::new()
             .add_field(FieldConfig::new("title"));
-        
-        let mut doc = Document::new(config).unwrap();
-        
+
+        let mut doc = Document::new(config).expect("Document::new should succeed");
+
         let mut batch = Batch::new(100);
         let doc1 = json!({"title": "Doc 1"});
         let doc2 = json!({"title": "Doc 2"});
@@ -552,43 +554,43 @@ mod tests {
         let config = DocumentConfig::new()
             .add_field(FieldConfig::new("title"))
             .with_store();
-        
-        let mut doc = Document::new(config).unwrap();
-        doc.add(1, &json!({"title": "Original"})).unwrap();
-        doc.add(2, &json!({"title": "Original"})).unwrap();
-        
+
+        let mut doc = Document::new(config).expect("Document::new should succeed");
+        doc.add(1, &json!({"title": "Original"})).expect("add should succeed");
+        doc.add(2, &json!({"title": "Original"})).expect("add should succeed");
+
         let doc1 = json!({"title": "Updated 1"});
         let doc2 = json!({"title": "Updated 2"});
         let operations = vec![
             (1, &doc1),
             (2, &doc2),
         ];
-        
+
         let result = doc.batch_update(&operations);
-        
+
         assert_eq!(result.total_operations, 2);
         assert_eq!(result.successful_operations, 2);
         assert_eq!(result.failed_operations, 0);
-        
+
         let stored1 = doc.get(1);
         let stored2 = doc.get(2);
-        assert_eq!(stored1.unwrap()["title"], "Updated 1");
-        assert_eq!(stored2.unwrap()["title"], "Updated 2");
+        assert_eq!(stored1.expect("get should return Some")["title"], "Updated 1");
+        assert_eq!(stored2.expect("get should return Some")["title"], "Updated 2");
     }
 
     #[test]
     fn test_document_batch_remove() {
         let config = DocumentConfig::new()
             .add_field(FieldConfig::new("title"));
-        
-        let mut doc = Document::new(config).unwrap();
-        doc.add(1, &json!({"title": "Doc 1"})).unwrap();
-        doc.add(2, &json!({"title": "Doc 2"})).unwrap();
-        doc.add(3, &json!({"title": "Doc 3"})).unwrap();
-        
+
+        let mut doc = Document::new(config).expect("Document::new should succeed");
+        doc.add(1, &json!({"title": "Doc 1"})).expect("add should succeed");
+        doc.add(2, &json!({"title": "Doc 2"})).expect("add should succeed");
+        doc.add(3, &json!({"title": "Doc 3"})).expect("add should succeed");
+
         let operations = vec![1, 2];
         let result = doc.batch_remove(&operations);
-        
+
         assert_eq!(result.total_operations, 2);
         assert_eq!(result.successful_operations, 2);
         assert_eq!(result.failed_operations, 0);
@@ -601,20 +603,20 @@ mod tests {
     fn test_document_batch_mixed_operations() {
         let config = DocumentConfig::new()
             .add_field(FieldConfig::new("title"));
-        
-        let mut doc = Document::new(config).unwrap();
-        doc.add(1, &json!({"title": "Doc 1"})).unwrap();
-        doc.add(2, &json!({"title": "Doc 2"})).unwrap();
-        
+
+        let mut doc = Document::new(config).expect("Document::new should succeed");
+        doc.add(1, &json!({"title": "Doc 1"})).expect("add should succeed");
+        doc.add(2, &json!({"title": "Doc 2"})).expect("add should succeed");
+
         let mut batch = Batch::new(100);
         let doc3 = json!({"title": "Doc 3"});
         let doc1_updated = json!({"title": "Updated Doc 1"});
         batch.add(3, &doc3);
         batch.update(1, &doc1_updated);
         batch.remove(2);
-        
+
         let result = doc.execute_batch(&batch);
-        
+
         assert_eq!(result.total_operations, 3);
         assert_eq!(result.successful_operations, 3);
         assert_eq!(result.failed_operations, 0);

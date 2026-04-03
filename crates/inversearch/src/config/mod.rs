@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     pub server: ServerConfig,
     pub index: IndexConfig,
@@ -70,7 +70,12 @@ impl Default for CacheConfig {
 pub struct StorageConfig {
     pub enabled: bool,
     pub backend: StorageBackend,
+    #[cfg(feature = "store-redis")]
     pub redis: Option<RedisConfig>,
+    #[cfg(feature = "store-file")]
+    pub file: Option<FileStorageConfig>,
+    #[cfg(feature = "store-wal")]
+    pub wal: Option<WALConfig>,
 }
 
 impl Default for StorageConfig {
@@ -78,7 +83,12 @@ impl Default for StorageConfig {
         StorageConfig {
             enabled: false,
             backend: StorageBackend::Memory,
+            #[cfg(feature = "store-redis")]
             redis: None,
+            #[cfg(feature = "store-file")]
+            file: None,
+            #[cfg(feature = "store-wal")]
+            wal: None,
         }
     }
 }
@@ -87,20 +97,67 @@ impl Default for StorageConfig {
 #[serde(rename_all = "lowercase")]
 pub enum StorageBackend {
     Memory,
+    #[cfg(feature = "store-file")]
+    File,
+    #[cfg(feature = "store-redis")]
     Redis,
+    #[cfg(feature = "store-wal")]
+    Wal,
 }
 
+#[cfg(feature = "store-redis")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RedisConfig {
     pub url: String,
     pub pool_size: usize,
 }
 
+#[cfg(feature = "store-redis")]
 impl Default for RedisConfig {
     fn default() -> Self {
         RedisConfig {
             url: "redis://127.0.0.1:6379".to_string(),
             pool_size: 10,
+        }
+    }
+}
+
+#[cfg(feature = "store-file")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileStorageConfig {
+    pub base_path: String,
+    pub auto_save: bool,
+    pub save_interval_secs: u64,
+}
+
+#[cfg(feature = "store-file")]
+impl Default for FileStorageConfig {
+    fn default() -> Self {
+        FileStorageConfig {
+            base_path: "./data".to_string(),
+            auto_save: true,
+            save_interval_secs: 60,
+        }
+    }
+}
+
+#[cfg(feature = "store-wal")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WALConfig {
+    pub base_path: String,
+    pub max_wal_size: usize,
+    pub compression: bool,
+    pub snapshot_interval: usize,
+}
+
+#[cfg(feature = "store-wal")]
+impl Default for WALConfig {
+    fn default() -> Self {
+        WALConfig {
+            base_path: "./wal".to_string(),
+            max_wal_size: 100 * 1024 * 1024,
+            compression: true,
+            snapshot_interval: 1000,
         }
     }
 }
@@ -116,18 +173,6 @@ impl Default for LoggingConfig {
         LoggingConfig {
             level: "info".to_string(),
             format: "json".to_string(),
-        }
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Config {
-            server: ServerConfig::default(),
-            index: IndexConfig::default(),
-            cache: CacheConfig::default(),
-            storage: StorageConfig::default(),
-            logging: LoggingConfig::default(),
         }
     }
 }
@@ -150,12 +195,33 @@ impl Config {
             config.server.port = port.parse()?;
         }
 
+        #[cfg(feature = "store-redis")]
         if let Ok(redis_url) = std::env::var("INVERSEARCH_REDIS_URL") {
             if config.storage.redis.is_none() {
                 config.storage.redis = Some(RedisConfig::default());
             }
             if let Some(redis_config) = config.storage.redis.as_mut() {
                 redis_config.url = redis_url;
+            }
+        }
+
+        #[cfg(feature = "store-file")]
+        if let Ok(file_path) = std::env::var("INVERSEARCH_FILE_PATH") {
+            if config.storage.file.is_none() {
+                config.storage.file = Some(FileStorageConfig::default());
+            }
+            if let Some(file_config) = config.storage.file.as_mut() {
+                file_config.base_path = file_path;
+            }
+        }
+
+        #[cfg(feature = "store-wal")]
+        if let Ok(wal_path) = std::env::var("INVERSEARCH_WAL_PATH") {
+            if config.storage.wal.is_none() {
+                config.storage.wal = Some(WALConfig::default());
+            }
+            if let Some(wal_config) = config.storage.wal.as_mut() {
+                wal_config.base_path = wal_path;
             }
         }
 
@@ -194,22 +260,42 @@ mod tests {
     #[test]
     fn test_cache_config_default() {
         let config = CacheConfig::default();
-        assert_eq!(config.enabled, false);
+        assert!(!config.enabled);
         assert_eq!(config.size, 1000);
     }
 
     #[test]
     fn test_storage_config_default() {
         let config = StorageConfig::default();
-        assert_eq!(config.enabled, false);
+        assert!(!config.enabled);
         assert!(matches!(config.backend, StorageBackend::Memory));
     }
 
+    #[cfg(feature = "store-redis")]
     #[test]
     fn test_redis_config_default() {
         let config = RedisConfig::default();
         assert_eq!(config.url, "redis://127.0.0.1:6379");
         assert_eq!(config.pool_size, 10);
+    }
+
+    #[cfg(feature = "store-file")]
+    #[test]
+    fn test_file_storage_config_default() {
+        let config = FileStorageConfig::default();
+        assert_eq!(config.base_path, "./data");
+        assert!(config.auto_save);
+        assert_eq!(config.save_interval_secs, 60);
+    }
+
+    #[cfg(feature = "store-wal")]
+    #[test]
+    fn test_wal_config_default() {
+        let config = WALConfig::default();
+        assert_eq!(config.base_path, "./wal");
+        assert_eq!(config.max_wal_size, 100 * 1024 * 1024);
+        assert!(config.compression);
+        assert_eq!(config.snapshot_interval, 1000);
     }
 
     #[test]

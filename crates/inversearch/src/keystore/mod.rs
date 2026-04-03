@@ -87,7 +87,7 @@ where
 
     pub fn keys(&self) -> Vec<K> {
         let mut keys = Vec::new();
-        for (_, map) in &self.index {
+        for map in self.index.values() {
             for key in map.keys() {
                 keys.push(key.clone());
             }
@@ -97,7 +97,7 @@ where
 
     pub fn values(&self) -> Vec<&V> {
         let mut values = Vec::new();
-        for (_, map) in &self.index {
+        for map in self.index.values() {
             for value in map.values() {
                 values.push(value);
             }
@@ -107,7 +107,7 @@ where
 
     pub fn entries(&self) -> Vec<(K, &V)> {
         let mut entries = Vec::new();
-        for (_, map) in &self.index {
+        for map in self.index.values() {
             for (key, value) in map {
                 entries.push((key.clone(), value));
             }
@@ -340,11 +340,11 @@ mod tests {
         assert_eq!(map.get(&"key2".to_string()), Some(&"value2".to_string()));
         assert_eq!(map.get(&"key3".to_string()), None);
         
-        assert_eq!(map.has(&"key1".to_string()), true);
-        assert_eq!(map.has(&"key3".to_string()), false);
+        assert!(map.has(&"key1".to_string()));
+        assert!(!map.has(&"key3".to_string()));
         
         map.delete(&"key1".to_string());
-        assert_eq!(map.has(&"key1".to_string()), false);
+        assert!(!map.has(&"key1".to_string()));
     }
 
     #[test]
@@ -354,12 +354,12 @@ mod tests {
         set.add(2);
         set.add(3);
         
-        assert_eq!(set.has(&1), true);
-        assert_eq!(set.has(&2), true);
-        assert_eq!(set.has(&4), false);
+        assert!(set.has(&1));
+        assert!(set.has(&2));
+        assert!(!set.has(&4));
         
         set.delete(&2);
-        assert_eq!(set.has(&2), false);
+        assert!(!set.has(&2));
     }
 
     #[test]
@@ -375,13 +375,13 @@ mod tests {
         assert_eq!(arr.get(3), None);
         
         assert_eq!(arr.length(), 3);
-        assert_eq!(arr.includes(&2), true);
-        assert_eq!(arr.includes(&4), false);
+        assert!(arr.includes(&2));
+        assert!(!arr.includes(&4));
         assert_eq!(arr.index_of(&2), Some(1));
 
         arr.push(4);
         assert_eq!(arr.length(), 4);
-        assert_eq!(arr.includes(&4), true);
+        assert!(arr.includes(&4));
 
         assert_eq!(arr.pop(), Some(4));
         assert_eq!(arr.length(), 3);

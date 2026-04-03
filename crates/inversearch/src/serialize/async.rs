@@ -60,11 +60,7 @@ impl AsyncSerializer {
         let index_clone = index.clone();
         
         tokio::task::spawn_blocking(move || {
-            let data: IndexExportData = if config.compression {
-                bincode::deserialize(&binary_data)?
-            } else {
-                bincode::deserialize(&binary_data)?
-            };
+            let data: IndexExportData = bincode::deserialize(&binary_data)?;
             
             let mut index_guard = index_clone.index.blocking_write();
             index_guard.import(data, &config)

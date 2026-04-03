@@ -70,8 +70,7 @@ pub fn union(arrays: &IntermediateSearchResults) -> IntermediateSearchResults {
     // 收集所有唯一的ID
     for array in arrays {
         for &id in array {
-            if !seen.contains_key(&id) {
-                seen.insert(id, true);
+            if seen.insert(id, true).is_none() {
                 result.push(id);
             }
         }
@@ -177,8 +176,7 @@ pub fn union_simple(arrays: &[Vec<u64>]) -> Vec<u64> {
     // 收集所有唯一的ID
     for array in arrays {
         for &id in array {
-            if !seen.contains_key(&id) {
-                seen.insert(id, true);
+            if seen.insert(id, true).is_none() {
                 result.push(id);
             }
         }

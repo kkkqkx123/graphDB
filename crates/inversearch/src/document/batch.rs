@@ -274,9 +274,9 @@ impl BatchExecutor {
     }
 
     /// 执行批量添加操作
-    pub fn execute_batch_add<'a>(
+    pub fn execute_batch_add(
         &self,
-        operations: &[(DocId, &'a Value)],
+        operations: &[(DocId, &Value)],
         document: &mut super::Document,
     ) -> BatchResult {
         let start = std::time::Instant::now();
@@ -305,9 +305,9 @@ impl BatchExecutor {
     }
 
     /// 执行批量更新操作
-    pub fn execute_batch_update<'a>(
+    pub fn execute_batch_update(
         &self,
-        operations: &[(DocId, &'a Value)],
+        operations: &[(DocId, &Value)],
         document: &mut super::Document,
     ) -> BatchResult {
         let start = std::time::Instant::now();

@@ -9,6 +9,8 @@ use crate::document::tree::{parse_tree, TreePath, extract_value};
 use serde_json::Value;
 use std::collections::HashMap;
 
+type FieldFilterFn = Box<dyn Fn(&Value) -> bool + Send + Sync>;
+
 /// 字段类型
 #[derive(Debug, Clone, PartialEq)]
 pub enum FieldType {
@@ -25,7 +27,7 @@ pub struct FieldConfig {
     pub field_type: FieldType,
     pub extract: Vec<TreePath>,
     pub encoder: Option<EncoderOptions>,
-    pub filter: Option<Box<dyn Fn(&Value) -> bool + Send + Sync>>,
+    pub filter: Option<FieldFilterFn>,
     pub boost: Option<i32>,
 }
 

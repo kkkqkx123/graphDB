@@ -128,9 +128,11 @@ mod tests {
 
     #[test]
     fn test_validate_length_constraints() {
-        let mut options = EncoderOptions::default();
-        options.minlength = Some(10);
-        options.maxlength = Some(5);
+        let options = EncoderOptions {
+            minlength: Some(10),
+            maxlength: Some(5),
+            ..Default::default()
+        };
         
         let result = EncoderValidator::validate(&options);
         assert!(result.is_err());

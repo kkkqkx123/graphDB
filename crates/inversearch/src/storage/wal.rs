@@ -193,7 +193,7 @@ impl WALManager {
         }
 
         // 达到快照间隔时触发快照
-        if self.change_count.load(Ordering::Relaxed) % self.config.snapshot_interval == 0 {
+        if self.change_count.load(Ordering::Relaxed).is_multiple_of(self.config.snapshot_interval) {
             self.trigger_snapshot().await?;
         }
 
@@ -366,12 +366,10 @@ impl WALManager {
             let file = tokio_fs::File::open(&self.wal_path).await?;
             let reader = BufReader::new(file.into_std().await);
 
-            for line in reader.lines() {
-                if let Ok(encoded) = line {
-                    if let Ok(decoded) = general_purpose::STANDARD.decode(&encoded) {
-                        if let Ok(change) = bincode::deserialize::<IndexChange>(&decoded) {
-                            self.apply_change(index, change)?;
-                        }
+            for line in reader.lines().map_while(|r| r.ok()) {
+                if let Ok(decoded) = general_purpose::STANDARD.decode(&line) {
+                    if let Ok(change) = bincode::deserialize::<IndexChange>(&decoded) {
+                        self.apply_change(index, change)?;
                     }
                 }
             }
@@ -502,7 +500,7 @@ mod tests {
         }).await.unwrap();
 
         // 创建快照
-        let mut index = Index::default();
+        let index = Index::default();
         wal.create_snapshot(&index).await.unwrap();
 
         // 验证快照存在

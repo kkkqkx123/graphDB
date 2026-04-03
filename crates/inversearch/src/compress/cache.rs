@@ -1,4 +1,5 @@
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
+use std::num::NonZeroUsize;
 use lru::LruCache;
 use crate::compress::lcg::lcg;
 use crate::compress::radix::to_radix_u64;
@@ -10,23 +11,24 @@ pub struct CompressCache {
 
 impl CompressCache {
     pub fn new(max_size: usize) -> Self {
+        let cap = NonZeroUsize::new(max_size.max(1))
+            .or_else(|| NonZeroUsize::new(1000))
+            .expect("Default cache size should be valid");
         CompressCache {
-            cache: Mutex::new(LruCache::unbounded()),
+            cache: Mutex::new(LruCache::new(cap)),
             max_size,
         }
     }
 
     pub fn get(&self, key: &str) -> Option<String> {
-        let cache = self.cache.lock().unwrap();
-        cache.peek(key).cloned()
+        let mut cache = self.cache.lock().ok()?;
+        cache.get(key).cloned()
     }
 
     pub fn insert(&self, key: String, value: String) {
-        let mut cache = self.cache.lock().unwrap();
-        if cache.len() >= self.max_size {
-            cache.clear();
+        if let Ok(mut cache) = self.cache.lock() {
+            cache.put(key, value);
         }
-        cache.put(key, value);
     }
 
     pub fn len(&self) -> usize {
@@ -34,34 +36,51 @@ impl CompressCache {
         cache.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        let cache = self.cache.lock().unwrap();
+        cache.is_empty()
+    }
+
     pub fn clear(&self) {
         let mut cache = self.cache.lock().unwrap();
         cache.clear();
     }
+
+    pub fn stats(&self) -> CacheStats {
+        let cache = self.cache.lock().unwrap();
+        CacheStats {
+            size: cache.len(),
+            max_size: self.max_size,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CacheStats {
+    pub size: usize,
+    pub max_size: usize,
+}
+
+static COMPRESS_CACHE: OnceLock<Mutex<LruCache<String, String>>> = OnceLock::new();
+
+fn get_or_init_cache(cache_size: usize) -> &'static Mutex<LruCache<String, String>> {
+    COMPRESS_CACHE.get_or_init(|| {
+        let cap = NonZeroUsize::new(cache_size.max(1)).unwrap_or(NonZeroUsize::new(1000).unwrap());
+        Mutex::new(LruCache::new(cap))
+    })
 }
 
 pub fn compress_with_cache(input: &str, cache_size: usize) -> String {
-    static mut CACHE: Option<CompressCache> = None;
-    static mut TIMER_SET: bool = false;
+    if input.is_empty() {
+        return String::new();
+    }
 
-    let cache_ptr = unsafe {
-        let cache_ptr = &raw mut CACHE;
-        if (*cache_ptr).is_none() {
-            *cache_ptr = Some(CompressCache::new(cache_size));
+    let cache = get_or_init_cache(cache_size);
+
+    if let Ok(mut guard) = cache.lock() {
+        if let Some(cached) = guard.get(input) {
+            return cached.clone();
         }
-        &raw const CACHE
-    };
-
-    let cache = unsafe {
-        if let Some(cache) = &*cache_ptr {
-            cache
-        } else {
-            return String::new();
-        }
-    };
-
-    if let Some(cached) = cache.get(input) {
-        return cached;
     }
 
     let result = if let Ok(num) = input.parse::<u64>() {
@@ -71,23 +90,34 @@ pub fn compress_with_cache(input: &str, cache_size: usize) -> String {
         to_radix_u64(hash, 255)
     };
 
-    cache.insert(input.to_string(), result.clone());
-
-    unsafe {
-        if !TIMER_SET {
-            TIMER_SET = true;
-            std::thread::spawn(|| {
-                std::thread::sleep(std::time::Duration::from_millis(1));
-                let cache_ptr = &raw const CACHE;
-                if let Some(cache) = &*cache_ptr {
-                    cache.clear();
-                }
-                TIMER_SET = false;
-            });
-        }
+    if let Ok(mut guard) = cache.lock() {
+        guard.put(input.to_string(), result.clone());
     }
 
     result
+}
+
+pub fn clear_global_cache() {
+    if let Some(cache) = COMPRESS_CACHE.get() {
+        if let Ok(mut guard) = cache.lock() {
+            guard.clear();
+        }
+    }
+}
+
+pub fn get_cache_stats(cache_size: usize) -> CacheStats {
+    let cache = get_or_init_cache(cache_size);
+    if let Ok(guard) = cache.lock() {
+        CacheStats {
+            size: guard.len(),
+            max_size: cache_size,
+        }
+    } else {
+        CacheStats {
+            size: 0,
+            max_size: cache_size,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -112,6 +142,17 @@ mod tests {
     }
 
     #[test]
+    fn test_cache_lru_eviction() {
+        let cache = CompressCache::new(3);
+        cache.insert("key1".to_string(), "value1".to_string());
+        cache.insert("key2".to_string(), "value2".to_string());
+        cache.insert("key3".to_string(), "value3".to_string());
+        cache.insert("key4".to_string(), "value4".to_string());
+        
+        assert_eq!(cache.len(), 3);
+    }
+
+    #[test]
     fn test_compress_with_cache() {
         let result = compress_with_cache("hello", 100);
         assert!(!result.is_empty());
@@ -128,5 +169,28 @@ mod tests {
     fn test_compress_number() {
         let result = compress_with_cache("123", 100);
         assert!(!result.is_empty());
+    }
+
+    #[test]
+    fn test_compress_empty() {
+        let result = compress_with_cache("", 100);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_global_cache_clear() {
+        compress_with_cache("test_key", 100);
+        clear_global_cache();
+        let stats = get_cache_stats(100);
+        assert_eq!(stats.size, 0);
+    }
+
+    #[test]
+    fn test_cache_stats() {
+        let cache = CompressCache::new(100);
+        cache.insert("key1".to_string(), "value1".to_string());
+        let stats = cache.stats();
+        assert_eq!(stats.size, 1);
+        assert_eq!(stats.max_size, 100);
     }
 }

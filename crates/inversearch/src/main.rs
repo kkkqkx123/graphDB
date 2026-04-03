@@ -46,6 +46,6 @@ fn run() -> anyhow::Result<()> {
 mod tests {
     #[test]
     fn test_main() {
-        assert!(true);
+        // 主函数入口测试
     }
 }

@@ -1,8 +1,10 @@
 mod transform;
 mod validator;
+pub mod tokenizer;
 
 pub use transform::*;
 pub use validator::EncoderValidator;
+pub use tokenizer::{Tokenizer, TokenizerMode};
 
 use crate::r#type::EncoderOptions;
 use crate::error::Result;
@@ -701,7 +703,6 @@ pub fn fallback_encoder(str: &str) -> Vec<String> {
     use unicode_normalization::UnicodeNormalization;
     NORMALIZE.replace_all(str.chars().nfkd().collect::<String>().as_str(), "")
         .to_lowercase()
-        .trim()
         .split_whitespace()
         .map(|s| s.to_string())
         .collect()
@@ -778,11 +779,13 @@ mod tests {
 
     #[test]
     fn test_encoder_mapper() {
-        let mut options = EncoderOptions::default();
-        options.dedupe = Some(false); // Disable dedupe for this test
         let mut mapper = HashMap::new();
         mapper.insert('a', 'b');
-        options.mapper = Some(mapper);
+        let options = EncoderOptions {
+            dedupe: Some(false), // Disable dedupe for this test
+            mapper: Some(mapper),
+            ..Default::default()
+        };
         let encoder = Encoder::new(options).expect("Failed to create encoder");
         let result = encoder.encode("apple").expect("Failed to encode");
         assert_eq!(result, vec!["bpple"]);
@@ -817,8 +820,10 @@ mod tests {
 
     #[test]
     fn test_trait_based_filter() {
-        let mut encoder = Encoder::default();
-        encoder.dedupe = false; // Disable deduplication for this test
+        let mut encoder = Encoder {
+            dedupe: false,
+            ..Default::default()
+        }; // Disable deduplication for this test
         
         // Test custom filter
         encoder.set_filter_function(|word| word.len() > 3);

@@ -8,5 +8,5 @@ pub mod search;
 pub mod persistence;
 pub mod tests;
 
-pub use manager::IndexManager;
+pub use manager::{IndexManager, IndexManagerConfig};
 pub use schema::IndexSchema;

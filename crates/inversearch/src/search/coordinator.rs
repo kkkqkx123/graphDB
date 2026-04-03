@@ -46,9 +46,10 @@ impl FieldSearch {
 }
 
 /// 权重应用策略
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum BoostStrategy {
     /// 乘法策略：将字段原始得分乘以权重值
+    #[default]
     Multiply,
     /// 加法策略：将权重值作为得分偏移量
     Add,
@@ -56,12 +57,6 @@ pub enum BoostStrategy {
     Exponential,
     /// 对数策略：使用对数函数调整得分
     Logarithmic,
-}
-
-impl Default for BoostStrategy {
-    fn default() -> Self {
-        BoostStrategy::Multiply
-    }
 }
 
 /// 字段权重配置
@@ -284,7 +279,7 @@ impl<'a> SearchCoordinator<'a> {
                 ..Default::default()
             };
 
-            let result = crate::search::search(&field.index(), &search_opts)?;
+            let result = crate::search::search(field.index(), &search_opts)?;
             field_results.push((field_search.name.clone(), result.results, final_weight));
         }
 
@@ -351,7 +346,7 @@ impl<'a> SearchCoordinator<'a> {
                 ..Default::default()
             };
 
-            let result = crate::search::search(&field.index(), &search_opts)?;
+            let result = crate::search::search(field.index(), &search_opts)?;
             field_results.push((field_search.name.clone(), result.results, field_boost * field_search.weight));
         }
 
@@ -360,8 +355,7 @@ impl<'a> SearchCoordinator<'a> {
 
         let scored: Vec<(DocId, f32)> = merged
             .into_iter()
-            .zip(scores.into_iter())
-            .map(|(id, score)| (id, score))
+            .zip(scores)
             .collect();
 
         Ok(scored)
@@ -431,7 +425,7 @@ impl<'a> SearchCoordinator<'a> {
             }
         }
 
-        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         scored.into_iter().map(|(id, _)| id).collect()
     }
 
@@ -472,7 +466,7 @@ impl<'a> SearchCoordinator<'a> {
                 let count = doc_counts.get(&id).copied().unwrap_or(1) as f32;
                 match self.options.combine {
                     CombineStrategy::Or => base_score,
-                    _ => base_score * (1.0 + (count as f32 - 1.0) * 0.1),
+                    _ => base_score * (1.0 + (count - 1.0) * 0.1),
                 }
             })
             .collect()
@@ -489,13 +483,13 @@ mod tests {
         let config = DocumentConfig::new()
             .add_field(FieldConfig::new("title"))
             .add_field(FieldConfig::new("content"));
-        
-        let mut doc = Document::new(config).unwrap();
-        
-        doc.add(1, &json!({"title": "Rust Programming", "content": "Learn Rust today"})).unwrap();
-        doc.add(2, &json!({"title": "JavaScript Guide", "content": "JavaScript tutorial"})).unwrap();
-        doc.add(3, &json!({"title": "Rust vs Go", "content": "Comparing Rust and Go"})).unwrap();
-        
+
+        let mut doc = Document::new(config).expect("Document::new should succeed");
+
+        doc.add(1, &json!({"title": "Rust Programming", "content": "Learn Rust today"})).expect("add doc 1 should succeed");
+        doc.add(2, &json!({"title": "JavaScript Guide", "content": "JavaScript tutorial"})).expect("add doc 2 should succeed");
+        doc.add(3, &json!({"title": "Rust vs Go", "content": "Comparing Rust and Go"})).expect("add doc 3 should succeed");
+
         doc
     }
 
@@ -508,8 +502,8 @@ mod tests {
         coordinator.add_field("content", 1.0);
         coordinator.options.query = "Rust".to_string();
         
-        let result = coordinator.search().unwrap();
-        
+        let result = coordinator.search().expect("search should succeed");
+
         // 应该找到包含 "Rust" 的文档 (1 和 3)
         assert!(result.results.contains(&1));
         assert!(result.results.contains(&3));
@@ -519,13 +513,13 @@ mod tests {
     fn test_search_coordinator_weight() {
         let doc = create_test_document();
         let mut coordinator = SearchCoordinator::new(&doc);
-        
+
         coordinator.add_field("title", 2.0);
         coordinator.add_field("content", 1.0);
         coordinator.options.query = "Rust".to_string();
-        
-        let scored = coordinator.search_with_scores().unwrap();
-        
+
+        let scored = coordinator.search_with_scores().expect("search_with_scores should succeed");
+
         assert!(!scored.is_empty());
         // 文档1和3都包含 Rust
         for s in &scored {
@@ -538,11 +532,11 @@ mod tests {
         let doc = create_test_document();
         let mut coordinator = SearchCoordinator::new(&doc);
         coordinator.options.combine = CombineStrategy::Or;
-        
+
         coordinator.add_field("title", 1.0);
         coordinator.options.query = "Rust".to_string();
-        
-        let result = coordinator.search().unwrap();
+
+        let result = coordinator.search().expect("search should succeed");
         assert!(!result.results.is_empty());
     }
 
@@ -551,11 +545,11 @@ mod tests {
         let doc = create_test_document();
         let mut coordinator = SearchCoordinator::new(&doc);
         coordinator.options.combine = CombineStrategy::And;
-        
+
         coordinator.add_field("title", 1.0);
         coordinator.options.query = "Rust".to_string();
-        
-        let result = coordinator.search().unwrap();
+
+        let result = coordinator.search().expect("search should succeed");
         assert!(!result.results.is_empty());
     }
 
@@ -563,12 +557,12 @@ mod tests {
     fn test_search_coordinator_limit() {
         let doc = create_test_document();
         let mut coordinator = SearchCoordinator::new(&doc);
-        
+
         coordinator.add_field("title", 1.0);
         coordinator.options.query = "Rust".to_string();
         coordinator.options.limit = 1;
-        
-        let result = coordinator.search().unwrap();
+
+        let result = coordinator.search().expect("search should succeed");
         assert!(result.results.len() <= 1);
     }
 
@@ -576,13 +570,13 @@ mod tests {
     fn test_search_coordinator_offset() {
         let doc = create_test_document();
         let mut coordinator = SearchCoordinator::new(&doc);
-        
+
         coordinator.add_field("title", 1.0);
         coordinator.options.query = "Rust".to_string();
         coordinator.options.limit = 10;
         coordinator.options.offset = 1;
-        
-        let result = coordinator.search().unwrap();
+
+        let result = coordinator.search().expect("search should succeed");
         assert!(result.total >= 1);
     }
 }

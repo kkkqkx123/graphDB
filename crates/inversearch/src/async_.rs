@@ -354,8 +354,10 @@ mod tests {
         async_index.add_async(2, "rust programming", false).await.unwrap();
         
         // 异步搜索
-        let mut options = SearchOptions::default();
-        options.query = Some("hello".to_string());
+        let options = SearchOptions {
+            query: Some("hello".to_string()),
+            ..Default::default()
+        };
         let result = async_index.search_async(options).await.unwrap();
         
         assert_eq!(result.results.len(), 1);

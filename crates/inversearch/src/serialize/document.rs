@@ -62,7 +62,7 @@ impl Document {
         let next_doc_id = match self.get_reg() {
             crate::document::Register::Set(set) => {
                 let mut max_id = 0u64;
-                for (_addr, hash_set) in &set.index {
+                for hash_set in set.index.values() {
                     for id in hash_set {
                         if *id > max_id {
                             max_id = *id;
@@ -130,7 +130,7 @@ impl Document {
         }
 
         // 导入registry数据
-        for doc_id in 0..data.registry.next_doc_id as u64 {
+        for doc_id in 0..data.registry.next_doc_id {
             match self.get_reg_mut() {
                 crate::document::Register::Set(set) => { set.add(doc_id); }
                 crate::document::Register::Map(map) => { map.insert(doc_id, ()); }

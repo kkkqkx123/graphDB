@@ -3,8 +3,19 @@ use crate::error::Result;
 use crate::highlight::types::*;
 use crate::highlight::boundary::*;
 use crate::highlight::matcher::*;
+use crate::document::tree::{parse_tree, extract_value_with_strategy, EvaluationStrategy};
 use serde_json::Value;
 use std::collections::HashMap;
+
+/// 从文档中提取字段值的内部工具函数
+fn extract_field_value(document: &Value, field_path: &str) -> Result<String> {
+    let mut marker = vec![];
+    let tree_path = parse_tree(field_path, &mut marker);
+    match extract_value_with_strategy(document, &tree_path, EvaluationStrategy::Lenient) {
+        Ok(value) => Ok(value),
+        Err(_) => Ok(String::new()),
+    }
+}
 
 pub struct HighlightProcessor {
     encoder_cache: HashMap<String, Vec<String>>,
@@ -80,13 +91,13 @@ impl HighlightProcessor {
         config: &HighlightConfig,
         query_enc: &[String],
     ) -> Result<Option<String>> {
-        let content = crate::common::parse_simple(document, field_path)?;
+        let content = extract_field_value(document, field_path)?;
         if content.is_empty() {
             return Ok(None);
         }
 
         let highlighted = self.process_content_with_boundary(&content, query_enc, encoder, config)?;
-        
+
         // Apply merge if configured
         let final_result = if let Some(merge_pattern) = &config.merge {
             let regex = regex::Regex::new(&regex::escape(merge_pattern))
@@ -129,7 +140,7 @@ impl HighlightProcessor {
 
             if match_result.found {
                 let current_pos = self.calculate_current_position(&boundary_terms);
-                
+
                 if first_match_pos < 0 {
                     first_match_pos = current_pos;
                 }
@@ -159,7 +170,10 @@ impl HighlightProcessor {
         }
 
         // Apply boundary processing if needed
-        if config.boundary.is_some() && (first_match_pos >= 0 || config.boundary.as_ref().unwrap().before.is_some() || config.boundary.as_ref().unwrap().after.is_some()) {
+        let should_apply_boundary = config.boundary.as_ref().is_some_and(|b| {
+            first_match_pos >= 0 || b.before.is_some() || b.after.is_some()
+        });
+        if should_apply_boundary {
             apply_advanced_boundary(boundary_terms, config)
         } else {
             self.join_boundary_terms(&boundary_terms)
@@ -188,7 +202,7 @@ impl HighlightProcessor {
     fn get_or_encode_query(&mut self, query: &str, encoder: &Encoder) -> Result<Vec<String>> {
         // Use a simple key for caching - in production, this should be more sophisticated
         let key = format!("encoder_{}", std::ptr::addr_of!(encoder) as usize);
-        
+
         if let Some(cached) = self.encoder_cache.get(&key) {
             return Ok(cached.clone());
         }
@@ -215,4 +229,92 @@ pub fn highlight_fields(
 ) -> Result<()> {
     let mut processor = HighlightProcessor::new();
     processor.highlight_fields(query, results, index_encoders, pluck, options)
+}
+
+// ============================================================
+// 新增：批量处理函数 - 返回结构化高亮结果（方案 A - 并行架构）
+// ============================================================
+
+/// 批量高亮处理搜索结果，返回结构化的文档高亮信息
+/// 
+/// # 参数
+/// * `query` - 查询字符串
+/// * `results` - 搜索结果列表（不含高亮）
+/// * `documents` - 对应的文档内容列表（与 results 一一对应）
+/// * `field_path` - 要高亮的字段路径
+/// * `encoders` - 编码器映射
+/// * `options` - 高亮选项
+/// 
+/// # 返回
+/// 文档高亮结果列表
+pub fn highlight_results(
+    query: &str,
+    results: &[SearchResult],
+    documents: &[serde_json::Value],
+    field_path: &str,
+    encoders: &HashMap<String, Encoder>,
+    options: &HighlightOptions,
+) -> Result<Vec<DocumentHighlight>> {
+    use crate::highlight::core::highlight_document_structured;
+
+    let config = HighlightConfig::from_options(options)?;
+
+    // 获取编码器（使用第一个可用的编码器）
+    let encoder = encoders.values().next()
+        .ok_or_else(|| crate::error::InversearchError::Highlight(
+            "No encoder available for highlighting".to_string()
+        ))?;
+
+    let mut highlights = Vec::new();
+
+    for (idx, result) in results.iter().enumerate() {
+        if idx >= documents.len() {
+            break;
+        }
+
+        let doc = &documents[idx];
+        if let Some(highlight) = highlight_document_structured(
+            query,
+            doc,
+            field_path,
+            result.id,
+            encoder,
+            &config,
+        )? {
+            highlights.push(highlight);
+        }
+    }
+
+    Ok(highlights)
+}
+
+/// 批量高亮处理并返回完整的搜索结果（含高亮）
+/// 
+/// # 参数
+/// * `query` - 查询字符串
+/// * `results` - 搜索结果列表（不含高亮）
+/// * `documents` - 对应的文档内容列表
+/// * `field_path` - 要高亮的字段路径
+/// * `encoders` - 编码器映射
+/// * `options` - 高亮选项
+/// 
+/// # 返回
+/// 包含高亮的完整搜索结果
+pub fn highlight_results_with_complete(
+    query: &str,
+    results: Vec<SearchResult>,
+    documents: Vec<serde_json::Value>,
+    field_path: &str,
+    encoders: &HashMap<String, Encoder>,
+    options: &HighlightOptions,
+) -> Result<SearchResultWithHighlight> {
+    let total = results.len();
+    let highlights = highlight_results(query, &results, &documents, field_path, encoders, options)?;
+
+    Ok(SearchResultWithHighlight {
+        results,
+        highlights,
+        total,
+        query: query.to_string(),
+    })
 }

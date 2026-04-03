@@ -51,12 +51,59 @@ message SearchRequest {
   bool resolve = 6;
   bool enrich = 7;
   bool cache = 8;
+  bool highlight = 9;  // 新增: 是否返回高亮信息
+  HighlightOptionsProto highlight_options = 10;  // 新增: 高亮配置
 }
 
 message SearchResponse {
   repeated uint64 results = 1;
   uint32 total = 2;
   string error = 3;
+  repeated DocumentHighlightProto highlights = 4;  // 新增: 高亮结果
+}
+
+// ============================================================
+// 高亮相关的 Protobuf 消息类型
+// ============================================================
+
+message HighlightOptionsProto {
+  string template = 1;
+  HighlightBoundaryOptionsProto boundary = 2;
+  bool clip = 3;
+  bool merge = 4;
+  HighlightEllipsisOptionsProto ellipsis = 5;
+}
+
+message HighlightBoundaryOptionsProto {
+  int32 before = 1;
+  int32 after = 2;
+  uint32 total = 3;
+}
+
+message HighlightEllipsisOptionsProto {
+  string template = 1;
+  string pattern = 2;
+}
+
+message DocumentHighlightProto {
+  uint64 id = 1;
+  repeated FieldHighlightProto fields = 2;
+  uint32 total_matches = 3;
+}
+
+message FieldHighlightProto {
+  string field = 1;
+  repeated HighlightMatchProto matches = 2;
+  string highlighted_text = 3;
+  repeated string matched_queries = 4;
+}
+
+message HighlightMatchProto {
+  string text = 1;
+  uint32 start_pos = 2;
+  uint32 end_pos = 3;
+  string matched_query = 4;
+  double score = 5;
 }
 
 message ClearIndexRequest {}

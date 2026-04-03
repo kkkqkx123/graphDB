@@ -391,11 +391,13 @@ mod tests {
 
     #[test]
     fn test_search_options_builder() {
-        let mut options = SearchOptions::default();
-        options.query = Some("test".to_string());
-        options.limit = Some(10);
-        options.offset = Some(5);
-        options.boost = Some(3);
+        let options = SearchOptions {
+            query: Some("test".to_string()),
+            limit: Some(10),
+            offset: Some(5),
+            boost: Some(3),
+            ..Default::default()
+        };
 
         assert_eq!(options.query, Some("test".to_string()));
         assert_eq!(options.limit, Some(10));

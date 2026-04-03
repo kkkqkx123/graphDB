@@ -25,7 +25,7 @@ pub fn deserialize_from_bytes(bytes: &[u8], format: &SerializeFormat) -> Result<
     let data: IndexExportData = match format {
         SerializeFormat::Json => serde_json::from_slice(bytes)?,
         SerializeFormat::Binary | SerializeFormat::MessagePack => bincode::deserialize(bytes)?,
-        SerializeFormat::Cbor => ciborium::from_reader(&bytes[..])
+        SerializeFormat::Cbor => ciborium::from_reader(bytes)
             .map_err(|e| crate::error::InversearchError::Deserialization(format!("CBOR deserialization error: {:?}", e)))?,
     };
     Ok(data)

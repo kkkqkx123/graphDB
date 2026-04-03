@@ -21,10 +21,12 @@ use serde_json::Value;
 use crate::DocId;
 use std::collections::HashMap;
 
+type TagFilterFn = Box<dyn Fn(&Value) -> bool + Send + Sync>;
+
 /// 标签配置
 pub struct TagConfig {
     pub field: String,
-    pub filter: Option<Box<dyn Fn(&Value) -> bool + Send + Sync>>,
+    pub filter: Option<TagFilterFn>,
 }
 
 impl TagConfig {
@@ -47,6 +49,7 @@ impl TagConfig {
 }
 
 /// 标签系统
+#[derive(Default)]
 pub struct TagSystem {
     configs: Vec<TagConfig>,
     indexes: Vec<HashMap<String, Vec<DocId>>>,
@@ -56,11 +59,7 @@ pub struct TagSystem {
 impl TagSystem {
     /// 创建新的标签系统
     pub fn new() -> Self {
-        TagSystem {
-            configs: Vec::new(),
-            indexes: Vec::new(),
-            doc_tags: HashMap::new(),
-        }
+        TagSystem::default()
     }
 
     /// 添加标签配置
@@ -71,7 +70,7 @@ impl TagSystem {
     }
 
     /// 添加标签配置（简化版）
-    pub fn add_config_str(&mut self, field: String, filter: Option<Box<dyn Fn(&Value) -> bool + Send + Sync>>) {
+    pub fn add_config_str(&mut self, field: String, filter: Option<TagFilterFn>) {
         let config = TagConfig {
             field,
             filter,

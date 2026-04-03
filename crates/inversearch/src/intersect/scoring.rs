@@ -155,8 +155,8 @@ pub struct ScoreManager {
     default_algorithm: String,
 }
 
-impl ScoreManager {
-    pub fn new() -> Self {
+impl Default for ScoreManager {
+    fn default() -> Self {
         let mut manager = ScoreManager {
             algorithms: HashMap::new(),
             default_algorithm: "tfidf".to_string(),
@@ -167,6 +167,12 @@ impl ScoreManager {
         manager.add_algorithm("bm25", Box::new(Bm25Scorer::new(HashMap::new(), 100.0, 1.2, 0.75)));
         
         manager
+    }
+}
+
+impl ScoreManager {
+    pub fn new() -> Self {
+        Self::default()
     }
     
     pub fn add_algorithm(&mut self, name: &str, algorithm: Box<dyn ScoringAlgorithm>) {
@@ -206,7 +212,7 @@ pub fn score_search_results(
 ) -> Vec<ScoredId> {
     let mut scored_results = Vec::new();
     
-    for (_idx, result_array) in results.iter().enumerate() {
+    for result_array in results {
         for (pos, &id) in result_array.iter().enumerate() {
             let scored_id = ScoredId {
                 id,

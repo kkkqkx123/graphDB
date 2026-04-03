@@ -1,7 +1,8 @@
 use crate::r#type::{SearchResults, EnrichedSearchResults, DocId};
 use crate::error::Result;
 use crate::Index;
-use crate::storage::{StorageInfo, StorageInterface};
+use crate::storage::common::r#trait::StorageInterface;
+use crate::storage::common::types::StorageInfo;
 use redis::{Client as RedisClient, aio::MultiplexedConnection};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
@@ -421,8 +422,9 @@ impl RedisStorage {
     /// 记录操作开始时间（内部使用）
     fn record_operation_start(&self) -> Instant {
         let start_time = Instant::now();
-        let mut last_op = self.last_operation_time.lock().unwrap();
-        *last_op = Some(start_time);
+        if let Ok(mut last_op) = self.last_operation_time.lock() {
+            *last_op = Some(start_time);
+        }
         start_time
     }
 
@@ -460,6 +462,7 @@ impl RedisStorage {
 
 /// 存储性能指标
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct StorageMetrics {
     pub operation_count: usize,
     pub average_latency: usize, // 微秒
@@ -470,12 +473,7 @@ pub struct StorageMetrics {
 impl StorageMetrics {
     /// 创建空的指标
     pub fn new() -> Self {
-        Self {
-            operation_count: 0,
-            average_latency: 0,
-            memory_usage: 0,
-            error_count: 0,
-        }
+        Self::default()
     }
 
     /// 重置所有指标

@@ -8,11 +8,9 @@ pub fn exclusion(arrays: IntermediateSearchResults, exclude: &SearchResults, lim
     for ids in arrays {
         let mut filtered: Vec<u64> = Vec::new();
         for &id in &ids {
-            if !exclude_set.contains(&id) {
-                if count < limit {
-                    filtered.push(id);
-                    count += 1;
-                }
+            if !exclude_set.contains(&id) && count < limit {
+                filtered.push(id);
+                count += 1;
             }
         }
         if !filtered.is_empty() {

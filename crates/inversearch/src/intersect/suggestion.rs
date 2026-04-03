@@ -26,21 +26,13 @@ impl Default for SuggestionConfig {
 
 /// 建议结果
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct SuggestionResult {
     pub suggestions: Vec<String>,
     pub fuzzy_matches: Vec<(u64, f32)>,
     pub alternative_queries: Vec<String>,
 }
 
-impl Default for SuggestionResult {
-    fn default() -> Self {
-        SuggestionResult {
-            suggestions: Vec::new(),
-            fuzzy_matches: Vec::new(),
-            alternative_queries: Vec::new(),
-        }
-    }
-}
 
 /// 建议引擎
 pub struct SuggestionEngine {
@@ -59,18 +51,11 @@ impl SuggestionEngine {
         query: &str,
         search_results: &IntermediateSearchResults,
     ) -> SuggestionResult {
-        let mut result = SuggestionResult::default();
-        
-        // 生成模糊匹配
-        result.fuzzy_matches = self.generate_fuzzy_matches(query, search_results);
-        
-        // 生成替代查询
-        result.alternative_queries = self.generate_alternative_queries(query);
-        
-        // 生成建议
-        result.suggestions = self.generate_query_suggestions(query);
-        
-        result
+        SuggestionResult {
+            fuzzy_matches: self.generate_fuzzy_matches(query, search_results),
+            alternative_queries: self.generate_alternative_queries(query),
+            suggestions: self.generate_query_suggestions(query),
+        }
     }
 
     /// 生成查询建议
@@ -133,7 +118,7 @@ impl SuggestionEngine {
     ) -> Vec<(u64, f32)> {
         let mut matches = Vec::new();
         
-        for (_idx, result_array) in search_results.iter().enumerate() {
+        for result_array in search_results.iter() {
             for &id in result_array {
                 // 简化的模糊匹配算法
                 let similarity = self.calculate_similarity(query, &id.to_string());
@@ -178,13 +163,13 @@ impl SuggestionEngine {
         }
         
         let mut matrix = vec![vec![0; len2 + 1]; len1 + 1];
-        
-        for i in 0..=len1 {
-            matrix[i][0] = i;
+
+        for (i, row) in matrix.iter_mut().enumerate().take(len1 + 1) {
+            row[0] = i;
         }
-        
-        for j in 0..=len2 {
-            matrix[0][j] = j;
+
+        for (j, cell) in matrix[0].iter_mut().enumerate().take(len2 + 1) {
+            *cell = j;
         }
         
         for (i, c1) in s1.chars().enumerate() {

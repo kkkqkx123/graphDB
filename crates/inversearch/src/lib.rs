@@ -14,7 +14,7 @@ pub mod resolver;
 pub mod search;
 pub mod serialize;
 pub mod storage;
-pub mod tokenizer;
+
 pub mod r#type;
 pub mod async_;
 
@@ -77,6 +77,8 @@ pub use error::*;
 // Export highlight modules with specific names to avoid conflicts
 pub use highlight::{
     highlight_fields, highlight_document, highlight_single_document,
+    highlight_document_structured, highlight_single_document_structured,
+    highlight_results, highlight_results_with_complete,
     HighlightProcessor
 };
 pub use index::*;
@@ -95,7 +97,6 @@ pub use resolver::{
     exclusion,
     xor_op,
     combine_search_results,
-    AsyncResolver,
     Enricher,
     FieldSelector,
     TagIntegrationConfig,
@@ -124,9 +125,25 @@ pub use search::{
     MultiFieldSearchConfig,
 };
 pub use serialize::*;
-pub use storage::{StorageInterface, StorageInfo, MemoryStorage, FileStorage, WALStorage};
-pub use storage::wal::{WALManager, WALConfig, IndexChange};
-pub use tokenizer::*;
+pub use storage::common::r#trait::StorageInterface;
+pub use storage::common::types::StorageInfo;
+
+#[cfg(feature = "store-memory")]
+pub use storage::memory::MemoryStorage;
+
+#[cfg(feature = "store-file")]
+pub use storage::file::FileStorage;
+
+#[cfg(feature = "store-wal")]
+pub use storage::wal_storage::WALStorage;
+
+#[cfg(feature = "store-wal")]
+pub use storage::wal::{WALManager, IndexChange};
+
+#[cfg(feature = "store-wal")]
+pub use config::WALConfig as StorageWALConfig;
+
+
 pub use async_::*;
 // Export specific types from r#type module to avoid conflicts
 pub use r#type::{

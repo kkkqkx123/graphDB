@@ -1,9 +1,9 @@
 use super::config::Config;
 use super::proto::{
     BatchIndexDocumentsRequest, BatchIndexDocumentsResponse, ClearIndexRequest,
-    ClearIndexResponse, DeleteDocumentRequest, DeleteDocumentResponse, GetStatsRequest,
-    GetStatsResponse, IndexDocumentRequest, IndexDocumentResponse, SearchRequest,
-    SearchResponse,
+    ClearIndexResponse, CommitIndexRequest, CommitIndexResponse, DeleteDocumentRequest, 
+    DeleteDocumentResponse, GetStatsRequest, GetStatsResponse, IndexDocumentRequest, 
+    IndexDocumentResponse, SearchRequest, SearchResponse,
 };
 use super::proto::Bm25Service as Bm25ServiceTrait;
 use super::proto::Bm25ServiceServer;
@@ -207,6 +207,40 @@ impl Bm25ServiceTrait for BM25Service {
             success: true,
             message: format!("Index '{}' cleared successfully", req.index_name),
             cleared_count,
+        }))
+    }
+
+    async fn commit_index(
+        &self,
+        request: Request<CommitIndexRequest>,
+    ) -> Result<Response<CommitIndexResponse>, Status> {
+        let req = request.into_inner();
+        tracing::info!("Received commit index request: index={}", req.index_name);
+
+        let (manager, _schema) = self.get_or_create_index(&req.index_name).await?;
+
+        let stats_before = stats::get_stats(&manager)
+            .map_err(|e| Status::internal(format!("Failed to get stats: {}", e)))?;
+
+        let mut writer = manager.writer()
+            .map_err(|e| Status::internal(format!("Failed to get writer: {}", e)))?;
+
+        writer.commit()
+            .map_err(|e| Status::internal(format!("Failed to commit: {}", e)))?;
+
+        manager.reload_reader()
+            .map_err(|e| Status::internal(format!("Failed to reload reader: {}", e)))?;
+
+        tracing::info!(
+            "Committed index '{}': {} documents committed",
+            req.index_name,
+            stats_before.total_documents
+        );
+
+        Ok(Response::new(CommitIndexResponse {
+            success: true,
+            message: format!("Index '{}' committed successfully", req.index_name),
+            committed_documents: stats_before.total_documents as i64,
         }))
     }
 }

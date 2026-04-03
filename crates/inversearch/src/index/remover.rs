@@ -97,13 +97,13 @@ fn remove_from_index(index: &mut Index, id: DocId) -> Result<()> {
     let mut terms_to_remove_map = Vec::new();
     let mut terms_to_remove_ctx = Vec::new();
     
-    for (term_hash, term_map) in index.map.index.iter_mut() {
+    for (&term_hash, term_map) in index.map.index.iter_mut() {
         for (term, doc_ids) in term_map.iter_mut() {
             if let Some(pos) = doc_ids.iter().position(|x| *x == id) {
                 if doc_ids.len() > 1 {
                     doc_ids.swap_remove(pos);
                 } else {
-                    terms_to_remove_map.push((term_hash.clone(), term.clone()));
+                    terms_to_remove_map.push((term_hash, term.clone()));
                 }
             }
         }
@@ -115,13 +115,13 @@ fn remove_from_index(index: &mut Index, id: DocId) -> Result<()> {
         }
     }
 
-    for (term_hash, term_map) in index.ctx.index.iter_mut() {
+    for (&term_hash, term_map) in index.ctx.index.iter_mut() {
         for (term, doc_ids) in term_map.iter_mut() {
             if let Some(pos) = doc_ids.iter().position(|x| *x == id) {
                 if doc_ids.len() > 1 {
                     doc_ids.swap_remove(pos);
                 } else {
-                    terms_to_remove_ctx.push((term_hash.clone(), term.clone()));
+                    terms_to_remove_ctx.push((term_hash, term.clone()));
                 }
             }
         }

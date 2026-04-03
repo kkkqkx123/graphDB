@@ -17,8 +17,7 @@ pub fn union_op(arrays: Vec<IntermediateSearchResults>, _boost: i32) -> Intermed
         let mut unique_array: Vec<u64> = Vec::new();
         for ids in array {
             for &id in &ids {
-                if !seen.contains_key(&id) {
-                    seen.insert(id, true);
+                if seen.insert(id, true).is_none() {
                     unique_array.push(id);
                 } else {
                     has_overlap = true;

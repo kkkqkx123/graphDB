@@ -96,7 +96,7 @@ impl<'a> MultiFieldSearchConfig<'a> {
                     ..Default::default()
                 };
 
-                let result = crate::search::search(&field.index(), &search_opts)?;
+                let result = crate::search::search(field.index(), &search_opts)?;
                 
                 for &doc_id in &result.results {
                     *field_scores.entry(doc_id).or_insert(0.0) += field_weight;
@@ -105,12 +105,9 @@ impl<'a> MultiFieldSearchConfig<'a> {
             }
         }
 
-        let mut scored: Vec<(u64, f32)> = field_scores
-            .into_iter()
-            .map(|(id, score)| (id, score))
-            .collect();
+        let mut scored: Vec<(u64, f32)> = field_scores.into_iter().collect();
 
-        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         let total = scored.len();
         let final_results: Vec<u64> = scored

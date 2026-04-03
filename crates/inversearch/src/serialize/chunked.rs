@@ -66,14 +66,14 @@ impl ChunkedSerializer {
                 }
             },
             RegistryData::Map(map) => {
-                for (&doc_id, _) in map {
+                for doc_id in map.keys() {
                     items.push(doc_id.to_string());
                 }
             }
         }
 
         let chunk_size = self.calculate_chunk_size(items.len(), CHUNK_SIZE_REG);
-        let total_chunks = (items.len() + chunk_size - 1) / chunk_size;
+        let total_chunks = items.len().div_ceil(chunk_size);
 
         for (chunk_index, chunk) in items.chunks(chunk_size).enumerate() {
             let chunk_data = ChunkData {
@@ -102,7 +102,7 @@ impl ChunkedSerializer {
             .collect();
 
         let chunk_size = self.calculate_chunk_size(items.len(), CHUNK_SIZE_MAP);
-        let total_chunks = (items.len() + chunk_size - 1) / chunk_size;
+        let total_chunks = items.len().div_ceil(chunk_size);
 
         for (chunk_index, chunk) in items.chunks(chunk_size).enumerate() {
             let chunk_data = ChunkData {
@@ -131,7 +131,7 @@ impl ChunkedSerializer {
             .collect();
 
         let chunk_size = self.calculate_chunk_size(items.len(), CHUNK_SIZE_CTX);
-        let total_chunks = (items.len() + chunk_size - 1) / chunk_size;
+        let total_chunks = items.len().div_ceil(chunk_size);
 
         for (chunk_index, chunk) in items.chunks(chunk_size).enumerate() {
             let chunk_data = ChunkData {
@@ -218,7 +218,7 @@ impl ChunkDataProvider {
     }
 
     /// 获取下一个分块
-    pub fn next(&mut self) -> Result<Option<ChunkData>> {
+    pub fn fetch_next(&mut self) -> Result<Option<ChunkData>> {
         if self.current_index < self.chunks.len() {
             let chunk = self.chunks[self.current_index].clone();
             self.current_index += 1;
@@ -270,7 +270,7 @@ mod tests {
         // 分块导入
         let mut imported_index = Index::default();
         let mut provider = ChunkDataProvider::new(chunks);
-        serializer.import_chunked(&mut imported_index, || provider.next()).unwrap();
+        serializer.import_chunked(&mut imported_index, || provider.fetch_next()).unwrap();
 
         // 验证导入结果
         let results = imported_index.search_simple("hello").unwrap();
@@ -301,14 +301,14 @@ mod tests {
         assert!(provider.has_more());
         assert_eq!(provider.total_chunks(), 2);
         
-        let chunk1 = provider.next().unwrap().unwrap();
+        let chunk1 = provider.fetch_next().unwrap().unwrap();
         assert_eq!(chunk1.chunk_index, 0);
-        
-        let chunk2 = provider.next().unwrap().unwrap();
+
+        let chunk2 = provider.fetch_next().unwrap().unwrap();
         assert_eq!(chunk2.chunk_index, 1);
-        
+
         assert!(!provider.has_more());
-        assert!(provider.next().unwrap().is_none());
+        assert!(provider.fetch_next().unwrap().is_none());
         
         provider.reset();
         assert!(provider.has_more());

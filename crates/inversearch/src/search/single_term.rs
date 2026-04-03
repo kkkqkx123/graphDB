@@ -16,6 +16,7 @@ pub struct SingleTermResult {
 }
 
 /// 执行单术语查询
+#[allow(clippy::too_many_arguments)]
 pub fn single_term_query(
     index: &Index,
     term: &str,
@@ -161,7 +162,7 @@ pub fn multi_term_search(
 
     // 执行并集操作 (OR logic) - 返回包含任意一个词的结果
     let unioned = if intermediate_results.len() == 1 {
-        intermediate_results.into_iter().next().unwrap()
+        intermediate_results.into_iter().next().unwrap_or_default()
     } else {
         perform_union(&intermediate_results)
     };
@@ -171,6 +172,7 @@ pub fn multi_term_search(
 }
 
 /// 执行交集操作
+#[allow(dead_code)]
 fn perform_intersection(results: &[SearchResults]) -> SearchResults {
     if results.is_empty() {
         return Vec::new();
