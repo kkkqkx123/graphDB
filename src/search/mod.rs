@@ -18,5 +18,5 @@ pub use index_cache::IndexCache;
 pub use manager::FulltextIndexManager;
 pub use metadata::{IndexMetadata, IndexKey, IndexStatus};
 pub use metrics::FulltextMetrics;
-pub use result::{IndexStats, SearchResult};
+pub use result::{IndexStats, SearchResult, FulltextSearchResult, FulltextSearchEntry, HighlightResult, SearchStats};
 pub use warmup::IndexWarmer;

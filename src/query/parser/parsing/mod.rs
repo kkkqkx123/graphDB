@@ -3,6 +3,7 @@
 //! Responsible for parsing the top-level structure of query statements, including statements, expressions, patterns, etc.
 
 mod expr_parser;
+mod fulltext_parser;
 mod parse_context;
 mod parser;
 mod stmt_parser;
@@ -19,6 +20,7 @@ mod util_stmt_parser;
 mod tests;
 
 pub use expr_parser::ExprParser;
+pub use fulltext_parser::FulltextParser;
 pub use parse_context::ParseContext;
 pub use parser::{Parser, ParserResult};
 pub use stmt_parser::StmtParser;

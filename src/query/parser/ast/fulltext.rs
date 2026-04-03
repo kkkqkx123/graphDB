@@ -1,0 +1,440 @@
+//! Full-Text Search AST Definitions
+//!
+//! This module defines the Abstract Syntax Tree (AST) nodes for full-text search queries,
+//! including CREATE FULLTEXT INDEX, SEARCH, and related statements.
+
+use crate::core::types::FulltextEngineType;
+use crate::core::Value;
+use bincode::{Decode, Encode};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+// ============================================================================
+// Full-Text Index DDL Statements
+// ============================================================================
+
+/// CREATE FULLTEXT INDEX statement
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct CreateFulltextIndex {
+    pub index_name: String,
+    pub schema_name: String,
+    pub fields: Vec<IndexFieldDef>,
+    pub engine_type: FulltextEngineType,
+    pub options: IndexOptions,
+    pub if_not_exists: bool,
+}
+
+/// Index field definition
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct IndexFieldDef {
+    pub field_name: String,
+    pub analyzer: Option<String>,
+    pub boost: Option<f32>,
+}
+
+/// Index options
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct IndexOptions {
+    pub bm25_config: Option<BM25Options>,
+    pub inversearch_config: Option<InversearchOptions>,
+    pub common_options: HashMap<String, Value>,
+}
+
+/// BM25 specific options
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct BM25Options {
+    pub k1: Option<f32>,
+    pub b: Option<f32>,
+    pub field_weights: HashMap<String, f32>,
+    pub analyzer: Option<String>,
+    pub store_original: Option<bool>,
+}
+
+/// Inversearch specific options
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct InversearchOptions {
+    pub tokenize_mode: Option<String>,
+    pub resolution: Option<usize>,
+    pub depth: Option<usize>,
+    pub bidirectional: Option<bool>,
+    pub fast_update: Option<bool>,
+    pub charset: Option<String>,
+}
+
+/// DROP FULLTEXT INDEX statement
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct DropFulltextIndex {
+    pub index_name: String,
+    pub if_exists: bool,
+}
+
+/// ALTER FULLTEXT INDEX statement
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct AlterFulltextIndex {
+    pub index_name: String,
+    pub actions: Vec<AlterIndexAction>,
+}
+
+/// Alter index action
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub enum AlterIndexAction {
+    AddField(IndexFieldDef),
+    DropField(String),
+    SetOption(String, Value),
+    Rebuild,
+    Optimize,
+}
+
+/// SHOW FULLTEXT INDEX statement
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct ShowFulltextIndex {
+    pub pattern: Option<String>,
+    pub from_schema: Option<String>,
+}
+
+/// DESCRIBE FULLTEXT INDEX statement
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct DescribeFulltextIndex {
+    pub index_name: String,
+}
+
+// ============================================================================
+// Full-Text Search DML Statements
+// ============================================================================
+
+/// SEARCH statement
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct SearchStatement {
+    pub index_name: String,
+    pub query: FulltextQueryExpr,
+    pub yield_clause: Option<YieldClause>,
+    pub where_clause: Option<WhereClause>,
+    pub order_clause: Option<OrderClause>,
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
+}
+
+/// Full-text query expression
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub enum FulltextQueryExpr {
+    /// Simple text query: MATCH 'database'
+    Simple(String),
+    /// Field-specific query: title:'database'
+    Field(String, String),
+    /// Multi-field query: title:'database' OR content:'database'
+    MultiField(Vec<(String, String)>),
+    /// Boolean query: title:'database' AND content:'optimization'
+    Boolean {
+        must: Vec<FulltextQueryExpr>,
+        should: Vec<FulltextQueryExpr>,
+        must_not: Vec<FulltextQueryExpr>,
+    },
+    /// Phrase query: "database optimization"
+    Phrase(String),
+    /// Prefix query: data*
+    Prefix(String),
+    /// Fuzzy query: database~
+    Fuzzy(String, Option<u8>),
+    /// Range query: [2020 TO 2023]
+    Range {
+        field: String,
+        lower: Option<String>,
+        upper: Option<String>,
+        include_lower: bool,
+        include_upper: bool,
+    },
+    /// Wildcard query: data*ase
+    Wildcard(String),
+}
+
+/// YIELD clause
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct YieldClause {
+    pub items: Vec<YieldItem>,
+}
+
+/// Yield item
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct YieldItem {
+    pub expr: YieldExpression,
+    pub alias: Option<String>,
+}
+
+/// Yield expression
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub enum YieldExpression {
+    /// Field reference
+    Field(String),
+    /// Score function
+    Score(Option<String>),
+    /// Highlight function
+    Highlight(String, Option<HighlightParams>),
+    /// Matched fields function
+    MatchedFields,
+    /// Snippet function
+    Snippet(String, Option<usize>),
+    /// All fields (*)
+    All,
+}
+
+/// Highlight function parameters
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct HighlightParams {
+    pub pre_tag: Option<String>,
+    pub post_tag: Option<String>,
+    pub fragment_size: Option<usize>,
+    pub num_fragments: Option<usize>,
+}
+
+/// WHERE clause
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct WhereClause {
+    pub condition: WhereCondition,
+}
+
+/// WHERE condition
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub enum WhereCondition {
+    /// Comparison: score > 0.5
+    Comparison(String, ComparisonOp, Value),
+    /// AND condition
+    And(Box<WhereCondition>, Box<WhereCondition>),
+    /// OR condition
+    Or(Box<WhereCondition>, Box<WhereCondition>),
+    /// NOT condition
+    Not(Box<WhereCondition>),
+    /// Fulltext match function
+    FulltextMatch(String, String),
+}
+
+/// Comparison operator
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
+pub enum ComparisonOp {
+    #[serde(rename = "=")]
+    Eq,
+    #[serde(rename = "!=")]
+    Ne,
+    #[serde(rename = "<")]
+    Lt,
+    #[serde(rename = "<=")]
+    Le,
+    #[serde(rename = ">")]
+    Gt,
+    #[serde(rename = ">=")]
+    Ge,
+}
+
+/// ORDER BY clause
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct OrderClause {
+    pub items: Vec<OrderItem>,
+}
+
+/// Order item
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct OrderItem {
+    pub expr: String,
+    pub order: OrderDirection,
+}
+
+/// Order direction
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
+pub enum OrderDirection {
+    #[serde(rename = "asc")]
+    Asc,
+    #[serde(rename = "desc")]
+    Desc,
+}
+
+// ============================================================================
+// MATCH clause extensions for full-text search
+// ============================================================================
+
+/// MATCH with full-text search
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct MatchFulltext {
+    pub pattern: String,
+    pub fulltext_condition: FulltextMatchCondition,
+    pub yield_clause: Option<YieldClause>,
+}
+
+/// Full-text match condition in WHERE clause
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct FulltextMatchCondition {
+    pub field: String,
+    pub query: String,
+    pub index_name: Option<String>,
+}
+
+/// LOOKUP with full-text search
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct LookupFulltext {
+    pub schema_name: String,
+    pub index_name: String,
+    pub query: String,
+    pub yield_clause: Option<YieldClause>,
+    pub limit: Option<usize>,
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+impl CreateFulltextIndex {
+    pub fn new(
+        index_name: String,
+        schema_name: String,
+        fields: Vec<IndexFieldDef>,
+        engine_type: FulltextEngineType,
+    ) -> Self {
+        Self {
+            index_name,
+            schema_name,
+            fields,
+            engine_type,
+            options: IndexOptions {
+                bm25_config: None,
+                inversearch_config: None,
+                common_options: HashMap::new(),
+            },
+            if_not_exists: false,
+        }
+    }
+
+    pub fn with_if_not_exists(mut self, if_not_exists: bool) -> Self {
+        self.if_not_exists = if_not_exists;
+        self
+    }
+
+    pub fn with_bm25_options(mut self, options: BM25Options) -> Self {
+        self.options.bm25_config = Some(options);
+        self
+    }
+
+    pub fn with_inversearch_options(mut self, options: InversearchOptions) -> Self {
+        self.options.inversearch_config = Some(options);
+        self
+    }
+}
+
+impl SearchStatement {
+    pub fn new(index_name: String, query: FulltextQueryExpr) -> Self {
+        Self {
+            index_name,
+            query,
+            yield_clause: None,
+            where_clause: None,
+            order_clause: None,
+            limit: None,
+            offset: None,
+        }
+    }
+
+    pub fn with_yield(mut self, yield_clause: YieldClause) -> Self {
+        self.yield_clause = Some(yield_clause);
+        self
+    }
+
+    pub fn with_where(mut self, where_clause: WhereClause) -> Self {
+        self.where_clause = Some(where_clause);
+        self
+    }
+
+    pub fn with_order(mut self, order_clause: OrderClause) -> Self {
+        self.order_clause = Some(order_clause);
+        self
+    }
+
+    pub fn with_limit(mut self, limit: usize) -> Self {
+        self.limit = Some(limit);
+        self
+    }
+
+    pub fn with_offset(mut self, offset: usize) -> Self {
+        self.offset = Some(offset);
+        self
+    }
+}
+
+impl YieldClause {
+    pub fn new(items: Vec<YieldItem>) -> Self {
+        Self { items }
+    }
+
+    pub fn single(expr: YieldExpression) -> Self {
+        Self {
+            items: vec![YieldItem {
+                expr,
+                alias: None,
+            }],
+        }
+    }
+}
+
+impl YieldExpression {
+    pub fn score() -> Self {
+        YieldExpression::Score(None)
+    }
+
+    pub fn highlight(field: String) -> Self {
+        YieldExpression::Highlight(field, None)
+    }
+
+    pub fn field(name: String) -> Self {
+        YieldExpression::Field(name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_fulltext_index() {
+        let fields = vec![IndexFieldDef {
+            field_name: "content".to_string(),
+            analyzer: None,
+            boost: None,
+        }];
+
+        let create = CreateFulltextIndex::new(
+            "idx_article_content".to_string(),
+            "article".to_string(),
+            fields,
+            FulltextEngineType::Bm25,
+        );
+
+        assert_eq!(create.index_name, "idx_article_content");
+        assert_eq!(create.schema_name, "article");
+        assert_eq!(create.engine_type, FulltextEngineType::Bm25);
+    }
+
+    #[test]
+    fn test_search_statement() {
+        let query = FulltextQueryExpr::Simple("database".to_string());
+        let search = SearchStatement::new("idx_article".to_string(), query);
+
+        assert!(matches!(search.query, FulltextQueryExpr::Simple(_)));
+    }
+
+    #[test]
+    fn test_yield_clause() {
+        let yield_clause = YieldClause::single(YieldExpression::score());
+        assert_eq!(yield_clause.items.len(), 1);
+    }
+
+    #[test]
+    fn test_boolean_query() {
+        let must = vec![FulltextQueryExpr::Simple("database".to_string())];
+        let should = vec![];
+        let must_not = vec![];
+
+        let query = FulltextQueryExpr::Boolean {
+            must,
+            should,
+            must_not,
+        };
+
+        assert!(matches!(query, FulltextQueryExpr::Boolean { .. }));
+    }
+}

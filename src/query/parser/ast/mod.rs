@@ -14,6 +14,10 @@ pub use stmt::*;
 pub mod pattern;
 pub use pattern::*;
 
+// Full-text search definitions
+pub mod fulltext;
+pub use fulltext::*;
+
 // Utility functions
 pub mod utils;
 pub use utils::*;

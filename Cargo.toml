@@ -65,10 +65,22 @@ name = "graphdb-server"
 path = "src/main.rs"
 required-features = ["server"]
 
+[build-dependencies]
+cbindgen = { version = "0.29", optional = true }
+
 [features]
 default = ["server", "redb"]
+
+# Storage backend
 redb = ["dep:redb"]
+
+# Embedded API for standalone/embedded usage (Rust API only)
 embedded = []
+
+# C API bindings (requires embedded, enables cdylib generation and cbindgen)
+c-api = ["embedded", "dep:cbindgen"]
+
+# Server API (HTTP/Web interface)
 server = [
     "dep:axum",
     "dep:tower",
@@ -77,12 +89,6 @@ server = [
     "dep:sqlx",
     "dep:async-trait",
 ]
-c-api = ["embedded"]
-system_monitor = []
-executor_internal = []
-
-[build-dependencies]
-cbindgen = "0.29"
 
 [dev-dependencies]
 tokio-test = "0.4.4"

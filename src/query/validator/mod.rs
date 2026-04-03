@@ -1,10 +1,10 @@
 //! Query Validator Module
-//! Corresponds to the functionality of NebulaGraph’s src/graph/validator.
+//! Corresponds to the functionality of NebulaGraph's src/graph/validator.
 //! Used to verify the legitimacy of the AST (Abstract Syntax Tree).
 //!
 //! Design Description:
 //! Using the trait + enum pattern to manage validators
-//! The “trait” defines a unified interface.
+//! The "trait" defines a unified interface.
 //! Implementation of static distribution using enumeration
 //! The Factory Pattern is used to create validators.
 
@@ -28,6 +28,9 @@ pub mod ddl;
 
 // DML Validator
 pub mod dml;
+
+// Full-text search validator
+pub mod fulltext_validator;
 
 // Tool Validator
 pub mod utility;

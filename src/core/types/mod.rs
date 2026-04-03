@@ -16,6 +16,8 @@ pub mod space;
 pub mod span;
 pub mod tag;
 pub mod user;
+// Full-text search types
+pub mod fulltext_query;
 
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
@@ -98,6 +100,18 @@ impl std::fmt::Display for DataType {
 // Exporting Base Schema Types from Atomic Modules
 pub use self::edge::EdgeTypeInfo;
 pub use self::index::{Index, IndexConfig, IndexField, IndexStatus, IndexType};
+// Export full-text index types
+pub use self::index::{
+    FulltextEngineType, FulltextIndexField, FulltextIndexOptions,
+    BM25IndexConfig, InversearchIndexConfig, TokenizeMode, CharsetType,
+};
+// Export full-text query types
+pub use self::fulltext_query::{
+    FulltextQuery, FulltextQueryOptions, FieldQuery,
+    HighlightOptions, SortField, SortOrder, SortMissing,
+    FulltextSearchResult, SearchResultEntry, QueryExplanation,
+    ShardsInfo, ShardFailure,
+};
 pub use self::property::PropertyDef;
 pub use self::space::{generate_space_id, reset_space_id_counter, SpaceInfo};
 pub use self::tag::TagInfo;

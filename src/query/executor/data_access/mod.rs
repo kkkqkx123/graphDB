@@ -3,6 +3,7 @@
 //! This includes all executors related to data access, which directly read data from the storage layer.
 
 pub mod edge;
+pub mod fulltext_search;
 pub mod index;
 pub mod neighbor;
 pub mod path;
@@ -11,6 +12,7 @@ pub mod search;
 pub mod vertex;
 
 pub use edge::{GetEdgesExecutor, ScanEdgesExecutor};
+pub use fulltext_search::{FulltextSearchExecutor, FulltextScanExecutor};
 pub use index::LookupIndexExecutor;
 pub use neighbor::GetNeighborsExecutor;
 pub use path::AllPathsExecutor;

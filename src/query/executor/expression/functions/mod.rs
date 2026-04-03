@@ -21,6 +21,10 @@ pub mod builtin;
 pub mod registry;
 pub mod signature;
 
+// Full-text search functions
+pub mod fulltext;
+pub use fulltext::{FulltextFunction, FulltextExecutionContext};
+
 pub use registry::{global_registry, global_registry_ref, FunctionRegistry};
 pub use signature::ValueType;
 
@@ -143,6 +147,8 @@ pub enum BuiltinFunction {
     Container(ContainerFunction),
     /// Path function
     Path(PathFunction),
+    /// Full-text search functions
+    Fulltext(FulltextFunction),
 }
 
 impl BuiltinFunction {
@@ -160,6 +166,7 @@ impl BuiltinFunction {
             BuiltinFunction::Graph(f) => f.name(),
             BuiltinFunction::Container(f) => f.name(),
             BuiltinFunction::Path(f) => f.name(),
+            BuiltinFunction::Fulltext(f) => f.name(),
         }
     }
 
@@ -177,6 +184,7 @@ impl BuiltinFunction {
             BuiltinFunction::Graph(f) => f.arity(),
             BuiltinFunction::Container(f) => f.arity(),
             BuiltinFunction::Path(f) => f.arity(),
+            BuiltinFunction::Fulltext(_) => 0,
         }
     }
 
@@ -194,6 +202,7 @@ impl BuiltinFunction {
             BuiltinFunction::Graph(f) => f.is_variadic(),
             BuiltinFunction::Container(f) => f.is_variadic(),
             BuiltinFunction::Path(f) => f.is_variadic(),
+            BuiltinFunction::Fulltext(f) => f.is_variadic(),
         }
     }
 
@@ -211,6 +220,7 @@ impl BuiltinFunction {
             BuiltinFunction::Graph(f) => f.description(),
             BuiltinFunction::Container(f) => f.description(),
             BuiltinFunction::Path(f) => f.description(),
+            BuiltinFunction::Fulltext(f) => f.description(),
         }
     }
 
@@ -231,6 +241,14 @@ impl BuiltinFunction {
             BuiltinFunction::Graph(f) => f.execute(args),
             BuiltinFunction::Container(f) => f.execute(args),
             BuiltinFunction::Path(f) => f.execute(args),
+            BuiltinFunction::Fulltext(f) => {
+                // Fulltext functions require execution context
+                // This is a placeholder - actual execution happens in the executor
+                Err(ExpressionError::new(
+                    ExpressionErrorType::InvalidOperation,
+                    "全文搜索函数需要在全文搜索上下文中执行".to_string(),
+                ))
+            }
         }
     }
 
