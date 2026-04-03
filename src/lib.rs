@@ -8,6 +8,7 @@ pub mod common;
 pub mod config;
 pub mod core;
 pub mod query;
+pub mod search;
 pub mod storage;
 pub mod transaction;
 pub mod utils;
