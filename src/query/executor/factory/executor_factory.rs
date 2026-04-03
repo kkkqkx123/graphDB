@@ -368,6 +368,32 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
 
             // Management Executor – Query Management
             PlanNodeEnum::ShowStats(node) => AdminBuilder::build_show_stats(node, storage, context),
+
+            // Full-text Search Executors
+            PlanNodeEnum::CreateFulltextIndex(node) => {
+                self.build_create_fulltext_index(node, storage, context)
+            }
+            PlanNodeEnum::DropFulltextIndex(node) => {
+                self.build_drop_fulltext_index(node, storage, context)
+            }
+            PlanNodeEnum::AlterFulltextIndex(node) => {
+                self.build_alter_fulltext_index(node, storage, context)
+            }
+            PlanNodeEnum::ShowFulltextIndex(node) => {
+                self.build_show_fulltext_index(node, storage, context)
+            }
+            PlanNodeEnum::DescribeFulltextIndex(node) => {
+                self.build_describe_fulltext_index(node, storage, context)
+            }
+            PlanNodeEnum::FulltextSearch(node) => {
+                self.build_fulltext_search(node, storage, context)
+            }
+            PlanNodeEnum::FulltextLookup(node) => {
+                self.build_fulltext_lookup(node, storage, context)
+            }
+            PlanNodeEnum::MatchFulltext(node) => {
+                self.build_match_fulltext(node, storage, context)
+            }
         }
     }
 
@@ -486,6 +512,147 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::Select(executor))
+    }
+
+    // Full-text search executor building methods
+
+    fn build_create_fulltext_index(
+        &mut self,
+        node: &crate::query::planning::plan::core::nodes::CreateFulltextIndexNode,
+        _storage: Arc<Mutex<S>>,
+        _context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        use crate::query::executor::admin::CreateFulltextIndexExecutor;
+
+        let executor = CreateFulltextIndexExecutor::new(
+            node.index_name.clone(),
+            node.schema_name.clone(),
+            node.fields.clone(),
+            node.engine_type,
+            node.options.clone(),
+            node.if_not_exists,
+        );
+        Ok(ExecutorEnum::CreateFulltextIndex(executor))
+    }
+
+    fn build_drop_fulltext_index(
+        &mut self,
+        node: &crate::query::planning::plan::core::nodes::DropFulltextIndexNode,
+        _storage: Arc<Mutex<S>>,
+        _context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        use crate::query::executor::admin::DropFulltextIndexExecutor;
+
+        let executor = DropFulltextIndexExecutor::new(
+            node.index_name.clone(),
+            node.if_exists,
+        );
+        Ok(ExecutorEnum::DropFulltextIndex(executor))
+    }
+
+    fn build_alter_fulltext_index(
+        &mut self,
+        node: &crate::query::planning::plan::core::nodes::AlterFulltextIndexNode,
+        _storage: Arc<Mutex<S>>,
+        _context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        use crate::query::executor::admin::AlterFulltextIndexExecutor;
+
+        let executor = AlterFulltextIndexExecutor::new(
+            node.index_name.clone(),
+            node.actions.clone(),
+        );
+        Ok(ExecutorEnum::AlterFulltextIndex(executor))
+    }
+
+    fn build_show_fulltext_index(
+        &mut self,
+        node: &crate::query::planning::plan::core::nodes::ShowFulltextIndexNode,
+        _storage: Arc<Mutex<S>>,
+        _context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        use crate::query::executor::admin::ShowFulltextIndexExecutor;
+
+        let executor = ShowFulltextIndexExecutor::new(
+            node.pattern.clone(),
+            node.from_schema.clone(),
+        );
+        Ok(ExecutorEnum::ShowFulltextIndex(executor))
+    }
+
+    fn build_describe_fulltext_index(
+        &mut self,
+        node: &crate::query::planning::plan::core::nodes::DescribeFulltextIndexNode,
+        _storage: Arc<Mutex<S>>,
+        _context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        use crate::query::executor::admin::DescribeFulltextIndexExecutor;
+
+        let executor = DescribeFulltextIndexExecutor::new(
+            node.index_name.clone(),
+        );
+        Ok(ExecutorEnum::DescribeFulltextIndex(executor))
+    }
+
+    fn build_fulltext_search(
+        &mut self,
+        node: &crate::query::planning::plan::core::nodes::FulltextSearchNode,
+        _storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        use crate::query::executor::data_access::FulltextSearchExecutor;
+        use crate::query::parser::ast::SearchStatement;
+
+        let statement = SearchStatement {
+            index_name: node.index_name.clone(),
+            query: node.query.clone(),
+            yield_clause: node.yield_clause.clone(),
+            where_clause: node.where_clause.clone(),
+            order_clause: node.order_clause.clone(),
+            limit: node.limit,
+            offset: node.offset,
+        };
+
+        let executor = FulltextSearchExecutor::new(
+            statement,
+            context.search_engine(),
+            context.clone(),
+        );
+        Ok(ExecutorEnum::FulltextSearch(executor))
+    }
+
+    fn build_fulltext_lookup(
+        &mut self,
+        node: &crate::query::planning::plan::core::nodes::FulltextLookupNode,
+        _storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        use crate::query::executor::data_access::FulltextScanExecutor;
+
+        let executor = FulltextScanExecutor::new(
+            node.index_name.clone(),
+            node.query.clone(),
+            context.search_engine(),
+            context.clone(),
+            node.limit,
+        );
+        Ok(ExecutorEnum::FulltextLookup(executor))
+    }
+
+    fn build_match_fulltext(
+        &mut self,
+        node: &crate::query::planning::plan::core::nodes::MatchFulltextNode,
+        _storage: Arc<Mutex<S>>,
+        _context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        use crate::query::executor::data_access::MatchFulltextExecutor;
+
+        let executor = MatchFulltextExecutor::new(
+            node.pattern.clone(),
+            node.fulltext_condition.clone(),
+            node.yield_clause.clone(),
+        );
+        Ok(ExecutorEnum::MatchFulltext(executor))
     }
 }
 

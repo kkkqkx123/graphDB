@@ -77,6 +77,9 @@ impl StmtParser {
             TokenKind::Set => UtilStmtParser::new().parse_set_statement(ctx),
             TokenKind::Remove => UtilStmtParser::new().parse_remove_statement(ctx),
 
+            // Full-text search statements
+            TokenKind::Search => self.parse_fulltext_statement(ctx),
+
             // Variable assignment statement ($var = statement)
             TokenKind::Dollar => self.parse_assignment_statement(ctx),
 
@@ -512,6 +515,34 @@ impl StmtParser {
             "CREATE 语句期望 '(' (Cypher 数据创建) 或 TAG/EDGE/SPACE/INDEX (Schema 定义) 或 USER (用户管理)".to_string(),
             ctx.current_position(),
         ))
+    }
+
+    /// Parse full-text search statements
+    fn parse_fulltext_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+        use crate::query::parser::parsing::FulltextParser;
+
+        let start_span = ctx.current_span();
+
+        // Use FulltextParser to parse the statement
+        let mut fulltext_parser = FulltextParser::new(ctx);
+        let parser_result = fulltext_parser.parse();
+
+        // Convert ParserResult to Stmt
+        match parser_result {
+            crate::query::parser::parsing::parser::ParserResult { ast, errors } => {
+                if !errors.is_empty() {
+                    return Err(ParseError::new(
+                        ParseErrorKind::SyntaxError,
+                        format!("Full-text parse error: {:?}", errors),
+                        ctx.current_position(),
+                    ));
+                }
+
+                // Extract the statement from the AST
+                let stmt = ast.stmt().clone();
+                Ok(stmt)
+            }
+        }
     }
 
     /// Pipeline after parsing set operation statements, or end of the process.

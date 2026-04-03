@@ -223,6 +223,16 @@ pub enum StatementType {
     Remove,
     UpdateConfigs,
     ClearSpace,
+
+    // Full-text Search statements
+    CreateFulltextIndex,
+    DropFulltextIndex,
+    AlterFulltextIndex,
+    ShowFulltextIndex,
+    DescribeFulltextIndex,
+    Search,
+    LookupFulltext,
+    MatchFulltext,
 }
 
 impl StatementType {
@@ -313,6 +323,16 @@ impl StatementType {
             StatementType::Remove => "REMOVE",
             StatementType::UpdateConfigs => "UPDATE_CONFIGS",
             StatementType::ClearSpace => "CLEAR_SPACE",
+
+            // Full-text Search statements
+            StatementType::CreateFulltextIndex => "CREATE_FULLTEXT_INDEX",
+            StatementType::DropFulltextIndex => "DROP_FULLTEXT_INDEX",
+            StatementType::AlterFulltextIndex => "ALTER_FULLTEXT_INDEX",
+            StatementType::ShowFulltextIndex => "SHOW_FULLTEXT_INDEX",
+            StatementType::DescribeFulltextIndex => "DESCRIBE_FULLTEXT_INDEX",
+            StatementType::Search => "SEARCH",
+            StatementType::LookupFulltext => "LOOKUP_FULLTEXT",
+            StatementType::MatchFulltext => "MATCH_FULLTEXT",
         }
     }
 

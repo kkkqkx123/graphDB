@@ -6,7 +6,7 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
-    // Only generate header file when c_api feature is enabled
+    // Only generate header file when c-api feature is enabled
     if env::var("CARGO_FEATURE_C_API").is_ok() {
         generate_c_header();
     }
@@ -17,6 +17,7 @@ fn main() {
 }
 
 /// Generate C header file
+#[cfg(feature = "c-api")]
 fn generate_c_header() {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
     let output_path = PathBuf::from(&crate_dir).join("include").join("graphdb.h");
@@ -42,7 +43,14 @@ fn generate_c_header() {
     }
 }
 
+/// No-op when c_api feature is not enabled
+#[cfg(not(feature = "c-api"))]
+fn generate_c_header() {
+    // Do nothing when c_api feature is not enabled
+}
+
 /// Attempt to generate header file using cbindgen
+#[cfg(feature = "c-api")]
 fn try_cbindgen(crate_dir: &str, output_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let config_path = PathBuf::from(crate_dir).join("cbindgen.toml");
 
@@ -63,6 +71,7 @@ fn try_cbindgen(crate_dir: &str, output_path: &PathBuf) -> Result<(), Box<dyn st
 }
 
 /// Generate fallback header file (used when cbindgen fails)
+#[cfg(feature = "c-api")]
 fn generate_fallback_header(output_path: &PathBuf) {
     let header_content = r#"/**
  * GraphDB C API

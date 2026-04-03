@@ -169,6 +169,13 @@ pub enum PlanNodeEnum {
     ShowEdgeIndexes(ShowEdgeIndexesNode),
     RebuildEdgeIndex(RebuildEdgeIndexNode),
 
+    // Management Node – Fulltext Index
+    CreateFulltextIndex(CreateFulltextIndexNode),
+    DropFulltextIndex(DropFulltextIndexNode),
+    AlterFulltextIndex(AlterFulltextIndexNode),
+    ShowFulltextIndex(ShowFulltextIndexNode),
+    DescribeFulltextIndex(DescribeFulltextIndexNode),
+
     // Management Node – User
     CreateUser(CreateUserNode),
     AlterUser(AlterUserNode),
@@ -188,6 +195,11 @@ pub enum PlanNodeEnum {
 
     // Statistics Nodes ============
     ShowStats(ShowStatsNode),
+
+    // Full-text Search Nodes
+    FulltextSearch(FulltextSearchNode),
+    FulltextLookup(FulltextLookupNode),
+    MatchFulltext(MatchFulltextNode),
 }
 
 impl Default for PlanNodeEnum {
@@ -281,6 +293,12 @@ crate::define_enum_is_methods! {
     (DescEdgeIndex, is_desc_edge_index),
     (ShowEdgeIndexes, is_show_edge_indexes),
     (RebuildEdgeIndex, is_rebuild_edge_index),
+    // Management Node – Fulltext Index
+    (CreateFulltextIndex, is_create_fulltext_index),
+    (DropFulltextIndex, is_drop_fulltext_index),
+    (AlterFulltextIndex, is_alter_fulltext_index),
+    (ShowFulltextIndex, is_show_fulltext_index),
+    (DescribeFulltextIndex, is_describe_fulltext_index),
     // Management Node – User
     (CreateUser, is_create_user),
     (AlterUser, is_alter_user),
@@ -298,6 +316,10 @@ crate::define_enum_is_methods! {
     (UpdateEdges, is_update_edges),
     // Statistical nodes
     (ShowStats, is_show_stats),
+    // Full-text Search Nodes
+    (FulltextSearch, is_fulltext_search),
+    (FulltextLookup, is_fulltext_lookup),
+    (MatchFulltext, is_match_fulltext),
 }
 
 // Use macros to generate the as_xxx method.
@@ -385,6 +407,12 @@ crate::define_enum_as_methods! {
     (DescEdgeIndex, as_desc_edge_index, DescEdgeIndexNode),
     (ShowEdgeIndexes, as_show_edge_indexes, ShowEdgeIndexesNode),
     (RebuildEdgeIndex, as_rebuild_edge_index, RebuildEdgeIndexNode),
+    // Management Node – Fulltext Index
+    (CreateFulltextIndex, as_create_fulltext_index, CreateFulltextIndexNode),
+    (DropFulltextIndex, as_drop_fulltext_index, DropFulltextIndexNode),
+    (AlterFulltextIndex, as_alter_fulltext_index, AlterFulltextIndexNode),
+    (ShowFulltextIndex, as_show_fulltext_index, ShowFulltextIndexNode),
+    (DescribeFulltextIndex, as_describe_fulltext_index, DescribeFulltextIndexNode),
     // Management Node – User
     (CreateUser, as_create_user, CreateUserNode),
     (AlterUser, as_alter_user, AlterUserNode),
@@ -402,6 +430,10 @@ crate::define_enum_as_methods! {
     (UpdateEdges, as_update_edges, UpdateEdgesNode),
     // Statistical node
     (ShowStats, as_show_stats, ShowStatsNode),
+    // Full-text Search Nodes
+    (FulltextSearch, as_fulltext_search, FulltextSearchNode),
+    (FulltextLookup, as_fulltext_lookup, FulltextLookupNode),
+    (MatchFulltext, as_match_fulltext, MatchFulltextNode),
 }
 
 // Use macros to generate the _xxx_mut method.
@@ -489,6 +521,12 @@ crate::define_enum_as_mut_methods! {
     (DescEdgeIndex, as_desc_edge_index_mut, DescEdgeIndexNode),
     (ShowEdgeIndexes, as_show_edge_indexes_mut, ShowEdgeIndexesNode),
     (RebuildEdgeIndex, as_rebuild_edge_index_mut, RebuildEdgeIndexNode),
+    // Management Node – Fulltext Index
+    (CreateFulltextIndex, as_create_fulltext_index_mut, CreateFulltextIndexNode),
+    (DropFulltextIndex, as_drop_fulltext_index_mut, DropFulltextIndexNode),
+    (AlterFulltextIndex, as_alter_fulltext_index_mut, AlterFulltextIndexNode),
+    (ShowFulltextIndex, as_show_fulltext_index_mut, ShowFulltextIndexNode),
+    (DescribeFulltextIndex, as_describe_fulltext_index_mut, DescribeFulltextIndexNode),
     // Management Node – User
     (CreateUser, as_create_user_mut, CreateUserNode),
     (AlterUser, as_alter_user_mut, AlterUserNode),
@@ -506,6 +544,10 @@ crate::define_enum_as_mut_methods! {
     (UpdateEdges, as_update_edges_mut, UpdateEdgesNode),
     // Statistical nodes
     (ShowStats, as_show_stats_mut, ShowStatsNode),
+    // Full-text Search Nodes
+    (FulltextSearch, as_fulltext_search_mut, FulltextSearchNode),
+    (FulltextLookup, as_fulltext_lookup_mut, FulltextLookupNode),
+    (MatchFulltext, as_match_fulltext_mut, MatchFulltextNode),
 }
 
 // Use macros to generate the type_name method.
@@ -593,6 +635,12 @@ crate::define_enum_type_name! {
     (DescEdgeIndex, "DescEdgeIndex"),
     (ShowEdgeIndexes, "ShowEdgeIndexes"),
     (RebuildEdgeIndex, "RebuildEdgeIndex"),
+    // Management Node – Fulltext Index
+    (CreateFulltextIndex, "CreateFulltextIndex"),
+    (DropFulltextIndex, "DropFulltextIndex"),
+    (AlterFulltextIndex, "AlterFulltextIndex"),
+    (ShowFulltextIndex, "ShowFulltextIndex"),
+    (DescribeFulltextIndex, "DescribeFulltextIndex"),
     // Management Node – User
     (CreateUser, "CreateUser"),
     (AlterUser, "AlterUser"),
@@ -612,6 +660,10 @@ crate::define_enum_type_name! {
     (ShowStats, "ShowStats"),
     // Show Create Tag node
     (ShowCreateTag, "ShowCreateTag"),
+    // Full-text Search Nodes
+    (FulltextSearch, "FulltextSearch"),
+    (FulltextLookup, "FulltextLookup"),
+    (MatchFulltext, "MatchFulltext"),
 }
 
 // Use macros to generate the `category` method.
@@ -696,6 +748,13 @@ crate::define_enum_category! {
     (DescEdgeIndex, PlanNodeCategory::Management),
     (ShowEdgeIndexes, PlanNodeCategory::Management),
     (RebuildEdgeIndex, PlanNodeCategory::Management),
+    // Management Node – Fulltext Index
+    (CreateFulltextIndex, PlanNodeCategory::Management),
+    (DropFulltextIndex, PlanNodeCategory::Management),
+    (AlterFulltextIndex, PlanNodeCategory::Management),
+    (ShowFulltextIndex, PlanNodeCategory::Management),
+    (DescribeFulltextIndex, PlanNodeCategory::Management),
+    // Management Node – User
     (CreateUser, PlanNodeCategory::Management),
     (AlterUser, PlanNodeCategory::Management),
     (DropUser, PlanNodeCategory::Management),
@@ -711,6 +770,10 @@ crate::define_enum_category! {
     (UpdateEdges, PlanNodeCategory::Management),
     (ShowStats, PlanNodeCategory::Management),
     (ShowCreateTag, PlanNodeCategory::Management),
+    // Full-text Search Nodes
+    (FulltextSearch, PlanNodeCategory::DataAccess),
+    (FulltextLookup, PlanNodeCategory::DataAccess),
+    (MatchFulltext, PlanNodeCategory::DataAccess),
 }
 
 // Use macros to generate the describe method.

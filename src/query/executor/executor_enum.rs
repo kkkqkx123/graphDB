@@ -9,22 +9,24 @@ use std::fmt::{Debug, Formatter};
 use crate::storage::StorageClient;
 
 use super::admin::{
-    AlterEdgeExecutor, AlterSpaceExecutor, AlterTagExecutor, AlterUserExecutor, AnalyzeExecutor,
-    ChangePasswordExecutor, ClearSpaceExecutor, CreateEdgeExecutor, CreateEdgeIndexExecutor,
-    CreateSpaceExecutor, CreateTagExecutor, CreateTagIndexExecutor, CreateUserExecutor,
+    AlterEdgeExecutor, AlterFulltextIndexExecutor, AlterSpaceExecutor, AlterTagExecutor,
+    AlterUserExecutor, AnalyzeExecutor, ChangePasswordExecutor, ClearSpaceExecutor,
+    CreateEdgeExecutor, CreateEdgeIndexExecutor, CreateFulltextIndexExecutor, CreateSpaceExecutor,
+    CreateTagExecutor, CreateTagIndexExecutor, CreateUserExecutor, DescribeFulltextIndexExecutor,
     DescEdgeExecutor, DescEdgeIndexExecutor, DescSpaceExecutor, DescTagExecutor,
-    DescTagIndexExecutor, DropEdgeExecutor, DropEdgeIndexExecutor, DropSpaceExecutor,
-    DropTagExecutor, DropTagIndexExecutor, DropUserExecutor, GrantRoleExecutor,
+    DescTagIndexExecutor, DropEdgeExecutor, DropEdgeIndexExecutor, DropFulltextIndexExecutor,
+    DropSpaceExecutor, DropTagExecutor, DropTagIndexExecutor, DropUserExecutor, GrantRoleExecutor,
     RebuildEdgeIndexExecutor, RebuildTagIndexExecutor, RevokeRoleExecutor, ShowCreateTagExecutor,
-    ShowEdgeIndexesExecutor, ShowEdgesExecutor, ShowSpacesExecutor, ShowStatsExecutor,
-    ShowTagIndexesExecutor, ShowTagsExecutor, SwitchSpaceExecutor,
+    ShowEdgeIndexesExecutor, ShowEdgesExecutor, ShowFulltextIndexExecutor, ShowSpacesExecutor,
+    ShowStatsExecutor, ShowTagIndexesExecutor, ShowTagsExecutor, SwitchSpaceExecutor,
 };
 use super::base::{
     BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, InputExecutor, StartExecutor,
 };
 use super::data_access::{
-    GetEdgesExecutor, GetNeighborsExecutor, GetPropExecutor, GetVerticesExecutor,
-    IndexScanExecutor, ScanEdgesExecutor, ScanVerticesExecutor,
+    FulltextScanExecutor, FulltextSearchExecutor, GetEdgesExecutor, GetNeighborsExecutor,
+    GetPropExecutor, GetVerticesExecutor, IndexScanExecutor, MatchFulltextExecutor,
+    ScanEdgesExecutor, ScanVerticesExecutor,
 };
 use super::data_modification::{DeleteExecutor, InsertExecutor, RemoveExecutor, UpdateExecutor};
 use super::data_processing::graph_traversal::algorithms::BFSShortestExecutor;
@@ -145,6 +147,15 @@ pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
     ClearSpace(ClearSpaceExecutor<S>),
     ShowStats(ShowStatsExecutor<S>),
     Analyze(AnalyzeExecutor<S>),
+    // Full-text Search Executors
+    CreateFulltextIndex(CreateFulltextIndexExecutor<S>),
+    DropFulltextIndex(DropFulltextIndexExecutor<S>),
+    AlterFulltextIndex(AlterFulltextIndexExecutor<S>),
+    ShowFulltextIndex(ShowFulltextIndexExecutor<S>),
+    DescribeFulltextIndex(DescribeFulltextIndexExecutor<S>),
+    FulltextSearch(FulltextSearchExecutor<S>),
+    FulltextLookup(FulltextScanExecutor<S>),
+    MatchFulltext(MatchFulltextExecutor<S>),
 }
 
 impl<S: StorageClient + Send + 'static> Debug for ExecutorEnum<S> {
@@ -240,6 +251,15 @@ impl<S: StorageClient + Send + 'static> Debug for ExecutorEnum<S> {
             ExecutorEnum::ClearSpace(exec) => ("ClearSpace", exec.name()),
             ExecutorEnum::ShowStats(exec) => ("ShowStats", exec.name()),
             ExecutorEnum::Analyze(exec) => ("Analyze", exec.name()),
+            // Full-text Search Executors
+            ExecutorEnum::CreateFulltextIndex(exec) => ("CreateFulltextIndex", exec.name()),
+            ExecutorEnum::DropFulltextIndex(exec) => ("DropFulltextIndex", exec.name()),
+            ExecutorEnum::AlterFulltextIndex(exec) => ("AlterFulltextIndex", exec.name()),
+            ExecutorEnum::ShowFulltextIndex(exec) => ("ShowFulltextIndex", exec.name()),
+            ExecutorEnum::DescribeFulltextIndex(exec) => ("DescribeFulltextIndex", exec.name()),
+            ExecutorEnum::FulltextSearch(exec) => ("FulltextSearch", exec.name()),
+            ExecutorEnum::FulltextLookup(exec) => ("FulltextLookup", exec.name()),
+            ExecutorEnum::MatchFulltext(exec) => ("MatchFulltext", exec.name()),
         };
         f.write_str(&format!("ExecutorEnum::{}({})", variant_name, exec_name))
     }
@@ -461,6 +481,15 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::Analyze(_) => "analyze",
             ExecutorEnum::Delete(_) => "delete",
             ExecutorEnum::Update(_) => "update",
+            // Full-text Search Executors
+            ExecutorEnum::CreateFulltextIndex(_) => "create_fulltext_index",
+            ExecutorEnum::DropFulltextIndex(_) => "drop_fulltext_index",
+            ExecutorEnum::AlterFulltextIndex(_) => "alter_fulltext_index",
+            ExecutorEnum::ShowFulltextIndex(_) => "show_fulltext_index",
+            ExecutorEnum::DescribeFulltextIndex(_) => "describe_fulltext_index",
+            ExecutorEnum::FulltextSearch(_) => "fulltext_search",
+            ExecutorEnum::FulltextLookup(_) => "fulltext_lookup",
+            ExecutorEnum::MatchFulltext(_) => "match_fulltext",
         }
     }
 
@@ -556,6 +585,15 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::Analyze(_) => "Analyze",
             ExecutorEnum::Delete(_) => "Delete",
             ExecutorEnum::Update(_) => "Update",
+            // Full-text Search Executors
+            ExecutorEnum::CreateFulltextIndex(_) => "Create Fulltext Index",
+            ExecutorEnum::DropFulltextIndex(_) => "Drop Fulltext Index",
+            ExecutorEnum::AlterFulltextIndex(_) => "Alter Fulltext Index",
+            ExecutorEnum::ShowFulltextIndex(_) => "Show Fulltext Index",
+            ExecutorEnum::DescribeFulltextIndex(_) => "Describe Fulltext Index",
+            ExecutorEnum::FulltextSearch(_) => "Fulltext Search",
+            ExecutorEnum::FulltextLookup(_) => "Fulltext Lookup",
+            ExecutorEnum::MatchFulltext(_) => "Match Fulltext",
         }
     }
 
@@ -651,6 +689,15 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::Analyze(_) => NodeCategory::Admin,
             ExecutorEnum::Delete(_) => NodeCategory::Admin,
             ExecutorEnum::Update(_) => NodeCategory::Admin,
+            // Full-text Search Executors
+            ExecutorEnum::CreateFulltextIndex(_) => NodeCategory::Admin,
+            ExecutorEnum::DropFulltextIndex(_) => NodeCategory::Admin,
+            ExecutorEnum::AlterFulltextIndex(_) => NodeCategory::Admin,
+            ExecutorEnum::ShowFulltextIndex(_) => NodeCategory::Admin,
+            ExecutorEnum::DescribeFulltextIndex(_) => NodeCategory::Admin,
+            ExecutorEnum::FulltextSearch(_) => NodeCategory::Scan,
+            ExecutorEnum::FulltextLookup(_) => NodeCategory::Scan,
+            ExecutorEnum::MatchFulltext(_) => NodeCategory::Scan,
         }
     }
 }
@@ -751,6 +798,15 @@ mod macros {
                 ExecutorEnum::ClearSpace(exec) => exec.$method(),
                 ExecutorEnum::ShowStats(exec) => exec.$method(),
                 ExecutorEnum::Analyze(exec) => exec.$method(),
+                // Full-text Search Executors
+                ExecutorEnum::CreateFulltextIndex(exec) => exec.$method(),
+                ExecutorEnum::DropFulltextIndex(exec) => exec.$method(),
+                ExecutorEnum::AlterFulltextIndex(exec) => exec.$method(),
+                ExecutorEnum::ShowFulltextIndex(exec) => exec.$method(),
+                ExecutorEnum::DescribeFulltextIndex(exec) => exec.$method(),
+                ExecutorEnum::FulltextSearch(exec) => exec.$method(),
+                ExecutorEnum::FulltextLookup(exec) => exec.$method(),
+                ExecutorEnum::MatchFulltext(exec) => exec.$method(),
             }
         };
     }
@@ -849,6 +905,15 @@ mod macros {
                 ExecutorEnum::ClearSpace(exec) => exec.$method(),
                 ExecutorEnum::ShowStats(exec) => exec.$method(),
                 ExecutorEnum::Analyze(exec) => exec.$method(),
+                // Full-text Search Executors
+                ExecutorEnum::CreateFulltextIndex(exec) => exec.$method(),
+                ExecutorEnum::DropFulltextIndex(exec) => exec.$method(),
+                ExecutorEnum::AlterFulltextIndex(exec) => exec.$method(),
+                ExecutorEnum::ShowFulltextIndex(exec) => exec.$method(),
+                ExecutorEnum::DescribeFulltextIndex(exec) => exec.$method(),
+                ExecutorEnum::FulltextSearch(exec) => exec.$method(),
+                ExecutorEnum::FulltextLookup(exec) => exec.$method(),
+                ExecutorEnum::MatchFulltext(exec) => exec.$method(),
             }
         };
     }

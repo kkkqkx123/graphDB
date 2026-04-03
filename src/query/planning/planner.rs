@@ -38,6 +38,7 @@ use crate::query::planning::statements::dql::subgraph_planner::SubgraphPlanner;
 use crate::query::planning::statements::dql::with_planner::WithPlanner;
 use crate::query::planning::statements::dql::yield_planner::YieldPlanner;
 use crate::query::planning::statements::match_statement_planner::MatchStatementPlanner;
+use crate::query::planning::planner::fulltext::FulltextSearchPlanner;
 
 ///  Planner Configuration
 #[derive(Debug, Clone)]
@@ -129,6 +130,7 @@ pub enum PlannerEnum {
     With(WithPlanner),
     Return(ReturnPlanner),
     Yield(YieldPlanner),
+    FulltextSearch(FulltextSearchPlanner),
 }
 
 impl PlannerEnum {
@@ -161,6 +163,15 @@ impl PlannerEnum {
             Stmt::With(_) => Some(PlannerEnum::With(WithPlanner::new())),
             Stmt::Return(_) => Some(PlannerEnum::Return(ReturnPlanner::new())),
             Stmt::Yield(_) => Some(PlannerEnum::Yield(YieldPlanner::new())),
+            // Full-text search statements
+            Stmt::CreateFulltextIndex(_)
+            | Stmt::DropFulltextIndex(_)
+            | Stmt::AlterFulltextIndex(_)
+            | Stmt::ShowFulltextIndex(_)
+            | Stmt::DescribeFulltextIndex(_)
+            | Stmt::Search(_)
+            | Stmt::LookupFulltext(_)
+            | Stmt::MatchFulltext(_) => Some(PlannerEnum::FulltextSearch(FulltextSearchPlanner::new())),
             // DDL/DML operations use the Maintain planner.
             Stmt::Create(_)
             | Stmt::Drop(_)
@@ -222,6 +233,7 @@ impl PlannerEnum {
             PlannerEnum::With(planner) => planner.transform(validated, qctx),
             PlannerEnum::Return(planner) => planner.transform(validated, qctx),
             PlannerEnum::Yield(planner) => planner.transform(validated, qctx),
+            PlannerEnum::FulltextSearch(planner) => planner.transform(validated, qctx),
         }
     }
 
@@ -249,6 +261,7 @@ impl PlannerEnum {
             PlannerEnum::With(_) => "WithPlanner",
             PlannerEnum::Return(_) => "ReturnPlanner",
             PlannerEnum::Yield(_) => "YieldPlanner",
+            PlannerEnum::FulltextSearch(_) => "FulltextSearchPlanner",
         }
     }
 
@@ -276,6 +289,7 @@ impl PlannerEnum {
             PlannerEnum::With(planner) => planner.match_planner(stmt),
             PlannerEnum::Return(planner) => planner.match_planner(stmt),
             PlannerEnum::Yield(planner) => planner.match_planner(stmt),
+            PlannerEnum::FulltextSearch(planner) => planner.match_planner(stmt),
         }
     }
 }

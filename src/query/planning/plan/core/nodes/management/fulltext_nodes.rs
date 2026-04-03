@@ -1,0 +1,315 @@
+//! Full-text search plan nodes
+//!
+//! This module defines plan nodes for full-text search operations.
+
+use crate::core::types::FulltextEngineType;
+use crate::query::parser::ast::{
+    AlterIndexAction, FulltextMatchCondition, FulltextQueryExpr, IndexFieldDef, IndexOptions,
+    OrderClause, WhereClause, YieldClause,
+};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::{PlanNode, ZeroInputNode};
+use crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory;
+use serde::{Deserialize, Serialize};
+
+/// CREATE FULLTEXT INDEX plan node
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateFulltextIndexNode {
+    pub index_name: String,
+    pub schema_name: String,
+    pub fields: Vec<IndexFieldDef>,
+    pub engine_type: FulltextEngineType,
+    pub options: IndexOptions,
+    pub if_not_exists: bool,
+}
+
+impl CreateFulltextIndexNode {
+    pub fn new(
+        index_name: String,
+        schema_name: String,
+        fields: Vec<IndexFieldDef>,
+        engine_type: FulltextEngineType,
+        options: IndexOptions,
+        if_not_exists: bool,
+    ) -> Self {
+        Self {
+            index_name,
+            schema_name,
+            fields,
+            engine_type,
+            options,
+            if_not_exists,
+        }
+    }
+}
+
+impl PlanNode for CreateFulltextIndexNode {
+    fn id(&self) -> i64 {
+        0
+    }
+
+    fn name(&self) -> &'static str {
+        "CreateFulltextIndex"
+    }
+
+    fn category(&self) -> PlanNodeCategory {
+        PlanNodeCategory::Management
+    }
+}
+
+impl ZeroInputNode for CreateFulltextIndexNode {}
+
+/// DROP FULLTEXT INDEX plan node
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DropFulltextIndexNode {
+    pub index_name: String,
+    pub if_exists: bool,
+}
+
+impl DropFulltextIndexNode {
+    pub fn new(index_name: String, if_exists: bool) -> Self {
+        Self {
+            index_name,
+            if_exists,
+        }
+    }
+}
+
+impl PlanNode for DropFulltextIndexNode {
+    fn id(&self) -> i64 {
+        0
+    }
+
+    fn name(&self) -> &'static str {
+        "DropFulltextIndex"
+    }
+
+    fn category(&self) -> PlanNodeCategory {
+        PlanNodeCategory::Management
+    }
+}
+
+impl ZeroInputNode for DropFulltextIndexNode {}
+
+/// ALTER FULLTEXT INDEX plan node
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AlterFulltextIndexNode {
+    pub index_name: String,
+    pub actions: Vec<AlterIndexAction>,
+}
+
+impl AlterFulltextIndexNode {
+    pub fn new(index_name: String, actions: Vec<AlterIndexAction>) -> Self {
+        Self {
+            index_name,
+            actions,
+        }
+    }
+}
+
+impl PlanNode for AlterFulltextIndexNode {
+    fn id(&self) -> i64 {
+        0
+    }
+
+    fn name(&self) -> &'static str {
+        "AlterFulltextIndex"
+    }
+
+    fn category(&self) -> PlanNodeCategory {
+        PlanNodeCategory::Management
+    }
+}
+
+impl ZeroInputNode for AlterFulltextIndexNode {}
+
+/// SHOW FULLTEXT INDEX plan node
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShowFulltextIndexNode {
+    pub pattern: Option<String>,
+    pub from_schema: Option<String>,
+}
+
+impl ShowFulltextIndexNode {
+    pub fn new(pattern: Option<String>, from_schema: Option<String>) -> Self {
+        Self {
+            pattern,
+            from_schema,
+        }
+    }
+}
+
+impl PlanNode for ShowFulltextIndexNode {
+    fn id(&self) -> i64 {
+        0
+    }
+
+    fn name(&self) -> &'static str {
+        "ShowFulltextIndex"
+    }
+
+    fn category(&self) -> PlanNodeCategory {
+        PlanNodeCategory::Management
+    }
+}
+
+impl ZeroInputNode for ShowFulltextIndexNode {}
+
+/// DESCRIBE FULLTEXT INDEX plan node
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DescribeFulltextIndexNode {
+    pub index_name: String,
+}
+
+impl DescribeFulltextIndexNode {
+    pub fn new(index_name: String) -> Self {
+        Self { index_name }
+    }
+}
+
+impl PlanNode for DescribeFulltextIndexNode {
+    fn id(&self) -> i64 {
+        0
+    }
+
+    fn name(&self) -> &'static str {
+        "DescribeFulltextIndex"
+    }
+
+    fn category(&self) -> PlanNodeCategory {
+        PlanNodeCategory::Management
+    }
+}
+
+impl ZeroInputNode for DescribeFulltextIndexNode {}
+
+/// Full-text search plan node (SEARCH statement)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FulltextSearchNode {
+    pub index_name: String,
+    pub query: FulltextQueryExpr,
+    pub yield_clause: Option<YieldClause>,
+    pub where_clause: Option<WhereClause>,
+    pub order_clause: Option<OrderClause>,
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
+}
+
+impl FulltextSearchNode {
+    pub fn new(
+        index_name: String,
+        query: FulltextQueryExpr,
+        yield_clause: Option<YieldClause>,
+        where_clause: Option<WhereClause>,
+        order_clause: Option<OrderClause>,
+        limit: Option<usize>,
+        offset: Option<usize>,
+    ) -> Self {
+        Self {
+            index_name,
+            query,
+            yield_clause,
+            where_clause,
+            order_clause,
+            limit,
+            offset,
+        }
+    }
+}
+
+impl PlanNode for FulltextSearchNode {
+    fn id(&self) -> i64 {
+        0
+    }
+
+    fn name(&self) -> &'static str {
+        "FulltextSearch"
+    }
+
+    fn category(&self) -> PlanNodeCategory {
+        PlanNodeCategory::DataAccess
+    }
+}
+
+impl ZeroInputNode for FulltextSearchNode {}
+
+/// Full-text lookup plan node (LOOKUP FULLTEXT statement)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FulltextLookupNode {
+    pub schema_name: String,
+    pub index_name: String,
+    pub query: String,
+    pub yield_clause: Option<YieldClause>,
+    pub limit: Option<usize>,
+}
+
+impl FulltextLookupNode {
+    pub fn new(
+        schema_name: String,
+        index_name: String,
+        query: String,
+        yield_clause: Option<YieldClause>,
+        limit: Option<usize>,
+    ) -> Self {
+        Self {
+            schema_name,
+            index_name,
+            query,
+            yield_clause,
+            limit,
+        }
+    }
+}
+
+impl PlanNode for FulltextLookupNode {
+    fn id(&self) -> i64 {
+        0
+    }
+
+    fn name(&self) -> &'static str {
+        "FulltextLookup"
+    }
+
+    fn category(&self) -> PlanNodeCategory {
+        PlanNodeCategory::DataAccess
+    }
+}
+
+impl ZeroInputNode for FulltextLookupNode {}
+
+/// Match with full-text plan node
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MatchFulltextNode {
+    pub pattern: String,
+    pub fulltext_condition: FulltextMatchCondition,
+    pub yield_clause: Option<YieldClause>,
+}
+
+impl MatchFulltextNode {
+    pub fn new(
+        pattern: String,
+        fulltext_condition: FulltextMatchCondition,
+        yield_clause: Option<YieldClause>,
+    ) -> Self {
+        Self {
+            pattern,
+            fulltext_condition,
+            yield_clause,
+        }
+    }
+}
+
+impl PlanNode for MatchFulltextNode {
+    fn id(&self) -> i64 {
+        0
+    }
+
+    fn name(&self) -> &'static str {
+        "MatchFulltext"
+    }
+
+    fn category(&self) -> PlanNodeCategory {
+        PlanNodeCategory::DataAccess
+    }
+}
+
+impl ZeroInputNode for MatchFulltextNode {}

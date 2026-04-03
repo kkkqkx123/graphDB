@@ -91,6 +91,15 @@ pub enum Stmt {
     Assignment(AssignmentStmt),
     SetOperation(SetOperationStmt),
     ClearSpace(ClearSpaceStmt),
+    // Full-text search statements
+    CreateFulltextIndex(CreateFulltextIndex),
+    DropFulltextIndex(DropFulltextIndex),
+    AlterFulltextIndex(AlterFulltextIndex),
+    ShowFulltextIndex(ShowFulltextIndex),
+    DescribeFulltextIndex(DescribeFulltextIndex),
+    Search(SearchStatement),
+    LookupFulltext(LookupFulltext),
+    MatchFulltext(MatchFulltext),
 }
 
 impl Stmt {
@@ -142,6 +151,15 @@ impl Stmt {
             Stmt::Assignment(s) => s.span,
             Stmt::SetOperation(s) => s.span,
             Stmt::ClearSpace(s) => s.span,
+            // Full-text search statements
+            Stmt::CreateFulltextIndex(s) => s.span,
+            Stmt::DropFulltextIndex(s) => s.span,
+            Stmt::AlterFulltextIndex(s) => s.span,
+            Stmt::ShowFulltextIndex(s) => s.span,
+            Stmt::DescribeFulltextIndex(s) => s.span,
+            Stmt::Search(s) => s.span,
+            Stmt::LookupFulltext(s) => s.span,
+            Stmt::MatchFulltext(s) => s.span,
         }
     }
 
@@ -193,6 +211,15 @@ impl Stmt {
             Stmt::Assignment(_) => "ASSIGNMENT",
             Stmt::SetOperation(_) => "SET OPERATION",
             Stmt::ClearSpace(_) => "CLEAR SPACE",
+            // Full-text search statements
+            Stmt::CreateFulltextIndex(_) => "CREATE FULLTEXT INDEX",
+            Stmt::DropFulltextIndex(_) => "DROP FULLTEXT INDEX",
+            Stmt::AlterFulltextIndex(_) => "ALTER FULLTEXT INDEX",
+            Stmt::ShowFulltextIndex(_) => "SHOW FULLTEXT INDEX",
+            Stmt::DescribeFulltextIndex(_) => "DESCRIBE FULLTEXT INDEX",
+            Stmt::Search(_) => "SEARCH",
+            Stmt::LookupFulltext(_) => "LOOKUP FULLTEXT",
+            Stmt::MatchFulltext(_) => "MATCH FULLTEXT",
         }
     }
 
@@ -458,6 +485,54 @@ impl Stmt {
     pub fn as_set_operation(&self) -> Option<&SetOperationStmt> {
         match self {
             Stmt::SetOperation(s) => Some(s),
+            _ => None,
+        }
+    }
+    pub fn as_create_fulltext_index(&self) -> Option<&CreateFulltextIndex> {
+        match self {
+            Stmt::CreateFulltextIndex(s) => Some(s),
+            _ => None,
+        }
+    }
+    pub fn as_drop_fulltext_index(&self) -> Option<&DropFulltextIndex> {
+        match self {
+            Stmt::DropFulltextIndex(s) => Some(s),
+            _ => None,
+        }
+    }
+    pub fn as_alter_fulltext_index(&self) -> Option<&AlterFulltextIndex> {
+        match self {
+            Stmt::AlterFulltextIndex(s) => Some(s),
+            _ => None,
+        }
+    }
+    pub fn as_show_fulltext_index(&self) -> Option<&ShowFulltextIndex> {
+        match self {
+            Stmt::ShowFulltextIndex(s) => Some(s),
+            _ => None,
+        }
+    }
+    pub fn as_describe_fulltext_index(&self) -> Option<&DescribeFulltextIndex> {
+        match self {
+            Stmt::DescribeFulltextIndex(s) => Some(s),
+            _ => None,
+        }
+    }
+    pub fn as_search(&self) -> Option<&SearchStatement> {
+        match self {
+            Stmt::Search(s) => Some(s),
+            _ => None,
+        }
+    }
+    pub fn as_lookup_fulltext(&self) -> Option<&LookupFulltext> {
+        match self {
+            Stmt::LookupFulltext(s) => Some(s),
+            _ => None,
+        }
+    }
+    pub fn as_match_fulltext(&self) -> Option<&MatchFulltext> {
+        match self {
+            Stmt::MatchFulltext(s) => Some(s),
             _ => None,
         }
     }

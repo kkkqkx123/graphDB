@@ -428,7 +428,10 @@ impl<'a> FulltextParser<'a> {
     /// Parse WHERE clause
     fn parse_where_clause(&mut self) -> Result<WhereClause, crate::query::parser::ParseError> {
         let condition = self.parse_where_condition()?;
-        Ok(WhereClause { condition })
+        Ok(WhereClause { condition: crate::query::parser::ast::ContextualExpression::new(
+            crate::query::parser::ast::Expression::Boolean(true),
+            crate::query::parser::ast::Span::default(),
+        )})
     }
 
     /// Parse WHERE condition
