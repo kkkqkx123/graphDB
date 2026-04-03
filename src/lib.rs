@@ -6,10 +6,12 @@
 pub mod api;
 pub mod common;
 pub mod config;
+pub mod coordinator;
 pub mod core;
 pub mod query;
 pub mod search;
 pub mod storage;
+pub mod sync;
 pub mod transaction;
 pub mod utils;
 
