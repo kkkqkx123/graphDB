@@ -318,7 +318,10 @@ impl<'a> ParseContext<'a> {
             let pos = self.current_position();
             Err(ParseError::new(
                 ParseErrorKind::UnexpectedToken,
-                format!("Expected keyword '{}', found {:?}", keyword, self.current_token.kind),
+                format!(
+                    "Expected keyword '{}', found {:?}",
+                    keyword, self.current_token.kind
+                ),
                 pos,
             ))
         }

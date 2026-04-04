@@ -30,11 +30,12 @@ pub use self::edge::{
 pub use self::edge::alter_edge::{AlterEdgeInfo, AlterEdgeItem, AlterEdgeOp};
 
 pub use self::index::{
-    CreateEdgeIndexExecutor, CreateFulltextIndexExecutor, CreateTagIndexExecutor,
-    DescEdgeIndexExecutor, DescTagIndexExecutor, DropEdgeIndexExecutor, DropFulltextIndexExecutor,
-    DropTagIndexExecutor, AlterFulltextIndexExecutor, RebuildEdgeIndexExecutor, RebuildTagIndexExecutor,
+    AlterFulltextIndexExecutor, CreateEdgeIndexExecutor, CreateFulltextIndexExecutor,
+    CreateTagIndexExecutor, DescEdgeIndexExecutor, DescTagIndexExecutor,
+    DescribeFulltextIndexExecutor, DropEdgeIndexExecutor, DropFulltextIndexExecutor,
+    DropTagIndexExecutor, RebuildEdgeIndexExecutor, RebuildTagIndexExecutor,
     ShowEdgeIndexStatusExecutor, ShowEdgeIndexesExecutor, ShowFulltextIndexExecutor,
-    ShowTagIndexStatusExecutor, ShowTagIndexesExecutor, DescribeFulltextIndexExecutor,
+    ShowTagIndexStatusExecutor, ShowTagIndexesExecutor,
 };
 
 pub use self::user::{

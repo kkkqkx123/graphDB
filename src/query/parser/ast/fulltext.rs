@@ -3,10 +3,10 @@
 //! This module defines the Abstract Syntax Tree (AST) nodes for full-text search queries,
 //! including CREATE FULLTEXT INDEX, SEARCH, and related statements.
 
-use bincode::{Decode, Encode};
 use crate::core::types::span::Span;
 use crate::core::types::FulltextEngineType;
 use crate::core::Value;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -375,10 +375,7 @@ impl YieldClause {
 
     pub fn single(expr: YieldExpression) -> Self {
         Self {
-            items: vec![YieldItem {
-                expr,
-                alias: None,
-            }],
+            items: vec![YieldItem { expr, alias: None }],
         }
     }
 }
@@ -410,6 +407,7 @@ mod tests {
         }];
 
         let create = CreateFulltextIndex::new(
+            Span::default(),
             "idx_article_content".to_string(),
             "article".to_string(),
             fields,

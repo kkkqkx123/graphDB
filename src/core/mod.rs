@@ -29,7 +29,7 @@ pub use query_result::{DefaultIterator, GetNeighborsIterator, PropIterator};
 // Core data types
 pub use npath::{NPath, NPathEdgeIter, NPathIter, NPathVertexIter};
 pub use value::*;
-pub use vertex_edge_path::{Edge, Path, Step, Vertex};
+pub use vertex_edge_path::{Edge, Path, Step, Tag, Vertex};
 
 // Expression system type
 pub use types::expr::Expression;

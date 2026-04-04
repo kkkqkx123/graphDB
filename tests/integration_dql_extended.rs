@@ -905,7 +905,9 @@ fn test_pipe_with_yield() {
         "#,
         )
         .assert_success()
-        .query("GO FROM 1 OVER KNOWS YIELD target.id AS id, target.age AS age | YIELD $-.id, $-.age")
+        .query(
+            "GO FROM 1 OVER KNOWS YIELD target.id AS id, target.age AS age | YIELD $-.id, $-.age",
+        )
         .assert_success()
         .assert_result_count(1);
 }
@@ -1281,9 +1283,10 @@ fn test_very_long_string_property() {
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(description STRING)")
         .assert_success()
-        .exec_dml(
-            &format!("INSERT VERTEX Person(description) VALUES 1:(\'{}\')", "a".repeat(1000)),
-        )
+        .exec_dml(&format!(
+            "INSERT VERTEX Person(description) VALUES 1:(\'{}\')",
+            "a".repeat(1000)
+        ))
         .assert_success()
         .query("MATCH (n:Person) RETURN n.description")
         .assert_success()
@@ -1330,5 +1333,4 @@ fn test_numeric_edge_cases() {
         .query("MATCH (p:Product) RETURN p.price ORDER BY p.price")
         .assert_success()
         .assert_result_count(3);
-} 
-
+}

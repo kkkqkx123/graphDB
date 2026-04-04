@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use crate::coordinator::FulltextCoordinator;
+use std::sync::Arc;
 
 /// Index warmer for preloading frequently accessed indexes
 pub struct IndexWarmer {
@@ -21,7 +21,10 @@ impl IndexWarmer {
 
         for (space_id, tag, field, query) in common_queries {
             // Execute search to load index into memory
-            let _ = self.coordinator.search(space_id, tag, field, query, 10).await;
+            let _ = self
+                .coordinator
+                .search(space_id, tag, field, query, 10)
+                .await;
         }
     }
 
@@ -38,15 +41,25 @@ impl IndexWarmer {
         let indexes = self.coordinator.list_indexes();
         for metadata in indexes {
             if metadata.space_id == space_id {
-                self.warm_index(space_id, &metadata.tag_name, &metadata.field_name).await;
+                self.warm_index(space_id, &metadata.tag_name, &metadata.field_name)
+                    .await;
             }
         }
     }
 
     /// Warm up with custom query patterns
-    pub async fn warm_with_patterns(&self, space_id: u64, tag: &str, field: &str, patterns: Vec<&str>) {
+    pub async fn warm_with_patterns(
+        &self,
+        space_id: u64,
+        tag: &str,
+        field: &str,
+        patterns: Vec<&str>,
+    ) {
         for pattern in patterns {
-            let _ = self.coordinator.search(space_id, tag, field, pattern, 10).await;
+            let _ = self
+                .coordinator
+                .search(space_id, tag, field, pattern, 10)
+                .await;
         }
     }
 }
@@ -54,10 +67,10 @@ impl IndexWarmer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::search::manager::FulltextIndexManager;
+    use crate::core::{Tag, Value, Vertex};
     use crate::search::config::FulltextConfig;
     use crate::search::engine::EngineType;
-    use crate::core::{Value, Vertex, Tag};
+    use crate::search::manager::FulltextIndexManager;
     use std::collections::HashMap;
     use tempfile::TempDir;
 
@@ -86,7 +99,8 @@ mod tests {
             max_result_cache: 1000,
             result_cache_ttl_secs: 60,
         };
-        let manager = Arc::new(FulltextIndexManager::new(config).expect("Failed to create manager"));
+        let manager =
+            Arc::new(FulltextIndexManager::new(config).expect("Failed to create manager"));
         let coordinator = Arc::new(FulltextCoordinator::new(manager));
         (coordinator, temp_dir)
     }
@@ -96,12 +110,16 @@ mod tests {
         let (coordinator, _temp) = setup_test_coordinator().await;
 
         // Create index and insert data
-        coordinator.create_index(1, "Article", "title", Some(EngineType::Bm25))
+        coordinator
+            .create_index(1, "Article", "title", Some(EngineType::Bm25))
             .await
             .expect("Failed to create index");
 
         let vertex = create_test_vertex(1, "Article", vec![("title", "Test Article")]);
-        coordinator.on_vertex_inserted(1, &vertex).await.expect("Failed to insert");
+        coordinator
+            .on_vertex_inserted(1, &vertex)
+            .await
+            .expect("Failed to insert");
         coordinator.commit_all().await.expect("Failed to commit");
 
         // Warm up index
@@ -109,7 +127,10 @@ mod tests {
         warmer.warm_index(1, "Article", "title").await;
 
         // After warming, search should work
-        let results = coordinator.search(1, "Article", "title", "Test", 10).await.expect("Failed to search");
+        let results = coordinator
+            .search(1, "Article", "title", "Test", 10)
+            .await
+            .expect("Failed to search");
         assert_eq!(results.len(), 1);
     }
 
@@ -118,19 +139,25 @@ mod tests {
         let (coordinator, _temp) = setup_test_coordinator().await;
 
         // Create multiple indexes
-        coordinator.create_index(1, "Article", "title", Some(EngineType::Bm25))
+        coordinator
+            .create_index(1, "Article", "title", Some(EngineType::Bm25))
             .await
             .expect("Failed to create index");
-        coordinator.create_index(1, "Article", "content", Some(EngineType::Bm25))
+        coordinator
+            .create_index(1, "Article", "content", Some(EngineType::Bm25))
             .await
             .expect("Failed to create index");
 
         // Insert data
-        let vertex = create_test_vertex(1, "Article", vec![
-            ("title", "Test Title"),
-            ("content", "Test Content"),
-        ]);
-        coordinator.on_vertex_inserted(1, &vertex).await.expect("Failed to insert");
+        let vertex = create_test_vertex(
+            1,
+            "Article",
+            vec![("title", "Test Title"), ("content", "Test Content")],
+        );
+        coordinator
+            .on_vertex_inserted(1, &vertex)
+            .await
+            .expect("Failed to insert");
         coordinator.commit_all().await.expect("Failed to commit");
 
         // Warm up entire space
@@ -138,8 +165,14 @@ mod tests {
         warmer.warm_space(1).await;
 
         // Both indexes should be searchable
-        let title_results = coordinator.search(1, "Article", "title", "Test", 10).await.expect("Failed to search title");
-        let content_results = coordinator.search(1, "Article", "content", "Test", 10).await.expect("Failed to search content");
+        let title_results = coordinator
+            .search(1, "Article", "title", "Test", 10)
+            .await
+            .expect("Failed to search title");
+        let content_results = coordinator
+            .search(1, "Article", "content", "Test", 10)
+            .await
+            .expect("Failed to search content");
 
         assert_eq!(title_results.len(), 1);
         assert_eq!(content_results.len(), 1);
@@ -150,22 +183,40 @@ mod tests {
         let (coordinator, _temp) = setup_test_coordinator().await;
 
         // Create index and insert data
-        coordinator.create_index(1, "Article", "title", Some(EngineType::Bm25))
+        coordinator
+            .create_index(1, "Article", "title", Some(EngineType::Bm25))
             .await
             .expect("Failed to create index");
 
         for i in 0..10 {
-            let vertex = create_test_vertex(i as i64, "Article", vec![("title", &format!("Article {}", i))]);
-            coordinator.on_vertex_inserted(1, &vertex).await.expect("Failed to insert");
+            let vertex = create_test_vertex(
+                i as i64,
+                "Article",
+                vec![("title", &format!("Article {}", i))],
+            );
+            coordinator
+                .on_vertex_inserted(1, &vertex)
+                .await
+                .expect("Failed to insert");
         }
         coordinator.commit_all().await.expect("Failed to commit");
 
         // Warm up with specific patterns
         let warmer = IndexWarmer::new(coordinator.clone());
-        warmer.warm_with_patterns(1, "Article", "title", vec!["Article 1", "Article 5", "Article 9"]).await;
+        warmer
+            .warm_with_patterns(
+                1,
+                "Article",
+                "title",
+                vec!["Article 1", "Article 5", "Article 9"],
+            )
+            .await;
 
         // All patterns should be searchable
-        let results = coordinator.search(1, "Article", "title", "Article", 10).await.expect("Failed to search");
+        let results = coordinator
+            .search(1, "Article", "title", "Article", 10)
+            .await
+            .expect("Failed to search");
         assert_eq!(results.len(), 10);
     }
 }

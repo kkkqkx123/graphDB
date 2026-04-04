@@ -3,7 +3,7 @@
 //! Query planning for statements that handle the RETURN command
 
 use crate::core::YieldColumn;
-use crate::query::parser::ast::stmt::{ReturnItem, ReturnStmt, Stmt, OrderDirection};
+use crate::query::parser::ast::stmt::{OrderDirection, ReturnItem, ReturnStmt, Stmt};
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
     nodes::{ArgumentNode, DedupNode, LimitNode, ProjectNode, SortNode},

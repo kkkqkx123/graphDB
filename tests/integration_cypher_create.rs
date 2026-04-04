@@ -360,7 +360,7 @@ fn test_cypher_vs_ngql_create_node() {
     // NGQL style
     let ngql_query = "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)";
     let mut ngql_parser = Parser::new(ngql_query);
-    let _ = ngql_parser.parse();
+    let ngql_result = ngql_parser.parse();
 
     // Both should be successfully parsed
     assert!(

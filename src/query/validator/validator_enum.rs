@@ -33,6 +33,7 @@ use crate::query::validator::dml::pipe_validator::PipeValidator;
 use crate::query::validator::dml::query_validator::QueryValidator;
 use crate::query::validator::dml::set_operation_validator::SetOperationValidator;
 use crate::query::validator::dml::use_validator::UseValidator;
+use crate::query::validator::fulltext_validator::FulltextValidator;
 use crate::query::validator::statements::create_validator::CreateValidator;
 use crate::query::validator::statements::delete_validator::DeleteValidator;
 use crate::query::validator::statements::fetch_edges_validator::FetchEdgesValidator;
@@ -48,7 +49,6 @@ use crate::query::validator::statements::merge_validator::MergeValidator;
 use crate::query::validator::statements::remove_validator::RemoveValidator;
 use crate::query::validator::statements::set_validator::SetValidator;
 use crate::query::validator::statements::unwind_validator::UnwindValidator;
-use crate::query::validator::fulltext_validator::FulltextValidator;
 use crate::query::validator::statements::update_validator::UpdateValidator;
 use crate::query::validator::utility::acl_validator::{
     AlterUserValidator, ChangePasswordValidator, CreateUserValidator, DescribeUserValidator,

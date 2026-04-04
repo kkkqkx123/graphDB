@@ -3,8 +3,8 @@
 //! This module implements the validator for full-text search statements,
 //! ensuring semantic correctness before plan generation.
 
-use std::sync::Arc;
 use std::fmt;
+use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::{
@@ -12,8 +12,10 @@ use crate::query::parser::ast::{
     FulltextMatchCondition, FulltextQueryExpr, LookupFulltext, MatchFulltext, SearchStatement,
     ShowFulltextIndex,
 };
-use crate::query::validator::validator_trait::{ExpressionProps, StatementValidator, ValidationResult};
-use crate::query::validator::{ValidationInfo, ColumnDef, StatementType};
+use crate::query::validator::validator_trait::{
+    ExpressionProps, StatementValidator, ValidationResult,
+};
+use crate::query::validator::{ColumnDef, StatementType, ValidationInfo};
 use crate::query::QueryContext;
 
 pub struct FulltextValidator {
@@ -43,7 +45,11 @@ impl FulltextValidator {
         }
     }
 
-    fn validate_impl(&self, stmt: &crate::query::parser::ast::Stmt, _qctx: &QueryContext) -> Result<ValidationInfo, ValidationError> {
+    fn validate_impl(
+        &self,
+        stmt: &crate::query::parser::ast::Stmt,
+        _qctx: &QueryContext,
+    ) -> Result<ValidationInfo, ValidationError> {
         match stmt {
             crate::query::parser::ast::Stmt::CreateFulltextIndex(create) => {
                 self.validate_create_index(create)
@@ -54,18 +60,12 @@ impl FulltextValidator {
             crate::query::parser::ast::Stmt::AlterFulltextIndex(alter) => {
                 self.validate_alter_index(alter)
             }
-            crate::query::parser::ast::Stmt::ShowFulltextIndex(_show) => {
-                self.validate_show_index()
-            }
+            crate::query::parser::ast::Stmt::ShowFulltextIndex(_show) => self.validate_show_index(),
             crate::query::parser::ast::Stmt::DescribeFulltextIndex(describe) => {
                 self.validate_describe_index(describe)
             }
-            crate::query::parser::ast::Stmt::Search(search) => {
-                self.validate_search(search)
-            }
-            crate::query::parser::ast::Stmt::LookupFulltext(lookup) => {
-                self.validate_lookup(lookup)
-            }
+            crate::query::parser::ast::Stmt::Search(search) => self.validate_search(search),
+            crate::query::parser::ast::Stmt::LookupFulltext(lookup) => self.validate_lookup(lookup),
             crate::query::parser::ast::Stmt::MatchFulltext(match_stmt) => {
                 self.validate_match(match_stmt)
             }
@@ -76,7 +76,10 @@ impl FulltextValidator {
         }
     }
 
-    fn validate_create_index(&self, create: &CreateFulltextIndex) -> Result<ValidationInfo, ValidationError> {
+    fn validate_create_index(
+        &self,
+        create: &CreateFulltextIndex,
+    ) -> Result<ValidationInfo, ValidationError> {
         if create.index_name.is_empty() {
             return Err(ValidationError::new(
                 "Index name cannot be empty",
@@ -129,7 +132,10 @@ impl FulltextValidator {
         Ok(ValidationInfo::new())
     }
 
-    fn validate_drop_index(&self, drop: &DropFulltextIndex) -> Result<ValidationInfo, ValidationError> {
+    fn validate_drop_index(
+        &self,
+        drop: &DropFulltextIndex,
+    ) -> Result<ValidationInfo, ValidationError> {
         if drop.index_name.is_empty() {
             return Err(ValidationError::new(
                 "Index name cannot be empty",
@@ -140,7 +146,10 @@ impl FulltextValidator {
         Ok(ValidationInfo::new())
     }
 
-    fn validate_alter_index(&self, alter: &AlterFulltextIndex) -> Result<ValidationInfo, ValidationError> {
+    fn validate_alter_index(
+        &self,
+        alter: &AlterFulltextIndex,
+    ) -> Result<ValidationInfo, ValidationError> {
         if alter.index_name.is_empty() {
             return Err(ValidationError::new(
                 "Index name cannot be empty",
@@ -184,7 +193,10 @@ impl FulltextValidator {
         Ok(ValidationInfo::new())
     }
 
-    fn validate_describe_index(&self, describe: &DescribeFulltextIndex) -> Result<ValidationInfo, ValidationError> {
+    fn validate_describe_index(
+        &self,
+        describe: &DescribeFulltextIndex,
+    ) -> Result<ValidationInfo, ValidationError> {
         if describe.index_name.is_empty() {
             return Err(ValidationError::new(
                 "Index name cannot be empty",
@@ -260,7 +272,11 @@ impl FulltextValidator {
                     }
                 }
             }
-            FulltextQueryExpr::Boolean { must, should, must_not } => {
+            FulltextQueryExpr::Boolean {
+                must,
+                should,
+                must_not,
+            } => {
                 if must.is_empty() && should.is_empty() {
                     return Err(ValidationError::new(
                         "Boolean query must have at least one must or should clause",
@@ -303,7 +319,12 @@ impl FulltextValidator {
                     }
                 }
             }
-            FulltextQueryExpr::Range { field, lower, upper, .. } => {
+            FulltextQueryExpr::Range {
+                field,
+                lower,
+                upper,
+                ..
+            } => {
                 if field.is_empty() {
                     return Err(ValidationError::new(
                         "Range field cannot be empty",
@@ -354,7 +375,10 @@ impl FulltextValidator {
         Ok(ValidationInfo::new())
     }
 
-    fn validate_match(&self, match_stmt: &MatchFulltext) -> Result<ValidationInfo, ValidationError> {
+    fn validate_match(
+        &self,
+        match_stmt: &MatchFulltext,
+    ) -> Result<ValidationInfo, ValidationError> {
         if match_stmt.pattern.is_empty() {
             return Err(ValidationError::new(
                 "Match pattern cannot be empty",

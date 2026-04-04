@@ -13,7 +13,7 @@ pub mod search;
 pub mod vertex;
 
 pub use edge::{GetEdgesExecutor, ScanEdgesExecutor};
-pub use fulltext_search::{FulltextSearchExecutor, FulltextScanExecutor};
+pub use fulltext_search::{FulltextScanExecutor, FulltextSearchExecutor};
 pub use index::LookupIndexExecutor;
 pub use match_fulltext::MatchFulltextExecutor;
 pub use neighbor::GetNeighborsExecutor;

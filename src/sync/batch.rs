@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
 use crate::coordinator::FulltextCoordinator;
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone)]
 pub struct BatchConfig {
@@ -71,10 +71,7 @@ impl BatchProcessor {
         false
     }
 
-    pub async fn commit_batch(
-        &mut self,
-        key: (u64, String, String),
-    ) -> Result<(), BatchError> {
+    pub async fn commit_batch(&mut self, key: (u64, String, String)) -> Result<(), BatchError> {
         if let Some(documents) = self.buffers.remove(&key) {
             if documents.is_empty() {
                 return Ok(());
@@ -82,11 +79,18 @@ impl BatchProcessor {
 
             let (space_id, tag_name, field_name) = key.clone();
 
-            if let Some(engine) = self.coordinator.get_engine(space_id, &tag_name, &field_name) {
-                engine.index_batch(documents).await
+            if let Some(engine) = self
+                .coordinator
+                .get_engine(space_id, &tag_name, &field_name)
+            {
+                engine
+                    .index_batch(documents)
+                    .await
                     .map_err(|e| BatchError::IndexError(e.to_string()))?;
 
-                engine.commit().await
+                engine
+                    .commit()
+                    .await
                     .map_err(|e| BatchError::CommitError(e.to_string()))?;
             }
 
@@ -120,14 +124,21 @@ impl BatchProcessor {
         }
 
         // Parallel commit
-        let futures: Vec<_> = batches.into_iter()
+        let futures: Vec<_> = batches
+            .into_iter()
             .map(|(key, docs)| {
                 let coordinator = self.coordinator.clone();
                 async move {
                     let (space_id, tag, field) = key;
                     if let Some(engine) = coordinator.get_engine(space_id, &tag, &field) {
-                        engine.index_batch(docs).await.map_err(|e| BatchError::IndexError(e.to_string()))?;
-                        engine.commit().await.map_err(|e| BatchError::CommitError(e.to_string()))?;
+                        engine
+                            .index_batch(docs)
+                            .await
+                            .map_err(|e| BatchError::IndexError(e.to_string()))?;
+                        engine
+                            .commit()
+                            .await
+                            .map_err(|e| BatchError::CommitError(e.to_string()))?;
                     }
                     Ok::<_, BatchError>(())
                 }

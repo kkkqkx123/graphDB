@@ -393,9 +393,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             PlanNodeEnum::FulltextLookup(node) => {
                 self.build_fulltext_lookup(node, storage, context)
             }
-            PlanNodeEnum::MatchFulltext(node) => {
-                self.build_match_fulltext(node, storage, context)
-            }
+            PlanNodeEnum::MatchFulltext(node) => self.build_match_fulltext(node, storage, context),
         }
     }
 
@@ -629,7 +627,8 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             offset: node.offset,
         };
 
-        let search_engine = context.search_engine()
+        let search_engine = context
+            .search_engine()
             .ok_or_else(|| QueryError::ExecutionError("Search engine not available".to_string()))?
             .clone();
 
@@ -652,7 +651,8 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::data_access::FulltextScanExecutor;
 
-        let search_engine = context.search_engine()
+        let search_engine = context
+            .search_engine()
             .ok_or_else(|| QueryError::ExecutionError("Search engine not available".to_string()))?
             .clone();
 

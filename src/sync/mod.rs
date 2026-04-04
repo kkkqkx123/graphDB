@@ -6,10 +6,10 @@ pub mod recovery;
 pub mod scheduler;
 pub mod task;
 
-pub use batch::{BatchConfig, BatchProcessor, BatchError};
-pub use manager::{SyncManager, SyncMode, SyncError};
+pub use batch::{BatchConfig, BatchError, BatchProcessor};
+pub use manager::{SyncError, SyncManager, SyncMode};
 pub use persistence::SyncPersistence;
-pub use queue::{SyncTaskQueue, QueueError};
+pub use queue::{QueueError, SyncTaskQueue};
 pub use recovery::RecoveryManager;
 pub use scheduler::SyncScheduler;
 pub use task::{SyncTask, TaskResult};

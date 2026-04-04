@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncState {
@@ -29,10 +29,12 @@ impl SyncPersistence {
             .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
 
         let temp_path = self.storage_path.with_extension("tmp");
-        tokio::fs::write(&temp_path, data).await
+        tokio::fs::write(&temp_path, data)
+            .await
             .map_err(|e| PersistenceError::Io(e.to_string()))?;
 
-        tokio::fs::rename(&temp_path, &self.storage_path).await
+        tokio::fs::rename(&temp_path, &self.storage_path)
+            .await
             .map_err(|e| PersistenceError::Io(e.to_string()))?;
 
         Ok(())
@@ -47,7 +49,8 @@ impl SyncPersistence {
             });
         }
 
-        let data = tokio::fs::read(&self.storage_path).await
+        let data = tokio::fs::read(&self.storage_path)
+            .await
             .map_err(|e| PersistenceError::Io(e.to_string()))?;
 
         let state = serde_json::from_slice(&data)

@@ -4,9 +4,9 @@
 
 use std::sync::Arc;
 
+pub use super::fulltext::*;
 pub use super::pattern::*;
 pub use super::types::*;
-pub use super::fulltext::*;
 use crate::core::types::expr::analysis_utils::collect_variables_from_contextual;
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::PropertyDef;

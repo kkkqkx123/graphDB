@@ -16,6 +16,7 @@ use crate::query::QueryContext;
 // The ValidatedStatement is publicly exported for use by the planner implementation.
 pub use crate::query::validator::ValidatedStatement;
 
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::query::planning::rewrite::{rewrite_plan, RewriteError};
 use crate::query::planning::statements::ddl::maintain_planner::MaintainPlanner;
 use crate::query::planning::statements::ddl::use_planner::UsePlanner;
@@ -38,7 +39,6 @@ use crate::query::planning::statements::dql::subgraph_planner::SubgraphPlanner;
 use crate::query::planning::statements::dql::with_planner::WithPlanner;
 use crate::query::planning::statements::dql::yield_planner::YieldPlanner;
 use crate::query::planning::statements::match_statement_planner::MatchStatementPlanner;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 
 use crate::query::planning::plan::core::nodes::management::{
     AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
@@ -158,33 +158,24 @@ impl Planner for FulltextSearchPlanner {
                 Ok(sub_plan)
             }
             Stmt::DropFulltextIndex(drop) => {
-                let node = DropFulltextIndexNode::new(
-                    drop.index_name.clone(),
-                    drop.if_exists,
-                );
+                let node = DropFulltextIndexNode::new(drop.index_name.clone(), drop.if_exists);
                 let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
             Stmt::AlterFulltextIndex(alter) => {
-                let node = AlterFulltextIndexNode::new(
-                    alter.index_name.clone(),
-                    alter.actions.clone(),
-                );
+                let node =
+                    AlterFulltextIndexNode::new(alter.index_name.clone(), alter.actions.clone());
                 let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
             Stmt::ShowFulltextIndex(show) => {
-                let node = ShowFulltextIndexNode::new(
-                    show.pattern.clone(),
-                    show.from_schema.clone(),
-                );
+                let node =
+                    ShowFulltextIndexNode::new(show.pattern.clone(), show.from_schema.clone());
                 let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
             Stmt::DescribeFulltextIndex(describe) => {
-                let node = DescribeFulltextIndexNode::new(
-                    describe.index_name.clone(),
-                );
+                let node = DescribeFulltextIndexNode::new(describe.index_name.clone());
                 let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
@@ -312,7 +303,9 @@ impl PlannerEnum {
             | Stmt::DescribeFulltextIndex(_)
             | Stmt::Search(_)
             | Stmt::LookupFulltext(_)
-            | Stmt::MatchFulltext(_) => Some(PlannerEnum::FulltextSearch(FulltextSearchPlanner::new())),
+            | Stmt::MatchFulltext(_) => {
+                Some(PlannerEnum::FulltextSearch(FulltextSearchPlanner::new()))
+            }
             // DDL/DML operations use the Maintain planner.
             Stmt::Create(_)
             | Stmt::Drop(_)

@@ -58,7 +58,10 @@ impl PlanNodeCategory {
 
     /// Determine whether it is a leaf node (with no data dependencies).
     pub fn is_leaf(&self) -> bool {
-        matches!(self, PlanNodeCategory::Access | PlanNodeCategory::DataAccess)
+        matches!(
+            self,
+            PlanNodeCategory::Access | PlanNodeCategory::DataAccess
+        )
     }
 
     /// Determine whether it is a root node (with no downstream dependencies).

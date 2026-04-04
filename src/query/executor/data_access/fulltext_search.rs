@@ -3,9 +3,11 @@
 //! This module implements the executor for full-text search queries,
 //! including SEARCH statements and full-text scan operations.
 
-use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, HasStorage};
+use crate::query::executor::base::{
+    BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, HasStorage,
+};
 use crate::query::executor::ExecutionContext;
-use crate::query::parser::ast::fulltext::SearchStatement;
+use crate::query::parser::ast::fulltext::{FulltextQueryExpr, SearchStatement};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::search::SearchEngine;
 use crate::storage::StorageClient;
@@ -36,14 +38,18 @@ impl<S: StorageClient> FulltextSearchExecutor<S> {
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "FulltextSearchExecutor".to_string(), storage, expr_context),
+            base: BaseExecutor::new(
+                id,
+                "FulltextSearchExecutor".to_string(),
+                storage,
+                expr_context,
+            ),
             statement,
             engine,
             context,
             _phantom: std::marker::PhantomData,
         }
     }
-
 }
 
 /// Full-text scan executor for LOOKUP operations
@@ -76,7 +82,12 @@ impl<S: StorageClient> FulltextScanExecutor<S> {
         limit: Option<usize>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "FulltextScanExecutor".to_string(), storage, expr_context),
+            base: BaseExecutor::new(
+                id,
+                "FulltextScanExecutor".to_string(),
+                storage,
+                expr_context,
+            ),
             index_name,
             query,
             engine,

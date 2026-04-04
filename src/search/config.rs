@@ -1,7 +1,7 @@
+use crate::search::adapters::InversearchConfig;
+use crate::search::engine::EngineType;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use crate::search::engine::EngineType;
-use crate::search::adapters::InversearchConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FulltextConfig {

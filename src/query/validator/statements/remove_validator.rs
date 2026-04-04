@@ -124,6 +124,15 @@ impl RemoveValidator {
         Ok(())
     }
 
+    /// Public method for validating property access (used in tests)
+    pub fn validate_property_access(
+        &self,
+        object: &crate::core::types::expr::Expression,
+        property: &str,
+    ) -> Result<(), ValidationError> {
+        self.validate_property_access_internal(object, property)
+    }
+
     fn validate_impl(&mut self, stmt: &RemoveStmt) -> Result<(), ValidationError> {
         // Verify that there is at least one removed item.
         if stmt.items.is_empty() {
@@ -271,14 +280,14 @@ mod tests {
         validator.user_defined_vars.push("n".to_string());
 
         // Effective access to attributes
-        let obj = create_contextual_expr(Expression::Variable("n".to_string()));
+        let obj = Expression::Variable("n".to_string());
         assert!(validator.validate_property_access(&obj, "name").is_ok());
 
         // Invalid attribute name
         assert!(validator.validate_property_access(&obj, "").is_err());
 
         // Undefined variable
-        let obj2 = create_contextual_expr(Expression::Variable("m".to_string()));
+        let obj2 = Expression::Variable("m".to_string());
         assert!(validator.validate_property_access(&obj2, "name").is_err());
     }
 

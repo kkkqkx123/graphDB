@@ -1,8 +1,8 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::search::engine::{SearchEngine, EngineType};
-use crate::search::adapters::{Bm25SearchEngine, InversearchEngine, InversearchConfig};
+use crate::search::adapters::{Bm25SearchEngine, InversearchConfig, InversearchEngine};
+use crate::search::engine::{EngineType, SearchEngine};
 use crate::search::error::SearchError;
 
 pub struct SearchEngineFactory;

@@ -253,7 +253,7 @@ mod tests {
     use super::*;
     use crate::core::types::ContextualExpression;
     use crate::core::Expression;
-    use crate::query::parser::ast::{Span, YieldItem};
+    use crate::query::parser::ast::Span;
     use crate::query::planning::plan::core::nodes::StartNode;
     use crate::query::planning::plan::core::PlanNodeEnum;
     use crate::query::validator::context::ExpressionAnalysisContext;
@@ -275,7 +275,7 @@ mod tests {
 
         let yield_stmt = Stmt::Yield(crate::query::parser::ast::stmt::YieldStmt {
             span: Span::default(),
-            items: vec![YieldItem {
+            items: vec![crate::query::parser::ast::stmt::YieldItem {
                 expression: ctx_expr.clone(),
                 alias: None,
             }],
@@ -287,7 +287,7 @@ mod tests {
         });
 
         let (columns, filter, skip, limit) =
-            YieldClausePlanner::extract_yield_info(&yield_stmt).expect("提取失败");
+            YieldClausePlanner::extract_yield_info(&yield_stmt).expect("extract failed");
         assert_eq!(columns.len(), 1);
         assert_eq!(columns[0].alias, "n");
         assert!(filter.is_none());
@@ -314,7 +314,7 @@ mod tests {
             where_clause: None,
             yield_clause: Some(crate::query::parser::ast::stmt::YieldClause {
                 span: Span::default(),
-                items: vec![YieldItem {
+                items: vec![crate::query::parser::ast::stmt::YieldItem {
                     expression: ctx_expr.clone(),
                     alias: None,
                 }],
@@ -333,7 +333,7 @@ mod tests {
         });
 
         let (columns, filter, skip, limit) =
-            YieldClausePlanner::extract_yield_info(&go_stmt).expect("提取失败");
+            YieldClausePlanner::extract_yield_info(&go_stmt).expect("extract failed");
         assert_eq!(columns.len(), 1);
         assert!(filter.is_none());
         assert_eq!(skip, Some(5));
@@ -348,12 +348,13 @@ mod tests {
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
 
-        let items = vec![YieldItem {
+        let items = vec![crate::query::parser::ast::stmt::YieldItem {
             expression: ctx_expr.clone(),
             alias: Some("node".to_string()),
         }];
 
-        let yield_columns = YieldClausePlanner::convert_yield_items(&items).expect("转换失败");
+        let yield_columns =
+            YieldClausePlanner::convert_yield_items(&items).expect("convert failed");
         assert_eq!(yield_columns.len(), 1);
         assert_eq!(yield_columns[0].alias, "node");
     }
@@ -389,7 +390,7 @@ mod tests {
 
         let yield_stmt = Stmt::Yield(crate::query::parser::ast::stmt::YieldStmt {
             span: Span::default(),
-            items: vec![YieldItem {
+            items: vec![crate::query::parser::ast::stmt::YieldItem {
                 expression: ctx_expr.clone(),
                 alias: None,
             }],
@@ -442,7 +443,7 @@ mod tests {
 
         let yield_stmt = Stmt::Yield(crate::query::parser::ast::stmt::YieldStmt {
             span: Span::default(),
-            items: vec![YieldItem {
+            items: vec![crate::query::parser::ast::stmt::YieldItem {
                 expression: ctx_expr.clone(),
                 alias: None,
             }],

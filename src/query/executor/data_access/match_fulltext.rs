@@ -27,7 +27,12 @@ impl<S: StorageClient> MatchFulltextExecutor<S> {
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "MatchFulltextExecutor".to_string(), storage, expr_context),
+            base: BaseExecutor::new(
+                id,
+                "MatchFulltextExecutor".to_string(),
+                storage,
+                expr_context,
+            ),
             pattern,
             fulltext_condition,
             yield_clause,

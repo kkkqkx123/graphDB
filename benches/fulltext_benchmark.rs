@@ -1,10 +1,10 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
-use graphdb::search::manager::FulltextIndexManager;
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use graphdb::coordinator::FulltextCoordinator;
+use graphdb::core::vertex_edge_path::Tag;
+use graphdb::core::{Value, Vertex};
 use graphdb::search::config::FulltextConfig;
 use graphdb::search::engine::EngineType;
-use graphdb::coordinator::FulltextCoordinator;
-use graphdb::core::{Value, Vertex};
-use graphdb::core::vertex_edge_path::Tag;
+use graphdb::search::manager::FulltextIndexManager;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -50,7 +50,8 @@ fn bench_indexing(c: &mut Criterion) {
             b.iter(|| {
                 rt.block_on(async {
                     let (coordinator, _temp) = setup_coordinator().await;
-                    coordinator.create_index(1, "Doc", "content", Some(EngineType::Bm25))
+                    coordinator
+                        .create_index(1, "Doc", "content", Some(EngineType::Bm25))
                         .await
                         .expect("Failed to create index");
 
@@ -60,7 +61,10 @@ fn bench_indexing(c: &mut Criterion) {
                             "Doc",
                             vec![("content", &format!("Document content number {}", i))],
                         );
-                        coordinator.on_vertex_inserted(1, &vertex).await.expect("Failed to insert");
+                        coordinator
+                            .on_vertex_inserted(1, &vertex)
+                            .await
+                            .expect("Failed to insert");
                     }
 
                     coordinator.commit_all().await.expect("Failed to commit");
@@ -85,7 +89,8 @@ fn bench_search(c: &mut Criterion) {
             |b, &doc_count| {
                 let coordinator = rt.block_on(async {
                     let (coordinator, _temp) = setup_coordinator().await;
-                    coordinator.create_index(1, "Doc", "content", Some(EngineType::Bm25))
+                    coordinator
+                        .create_index(1, "Doc", "content", Some(EngineType::Bm25))
                         .await
                         .expect("Failed to create index");
 
@@ -96,7 +101,10 @@ fn bench_search(c: &mut Criterion) {
                             "Doc",
                             vec![("content", &format!("Content {}", i))],
                         );
-                        coordinator.on_vertex_inserted(1, &vertex).await.expect("Failed to insert");
+                        coordinator
+                            .on_vertex_inserted(1, &vertex)
+                            .await
+                            .expect("Failed to insert");
                     }
                     coordinator.commit_all().await.expect("Failed to commit");
                     coordinator
@@ -126,7 +134,8 @@ fn bench_engine_comparison(c: &mut Criterion) {
             b.iter(|| {
                 rt.block_on(async {
                     let (coordinator, _temp) = setup_coordinator().await;
-                    coordinator.create_index(1, "Doc", "content", Some(*engine_type))
+                    coordinator
+                        .create_index(1, "Doc", "content", Some(*engine_type))
                         .await
                         .expect("Failed to create index");
 
@@ -136,7 +145,10 @@ fn bench_engine_comparison(c: &mut Criterion) {
                             "Doc",
                             vec![("content", &format!("Test content {}", i))],
                         );
-                        coordinator.on_vertex_inserted(1, &vertex).await.expect("Failed to insert");
+                        coordinator
+                            .on_vertex_inserted(1, &vertex)
+                            .await
+                            .expect("Failed to insert");
                     }
                     coordinator.commit_all().await.expect("Failed to commit");
                     black_box(&coordinator);
@@ -161,7 +173,8 @@ fn bench_batch_operations(c: &mut Criterion) {
                 b.iter(|| {
                     rt.block_on(async {
                         let (coordinator, _temp) = setup_coordinator().await;
-                        coordinator.create_index(1, "Doc", "content", Some(EngineType::Bm25))
+                        coordinator
+                            .create_index(1, "Doc", "content", Some(EngineType::Bm25))
                             .await
                             .expect("Failed to create index");
 
@@ -174,7 +187,10 @@ fn bench_batch_operations(c: &mut Criterion) {
                                     "Doc",
                                     vec![("content", &format!("Batch content {}", vid))],
                                 );
-                                coordinator.on_vertex_inserted(1, &vertex).await.expect("Failed to insert");
+                                coordinator
+                                    .on_vertex_inserted(1, &vertex)
+                                    .await
+                                    .expect("Failed to insert");
                             }
                             coordinator.commit_all().await.expect("Failed to commit");
                         }
@@ -196,7 +212,8 @@ fn bench_concurrent_search(c: &mut Criterion) {
     // Setup data once
     let coordinator = rt.block_on(async {
         let (coordinator, _temp) = setup_coordinator().await;
-        coordinator.create_index(1, "Doc", "content", Some(EngineType::Bm25))
+        coordinator
+            .create_index(1, "Doc", "content", Some(EngineType::Bm25))
             .await
             .expect("Failed to create index");
 
@@ -206,7 +223,10 @@ fn bench_concurrent_search(c: &mut Criterion) {
                 "Doc",
                 vec![("content", &format!("Content {} with keywords", i))],
             );
-            coordinator.on_vertex_inserted(1, &vertex).await.expect("Failed to insert");
+            coordinator
+                .on_vertex_inserted(1, &vertex)
+                .await
+                .expect("Failed to insert");
         }
         coordinator.commit_all().await.expect("Failed to commit");
         coordinator
@@ -216,7 +236,9 @@ fn bench_concurrent_search(c: &mut Criterion) {
         b.iter(|| {
             rt.block_on(async {
                 for _ in 0..100 {
-                    let _ = coordinator.search(1, "Doc", "content", "keywords", 10).await;
+                    let _ = coordinator
+                        .search(1, "Doc", "content", "keywords", 10)
+                        .await;
                 }
             });
         });
@@ -225,5 +247,12 @@ fn bench_concurrent_search(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_indexing, bench_search, bench_engine_comparison, bench_batch_operations, bench_concurrent_search);
+criterion_group!(
+    benches,
+    bench_indexing,
+    bench_search,
+    bench_engine_comparison,
+    bench_batch_operations,
+    bench_concurrent_search
+);
 criterion_main!(benches);

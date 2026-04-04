@@ -1,5 +1,5 @@
-use std::time::Duration;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
 
 /// Fulltext search metrics
 pub struct FulltextMetrics {
@@ -41,7 +41,8 @@ impl FulltextMetrics {
     /// Record search operation
     pub fn record_search(&self, latency: Duration) {
         self.search_ops.fetch_add(1, Ordering::Relaxed);
-        self.search_latency_us.fetch_add(latency.as_micros() as u64, Ordering::Relaxed);
+        self.search_latency_us
+            .fetch_add(latency.as_micros() as u64, Ordering::Relaxed);
     }
 
     /// Set queue size

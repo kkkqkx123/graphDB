@@ -10,13 +10,16 @@ pub mod metrics;
 pub mod result;
 pub mod warmup;
 
-pub use config::{FulltextConfig, SyncConfig, SyncMode, Bm25Config};
+pub use config::{Bm25Config, FulltextConfig, SyncConfig, SyncMode};
 pub use engine::{EngineType, SearchEngine};
 pub use error::{Result, SearchError};
 pub use factory::SearchEngineFactory;
 pub use index_cache::IndexCache;
 pub use manager::FulltextIndexManager;
-pub use metadata::{IndexMetadata, IndexKey, IndexStatus};
+pub use metadata::{IndexKey, IndexMetadata, IndexStatus};
 pub use metrics::FulltextMetrics;
-pub use result::{IndexStats, SearchResult, FulltextSearchResult, FulltextSearchEntry, HighlightResult, SearchStats};
+pub use result::{
+    FulltextSearchEntry, FulltextSearchResult, HighlightResult, IndexStats, SearchResult,
+    SearchStats,
+};
 pub use warmup::IndexWarmer;

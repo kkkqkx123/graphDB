@@ -20,7 +20,12 @@ impl<S: StorageClient> ShowFulltextIndexExecutor<S> {
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "ShowFulltextIndexExecutor".to_string(), storage, expr_context),
+            base: BaseExecutor::new(
+                id,
+                "ShowFulltextIndexExecutor".to_string(),
+                storage,
+                expr_context,
+            ),
         }
     }
 }

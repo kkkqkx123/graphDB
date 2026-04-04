@@ -321,7 +321,9 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
 
         if let Some(else_branch) = node.else_branch().clone() {
             let node_id = self.ctx.allocate_node_id();
-            let new_else = self.rewriter.rewrite_node(self.ctx, &else_branch, node_id)?;
+            let new_else = self
+                .rewriter
+                .rewrite_node(self.ctx, &else_branch, node_id)?;
             new_node.set_else_branch(new_else);
         }
 

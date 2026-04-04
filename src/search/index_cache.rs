@@ -1,7 +1,7 @@
-use std::sync::Arc;
 use lru::LruCache;
-use std::num::NonZeroUsize;
 use parking_lot::Mutex;
+use std::num::NonZeroUsize;
+use std::sync::Arc;
 
 use crate::search::engine::SearchEngine;
 use crate::search::metadata::IndexKey;
@@ -101,8 +101,12 @@ mod tests {
         assert_eq!(cache.len(), 0);
 
         // Insert engines
-        let engine1 = Arc::new(Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"));
-        let engine2 = Arc::new(Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"));
+        let engine1 = Arc::new(
+            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"),
+        );
+        let engine2 = Arc::new(
+            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"),
+        );
 
         cache.put(key1.clone(), engine1);
         cache.put(key2.clone(), engine2);
@@ -124,9 +128,15 @@ mod tests {
         let key3 = IndexKey::new(1, "Post", "title");
 
         // Insert 3 engines (max is 2)
-        let engine1 = Arc::new(Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"));
-        let engine2 = Arc::new(Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"));
-        let engine3 = Arc::new(Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"));
+        let engine1 = Arc::new(
+            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"),
+        );
+        let engine2 = Arc::new(
+            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"),
+        );
+        let engine3 = Arc::new(
+            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"),
+        );
 
         cache.put(key1.clone(), engine1);
         cache.put(key2.clone(), engine2);
@@ -149,7 +159,9 @@ mod tests {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
         let key1 = IndexKey::new(1, "Article", "title");
-        let engine = Arc::new(Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"));
+        let engine = Arc::new(
+            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"),
+        );
 
         cache.put(key1.clone(), engine);
         assert_eq!(cache.len(), 1);
@@ -168,8 +180,12 @@ mod tests {
         let key1 = IndexKey::new(1, "Article", "title");
         let key2 = IndexKey::new(1, "Article", "content");
 
-        let engine1 = Arc::new(Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"));
-        let engine2 = Arc::new(Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"));
+        let engine1 = Arc::new(
+            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"),
+        );
+        let engine2 = Arc::new(
+            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"),
+        );
 
         cache.put(key1.clone(), engine1);
         cache.put(key2.clone(), engine2);

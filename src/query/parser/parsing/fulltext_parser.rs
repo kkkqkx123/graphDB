@@ -3,19 +3,19 @@
 //! This module implements the parser for full-text search SQL statements,
 //! including CREATE FULLTEXT INDEX, SEARCH, and related queries.
 
-use std::collections::HashMap;
 use crate::core::types::FulltextEngineType;
 use crate::core::Value;
 use crate::query::parser::ast::fulltext::{
-    AlterFulltextIndex, AlterIndexAction, CreateFulltextIndex, DescribeFulltextIndex,
-    DropFulltextIndex, FulltextMatchCondition, FulltextQueryExpr, IndexFieldDef, IndexOptions,
-    LookupFulltext, MatchFulltext, OrderClause, FulltextOrderDirection, OrderItem, SearchStatement,
-    ShowFulltextIndex, WhereClause, WhereCondition, YieldClause, YieldExpression, YieldItem,
-    BM25Options, InversearchOptions,
+    AlterFulltextIndex, AlterIndexAction, BM25Options, CreateFulltextIndex, DescribeFulltextIndex,
+    DropFulltextIndex, FulltextMatchCondition, FulltextOrderDirection, FulltextQueryExpr,
+    IndexFieldDef, IndexOptions, InversearchOptions, LookupFulltext, MatchFulltext, OrderClause,
+    OrderItem, SearchStatement, ShowFulltextIndex, WhereClause, WhereCondition, YieldClause,
+    YieldExpression, YieldItem,
 };
 use crate::query::parser::ast::stmt::Stmt;
 use crate::query::parser::parsing::parse_context::ParseContext;
 use crate::query::parser::TokenKind;
+use std::collections::HashMap;
 
 /// Parse full-text search statements from ParseContext
 pub fn parse_fulltext(ctx: &mut ParseContext) -> Result<Stmt, crate::query::parser::ParseError> {
@@ -44,7 +44,9 @@ pub fn parse_fulltext(ctx: &mut ParseContext) -> Result<Stmt, crate::query::pars
     ))
 }
 
-fn parse_create_fulltext_index(ctx: &mut ParseContext) -> Result<Stmt, crate::query::parser::ParseError> {
+fn parse_create_fulltext_index(
+    ctx: &mut ParseContext,
+) -> Result<Stmt, crate::query::parser::ParseError> {
     ctx.consume_keyword("CREATE")?;
 
     let if_not_exists = if ctx.check_keyword("IF") {
@@ -169,7 +171,8 @@ fn parse_create_fulltext_index(ctx: &mut ParseContext) -> Result<Stmt, crate::qu
                             charset: None,
                         });
                     }
-                    options.inversearch_config.as_mut().unwrap().tokenize_mode = Some(ctx.consume_string()?);
+                    options.inversearch_config.as_mut().unwrap().tokenize_mode =
+                        Some(ctx.consume_string()?);
                 }
                 "resolution" => {
                     if options.inversearch_config.is_none() {
@@ -182,7 +185,8 @@ fn parse_create_fulltext_index(ctx: &mut ParseContext) -> Result<Stmt, crate::qu
                             charset: None,
                         });
                     }
-                    options.inversearch_config.as_mut().unwrap().resolution = Some(ctx.consume_int()? as usize);
+                    options.inversearch_config.as_mut().unwrap().resolution =
+                        Some(ctx.consume_int()? as usize);
                 }
                 "depth" => {
                     if options.inversearch_config.is_none() {
@@ -195,7 +199,8 @@ fn parse_create_fulltext_index(ctx: &mut ParseContext) -> Result<Stmt, crate::qu
                             charset: None,
                         });
                     }
-                    options.inversearch_config.as_mut().unwrap().depth = Some(ctx.consume_int()? as usize);
+                    options.inversearch_config.as_mut().unwrap().depth =
+                        Some(ctx.consume_int()? as usize);
                 }
                 _ => {
                     let value = ctx.consume_value()?;
@@ -224,7 +229,9 @@ fn parse_create_fulltext_index(ctx: &mut ParseContext) -> Result<Stmt, crate::qu
     Ok(Stmt::CreateFulltextIndex(create))
 }
 
-fn parse_drop_fulltext_index(ctx: &mut ParseContext) -> Result<Stmt, crate::query::parser::ParseError> {
+fn parse_drop_fulltext_index(
+    ctx: &mut ParseContext,
+) -> Result<Stmt, crate::query::parser::ParseError> {
     ctx.consume_keyword("DROP")?;
     ctx.consume_keyword("FULLTEXT")?;
     ctx.consume_keyword("INDEX")?;
@@ -248,7 +255,9 @@ fn parse_drop_fulltext_index(ctx: &mut ParseContext) -> Result<Stmt, crate::quer
     Ok(Stmt::DropFulltextIndex(drop))
 }
 
-fn parse_alter_fulltext_index(ctx: &mut ParseContext) -> Result<Stmt, crate::query::parser::ParseError> {
+fn parse_alter_fulltext_index(
+    ctx: &mut ParseContext,
+) -> Result<Stmt, crate::query::parser::ParseError> {
     ctx.consume_keyword("ALTER")?;
     ctx.consume_keyword("FULLTEXT")?;
     ctx.consume_keyword("INDEX")?;
@@ -309,7 +318,9 @@ fn parse_alter_fulltext_index(ctx: &mut ParseContext) -> Result<Stmt, crate::que
     Ok(Stmt::AlterFulltextIndex(alter))
 }
 
-fn parse_show_fulltext_index(ctx: &mut ParseContext) -> Result<Stmt, crate::query::parser::ParseError> {
+fn parse_show_fulltext_index(
+    ctx: &mut ParseContext,
+) -> Result<Stmt, crate::query::parser::ParseError> {
     ctx.consume_keyword("SHOW")?;
     ctx.consume_keyword("FULLTEXT")?;
     ctx.consume_keyword("INDEX")?;
@@ -336,7 +347,9 @@ fn parse_show_fulltext_index(ctx: &mut ParseContext) -> Result<Stmt, crate::quer
     Ok(Stmt::ShowFulltextIndex(show))
 }
 
-fn parse_describe_fulltext_index(ctx: &mut ParseContext) -> Result<Stmt, crate::query::parser::ParseError> {
+fn parse_describe_fulltext_index(
+    ctx: &mut ParseContext,
+) -> Result<Stmt, crate::query::parser::ParseError> {
     ctx.consume_keyword("DESCRIBE")?;
     ctx.consume_keyword("FULLTEXT")?;
     ctx.consume_keyword("INDEX")?;
@@ -351,7 +364,9 @@ fn parse_describe_fulltext_index(ctx: &mut ParseContext) -> Result<Stmt, crate::
     Ok(Stmt::DescribeFulltextIndex(describe))
 }
 
-fn parse_search_statement(ctx: &mut ParseContext) -> Result<Stmt, crate::query::parser::ParseError> {
+fn parse_search_statement(
+    ctx: &mut ParseContext,
+) -> Result<Stmt, crate::query::parser::ParseError> {
     ctx.consume_keyword("SEARCH")?;
     ctx.consume_keyword("INDEX")?;
 
@@ -395,7 +410,9 @@ fn parse_search_statement(ctx: &mut ParseContext) -> Result<Stmt, crate::query::
     Ok(Stmt::Search(search))
 }
 
-fn parse_fulltext_query_expr(ctx: &mut ParseContext) -> Result<FulltextQueryExpr, crate::query::parser::ParseError> {
+fn parse_fulltext_query_expr(
+    ctx: &mut ParseContext,
+) -> Result<FulltextQueryExpr, crate::query::parser::ParseError> {
     if let Some(text) = ctx.try_consume_string() {
         return Ok(FulltextQueryExpr::Simple(text));
     }
@@ -419,7 +436,9 @@ fn parse_fulltext_query_expr(ctx: &mut ParseContext) -> Result<FulltextQueryExpr
     ))
 }
 
-fn parse_yield_clause(ctx: &mut ParseContext) -> Result<YieldClause, crate::query::parser::ParseError> {
+fn parse_yield_clause(
+    ctx: &mut ParseContext,
+) -> Result<YieldClause, crate::query::parser::ParseError> {
     let mut items = Vec::new();
 
     loop {
@@ -465,12 +484,16 @@ fn parse_yield_clause(ctx: &mut ParseContext) -> Result<YieldClause, crate::quer
     Ok(YieldClause::new(items))
 }
 
-fn parse_where_clause(ctx: &mut ParseContext) -> Result<WhereClause, crate::query::parser::ParseError> {
+fn parse_where_clause(
+    ctx: &mut ParseContext,
+) -> Result<WhereClause, crate::query::parser::ParseError> {
     let condition = parse_where_condition(ctx)?;
     Ok(WhereClause { condition })
 }
 
-fn parse_where_condition(ctx: &mut ParseContext) -> Result<WhereCondition, crate::query::parser::ParseError> {
+fn parse_where_condition(
+    ctx: &mut ParseContext,
+) -> Result<WhereCondition, crate::query::parser::ParseError> {
     if ctx.check_keyword("score") {
         ctx.consume_identifier()?;
         let op = parse_comparison_op(ctx)?;
@@ -485,7 +508,9 @@ fn parse_where_condition(ctx: &mut ParseContext) -> Result<WhereCondition, crate
     }
 }
 
-fn parse_comparison_op(ctx: &mut ParseContext) -> Result<crate::query::parser::ast::fulltext::ComparisonOp, crate::query::parser::ParseError> {
+fn parse_comparison_op(
+    ctx: &mut ParseContext,
+) -> Result<crate::query::parser::ast::fulltext::ComparisonOp, crate::query::parser::ParseError> {
     if ctx.consume_optional_token("=") {
         Ok(crate::query::parser::ast::fulltext::ComparisonOp::Eq)
     } else if ctx.consume_optional_token("!=") {
@@ -507,7 +532,9 @@ fn parse_comparison_op(ctx: &mut ParseContext) -> Result<crate::query::parser::a
     }
 }
 
-fn parse_order_clause(ctx: &mut ParseContext) -> Result<OrderClause, crate::query::parser::ParseError> {
+fn parse_order_clause(
+    ctx: &mut ParseContext,
+) -> Result<OrderClause, crate::query::parser::ParseError> {
     let mut items = Vec::new();
 
     loop {

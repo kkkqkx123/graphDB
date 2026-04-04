@@ -1,5 +1,5 @@
-use crate::core::Value;
 use crate::coordinator::ChangeType;
+use crate::core::Value;
 use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone)]

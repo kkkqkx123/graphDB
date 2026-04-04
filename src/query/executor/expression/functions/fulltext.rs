@@ -6,8 +6,8 @@
 //! - matched_fields(): Get the list of matched fields
 //! - snippet(): Get a text snippet
 
-use crate::core::Value;
 use crate::core::error::{ExpressionError, ExpressionErrorType};
+use crate::core::Value;
 use crate::query::executor::expression::functions::signature::{FunctionSignature, ValueType};
 use crate::search::FulltextSearchEntry;
 use std::collections::HashMap;
@@ -39,24 +39,23 @@ impl FulltextFunction {
     /// Get function signature
     pub fn signature(&self) -> FunctionSignature {
         match self {
-            FulltextFunction::Score => FunctionSignature::new(
-                "score",
-                vec![],
-                Some(ValueType::Float),
-                false,
-            ),
+            FulltextFunction::Score => {
+                FunctionSignature::new("score", vec![], Some(ValueType::Float), false)
+            }
             FulltextFunction::Highlight => FunctionSignature::new(
                 "highlight",
-                vec![ValueType::String, ValueType::String, ValueType::String, ValueType::Int],
+                vec![
+                    ValueType::String,
+                    ValueType::String,
+                    ValueType::String,
+                    ValueType::Int,
+                ],
                 Some(ValueType::String),
                 true,
             ),
-            FulltextFunction::MatchedFields => FunctionSignature::new(
-                "matched_fields",
-                vec![],
-                Some(ValueType::List),
-                false,
-            ),
+            FulltextFunction::MatchedFields => {
+                FunctionSignature::new("matched_fields", vec![], Some(ValueType::List), false)
+            }
             FulltextFunction::Snippet => FunctionSignature::new(
                 "snippet",
                 vec![ValueType::String, ValueType::Int],
@@ -149,29 +148,38 @@ impl FulltextFunction {
             }
         };
 
-        let pre_tag = args.get(1).and_then(|v| {
-            if let Value::String(s) = v {
-                Some(s.clone())
-            } else {
-                None
-            }
-        }).unwrap_or_else(|| "<em>".to_string());
+        let pre_tag = args
+            .get(1)
+            .and_then(|v| {
+                if let Value::String(s) = v {
+                    Some(s.clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| "<em>".to_string());
 
-        let post_tag = args.get(2).and_then(|v| {
-            if let Value::String(s) = v {
-                Some(s.clone())
-            } else {
-                None
-            }
-        }).unwrap_or_else(|| "</em>".to_string());
+        let post_tag = args
+            .get(2)
+            .and_then(|v| {
+                if let Value::String(s) = v {
+                    Some(s.clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| "</em>".to_string());
 
-        let fragment_size = args.get(3).and_then(|v| {
-            if let Value::Int(n) = v {
-                Some(*n as usize)
-            } else {
-                None
-            }
-        }).unwrap_or(100);
+        let fragment_size = args
+            .get(3)
+            .and_then(|v| {
+                if let Value::Int(n) = v {
+                    Some(*n as usize)
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(100);
 
         // Get highlights from context
         if let Some(highlights) = &context.highlights {
@@ -223,7 +231,9 @@ impl FulltextFunction {
             .map(|f| Value::String(f.clone()))
             .collect();
 
-        Ok(Value::List(crate::core::value::list::List { values: fields }))
+        Ok(Value::List(crate::core::value::list::List {
+            values: fields,
+        }))
     }
 
     /// Execute snippet() function
@@ -249,13 +259,16 @@ impl FulltextFunction {
             }
         };
 
-        let max_len = args.get(1).and_then(|v| {
-            if let Value::Int(n) = v {
-                Some(*n as usize)
-            } else {
-                None
-            }
-        }).unwrap_or(200);
+        let max_len = args
+            .get(1)
+            .and_then(|v| {
+                if let Value::Int(n) = v {
+                    Some(*n as usize)
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(200);
 
         // Get text from source
         if let Some(source) = &context.source {
@@ -266,14 +279,9 @@ impl FulltextFunction {
                     }
 
                     // Try to find a good break point
-                    let break_point = text[..max_len]
-                        .rfind(' ')
-                        .unwrap_or(max_len);
+                    let break_point = text[..max_len].rfind(' ').unwrap_or(max_len);
 
-                    return Ok(Value::String(format!(
-                        "{}...",
-                        &text[..break_point]
-                    )));
+                    return Ok(Value::String(format!("{}...", &text[..break_point])));
                 }
             }
         }
@@ -348,7 +356,9 @@ impl FulltextExecutionContext {
 }
 
 /// Register full-text search functions
-pub fn register_fulltext_functions(registry: &mut crate::query::executor::expression::functions::FunctionRegistry) {
+pub fn register_fulltext_functions(
+    registry: &mut crate::query::executor::expression::functions::FunctionRegistry,
+) {
     registry.register_builtin(
         crate::query::executor::expression::functions::BuiltinFunction::Fulltext(
             FulltextFunction::Score,
@@ -380,8 +390,16 @@ mod tests {
 
     fn create_test_context() -> FulltextExecutionContext {
         let mut source = HashMap::new();
-        source.insert("title".to_string(), Value::String("Database Optimization".to_string()));
-        source.insert("content".to_string(), Value::String("This is a test article about database optimization techniques.".to_string()));
+        source.insert(
+            "title".to_string(),
+            Value::String("Database Optimization".to_string()),
+        );
+        source.insert(
+            "content".to_string(),
+            Value::String(
+                "This is a test article about database optimization techniques.".to_string(),
+            ),
+        );
 
         let mut highlights = HashMap::new();
         highlights.insert(
@@ -446,7 +464,10 @@ mod tests {
         let context = create_test_context();
 
         let result = func
-            .execute(&[Value::String("content".to_string()), Value::Int(50)], &context)
+            .execute(
+                &[Value::String("content".to_string()), Value::Int(50)],
+                &context,
+            )
             .unwrap();
 
         assert!(matches!(result, Value::String(_)));

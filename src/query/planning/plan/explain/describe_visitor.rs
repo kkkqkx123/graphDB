@@ -3,11 +3,11 @@
 //! Use the Visitor pattern with zero-cost abstraction for distribution at compile time.
 //! Collects node descriptions along with their dependencies for building complete plan graphs.
 
+use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
     MultipleInputNode, PlanNode, SingleInputNode,
 };
 use crate::query::planning::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor;
-use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::planning::plan::explain::description::PlanNodeDescription;
 
 // Import all node types

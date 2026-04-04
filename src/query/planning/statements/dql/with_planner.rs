@@ -3,7 +3,7 @@
 //! Query planning for queries that handle the WITH statement
 
 use crate::core::YieldColumn;
-use crate::query::parser::ast::stmt::{ReturnItem, Stmt, WithStmt, OrderDirection};
+use crate::query::parser::ast::stmt::{OrderDirection, ReturnItem, Stmt, WithStmt};
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
     nodes::{ArgumentNode, DedupNode, FilterNode, LimitNode, ProjectNode, SortNode},

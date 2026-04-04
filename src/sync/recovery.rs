@@ -1,6 +1,6 @@
-use std::sync::Arc;
 use crate::sync::persistence::{SyncPersistence, SyncState};
 use crate::sync::queue::SyncTaskQueue;
+use std::sync::Arc;
 
 pub struct RecoveryManager {
     persistence: Arc<SyncPersistence>,
@@ -12,7 +12,10 @@ impl RecoveryManager {
     }
 
     pub async fn recover(&self, _queue: &SyncTaskQueue) -> Result<RecoveryResult, RecoveryError> {
-        let state = self.persistence.load_state().await
+        let state = self
+            .persistence
+            .load_state()
+            .await
             .map_err(|e| RecoveryError::Persistence(e.to_string()))?;
 
         Ok(RecoveryResult {
@@ -22,20 +25,32 @@ impl RecoveryManager {
         })
     }
 
-    pub async fn save_failed_task(&self, _task_id: &str, _error: &str) -> Result<(), RecoveryError> {
-        let mut state = self.persistence.load_state().await
+    pub async fn save_failed_task(
+        &self,
+        _task_id: &str,
+        _error: &str,
+    ) -> Result<(), RecoveryError> {
+        let mut state = self
+            .persistence
+            .load_state()
+            .await
             .map_err(|e| RecoveryError::Persistence(e.to_string()))?;
 
         state.failed_task_count += 1;
 
-        self.persistence.save_state(&state).await
+        self.persistence
+            .save_state(&state)
+            .await
             .map_err(|e| RecoveryError::Persistence(e.to_string()))?;
 
         Ok(())
     }
 
     pub async fn mark_task_completed(&self, task_id: &str) -> Result<(), RecoveryError> {
-        let mut state = self.persistence.load_state().await
+        let mut state = self
+            .persistence
+            .load_state()
+            .await
             .map_err(|e| RecoveryError::Persistence(e.to_string()))?;
 
         state.last_processed_task_id = Some(task_id.to_string());
@@ -43,7 +58,9 @@ impl RecoveryManager {
             state.pending_task_count -= 1;
         }
 
-        self.persistence.save_state(&state).await
+        self.persistence
+            .save_state(&state)
+            .await
             .map_err(|e| RecoveryError::Persistence(e.to_string()))?;
 
         Ok(())

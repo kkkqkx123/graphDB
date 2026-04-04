@@ -102,15 +102,14 @@ pub use self::edge::EdgeTypeInfo;
 pub use self::index::{Index, IndexConfig, IndexField, IndexStatus, IndexType};
 // Export full-text index types
 pub use self::index::{
-    FulltextEngineType, FulltextIndexField, FulltextIndexOptions,
-    BM25IndexConfig, InversearchIndexConfig, TokenizeMode, CharsetType,
+    BM25IndexConfig, CharsetType, FulltextEngineType, FulltextIndexField, FulltextIndexOptions,
+    InversearchIndexConfig, TokenizeMode,
 };
 // Export full-text query types
 pub use self::fulltext_query::{
-    FulltextQuery, FulltextQueryOptions, FieldQuery,
-    HighlightOptions, SortField, SortOrder, SortMissing,
-    FulltextSearchResult, SearchResultEntry, QueryExplanation,
-    ShardsInfo, ShardFailure,
+    FieldQuery, FulltextQuery, FulltextQueryOptions, FulltextSearchResult, HighlightOptions,
+    QueryExplanation, SearchResultEntry, ShardFailure, ShardsInfo, SortField, SortMissing,
+    SortOrder,
 };
 pub use self::property::PropertyDef;
 pub use self::space::{generate_space_id, reset_space_id_counter, SpaceInfo};

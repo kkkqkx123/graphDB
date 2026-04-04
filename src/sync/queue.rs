@@ -1,6 +1,6 @@
-use tokio::sync::{mpsc, Mutex};
-use std::collections::VecDeque;
 use crate::sync::task::SyncTask;
+use std::collections::VecDeque;
+use tokio::sync::{mpsc, Mutex};
 
 pub struct SyncTaskQueue {
     sender: mpsc::Sender<SyncTask>,
@@ -21,17 +21,15 @@ impl SyncTaskQueue {
     pub async fn submit(&self, task: SyncTask) -> Result<(), QueueError> {
         match self.sender.try_send(task) {
             Ok(_) => Ok(()),
-            Err(mpsc::error::TrySendError::Full(_)) => {
-                Err(QueueError::QueueFull)
-            }
-            Err(mpsc::error::TrySendError::Closed(_)) => {
-                Err(QueueError::QueueClosed)
-            }
+            Err(mpsc::error::TrySendError::Full(_)) => Err(QueueError::QueueFull),
+            Err(mpsc::error::TrySendError::Closed(_)) => Err(QueueError::QueueClosed),
         }
     }
 
     pub async fn submit_blocking(&self, task: SyncTask) -> Result<(), QueueError> {
-        self.sender.send(task).await
+        self.sender
+            .send(task)
+            .await
             .map_err(|_| QueueError::QueueClosed)
     }
 

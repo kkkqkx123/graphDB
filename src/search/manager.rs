@@ -2,12 +2,12 @@ use dashmap::DashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::search::engine::{SearchEngine, EngineType};
-use crate::search::factory::SearchEngineFactory;
-use crate::search::metadata::{IndexMetadata, IndexKey, IndexStatus};
 use crate::search::config::FulltextConfig;
+use crate::search::engine::{EngineType, SearchEngine};
 use crate::search::error::SearchError;
-use crate::search::result::{SearchResult, IndexStats};
+use crate::search::factory::SearchEngineFactory;
+use crate::search::metadata::{IndexKey, IndexMetadata, IndexStatus};
+use crate::search::result::{IndexStats, SearchResult};
 
 #[derive(Debug)]
 pub struct FulltextIndexManager {
@@ -148,10 +148,11 @@ impl FulltextIndexManager {
         query: &str,
         limit: usize,
     ) -> Result<Vec<SearchResult>, SearchError> {
-        let engine = self.get_engine(space_id, tag_name, field_name)
-            .ok_or_else(|| SearchError::IndexNotFound(
-                format!("{}.{}.{}", space_id, tag_name, field_name)
-            ))?;
+        let engine = self
+            .get_engine(space_id, tag_name, field_name)
+            .ok_or_else(|| {
+                SearchError::IndexNotFound(format!("{}.{}.{}", space_id, tag_name, field_name))
+            })?;
 
         engine.search(query, limit).await
     }
@@ -162,10 +163,11 @@ impl FulltextIndexManager {
         tag_name: &str,
         field_name: &str,
     ) -> Result<IndexStats, SearchError> {
-        let engine = self.get_engine(space_id, tag_name, field_name)
-            .ok_or_else(|| SearchError::IndexNotFound(
-                format!("{}.{}.{}", space_id, tag_name, field_name)
-            ))?;
+        let engine = self
+            .get_engine(space_id, tag_name, field_name)
+            .ok_or_else(|| {
+                SearchError::IndexNotFound(format!("{}.{}.{}", space_id, tag_name, field_name))
+            })?;
 
         engine.stats().await
     }

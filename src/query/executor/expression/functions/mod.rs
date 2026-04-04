@@ -23,7 +23,7 @@ pub mod signature;
 
 // Full-text search functions
 pub mod fulltext;
-pub use fulltext::{FulltextFunction, FulltextExecutionContext};
+pub use fulltext::{FulltextExecutionContext, FulltextFunction};
 
 pub use registry::{global_registry, global_registry_ref, FunctionRegistry};
 pub use signature::ValueType;

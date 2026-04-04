@@ -13,9 +13,7 @@ use crate::query::executor::base::{
 };
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::parser::ast::stmt::ExplainFormat;
-use crate::query::planning::plan::explain::{
-    DescribeVisitor, PlanDescription, ProfilingStats,
-};
+use crate::query::planning::plan::explain::{DescribeVisitor, PlanDescription, ProfilingStats};
 use crate::query::planning::plan::ExecutionPlan;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;

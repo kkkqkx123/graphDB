@@ -26,6 +26,6 @@ pub use show_edge_index_status::ShowEdgeIndexStatusExecutor;
 pub use show_tag_index_status::ShowTagIndexStatusExecutor;
 
 pub use fulltext_index::{
-    CreateFulltextIndexExecutor, DropFulltextIndexExecutor, AlterFulltextIndexExecutor,
-    ShowFulltextIndexExecutor, DescribeFulltextIndexExecutor,
+    AlterFulltextIndexExecutor, CreateFulltextIndexExecutor, DescribeFulltextIndexExecutor,
+    DropFulltextIndexExecutor, ShowFulltextIndexExecutor,
 };

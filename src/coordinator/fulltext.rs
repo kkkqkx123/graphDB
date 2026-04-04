@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::core::{Value, Vertex};
-use crate::search::manager::FulltextIndexManager;
-use crate::search::result::SearchResult;
-use crate::search::error::SearchError;
 use crate::search::engine::EngineType;
+use crate::search::error::SearchError;
+use crate::search::manager::FulltextIndexManager;
 use crate::search::metadata::IndexMetadata;
+use crate::search::result::SearchResult;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -33,7 +33,9 @@ impl FulltextCoordinator {
         field_name: &str,
         engine_type: Option<EngineType>,
     ) -> Result<String, SearchError> {
-        self.manager.create_index(space_id, tag_name, field_name, engine_type).await
+        self.manager
+            .create_index(space_id, tag_name, field_name, engine_type)
+            .await
     }
 
     pub async fn drop_index(
@@ -42,7 +44,9 @@ impl FulltextCoordinator {
         tag_name: &str,
         field_name: &str,
     ) -> Result<(), SearchError> {
-        self.manager.drop_index(space_id, tag_name, field_name).await
+        self.manager
+            .drop_index(space_id, tag_name, field_name)
+            .await
     }
 
     pub async fn on_vertex_inserted(
@@ -96,11 +100,10 @@ impl FulltextCoordinator {
         let indexes = self.manager.get_space_indexes(space_id);
         for metadata in indexes {
             if metadata.tag_name == tag_name {
-                if let Some(engine) = self.manager.get_engine(
-                    space_id,
-                    &metadata.tag_name,
-                    &metadata.field_name
-                ) {
+                if let Some(engine) =
+                    self.manager
+                        .get_engine(space_id, &metadata.tag_name, &metadata.field_name)
+                {
                     engine.delete(&doc_id).await?;
                 }
             }
@@ -144,7 +147,9 @@ impl FulltextCoordinator {
         query: &str,
         limit: usize,
     ) -> Result<Vec<SearchResult>, SearchError> {
-        self.manager.search(space_id, tag_name, field_name, query, limit).await
+        self.manager
+            .search(space_id, tag_name, field_name, query, limit)
+            .await
     }
 
     pub fn get_engine(
@@ -162,10 +167,12 @@ impl FulltextCoordinator {
         tag_name: &str,
         field_name: &str,
     ) -> Result<(), SearchError> {
-        let engine = self.manager.get_engine(space_id, tag_name, field_name)
-            .ok_or_else(|| SearchError::IndexNotFound(
-                format!("{}.{}.{}", space_id, tag_name, field_name)
-            ))?;
+        let engine = self
+            .manager
+            .get_engine(space_id, tag_name, field_name)
+            .ok_or_else(|| {
+                SearchError::IndexNotFound(format!("{}.{}.{}", space_id, tag_name, field_name))
+            })?;
 
         engine.commit().await?;
         Ok(())

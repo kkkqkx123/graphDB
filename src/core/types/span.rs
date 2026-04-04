@@ -9,7 +9,20 @@ use std::fmt;
 ///
 /// Indicates a point location in the source code and contains row and column numbers.
 /// Row and column numbers are counted from 1.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Default,
+    Serialize,
+    Deserialize,
+    bincode::Encode,
+    bincode::Decode,
+)]
 pub struct Position {
     /// Line numbers, starting at 1
     pub line: usize,
@@ -67,7 +80,18 @@ impl fmt::Display for Position {
 ///
 /// Indicates a range in the source code, from the start position to the end position.
 /// Used to indicate the range of locations of tokens, expressions, statements, etc. in the source code.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    Serialize,
+    Deserialize,
+    bincode::Encode,
+    bincode::Decode,
+)]
 pub struct Span {
     /// Starting position (included)
     pub start: Position,

@@ -34,7 +34,12 @@ impl<S: StorageClient> CreateFulltextIndexExecutor<S> {
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "CreateFulltextIndexExecutor".to_string(), storage, expr_context),
+            base: BaseExecutor::new(
+                id,
+                "CreateFulltextIndexExecutor".to_string(),
+                storage,
+                expr_context,
+            ),
             index_name,
             schema_name,
             fields,

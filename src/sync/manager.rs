@@ -1,10 +1,10 @@
+use crate::coordinator::{ChangeType, FulltextCoordinator};
+use crate::core::Value;
+use crate::sync::batch::{BatchConfig, BatchProcessor};
+use crate::sync::queue::{QueueError, SyncTaskQueue};
+use crate::sync::task::SyncTask;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::coordinator::{FulltextCoordinator, ChangeType};
-use crate::core::Value;
-use crate::sync::task::SyncTask;
-use crate::sync::queue::{SyncTaskQueue, QueueError};
-use crate::sync::batch::{BatchProcessor, BatchConfig};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SyncMode {
@@ -66,9 +66,7 @@ impl SyncManager {
 
         match mode {
             SyncMode::Sync => {
-                let props: std::collections::HashMap<_, _> = properties.iter()
-                    .cloned()
-                    .collect();
+                let props: std::collections::HashMap<_, _> = properties.iter().cloned().collect();
                 self.coordinator
                     .on_vertex_change(space_id, tag_name, vertex_id, &props, change_type)
                     .await
@@ -110,42 +108,63 @@ impl SyncManager {
 
     async fn execute_task(&self, task: &SyncTask) {
         let result = match task {
-            SyncTask::VertexChange { space_id, tag_name, vertex_id, properties, change_type, .. } => {
-                match change_type {
-                    ChangeType::Insert | ChangeType::Update => {
-                        let props: std::collections::HashMap<_, _> = properties.iter()
-                            .cloned()
-                            .collect();
-                        self.coordinator
-                            .on_vertex_change(*space_id, tag_name, vertex_id, &props, *change_type)
-                            .await
-                    }
-                    ChangeType::Delete => {
-                        let props: std::collections::HashMap<_, _> = properties.iter()
-                            .cloned()
-                            .collect();
-                        self.coordinator
-                            .on_vertex_change(*space_id, tag_name, vertex_id, &props, *change_type)
-                            .await
-                    }
+            SyncTask::VertexChange {
+                space_id,
+                tag_name,
+                vertex_id,
+                properties,
+                change_type,
+                ..
+            } => match change_type {
+                ChangeType::Insert | ChangeType::Update => {
+                    let props: std::collections::HashMap<_, _> =
+                        properties.iter().cloned().collect();
+                    self.coordinator
+                        .on_vertex_change(*space_id, tag_name, vertex_id, &props, *change_type)
+                        .await
                 }
-            }
-            SyncTask::BatchIndex { space_id, tag_name, field_name, documents, .. } => {
+                ChangeType::Delete => {
+                    let props: std::collections::HashMap<_, _> =
+                        properties.iter().cloned().collect();
+                    self.coordinator
+                        .on_vertex_change(*space_id, tag_name, vertex_id, &props, *change_type)
+                        .await
+                }
+            },
+            SyncTask::BatchIndex {
+                space_id,
+                tag_name,
+                field_name,
+                documents,
+                ..
+            } => {
                 if let Some(engine) = self.coordinator.get_engine(*space_id, tag_name, field_name) {
                     engine.index_batch(documents.clone()).await
                 } else {
                     Ok(())
                 }
             }
-            SyncTask::CommitIndex { space_id, tag_name, field_name, .. } => {
+            SyncTask::CommitIndex {
+                space_id,
+                tag_name,
+                field_name,
+                ..
+            } => {
                 if let Some(engine) = self.coordinator.get_engine(*space_id, tag_name, field_name) {
                     engine.commit().await
                 } else {
                     Ok(())
                 }
             }
-            SyncTask::RebuildIndex { space_id, tag_name, field_name, .. } => {
-                self.coordinator.rebuild_index(*space_id, tag_name, field_name).await
+            SyncTask::RebuildIndex {
+                space_id,
+                tag_name,
+                field_name,
+                ..
+            } => {
+                self.coordinator
+                    .rebuild_index(*space_id, tag_name, field_name)
+                    .await
             }
         };
 

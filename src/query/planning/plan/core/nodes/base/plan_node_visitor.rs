@@ -8,6 +8,11 @@ use crate::query::planning::plan::core::nodes::data_modification::{
 use crate::query::planning::plan::core::nodes::management::edge_nodes::{
     AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
 };
+use crate::query::planning::plan::core::nodes::management::fulltext_nodes::{
+    AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
+    DropFulltextIndexNode, FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
+    ShowFulltextIndexNode,
+};
 use crate::query::planning::plan::core::nodes::management::index_nodes::{
     CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,
     DropEdgeIndexNode, DropTagIndexNode, RebuildEdgeIndexNode, RebuildTagIndexNode,
@@ -20,11 +25,6 @@ use crate::query::planning::plan::core::nodes::management::space_nodes::{
 use crate::query::planning::plan::core::nodes::management::stats_nodes::ShowStatsNode;
 use crate::query::planning::plan::core::nodes::management::tag_nodes::{
     AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowCreateTagNode, ShowTagsNode,
-};
-use crate::query::planning::plan::core::nodes::management::fulltext_nodes::{
-    AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
-    DropFulltextIndexNode, FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
-    ShowFulltextIndexNode,
 };
 use crate::query::planning::plan::core::nodes::management::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode,
@@ -346,7 +346,9 @@ impl PlanNodeEnum {
             PlanNodeEnum::DropFulltextIndex(node) => visitor.visit_drop_fulltext_index(node),
             PlanNodeEnum::AlterFulltextIndex(node) => visitor.visit_alter_fulltext_index(node),
             PlanNodeEnum::ShowFulltextIndex(node) => visitor.visit_show_fulltext_index(node),
-            PlanNodeEnum::DescribeFulltextIndex(node) => visitor.visit_describe_fulltext_index(node),
+            PlanNodeEnum::DescribeFulltextIndex(node) => {
+                visitor.visit_describe_fulltext_index(node)
+            }
             PlanNodeEnum::FulltextSearch(node) => visitor.visit_fulltext_search(node),
             PlanNodeEnum::FulltextLookup(node) => visitor.visit_fulltext_lookup(node),
             PlanNodeEnum::MatchFulltext(node) => visitor.visit_match_fulltext(node),

@@ -1,6 +1,6 @@
+use crate::search::engine::EngineType;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use crate::search::engine::EngineType;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexMetadata {

@@ -8,9 +8,9 @@ use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::Expression;
+use crate::query::parser::ast::fulltext::YieldItem as FulltextYieldItem;
 use crate::query::parser::ast::stmt::Ast;
 use crate::query::parser::ast::stmt::{Stmt, YieldItem as StmtYieldItem};
-use crate::query::parser::ast::fulltext::YieldItem as FulltextYieldItem;
 use crate::query::validator::structs::validation_info::{IndexHint, ValidationInfo};
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,

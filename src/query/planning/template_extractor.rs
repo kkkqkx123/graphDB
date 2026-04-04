@@ -5,11 +5,11 @@
 
 use crate::core::types::expr::{ContextualExpression, Expression};
 use crate::core::{NullType, Value};
+use crate::query::parser::ast::stmt::OrderDirection;
 use crate::query::parser::ast::stmt::{
     DeleteStmt, FetchStmt, FromClause, GoStmt, InsertStmt, LookupStmt, MatchStmt, Pattern,
     ReturnClause, ReturnItem, SetClause, Stmt, UpdateStmt, YieldClause,
 };
-use crate::query::parser::ast::stmt::OrderDirection;
 
 /// Parameterized results
 #[derive(Debug, Clone)]

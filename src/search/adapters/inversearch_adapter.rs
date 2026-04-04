@@ -1,14 +1,14 @@
 use async_trait::async_trait;
-use inversearch_service::Index;
 use inversearch_service::index::IndexOptions;
-use std::path::{Path, PathBuf};
+use inversearch_service::Index;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 
 use crate::core::Value;
 use crate::search::engine::SearchEngine;
-use crate::search::result::{IndexStats, SearchResult};
 use crate::search::error::SearchError;
+use crate::search::result::{IndexStats, SearchResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InversearchConfig {
@@ -52,8 +52,8 @@ impl InversearchEngine {
             ..Default::default()
         };
 
-        let index = Index::new(options)
-            .map_err(|e| SearchError::InversearchError(e.to_string()))?;
+        let index =
+            Index::new(options).map_err(|e| SearchError::InversearchError(e.to_string()))?;
 
         Ok(Self {
             index: Mutex::new(index),
@@ -70,8 +70,8 @@ impl InversearchEngine {
             ..Default::default()
         };
 
-        let index = Index::new(options)
-            .map_err(|e| SearchError::InversearchError(e.to_string()))?;
+        let index =
+            Index::new(options).map_err(|e| SearchError::InversearchError(e.to_string()))?;
 
         Ok(Self {
             index: Mutex::new(index),
@@ -92,9 +92,11 @@ impl SearchEngine for InversearchEngine {
 
     async fn index(&self, doc_id: &str, content: &str) -> Result<(), SearchError> {
         let mut index = self.index.lock();
-        let doc_id_u64 = doc_id.parse::<u64>()
+        let doc_id_u64 = doc_id
+            .parse::<u64>()
             .map_err(|_| SearchError::InvalidDocId(doc_id.to_string()))?;
-        index.add(doc_id_u64, content, false)
+        index
+            .add(doc_id_u64, content, false)
             .map_err(|e| SearchError::InversearchError(e.to_string()))?;
         Ok(())
     }
@@ -102,9 +104,11 @@ impl SearchEngine for InversearchEngine {
     async fn index_batch(&self, documents: Vec<(String, String)>) -> Result<(), SearchError> {
         let mut index = self.index.lock();
         for (doc_id, content) in documents {
-            let doc_id_u64 = doc_id.parse::<u64>()
+            let doc_id_u64 = doc_id
+                .parse::<u64>()
                 .map_err(|_| SearchError::InvalidDocId(doc_id.clone()))?;
-            index.add(doc_id_u64, &content, false)
+            index
+                .add(doc_id_u64, &content, false)
                 .map_err(|e| SearchError::InversearchError(e.to_string()))?;
         }
         Ok(())
@@ -120,10 +124,13 @@ impl SearchEngine for InversearchEngine {
             ..Default::default()
         };
 
-        let result = index.search(&options)
+        let result = index
+            .search(&options)
             .map_err(|e| SearchError::InversearchError(e.to_string()))?;
 
-        let search_results = result.results.into_iter()
+        let search_results = result
+            .results
+            .into_iter()
             .map(|r| SearchResult {
                 doc_id: Value::Int64(r as i64),
                 score: 1.0,
@@ -137,9 +144,11 @@ impl SearchEngine for InversearchEngine {
 
     async fn delete(&self, doc_id: &str) -> Result<(), SearchError> {
         let mut index = self.index.lock();
-        let doc_id_u64 = doc_id.parse::<u64>()
+        let doc_id_u64 = doc_id
+            .parse::<u64>()
             .map_err(|_| SearchError::InvalidDocId(doc_id.to_string()))?;
-        index.remove(doc_id_u64, false)
+        index
+            .remove(doc_id_u64, false)
             .map_err(|e| SearchError::InversearchError(e.to_string()))?;
         Ok(())
     }
@@ -161,7 +170,10 @@ impl SearchEngine for InversearchEngine {
 
     async fn stats(&self) -> Result<IndexStats, SearchError> {
         let index = self.index.lock();
-        let doc_count = index.map.index.values()
+        let doc_count = index
+            .map
+            .index
+            .values()
             .map(|v| v.values())
             .flatten()
             .map(|v| v.len())

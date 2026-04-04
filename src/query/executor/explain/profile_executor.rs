@@ -12,9 +12,7 @@ use crate::query::core::NodeType;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, ExecutorStats};
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::parser::ast::stmt::ExplainFormat;
-use crate::query::planning::plan::explain::{
-    DescribeVisitor, PlanDescription, ProfilingStats,
-};
+use crate::query::planning::plan::explain::{DescribeVisitor, PlanDescription, ProfilingStats};
 use crate::query::planning::plan::ExecutionPlan;
 use crate::storage::StorageClient;
 

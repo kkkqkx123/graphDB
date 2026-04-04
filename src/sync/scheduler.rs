@@ -1,9 +1,9 @@
+use crate::sync::batch::{BatchConfig, BatchProcessor};
+use crate::sync::queue::SyncTaskQueue;
+use crate::sync::task::SyncTask;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::time::{interval, Duration};
-use crate::sync::batch::{BatchProcessor, BatchConfig};
-use crate::sync::queue::SyncTaskQueue;
-use crate::sync::task::SyncTask;
 
 pub struct SyncScheduler {
     batch_processor: Arc<Mutex<BatchProcessor>>,
@@ -12,10 +12,7 @@ pub struct SyncScheduler {
 }
 
 impl SyncScheduler {
-    pub fn new(
-        batch_processor: Arc<Mutex<BatchProcessor>>,
-        queue: Arc<SyncTaskQueue>,
-    ) -> Self {
+    pub fn new(batch_processor: Arc<Mutex<BatchProcessor>>, queue: Arc<SyncTaskQueue>) -> Self {
         Self {
             batch_processor,
             queue,
@@ -50,6 +47,7 @@ impl SyncScheduler {
     }
 
     pub fn stop(&self) {
-        self.running.store(false, std::sync::atomic::Ordering::SeqCst);
+        self.running
+            .store(false, std::sync::atomic::Ordering::SeqCst);
     }
 }

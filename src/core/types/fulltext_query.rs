@@ -23,15 +23,9 @@ pub enum FulltextQuery {
         minimum_should_match: Option<usize>,
     },
     /// Phrase query
-    Phrase {
-        text: String,
-        slop: u32,
-    },
+    Phrase { text: String, slop: u32 },
     /// Prefix query
-    Prefix {
-        field: String,
-        prefix: String,
-    },
+    Prefix { field: String, prefix: String },
     /// Fuzzy query
     Fuzzy {
         field: String,
@@ -48,10 +42,7 @@ pub enum FulltextQuery {
         include_upper: bool,
     },
     /// Wildcard query
-    Wildcard {
-        field: String,
-        pattern: String,
-    },
+    Wildcard { field: String, pattern: String },
 }
 
 impl FulltextQuery {
@@ -391,8 +382,8 @@ mod tests {
 
     #[test]
     fn test_field_query_with_boost() {
-        let field_query = FieldQuery::new("title".to_string(), "database".to_string())
-            .with_boost(2.0);
+        let field_query =
+            FieldQuery::new("title".to_string(), "database".to_string()).with_boost(2.0);
         assert_eq!(field_query.boost, 2.0);
     }
 
@@ -401,7 +392,7 @@ mod tests {
         let highlight = HighlightOptions::new()
             .with_fields(vec!["content".to_string()])
             .with_tags("<b>".to_string(), "</b>".to_string());
-        
+
         assert_eq!(highlight.fields.len(), 1);
         assert_eq!(highlight.pre_tag, "<b>");
         assert_eq!(highlight.post_tag, "</b>");
@@ -414,7 +405,7 @@ mod tests {
             .with_offset(10)
             .with_highlight(true)
             .with_explain(true);
-        
+
         assert_eq!(options.limit, 20);
         assert_eq!(options.offset, 10);
         assert!(options.highlight.is_some());

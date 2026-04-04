@@ -8,8 +8,8 @@ use crate::query::parser::ast::fulltext::{
     OrderClause, WhereClause, YieldClause,
 };
 use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::{PlanNode, ZeroInputNode};
 use crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::{PlanNode, ZeroInputNode};
 use serde::{Deserialize, Serialize};
 
 /// CREATE FULLTEXT INDEX plan node
@@ -68,7 +68,9 @@ impl PlanNode for CreateFulltextIndexNode {
 
     fn set_col_names(&mut self, _names: Vec<String>) {}
 
-    fn into_enum(self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    fn into_enum(
+        self,
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::CreateFulltextIndex(self)
     }
 }
@@ -116,7 +118,9 @@ impl PlanNode for DropFulltextIndexNode {
 
     fn set_col_names(&mut self, _names: Vec<String>) {}
 
-    fn into_enum(self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    fn into_enum(
+        self,
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::DropFulltextIndex(self)
     }
 }
@@ -164,7 +168,9 @@ impl PlanNode for AlterFulltextIndexNode {
 
     fn set_col_names(&mut self, _names: Vec<String>) {}
 
-    fn into_enum(self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    fn into_enum(
+        self,
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::AlterFulltextIndex(self)
     }
 }
@@ -212,7 +218,9 @@ impl PlanNode for ShowFulltextIndexNode {
 
     fn set_col_names(&mut self, _names: Vec<String>) {}
 
-    fn into_enum(self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    fn into_enum(
+        self,
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::ShowFulltextIndex(self)
     }
 }
@@ -256,7 +264,9 @@ impl PlanNode for DescribeFulltextIndexNode {
 
     fn set_col_names(&mut self, _names: Vec<String>) {}
 
-    fn into_enum(self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    fn into_enum(
+        self,
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::DescribeFulltextIndex(self)
     }
 }
@@ -329,7 +339,9 @@ impl PlanNode for FulltextSearchNode {
 
     fn set_col_names(&mut self, _names: Vec<String>) {}
 
-    fn into_enum(self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    fn into_enum(
+        self,
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::FulltextSearch(self)
     }
 }
@@ -396,7 +408,9 @@ impl PlanNode for FulltextLookupNode {
 
     fn set_col_names(&mut self, _names: Vec<String>) {}
 
-    fn into_enum(self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    fn into_enum(
+        self,
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::FulltextLookup(self)
     }
 }
@@ -450,8 +464,12 @@ impl PlanNode for MatchFulltextNode {
 
     fn set_col_names(&mut self, _names: Vec<String>) {}
 
-    fn into_enum(self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::MatchFulltext(self)
+    fn into_enum(
+        self,
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::MatchFulltext(
+            self,
+        )
     }
 }
 
@@ -463,7 +481,11 @@ impl MemoryEstimatable for CreateFulltextIndexNode {
         let index_name_size = std::mem::size_of::<String>() + self.index_name.capacity();
         let schema_name_size = std::mem::size_of::<String>() + self.schema_name.capacity();
         let fields_size = std::mem::size_of::<Vec<IndexFieldDef>>()
-            + self.fields.iter().map(|f| std::mem::size_of::<IndexFieldDef>() + f.field_name.capacity()).sum::<usize>();
+            + self
+                .fields
+                .iter()
+                .map(|f| std::mem::size_of::<IndexFieldDef>() + f.field_name.capacity())
+                .sum::<usize>();
         let options_size = std::mem::size_of::<IndexOptions>();
         base + index_name_size + schema_name_size + fields_size + options_size
     }
@@ -489,8 +511,16 @@ impl MemoryEstimatable for AlterFulltextIndexNode {
 impl MemoryEstimatable for ShowFulltextIndexNode {
     fn estimate_memory(&self) -> usize {
         let base = std::mem::size_of::<ShowFulltextIndexNode>();
-        let pattern_size = self.pattern.as_ref().map(|s| std::mem::size_of::<String>() + s.capacity()).unwrap_or(0);
-        let from_schema_size = self.from_schema.as_ref().map(|s| std::mem::size_of::<String>() + s.capacity()).unwrap_or(0);
+        let pattern_size = self
+            .pattern
+            .as_ref()
+            .map(|s| std::mem::size_of::<String>() + s.capacity())
+            .unwrap_or(0);
+        let from_schema_size = self
+            .from_schema
+            .as_ref()
+            .map(|s| std::mem::size_of::<String>() + s.capacity())
+            .unwrap_or(0);
         base + pattern_size + from_schema_size
     }
 }
@@ -508,12 +538,36 @@ impl MemoryEstimatable for FulltextSearchNode {
         let base = std::mem::size_of::<FulltextSearchNode>();
         let index_name_size = std::mem::size_of::<String>() + self.index_name.capacity();
         let query_size = std::mem::size_of::<FulltextQueryExpr>();
-        let yield_size = self.yield_clause.as_ref().map(|_| std::mem::size_of::<YieldClause>()).unwrap_or(0);
-        let where_size = self.where_clause.as_ref().map(|_| std::mem::size_of::<WhereClause>()).unwrap_or(0);
-        let order_size = self.order_clause.as_ref().map(|_| std::mem::size_of::<OrderClause>()).unwrap_or(0);
-        let limit_size = self.limit.map(|_| std::mem::size_of::<usize>()).unwrap_or(0);
-        let offset_size = self.offset.map(|_| std::mem::size_of::<usize>()).unwrap_or(0);
-        base + index_name_size + query_size + yield_size + where_size + order_size + limit_size + offset_size
+        let yield_size = self
+            .yield_clause
+            .as_ref()
+            .map(|_| std::mem::size_of::<YieldClause>())
+            .unwrap_or(0);
+        let where_size = self
+            .where_clause
+            .as_ref()
+            .map(|_| std::mem::size_of::<WhereClause>())
+            .unwrap_or(0);
+        let order_size = self
+            .order_clause
+            .as_ref()
+            .map(|_| std::mem::size_of::<OrderClause>())
+            .unwrap_or(0);
+        let limit_size = self
+            .limit
+            .map(|_| std::mem::size_of::<usize>())
+            .unwrap_or(0);
+        let offset_size = self
+            .offset
+            .map(|_| std::mem::size_of::<usize>())
+            .unwrap_or(0);
+        base + index_name_size
+            + query_size
+            + yield_size
+            + where_size
+            + order_size
+            + limit_size
+            + offset_size
     }
 }
 
@@ -523,8 +577,15 @@ impl MemoryEstimatable for FulltextLookupNode {
         let schema_name_size = std::mem::size_of::<String>() + self.schema_name.capacity();
         let index_name_size = std::mem::size_of::<String>() + self.index_name.capacity();
         let query_size = std::mem::size_of::<String>() + self.query.capacity();
-        let yield_size = self.yield_clause.as_ref().map(|_| std::mem::size_of::<YieldClause>()).unwrap_or(0);
-        let limit_size = self.limit.map(|_| std::mem::size_of::<usize>()).unwrap_or(0);
+        let yield_size = self
+            .yield_clause
+            .as_ref()
+            .map(|_| std::mem::size_of::<YieldClause>())
+            .unwrap_or(0);
+        let limit_size = self
+            .limit
+            .map(|_| std::mem::size_of::<usize>())
+            .unwrap_or(0);
         base + schema_name_size + index_name_size + query_size + yield_size + limit_size
     }
 }
@@ -534,7 +595,11 @@ impl MemoryEstimatable for MatchFulltextNode {
         let base = std::mem::size_of::<MatchFulltextNode>();
         let pattern_size = std::mem::size_of::<String>() + self.pattern.capacity();
         let condition_size = std::mem::size_of::<FulltextMatchCondition>();
-        let yield_size = self.yield_clause.as_ref().map(|_| std::mem::size_of::<YieldClause>()).unwrap_or(0);
+        let yield_size = self
+            .yield_clause
+            .as_ref()
+            .map(|_| std::mem::size_of::<YieldClause>())
+            .unwrap_or(0);
         base + pattern_size + condition_size + yield_size
     }
 }

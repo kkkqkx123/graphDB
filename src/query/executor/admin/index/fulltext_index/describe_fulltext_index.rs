@@ -22,7 +22,12 @@ impl<S: StorageClient> DescribeFulltextIndexExecutor<S> {
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "DescribeFulltextIndexExecutor".to_string(), storage, expr_context),
+            base: BaseExecutor::new(
+                id,
+                "DescribeFulltextIndexExecutor".to_string(),
+                storage,
+                expr_context,
+            ),
             index_name,
         }
     }
