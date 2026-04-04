@@ -3,7 +3,7 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::core::{DataSet, Value};
+
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::parser::ast::AlterIndexAction;
 use crate::query::validator::context::ExpressionAnalysisContext;

@@ -174,8 +174,7 @@ impl SearchEngine for InversearchEngine {
             .map
             .index
             .values()
-            .map(|v| v.values())
-            .flatten()
+            .flat_map(|v| v.values())
             .map(|v| v.len())
             .sum();
 

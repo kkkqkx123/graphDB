@@ -10,7 +10,6 @@ use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::{
     AlterFulltextIndex, CreateFulltextIndex, DescribeFulltextIndex, DropFulltextIndex,
     FulltextMatchCondition, FulltextQueryExpr, LookupFulltext, MatchFulltext, SearchStatement,
-    ShowFulltextIndex,
 };
 use crate::query::validator::validator_trait::{
     ExpressionProps, StatementValidator, ValidationResult,
@@ -106,7 +105,7 @@ impl FulltextValidator {
                         }
                     }
                     if let Some(b) = config.b {
-                        if b < 0.0 || b > 1.0 {
+                        if !(0.0..=1.0).contains(&b) {
                             return Err(ValidationError::new(
                                 "BM25 b parameter must be between 0 and 1",
                                 ValidationErrorType::SemanticError,

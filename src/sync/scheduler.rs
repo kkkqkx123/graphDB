@@ -1,6 +1,5 @@
-use crate::sync::batch::{BatchConfig, BatchProcessor};
+use crate::sync::batch::BatchProcessor;
 use crate::sync::queue::SyncTaskQueue;
-use crate::sync::task::SyncTask;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::time::{interval, Duration};

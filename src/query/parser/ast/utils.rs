@@ -1,8 +1,6 @@
 //! Tool functions and auxiliary features
 
-use super::pattern::*;
 use super::stmt::*;
-use super::types::*;
 use crate::core::types::expr::{ContextualExpression, Expression, ExpressionMeta};
 use crate::core::Value;
 use crate::query::validator::context::ExpressionAnalysisContext;

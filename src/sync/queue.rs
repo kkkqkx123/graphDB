@@ -1,5 +1,4 @@
 use crate::sync::task::SyncTask;
-use std::collections::VecDeque;
 use tokio::sync::{mpsc, Mutex};
 
 pub struct SyncTaskQueue {
@@ -40,10 +39,7 @@ impl SyncTaskQueue {
 
     pub async fn try_next(&self) -> Option<SyncTask> {
         let mut receiver = self.receiver.lock().await;
-        match receiver.try_recv() {
-            Ok(task) => Some(task),
-            Err(_) => None,
-        }
+        receiver.try_recv().ok()
     }
 
     pub fn capacity(&self) -> usize {
@@ -51,7 +47,8 @@ impl SyncTaskQueue {
     }
 
     pub fn close(&self) {
-        self.sender.closed();
+        // The sender will be closed when it's dropped
+        // This method is kept for API compatibility
     }
 }
 

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use bm25_service::index::delete::{delete_document, delete_document_with_writer};
-use bm25_service::index::document::{add_document, add_document_with_writer};
+use bm25_service::index::delete::delete_document_with_writer;
+use bm25_service::index::document::add_document_with_writer;
 use bm25_service::index::search::{search, SearchOptions};
 use bm25_service::index::stats::get_stats;
 use bm25_service::index::{IndexManager, IndexSchema};
@@ -65,7 +65,7 @@ impl Bm25SearchEngine {
 
     fn should_commit(&self) -> bool {
         let count = self.operation_count.fetch_add(1, Ordering::Relaxed);
-        (count + 1) % self.batch_size == 0
+        count % self.batch_size == 0
     }
 
     fn reset_counter(&self) {
@@ -147,7 +147,6 @@ impl SearchEngine for Bm25SearchEngine {
     async fn index_batch(&self, docs: Vec<(String, String)>) -> Result<(), SearchError> {
         let writer = self.writer.clone();
         let schema = self.schema.clone();
-        let batch_count = docs.len();
 
         tokio::task::spawn_blocking(move || {
             let mut writer_guard = futures::executor::block_on(writer.lock());
@@ -315,7 +314,6 @@ impl SearchEngine for Bm25SearchEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio_test;
 
     #[test]
     fn test_bm25_engine_creation() {

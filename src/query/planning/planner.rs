@@ -111,11 +111,6 @@ pub trait Planner: std::fmt::Debug {
 // Fulltext Search Planner
 // ============================================================================
 
-use crate::query::parser::ast::{
-    AlterFulltextIndex, CreateFulltextIndex, DescribeFulltextIndex, DropFulltextIndex,
-    FulltextMatchCondition, LookupFulltext, MatchFulltext, SearchStatement, ShowFulltextIndex,
-};
-
 /// Full-text search planner
 #[derive(Debug, Clone)]
 pub struct FulltextSearchPlanner {
@@ -140,8 +135,6 @@ impl Planner for FulltextSearchPlanner {
         validated: &ValidatedStatement,
         _qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        use crate::query::planning::plan::PlanNodeEnum;
-
         let stmt = validated.stmt();
 
         match stmt {
@@ -154,29 +147,29 @@ impl Planner for FulltextSearchPlanner {
                     create.options.clone(),
                     create.if_not_exists,
                 );
-                let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
+                let sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
             Stmt::DropFulltextIndex(drop) => {
                 let node = DropFulltextIndexNode::new(drop.index_name.clone(), drop.if_exists);
-                let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
+                let sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
             Stmt::AlterFulltextIndex(alter) => {
                 let node =
                     AlterFulltextIndexNode::new(alter.index_name.clone(), alter.actions.clone());
-                let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
+                let sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
             Stmt::ShowFulltextIndex(show) => {
                 let node =
                     ShowFulltextIndexNode::new(show.pattern.clone(), show.from_schema.clone());
-                let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
+                let sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
             Stmt::DescribeFulltextIndex(describe) => {
                 let node = DescribeFulltextIndexNode::new(describe.index_name.clone());
-                let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
+                let sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
             Stmt::Search(search) => {
@@ -189,7 +182,7 @@ impl Planner for FulltextSearchPlanner {
                     search.limit,
                     search.offset,
                 );
-                let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
+                let sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
             Stmt::LookupFulltext(lookup) => {
@@ -200,7 +193,7 @@ impl Planner for FulltextSearchPlanner {
                     lookup.yield_clause.clone(),
                     lookup.limit,
                 );
-                let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
+                let sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
             Stmt::MatchFulltext(match_stmt) => {
@@ -209,7 +202,7 @@ impl Planner for FulltextSearchPlanner {
                     match_stmt.fulltext_condition.clone(),
                     match_stmt.yield_clause.clone(),
                 );
-                let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
+                let sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
             _ => Err(PlannerError::PlanGenerationFailed(

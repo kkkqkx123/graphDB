@@ -1,4 +1,4 @@
-use crate::sync::persistence::{SyncPersistence, SyncState};
+use crate::sync::persistence::SyncPersistence;
 use crate::sync::queue::SyncTaskQueue;
 use std::sync::Arc;
 

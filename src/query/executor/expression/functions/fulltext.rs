@@ -122,7 +122,7 @@ impl FulltextFunction {
             ));
         }
 
-        Ok(Value::Float(context.score as f64))
+        Ok(Value::Float(context.score))
     }
 
     /// Execute highlight() function
