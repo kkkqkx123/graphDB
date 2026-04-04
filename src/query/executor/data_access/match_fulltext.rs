@@ -5,16 +5,27 @@ use std::sync::Arc;
 
 
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
-use crate::query::parser::ast::fulltext::{FulltextMatchCondition, YieldClause};
+use crate::query::parser::ast::fulltext::{FulltextMatchCondition, FulltextYieldClause};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
+/// Executor for MATCH FULLTEXT operations
+/// 
+/// # Note
+/// Current implementation is a placeholder. Fields are reserved for future
+/// implementation of full-text pattern matching logic.
 #[derive(Debug)]
 pub struct MatchFulltextExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
+    /// Pattern to match (reserved for future implementation)
+    #[allow(dead_code)]
     pattern: String,
+    /// Full-text match condition (reserved for future implementation)
+    #[allow(dead_code)]
     fulltext_condition: FulltextMatchCondition,
-    yield_clause: Option<YieldClause>,
+    /// Yield clause (reserved for future implementation)
+    #[allow(dead_code)]
+    yield_clause: Option<FulltextYieldClause>,
 }
 
 impl<S: StorageClient> MatchFulltextExecutor<S> {
@@ -23,7 +34,7 @@ impl<S: StorageClient> MatchFulltextExecutor<S> {
         storage: Arc<Mutex<S>>,
         pattern: String,
         fulltext_condition: FulltextMatchCondition,
-        yield_clause: Option<YieldClause>,
+        yield_clause: Option<FulltextYieldClause>,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {

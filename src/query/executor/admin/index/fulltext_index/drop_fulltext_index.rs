@@ -8,10 +8,19 @@ use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Exec
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
+/// Executor for dropping full-text indexes
+/// 
+/// # Note
+/// Current implementation is a placeholder. Fields are reserved for future
+/// implementation of index deletion logic.
 #[derive(Debug)]
 pub struct DropFulltextIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
+    /// Index name to drop (reserved for future implementation)
+    #[allow(dead_code)]
     index_name: String,
+    /// If-exists flag (reserved for future implementation)
+    #[allow(dead_code)]
     if_exists: bool,
 }
 

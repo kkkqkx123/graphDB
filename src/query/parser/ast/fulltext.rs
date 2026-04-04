@@ -114,7 +114,7 @@ pub struct SearchStatement {
     pub span: Span,
     pub index_name: String,
     pub query: FulltextQueryExpr,
-    pub yield_clause: Option<YieldClause>,
+    pub yield_clause: Option<FulltextYieldClause>,
     pub where_clause: Option<WhereClause>,
     pub order_clause: Option<OrderClause>,
     pub limit: Option<usize>,
@@ -154,15 +154,15 @@ pub enum FulltextQueryExpr {
     Wildcard(String),
 }
 
-/// YIELD clause
+/// YIELD clause for full-text search
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
-pub struct YieldClause {
-    pub items: Vec<YieldItem>,
+pub struct FulltextYieldClause {
+    pub items: Vec<FulltextYieldItem>,
 }
 
-/// Yield item
+/// Yield item for full-text search
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
-pub struct YieldItem {
+pub struct FulltextYieldItem {
     pub expr: YieldExpression,
     pub alias: Option<String>,
 }
@@ -263,7 +263,7 @@ pub struct MatchFulltext {
     pub span: Span,
     pub pattern: String,
     pub fulltext_condition: FulltextMatchCondition,
-    pub yield_clause: Option<YieldClause>,
+    pub yield_clause: Option<FulltextYieldClause>,
 }
 
 /// Full-text match condition in WHERE clause
@@ -281,7 +281,7 @@ pub struct LookupFulltext {
     pub schema_name: String,
     pub index_name: String,
     pub query: String,
-    pub yield_clause: Option<YieldClause>,
+    pub yield_clause: Option<FulltextYieldClause>,
     pub limit: Option<usize>,
 }
 
@@ -342,7 +342,7 @@ impl SearchStatement {
         }
     }
 
-    pub fn with_yield(mut self, yield_clause: YieldClause) -> Self {
+    pub fn with_yield(mut self, yield_clause: FulltextYieldClause) -> Self {
         self.yield_clause = Some(yield_clause);
         self
     }
@@ -368,14 +368,14 @@ impl SearchStatement {
     }
 }
 
-impl YieldClause {
-    pub fn new(items: Vec<YieldItem>) -> Self {
+impl FulltextYieldClause {
+    pub fn new(items: Vec<FulltextYieldItem>) -> Self {
         Self { items }
     }
 
     pub fn single(expr: YieldExpression) -> Self {
         Self {
-            items: vec![YieldItem { expr, alias: None }],
+            items: vec![FulltextYieldItem { expr, alias: None }],
         }
     }
 }

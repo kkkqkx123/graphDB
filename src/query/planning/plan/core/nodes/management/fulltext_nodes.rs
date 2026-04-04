@@ -4,8 +4,8 @@
 
 use crate::core::types::FulltextEngineType;
 use crate::query::parser::ast::fulltext::{
-    AlterIndexAction, FulltextMatchCondition, FulltextQueryExpr, IndexFieldDef, IndexOptions,
-    OrderClause, WhereClause, YieldClause,
+    AlterIndexAction, FulltextMatchCondition, FulltextQueryExpr, FulltextYieldClause, IndexFieldDef, IndexOptions,
+    OrderClause, WhereClause,
 };
 use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
 use crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory;
@@ -279,7 +279,7 @@ pub struct FulltextSearchNode {
     id: i64,
     pub index_name: String,
     pub query: FulltextQueryExpr,
-    pub yield_clause: Option<YieldClause>,
+    pub yield_clause: Option<FulltextYieldClause>,
     pub where_clause: Option<WhereClause>,
     pub order_clause: Option<OrderClause>,
     pub limit: Option<usize>,
@@ -290,7 +290,7 @@ impl FulltextSearchNode {
     pub fn new(
         index_name: String,
         query: FulltextQueryExpr,
-        yield_clause: Option<YieldClause>,
+        yield_clause: Option<FulltextYieldClause>,
         where_clause: Option<WhereClause>,
         order_clause: Option<OrderClause>,
         limit: Option<usize>,
@@ -355,7 +355,7 @@ pub struct FulltextLookupNode {
     pub schema_name: String,
     pub index_name: String,
     pub query: String,
-    pub yield_clause: Option<YieldClause>,
+    pub yield_clause: Option<FulltextYieldClause>,
     pub limit: Option<usize>,
 }
 
@@ -364,7 +364,7 @@ impl FulltextLookupNode {
         schema_name: String,
         index_name: String,
         query: String,
-        yield_clause: Option<YieldClause>,
+        yield_clause: Option<FulltextYieldClause>,
         limit: Option<usize>,
     ) -> Self {
         use crate::query::planning::plan::core::node_id_generator::next_node_id;
@@ -422,14 +422,14 @@ impl ZeroInputNode for FulltextLookupNode {}
 pub struct MatchFulltextNode {
     pub pattern: String,
     pub fulltext_condition: FulltextMatchCondition,
-    pub yield_clause: Option<YieldClause>,
+    pub yield_clause: Option<FulltextYieldClause>,
 }
 
 impl MatchFulltextNode {
     pub fn new(
         pattern: String,
         fulltext_condition: FulltextMatchCondition,
-        yield_clause: Option<YieldClause>,
+        yield_clause: Option<FulltextYieldClause>,
     ) -> Self {
         Self {
             pattern,
@@ -541,7 +541,7 @@ impl MemoryEstimatable for FulltextSearchNode {
         let yield_size = self
             .yield_clause
             .as_ref()
-            .map(|_| std::mem::size_of::<YieldClause>())
+            .map(|_| std::mem::size_of::<FulltextYieldClause>())
             .unwrap_or(0);
         let where_size = self
             .where_clause
@@ -580,7 +580,7 @@ impl MemoryEstimatable for FulltextLookupNode {
         let yield_size = self
             .yield_clause
             .as_ref()
-            .map(|_| std::mem::size_of::<YieldClause>())
+            .map(|_| std::mem::size_of::<FulltextYieldClause>())
             .unwrap_or(0);
         let limit_size = self
             .limit
@@ -598,7 +598,7 @@ impl MemoryEstimatable for MatchFulltextNode {
         let yield_size = self
             .yield_clause
             .as_ref()
-            .map(|_| std::mem::size_of::<YieldClause>())
+            .map(|_| std::mem::size_of::<FulltextYieldClause>())
             .unwrap_or(0);
         base + pattern_size + condition_size + yield_size
     }

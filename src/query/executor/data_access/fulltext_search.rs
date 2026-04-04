@@ -7,22 +7,34 @@ use crate::query::executor::base::{
     BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, HasStorage,
 };
 use crate::query::executor::ExecutionContext;
-use crate::query::parser::ast::fulltext::{FulltextQueryExpr, SearchStatement};
+use crate::query::parser::ast::fulltext::SearchStatement;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::search::SearchEngine;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-/// Full-text search executor
+/// Full-text search executor for SEARCH statements
+/// 
+/// # Fields
+/// - `statement`: The search statement to execute (reserved for future implementation)
+/// - `engine`: Search engine reference (reserved for future implementation)
+/// - `context`: Execution context (reserved for future implementation)
+/// 
+/// # Note
+/// Current implementation is a placeholder. Fields are reserved for future
+/// full implementation of SEARCH statement execution logic.
 pub struct FulltextSearchExecutor<S: StorageClient> {
     /// Base executor
     base: BaseExecutor<S>,
-    /// Search statement
+    /// Search statement (reserved for future implementation)
+    #[allow(dead_code)]
     statement: SearchStatement,
-    /// Search engine reference
+    /// Search engine reference (reserved for future implementation)
+    #[allow(dead_code)]
     engine: Arc<dyn SearchEngine>,
-    /// Execution context
+    /// Execution context (reserved for future implementation)
+    #[allow(dead_code)]
     context: ExecutionContext,
     _phantom: std::marker::PhantomData<S>,
 }
@@ -52,19 +64,35 @@ impl<S: StorageClient> FulltextSearchExecutor<S> {
     }
 }
 
-/// Full-text scan executor for LOOKUP operations
+/// Full-text scan executor for LOOKUP FULLTEXT operations
+/// 
+/// # Fields
+/// - `index_name`: Name of the index to scan (reserved for future implementation)
+/// - `query`: Search query string (reserved for future implementation)
+/// - `engine`: Search engine reference (reserved for future implementation)
+/// - `context`: Execution context (reserved for future implementation)
+/// - `limit`: Result limit (reserved for future implementation)
+/// 
+/// # Note
+/// Current implementation is a placeholder. Fields are reserved for future
+/// full implementation of LOOKUP FULLTEXT execution logic.
 pub struct FulltextScanExecutor<S: StorageClient> {
     /// Base executor
     base: BaseExecutor<S>,
-    /// Index name
+    /// Index name (reserved for future implementation)
+    #[allow(dead_code)]
     index_name: String,
-    /// Search query
+    /// Search query (reserved for future implementation)
+    #[allow(dead_code)]
     query: String,
-    /// Search engine reference
+    /// Search engine reference (reserved for future implementation)
+    #[allow(dead_code)]
     engine: Arc<dyn SearchEngine>,
-    /// Execution context
+    /// Execution context (reserved for future implementation)
+    #[allow(dead_code)]
     context: ExecutionContext,
-    /// Limit
+    /// Limit (reserved for future implementation)
+    #[allow(dead_code)]
     limit: Option<usize>,
     _phantom: std::marker::PhantomData<S>,
 }

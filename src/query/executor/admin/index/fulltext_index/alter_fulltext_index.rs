@@ -9,10 +9,19 @@ use crate::query::parser::ast::AlterIndexAction;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
+/// Executor for altering full-text indexes
+/// 
+/// # Note
+/// Current implementation is a placeholder. Fields are reserved for future
+/// implementation of index alteration logic.
 #[derive(Debug)]
 pub struct AlterFulltextIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
+    /// Index name to alter (reserved for future implementation)
+    #[allow(dead_code)]
     index_name: String,
+    /// Alteration actions (reserved for future implementation)
+    #[allow(dead_code)]
     actions: Vec<AlterIndexAction>,
 }
 

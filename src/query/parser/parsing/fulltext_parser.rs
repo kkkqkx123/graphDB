@@ -9,8 +9,8 @@ use crate::query::parser::ast::fulltext::{
     AlterFulltextIndex, AlterIndexAction, BM25Options, CreateFulltextIndex, DescribeFulltextIndex,
     DropFulltextIndex, FulltextMatchCondition, FulltextOrderDirection, FulltextQueryExpr,
     IndexFieldDef, IndexOptions, InversearchOptions, LookupFulltext, MatchFulltext, OrderClause,
-    OrderItem, SearchStatement, ShowFulltextIndex, WhereClause, WhereCondition, YieldClause,
-    YieldExpression, YieldItem,
+    OrderItem, SearchStatement, ShowFulltextIndex, WhereClause, WhereCondition, FulltextYieldClause,
+    FulltextYieldItem, YieldExpression,
 };
 use crate::query::parser::ast::stmt::Stmt;
 use crate::query::parser::parsing::parse_context::ParseContext;
@@ -438,7 +438,7 @@ fn parse_fulltext_query_expr(
 
 fn parse_yield_clause(
     ctx: &mut ParseContext,
-) -> Result<YieldClause, crate::query::parser::ParseError> {
+) -> Result<FulltextYieldClause, crate::query::parser::ParseError> {
     let mut items = Vec::new();
 
     loop {
@@ -474,14 +474,14 @@ fn parse_yield_clause(
             None
         };
 
-        items.push(YieldItem { expr, alias });
+        items.push(FulltextYieldItem { expr, alias });
 
         if !ctx.consume_optional_token(",") {
             break;
         }
     }
 
-    Ok(YieldClause::new(items))
+    Ok(FulltextYieldClause { items })
 }
 
 fn parse_where_clause(

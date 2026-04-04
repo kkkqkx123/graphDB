@@ -10,14 +10,39 @@ use crate::query::parser::ast::{IndexFieldDef, IndexOptions};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
+/// Executor for creating full-text indexes
+/// 
+/// # Fields
+/// - `index_name`: Name of the index to create (used in future implementation)
+/// - `schema_name`: Schema name where the index will be created (used in future implementation)
+/// - `fields`: Fields to be indexed (used in future implementation)
+/// - `engine_type`: Type of full-text search engine (used in future implementation)
+/// - `options`: Index configuration options (used in future implementation)
+/// - `if_not_exists`: Whether to skip if index already exists (used in future implementation)
+/// 
+/// # Note
+/// Current implementation is a placeholder. The fields are reserved for future
+/// full implementation of index creation logic.
 #[derive(Debug)]
 pub struct CreateFulltextIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
+    /// Index name (reserved for future implementation)
+    #[allow(dead_code)]
     index_name: String,
+    /// Schema name (reserved for future implementation)
+    #[allow(dead_code)]
     schema_name: String,
+    /// Field definitions (reserved for future implementation)
+    #[allow(dead_code)]
     fields: Vec<IndexFieldDef>,
+    /// Engine type (reserved for future implementation)
+    #[allow(dead_code)]
     engine_type: FulltextEngineType,
+    /// Index options (reserved for future implementation)
+    #[allow(dead_code)]
     options: IndexOptions,
+    /// If-not-exists flag (reserved for future implementation)
+    #[allow(dead_code)]
     if_not_exists: bool,
 }
 

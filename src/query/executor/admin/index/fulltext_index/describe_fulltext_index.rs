@@ -8,9 +8,16 @@ use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Exec
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
+/// Executor for describing full-text index metadata
+/// 
+/// # Note
+/// Current implementation is a placeholder. The `index_name` field is reserved
+/// for future implementation of index metadata retrieval logic.
 #[derive(Debug)]
 pub struct DescribeFulltextIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
+    /// Index name to describe (reserved for future implementation)
+    #[allow(dead_code)]
     index_name: String,
 }
 

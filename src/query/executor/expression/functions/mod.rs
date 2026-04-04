@@ -232,7 +232,7 @@ impl BuiltinFunction {
             BuiltinFunction::Regex(f) => f.execute(args),
             BuiltinFunction::Aggregate(_) => Err(ExpressionError::new(
                 ExpressionErrorType::InvalidOperation,
-                "聚合函数需要在聚合上下文中执行".to_string(),
+                "Aggregation functions need to be executed within the aggregation context".to_string(),
             )),
             BuiltinFunction::Conversion(f) => f.execute(args),
             BuiltinFunction::DateTime(f) => f.execute(args),
@@ -241,12 +241,12 @@ impl BuiltinFunction {
             BuiltinFunction::Graph(f) => f.execute(args),
             BuiltinFunction::Container(f) => f.execute(args),
             BuiltinFunction::Path(f) => f.execute(args),
-            BuiltinFunction::Fulltext(f) => {
+            BuiltinFunction::Fulltext(_f) => {
                 // Fulltext functions require execution context
                 // This is a placeholder - actual execution happens in the executor
                 Err(ExpressionError::new(
                     ExpressionErrorType::InvalidOperation,
-                    "全文搜索函数需要在全文搜索上下文中执行".to_string(),
+                    "The full-text search function needs to be executed within the context of full-text search".to_string(),
                 ))
             }
         }
@@ -552,7 +552,7 @@ impl CustomFunction {
             #[cfg(feature = "c-api")]
             CustomFunctionImpl::Aggregate { .. } => Err(ExpressionError::new(
                 ExpressionErrorType::InvalidOperation,
-                "聚合函数需要在聚合上下文中执行".to_string(),
+                "Aggregation functions need to be executed within the aggregation context".to_string(),
             )),
         }
     }

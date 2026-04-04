@@ -9,7 +9,7 @@ use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::{
     AlterFulltextIndex, CreateFulltextIndex, DescribeFulltextIndex, DropFulltextIndex,
-    FulltextMatchCondition, FulltextQueryExpr, LookupFulltext, MatchFulltext, SearchStatement,
+    FulltextQueryExpr, LookupFulltext, MatchFulltext, SearchStatement,
 };
 use crate::query::validator::validator_trait::{
     ExpressionProps, StatementValidator, ValidationResult,
