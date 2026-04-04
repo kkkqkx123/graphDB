@@ -7,7 +7,7 @@ edition = "2021"
 tokio = { version = "1.48", features = ["full"] }
 tonic = { version = "0.12", optional = true }
 prost = { version = "0.13", optional = true }
-redis = { version = "0.29", features = ["tokio-comp", "connection-manager", "aio"] }
+redis = { version = "0.29", features = ["tokio-comp", "connection-manager", "aio"], optional = true }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 metrics = "0.23"
@@ -40,10 +40,11 @@ tempfile = "3.10"
 criterion = "0.5"
 
 [features]
-default = ["service", "cache", "async", "store", "suggestion", "keystore"]
+default = ["service", "store"]
 service = ["tonic", "prost", "tokio/full"]
-cache = []
-async = []
-store = []
-suggestion = []
-keystore = []
+store = ["store-cached"]
+store-memory = []
+store-file = []
+store-redis = ["redis"]
+store-wal = []
+store-cached = []
