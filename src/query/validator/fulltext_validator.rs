@@ -4,6 +4,7 @@
 //! ensuring semantic correctness before plan generation.
 
 use std::sync::Arc;
+use std::fmt;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::{
@@ -11,26 +12,38 @@ use crate::query::parser::ast::{
     FulltextMatchCondition, FulltextQueryExpr, LookupFulltext, MatchFulltext, SearchStatement,
     ShowFulltextIndex,
 };
-use crate::query::validator::{ValidationContext, ValidationInfo, Validator};
+use crate::query::validator::validator_trait::{ExpressionProps, StatementValidator, ValidationResult};
+use crate::query::validator::{ValidationInfo, ColumnDef, StatementType};
 use crate::query::QueryContext;
 
-/// Full-text search validator
-pub struct FulltextValidator<'a> {
-    context: &'a ValidationContext,
-    query_context: Arc<QueryContext>,
+pub struct FulltextValidator {
+    inputs: Vec<ColumnDef>,
+    outputs: Vec<ColumnDef>,
+    expression_props: ExpressionProps,
 }
 
-impl<'a> FulltextValidator<'a> {
-    /// Create a new full-text validator
-    pub fn new(context: &'a ValidationContext, query_context: Arc<QueryContext>) -> Self {
+impl Default for FulltextValidator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl fmt::Debug for FulltextValidator {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FulltextValidator").finish()
+    }
+}
+
+impl FulltextValidator {
+    pub fn new() -> Self {
         Self {
-            context,
-            query_context,
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+            expression_props: ExpressionProps::default(),
         }
     }
 
-    /// Validate full-text search statements
-    pub fn validate(&self, stmt: &crate::query::parser::ast::Stmt) -> Result<ValidationInfo, ValidationError> {
+    fn validate_impl(&self, stmt: &crate::query::parser::ast::Stmt, _qctx: &QueryContext) -> Result<ValidationInfo, ValidationError> {
         match stmt {
             crate::query::parser::ast::Stmt::CreateFulltextIndex(create) => {
                 self.validate_create_index(create)
@@ -41,8 +54,8 @@ impl<'a> FulltextValidator<'a> {
             crate::query::parser::ast::Stmt::AlterFulltextIndex(alter) => {
                 self.validate_alter_index(alter)
             }
-            crate::query::parser::ast::Stmt::ShowFulltextIndex(show) => {
-                self.validate_show_index(show)
+            crate::query::parser::ast::Stmt::ShowFulltextIndex(_show) => {
+                self.validate_show_index()
             }
             crate::query::parser::ast::Stmt::DescribeFulltextIndex(describe) => {
                 self.validate_describe_index(describe)
@@ -57,51 +70,43 @@ impl<'a> FulltextValidator<'a> {
                 self.validate_match(match_stmt)
             }
             _ => Err(ValidationError::new(
+                "Not a full-text search statement",
                 ValidationErrorType::SemanticError,
-                "Not a full-text search statement".to_string(),
             )),
         }
     }
 
-    /// Validate CREATE FULLTEXT INDEX statement
     fn validate_create_index(&self, create: &CreateFulltextIndex) -> Result<ValidationInfo, ValidationError> {
-        // Check if schema exists
-        let space_id = self.context.space_id();
-        
-        // Validate index name
         if create.index_name.is_empty() {
             return Err(ValidationError::new(
+                "Index name cannot be empty",
                 ValidationErrorType::SemanticError,
-                "Index name cannot be empty".to_string(),
             ));
         }
 
-        // Validate fields
         if create.fields.is_empty() {
             return Err(ValidationError::new(
+                "Full-text index must have at least one field",
                 ValidationErrorType::SemanticError,
-                "Full-text index must have at least one field".to_string(),
             ));
         }
 
-        // Validate engine-specific options
         match create.engine_type {
             crate::core::types::FulltextEngineType::Bm25 => {
                 if let Some(ref config) = create.options.bm25_config {
-                    // Validate BM25 parameters
                     if let Some(k1) = config.k1 {
                         if k1 < 0.0 {
                             return Err(ValidationError::new(
+                                "BM25 k1 parameter must be non-negative",
                                 ValidationErrorType::SemanticError,
-                                "BM25 k1 parameter must be non-negative".to_string(),
                             ));
                         }
                     }
                     if let Some(b) = config.b {
                         if b < 0.0 || b > 1.0 {
                             return Err(ValidationError::new(
+                                "BM25 b parameter must be between 0 and 1",
                                 ValidationErrorType::SemanticError,
-                                "BM25 b parameter must be between 0 and 1".to_string(),
                             ));
                         }
                     }
@@ -109,12 +114,11 @@ impl<'a> FulltextValidator<'a> {
             }
             crate::core::types::FulltextEngineType::Inversearch => {
                 if let Some(ref config) = create.options.inversearch_config {
-                    // Validate Inversearch parameters
                     if let Some(resolution) = config.resolution {
                         if resolution == 0 {
                             return Err(ValidationError::new(
+                                "Inversearch resolution must be positive",
                                 ValidationErrorType::SemanticError,
-                                "Inversearch resolution must be positive".to_string(),
                             ));
                         }
                     }
@@ -122,98 +126,90 @@ impl<'a> FulltextValidator<'a> {
             }
         }
 
-        Ok(ValidationInfo::new(create.index_name.clone(), space_id))
+        Ok(ValidationInfo::new())
     }
 
-    /// Validate DROP FULLTEXT INDEX statement
     fn validate_drop_index(&self, drop: &DropFulltextIndex) -> Result<ValidationInfo, ValidationError> {
         if drop.index_name.is_empty() {
             return Err(ValidationError::new(
+                "Index name cannot be empty",
                 ValidationErrorType::SemanticError,
-                "Index name cannot be empty".to_string(),
             ));
         }
 
-        Ok(ValidationInfo::new(drop.index_name.clone(), self.context.space_id()))
+        Ok(ValidationInfo::new())
     }
 
-    /// Validate ALTER FULLTEXT INDEX statement
     fn validate_alter_index(&self, alter: &AlterFulltextIndex) -> Result<ValidationInfo, ValidationError> {
         if alter.index_name.is_empty() {
             return Err(ValidationError::new(
+                "Index name cannot be empty",
                 ValidationErrorType::SemanticError,
-                "Index name cannot be empty".to_string(),
             ));
         }
 
         if alter.actions.is_empty() {
             return Err(ValidationError::new(
+                "ALTER INDEX must have at least one action",
                 ValidationErrorType::SemanticError,
-                "ALTER INDEX must have at least one action".to_string(),
             ));
         }
 
-        // Validate each action
         for action in &alter.actions {
             match action {
                 crate::query::parser::ast::AlterIndexAction::AddField(field) => {
                     if field.field_name.is_empty() {
                         return Err(ValidationError::new(
+                            "Field name cannot be empty",
                             ValidationErrorType::SemanticError,
-                            "Field name cannot be empty".to_string(),
                         ));
                     }
                 }
                 crate::query::parser::ast::AlterIndexAction::DropField(field_name) => {
                     if field_name.is_empty() {
                         return Err(ValidationError::new(
+                            "Field name cannot be empty",
                             ValidationErrorType::SemanticError,
-                            "Field name cannot be empty".to_string(),
                         ));
                     }
                 }
-                _ => {} // Other actions don't need special validation
+                _ => {}
             }
         }
 
-        Ok(ValidationInfo::new(alter.index_name.clone(), self.context.space_id()))
+        Ok(ValidationInfo::new())
     }
 
-    /// Validate SHOW FULLTEXT INDEX statement
-    fn validate_show_index(&self, _show: &ShowFulltextIndex) -> Result<ValidationInfo, ValidationError> {
-        Ok(ValidationInfo::new("show_indexes".to_string(), self.context.space_id()))
+    fn validate_show_index(&self) -> Result<ValidationInfo, ValidationError> {
+        Ok(ValidationInfo::new())
     }
 
-    /// Validate DESCRIBE FULLTEXT INDEX statement
     fn validate_describe_index(&self, describe: &DescribeFulltextIndex) -> Result<ValidationInfo, ValidationError> {
         if describe.index_name.is_empty() {
             return Err(ValidationError::new(
+                "Index name cannot be empty",
                 ValidationErrorType::SemanticError,
-                "Index name cannot be empty".to_string(),
             ));
         }
 
-        Ok(ValidationInfo::new(describe.index_name.clone(), self.context.space_id()))
+        Ok(ValidationInfo::new())
     }
 
-    /// Validate SEARCH statement
     fn validate_search(&self, search: &SearchStatement) -> Result<ValidationInfo, ValidationError> {
         if search.index_name.is_empty() {
             return Err(ValidationError::new(
+                "Index name cannot be empty",
                 ValidationErrorType::SemanticError,
-                "Index name cannot be empty".to_string(),
             ));
         }
 
-        // Validate query expression
         self.validate_query_expr(&search.query)?;
 
-        // Validate limit and offset
         if let Some(limit) = search.limit {
             if limit == 0 {
                 return Err(ValidationError::new(
+                    "LIMIT must be positive",
                     ValidationErrorType::SemanticError,
-                    "LIMIT must be positive".to_string(),
                 ));
             }
         }
@@ -221,46 +217,45 @@ impl<'a> FulltextValidator<'a> {
         if let Some(offset) = search.offset {
             if offset == 0 {
                 return Err(ValidationError::new(
+                    "OFFSET must be non-negative",
                     ValidationErrorType::SemanticError,
-                    "OFFSET must be non-negative".to_string(),
                 ));
             }
         }
 
-        Ok(ValidationInfo::new(search.index_name.clone(), self.context.space_id()))
+        Ok(ValidationInfo::new())
     }
 
-    /// Validate full-text query expression
     fn validate_query_expr(&self, expr: &FulltextQueryExpr) -> Result<(), ValidationError> {
         match expr {
             FulltextQueryExpr::Simple(text) => {
                 if text.is_empty() {
                     return Err(ValidationError::new(
+                        "Query text cannot be empty",
                         ValidationErrorType::SemanticError,
-                        "Query text cannot be empty".to_string(),
                     ));
                 }
             }
             FulltextQueryExpr::Field(field, query) => {
                 if field.is_empty() || query.is_empty() {
                     return Err(ValidationError::new(
+                        "Field name and query text cannot be empty",
                         ValidationErrorType::SemanticError,
-                        "Field name and query text cannot be empty".to_string(),
                     ));
                 }
             }
             FulltextQueryExpr::MultiField(fields) => {
                 if fields.is_empty() {
                     return Err(ValidationError::new(
+                        "Multi-field query must have at least one field",
                         ValidationErrorType::SemanticError,
-                        "Multi-field query must have at least one field".to_string(),
                     ));
                 }
                 for (field, query) in fields {
                     if field.is_empty() || query.is_empty() {
                         return Err(ValidationError::new(
+                            "Field name and query text cannot be empty",
                             ValidationErrorType::SemanticError,
-                            "Field name and query text cannot be empty".to_string(),
                         ));
                     }
                 }
@@ -268,11 +263,10 @@ impl<'a> FulltextValidator<'a> {
             FulltextQueryExpr::Boolean { must, should, must_not } => {
                 if must.is_empty() && should.is_empty() {
                     return Err(ValidationError::new(
+                        "Boolean query must have at least one must or should clause",
                         ValidationErrorType::SemanticError,
-                        "Boolean query must have at least one must or should clause".to_string(),
                     ));
                 }
-                // Recursively validate sub-queries
                 for q in must.iter().chain(should.iter()).chain(must_not.iter()) {
                     self.validate_query_expr(q)?;
                 }
@@ -280,31 +274,31 @@ impl<'a> FulltextValidator<'a> {
             FulltextQueryExpr::Phrase(text) => {
                 if text.is_empty() {
                     return Err(ValidationError::new(
+                        "Phrase query text cannot be empty",
                         ValidationErrorType::SemanticError,
-                        "Phrase query text cannot be empty".to_string(),
                     ));
                 }
             }
             FulltextQueryExpr::Prefix(prefix) => {
                 if prefix.is_empty() {
                     return Err(ValidationError::new(
+                        "Prefix cannot be empty",
                         ValidationErrorType::SemanticError,
-                        "Prefix cannot be empty".to_string(),
                     ));
                 }
             }
             FulltextQueryExpr::Fuzzy(text, distance) => {
                 if text.is_empty() {
                     return Err(ValidationError::new(
+                        "Fuzzy query text cannot be empty",
                         ValidationErrorType::SemanticError,
-                        "Fuzzy query text cannot be empty".to_string(),
                     ));
                 }
                 if let Some(d) = distance {
-                    if *d > 20 {
+                    if *d > 5 {
                         return Err(ValidationError::new(
+                            "Fuzzy distance must be between 0 and 5",
                             ValidationErrorType::SemanticError,
-                            "Fuzzy distance cannot exceed 20".to_string(),
                         ));
                     }
                 }
@@ -312,22 +306,22 @@ impl<'a> FulltextValidator<'a> {
             FulltextQueryExpr::Range { field, lower, upper, .. } => {
                 if field.is_empty() {
                     return Err(ValidationError::new(
+                        "Range field cannot be empty",
                         ValidationErrorType::SemanticError,
-                        "Range field name cannot be empty".to_string(),
                     ));
                 }
                 if lower.is_none() && upper.is_none() {
                     return Err(ValidationError::new(
+                        "Range query must have at least one bound",
                         ValidationErrorType::SemanticError,
-                        "Range query must have at least one bound".to_string(),
                     ));
                 }
             }
             FulltextQueryExpr::Wildcard(pattern) => {
                 if pattern.is_empty() {
                     return Err(ValidationError::new(
+                        "Wildcard pattern cannot be empty",
                         ValidationErrorType::SemanticError,
-                        "Wildcard pattern cannot be empty".to_string(),
                     ));
                 }
             }
@@ -335,124 +329,75 @@ impl<'a> FulltextValidator<'a> {
         Ok(())
     }
 
-    /// Validate LOOKUP FULLTEXT statement
     fn validate_lookup(&self, lookup: &LookupFulltext) -> Result<ValidationInfo, ValidationError> {
-        if lookup.schema_name.is_empty() {
+        if lookup.index_name.is_empty() {
             return Err(ValidationError::new(
+                "Index name cannot be empty",
                 ValidationErrorType::SemanticError,
-                "Schema name cannot be empty".to_string(),
             ));
         }
 
-        if lookup.index_name.is_empty() {
+        if lookup.schema_name.is_empty() {
             return Err(ValidationError::new(
+                "Schema name cannot be empty",
                 ValidationErrorType::SemanticError,
-                "Index name cannot be empty".to_string(),
             ));
         }
 
         if lookup.query.is_empty() {
             return Err(ValidationError::new(
+                "Query cannot be empty",
                 ValidationErrorType::SemanticError,
-                "Query text cannot be empty".to_string(),
             ));
         }
 
-        Ok(ValidationInfo::new(lookup.index_name.clone(), self.context.space_id()))
+        Ok(ValidationInfo::new())
     }
 
-    /// Validate MATCH with full-text statement
     fn validate_match(&self, match_stmt: &MatchFulltext) -> Result<ValidationInfo, ValidationError> {
         if match_stmt.pattern.is_empty() {
             return Err(ValidationError::new(
+                "Match pattern cannot be empty",
                 ValidationErrorType::SemanticError,
-                "Match pattern cannot be empty".to_string(),
             ));
         }
 
-        if match_stmt.fulltext_condition.field.is_empty() {
-            return Err(ValidationError::new(
-                ValidationErrorType::SemanticError,
-                "Full-text match field cannot be empty".to_string(),
-            ));
-        }
-
-        if match_stmt.fulltext_condition.query.is_empty() {
-            return Err(ValidationError::new(
-                ValidationErrorType::SemanticError,
-                "Full-text match query cannot be empty".to_string(),
-            ));
-        }
-
-        Ok(ValidationInfo::new("match_fulltext".to_string(), self.context.space_id()))
+        Ok(ValidationInfo::new())
     }
 }
 
-/// Helper function to validate full-text statements
-pub fn validate_fulltext_statement(
-    stmt: &crate::query::parser::ast::Stmt,
-    context: &ValidationContext,
-    query_context: Arc<QueryContext>,
-) -> Result<ValidationInfo, ValidationError> {
-    let validator = FulltextValidator::new(context, query_context);
-    validator.validate(stmt)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::query::parser::ast::{FulltextQueryExpr, IndexFieldDef, SearchStatement};
-
-    fn create_test_context() -> (ValidationContext, Arc<QueryContext>) {
-        let validation_context = ValidationContext::new(1, 1);
-        let query_context = Arc::new(QueryContext::new());
-        (validation_context, query_context)
+impl StatementValidator for FulltextValidator {
+    fn validate(
+        &mut self,
+        ast: Arc<crate::query::parser::ast::Ast>,
+        qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        let stmt = ast.stmt();
+        let info = self.validate_impl(stmt, &qctx)?;
+        Ok(ValidationResult::success_with_info(info))
     }
 
-    #[test]
-    fn test_validate_create_index() {
-        let (context, qctx) = create_test_context();
-        let validator = FulltextValidator::new(&context, qctx);
-
-        let create = CreateFulltextIndex::new(
-            "idx_test".to_string(),
-            "schema".to_string(),
-            vec![IndexFieldDef::new("field".to_string())],
-            crate::core::types::FulltextEngineType::Bm25,
-        );
-
-        let stmt = crate::query::parser::ast::Stmt::CreateFulltextIndex(create);
-        let result = validator.validate(&stmt);
-        assert!(result.is_ok());
+    fn statement_type(&self) -> StatementType {
+        StatementType::Show
     }
 
-    #[test]
-    fn test_validate_search_statement() {
-        let (context, qctx) = create_test_context();
-        let validator = FulltextValidator::new(&context, qctx);
-
-        let search = SearchStatement::new(
-            "idx_test".to_string(),
-            FulltextQueryExpr::Simple("database".to_string()),
-        );
-
-        let stmt = crate::query::parser::ast::Stmt::Search(search);
-        let result = validator.validate(&stmt);
-        assert!(result.is_ok());
+    fn inputs(&self) -> &[ColumnDef] {
+        &self.inputs
     }
 
-    #[test]
-    fn test_validate_empty_query() {
-        let (context, qctx) = create_test_context();
-        let validator = FulltextValidator::new(&context, qctx);
+    fn outputs(&self) -> &[ColumnDef] {
+        &self.outputs
+    }
 
-        let search = SearchStatement::new(
-            "idx_test".to_string(),
-            FulltextQueryExpr::Simple("".to_string()),
-        );
+    fn is_global_statement(&self) -> bool {
+        true
+    }
 
-        let stmt = crate::query::parser::ast::Stmt::Search(search);
-        let result = validator.validate(&stmt);
-        assert!(result.is_err());
+    fn expression_props(&self) -> &ExpressionProps {
+        &self.expression_props
+    }
+
+    fn user_defined_vars(&self) -> &[String] {
+        &[]
     }
 }

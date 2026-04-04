@@ -897,7 +897,15 @@ impl MatchStatementPlanner {
             .into_iter()
             .map(|item| {
                 let column = self.contextual_expression_to_string(&item.expression);
-                SortItem::new(column, item.direction)
+                let direction = match item.direction {
+                    crate::core::types::OrderDirection::Asc => {
+                        crate::core::types::graph_schema::OrderDirection::Asc
+                    }
+                    crate::core::types::OrderDirection::Desc => {
+                        crate::core::types::graph_schema::OrderDirection::Desc
+                    }
+                };
+                SortItem::new(column, direction)
             })
             .collect();
 

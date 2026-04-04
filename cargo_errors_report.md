@@ -2,58 +2,60 @@
 
 ## Summary
 
-- **Total Errors**: 313
-- **Total Warnings**: 48
-- **Total Issues**: 361
-- **Unique Error Patterns**: 102
-- **Unique Warning Patterns**: 24
-- **Files with Issues**: 31
+- **Total Errors**: 279
+- **Total Warnings**: 47
+- **Total Issues**: 326
+- **Unique Error Patterns**: 108
+- **Unique Warning Patterns**: 23
+- **Files with Issues**: 36
 
 ## Error Statistics
 
-**Total Errors**: 313
+**Total Errors**: 279
 
 ### Error Type Breakdown
 
-- **error[E0425]**: 56 errors
-- **error[E0277]**: 52 errors
-- **error[E0308]**: 52 errors
-- **error[E0659]**: 41 errors
-- **error[E0599]**: 36 errors
-- **error[E0061]**: 13 errors
-- **error[E0432]**: 12 errors
+- **error[E0599]**: 86 errors
+- **error[E0659]**: 42 errors
+- **error[E0425]**: 32 errors
+- **error[E0277]**: 21 errors
+- **error[E0308]**: 15 errors
+- **error[E0432]**: 11 errors
 - **error[E0433]**: 11 errors
 - **error[E0407]**: 10 errors
 - **error[E0046]**: 8 errors
+- **error[E0609]**: 8 errors
+- **error[E0369]**: 8 errors
 - **error[E0004]**: 8 errors
+- **error[E0061]**: 5 errors
 - **error[E0107]**: 4 errors
 - **error[E0560]**: 3 errors
 - **error[E0220]**: 2 errors
 - **error[E0437]**: 2 errors
-- **error[E0026]**: 1 errors
 - **error[E0106]**: 1 errors
+- **error[E0026]**: 1 errors
 - **error[E0063]**: 1 errors
 
 ### Files with Errors (Top 10)
 
-- `src\query\validator\fulltext_validator.rs`: 75 errors
+- `src\query\validator\validator_enum.rs`: 66 errors
 - `src\query\parser\parsing\fulltext_parser.rs`: 54 errors
-- `src\query\planning\plan\core\nodes\management\fulltext_nodes.rs`: 41 errors
-- `src\query\planning\plan\core\nodes\base\plan_node_enum.rs`: 29 errors
+- `src\query\planning\plan\core\nodes\management\fulltext_nodes.rs`: 38 errors
+- `src\query\planning\plan\core\nodes\base\plan_node_enum.rs`: 26 errors
 - `src\query\executor\data_access\fulltext_search.rs`: 18 errors
-- `src\query\validator\validator_enum.rs`: 17 errors
+- `src\query\parser\ast\stmt.rs`: 17 errors
 - `src\query\executor\factory\executor_factory.rs`: 16 errors
-- `src\query\parser\ast\stmt.rs`: 16 errors
 - `src\query\executor\expression\functions\fulltext.rs`: 10 errors
-- `src\query\planning\statements\dql\yield_planner.rs`: 6 errors
+- `src\query\executor\executor_enum.rs`: 4 errors
+- `src\query\planning\template_extractor.rs`: 4 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 48
+**Total Warnings**: 47
 
 ### Warning Type Breakdown
 
-- **warning**: 48 warnings
+- **warning**: 47 warnings
 
 ### Files with Warnings (Top 10)
 
@@ -62,132 +64,52 @@
 - `crates\inversearch\src\lib.rs`: 5 warnings
 - `src\query\parser\ast\mod.rs`: 4 warnings
 - `src\search\adapters\bm25_adapter.rs`: 3 warnings
-- `src\query\executor\data_access\fulltext_search.rs`: 2 warnings
 - `src\sync\scheduler.rs`: 2 warnings
-- `src\query\validator\fulltext_validator.rs`: 2 warnings
+- `src\query\executor\data_access\fulltext_search.rs`: 2 warnings
 - `src\sync\recovery.rs`: 1 warnings
 - `build.rs`: 1 warnings
+- `src\query\validator\fulltext_validator.rs`: 1 warnings
 
 ## Detailed Error Categorization
 
-### error[E0425]: cannot find type `CreateFulltextIndexNode` in module `crate::query::planning::plan::core::nodes`
+### error[E0599]: no variant or associated item named `CreateFulltextIndex` found for enum `Validator` in the current scope: variant or associated item not found in `Validator`
 
-**Total Occurrences**: 56  
-**Unique Files**: 4
+**Total Occurrences**: 86  
+**Unique Files**: 5
 
-#### `src\query\planning\plan\core\nodes\base\plan_node_enum.rs`: 24 occurrences
+#### `src\query\validator\validator_enum.rs`: 56 occurrences
 
-- Line 173: cannot find type `CreateFulltextIndexNode` in this scope
-- Line 174: cannot find type `DropFulltextIndexNode` in this scope
-- Line 175: cannot find type `AlterFulltextIndexNode` in this scope: not found in this scope
+- Line 255: no variant or associated item named `CreateFulltextIndex` found for enum `Validator` in the current scope: variant or associated item not found in `Validator`
+- Line 256: no variant or associated item named `DropFulltextIndex` found for enum `Validator` in the current scope: variant or associated item not found in `Validator`
+- Line 257: no variant or associated item named `AlterFulltextIndex` found for enum `Validator` in the current scope: variant or associated item not found in `Validator`
+- ... 53 more occurrences in this file
+
+#### `src\query\parser\parsing\fulltext_parser.rs`: 24 occurrences
+
+- Line 49: no function or associated item named `error` found for struct `ParserResult` in the current scope: function or associated item not found in `ParserResult`
+- Line 108: no function or associated item named `error` found for struct `ParserResult` in the current scope: function or associated item not found in `ParserResult`
+- Line 112: no function or associated item named `default` found for struct `ast::fulltext::IndexOptions` in the current scope: function or associated item not found in `ast::fulltext::IndexOptions`
 - ... 21 more occurrences in this file
 
-#### `src\query\parser\ast\stmt.rs`: 16 occurrences
+#### `src\query\executor\factory\executor_factory.rs`: 2 occurrences
 
-- Line 95: cannot find type `CreateFulltextIndex` in this scope: not found in this scope
-- Line 96: cannot find type `DropFulltextIndex` in this scope: not found in this scope
-- Line 97: cannot find type `AlterFulltextIndex` in this scope: not found in this scope
-- ... 13 more occurrences in this file
+- Line 618: no method named `search_engine` found for reference `&ExecutionContext` in the current scope: method not found in `&ExecutionContext`
+- Line 635: no method named `search_engine` found for reference `&ExecutionContext` in the current scope: method not found in `&ExecutionContext`
 
-#### `src\query\executor\factory\executor_factory.rs`: 8 occurrences
+#### `src\query\executor\data_access\fulltext_search.rs`: 2 occurrences
 
-- Line 521: cannot find type `CreateFulltextIndexNode` in module `crate::query::planning::plan::core::nodes`
-- Line 540: cannot find type `DropFulltextIndexNode` in module `crate::query::planning::plan::core::nodes`
-- Line 555: cannot find type `AlterFulltextIndexNode` in module `crate::query::planning::plan::core::nodes`: not found in `crate::query::planning::plan::core::nodes`
-- ... 5 more occurrences in this file
+- Line 52: no variant or associated item named `new` found for enum `core::error::query::QueryError` in the current scope: variant or associated item not found in `core::error::query::QueryError`
+- Line 327: no variant or associated item named `new` found for enum `core::error::query::QueryError` in the current scope: variant or associated item not found in `core::error::query::QueryError`
 
-#### `src\query\validator\validator_enum.rs`: 8 occurrences
+#### `src\query\executor\expression\functions\fulltext.rs`: 2 occurrences
 
-- Line 192: cannot find type `CreateFulltextIndexValidator` in this scope
-- Line 194: cannot find type `DropFulltextIndexValidator` in this scope: not found in this scope
-- Line 196: cannot find type `AlterFulltextIndexValidator` in this scope: not found in this scope
-- ... 5 more occurrences in this file
-
-### error[E0277]: the trait bound `std::string::String: From<ValidationErrorType>` is not satisfied: the trait `From<ValidationErrorType>` is not implemented for `std::string::String`
-
-**Total Occurrences**: 52  
-**Unique Files**: 3
-
-#### `src\query\validator\fulltext_validator.rs`: 33 occurrences
-
-- Line 60: the trait bound `std::string::String: From<ValidationErrorType>` is not satisfied: the trait `From<ValidationErrorType>` is not implemented for `std::string::String`
-- Line 74: the trait bound `std::string::String: From<ValidationErrorType>` is not satisfied: the trait `From<ValidationErrorType>` is not implemented for `std::string::String`
-- Line 82: the trait bound `std::string::String: From<ValidationErrorType>` is not satisfied: the trait `From<ValidationErrorType>` is not implemented for `std::string::String`
-- ... 30 more occurrences in this file
-
-#### `src\query\planning\plan\core\nodes\management\fulltext_nodes.rs`: 12 occurrences
-
-- Line 186: the trait bound `stmt::YieldClause: serde::Serialize` is not satisfied: unsatisfied trait bound
-- Line 186: the trait bound `stmt::WhereClause: serde::Serialize` is not satisfied: unsatisfied trait bound
-- Line 190: the trait bound `stmt::YieldClause: serde::Deserialize<'de>` is not satisfied: unsatisfied trait bound
-- ... 9 more occurrences in this file
-
-#### `src\query\parser\parsing\fulltext_parser.rs`: 7 occurrences
-
-- Line 314: the `?` operator can only be applied to values that implement `Try`: the `?` operator cannot be applied to type `ParserResult`
-- Line 314: the `?` operator can only be used in a method that returns `Result` or `Option` (or another type that implements `FromResidual`): cannot use the `?` operator in a method that returns `ParserResult`
-- Line 321: the `?` operator can only be used in a method that returns `Result` or `Option` (or another type that implements `FromResidual`): cannot use the `?` operator in a method that returns `ParserResult`
-- ... 4 more occurrences in this file
-
-### error[E0308]: mismatched types: expected `ast::fulltext::YieldClause`, found `stmt::YieldClause`
-
-**Total Occurrences**: 52  
-**Unique Files**: 9
-
-#### `src\query\validator\fulltext_validator.rs`: 33 occurrences
-
-- Line 61: mismatched types: expected `ValidationErrorType`, found `String`
-- Line 75: mismatched types: expected `ValidationErrorType`, found `String`
-- Line 83: mismatched types: expected `ValidationErrorType`, found `String`
-- ... 30 more occurrences in this file
-
-#### `src\query\parser\parsing\fulltext_parser.rs`: 4 occurrences
-
-- Line 322: mismatched types: expected `ast::fulltext::YieldClause`, found `stmt::YieldClause`
-- Line 329: mismatched types: expected `ast::fulltext::WhereClause`, found `stmt::WhereClause`
-- Line 525: `?` operator has incompatible types: expected `ast::fulltext::YieldClause`, found `stmt::YieldClause`
-- ... 1 more occurrences in this file
-
-#### `src\query\executor\expression\functions\fulltext.rs`: 3 occurrences
-
-- Line 204: mismatched types: expected `Value`, found enum constructor
-- Line 226: mismatched types: expected `List`, found `Vec<Value>`
-- Line 281: mismatched types: expected `Value`, found enum constructor
-
-#### `src\query\executor\data_access\fulltext_search.rs`: 3 occurrences
-
-- Line 50: mismatched types: expected `usize`, found `FulltextQuery`
-- Line 325: mismatched types: expected `usize`, found `FulltextQuery`
-- Line 233: mismatched types: expected `List`, found `Vec<Value>`
-
-#### `src\query\planning\statements\dql\with_planner.rs`: 2 occurrences
-
-- Line 127: mismatched types: expected `graph_schema::OrderDirection`, found `ast::fulltext::OrderDirection`
-- Line 130: mismatched types: expected `graph_schema::OrderDirection`, found `ast::fulltext::OrderDirection`
-
-#### `src\query\planning\statements\dql\yield_planner.rs`: 2 occurrences
-
-- Line 125: mismatched types: expected `graph_schema::OrderDirection`, found `ast::fulltext::OrderDirection`
-- Line 128: mismatched types: expected `graph_schema::OrderDirection`, found `ast::fulltext::OrderDirection`
-
-#### `src\query\planning\statements\dql\return_planner.rs`: 2 occurrences
-
-- Line 115: mismatched types: expected `graph_schema::OrderDirection`, found `ast::fulltext::OrderDirection`
-- Line 118: mismatched types: expected `graph_schema::OrderDirection`, found `ast::fulltext::OrderDirection`
-
-#### `src\query\planning\template_extractor.rs`: 2 occurrences
-
-- Line 353: mismatched types: expected `graph_schema::OrderDirection`, found `ast::fulltext::OrderDirection`
-- Line 354: mismatched types: expected `graph_schema::OrderDirection`, found `ast::fulltext::OrderDirection`
-
-#### `src\query\validator\validator_enum.rs`: 1 occurrences
-
-- Line 924: `match` arms have incompatible types: expected `&ExpressionProps`, found `ExpressionProps`
+- Line 146: no variant or associated item named `InvalidArgumentType` found for enum `ExpressionErrorType` in the current scope: variant or associated item not found in `ExpressionErrorType`
+- Line 246: no variant or associated item named `InvalidArgumentType` found for enum `ExpressionErrorType` in the current scope: variant or associated item not found in `ExpressionErrorType`
 
 ### error[E0659]: `OrderDirection` is ambiguous: ambiguous name
 
-**Total Occurrences**: 41  
-**Unique Files**: 9
+**Total Occurrences**: 42  
+**Unique Files**: 10
 
 #### `src\query\parser\parsing\fulltext_parser.rs`: 12 occurrences
 
@@ -223,92 +145,124 @@
 - Line 18: `YieldClause` is ambiguous: ambiguous name
 - Line 18: `YieldItem` is ambiguous: ambiguous name
 
+#### `src\query\planning\statements\dql\with_planner.rs`: 2 occurrences
+
+- Line 127: `OrderDirection` is ambiguous: ambiguous name
+- Line 130: `OrderDirection` is ambiguous: ambiguous name
+
 #### `src\query\planning\statements\dql\return_planner.rs`: 2 occurrences
 
 - Line 115: `OrderDirection` is ambiguous: ambiguous name
 - Line 118: `OrderDirection` is ambiguous: ambiguous name
-
-#### `src\query\executor\data_access\fulltext_search.rs`: 2 occurrences
-
-- Line 11: `YieldClause` is ambiguous: ambiguous name
-- Line 11: `YieldItem` is ambiguous: ambiguous name
 
 #### `src\query\validator\statements\lookup_validator.rs`: 2 occurrences
 
 - Line 12: `YieldItem` is ambiguous: ambiguous name
 - Line 143: `YieldItem` is ambiguous: ambiguous name
 
-#### `src\query\planning\statements\dql\with_planner.rs`: 2 occurrences
-
-- Line 127: `OrderDirection` is ambiguous: ambiguous name
-- Line 130: `OrderDirection` is ambiguous: ambiguous name
-
-### error[E0599]: no variant or associated item named `DataAccess` found for enum `PlanNodeCategory` in the current scope: variant or associated item not found in `PlanNodeCategory`
-
-**Total Occurrences**: 36  
-**Unique Files**: 6
-
-#### `src\query\parser\parsing\fulltext_parser.rs`: 24 occurrences
-
-- Line 49: no function or associated item named `error` found for struct `ParserResult` in the current scope: function or associated item not found in `ParserResult`
-- Line 108: no function or associated item named `error` found for struct `ParserResult` in the current scope: function or associated item not found in `ParserResult`
-- Line 112: no function or associated item named `default` found for struct `ast::fulltext::IndexOptions` in the current scope: function or associated item not found in `ast::fulltext::IndexOptions`
-- ... 21 more occurrences in this file
-
-#### `src\query\planning\plan\core\nodes\management\fulltext_nodes.rs`: 3 occurrences
-
-- Line 229: no variant or associated item named `DataAccess` found for enum `PlanNodeCategory` in the current scope: variant or associated item not found in `PlanNodeCategory`
-- Line 273: no variant or associated item named `DataAccess` found for enum `PlanNodeCategory` in the current scope: variant or associated item not found in `PlanNodeCategory`
-- Line 311: no variant or associated item named `DataAccess` found for enum `PlanNodeCategory` in the current scope: variant or associated item not found in `PlanNodeCategory`
-
-#### `src\query\planning\plan\core\nodes\base\plan_node_enum.rs`: 3 occurrences
-
-- Line 774: no variant or associated item named `DataAccess` found for enum `PlanNodeCategory` in the current scope: variant or associated item not found in `PlanNodeCategory`
-- Line 775: no variant or associated item named `DataAccess` found for enum `PlanNodeCategory` in the current scope: variant or associated item not found in `PlanNodeCategory`
-- Line 776: no variant or associated item named `DataAccess` found for enum `PlanNodeCategory` in the current scope: variant or associated item not found in `PlanNodeCategory`
-
-#### `src\query\executor\expression\functions\fulltext.rs`: 2 occurrences
-
-- Line 146: no variant or associated item named `InvalidArgumentType` found for enum `ExpressionErrorType` in the current scope: variant or associated item not found in `ExpressionErrorType`
-- Line 246: no variant or associated item named `InvalidArgumentType` found for enum `ExpressionErrorType` in the current scope: variant or associated item not found in `ExpressionErrorType`
-
-#### `src\query\executor\factory\executor_factory.rs`: 2 occurrences
-
-- Line 618: no method named `search_engine` found for reference `&ExecutionContext` in the current scope: method not found in `&ExecutionContext`
-- Line 635: no method named `search_engine` found for reference `&ExecutionContext` in the current scope: method not found in `&ExecutionContext`
-
 #### `src\query\executor\data_access\fulltext_search.rs`: 2 occurrences
 
-- Line 52: no variant or associated item named `new` found for enum `core::error::query::QueryError` in the current scope: variant or associated item not found in `core::error::query::QueryError`
-- Line 327: no variant or associated item named `new` found for enum `core::error::query::QueryError` in the current scope: variant or associated item not found in `core::error::query::QueryError`
+- Line 11: `YieldClause` is ambiguous: ambiguous name
+- Line 11: `YieldItem` is ambiguous: ambiguous name
 
-### error[E0061]: this method takes 1 argument but 2 arguments were supplied
+#### `src\query\parser\ast\stmt.rs`: 1 occurrences
 
-**Total Occurrences**: 13  
-**Unique Files**: 3
+- Line 660: `OrderDirection` is ambiguous: ambiguous name
 
-#### `src\query\validator\fulltext_validator.rs`: 8 occurrences
+### error[E0425]: cannot find type `CreateFulltextIndexNode` in this scope
 
-- Line 125: this function takes 0 arguments but 2 arguments were supplied
-- Line 137: this function takes 0 arguments but 2 arguments were supplied
-- Line 179: this function takes 0 arguments but 2 arguments were supplied
+**Total Occurrences**: 32  
+**Unique Files**: 2
+
+#### `src\query\planning\plan\core\nodes\base\plan_node_enum.rs`: 24 occurrences
+
+- Line 173: cannot find type `CreateFulltextIndexNode` in this scope
+- Line 174: cannot find type `DropFulltextIndexNode` in this scope
+- Line 175: cannot find type `AlterFulltextIndexNode` in this scope: not found in this scope
+- ... 21 more occurrences in this file
+
+#### `src\query\executor\factory\executor_factory.rs`: 8 occurrences
+
+- Line 521: cannot find type `CreateFulltextIndexNode` in module `crate::query::planning::plan::core::nodes`
+- Line 540: cannot find type `DropFulltextIndexNode` in module `crate::query::planning::plan::core::nodes`
+- Line 555: cannot find type `AlterFulltextIndexNode` in module `crate::query::planning::plan::core::nodes`: not found in `crate::query::planning::plan::core::nodes`
 - ... 5 more occurrences in this file
 
-#### `src\query\executor\expression\functions\fulltext.rs`: 4 occurrences
+### error[E0277]: a value of type `std::vec::Vec<(usize, graph_schema::OrderDirection)>` cannot be built from an iterator over elements of type `(usize, ast::fulltext::OrderDirection)`: value of type `std::vec::Vec<(usize, graph_schema::OrderDirection)>` cannot be built from `std::iter::Iterator<Item=(usize, ast::fulltext::OrderDirection)>`
 
-- Line 354: this method takes 1 argument but 2 arguments were supplied
-- Line 363: this method takes 1 argument but 2 arguments were supplied
-- Line 372: this method takes 1 argument but 2 arguments were supplied
+**Total Occurrences**: 21  
+**Unique Files**: 4
+
+#### `src\query\planning\plan\core\nodes\management\fulltext_nodes.rs`: 12 occurrences
+
+- Line 186: the trait bound `stmt::YieldClause: serde::Serialize` is not satisfied: unsatisfied trait bound
+- Line 186: the trait bound `stmt::WhereClause: serde::Serialize` is not satisfied: unsatisfied trait bound
+- Line 190: the trait bound `stmt::YieldClause: serde::Deserialize<'de>` is not satisfied: unsatisfied trait bound
+- ... 9 more occurrences in this file
+
+#### `src\query\parser\parsing\fulltext_parser.rs`: 7 occurrences
+
+- Line 314: the `?` operator can only be applied to values that implement `Try`: the `?` operator cannot be applied to type `ParserResult`
+- Line 314: the `?` operator can only be used in a method that returns `Result` or `Option` (or another type that implements `FromResidual`): cannot use the `?` operator in a method that returns `ParserResult`
+- Line 321: the `?` operator can only be used in a method that returns `Result` or `Option` (or another type that implements `FromResidual`): cannot use the `?` operator in a method that returns `ParserResult`
+- ... 4 more occurrences in this file
+
+#### `src\query\planning\statements\clauses\with_clause_planner.rs`: 1 occurrences
+
+- Line 311: a value of type `std::vec::Vec<(usize, graph_schema::OrderDirection)>` cannot be built from an iterator over elements of type `(usize, ast::fulltext::OrderDirection)`: value of type `std::vec::Vec<(usize, graph_schema::OrderDirection)>` cannot be built from `std::iter::Iterator<Item=(usize, ast::fulltext::OrderDirection)>`
+
+#### `src\query\validator\validator_enum.rs`: 1 occurrences
+
+- Line 193: `FulltextValidator` doesn't implement `std::fmt::Debug`: the trait `std::fmt::Debug` is not implemented for `FulltextValidator`
+
+### error[E0308]: mismatched types: expected `Value`, found enum constructor
+
+**Total Occurrences**: 15  
+**Unique Files**: 8
+
+#### `src\query\parser\parsing\fulltext_parser.rs`: 4 occurrences
+
+- Line 322: mismatched types: expected `ast::fulltext::YieldClause`, found `stmt::YieldClause`
+- Line 329: mismatched types: expected `ast::fulltext::WhereClause`, found `stmt::WhereClause`
+- Line 525: `?` operator has incompatible types: expected `ast::fulltext::YieldClause`, found `stmt::YieldClause`
 - ... 1 more occurrences in this file
 
-#### `src\query\parser\parsing\fulltext_parser.rs`: 1 occurrences
+#### `src\query\executor\expression\functions\fulltext.rs`: 3 occurrences
 
-- Line 470: this function takes 3 arguments but 2 arguments were supplied
+- Line 204: mismatched types: expected `Value`, found enum constructor
+- Line 226: mismatched types: expected `List`, found `Vec<Value>`
+- Line 281: mismatched types: expected `Value`, found enum constructor
+
+#### `src\query\executor\data_access\fulltext_search.rs`: 3 occurrences
+
+- Line 50: mismatched types: expected `usize`, found `FulltextQuery`
+- Line 325: mismatched types: expected `usize`, found `FulltextQuery`
+- Line 233: mismatched types: expected `List`, found `Vec<Value>`
+
+#### `src\query\parser\parsing\clause_parser.rs`: 1 occurrences
+
+- Line 296: mismatched types: expected `ast::fulltext::OrderDirection`, found `graph_schema::OrderDirection`
+
+#### `src\query\parser\parsing\util_stmt_parser.rs`: 1 occurrences
+
+- Line 466: mismatched types: expected `ast::fulltext::OrderDirection`, found `graph_schema::OrderDirection`
+
+#### `src\query\validator\validator_enum.rs`: 1 occurrences
+
+- Line 923: `match` arms have incompatible types: expected `&ExpressionProps`, found `ExpressionProps`
+
+#### `src\query\planning\statements\clauses\order_by_planner.rs`: 1 occurrences
+
+- Line 80: mismatched types: expected `graph_schema::OrderDirection`, found `ast::fulltext::OrderDirection`
+
+#### `src\query\planning\statements\match_statement_planner.rs`: 1 occurrences
+
+- Line 900: mismatched types: expected `graph_schema::OrderDirection`, found `ast::fulltext::OrderDirection`
 
 ### error[E0432]: unresolved import `crate::core::error::QueryErrorType`: no `QueryErrorType` in `core::error`, help: a similar name exists in the module: `QueryError`
 
-**Total Occurrences**: 12  
-**Unique Files**: 6
+**Total Occurrences**: 11  
+**Unique Files**: 5
 
 #### `src\query\executor\factory\executor_factory.rs`: 6 occurrences
 
@@ -330,10 +284,6 @@
 
 - Line 41: unresolved import `crate::query::planning::planner::fulltext`: could not find `fulltext` in `planner`
 
-#### `src\query\validator\fulltext_validator.rs`: 1 occurrences
-
-- Line 14: unresolved import `crate::query::validator::ValidationContext`: no `ValidationContext` in `query::validator`, help: a similar name exists in the module: `PaginationContext`
-
 #### `src\query\executor\expression\functions\fulltext.rs`: 1 occurrences
 
 - Line 11: unresolved import `crate::query::executor::expression::functions::signature::FunctionSignature`: no `FunctionSignature` in `query::executor::expression::functions::signature`
@@ -345,9 +295,9 @@
 
 #### `src\query\validator\validator_enum.rs`: 8 occurrences
 
-- Line 770: failed to resolve: use of undeclared type `CreateFulltextIndexValidator`: use of undeclared type `CreateFulltextIndexValidator`
-- Line 771: failed to resolve: use of undeclared type `DropFulltextIndexValidator`: use of undeclared type `DropFulltextIndexValidator`
-- Line 772: failed to resolve: use of undeclared type `AlterFulltextIndexValidator`: use of undeclared type `AlterFulltextIndexValidator`
+- Line 761: failed to resolve: use of undeclared type `CreateFulltextIndexValidator`: use of undeclared type `CreateFulltextIndexValidator`
+- Line 762: failed to resolve: use of undeclared type `DropFulltextIndexValidator`: use of undeclared type `DropFulltextIndexValidator`
+- Line 763: failed to resolve: use of undeclared type `AlterFulltextIndexValidator`: use of undeclared type `AlterFulltextIndexValidator`
 - ... 5 more occurrences in this file
 
 #### `src\query\parser\parsing\fulltext_parser.rs`: 3 occurrences
@@ -356,7 +306,7 @@
 - Line 431: failed to resolve: could not find `ContextualExpression` in `ast`: could not find `ContextualExpression` in `ast`
 - Line 432: failed to resolve: could not find `Expression` in `ast`: could not find `Expression` in `ast`
 
-### error[E0407]: method `reset` is not a member of trait `Executor`: not a member of trait `Executor`
+### error[E0407]: method `category` is not a member of trait `PlanNode`: not a member of trait `PlanNode`
 
 **Total Occurrences**: 10  
 **Unique Files**: 2
@@ -385,6 +335,18 @@
 - Line 109: not all trait items implemented, missing: `output_var`, `col_names`, `set_output_var`, `set_col_names`, `into_enum`: missing `output_var`, `col_names`, `set_output_var`, `set_col_names`, `into_enum` in implementation
 - ... 5 more occurrences in this file
 
+### error[E0609]: no field `span` on type `&ast::fulltext::CreateFulltextIndex`: unknown field
+
+**Total Occurrences**: 8  
+**Unique Files**: 1
+
+#### `src\query\parser\ast\stmt.rs`: 8 occurrences
+
+- Line 156: no field `span` on type `&ast::fulltext::CreateFulltextIndex`: unknown field
+- Line 157: no field `span` on type `&ast::fulltext::DropFulltextIndex`: unknown field
+- Line 158: no field `span` on type `&ast::fulltext::AlterFulltextIndex`: unknown field
+- ... 5 more occurrences in this file
+
 ### error[E0004]: non-exhaustive patterns: `&plan_node_enum::PlanNodeEnum::CreateFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::DropFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::AlterFulltextIndex(_)` and 5 more not covered: patterns `&plan_node_enum::PlanNodeEnum::CreateFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::DropFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::AlterFulltextIndex(_)` and 5 more not covered
 
 **Total Occurrences**: 8  
@@ -402,30 +364,58 @@
 - Line 1079: non-exhaustive patterns: `&plan_node_enum::PlanNodeEnum::CreateFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::DropFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::AlterFulltextIndex(_)` and 5 more not covered: patterns `&plan_node_enum::PlanNodeEnum::CreateFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::DropFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::AlterFulltextIndex(_)` and 5 more not covered
 - Line 1320: non-exhaustive patterns: `&plan_node_enum::PlanNodeEnum::CreateFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::DropFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::AlterFulltextIndex(_)` and 5 more not covered: patterns `&plan_node_enum::PlanNodeEnum::CreateFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::DropFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::AlterFulltextIndex(_)` and 5 more not covered
 
-#### `src\query\planning\plan\core\nodes\base\plan_node_children.rs`: 1 occurrences
-
-- Line 10: non-exhaustive patterns: `&plan_node_enum::PlanNodeEnum::CreateFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::DropFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::AlterFulltextIndex(_)` and 5 more not covered: patterns `&plan_node_enum::PlanNodeEnum::CreateFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::DropFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::AlterFulltextIndex(_)` and 5 more not covered
-
 #### `src\query\planning\plan\core\nodes\base\macros.rs`: 1 occurrences
 
 - Line 161: non-exhaustive patterns: `&plan_node_enum::PlanNodeEnum::CreateFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::DropFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::AlterFulltextIndex(_)` and 5 more not covered: patterns `&plan_node_enum::PlanNodeEnum::CreateFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::DropFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::AlterFulltextIndex(_)` and 5 more not covered
 
-### error[E0107]: missing generics for trait `executor_base::Executor`: expected 1 generic argument
+#### `src\query\planning\plan\core\nodes\base\plan_node_children.rs`: 1 occurrences
+
+- Line 10: non-exhaustive patterns: `&plan_node_enum::PlanNodeEnum::CreateFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::DropFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::AlterFulltextIndex(_)` and 5 more not covered: patterns `&plan_node_enum::PlanNodeEnum::CreateFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::DropFulltextIndex(_)`, `&plan_node_enum::PlanNodeEnum::AlterFulltextIndex(_)` and 5 more not covered
+
+### error[E0369]: binary operation `==` cannot be applied to type `&ast::fulltext::CreateFulltextIndex`
+
+**Total Occurrences**: 8  
+**Unique Files**: 1
+
+#### `src\query\parser\ast\stmt.rs`: 8 occurrences
+
+- Line 96: binary operation `==` cannot be applied to type `&ast::fulltext::CreateFulltextIndex`
+- Line 97: binary operation `==` cannot be applied to type `&ast::fulltext::DropFulltextIndex`
+- Line 98: binary operation `==` cannot be applied to type `&ast::fulltext::AlterFulltextIndex`
+- ... 5 more occurrences in this file
+
+### error[E0061]: this method takes 1 argument but 2 arguments were supplied
+
+**Total Occurrences**: 5  
+**Unique Files**: 2
+
+#### `src\query\executor\expression\functions\fulltext.rs`: 4 occurrences
+
+- Line 354: this method takes 1 argument but 2 arguments were supplied
+- Line 363: this method takes 1 argument but 2 arguments were supplied
+- Line 372: this method takes 1 argument but 2 arguments were supplied
+- ... 1 more occurrences in this file
+
+#### `src\query\parser\parsing\fulltext_parser.rs`: 1 occurrences
+
+- Line 470: this function takes 3 arguments but 2 arguments were supplied
+
+### error[E0107]: struct takes 0 generic arguments but 1 generic argument was supplied: expected 0 generic arguments
 
 **Total Occurrences**: 4  
 **Unique Files**: 2
-
-#### `src\query\executor\data_access\fulltext_search.rs`: 2 occurrences
-
-- Line 270: missing generics for trait `executor_base::Executor`: expected 1 generic argument
-- Line 315: missing generics for trait `executor_base::Executor`: expected 1 generic argument
 
 #### `src\query\executor\executor_enum.rs`: 2 occurrences
 
 - Line 156: struct takes 0 generic arguments but 1 generic argument was supplied: expected 0 generic arguments
 - Line 157: struct takes 0 generic arguments but 1 generic argument was supplied: expected 0 generic arguments
 
-### error[E0560]: struct `stmt::YieldItem` has no field named `expr`: `stmt::YieldItem` does not have this field
+#### `src\query\executor\data_access\fulltext_search.rs`: 2 occurrences
+
+- Line 270: missing generics for trait `executor_base::Executor`: expected 1 generic argument
+- Line 315: missing generics for trait `executor_base::Executor`: expected 1 generic argument
+
+### error[E0560]: struct `search::result::FulltextSearchResult` has no field named `shards`: `search::result::FulltextSearchResult` does not have this field
 
 **Total Occurrences**: 3  
 **Unique Files**: 2
@@ -459,6 +449,15 @@
 - Line 271: type `Output` is not a member of trait `Executor`: not a member of trait `Executor`
 - Line 316: type `Output` is not a member of trait `Executor`: not a member of trait `Executor`
 
+### error[E0106]: missing lifetime specifier: expected named lifetime parameter
+
+**Total Occurrences**: 1  
+**Unique Files**: 1
+
+#### `src\query\parser\parsing\fulltext_parser.rs`: 1 occurrences
+
+- Line 20: missing lifetime specifier: expected named lifetime parameter
+
 ### error[E0026]: struct `ParserResult` does not have a field named `errors`: struct `ParserResult` does not have this field
 
 **Total Occurrences**: 1  
@@ -477,20 +476,11 @@
 
 - Line 431: missing field `span` in initializer of `stmt::WhereClause`: missing `span`
 
-### error[E0106]: missing lifetime specifier: expected named lifetime parameter
-
-**Total Occurrences**: 1  
-**Unique Files**: 1
-
-#### `src\query\parser\parsing\fulltext_parser.rs`: 1 occurrences
-
-- Line 20: missing lifetime specifier: expected named lifetime parameter
-
 ## Detailed Warning Categorization
 
-### warning: ambiguous glob re-exports: the name `YieldClause` in the type namespace is first re-exported here
+### warning: unused import: `std::path::PathBuf`
 
-**Total Occurrences**: 48  
+**Total Occurrences**: 47  
 **Unique Files**: 14
 
 #### `crates\inversearch\src\config\mod.rs`: 18 occurrences
@@ -532,37 +522,36 @@
 - Line 11: unused imports: `YieldClause` and `YieldItem`
 - Line 14: unused import: `crate::core::types::FulltextSearchResult as CoreFulltextSearchResult`
 
-#### `src\query\validator\fulltext_validator.rs`: 2 occurrences
-
-- Line 11: unused import: `FulltextMatchCondition`
-- Line 14: unused import: `Validator`
-
 #### `src\sync\scheduler.rs`: 2 occurrences
 
 - Line 4: unused import: `BatchConfig`
 - Line 6: unused import: `crate::sync::task::SyncTask`
 
-#### `src\sync\queue.rs`: 1 occurrences
+#### `build.rs`: 1 occurrences
 
-- Line 2: unused import: `std::collections::VecDeque`
+- Line 6: unused import: `std::path::PathBuf`
 
 #### `src\query\executor\expression\functions\mod.rs`: 1 occurrences
 
 - Line 244: unused variable: `f`: help: if this is intentional, prefix it with an underscore: `_f`
 
-#### `src\sync\recovery.rs`: 1 occurrences
-
-- Line 2: unused import: `SyncState`
-
 #### `src\query\parser\parsing\fulltext_parser.rs`: 1 occurrences
 
 - Line 14: unused import: `Parser`
 
-#### `build.rs`: 1 occurrences
-
-- Line 6: unused import: `std::path::PathBuf`
-
 #### `src\query\parser\mod.rs`: 1 occurrences
 
 - Line 17: unused imports: `OrderDirection`, `YieldClause`, and `YieldItem`
+
+#### `src\sync\queue.rs`: 1 occurrences
+
+- Line 2: unused import: `std::collections::VecDeque`
+
+#### `src\sync\recovery.rs`: 1 occurrences
+
+- Line 2: unused import: `SyncState`
+
+#### `src\query\validator\fulltext_validator.rs`: 1 occurrences
+
+- Line 11: unused imports: `FulltextMatchCondition` and `ShowFulltextIndex`
 

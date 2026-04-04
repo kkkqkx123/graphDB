@@ -265,6 +265,10 @@ macro_rules! define_plan_node {
                 self.type_name()
             }
 
+            fn category(&self) -> $crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory {
+                $crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory::Access
+            }
+
             fn output_var(&self) -> Option<&str> {
                 self.output_var()
             }
@@ -406,6 +410,10 @@ macro_rules! define_plan_node {
 
             fn name(&self) -> &'static str {
                 self.type_name()
+            }
+
+            fn category(&self) -> $crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory {
+                $crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory::Access
             }
 
             fn output_var(&self) -> Option<&str> {

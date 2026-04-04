@@ -3,7 +3,7 @@
 //! Query planning for queries that handle the WITH statement
 
 use crate::core::YieldColumn;
-use crate::query::parser::ast::{ReturnItem, Stmt, WithStmt};
+use crate::query::parser::ast::stmt::{ReturnItem, Stmt, WithStmt, OrderDirection};
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
     nodes::{ArgumentNode, DedupNode, FilterNode, LimitNode, ProjectNode, SortNode},
@@ -124,10 +124,10 @@ impl Planner for WithPlanner {
                 .iter()
                 .map(|item| {
                     let direction = match item.direction {
-                        crate::query::parser::ast::OrderDirection::Asc => {
+                        OrderDirection::Asc => {
                             crate::core::types::graph_schema::OrderDirection::Asc
                         }
-                        crate::query::parser::ast::OrderDirection::Desc => {
+                        OrderDirection::Desc => {
                             crate::core::types::graph_schema::OrderDirection::Desc
                         }
                     };

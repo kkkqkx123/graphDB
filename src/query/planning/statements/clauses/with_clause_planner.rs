@@ -307,7 +307,17 @@ impl WithClausePlanner {
                     .items
                     .iter()
                     .enumerate()
-                    .map(|(idx, item)| (idx, item.direction))
+                    .map(|(idx, item)| {
+                        let direction = match item.direction {
+                            crate::core::types::OrderDirection::Asc => {
+                                crate::core::types::graph_schema::OrderDirection::Asc
+                            }
+                            crate::core::types::OrderDirection::Desc => {
+                                crate::core::types::graph_schema::OrderDirection::Desc
+                            }
+                        };
+                        (idx, direction)
+                    })
                     .collect(),
             });
 

@@ -10,6 +10,7 @@ use crate::core::Expression;
 use crate::define_plan_node;
 use crate::define_plan_node_with_deps;
 use crate::query::planning::plan::core::node_id_generator::next_node_id;
+use crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory;
 use crate::query::validator::context::ExpressionAnalysisContext;
 
 define_plan_node! {
@@ -95,6 +96,10 @@ impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode
 
     fn name(&self) -> &'static str {
         "ExpandAllNode"
+    }
+
+    fn category(&self) -> PlanNodeCategory {
+        PlanNodeCategory::Traversal
     }
 
     fn output_var(&self) -> Option<&str> {

@@ -9,7 +9,8 @@ use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::Expression;
 use crate::query::parser::ast::stmt::Ast;
-use crate::query::parser::ast::{Stmt, YieldItem};
+use crate::query::parser::ast::stmt::{Stmt, YieldItem as StmtYieldItem};
+use crate::query::parser::ast::fulltext::YieldItem as FulltextYieldItem;
 use crate::query::validator::structs::validation_info::{IndexHint, ValidationInfo};
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
@@ -140,7 +141,7 @@ impl LookupValidator {
     }
 
     /// Analyzing a single YIELD entry
-    fn parse_yield_item(&self, item: &YieldItem) -> Result<LookupYieldColumn, ValidationError> {
+    fn parse_yield_item(&self, item: &StmtYieldItem) -> Result<LookupYieldColumn, ValidationError> {
         let name = self.extract_column_name(&item.expression)?;
         Ok(LookupYieldColumn {
             name,

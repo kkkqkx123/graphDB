@@ -7,6 +7,7 @@ use std::sync::Arc;
 use crate::core::types::{ContextualExpression, SerializableExpression};
 use crate::define_plan_node;
 use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
+use crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory;
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
     PlanNode, PlanNodeClonable,
@@ -209,6 +210,10 @@ impl PlanNode for SelectNode {
 
     fn name(&self) -> &'static str {
         "Select"
+    }
+
+    fn category(&self) -> PlanNodeCategory {
+        PlanNodeCategory::ControlFlow
     }
 
     fn output_var(&self) -> Option<&str> {
@@ -415,6 +420,10 @@ impl PlanNode for LoopNode {
 
     fn name(&self) -> &'static str {
         "Loop"
+    }
+
+    fn category(&self) -> PlanNodeCategory {
+        PlanNodeCategory::ControlFlow
     }
 
     fn output_var(&self) -> Option<&str> {

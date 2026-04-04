@@ -5,10 +5,11 @@
 
 use crate::core::types::expr::{ContextualExpression, Expression};
 use crate::core::{NullType, Value};
-use crate::query::parser::ast::{
+use crate::query::parser::ast::stmt::{
     DeleteStmt, FetchStmt, FromClause, GoStmt, InsertStmt, LookupStmt, MatchStmt, Pattern,
     ReturnClause, ReturnItem, SetClause, Stmt, UpdateStmt, YieldClause,
 };
+use crate::query::parser::ast::stmt::OrderDirection;
 
 /// Parameterized results
 #[derive(Debug, Clone)]
@@ -350,8 +351,8 @@ impl TemplateExtractor {
                     let result = transformer.parameterize(&item.expression);
                     let expr_str = Self::expr_to_template_string(&result.expression);
                     let dir_str = match item.direction {
-                        crate::query::parser::ast::OrderDirection::Asc => "ASC",
-                        crate::query::parser::ast::OrderDirection::Desc => "DESC",
+                        OrderDirection::Asc => "ASC",
+                        OrderDirection::Desc => "DESC",
                     };
                     format!("{} {}", expr_str, dir_str)
                 })

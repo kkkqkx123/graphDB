@@ -5,6 +5,7 @@
 pub mod edge;
 pub mod fulltext_search;
 pub mod index;
+pub mod match_fulltext;
 pub mod neighbor;
 pub mod path;
 pub mod property;
@@ -14,6 +15,7 @@ pub mod vertex;
 pub use edge::{GetEdgesExecutor, ScanEdgesExecutor};
 pub use fulltext_search::{FulltextSearchExecutor, FulltextScanExecutor};
 pub use index::LookupIndexExecutor;
+pub use match_fulltext::MatchFulltextExecutor;
 pub use neighbor::GetNeighborsExecutor;
 pub use path::AllPathsExecutor;
 pub use property::GetPropExecutor;

@@ -139,3 +139,27 @@ impl fmt::Display for ValueType {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct FunctionSignature {
+    pub name: &'static str,
+    pub param_types: Vec<ValueType>,
+    pub return_type: Option<ValueType>,
+    pub is_variadic: bool,
+}
+
+impl FunctionSignature {
+    pub fn new(
+        name: &'static str,
+        param_types: Vec<ValueType>,
+        return_type: Option<ValueType>,
+        is_variadic: bool,
+    ) -> Self {
+        Self {
+            name,
+            param_types,
+            return_type,
+            is_variadic,
+        }
+    }
+}

@@ -3,6 +3,7 @@
 //! Provide functions for creating, deleting, describing, listing, reconstructing, and displaying the tag index and the edge index.
 
 pub mod edge_index;
+pub mod fulltext_index;
 pub mod rebuild_index;
 pub mod show_edge_index_status;
 pub mod show_tag_index_status;
@@ -23,3 +24,8 @@ pub use rebuild_index::{RebuildEdgeIndexExecutor, RebuildTagIndexExecutor};
 
 pub use show_edge_index_status::ShowEdgeIndexStatusExecutor;
 pub use show_tag_index_status::ShowTagIndexStatusExecutor;
+
+pub use fulltext_index::{
+    CreateFulltextIndexExecutor, DropFulltextIndexExecutor, AlterFulltextIndexExecutor,
+    ShowFulltextIndexExecutor, DescribeFulltextIndexExecutor,
+};

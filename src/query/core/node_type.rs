@@ -30,6 +30,8 @@ pub enum NodeCategory {
     Path,
     /// Managing Operational Nodes
     Admin,
+    /// Data Access Nodes (Full-text search, etc.)
+    DataAccess,
     /// Other types
     Other,
 }
@@ -50,6 +52,7 @@ impl NodeCategory {
             NodeCategory::SetOp => "SetOp",
             NodeCategory::Path => "Path",
             NodeCategory::Admin => "Admin",
+            NodeCategory::DataAccess => "DataAccess",
             NodeCategory::Other => "Other",
         }
     }

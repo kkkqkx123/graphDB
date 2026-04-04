@@ -92,6 +92,9 @@ macro_rules! define_plan_node_with_deps {
         impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode for $name {
             fn id(&self) -> i64 { self.id() }
             fn name(&self) -> &'static str { self.type_name() }
+            fn category(&self) -> $crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory {
+                $crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory::Operation
+            }
             fn output_var(&self) -> Option<&str> { self.output_var() }
             fn col_names(&self) -> &[String] { self.col_names() }
             fn set_output_var(&mut self, var: String) { self.set_output_var(var); }

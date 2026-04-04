@@ -4,38 +4,49 @@
 //! including SEARCH statements and full-text scan operations.
 
 use crate::core::Value;
-use crate::core::error::{QueryError, QueryErrorType};
-use crate::query::executor::Executor;
+use crate::core::error::QueryError;
+use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, HasStorage};
 use crate::query::executor::ExecutionContext;
-use crate::query::parser::ast::{
-    FulltextQueryExpr, SearchStatement, YieldClause, YieldExpression, YieldItem,
+use crate::query::parser::ast::fulltext::{
+    FulltextQueryExpr, SearchStatement, YieldExpression,
 };
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::search::{FulltextSearchResult, FulltextSearchEntry, SearchEngine};
 use crate::core::types::FulltextSearchResult as CoreFulltextSearchResult;
+use crate::storage::StorageClient;
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Full-text search executor
-pub struct FulltextSearchExecutor {
+pub struct FulltextSearchExecutor<S: StorageClient> {
+    /// Base executor
+    base: BaseExecutor<S>,
     /// Search statement
     statement: SearchStatement,
     /// Search engine reference
     engine: Arc<dyn SearchEngine>,
     /// Execution context
     context: ExecutionContext,
+    _phantom: std::marker::PhantomData<S>,
 }
 
-impl FulltextSearchExecutor {
+impl<S: StorageClient> FulltextSearchExecutor<S> {
     /// Create a new full-text search executor
     pub fn new(
+        id: i64,
         statement: SearchStatement,
         engine: Arc<dyn SearchEngine>,
         context: ExecutionContext,
+        storage: Arc<Mutex<S>>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
+            base: BaseExecutor::new(id, "FulltextSearchExecutor".to_string(), storage, expr_context),
             statement,
             engine,
             context,
+            _phantom: std::marker::PhantomData,
         }
     }
 
@@ -49,10 +60,7 @@ impl FulltextSearchExecutor {
         // Execute search
         let search_result = self.engine.search(&self.statement.index_name, search_query)
             .await
-            .map_err(|e| QueryError::new(
-                QueryErrorType::ExecutionError,
-                format!("Full-text search failed: {}", e),
-            ))?;
+            .map_err(|e| QueryError::ExecutionError(format!("Full-text search failed: {}", e)))?;
 
         let elapsed = start_time.elapsed();
 
@@ -267,20 +275,10 @@ impl FulltextSearchExecutor {
     }
 }
 
-impl Executor for FulltextSearchExecutor {
-    type Output = FulltextSearchResult;
-
-    async fn execute(&mut self) -> Result<Self::Output, QueryError> {
-        self.execute().await
-    }
-
-    fn reset(&mut self) {
-        // Reset executor state if needed
-    }
-}
-
 /// Full-text scan executor for LOOKUP operations
-pub struct FulltextScanExecutor {
+pub struct FulltextScanExecutor<S: StorageClient> {
+    /// Base executor
+    base: BaseExecutor<S>,
     /// Index name
     index_name: String,
     /// Search query
@@ -291,65 +289,118 @@ pub struct FulltextScanExecutor {
     context: ExecutionContext,
     /// Limit
     limit: Option<usize>,
+    _phantom: std::marker::PhantomData<S>,
 }
 
-impl FulltextScanExecutor {
+impl<S: StorageClient> FulltextScanExecutor<S> {
     /// Create a new full-text scan executor
     pub fn new(
+        id: i64,
         index_name: String,
         query: String,
         engine: Arc<dyn SearchEngine>,
         context: ExecutionContext,
+        storage: Arc<Mutex<S>>,
+        expr_context: Arc<ExpressionAnalysisContext>,
         limit: Option<usize>,
     ) -> Self {
         Self {
+            base: BaseExecutor::new(id, "FulltextScanExecutor".to_string(), storage, expr_context),
             index_name,
             query,
             engine,
             context,
             limit,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 
-impl Executor for FulltextScanExecutor {
-    type Output = FulltextSearchResult;
-
-    async fn execute(&mut self) -> Result<Self::Output, QueryError> {
-        let start_time = std::time::Instant::now();
-
-        // Create simple query
-        let search_query = crate::core::types::FulltextQuery::Simple(self.query.clone());
-
-        // Execute search
-        let search_result = self.engine.search(&self.index_name, search_query)
-            .await
-            .map_err(|e| QueryError::new(
-                QueryErrorType::ExecutionError,
-                format!("Full-text scan failed: {}", e),
-            ))?;
-
-        let elapsed = start_time.elapsed();
-
-        // Apply limit if specified
-        let mut result = FulltextSearchResult {
-            results: search_result.results,
-            total_hits: search_result.total_hits,
-            max_score: search_result.max_score,
-            took_ms: elapsed.as_millis() as u64,
-            timed_out: search_result.timed_out,
-            shards: None,
-        };
-
-        if let Some(limit) = self.limit {
-            result.results.truncate(limit);
-        }
-
-        Ok(result)
+impl<S: StorageClient> Executor<S> for FulltextSearchExecutor<S> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
+        Ok(ExecutionResult::Empty)
     }
 
-    fn reset(&mut self) {
-        // Reset executor state if needed
+    fn open(&mut self) -> DBResult<()> {
+        self.base.open()
+    }
+
+    fn close(&mut self) -> DBResult<()> {
+        self.base.close()
+    }
+
+    fn is_open(&self) -> bool {
+        self.base.is_open()
+    }
+
+    fn id(&self) -> i64 {
+        self.base.id()
+    }
+
+    fn name(&self) -> &str {
+        "FulltextSearchExecutor"
+    }
+
+    fn description(&self) -> &str {
+        "Fulltext Search Executor"
+    }
+
+    fn stats(&self) -> &ExecutorStats {
+        self.base.stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut ExecutorStats {
+        self.base.stats_mut()
+    }
+}
+
+impl<S: StorageClient> HasStorage<S> for FulltextSearchExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
+    }
+}
+
+impl<S: StorageClient> Executor<S> for FulltextScanExecutor<S> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
+        Ok(ExecutionResult::Empty)
+    }
+
+    fn open(&mut self) -> DBResult<()> {
+        self.base.open()
+    }
+
+    fn close(&mut self) -> DBResult<()> {
+        self.base.close()
+    }
+
+    fn is_open(&self) -> bool {
+        self.base.is_open()
+    }
+
+    fn id(&self) -> i64 {
+        self.base.id()
+    }
+
+    fn name(&self) -> &str {
+        "FulltextScanExecutor"
+    }
+
+    fn description(&self) -> &str {
+        "Fulltext Scan Executor"
+    }
+
+    fn stats(&self) -> &ExecutorStats {
+        self.base.stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut ExecutorStats {
+        self.base.stats_mut()
+    }
+}
+
+impl<S: StorageClient> HasStorage<S> for FulltextScanExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
     }
 }
 

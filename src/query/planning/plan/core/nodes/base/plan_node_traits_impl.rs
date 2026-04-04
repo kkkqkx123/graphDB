@@ -95,6 +95,14 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::Update(_) => "update",
             PlanNodeEnum::UpdateVertices(_) => "update_vertices",
             PlanNodeEnum::UpdateEdges(_) => "update_edges",
+            PlanNodeEnum::CreateFulltextIndex(_) => "create_fulltext_index",
+            PlanNodeEnum::DropFulltextIndex(_) => "drop_fulltext_index",
+            PlanNodeEnum::AlterFulltextIndex(_) => "alter_fulltext_index",
+            PlanNodeEnum::ShowFulltextIndex(_) => "show_fulltext_index",
+            PlanNodeEnum::DescribeFulltextIndex(_) => "describe_fulltext_index",
+            PlanNodeEnum::FulltextSearch(_) => "fulltext_search",
+            PlanNodeEnum::FulltextLookup(_) => "fulltext_lookup",
+            PlanNodeEnum::MatchFulltext(_) => "match_fulltext",
         }
     }
 
@@ -186,6 +194,14 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::Update(_) => "Update",
             PlanNodeEnum::UpdateVertices(_) => "Update Vertices",
             PlanNodeEnum::UpdateEdges(_) => "Update Edges",
+            PlanNodeEnum::CreateFulltextIndex(_) => "Create Fulltext Index",
+            PlanNodeEnum::DropFulltextIndex(_) => "Drop Fulltext Index",
+            PlanNodeEnum::AlterFulltextIndex(_) => "Alter Fulltext Index",
+            PlanNodeEnum::ShowFulltextIndex(_) => "Show Fulltext Index",
+            PlanNodeEnum::DescribeFulltextIndex(_) => "Describe Fulltext Index",
+            PlanNodeEnum::FulltextSearch(_) => "Fulltext Search",
+            PlanNodeEnum::FulltextLookup(_) => "Fulltext Lookup",
+            PlanNodeEnum::MatchFulltext(_) => "Match Fulltext",
         }
     }
 
@@ -277,6 +293,14 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::Update(_) => NodeCategory::Admin,
             PlanNodeEnum::UpdateVertices(_) => NodeCategory::Admin,
             PlanNodeEnum::UpdateEdges(_) => NodeCategory::Admin,
+            PlanNodeEnum::CreateFulltextIndex(_) => NodeCategory::Admin,
+            PlanNodeEnum::DropFulltextIndex(_) => NodeCategory::Admin,
+            PlanNodeEnum::AlterFulltextIndex(_) => NodeCategory::Admin,
+            PlanNodeEnum::ShowFulltextIndex(_) => NodeCategory::Admin,
+            PlanNodeEnum::DescribeFulltextIndex(_) => NodeCategory::Admin,
+            PlanNodeEnum::FulltextSearch(_) => NodeCategory::DataAccess,
+            PlanNodeEnum::FulltextLookup(_) => NodeCategory::DataAccess,
+            PlanNodeEnum::MatchFulltext(_) => NodeCategory::DataAccess,
         }
     }
 }
@@ -373,6 +397,14 @@ impl NodeTypeMapping for PlanNodeEnum {
             PlanNodeEnum::Update(_) => Some("update"),
             PlanNodeEnum::UpdateVertices(_) => Some("update_vertices"),
             PlanNodeEnum::UpdateEdges(_) => Some("update_edges"),
+            PlanNodeEnum::CreateFulltextIndex(_) => Some("create_fulltext_index"),
+            PlanNodeEnum::DropFulltextIndex(_) => Some("drop_fulltext_index"),
+            PlanNodeEnum::AlterFulltextIndex(_) => Some("alter_fulltext_index"),
+            PlanNodeEnum::ShowFulltextIndex(_) => Some("show_fulltext_index"),
+            PlanNodeEnum::DescribeFulltextIndex(_) => Some("describe_fulltext_index"),
+            PlanNodeEnum::FulltextSearch(_) => Some("fulltext_search"),
+            PlanNodeEnum::FulltextLookup(_) => Some("fulltext_lookup"),
+            PlanNodeEnum::MatchFulltext(_) => Some("match_fulltext"),
         }
     }
 }

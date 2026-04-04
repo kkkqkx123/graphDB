@@ -1,12 +1,12 @@
-//! Full-Text Search Parser
+//! Full-Text Parser
 //!
 //! This module implements the parser for full-text search SQL statements,
 //! including CREATE FULLTEXT INDEX, SEARCH, and related queries.
 
-use crate::query::parser::ast::{
+use crate::query::parser::ast::fulltext::{
     AlterFulltextIndex, AlterIndexAction, CreateFulltextIndex, DescribeFulltextIndex,
     DropFulltextIndex, FulltextMatchCondition, FulltextQueryExpr, IndexFieldDef, IndexOptions,
-    LookupFulltext, MatchFulltext, OrderClause, OrderDirection, OrderItem, SearchStatement,
+    LookupFulltext, MatchFulltext, OrderClause, FulltextOrderDirection, OrderItem, SearchStatement,
     ShowFulltextIndex, WhereClause, WhereCondition, YieldClause, YieldExpression, YieldItem,
     BM25Options, InversearchOptions,
 };
@@ -17,7 +17,7 @@ use crate::core::Value;
 
 /// Full-text search parser
 pub struct FulltextParser<'a> {
-    ctx: &'a mut ParseContext,
+    ctx: &'a mut ParseContext<'a>,
 }
 
 impl<'a> FulltextParser<'a> {
@@ -428,8 +428,8 @@ impl<'a> FulltextParser<'a> {
     /// Parse WHERE clause
     fn parse_where_clause(&mut self) -> Result<WhereClause, crate::query::parser::ParseError> {
         let condition = self.parse_where_condition()?;
-        Ok(WhereClause { condition: crate::query::parser::ast::ContextualExpression::new(
-            crate::query::parser::ast::Expression::Boolean(true),
+        Ok(WhereClause { condition: crate::core::types::expr::contextual::ContextualExpression::new(
+            crate::core::Expression::Boolean(true),
             crate::query::parser::ast::Span::default(),
         )})
     }
@@ -468,7 +468,7 @@ impl<'a> FulltextParser<'a> {
             Ok(crate::query::parser::ast::ComparisonOp::Ge)
         } else {
             Err(crate::query::parser::ParseError::new(
-                crate::query::parser::ParseErrorType::SyntaxError,
+                crate::query::parser::core::error::ParseErrorKind::SyntaxError,
                 "Expected comparison operator".to_string(),
             ))
         }
@@ -482,12 +482,12 @@ impl<'a> FulltextParser<'a> {
             let expr = self.ctx.consume_identifier()?;
             let order = if self.ctx.check_keyword("ASC") {
                 self.ctx.consume_keyword("ASC")?;
-                OrderDirection::Asc
+                FulltextOrderDirection::Asc
             } else if self.ctx.check_keyword("DESC") {
                 self.ctx.consume_keyword("DESC")?;
-                OrderDirection::Desc
+                FulltextOrderDirection::Desc
             } else {
-                OrderDirection::Asc
+                FulltextOrderDirection::Asc
             };
 
             items.push(OrderItem { expr, order });

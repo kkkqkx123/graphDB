@@ -21,6 +21,8 @@ pub enum PlanNodeCategory {
     Algorithm,
     /// Management/DDL Layer – Metadata Management
     Management,
+    /// Data Access Layer – Full-text search and other data access operations
+    DataAccess,
 }
 
 impl PlanNodeCategory {
@@ -35,6 +37,7 @@ impl PlanNodeCategory {
             PlanNodeCategory::DataProcessing => "DataProcessing",
             PlanNodeCategory::Algorithm => "Algorithm",
             PlanNodeCategory::Management => "Management",
+            PlanNodeCategory::DataAccess => "DataAccess",
         }
     }
 
@@ -49,12 +52,13 @@ impl PlanNodeCategory {
             PlanNodeCategory::DataProcessing => "数据处理层 - 复杂数据操作",
             PlanNodeCategory::Algorithm => "算法层 - 图算法执行",
             PlanNodeCategory::Management => "管理/DDL层 - 元数据管理",
+            PlanNodeCategory::DataAccess => "数据访问层 - 全文搜索等数据访问操作",
         }
     }
 
     /// Determine whether it is a leaf node (with no data dependencies).
     pub fn is_leaf(&self) -> bool {
-        matches!(self, PlanNodeCategory::Access)
+        matches!(self, PlanNodeCategory::Access | PlanNodeCategory::DataAccess)
     }
 
     /// Determine whether it is a root node (with no downstream dependencies).

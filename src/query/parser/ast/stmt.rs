@@ -4,8 +4,9 @@
 
 use std::sync::Arc;
 
-use super::pattern::*;
-use super::types::*;
+pub use super::pattern::*;
+pub use super::types::*;
+pub use super::fulltext::*;
 use crate::core::types::expr::analysis_utils::collect_variables_from_contextual;
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::PropertyDef;
@@ -44,7 +45,7 @@ impl Ast {
 }
 
 /// Statement Enumeration – All database operation statements for graph databases
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Stmt {
     Query(QueryStmt),
     Create(CreateStmt),
@@ -656,7 +657,7 @@ pub struct OrderByClause {
 #[derive(Debug, Clone, PartialEq)]
 pub struct OrderByItem {
     pub expression: ContextualExpression,
-    pub direction: OrderDirection,
+    pub direction: crate::core::types::OrderDirection,
 }
 
 /// The DELETE statement

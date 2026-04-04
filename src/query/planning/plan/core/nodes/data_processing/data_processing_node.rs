@@ -5,6 +5,7 @@
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::define_plan_node_with_deps;
 use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
+use crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory;
 
 define_plan_node_with_deps! {
     pub struct UnionNode {
@@ -321,6 +322,10 @@ impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode
         self.type_name()
     }
 
+    fn category(&self) -> PlanNodeCategory {
+        PlanNodeCategory::DataProcessing
+    }
+
     fn output_var(&self) -> Option<&str> {
         self.output_var()
     }
@@ -622,6 +627,10 @@ impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode
 
     fn name(&self) -> &'static str {
         self.type_name()
+    }
+
+    fn category(&self) -> PlanNodeCategory {
+        PlanNodeCategory::DataProcessing
     }
 
     fn output_var(&self) -> Option<&str> {
@@ -929,6 +938,10 @@ impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode
 
     fn name(&self) -> &'static str {
         "RemoveNode"
+    }
+
+    fn category(&self) -> PlanNodeCategory {
+        PlanNodeCategory::DataProcessing
     }
 
     fn output_var(&self) -> Option<&str> {

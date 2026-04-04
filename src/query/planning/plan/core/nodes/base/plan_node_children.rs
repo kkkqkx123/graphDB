@@ -170,6 +170,15 @@ impl PlanNodeEnum {
                 }
                 children
             }
+            // Fulltext nodes - ZeroInputNode
+            PlanNodeEnum::CreateFulltextIndex(_) => vec![],
+            PlanNodeEnum::DropFulltextIndex(_) => vec![],
+            PlanNodeEnum::AlterFulltextIndex(_) => vec![],
+            PlanNodeEnum::ShowFulltextIndex(_) => vec![],
+            PlanNodeEnum::DescribeFulltextIndex(_) => vec![],
+            PlanNodeEnum::FulltextSearch(_) => vec![],
+            PlanNodeEnum::FulltextLookup(_) => vec![],
+            PlanNodeEnum::MatchFulltext(_) => vec![],
         }
     }
 }

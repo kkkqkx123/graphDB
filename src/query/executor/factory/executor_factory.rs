@@ -597,7 +597,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     fn build_fulltext_search(
         &mut self,
         node: &crate::query::planning::plan::core::nodes::FulltextSearchNode,
-        _storage: Arc<Mutex<S>>,
+        storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::data_access::FulltextSearchExecutor;
@@ -614,9 +614,12 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         };
 
         let executor = FulltextSearchExecutor::new(
+            node.id(),
             statement,
             context.search_engine(),
             context.clone(),
+            storage,
+            context.expression_context().clone(),
         );
         Ok(ExecutorEnum::FulltextSearch(executor))
     }
@@ -624,16 +627,19 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     fn build_fulltext_lookup(
         &mut self,
         node: &crate::query::planning::plan::core::nodes::FulltextLookupNode,
-        _storage: Arc<Mutex<S>>,
+        storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::data_access::FulltextScanExecutor;
 
         let executor = FulltextScanExecutor::new(
+            node.id(),
             node.index_name.clone(),
             node.query.clone(),
             context.search_engine(),
             context.clone(),
+            storage,
+            context.expression_context().clone(),
             node.limit,
         );
         Ok(ExecutorEnum::FulltextLookup(executor))

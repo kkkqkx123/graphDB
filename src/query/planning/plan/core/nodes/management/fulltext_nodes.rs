@@ -3,7 +3,7 @@
 //! This module defines plan nodes for full-text search operations.
 
 use crate::core::types::FulltextEngineType;
-use crate::query::parser::ast::{
+use crate::query::parser::ast::fulltext::{
     AlterIndexAction, FulltextMatchCondition, FulltextQueryExpr, IndexFieldDef, IndexOptions,
     OrderClause, WhereClause, YieldClause,
 };
@@ -54,6 +54,22 @@ impl PlanNode for CreateFulltextIndexNode {
     fn category(&self) -> PlanNodeCategory {
         PlanNodeCategory::Management
     }
+
+    fn output_var(&self) -> Option<&str> {
+        None
+    }
+
+    fn col_names(&self) -> &[String] {
+        &[]
+    }
+
+    fn set_output_var(&mut self, _var: String) {}
+
+    fn set_col_names(&mut self, _names: Vec<String>) {}
+
+    fn into_enum(self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::CreateFulltextIndex(self)
+    }
 }
 
 impl ZeroInputNode for CreateFulltextIndexNode {}
@@ -85,6 +101,22 @@ impl PlanNode for DropFulltextIndexNode {
 
     fn category(&self) -> PlanNodeCategory {
         PlanNodeCategory::Management
+    }
+
+    fn output_var(&self) -> Option<&str> {
+        None
+    }
+
+    fn col_names(&self) -> &[String] {
+        &[]
+    }
+
+    fn set_output_var(&mut self, _var: String) {}
+
+    fn set_col_names(&mut self, _names: Vec<String>) {}
+
+    fn into_enum(self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::DropFulltextIndex(self)
     }
 }
 
@@ -118,6 +150,22 @@ impl PlanNode for AlterFulltextIndexNode {
     fn category(&self) -> PlanNodeCategory {
         PlanNodeCategory::Management
     }
+
+    fn output_var(&self) -> Option<&str> {
+        None
+    }
+
+    fn col_names(&self) -> &[String] {
+        &[]
+    }
+
+    fn set_output_var(&mut self, _var: String) {}
+
+    fn set_col_names(&mut self, _names: Vec<String>) {}
+
+    fn into_enum(self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::AlterFulltextIndex(self)
+    }
 }
 
 impl ZeroInputNode for AlterFulltextIndexNode {}
@@ -150,6 +198,22 @@ impl PlanNode for ShowFulltextIndexNode {
     fn category(&self) -> PlanNodeCategory {
         PlanNodeCategory::Management
     }
+
+    fn output_var(&self) -> Option<&str> {
+        None
+    }
+
+    fn col_names(&self) -> &[String] {
+        &[]
+    }
+
+    fn set_output_var(&mut self, _var: String) {}
+
+    fn set_col_names(&mut self, _names: Vec<String>) {}
+
+    fn into_enum(self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::ShowFulltextIndex(self)
+    }
 }
 
 impl ZeroInputNode for ShowFulltextIndexNode {}
@@ -178,6 +242,22 @@ impl PlanNode for DescribeFulltextIndexNode {
     fn category(&self) -> PlanNodeCategory {
         PlanNodeCategory::Management
     }
+
+    fn output_var(&self) -> Option<&str> {
+        None
+    }
+
+    fn col_names(&self) -> &[String] {
+        &[]
+    }
+
+    fn set_output_var(&mut self, _var: String) {}
+
+    fn set_col_names(&mut self, _names: Vec<String>) {}
+
+    fn into_enum(self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::DescribeFulltextIndex(self)
+    }
 }
 
 impl ZeroInputNode for DescribeFulltextIndexNode {}
@@ -185,6 +265,7 @@ impl ZeroInputNode for DescribeFulltextIndexNode {}
 /// Full-text search plan node (SEARCH statement)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FulltextSearchNode {
+    id: i64,
     pub index_name: String,
     pub query: FulltextQueryExpr,
     pub yield_clause: Option<YieldClause>,
@@ -204,7 +285,9 @@ impl FulltextSearchNode {
         limit: Option<usize>,
         offset: Option<usize>,
     ) -> Self {
+        use crate::query::planning::plan::core::node_id_generator::next_node_id;
         Self {
+            id: next_node_id(),
             index_name,
             query,
             yield_clause,
@@ -214,11 +297,15 @@ impl FulltextSearchNode {
             offset,
         }
     }
+
+    pub fn id(&self) -> i64 {
+        self.id
+    }
 }
 
 impl PlanNode for FulltextSearchNode {
     fn id(&self) -> i64 {
-        0
+        self.id
     }
 
     fn name(&self) -> &'static str {
@@ -228,6 +315,22 @@ impl PlanNode for FulltextSearchNode {
     fn category(&self) -> PlanNodeCategory {
         PlanNodeCategory::DataAccess
     }
+
+    fn output_var(&self) -> Option<&str> {
+        None
+    }
+
+    fn col_names(&self) -> &[String] {
+        &[]
+    }
+
+    fn set_output_var(&mut self, _var: String) {}
+
+    fn set_col_names(&mut self, _names: Vec<String>) {}
+
+    fn into_enum(self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::FulltextSearch(self)
+    }
 }
 
 impl ZeroInputNode for FulltextSearchNode {}
@@ -235,6 +338,7 @@ impl ZeroInputNode for FulltextSearchNode {}
 /// Full-text lookup plan node (LOOKUP FULLTEXT statement)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FulltextLookupNode {
+    id: i64,
     pub schema_name: String,
     pub index_name: String,
     pub query: String,
@@ -250,7 +354,9 @@ impl FulltextLookupNode {
         yield_clause: Option<YieldClause>,
         limit: Option<usize>,
     ) -> Self {
+        use crate::query::planning::plan::core::node_id_generator::next_node_id;
         Self {
+            id: next_node_id(),
             schema_name,
             index_name,
             query,
@@ -258,11 +364,15 @@ impl FulltextLookupNode {
             limit,
         }
     }
+
+    pub fn id(&self) -> i64 {
+        self.id
+    }
 }
 
 impl PlanNode for FulltextLookupNode {
     fn id(&self) -> i64 {
-        0
+        self.id
     }
 
     fn name(&self) -> &'static str {
@@ -271,6 +381,22 @@ impl PlanNode for FulltextLookupNode {
 
     fn category(&self) -> PlanNodeCategory {
         PlanNodeCategory::DataAccess
+    }
+
+    fn output_var(&self) -> Option<&str> {
+        None
+    }
+
+    fn col_names(&self) -> &[String] {
+        &[]
+    }
+
+    fn set_output_var(&mut self, _var: String) {}
+
+    fn set_col_names(&mut self, _names: Vec<String>) {}
+
+    fn into_enum(self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::FulltextLookup(self)
     }
 }
 
@@ -309,6 +435,22 @@ impl PlanNode for MatchFulltextNode {
 
     fn category(&self) -> PlanNodeCategory {
         PlanNodeCategory::DataAccess
+    }
+
+    fn output_var(&self) -> Option<&str> {
+        None
+    }
+
+    fn col_names(&self) -> &[String] {
+        &[]
+    }
+
+    fn set_output_var(&mut self, _var: String) {}
+
+    fn set_col_names(&mut self, _names: Vec<String>) {}
+
+    fn into_enum(self) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::MatchFulltext(self)
     }
 }
 

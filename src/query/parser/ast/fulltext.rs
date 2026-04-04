@@ -3,6 +3,7 @@
 //! This module defines the Abstract Syntax Tree (AST) nodes for full-text search queries,
 //! including CREATE FULLTEXT INDEX, SEARCH, and related statements.
 
+use crate::core::types::span::Span;
 use crate::core::types::FulltextEngineType;
 use crate::core::Value;
 use bincode::{Decode, Encode};
@@ -16,6 +17,7 @@ use std::collections::HashMap;
 /// CREATE FULLTEXT INDEX statement
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct CreateFulltextIndex {
+    pub span: Span,
     pub index_name: String,
     pub schema_name: String,
     pub fields: Vec<IndexFieldDef>,
@@ -64,6 +66,7 @@ pub struct InversearchOptions {
 /// DROP FULLTEXT INDEX statement
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct DropFulltextIndex {
+    pub span: Span,
     pub index_name: String,
     pub if_exists: bool,
 }
@@ -71,6 +74,7 @@ pub struct DropFulltextIndex {
 /// ALTER FULLTEXT INDEX statement
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct AlterFulltextIndex {
+    pub span: Span,
     pub index_name: String,
     pub actions: Vec<AlterIndexAction>,
 }
@@ -88,6 +92,7 @@ pub enum AlterIndexAction {
 /// SHOW FULLTEXT INDEX statement
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct ShowFulltextIndex {
+    pub span: Span,
     pub pattern: Option<String>,
     pub from_schema: Option<String>,
 }
@@ -95,6 +100,7 @@ pub struct ShowFulltextIndex {
 /// DESCRIBE FULLTEXT INDEX statement
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct DescribeFulltextIndex {
+    pub span: Span,
     pub index_name: String,
 }
 
@@ -105,6 +111,7 @@ pub struct DescribeFulltextIndex {
 /// SEARCH statement
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct SearchStatement {
+    pub span: Span,
     pub index_name: String,
     pub query: FulltextQueryExpr,
     pub yield_clause: Option<YieldClause>,
@@ -234,12 +241,12 @@ pub struct OrderClause {
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct OrderItem {
     pub expr: String,
-    pub order: OrderDirection,
+    pub order: FulltextOrderDirection,
 }
 
 /// Order direction
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
-pub enum OrderDirection {
+pub enum FulltextOrderDirection {
     #[serde(rename = "asc")]
     Asc,
     #[serde(rename = "desc")]
@@ -253,6 +260,7 @@ pub enum OrderDirection {
 /// MATCH with full-text search
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct MatchFulltext {
+    pub span: Span,
     pub pattern: String,
     pub fulltext_condition: FulltextMatchCondition,
     pub yield_clause: Option<YieldClause>,
@@ -269,6 +277,7 @@ pub struct FulltextMatchCondition {
 /// LOOKUP with full-text search
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct LookupFulltext {
+    pub span: Span,
     pub schema_name: String,
     pub index_name: String,
     pub query: String,
@@ -282,12 +291,14 @@ pub struct LookupFulltext {
 
 impl CreateFulltextIndex {
     pub fn new(
+        span: Span,
         index_name: String,
         schema_name: String,
         fields: Vec<IndexFieldDef>,
         engine_type: FulltextEngineType,
     ) -> Self {
         Self {
+            span,
             index_name,
             schema_name,
             fields,
@@ -318,8 +329,9 @@ impl CreateFulltextIndex {
 }
 
 impl SearchStatement {
-    pub fn new(index_name: String, query: FulltextQueryExpr) -> Self {
+    pub fn new(span: Span, index_name: String, query: FulltextQueryExpr) -> Self {
         Self {
+            span,
             index_name,
             query,
             yield_clause: None,

@@ -48,6 +48,7 @@ use crate::query::validator::statements::merge_validator::MergeValidator;
 use crate::query::validator::statements::remove_validator::RemoveValidator;
 use crate::query::validator::statements::set_validator::SetValidator;
 use crate::query::validator::statements::unwind_validator::UnwindValidator;
+use crate::query::validator::fulltext_validator::FulltextValidator;
 use crate::query::validator::statements::update_validator::UpdateValidator;
 use crate::query::validator::utility::acl_validator::{
     AlterUserValidator, ChangePasswordValidator, CreateUserValidator, DescribeUserValidator,
@@ -188,22 +189,8 @@ pub enum Validator {
     ClearSpace(ClearSpaceValidator),
 
     // Full-text Search validators
-    /// CREATE FULLTEXT INDEX statement validator
-    CreateFulltextIndex(CreateFulltextIndexValidator),
-    /// DROP FULLTEXT INDEX statement validator
-    DropFulltextIndex(DropFulltextIndexValidator),
-    /// ALTER FULLTEXT INDEX statement validator
-    AlterFulltextIndex(AlterFulltextIndexValidator),
-    /// SHOW FULLTEXT INDEX statement validator
-    ShowFulltextIndex(ShowFulltextIndexValidator),
-    /// DESCRIBE FULLTEXT INDEX statement validator
-    DescribeFulltextIndex(DescribeFulltextIndexValidator),
-    /// SEARCH statement validator
-    Search(SearchValidator),
-    /// LOOKUP FULLTEXT statement validator
-    LookupFulltext(LookupFulltextValidator),
-    /// MATCH FULLTEXT statement validator
-    MatchFulltext(MatchFulltextValidator),
+    /// Full-text search statement validator
+    Fulltext(FulltextValidator),
 }
 
 impl Validator {
@@ -264,15 +251,7 @@ impl Validator {
             Validator::Profile(v) => v.statement_type(),
             Validator::UpdateConfig(v) => v.statement_type(),
             Validator::ClearSpace(v) => v.statement_type(),
-            // Full-text Search validators
-            Validator::CreateFulltextIndex(v) => v.statement_type(),
-            Validator::DropFulltextIndex(v) => v.statement_type(),
-            Validator::AlterFulltextIndex(v) => v.statement_type(),
-            Validator::ShowFulltextIndex(v) => v.statement_type(),
-            Validator::DescribeFulltextIndex(v) => v.statement_type(),
-            Validator::Search(v) => v.statement_type(),
-            Validator::LookupFulltext(v) => v.statement_type(),
-            Validator::MatchFulltext(v) => v.statement_type(),
+            Validator::Fulltext(v) => v.statement_type(),
         }
     }
 
@@ -441,15 +420,9 @@ impl Validator {
             Validator::ClearSpace(v) => v
                 .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            // Full-text Search validators - placeholder implementations
-            Validator::CreateFulltextIndex(_) => ValidationResult::success(vec![], vec![]),
-            Validator::DropFulltextIndex(_) => ValidationResult::success(vec![], vec![]),
-            Validator::AlterFulltextIndex(_) => ValidationResult::success(vec![], vec![]),
-            Validator::ShowFulltextIndex(_) => ValidationResult::success(vec![], vec![]),
-            Validator::DescribeFulltextIndex(_) => ValidationResult::success(vec![], vec![]),
-            Validator::Search(_) => ValidationResult::success(vec![], vec![]),
-            Validator::LookupFulltext(_) => ValidationResult::success(vec![], vec![]),
-            Validator::MatchFulltext(_) => ValidationResult::success(vec![], vec![]),
+            Validator::Fulltext(v) => v
+                .validate(ast, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
         }
     }
 
@@ -510,15 +483,7 @@ impl Validator {
             Validator::Profile(v) => v.inputs().to_vec(),
             Validator::UpdateConfig(v) => v.inputs().to_vec(),
             Validator::ClearSpace(v) => v.inputs().to_vec(),
-            // Full-text Search validators - placeholder implementations
-            Validator::CreateFulltextIndex(_) => vec![],
-            Validator::DropFulltextIndex(_) => vec![],
-            Validator::AlterFulltextIndex(_) => vec![],
-            Validator::ShowFulltextIndex(_) => vec![],
-            Validator::DescribeFulltextIndex(_) => vec![],
-            Validator::Search(_) => vec![],
-            Validator::LookupFulltext(_) => vec![],
-            Validator::MatchFulltext(_) => vec![],
+            Validator::Fulltext(v) => v.inputs().to_vec(),
         }
     }
 
@@ -579,15 +544,7 @@ impl Validator {
             Validator::Profile(v) => v.outputs().to_vec(),
             Validator::UpdateConfig(v) => v.outputs().to_vec(),
             Validator::ClearSpace(v) => v.outputs().to_vec(),
-            // Full-text Search validators - placeholder implementations
-            Validator::CreateFulltextIndex(_) => vec![],
-            Validator::DropFulltextIndex(_) => vec![],
-            Validator::AlterFulltextIndex(_) => vec![],
-            Validator::ShowFulltextIndex(_) => vec![],
-            Validator::DescribeFulltextIndex(_) => vec![],
-            Validator::Search(_) => vec![],
-            Validator::LookupFulltext(_) => vec![],
-            Validator::MatchFulltext(_) => vec![],
+            Validator::Fulltext(v) => v.outputs().to_vec(),
         }
     }
 }
@@ -766,15 +723,14 @@ impl Validator {
             StatementType::Profile => Validator::Profile(ProfileValidator::new()),
             StatementType::UpdateConfigs => Validator::UpdateConfig(UpdateConfigsValidator::new()),
             StatementType::ClearSpace => Validator::ClearSpace(ClearSpaceValidator::new()),
-            // Full-text Search statements
-            StatementType::CreateFulltextIndex => Validator::CreateFulltextIndex(CreateFulltextIndexValidator::new()),
-            StatementType::DropFulltextIndex => Validator::DropFulltextIndex(DropFulltextIndexValidator::new()),
-            StatementType::AlterFulltextIndex => Validator::AlterFulltextIndex(AlterFulltextIndexValidator::new()),
-            StatementType::ShowFulltextIndex => Validator::ShowFulltextIndex(ShowFulltextIndexValidator::new()),
-            StatementType::DescribeFulltextIndex => Validator::DescribeFulltextIndex(DescribeFulltextIndexValidator::new()),
-            StatementType::Search => Validator::Search(SearchValidator::new()),
-            StatementType::LookupFulltext => Validator::LookupFulltext(LookupFulltextValidator::new()),
-            StatementType::MatchFulltext => Validator::MatchFulltext(MatchFulltextValidator::new()),
+            StatementType::CreateFulltextIndex
+            | StatementType::DropFulltextIndex
+            | StatementType::AlterFulltextIndex
+            | StatementType::ShowFulltextIndex
+            | StatementType::DescribeFulltextIndex
+            | StatementType::Search
+            | StatementType::LookupFulltext
+            | StatementType::MatchFulltext => Validator::Fulltext(FulltextValidator::new()),
             StatementType::DropSpace
             | StatementType::DropTag
             | StatementType::DropEdge
@@ -846,15 +802,7 @@ impl Validator {
             Validator::Profile(v) => v.user_defined_vars(),
             Validator::UpdateConfig(v) => v.user_defined_vars(),
             Validator::ClearSpace(v) => v.user_defined_vars(),
-            // Full-text Search validators - placeholder implementations
-            Validator::CreateFulltextIndex(_) => &[],
-            Validator::DropFulltextIndex(_) => &[],
-            Validator::AlterFulltextIndex(_) => &[],
-            Validator::ShowFulltextIndex(_) => &[],
-            Validator::DescribeFulltextIndex(_) => &[],
-            Validator::Search(_) => &[],
-            Validator::LookupFulltext(_) => &[],
-            Validator::MatchFulltext(_) => &[],
+            Validator::Fulltext(v) => v.user_defined_vars(),
         }
     }
 
@@ -920,15 +868,7 @@ impl Validator {
             Validator::Profile(v) => v.expression_props(),
             Validator::UpdateConfig(v) => v.expression_props(),
             Validator::ClearSpace(v) => v.expression_props(),
-            // Full-text Search validators - placeholder implementations
-            Validator::CreateFulltextIndex(_) => ExpressionProps::default(),
-            Validator::DropFulltextIndex(_) => ExpressionProps::default(),
-            Validator::AlterFulltextIndex(_) => ExpressionProps::default(),
-            Validator::ShowFulltextIndex(_) => ExpressionProps::default(),
-            Validator::DescribeFulltextIndex(_) => ExpressionProps::default(),
-            Validator::Search(_) => ExpressionProps::default(),
-            Validator::LookupFulltext(_) => ExpressionProps::default(),
-            Validator::MatchFulltext(_) => ExpressionProps::default(),
+            Validator::Fulltext(v) => v.expression_props(),
         }
     }
 }

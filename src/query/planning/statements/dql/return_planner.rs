@@ -3,7 +3,7 @@
 //! Query planning for statements that handle the RETURN command
 
 use crate::core::YieldColumn;
-use crate::query::parser::ast::{ReturnItem, ReturnStmt, Stmt};
+use crate::query::parser::ast::stmt::{ReturnItem, ReturnStmt, Stmt, OrderDirection};
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
     nodes::{ArgumentNode, DedupNode, LimitNode, ProjectNode, SortNode},
@@ -112,10 +112,10 @@ impl Planner for ReturnPlanner {
                 .iter()
                 .map(|item| {
                     let direction = match item.direction {
-                        crate::query::parser::ast::OrderDirection::Asc => {
+                        OrderDirection::Asc => {
                             crate::core::types::graph_schema::OrderDirection::Asc
                         }
-                        crate::query::parser::ast::OrderDirection::Desc => {
+                        OrderDirection::Desc => {
                             crate::core::types::graph_schema::OrderDirection::Desc
                         }
                     };

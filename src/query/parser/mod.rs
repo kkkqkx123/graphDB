@@ -12,11 +12,12 @@ pub mod parsing;
 pub use crate::core::types::{Position, Span};
 pub use core::{ParseError, ParseErrors, Token, TokenKind};
 
-// Re-export the types from the AST
-pub use ast::{
-    LimitClause, OrderByClause, OrderByItem, OrderDirection, SampleClause, SetClause, SkipClause,
-    Steps, YieldClause, YieldItem,
-};
+// Re-export types
+pub use crate::core::types::OrderDirection;
+pub use crate::core::types::EdgeDirection;
+
+// Re-export commonly used types from ast
+pub use ast::stmt::OrderByItem;
 
 // Re-export the parser
 pub use parsing::ExprParser;

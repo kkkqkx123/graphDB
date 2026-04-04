@@ -11,6 +11,7 @@ use crate::core::Value;
 use crate::query::executor::expression::functions::global_registry_ref;
 use crate::query::executor::expression::functions::OwnedFunctionRef;
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::search::SearchEngine;
 
 /// Execution Context
 ///
@@ -23,6 +24,8 @@ pub struct ExecutionContext {
     pub variables: Arc<Mutex<HashMap<String, crate::core::Value>>>,
     /// Expression context, used for sharing expression information and caching across different stages.
     pub expression_context: Arc<ExpressionAnalysisContext>,
+    /// Search engine for full-text search
+    pub search_engine: Option<Arc<dyn SearchEngine>>,
 }
 
 impl ExecutionContext {
@@ -32,6 +35,20 @@ impl ExecutionContext {
             results: Arc::new(Mutex::new(HashMap::new())),
             variables: Arc::new(Mutex::new(HashMap::new())),
             expression_context,
+            search_engine: None,
+        }
+    }
+
+    /// Create a new execution context with search engine.
+    pub fn with_search_engine(
+        expression_context: Arc<ExpressionAnalysisContext>,
+        search_engine: Arc<dyn SearchEngine>,
+    ) -> Self {
+        Self {
+            results: Arc::new(Mutex::new(HashMap::new())),
+            variables: Arc::new(Mutex::new(HashMap::new())),
+            expression_context,
+            search_engine: Some(search_engine),
         }
     }
 
@@ -59,6 +76,11 @@ impl ExecutionContext {
     pub fn expression_context(&self) -> &Arc<ExpressionAnalysisContext> {
         &self.expression_context
     }
+
+    /// Obtain the search engine.
+    pub fn search_engine(&self) -> Option<&Arc<dyn SearchEngine>> {
+        self.search_engine.as_ref()
+    }
 }
 
 impl Default for ExecutionContext {
@@ -68,6 +90,7 @@ impl Default for ExecutionContext {
             results: Arc::new(Mutex::new(HashMap::new())),
             variables: Arc::new(Mutex::new(HashMap::new())),
             expression_context: Arc::new(ExpressionAnalysisContext::new()),
+            search_engine: None,
         }
     }
 }

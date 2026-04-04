@@ -16,6 +16,11 @@ use crate::query::planning::plan::core::nodes::data_modification::{
 use crate::query::planning::plan::core::nodes::management::edge_nodes::{
     AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
 };
+use crate::query::planning::plan::core::nodes::management::fulltext_nodes::{
+    AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
+    DropFulltextIndexNode, FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
+    ShowFulltextIndexNode,
+};
 use crate::query::planning::plan::core::nodes::management::index_nodes::{
     CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,
     DropEdgeIndexNode, DropTagIndexNode, RebuildEdgeIndexNode, RebuildTagIndexNode,
@@ -878,6 +883,15 @@ crate::define_enum_describe! {
     (UpdateEdges, "UpdateEdges"),
     // Statistical node
     (ShowStats, "ShowStats"),
+    // Management Node – Fulltext
+    (CreateFulltextIndex, "CreateFulltextIndex"),
+    (DropFulltextIndex, "DropFulltextIndex"),
+    (AlterFulltextIndex, "AlterFulltextIndex"),
+    (ShowFulltextIndex, "ShowFulltextIndex"),
+    (DescribeFulltextIndex, "DescribeFulltextIndex"),
+    (FulltextSearch, "FulltextSearch"),
+    (FulltextLookup, "FulltextLookup"),
+    (MatchFulltext, "MatchFulltext"),
     // Show Create Tag node
     (ShowCreateTag, "ShowCreateTag"),
 }
@@ -1121,6 +1135,11 @@ impl PlanNodeEnum {
             PlanNodeEnum::Update(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::UpdateVertices(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::UpdateEdges(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::CreateFulltextIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DropFulltextIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::AlterFulltextIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::ShowFulltextIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DescribeFulltextIndex(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::IndexScan(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::ScanVertices(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::ScanEdges(node) => base_size + estimate_node_memory(node),
@@ -1362,6 +1381,11 @@ impl PlanNodeEnum {
             PlanNodeEnum::Update(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::UpdateVertices(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::UpdateEdges(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::CreateFulltextIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DropFulltextIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::AlterFulltextIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::ShowFulltextIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DescribeFulltextIndex(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::IndexScan(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::ScanVertices(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::ScanEdges(node) => base_size + estimate_node_memory(node),
@@ -1570,6 +1594,14 @@ impl PlanNodeEnum {
                 }
                 total
             }
+            PlanNodeEnum::CreateFulltextIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DropFulltextIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::AlterFulltextIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::ShowFulltextIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DescribeFulltextIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::FulltextSearch(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::FulltextLookup(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::MatchFulltext(node) => base_size + estimate_node_memory(node),
         }
     }
 

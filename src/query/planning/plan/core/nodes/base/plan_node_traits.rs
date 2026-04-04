@@ -5,6 +5,8 @@
 //! # Refactoring Changes
 //! Remove the dependency on `ast::Variable` and use `String` instead.
 
+use super::plan_node_category::PlanNodeCategory;
+
 /// Basic Features of PlanNode
 pub trait PlanNode {
     /// Obtain the unique ID of the node.
@@ -12,6 +14,9 @@ pub trait PlanNode {
 
     /// Obtain the name of the node type.
     fn name(&self) -> &'static str;
+
+    /// Obtain the category of the node.
+    fn category(&self) -> PlanNodeCategory;
 
     /// Obtain the names of the output variables of the node.
     fn output_var(&self) -> Option<&str>;
@@ -37,6 +42,10 @@ impl<T: PlanNode + ?Sized> PlanNode for &T {
 
     fn name(&self) -> &'static str {
         (**self).name()
+    }
+
+    fn category(&self) -> PlanNodeCategory {
+        (**self).category()
     }
 
     fn output_var(&self) -> Option<&str> {
