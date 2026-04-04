@@ -38,6 +38,7 @@ use crate::query::planning::statements::dql::subgraph_planner::SubgraphPlanner;
 use crate::query::planning::statements::dql::with_planner::WithPlanner;
 use crate::query::planning::statements::dql::yield_planner::YieldPlanner;
 use crate::query::planning::statements::match_statement_planner::MatchStatementPlanner;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 
 use crate::query::planning::plan::core::nodes::management::{
     AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
@@ -116,7 +117,7 @@ use crate::query::parser::ast::{
 };
 
 /// Full-text search planner
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FulltextSearchPlanner {
     enabled: bool,
 }
@@ -141,7 +142,7 @@ impl Planner for FulltextSearchPlanner {
     ) -> Result<SubPlan, PlannerError> {
         use crate::query::planning::plan::PlanNodeEnum;
 
-        let stmt = validated.ast();
+        let stmt = validated.stmt();
 
         match stmt {
             Stmt::CreateFulltextIndex(create) => {
@@ -153,8 +154,7 @@ impl Planner for FulltextSearchPlanner {
                     create.options.clone(),
                     create.if_not_exists,
                 );
-                let mut sub_plan = SubPlan::new();
-                sub_plan.set_root(node.into_enum());
+                let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
             Stmt::DropFulltextIndex(drop) => {
@@ -162,8 +162,7 @@ impl Planner for FulltextSearchPlanner {
                     drop.index_name.clone(),
                     drop.if_exists,
                 );
-                let mut sub_plan = SubPlan::new();
-                sub_plan.set_root(node.into_enum());
+                let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
             Stmt::AlterFulltextIndex(alter) => {
@@ -171,8 +170,7 @@ impl Planner for FulltextSearchPlanner {
                     alter.index_name.clone(),
                     alter.actions.clone(),
                 );
-                let mut sub_plan = SubPlan::new();
-                sub_plan.set_root(node.into_enum());
+                let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
             Stmt::ShowFulltextIndex(show) => {
@@ -180,16 +178,14 @@ impl Planner for FulltextSearchPlanner {
                     show.pattern.clone(),
                     show.from_schema.clone(),
                 );
-                let mut sub_plan = SubPlan::new();
-                sub_plan.set_root(node.into_enum());
+                let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
             Stmt::DescribeFulltextIndex(describe) => {
                 let node = DescribeFulltextIndexNode::new(
                     describe.index_name.clone(),
                 );
-                let mut sub_plan = SubPlan::new();
-                sub_plan.set_root(node.into_enum());
+                let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
             Stmt::Search(search) => {
@@ -202,8 +198,7 @@ impl Planner for FulltextSearchPlanner {
                     search.limit,
                     search.offset,
                 );
-                let mut sub_plan = SubPlan::new();
-                sub_plan.set_root(node.into_enum());
+                let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
             Stmt::LookupFulltext(lookup) => {
@@ -214,8 +209,7 @@ impl Planner for FulltextSearchPlanner {
                     lookup.yield_clause.clone(),
                     lookup.limit,
                 );
-                let mut sub_plan = SubPlan::new();
-                sub_plan.set_root(node.into_enum());
+                let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
             Stmt::MatchFulltext(match_stmt) => {
@@ -224,8 +218,7 @@ impl Planner for FulltextSearchPlanner {
                     match_stmt.fulltext_condition.clone(),
                     match_stmt.yield_clause.clone(),
                 );
-                let mut sub_plan = SubPlan::new();
-                sub_plan.set_root(node.into_enum());
+                let mut sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
             _ => Err(PlannerError::PlanGenerationFailed(

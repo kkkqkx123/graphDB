@@ -301,4 +301,142 @@ impl<'a> ParseContext<'a> {
     pub fn is_identifier_token(&self) -> bool {
         matches!(self.current_token.kind, TokenKind::Identifier(_))
     }
+
+    pub fn check_keyword(&mut self, keyword: &str) -> bool {
+        if let TokenKind::Identifier(kw) = &self.current_token.kind {
+            kw.eq_ignore_ascii_case(keyword)
+        } else {
+            false
+        }
+    }
+
+    pub fn consume_keyword(&mut self, keyword: &str) -> Result<(), ParseError> {
+        if self.check_keyword(keyword) {
+            self.next_token();
+            Ok(())
+        } else {
+            let pos = self.current_position();
+            Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
+                format!("Expected keyword '{}', found {:?}", keyword, self.current_token.kind),
+                pos,
+            ))
+        }
+    }
+
+    pub fn consume_identifier(&mut self) -> Result<String, ParseError> {
+        self.expect_identifier()
+    }
+
+    pub fn consume_string(&mut self) -> Result<String, ParseError> {
+        self.expect_string_literal()
+    }
+
+    pub fn consume_float(&mut self) -> Result<f64, ParseError> {
+        self.expect_float_literal()
+    }
+
+    pub fn consume_int(&mut self) -> Result<i64, ParseError> {
+        self.expect_integer_literal()
+    }
+
+    pub fn consume_token(&mut self, token: &str) -> Result<(), ParseError> {
+        match token {
+            "(" => self.expect_token(TokenKind::LParen),
+            ")" => self.expect_token(TokenKind::RParen),
+            "," => self.expect_token(TokenKind::Comma),
+            ";" => self.expect_token(TokenKind::Semicolon),
+            ":" => self.expect_token(TokenKind::Colon),
+            "+" => self.expect_token(TokenKind::Plus),
+            "-" => self.expect_token(TokenKind::Minus),
+            "*" => self.expect_token(TokenKind::Star),
+            "/" => self.expect_token(TokenKind::Div),
+            "=" => self.expect_token(TokenKind::Eq),
+            "!=" => self.expect_token(TokenKind::Ne),
+            "<" => self.expect_token(TokenKind::Lt),
+            "<=" => self.expect_token(TokenKind::Le),
+            ">" => self.expect_token(TokenKind::Gt),
+            ">=" => self.expect_token(TokenKind::Ge),
+            _ => {
+                let pos = self.current_position();
+                Err(ParseError::new(
+                    ParseErrorKind::UnexpectedToken,
+                    format!("Unsupported token: {}", token),
+                    pos,
+                ))
+            }
+        }
+    }
+
+    pub fn consume_optional_token(&mut self, token: &str) -> bool {
+        match token {
+            "(" => self.match_token(TokenKind::LParen),
+            ")" => self.match_token(TokenKind::RParen),
+            "," => self.match_token(TokenKind::Comma),
+            ";" => self.match_token(TokenKind::Semicolon),
+            ":" => self.match_token(TokenKind::Colon),
+            "+" => self.match_token(TokenKind::Plus),
+            "-" => self.match_token(TokenKind::Minus),
+            "*" => self.match_token(TokenKind::Star),
+            "/" => self.match_token(TokenKind::Div),
+            "=" => self.match_token(TokenKind::Eq),
+            "!=" => self.match_token(TokenKind::Ne),
+            "<" => self.match_token(TokenKind::Lt),
+            "<=" => self.match_token(TokenKind::Le),
+            ">" => self.match_token(TokenKind::Gt),
+            ">=" => self.match_token(TokenKind::Ge),
+            _ => false,
+        }
+    }
+
+    pub fn try_consume_string(&mut self) -> Option<String> {
+        if let TokenKind::StringLiteral(s) = &self.current_token.kind {
+            let s = s.clone();
+            self.next_token();
+            Some(s)
+        } else {
+            None
+        }
+    }
+
+    pub fn try_consume_quoted_string(&mut self) -> Option<String> {
+        self.try_consume_string()
+    }
+
+    pub fn consume_value(&mut self) -> Result<crate::core::Value, ParseError> {
+        match &self.current_token.kind {
+            TokenKind::StringLiteral(s) => {
+                let s = s.clone();
+                self.next_token();
+                Ok(crate::core::Value::String(s))
+            }
+            TokenKind::IntegerLiteral(n) => {
+                let n = *n;
+                self.next_token();
+                Ok(crate::core::Value::Int(n))
+            }
+            TokenKind::FloatLiteral(f) => {
+                let f = *f;
+                self.next_token();
+                Ok(crate::core::Value::Float(f))
+            }
+            TokenKind::BooleanLiteral(b) => {
+                let b = *b;
+                self.next_token();
+                Ok(crate::core::Value::Bool(b))
+            }
+            TokenKind::Null => {
+                self.next_token();
+                Ok(crate::core::Value::Null(crate::core::null::NullType::Null))
+            }
+            _ => {
+                let pos = self.current_position();
+                Err(ParseError::new(
+                    ParseErrorKind::UnexpectedToken,
+                    format!("Expected value, found {:?}", self.current_token.kind),
+                    pos,
+                ))
+            }
+        }
+    }
 }

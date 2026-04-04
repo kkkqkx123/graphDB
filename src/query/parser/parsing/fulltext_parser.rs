@@ -3,6 +3,9 @@
 //! This module implements the parser for full-text search SQL statements,
 //! including CREATE FULLTEXT INDEX, SEARCH, and related queries.
 
+use std::collections::HashMap;
+use crate::core::types::FulltextEngineType;
+use crate::core::Value;
 use crate::query::parser::ast::fulltext::{
     AlterFulltextIndex, AlterIndexAction, CreateFulltextIndex, DescribeFulltextIndex,
     DropFulltextIndex, FulltextMatchCondition, FulltextQueryExpr, IndexFieldDef, IndexOptions,
@@ -10,562 +13,589 @@ use crate::query::parser::ast::fulltext::{
     ShowFulltextIndex, WhereClause, WhereCondition, YieldClause, YieldExpression, YieldItem,
     BM25Options, InversearchOptions,
 };
+use crate::query::parser::ast::stmt::Stmt;
 use crate::query::parser::parsing::parse_context::ParseContext;
-use crate::query::parser::parsing::parser::{Parser, ParserResult};
-use crate::core::types::FulltextEngineType;
-use crate::core::Value;
+use crate::query::parser::TokenKind;
 
-/// Full-text search parser
-pub struct FulltextParser<'a> {
-    ctx: &'a mut ParseContext<'a>,
+/// Parse full-text search statements from ParseContext
+pub fn parse_fulltext(ctx: &mut ParseContext) -> Result<Stmt, crate::query::parser::ParseError> {
+    if ctx.check_keyword("CREATE") {
+        return parse_create_fulltext_index(ctx);
+    } else if ctx.check_keyword("DROP") {
+        return parse_drop_fulltext_index(ctx);
+    } else if ctx.check_keyword("ALTER") {
+        return parse_alter_fulltext_index(ctx);
+    } else if ctx.check_keyword("SHOW") {
+        return parse_show_fulltext_index(ctx);
+    } else if ctx.check_keyword("DESCRIBE") || ctx.check_keyword("DESC") {
+        return parse_describe_fulltext_index(ctx);
+    } else if ctx.check_keyword("SEARCH") {
+        return parse_search_statement(ctx);
+    } else if ctx.check_keyword("LOOKUP") {
+        return parse_lookup_fulltext(ctx);
+    } else if ctx.check_keyword("MATCH") {
+        return parse_match_fulltext(ctx);
+    }
+
+    Err(crate::query::parser::ParseError::new(
+        crate::query::parser::core::error::ParseErrorKind::SyntaxError,
+        "Not a full-text search statement".to_string(),
+        ctx.current_position(),
+    ))
 }
 
-impl<'a> FulltextParser<'a> {
-    /// Create a new full-text parser
-    pub fn new(ctx: &'a mut ParseContext) -> Self {
-        Self { ctx }
-    }
+fn parse_create_fulltext_index(ctx: &mut ParseContext) -> Result<Stmt, crate::query::parser::ParseError> {
+    ctx.consume_keyword("CREATE")?;
 
-    /// Parse full-text search statements
-    pub fn parse(&mut self) -> ParserResult {
-        if self.ctx.check_keyword("CREATE") {
-            return self.parse_create_fulltext_index();
-        } else if self.ctx.check_keyword("DROP") {
-            return self.parse_drop_fulltext_index();
-        } else if self.ctx.check_keyword("ALTER") {
-            return self.parse_alter_fulltext_index();
-        } else if self.ctx.check_keyword("SHOW") {
-            return self.parse_show_fulltext_index();
-        } else if self.ctx.check_keyword("DESCRIBE") || self.ctx.check_keyword("DESC") {
-            return self.parse_describe_fulltext_index();
-        } else if self.ctx.check_keyword("SEARCH") {
-            return self.parse_search_statement();
-        } else if self.ctx.check_keyword("LOOKUP") {
-            return self.parse_lookup_fulltext();
-        } else if self.ctx.check_keyword("MATCH") {
-            return self.parse_match_fulltext();
+    let if_not_exists = if ctx.check_keyword("IF") {
+        ctx.consume_keyword("IF")?;
+        ctx.consume_keyword("NOT")?;
+        ctx.consume_keyword("EXISTS")?;
+        true
+    } else {
+        false
+    };
+
+    ctx.consume_keyword("FULLTEXT")?;
+    ctx.consume_keyword("INDEX")?;
+
+    let index_name = ctx.consume_identifier()?;
+    ctx.consume_keyword("ON")?;
+    let schema_name = ctx.consume_identifier()?;
+
+    ctx.expect_token(TokenKind::LParen)?;
+    let mut fields = Vec::new();
+
+    loop {
+        let field_name = ctx.consume_identifier()?;
+
+        let mut field_def = IndexFieldDef::new(field_name);
+
+        if ctx.check_keyword("ANALYZER") {
+            ctx.consume_keyword("ANALYZER")?;
+            field_def.analyzer = Some(ctx.consume_string()?);
         }
 
-        ParserResult::error("Not a full-text search statement")
+        if ctx.check_keyword("BOOST") {
+            ctx.consume_keyword("BOOST")?;
+            field_def.boost = Some(ctx.consume_float()? as f32);
+        }
+
+        fields.push(field_def);
+
+        if !ctx.consume_optional_token(",") {
+            break;
+        }
     }
 
-    /// Parse CREATE FULLTEXT INDEX statement
-    fn parse_create_fulltext_index(&mut self) -> ParserResult {
-        self.ctx.consume_keyword("CREATE")?;
-        
-        let if_not_exists = if self.ctx.check_keyword("IF") {
-            self.ctx.consume_keyword("IF")?;
-            self.ctx.consume_keyword("NOT")?;
-            self.ctx.consume_keyword("EXISTS")?;
-            true
-        } else {
-            false
-        };
+    ctx.expect_token(TokenKind::RParen)?;
 
-        self.ctx.consume_keyword("FULLTEXT")?;
-        self.ctx.consume_keyword("INDEX")?;
+    ctx.consume_keyword("ENGINE")?;
+    let engine_type = if ctx.check_keyword("BM25") {
+        ctx.consume_keyword("BM25")?;
+        FulltextEngineType::Bm25
+    } else if ctx.check_keyword("INVERSEARCH") {
+        ctx.consume_keyword("INVERSEARCH")?;
+        FulltextEngineType::Inversearch
+    } else {
+        return Err(crate::query::parser::ParseError::new(
+            crate::query::parser::core::error::ParseErrorKind::SyntaxError,
+            "Expected BM25 or INVERSEARCH engine type".to_string(),
+            ctx.current_position(),
+        ));
+    };
 
-        let index_name = self.ctx.consume_identifier()?;
-        self.ctx.consume_keyword("ON")?;
-        let schema_name = self.ctx.consume_identifier()?;
+    let options = IndexOptions {
+        bm25_config: None,
+        inversearch_config: None,
+        common_options: HashMap::new(),
+    };
 
-        self.ctx.consume_token("(")?;
-        let mut fields = Vec::new();
+    let mut options = options;
+
+    if ctx.check_keyword("OPTIONS") {
+        ctx.consume_keyword("OPTIONS")?;
+        ctx.expect_token(TokenKind::LParen)?;
 
         loop {
-            let field_name = self.ctx.consume_identifier()?;
-            
+            let key = ctx.consume_identifier()?;
+            ctx.expect_token(TokenKind::Eq)?;
+
+            match key.to_lowercase().as_str() {
+                "k1" => {
+                    if options.bm25_config.is_none() {
+                        options.bm25_config = Some(BM25Options {
+                            k1: None,
+                            b: None,
+                            field_weights: HashMap::new(),
+                            analyzer: None,
+                            store_original: None,
+                        });
+                    }
+                    options.bm25_config.as_mut().unwrap().k1 = Some(ctx.consume_float()? as f32);
+                }
+                "b" => {
+                    if options.bm25_config.is_none() {
+                        options.bm25_config = Some(BM25Options {
+                            k1: None,
+                            b: None,
+                            field_weights: HashMap::new(),
+                            analyzer: None,
+                            store_original: None,
+                        });
+                    }
+                    options.bm25_config.as_mut().unwrap().b = Some(ctx.consume_float()? as f32);
+                }
+                "analyzer" => {
+                    if options.bm25_config.is_none() {
+                        options.bm25_config = Some(BM25Options {
+                            k1: None,
+                            b: None,
+                            field_weights: HashMap::new(),
+                            analyzer: None,
+                            store_original: None,
+                        });
+                    }
+                    options.bm25_config.as_mut().unwrap().analyzer = Some(ctx.consume_string()?);
+                }
+                "tokenize_mode" => {
+                    if options.inversearch_config.is_none() {
+                        options.inversearch_config = Some(InversearchOptions {
+                            tokenize_mode: None,
+                            resolution: None,
+                            depth: None,
+                            bidirectional: None,
+                            fast_update: None,
+                            charset: None,
+                        });
+                    }
+                    options.inversearch_config.as_mut().unwrap().tokenize_mode = Some(ctx.consume_string()?);
+                }
+                "resolution" => {
+                    if options.inversearch_config.is_none() {
+                        options.inversearch_config = Some(InversearchOptions {
+                            tokenize_mode: None,
+                            resolution: None,
+                            depth: None,
+                            bidirectional: None,
+                            fast_update: None,
+                            charset: None,
+                        });
+                    }
+                    options.inversearch_config.as_mut().unwrap().resolution = Some(ctx.consume_int()? as usize);
+                }
+                "depth" => {
+                    if options.inversearch_config.is_none() {
+                        options.inversearch_config = Some(InversearchOptions {
+                            tokenize_mode: None,
+                            resolution: None,
+                            depth: None,
+                            bidirectional: None,
+                            fast_update: None,
+                            charset: None,
+                        });
+                    }
+                    options.inversearch_config.as_mut().unwrap().depth = Some(ctx.consume_int()? as usize);
+                }
+                _ => {
+                    let value = ctx.consume_value()?;
+                    options.common_options.insert(key, value);
+                }
+            }
+
+            if !ctx.consume_optional_token(",") {
+                break;
+            }
+        }
+
+        ctx.expect_token(TokenKind::RParen)?;
+    }
+
+    let mut create = CreateFulltextIndex::new(
+        ctx.current_span(),
+        index_name,
+        schema_name,
+        fields,
+        engine_type,
+    );
+    create.if_not_exists = if_not_exists;
+    create.options = options;
+
+    Ok(Stmt::CreateFulltextIndex(create))
+}
+
+fn parse_drop_fulltext_index(ctx: &mut ParseContext) -> Result<Stmt, crate::query::parser::ParseError> {
+    ctx.consume_keyword("DROP")?;
+    ctx.consume_keyword("FULLTEXT")?;
+    ctx.consume_keyword("INDEX")?;
+
+    let if_exists = if ctx.check_keyword("IF") {
+        ctx.consume_keyword("IF")?;
+        ctx.consume_keyword("EXISTS")?;
+        true
+    } else {
+        false
+    };
+
+    let index_name = ctx.consume_identifier()?;
+
+    let drop = DropFulltextIndex {
+        span: ctx.current_span(),
+        index_name,
+        if_exists,
+    };
+
+    Ok(Stmt::DropFulltextIndex(drop))
+}
+
+fn parse_alter_fulltext_index(ctx: &mut ParseContext) -> Result<Stmt, crate::query::parser::ParseError> {
+    ctx.consume_keyword("ALTER")?;
+    ctx.consume_keyword("FULLTEXT")?;
+    ctx.consume_keyword("INDEX")?;
+
+    let index_name = ctx.consume_identifier()?;
+    let mut actions = Vec::new();
+
+    loop {
+        if ctx.check_keyword("ADD") {
+            ctx.consume_keyword("ADD")?;
+            ctx.consume_keyword("FIELD")?;
+
+            let field_name = ctx.consume_identifier()?;
             let mut field_def = IndexFieldDef::new(field_name);
 
-            if self.ctx.check_keyword("ANALYZER") {
-                self.ctx.consume_keyword("ANALYZER")?;
-                field_def.analyzer = Some(self.ctx.consume_string()?);
+            if ctx.check_keyword("ANALYZER") {
+                ctx.consume_keyword("ANALYZER")?;
+                field_def.analyzer = Some(ctx.consume_string()?);
             }
 
-            if self.ctx.check_keyword("BOOST") {
-                self.ctx.consume_keyword("BOOST")?;
-                field_def.boost = Some(self.ctx.consume_float()?);
-            }
-
-            fields.push(field_def);
-
-            if !self.ctx.consume_optional_token(",") {
-                break;
-            }
-        }
-
-        self.ctx.consume_token(")")?;
-
-        // Parse engine type
-        self.ctx.consume_keyword("ENGINE")?;
-        let engine_type = if self.ctx.check_keyword("BM25") {
-            self.ctx.consume_keyword("BM25")?;
-            FulltextEngineType::Bm25
-        } else if self.ctx.check_keyword("INVERSEARCH") {
-            self.ctx.consume_keyword("INVERSEARCH")?;
-            FulltextEngineType::Inversearch
+            actions.push(AlterIndexAction::AddField(field_def));
+        } else if ctx.check_keyword("DROP") {
+            ctx.consume_keyword("DROP")?;
+            ctx.consume_keyword("FIELD")?;
+            let field_name = ctx.consume_identifier()?;
+            actions.push(AlterIndexAction::DropField(field_name));
+        } else if ctx.check_keyword("SET") {
+            ctx.consume_keyword("SET")?;
+            let key = ctx.consume_identifier()?;
+            ctx.expect_token(TokenKind::Eq)?;
+            let value = ctx.consume_value()?;
+            actions.push(AlterIndexAction::SetOption(key, value));
+        } else if ctx.check_keyword("REBUILD") {
+            ctx.consume_keyword("REBUILD")?;
+            actions.push(AlterIndexAction::Rebuild);
+        } else if ctx.check_keyword("OPTIMIZE") {
+            ctx.consume_keyword("OPTIMIZE")?;
+            actions.push(AlterIndexAction::Optimize);
         } else {
-            return ParserResult::error("Expected BM25 or INVERSEARCH engine type");
-        };
-
-        // Parse options
-        let mut options = IndexOptions::default();
-        
-        if self.ctx.check_keyword("OPTIONS") {
-            self.ctx.consume_keyword("OPTIONS")?;
-            self.ctx.consume_token("(")?;
-
-            loop {
-                let key = self.ctx.consume_identifier()?;
-                self.ctx.consume_token("=")?;
-                
-                match key.to_lowercase().as_str() {
-                    // BM25 options
-                    "k1" => {
-                        if options.bm25_config.is_none() {
-                            options.bm25_config = Some(BM25Options::default());
-                        }
-                        options.bm25_config.as_mut().unwrap().k1 = Some(self.ctx.consume_float()?);
-                    }
-                    "b" => {
-                        if options.bm25_config.is_none() {
-                            options.bm25_config = Some(BM25Options::default());
-                        }
-                        options.bm25_config.as_mut().unwrap().b = Some(self.ctx.consume_float()?);
-                    }
-                    "analyzer" => {
-                        if options.bm25_config.is_none() {
-                            options.bm25_config = Some(BM25Options::default());
-                        }
-                        options.bm25_config.as_mut().unwrap().analyzer = Some(self.ctx.consume_string()?);
-                    }
-                    // Inversearch options
-                    "tokenize_mode" => {
-                        if options.inversearch_config.is_none() {
-                            options.inversearch_config = Some(InversearchOptions::default());
-                        }
-                        options.inversearch_config.as_mut().unwrap().tokenize_mode = Some(self.ctx.consume_string()?);
-                    }
-                    "resolution" => {
-                        if options.inversearch_config.is_none() {
-                            options.inversearch_config = Some(InversearchOptions::default());
-                        }
-                        options.inversearch_config.as_mut().unwrap().resolution = Some(self.ctx.consume_int()? as usize);
-                    }
-                    "depth" => {
-                        if options.inversearch_config.is_none() {
-                            options.inversearch_config = Some(InversearchOptions::default());
-                        }
-                        options.inversearch_config.as_mut().unwrap().depth = Some(self.ctx.consume_int()? as usize);
-                    }
-                    _ => {
-                        // Store as common option
-                        let value = self.ctx.consume_value()?;
-                        options.common_options.insert(key, value);
-                    }
-                }
-
-                if !self.ctx.consume_optional_token(",") {
-                    break;
-                }
-            }
-
-            self.ctx.consume_token(")")?;
-        }
-
-        let mut create = CreateFulltextIndex::new(index_name, schema_name, fields, engine_type);
-        create.if_not_exists = if_not_exists;
-        create.options = options;
-
-        ParserResult::success(Box::new(create))
-    }
-
-    /// Parse DROP FULLTEXT INDEX statement
-    fn parse_drop_fulltext_index(&mut self) -> ParserResult {
-        self.ctx.consume_keyword("DROP")?;
-        self.ctx.consume_keyword("FULLTEXT")?;
-        self.ctx.consume_keyword("INDEX")?;
-
-        let if_exists = if self.ctx.check_keyword("IF") {
-            self.ctx.consume_keyword("IF")?;
-            self.ctx.consume_keyword("EXISTS")?;
-            true
-        } else {
-            false
-        };
-
-        let index_name = self.ctx.consume_identifier()?;
-
-        let drop = DropFulltextIndex {
-            index_name,
-            if_exists,
-        };
-
-        ParserResult::success(Box::new(drop))
-    }
-
-    /// Parse ALTER FULLTEXT INDEX statement
-    fn parse_alter_fulltext_index(&mut self) -> ParserResult {
-        self.ctx.consume_keyword("ALTER")?;
-        self.ctx.consume_keyword("FULLTEXT")?;
-        self.ctx.consume_keyword("INDEX")?;
-
-        let index_name = self.ctx.consume_identifier()?;
-        let mut actions = Vec::new();
-
-        loop {
-            if self.ctx.check_keyword("ADD") {
-                self.ctx.consume_keyword("ADD")?;
-                self.ctx.consume_keyword("FIELD")?;
-                
-                let field_name = self.ctx.consume_identifier()?;
-                let mut field_def = IndexFieldDef::new(field_name);
-
-                if self.ctx.check_keyword("ANALYZER") {
-                    self.ctx.consume_keyword("ANALYZER")?;
-                    field_def.analyzer = Some(self.ctx.consume_string()?);
-                }
-
-                actions.push(AlterIndexAction::AddField(field_def));
-            } else if self.ctx.check_keyword("DROP") {
-                self.ctx.consume_keyword("DROP")?;
-                self.ctx.consume_keyword("FIELD")?;
-                let field_name = self.ctx.consume_identifier()?;
-                actions.push(AlterIndexAction::DropField(field_name));
-            } else if self.ctx.check_keyword("SET") {
-                self.ctx.consume_keyword("SET")?;
-                let key = self.ctx.consume_identifier()?;
-                self.ctx.consume_token("=")?;
-                let value = self.ctx.consume_value()?;
-                actions.push(AlterIndexAction::SetOption(key, value));
-            } else if self.ctx.check_keyword("REBUILD") {
-                self.ctx.consume_keyword("REBUILD")?;
-                actions.push(AlterIndexAction::Rebuild);
-            } else if self.ctx.check_keyword("OPTIMIZE") {
-                self.ctx.consume_keyword("OPTIMIZE")?;
-                actions.push(AlterIndexAction::Optimize);
-            } else {
-                return ParserResult::error("Expected ALTER INDEX action");
-            }
-
-            if !self.ctx.consume_optional_token(",") {
-                break;
-            }
-        }
-
-        let alter = AlterFulltextIndex {
-            index_name,
-            actions,
-        };
-
-        ParserResult::success(Box::new(alter))
-    }
-
-    /// Parse SHOW FULLTEXT INDEX statement
-    fn parse_show_fulltext_index(&mut self) -> ParserResult {
-        self.ctx.consume_keyword("SHOW")?;
-        self.ctx.consume_keyword("FULLTEXT")?;
-        self.ctx.consume_keyword("INDEX")?;
-
-        let mut pattern = None;
-        let mut from_schema = None;
-
-        if self.ctx.check_keyword("LIKE") {
-            self.ctx.consume_keyword("LIKE")?;
-            pattern = Some(self.ctx.consume_string()?);
-        }
-
-        if self.ctx.check_keyword("FROM") || self.ctx.check_keyword("IN") {
-            self.ctx.consume_keyword("FROM")?;
-            from_schema = Some(self.ctx.consume_identifier()?);
-        }
-
-        let show = ShowFulltextIndex {
-            pattern,
-            from_schema,
-        };
-
-        ParserResult::success(Box::new(show))
-    }
-
-    /// Parse DESCRIBE FULLTEXT INDEX statement
-    fn parse_describe_fulltext_index(&mut self) -> ParserResult {
-        self.ctx.consume_keyword("DESCRIBE")?;
-        self.ctx.consume_keyword("FULLTEXT")?;
-        self.ctx.consume_keyword("INDEX")?;
-
-        let index_name = self.ctx.consume_identifier()?;
-
-        let describe = DescribeFulltextIndex {
-            index_name,
-        };
-
-        ParserResult::success(Box::new(describe))
-    }
-
-    /// Parse SEARCH statement
-    fn parse_search_statement(&mut self) -> ParserResult {
-        self.ctx.consume_keyword("SEARCH")?;
-        self.ctx.consume_keyword("INDEX")?;
-
-        let index_name = self.ctx.consume_identifier()?;
-        self.ctx.consume_keyword("MATCH")?;
-
-        let query = self.parse_fulltext_query_expr()?;
-
-        let mut search = SearchStatement::new(index_name, query);
-
-        // Parse YIELD clause
-        if self.ctx.check_keyword("YIELD") {
-            self.ctx.consume_keyword("YIELD")?;
-            let yield_clause = self.parse_yield_clause()?;
-            search.yield_clause = Some(yield_clause);
-        }
-
-        // Parse WHERE clause
-        if self.ctx.check_keyword("WHERE") {
-            self.ctx.consume_keyword("WHERE")?;
-            let where_clause = self.parse_where_clause()?;
-            search.where_clause = Some(where_clause);
-        }
-
-        // Parse ORDER BY clause
-        if self.ctx.check_keyword("ORDER") {
-            self.ctx.consume_keyword("ORDER")?;
-            self.ctx.consume_keyword("BY")?;
-            let order_clause = self.parse_order_clause()?;
-            search.order_clause = Some(order_clause);
-        }
-
-        // Parse LIMIT
-        if self.ctx.check_keyword("LIMIT") {
-            self.ctx.consume_keyword("LIMIT")?;
-            search.limit = Some(self.ctx.consume_int()? as usize);
-        }
-
-        // Parse OFFSET
-        if self.ctx.check_keyword("OFFSET") {
-            self.ctx.consume_keyword("OFFSET")?;
-            let offset = self.ctx.consume_int()? as usize;
-            search.offset = Some(offset);
-        }
-
-        ParserResult::success(Box::new(search))
-    }
-
-    /// Parse full-text query expression
-    fn parse_fulltext_query_expr(&mut self) -> ParserResult {
-        // Simple text query
-        if let Some(text) = self.ctx.try_consume_string() {
-            return ParserResult::success(Box::new(FulltextQueryExpr::Simple(text)));
-        }
-
-        // Field-specific query
-        if self.ctx.peek_token().is_identifier() {
-            let field = self.ctx.consume_identifier()?;
-            if self.ctx.consume_optional_token(":") {
-                let query = self.ctx.consume_string()?;
-                return ParserResult::success(Box::new(FulltextQueryExpr::Field(field, query)));
-            }
-        }
-
-        // Phrase query
-        if let Some(text) = self.ctx.try_consume_quoted_string() {
-            return ParserResult::success(Box::new(FulltextQueryExpr::Phrase(text)));
-        }
-
-        ParserResult::error("Expected full-text query expression")
-    }
-
-    /// Parse YIELD clause
-    fn parse_yield_clause(&mut self) -> Result<YieldClause, crate::query::parser::ParseError> {
-        let mut items = Vec::new();
-
-        loop {
-            let expr = if self.ctx.check_keyword("score") {
-                self.ctx.consume_identifier()?;
-                YieldExpression::Score(None)
-            } else if self.ctx.check_keyword("highlight") {
-                self.ctx.consume_identifier()?;
-                self.ctx.consume_token("(")?;
-                let field = self.ctx.consume_identifier()?;
-                
-                let mut params = None;
-                if self.ctx.consume_optional_token(",") {
-                    // Parse optional parameters
-                    params = None; // Simplified for now
-                }
-                
-                self.ctx.consume_token(")")?;
-                YieldExpression::Highlight(field, params)
-            } else if self.ctx.check_keyword("matched_fields") {
-                self.ctx.consume_identifier()?;
-                YieldExpression::MatchedFields
-            } else if self.ctx.consume_optional_token("*") {
-                YieldExpression::All
-            } else {
-                let field = self.ctx.consume_identifier()?;
-                YieldExpression::Field(field)
-            };
-
-            let alias = if self.ctx.check_keyword("AS") {
-                self.ctx.consume_keyword("AS")?;
-                Some(self.ctx.consume_identifier()?)
-            } else {
-                None
-            };
-
-            items.push(YieldItem { expr, alias });
-
-            if !self.ctx.consume_optional_token(",") {
-                break;
-            }
-        }
-
-        Ok(YieldClause::new(items))
-    }
-
-    /// Parse WHERE clause
-    fn parse_where_clause(&mut self) -> Result<WhereClause, crate::query::parser::ParseError> {
-        let condition = self.parse_where_condition()?;
-        Ok(WhereClause { condition: crate::core::types::expr::contextual::ContextualExpression::new(
-            crate::core::Expression::Boolean(true),
-            crate::query::parser::ast::Span::default(),
-        )})
-    }
-
-    /// Parse WHERE condition
-    fn parse_where_condition(&mut self) -> Result<WhereCondition, crate::query::parser::ParseError> {
-        // Simplified implementation
-        if self.ctx.check_keyword("score") {
-            self.ctx.consume_identifier()?;
-            let op = self.parse_comparison_op()?;
-            let value = self.ctx.consume_value()?;
-            Ok(WhereCondition::Comparison("score".to_string(), op, value))
-        } else {
-            // Default to simple condition
-            Ok(WhereCondition::Comparison(
-                "field".to_string(),
-                crate::query::parser::ast::ComparisonOp::Eq,
-                Value::Bool(true),
-            ))
-        }
-    }
-
-    /// Parse comparison operator
-    fn parse_comparison_op(&mut self) -> Result<crate::query::parser::ast::ComparisonOp, crate::query::parser::ParseError> {
-        if self.ctx.consume_optional_token("=") {
-            Ok(crate::query::parser::ast::ComparisonOp::Eq)
-        } else if self.ctx.consume_optional_token("!=") {
-            Ok(crate::query::parser::ast::ComparisonOp::Ne)
-        } else if self.ctx.consume_optional_token("<") {
-            Ok(crate::query::parser::ast::ComparisonOp::Lt)
-        } else if self.ctx.consume_optional_token("<=") {
-            Ok(crate::query::parser::ast::ComparisonOp::Le)
-        } else if self.ctx.consume_optional_token(">") {
-            Ok(crate::query::parser::ast::ComparisonOp::Gt)
-        } else if self.ctx.consume_optional_token(">=") {
-            Ok(crate::query::parser::ast::ComparisonOp::Ge)
-        } else {
-            Err(crate::query::parser::ParseError::new(
+            return Err(crate::query::parser::ParseError::new(
                 crate::query::parser::core::error::ParseErrorKind::SyntaxError,
-                "Expected comparison operator".to_string(),
-            ))
+                "Expected ALTER INDEX action".to_string(),
+                ctx.current_position(),
+            ));
+        }
+
+        if !ctx.consume_optional_token(",") {
+            break;
         }
     }
 
-    /// Parse ORDER BY clause
-    fn parse_order_clause(&mut self) -> Result<OrderClause, crate::query::parser::ParseError> {
-        let mut items = Vec::new();
+    let alter = AlterFulltextIndex {
+        span: ctx.current_span(),
+        index_name,
+        actions,
+    };
 
-        loop {
-            let expr = self.ctx.consume_identifier()?;
-            let order = if self.ctx.check_keyword("ASC") {
-                self.ctx.consume_keyword("ASC")?;
-                FulltextOrderDirection::Asc
-            } else if self.ctx.check_keyword("DESC") {
-                self.ctx.consume_keyword("DESC")?;
-                FulltextOrderDirection::Desc
-            } else {
-                FulltextOrderDirection::Asc
-            };
+    Ok(Stmt::AlterFulltextIndex(alter))
+}
 
-            items.push(OrderItem { expr, order });
+fn parse_show_fulltext_index(ctx: &mut ParseContext) -> Result<Stmt, crate::query::parser::ParseError> {
+    ctx.consume_keyword("SHOW")?;
+    ctx.consume_keyword("FULLTEXT")?;
+    ctx.consume_keyword("INDEX")?;
 
-            if !self.ctx.consume_optional_token(",") {
-                break;
+    let mut pattern = None;
+    let mut from_schema = None;
+
+    if ctx.check_keyword("LIKE") {
+        ctx.consume_keyword("LIKE")?;
+        pattern = Some(ctx.consume_string()?);
+    }
+
+    if ctx.check_keyword("FROM") || ctx.check_keyword("IN") {
+        ctx.consume_keyword("FROM")?;
+        from_schema = Some(ctx.consume_identifier()?);
+    }
+
+    let show = ShowFulltextIndex {
+        span: ctx.current_span(),
+        pattern,
+        from_schema,
+    };
+
+    Ok(Stmt::ShowFulltextIndex(show))
+}
+
+fn parse_describe_fulltext_index(ctx: &mut ParseContext) -> Result<Stmt, crate::query::parser::ParseError> {
+    ctx.consume_keyword("DESCRIBE")?;
+    ctx.consume_keyword("FULLTEXT")?;
+    ctx.consume_keyword("INDEX")?;
+
+    let index_name = ctx.consume_identifier()?;
+
+    let describe = DescribeFulltextIndex {
+        span: ctx.current_span(),
+        index_name,
+    };
+
+    Ok(Stmt::DescribeFulltextIndex(describe))
+}
+
+fn parse_search_statement(ctx: &mut ParseContext) -> Result<Stmt, crate::query::parser::ParseError> {
+    ctx.consume_keyword("SEARCH")?;
+    ctx.consume_keyword("INDEX")?;
+
+    let index_name = ctx.consume_identifier()?;
+    ctx.consume_keyword("MATCH")?;
+
+    let query = parse_fulltext_query_expr(ctx)?;
+
+    let mut search = SearchStatement::new(index_name, query);
+
+    if ctx.check_keyword("YIELD") {
+        ctx.consume_keyword("YIELD")?;
+        let yield_clause = parse_yield_clause(ctx)?;
+        search.yield_clause = Some(yield_clause);
+    }
+
+    if ctx.check_keyword("WHERE") {
+        ctx.consume_keyword("WHERE")?;
+        let where_clause = parse_where_clause(ctx)?;
+        search.where_clause = Some(where_clause);
+    }
+
+    if ctx.check_keyword("ORDER") {
+        ctx.consume_keyword("ORDER")?;
+        ctx.consume_keyword("BY")?;
+        let order_clause = parse_order_clause(ctx)?;
+        search.order_clause = Some(order_clause);
+    }
+
+    if ctx.check_keyword("LIMIT") {
+        ctx.consume_keyword("LIMIT")?;
+        search.limit = Some(ctx.consume_int()? as usize);
+    }
+
+    if ctx.check_keyword("OFFSET") {
+        ctx.consume_keyword("OFFSET")?;
+        let offset = ctx.consume_int()? as usize;
+        search.offset = Some(offset);
+    }
+
+    Ok(Stmt::Search(search))
+}
+
+fn parse_fulltext_query_expr(ctx: &mut ParseContext) -> Result<FulltextQueryExpr, crate::query::parser::ParseError> {
+    if let Some(text) = ctx.try_consume_string() {
+        return Ok(FulltextQueryExpr::Simple(text));
+    }
+
+    if ctx.is_identifier_token() {
+        let field = ctx.consume_identifier()?;
+        if ctx.consume_optional_token(":") {
+            let query = ctx.consume_string()?;
+            return Ok(FulltextQueryExpr::Field(field, query));
+        }
+    }
+
+    if let Some(text) = ctx.try_consume_quoted_string() {
+        return Ok(FulltextQueryExpr::Phrase(text));
+    }
+
+    Err(crate::query::parser::ParseError::new(
+        crate::query::parser::core::error::ParseErrorKind::SyntaxError,
+        "Expected full-text query expression".to_string(),
+        ctx.current_position(),
+    ))
+}
+
+fn parse_yield_clause(ctx: &mut ParseContext) -> Result<YieldClause, crate::query::parser::ParseError> {
+    let mut items = Vec::new();
+
+    loop {
+        let expr = if ctx.check_keyword("score") {
+            ctx.consume_identifier()?;
+            YieldExpression::Score(None)
+        } else if ctx.check_keyword("highlight") {
+            ctx.consume_identifier()?;
+            ctx.expect_token(TokenKind::LParen)?;
+            let field = ctx.consume_identifier()?;
+
+            let mut params = None;
+            if ctx.consume_optional_token(",") {
+                params = None;
             }
-        }
 
-        Ok(OrderClause { items })
-    }
-
-    /// Parse LOOKUP FULLTEXT statement
-    fn parse_lookup_fulltext(&mut self) -> ParserResult {
-        self.ctx.consume_keyword("LOOKUP")?;
-        self.ctx.consume_keyword("ON")?;
-        
-        let schema_name = self.ctx.consume_identifier()?;
-        self.ctx.consume_keyword("INDEX")?;
-        let index_name = self.ctx.consume_identifier()?;
-        
-        self.ctx.consume_keyword("WHERE")?;
-        let query = self.ctx.consume_string()?;
-
-        let mut lookup = LookupFulltext {
-            schema_name,
-            index_name,
-            query,
-            yield_clause: None,
-            limit: None,
+            ctx.expect_token(TokenKind::RParen)?;
+            YieldExpression::Highlight(field, params)
+        } else if ctx.check_keyword("matched_fields") {
+            ctx.consume_identifier()?;
+            YieldExpression::MatchedFields
+        } else if ctx.consume_optional_token("*") {
+            YieldExpression::All
+        } else {
+            let field = ctx.consume_identifier()?;
+            YieldExpression::Field(field)
         };
 
-        if self.ctx.check_keyword("YIELD") {
-            self.ctx.consume_keyword("YIELD")?;
-            lookup.yield_clause = Some(self.parse_yield_clause()?);
-        }
-
-        if self.ctx.check_keyword("LIMIT") {
-            self.ctx.consume_keyword("LIMIT")?;
-            lookup.limit = Some(self.ctx.consume_int()? as usize);
-        }
-
-        ParserResult::success(Box::new(lookup))
-    }
-
-    /// Parse MATCH with full-text
-    fn parse_match_fulltext(&mut self) -> ParserResult {
-        // Simplified implementation
-        self.ctx.consume_keyword("MATCH")?;
-        let pattern = self.ctx.consume_string()?;
-        
-        self.ctx.consume_keyword("WHERE")?;
-        self.ctx.consume_keyword("FULLTEXT_MATCH")?;
-        self.ctx.consume_token("(")?;
-        let field = self.ctx.consume_identifier()?;
-        self.ctx.consume_token(",")?;
-        let query = self.ctx.consume_string()?;
-        self.ctx.consume_token(")")?;
-
-        let condition = FulltextMatchCondition {
-            field,
-            query,
-            index_name: None,
+        let alias = if ctx.check_keyword("AS") {
+            ctx.consume_keyword("AS")?;
+            Some(ctx.consume_identifier()?)
+        } else {
+            None
         };
 
-        let mut match_stmt = MatchFulltext {
-            pattern,
-            fulltext_condition: condition,
-            yield_clause: None,
+        items.push(YieldItem { expr, alias });
+
+        if !ctx.consume_optional_token(",") {
+            break;
+        }
+    }
+
+    Ok(YieldClause::new(items))
+}
+
+fn parse_where_clause(ctx: &mut ParseContext) -> Result<WhereClause, crate::query::parser::ParseError> {
+    let condition = parse_where_condition(ctx)?;
+    Ok(WhereClause { condition })
+}
+
+fn parse_where_condition(ctx: &mut ParseContext) -> Result<WhereCondition, crate::query::parser::ParseError> {
+    if ctx.check_keyword("score") {
+        ctx.consume_identifier()?;
+        let op = parse_comparison_op(ctx)?;
+        let value = ctx.consume_value()?;
+        Ok(WhereCondition::Comparison("score".to_string(), op, value))
+    } else {
+        Ok(WhereCondition::Comparison(
+            "field".to_string(),
+            crate::query::parser::ast::fulltext::ComparisonOp::Eq,
+            Value::Null(crate::core::null::NullType::Null),
+        ))
+    }
+}
+
+fn parse_comparison_op(ctx: &mut ParseContext) -> Result<crate::query::parser::ast::fulltext::ComparisonOp, crate::query::parser::ParseError> {
+    if ctx.consume_optional_token("=") {
+        Ok(crate::query::parser::ast::fulltext::ComparisonOp::Eq)
+    } else if ctx.consume_optional_token("!=") {
+        Ok(crate::query::parser::ast::fulltext::ComparisonOp::Ne)
+    } else if ctx.consume_optional_token("<") {
+        Ok(crate::query::parser::ast::fulltext::ComparisonOp::Lt)
+    } else if ctx.consume_optional_token("<=") {
+        Ok(crate::query::parser::ast::fulltext::ComparisonOp::Le)
+    } else if ctx.consume_optional_token(">") {
+        Ok(crate::query::parser::ast::fulltext::ComparisonOp::Gt)
+    } else if ctx.consume_optional_token(">=") {
+        Ok(crate::query::parser::ast::fulltext::ComparisonOp::Ge)
+    } else {
+        Err(crate::query::parser::ParseError::new(
+            crate::query::parser::core::error::ParseErrorKind::SyntaxError,
+            "Expected comparison operator".to_string(),
+            ctx.current_position(),
+        ))
+    }
+}
+
+fn parse_order_clause(ctx: &mut ParseContext) -> Result<OrderClause, crate::query::parser::ParseError> {
+    let mut items = Vec::new();
+
+    loop {
+        let expr = ctx.consume_identifier()?;
+        let order = if ctx.check_keyword("ASC") {
+            ctx.consume_keyword("ASC")?;
+            FulltextOrderDirection::Asc
+        } else if ctx.check_keyword("DESC") {
+            ctx.consume_keyword("DESC")?;
+            FulltextOrderDirection::Desc
+        } else {
+            FulltextOrderDirection::Asc
         };
 
-        if self.ctx.check_keyword("YIELD") {
-            self.ctx.consume_keyword("YIELD")?;
-            match_stmt.yield_clause = Some(self.parse_yield_clause()?);
-        }
+        items.push(OrderItem { expr, order });
 
-        ParserResult::success(Box::new(match_stmt))
+        if !ctx.consume_optional_token(",") {
+            break;
+        }
     }
+
+    Ok(OrderClause { items })
+}
+
+fn parse_lookup_fulltext(ctx: &mut ParseContext) -> Result<Stmt, crate::query::parser::ParseError> {
+    ctx.consume_keyword("LOOKUP")?;
+    ctx.consume_keyword("ON")?;
+
+    let schema_name = ctx.consume_identifier()?;
+    ctx.consume_keyword("INDEX")?;
+    let index_name = ctx.consume_identifier()?;
+
+    ctx.consume_keyword("WHERE")?;
+    let query = ctx.consume_string()?;
+
+    let mut lookup = LookupFulltext {
+        span: ctx.current_span(),
+        schema_name,
+        index_name,
+        query,
+        yield_clause: None,
+        limit: None,
+    };
+
+    if ctx.check_keyword("YIELD") {
+        ctx.consume_keyword("YIELD")?;
+        lookup.yield_clause = Some(parse_yield_clause(ctx)?);
+    }
+
+    if ctx.check_keyword("LIMIT") {
+        ctx.consume_keyword("LIMIT")?;
+        lookup.limit = Some(ctx.consume_int()? as usize);
+    }
+
+    Ok(Stmt::LookupFulltext(lookup))
+}
+
+fn parse_match_fulltext(ctx: &mut ParseContext) -> Result<Stmt, crate::query::parser::ParseError> {
+    ctx.consume_keyword("MATCH")?;
+    let pattern = ctx.consume_string()?;
+
+    ctx.consume_keyword("WHERE")?;
+    ctx.consume_keyword("FULLTEXT_MATCH")?;
+    ctx.expect_token(TokenKind::LParen)?;
+    let field = ctx.consume_identifier()?;
+    ctx.expect_token(TokenKind::Comma)?;
+    let query = ctx.consume_string()?;
+    ctx.expect_token(TokenKind::RParen)?;
+
+    let condition = FulltextMatchCondition {
+        field,
+        query,
+        index_name: None,
+    };
+
+    let mut match_stmt = MatchFulltext {
+        span: ctx.current_span(),
+        pattern,
+        fulltext_condition: condition,
+        yield_clause: None,
+    };
+
+    if ctx.check_keyword("YIELD") {
+        ctx.consume_keyword("YIELD")?;
+        match_stmt.yield_clause = Some(parse_yield_clause(ctx)?);
+    }
+
+    Ok(Stmt::MatchFulltext(match_stmt))
 }
 
 impl IndexFieldDef {
@@ -585,10 +615,10 @@ mod tests {
 
     #[test]
     fn test_parse_create_fulltext_index() {
-        let sql = r#"CREATE FULLTEXT INDEX idx_article_content 
+        let sql = r#"CREATE FULLTEXT INDEX idx_article_content
                      ON article(title, content)
                      ENGINE BM25"#;
-        
+
         let mut parser = Parser::new(sql);
         let result = parser.parse();
         assert!(result.is_ok());
@@ -599,7 +629,7 @@ mod tests {
         let sql = r#"SEARCH INDEX idx_article MATCH 'database'
                      YIELD doc_id, score() AS s
                      LIMIT 10"#;
-        
+
         let mut parser = Parser::new(sql);
         let result = parser.parse();
         assert!(result.is_ok());
@@ -608,7 +638,7 @@ mod tests {
     #[test]
     fn test_parse_drop_index() {
         let sql = "DROP FULLTEXT INDEX idx_article";
-        
+
         let mut parser = Parser::new(sql);
         let result = parser.parse();
         assert!(result.is_ok());

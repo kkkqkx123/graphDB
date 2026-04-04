@@ -1028,6 +1028,11 @@ impl PlanNodeEnum {
                 | PlanNodeEnum::ChangePassword(_)
                 | PlanNodeEnum::InsertVertices(_)
                 | PlanNodeEnum::InsertEdges(_)
+                | PlanNodeEnum::CreateFulltextIndex(_)
+                | PlanNodeEnum::DropFulltextIndex(_)
+                | PlanNodeEnum::AlterFulltextIndex(_)
+                | PlanNodeEnum::ShowFulltextIndex(_)
+                | PlanNodeEnum::DescribeFulltextIndex(_)
         )
     }
 
@@ -1044,6 +1049,9 @@ impl PlanNodeEnum {
                 | PlanNodeEnum::AppendVertices(_)
                 | PlanNodeEnum::ScanVertices(_)
                 | PlanNodeEnum::ScanEdges(_)
+                | PlanNodeEnum::FulltextSearch(_)
+                | PlanNodeEnum::FulltextLookup(_)
+                | PlanNodeEnum::MatchFulltext(_)
         )
     }
 
@@ -1151,6 +1159,9 @@ impl PlanNodeEnum {
             PlanNodeEnum::AllPaths(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::BFSShortest(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::MultiShortestPath(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::FulltextSearch(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::FulltextLookup(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::MatchFulltext(node) => base_size + estimate_node_memory(node),
 
             // SingleInputNode: Node structure + child node
             PlanNodeEnum::Project(node) => {
@@ -1397,6 +1408,9 @@ impl PlanNodeEnum {
             PlanNodeEnum::AllPaths(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::BFSShortest(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::MultiShortestPath(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::FulltextSearch(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::FulltextLookup(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::MatchFulltext(node) => base_size + estimate_node_memory(node),
 
             // SingleInputNode: Node structure + child node
             PlanNodeEnum::Project(node) => {
@@ -1594,14 +1608,6 @@ impl PlanNodeEnum {
                 }
                 total
             }
-            PlanNodeEnum::CreateFulltextIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DropFulltextIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::AlterFulltextIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowFulltextIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DescribeFulltextIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::FulltextSearch(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::FulltextLookup(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::MatchFulltext(node) => base_size + estimate_node_memory(node),
         }
     }
 

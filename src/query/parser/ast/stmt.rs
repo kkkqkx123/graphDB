@@ -540,7 +540,7 @@ impl Stmt {
 }
 
 /// Query statement
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct QueryStmt {
     pub span: Span,
     pub statements: Vec<Stmt>,
@@ -549,6 +549,12 @@ pub struct QueryStmt {
 impl QueryStmt {
     pub fn new(statements: Vec<Stmt>, span: Span) -> Self {
         Self { span, statements }
+    }
+}
+
+impl PartialEq for QueryStmt {
+    fn eq(&self, other: &Self) -> bool {
+        self.span == other.span && self.statements.len() == other.statements.len()
     }
 }
 
@@ -881,19 +887,31 @@ pub enum ExplainFormat {
     Dot,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct ExplainStmt {
     pub span: Span,
     pub statement: Box<Stmt>,
     pub format: ExplainFormat,
 }
 
+impl PartialEq for ExplainStmt {
+    fn eq(&self, other: &Self) -> bool {
+        self.span == other.span && self.format == other.format
+    }
+}
+
 /// PROFILE statement
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct ProfileStmt {
     pub span: Span,
     pub statement: Box<Stmt>,
     pub format: ExplainFormat,
+}
+
+impl PartialEq for ProfileStmt {
+    fn eq(&self, other: &Self) -> bool {
+        self.span == other.span && self.format == other.format
+    }
 }
 
 /// The GROUP BY statement
@@ -1041,11 +1059,17 @@ pub struct UpdateConfigsStmt {
 }
 
 /// Variable assignment statement
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct AssignmentStmt {
     pub span: Span,
     pub variable: String, // Variable name (without $ prefix)
     pub statement: Box<Stmt>,
+}
+
+impl PartialEq for AssignmentStmt {
+    fn eq(&self, other: &Self) -> bool {
+        self.span == other.span && self.variable == other.variable
+    }
 }
 
 /// Types of set operations
@@ -1058,12 +1082,18 @@ pub enum SetOperationType {
 }
 
 /// Set operation statements
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct SetOperationStmt {
     pub span: Span,
     pub op_type: SetOperationType,
     pub left: Box<Stmt>,
     pub right: Box<Stmt>,
+}
+
+impl PartialEq for SetOperationStmt {
+    fn eq(&self, other: &Self) -> bool {
+        self.span == other.span && self.op_type == other.op_type
+    }
 }
 
 /// UNWIND statement
@@ -1124,11 +1154,17 @@ pub struct RemoveStmt {
 }
 
 /// The PIPE statement
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct PipeStmt {
     pub span: Span,
     pub left: Box<Stmt>,
     pub right: Box<Stmt>,
+}
+
+impl PartialEq for PipeStmt {
+    fn eq(&self, other: &Self) -> bool {
+        self.span == other.span
+    }
 }
 
 /// MATCH clause (used within the MATCH statement)

@@ -4,6 +4,7 @@
 //! Responsible for creating the corresponding executor instances based on the execution plan.
 
 use crate::core::error::QueryError;
+use crate::core::types::span::Span;
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::factory::builders::{
@@ -13,6 +14,7 @@ use crate::query::executor::factory::builders::{
 };
 use crate::query::executor::factory::validators::RecursionDetector;
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -519,18 +521,21 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     fn build_create_fulltext_index(
         &mut self,
         node: &crate::query::planning::plan::core::nodes::CreateFulltextIndexNode,
-        _storage: Arc<Mutex<S>>,
-        _context: &ExecutionContext,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::admin::CreateFulltextIndexExecutor;
 
         let executor = CreateFulltextIndexExecutor::new(
+            node.id(),
+            storage,
             node.index_name.clone(),
             node.schema_name.clone(),
             node.fields.clone(),
             node.engine_type,
             node.options.clone(),
             node.if_not_exists,
+            context.expression_context().clone(),
         );
         Ok(ExecutorEnum::CreateFulltextIndex(executor))
     }
@@ -538,14 +543,17 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     fn build_drop_fulltext_index(
         &mut self,
         node: &crate::query::planning::plan::core::nodes::DropFulltextIndexNode,
-        _storage: Arc<Mutex<S>>,
-        _context: &ExecutionContext,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::admin::DropFulltextIndexExecutor;
 
         let executor = DropFulltextIndexExecutor::new(
+            node.id(),
+            storage,
             node.index_name.clone(),
             node.if_exists,
+            context.expression_context().clone(),
         );
         Ok(ExecutorEnum::DropFulltextIndex(executor))
     }
@@ -553,14 +561,17 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     fn build_alter_fulltext_index(
         &mut self,
         node: &crate::query::planning::plan::core::nodes::AlterFulltextIndexNode,
-        _storage: Arc<Mutex<S>>,
-        _context: &ExecutionContext,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::admin::AlterFulltextIndexExecutor;
 
         let executor = AlterFulltextIndexExecutor::new(
+            node.id(),
+            storage,
             node.index_name.clone(),
             node.actions.clone(),
+            context.expression_context().clone(),
         );
         Ok(ExecutorEnum::AlterFulltextIndex(executor))
     }
@@ -568,14 +579,15 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     fn build_show_fulltext_index(
         &mut self,
         node: &crate::query::planning::plan::core::nodes::ShowFulltextIndexNode,
-        _storage: Arc<Mutex<S>>,
-        _context: &ExecutionContext,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::admin::ShowFulltextIndexExecutor;
 
         let executor = ShowFulltextIndexExecutor::new(
-            node.pattern.clone(),
-            node.from_schema.clone(),
+            node.id(),
+            storage,
+            context.expression_context().clone(),
         );
         Ok(ExecutorEnum::ShowFulltextIndex(executor))
     }
@@ -583,13 +595,16 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     fn build_describe_fulltext_index(
         &mut self,
         node: &crate::query::planning::plan::core::nodes::DescribeFulltextIndexNode,
-        _storage: Arc<Mutex<S>>,
-        _context: &ExecutionContext,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::admin::DescribeFulltextIndexExecutor;
 
         let executor = DescribeFulltextIndexExecutor::new(
+            node.id(),
+            storage,
             node.index_name.clone(),
+            context.expression_context().clone(),
         );
         Ok(ExecutorEnum::DescribeFulltextIndex(executor))
     }
@@ -604,6 +619,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         use crate::query::parser::ast::SearchStatement;
 
         let statement = SearchStatement {
+            span: Span::default(),
             index_name: node.index_name.clone(),
             query: node.query.clone(),
             yield_clause: node.yield_clause.clone(),
@@ -613,10 +629,14 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             offset: node.offset,
         };
 
+        let search_engine = context.search_engine()
+            .ok_or_else(|| QueryError::ExecutionError("Search engine not available".to_string()))?
+            .clone();
+
         let executor = FulltextSearchExecutor::new(
             node.id(),
             statement,
-            context.search_engine(),
+            search_engine,
             context.clone(),
             storage,
             context.expression_context().clone(),
@@ -632,11 +652,15 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::data_access::FulltextScanExecutor;
 
+        let search_engine = context.search_engine()
+            .ok_or_else(|| QueryError::ExecutionError("Search engine not available".to_string()))?
+            .clone();
+
         let executor = FulltextScanExecutor::new(
             node.id(),
             node.index_name.clone(),
             node.query.clone(),
-            context.search_engine(),
+            search_engine,
             context.clone(),
             storage,
             context.expression_context().clone(),
@@ -648,15 +672,18 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     fn build_match_fulltext(
         &mut self,
         node: &crate::query::planning::plan::core::nodes::MatchFulltextNode,
-        _storage: Arc<Mutex<S>>,
-        _context: &ExecutionContext,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::data_access::MatchFulltextExecutor;
 
         let executor = MatchFulltextExecutor::new(
+            node.id(),
+            storage,
             node.pattern.clone(),
             node.fulltext_condition.clone(),
             node.yield_clause.clone(),
+            context.expression_context().clone(),
         );
         Ok(ExecutorEnum::MatchFulltext(executor))
     }

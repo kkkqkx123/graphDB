@@ -3,10 +3,10 @@
 //! This module defines the Abstract Syntax Tree (AST) nodes for full-text search queries,
 //! including CREATE FULLTEXT INDEX, SEARCH, and related statements.
 
+use bincode::{Decode, Encode};
 use crate::core::types::span::Span;
 use crate::core::types::FulltextEngineType;
 use crate::core::Value;
-use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -329,9 +329,9 @@ impl CreateFulltextIndex {
 }
 
 impl SearchStatement {
-    pub fn new(span: Span, index_name: String, query: FulltextQueryExpr) -> Self {
+    pub fn new(index_name: String, query: FulltextQueryExpr) -> Self {
         Self {
-            span,
+            span: Span::default(),
             index_name,
             query,
             yield_clause: None,

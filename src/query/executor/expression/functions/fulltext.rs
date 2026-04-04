@@ -143,7 +143,7 @@ impl FulltextFunction {
             Value::String(s) => s.clone(),
             _ => {
                 return Err(ExpressionError::new(
-                    ExpressionErrorType::InvalidArgumentType,
+                    ExpressionErrorType::TypeError,
                     "highlight() first argument must be a string (field name)",
                 ));
             }
@@ -201,7 +201,7 @@ impl FulltextFunction {
             }
         }
 
-        Ok(Value::Null)
+        Ok(Value::Null(crate::core::null::NullType::Null))
     }
 
     /// Execute matched_fields() function
@@ -223,7 +223,7 @@ impl FulltextFunction {
             .map(|f| Value::String(f.clone()))
             .collect();
 
-        Ok(Value::List(fields))
+        Ok(Value::List(crate::core::value::list::List { values: fields }))
     }
 
     /// Execute snippet() function
@@ -243,7 +243,7 @@ impl FulltextFunction {
             Value::String(s) => s.clone(),
             _ => {
                 return Err(ExpressionError::new(
-                    ExpressionErrorType::InvalidArgumentType,
+                    ExpressionErrorType::TypeError,
                     "snippet() first argument must be a string (field name)",
                 ));
             }
@@ -278,7 +278,7 @@ impl FulltextFunction {
             }
         }
 
-        Ok(Value::Null)
+        Ok(Value::Null(crate::core::null::NullType::Null))
     }
 }
 
@@ -349,41 +349,27 @@ impl FulltextExecutionContext {
 
 /// Register full-text search functions
 pub fn register_fulltext_functions(registry: &mut crate::query::executor::expression::functions::FunctionRegistry) {
-    use crate::query::executor::expression::functions::OwnedFunctionRef;
-
     registry.register_builtin(
-        "score",
-        OwnedFunctionRef::Builtin(
-            crate::query::executor::expression::functions::BuiltinFunction::Fulltext(
-                FulltextFunction::Score,
-            ),
+        crate::query::executor::expression::functions::BuiltinFunction::Fulltext(
+            FulltextFunction::Score,
         ),
     );
 
     registry.register_builtin(
-        "highlight",
-        OwnedFunctionRef::Builtin(
-            crate::query::executor::expression::functions::BuiltinFunction::Fulltext(
-                FulltextFunction::Highlight,
-            ),
+        crate::query::executor::expression::functions::BuiltinFunction::Fulltext(
+            FulltextFunction::Highlight,
         ),
     );
 
     registry.register_builtin(
-        "matched_fields",
-        OwnedFunctionRef::Builtin(
-            crate::query::executor::expression::functions::BuiltinFunction::Fulltext(
-                FulltextFunction::MatchedFields,
-            ),
+        crate::query::executor::expression::functions::BuiltinFunction::Fulltext(
+            FulltextFunction::MatchedFields,
         ),
     );
 
     registry.register_builtin(
-        "snippet",
-        OwnedFunctionRef::Builtin(
-            crate::query::executor::expression::functions::BuiltinFunction::Fulltext(
-                FulltextFunction::Snippet,
-            ),
+        crate::query::executor::expression::functions::BuiltinFunction::Fulltext(
+            FulltextFunction::Snippet,
         ),
     );
 }

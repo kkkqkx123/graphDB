@@ -20,7 +20,7 @@ mod util_stmt_parser;
 mod tests;
 
 pub use expr_parser::ExprParser;
-pub use fulltext_parser::FulltextParser;
+pub use fulltext_parser::parse_fulltext;
 pub use parse_context::ParseContext;
 pub use parser::{Parser, ParserResult};
 pub use stmt_parser::StmtParser;

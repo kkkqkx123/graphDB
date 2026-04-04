@@ -512,37 +512,14 @@ impl StmtParser {
         // It is not possible to determine the type; an error has occurred.
         Err(ParseError::new(
             ParseErrorKind::SyntaxError,
-            "CREATE 语句期望 '(' (Cypher 数据创建) 或 TAG/EDGE/SPACE/INDEX (Schema 定义) 或 USER (用户管理)".to_string(),
+            "CREATE statement expects '(' (Cypher data creation) or TAG/EDGE/SPACE/INDEX (Schema definition) or USER (user management)".to_string(),
             ctx.current_position(),
         ))
     }
 
     /// Parse full-text search statements
     fn parse_fulltext_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
-        use crate::query::parser::parsing::FulltextParser;
-
-        let start_span = ctx.current_span();
-
-        // Use FulltextParser to parse the statement
-        let mut fulltext_parser = FulltextParser::new(ctx);
-        let parser_result = fulltext_parser.parse();
-
-        // Convert ParserResult to Stmt
-        match parser_result {
-            crate::query::parser::parsing::parser::ParserResult { ast, errors } => {
-                if !errors.is_empty() {
-                    return Err(ParseError::new(
-                        ParseErrorKind::SyntaxError,
-                        format!("Full-text parse error: {:?}", errors),
-                        ctx.current_position(),
-                    ));
-                }
-
-                // Extract the statement from the AST
-                let stmt = ast.stmt().clone();
-                Ok(stmt)
-            }
-        }
+        crate::query::parser::parsing::fulltext_parser::parse_fulltext(ctx)
     }
 
     /// Pipeline after parsing set operation statements, or end of the process.
