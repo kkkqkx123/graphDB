@@ -2,6 +2,90 @@ use serde::{Deserialize, Serialize};
 
 pub type PayloadValue = serde_json::Value;
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct GeoPoint {
+    pub lat: f64,
+    pub lon: f64,
+}
+
+impl GeoPoint {
+    pub fn new(lat: f64, lon: f64) -> Self {
+        Self { lat, lon }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GeoRadius {
+    pub center: GeoPoint,
+    pub radius: f64,
+}
+
+impl GeoRadius {
+    pub fn new(center: GeoPoint, radius: f64) -> Self {
+        Self { center, radius }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GeoBoundingBox {
+    pub top_left: GeoPoint,
+    pub bottom_right: GeoPoint,
+}
+
+impl GeoBoundingBox {
+    pub fn new(top_left: GeoPoint, bottom_right: GeoPoint) -> Self {
+        Self {
+            top_left,
+            bottom_right,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValuesCountCondition {
+    pub gt: Option<u64>,
+    pub gte: Option<u64>,
+    pub lt: Option<u64>,
+    pub lte: Option<u64>,
+}
+
+impl ValuesCountCondition {
+    pub fn new() -> Self {
+        Self {
+            gt: None,
+            gte: None,
+            lt: None,
+            lte: None,
+        }
+    }
+
+    pub fn gt(mut self, value: u64) -> Self {
+        self.gt = Some(value);
+        self
+    }
+
+    pub fn gte(mut self, value: u64) -> Self {
+        self.gte = Some(value);
+        self
+    }
+
+    pub fn lt(mut self, value: u64) -> Self {
+        self.lt = Some(value);
+        self
+    }
+
+    pub fn lte(mut self, value: u64) -> Self {
+        self.lte = Some(value);
+        self
+    }
+}
+
+impl Default for ValuesCountCondition {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VectorFilter {
     pub must: Option<Vec<FilterCondition>>,
@@ -85,6 +169,22 @@ impl FilterCondition {
     pub fn has_id(ids: Vec<String>) -> Self {
         Self::new("_id", ConditionType::HasId { ids })
     }
+
+    pub fn geo_radius(field: impl Into<String>, radius: GeoRadius) -> Self {
+        Self::new(field, ConditionType::GeoRadius(radius))
+    }
+
+    pub fn geo_bounding_box(field: impl Into<String>, bbox: GeoBoundingBox) -> Self {
+        Self::new(field, ConditionType::GeoBoundingBox(bbox))
+    }
+
+    pub fn values_count(field: impl Into<String>, count: ValuesCountCondition) -> Self {
+        Self::new(field, ConditionType::ValuesCount(count))
+    }
+
+    pub fn contains(field: impl Into<String>, value: impl Into<String>) -> Self {
+        Self::new(field, ConditionType::Contains { value: value.into() })
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -97,6 +197,10 @@ pub enum ConditionType {
     HasId { ids: Vec<String> },
     Nested { filter: Box<VectorFilter> },
     Payload { key: String, value: PayloadValue },
+    GeoRadius(GeoRadius),
+    GeoBoundingBox(GeoBoundingBox),
+    ValuesCount(ValuesCountCondition),
+    Contains { value: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

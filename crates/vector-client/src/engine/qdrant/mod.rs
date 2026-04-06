@@ -1,12 +1,12 @@
 use async_trait::async_trait;
 use qdrant_client::qdrant::{
-    CreateCollectionBuilder, Distance, PointId, PointStruct,
+    CreateCollectionBuilder, PointId, PointStruct,
     SearchPointsBuilder, UpsertPointsBuilder, VectorParamsBuilder,
     GetPointsBuilder, ScrollPointsBuilder, DeletePointsBuilder,
     SetPayloadPointsBuilder, DeletePayloadPointsBuilder, PointsIdsList,
-    vectors_output::VectorsOptions,
+    CreateFieldIndexCollectionBuilder, DeleteFieldIndexCollectionBuilder,
 };
-use qdrant_client::{Qdrant, Payload as QdrantPayload};
+use qdrant_client::Qdrant;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -16,6 +16,17 @@ use crate::config::{ConnectionConfig, VectorClientConfig};
 use crate::error::{Result, VectorClientError};
 use crate::types::*;
 use super::VectorEngine;
+
+mod config;
+mod filter;
+mod utils;
+
+use config::{convert_distance, build_hnsw_config, build_quantization_config, convert_field_type};
+use filter::convert_filter;
+use utils::{
+    point_id_from_str, point_struct_from_vector_point, payload_to_qdrant_payload,
+    search_result_from_scored_point, vector_point_from_retrieved_point,
+};
 
 const QDRANT_VERSION: &str = "1.17.x";
 
@@ -72,93 +83,6 @@ impl QdrantEngine {
             }
         }
     }
-
-    fn convert_distance(distance: DistanceMetric) -> Distance {
-        match distance {
-            DistanceMetric::Cosine => Distance::Cosine,
-            DistanceMetric::Euclid => Distance::Euclid,
-            DistanceMetric::Dot => Distance::Dot,
-        }
-    }
-
-    fn point_id_from_str(id: &str) -> PointId {
-        if let Ok(num) = id.parse::<u64>() {
-            num.into()
-        } else {
-            id.into()
-        }
-    }
-
-    fn point_struct_from_vector_point(point: VectorPoint) -> Result<PointStruct> {
-        let id = Self::point_id_from_str(&point.id);
-        let payload = Self::payload_to_qdrant_payload(&point.payload)?;
-        Ok(PointStruct::new(id, point.vector, payload))
-    }
-
-    fn payload_to_qdrant_payload(payload: &Option<Payload>) -> Result<QdrantPayload> {
-        let json = match payload {
-            Some(p) => serde_json::to_value(p),
-            None => Ok(serde_json::Value::Object(Default::default())),
-        }
-        .map_err(|e| VectorClientError::PayloadError(e.to_string()))?;
-
-        QdrantPayload::try_from(json)
-            .map_err(|e| VectorClientError::PayloadError(e.to_string()))
-    }
-
-    fn qdrant_payload_to_payload(payload: HashMap<String, qdrant_client::qdrant::Value>) -> Payload {
-        let json = serde_json::to_value(payload).unwrap_or(serde_json::Value::Object(Default::default()));
-        serde_json::from_value(json).unwrap_or_default()
-    }
-
-    fn search_result_from_scored_point(
-        point: qdrant_client::qdrant::ScoredPoint,
-    ) -> Result<SearchResult> {
-        let id = point.id
-            .map(|id| format!("{:?}", id))
-            .ok_or_else(|| VectorClientError::InvalidPointId("empty id".to_string()))?;
-
-        let payload = if point.payload.is_empty() {
-            None
-        } else {
-            Some(Self::qdrant_payload_to_payload(point.payload))
-        };
-
-        Ok(SearchResult {
-            id,
-            score: point.score,
-            payload,
-            vector: None,
-        })
-    }
-
-    fn vector_point_from_retrieved_point(
-        point: qdrant_client::qdrant::RetrievedPoint,
-    ) -> Result<VectorPoint> {
-        let id = point.id
-            .map(|id| format!("{:?}", id))
-            .ok_or_else(|| VectorClientError::InvalidPointId("empty id".to_string()))?;
-
-        let payload = if point.payload.is_empty() {
-            None
-        } else {
-            Some(Self::qdrant_payload_to_payload(point.payload))
-        };
-
-        #[allow(deprecated)]
-        let vector = point.vectors.and_then(|v| {
-            match v.vectors_options {
-                Some(VectorsOptions::Vector(vec)) => Some(vec.data),
-                _ => None,
-            }
-        });
-
-        Ok(VectorPoint {
-            id,
-            vector: vector.unwrap_or_default(),
-            payload,
-        })
-    }
 }
 
 #[async_trait]
@@ -185,11 +109,31 @@ impl VectorEngine for QdrantEngine {
     async fn create_collection(&self, name: &str, config: CollectionConfig) -> Result<()> {
         debug!("Creating collection '{}' with config: {:?}", name, config);
 
-        let distance = Self::convert_distance(config.distance);
-        let vector_params = VectorParamsBuilder::new(config.vector_size as u64, distance);
+        let distance = convert_distance(config.distance);
+        let mut vector_params = VectorParamsBuilder::new(config.vector_size as u64, distance);
 
-        let builder = CreateCollectionBuilder::new(name)
+        if let Some(hnsw_config) = build_hnsw_config(&config.hnsw_config) {
+            vector_params = vector_params.hnsw_config(hnsw_config);
+        }
+
+        if let Some(quantization) = build_quantization_config(&config.quantization_config) {
+            vector_params = vector_params.quantization_config(quantization);
+        }
+
+        if let Some(on_disk) = config.on_disk_payload {
+            vector_params = vector_params.on_disk(on_disk);
+        }
+
+        let mut builder = CreateCollectionBuilder::new(name)
             .vectors_config(vector_params);
+
+        if let Some(shard_number) = config.shard_number {
+            builder = builder.shard_number(shard_number as u32);
+        }
+
+        if let Some(on_disk_payload) = config.on_disk_payload {
+            builder = builder.on_disk_payload(on_disk_payload);
+        }
 
         self.client.create_collection(builder).await?;
 
@@ -246,7 +190,7 @@ impl VectorEngine for QdrantEngine {
     async fn upsert(&self, collection: &str, point: VectorPoint) -> Result<UpsertResult> {
         debug!("Upserting point '{}' to collection '{}'", point.id, collection);
 
-        let point_struct = Self::point_struct_from_vector_point(point)?;
+        let point_struct = point_struct_from_vector_point(point)?;
 
         self.client
             .upsert_points(UpsertPointsBuilder::new(collection, vec![point_struct]).wait(true))
@@ -263,7 +207,7 @@ impl VectorEngine for QdrantEngine {
 
         let point_structs: Result<Vec<PointStruct>> = points
             .into_iter()
-            .map(Self::point_struct_from_vector_point)
+            .map(point_struct_from_vector_point)
             .collect();
 
         self.client
@@ -279,7 +223,7 @@ impl VectorEngine for QdrantEngine {
     async fn delete(&self, collection: &str, point_id: &str) -> Result<DeleteResult> {
         debug!("Deleting point '{}' from collection '{}'", point_id, collection);
 
-        let id = Self::point_id_from_str(point_id);
+        let id = point_id_from_str(point_id);
 
         self.client
             .delete_points(DeletePointsBuilder::new(collection).points(vec![id]))
@@ -296,7 +240,7 @@ impl VectorEngine for QdrantEngine {
 
         let ids: Vec<PointId> = point_ids
             .iter()
-            .map(|id| Self::point_id_from_str(id))
+            .map(|id| point_id_from_str(id))
             .collect();
 
         self.client
@@ -309,12 +253,23 @@ impl VectorEngine for QdrantEngine {
         })
     }
 
-    async fn delete_by_filter(&self, collection: &str, _filter: VectorFilter) -> Result<DeleteResult> {
+    async fn delete_by_filter(&self, collection: &str, filter: VectorFilter) -> Result<DeleteResult> {
         debug!("Deleting points by filter from collection '{}'", collection);
 
-        Err(VectorClientError::FilterError(
-            "Filter-based deletion not yet implemented".to_string(),
-        ))
+        let qdrant_filter = convert_filter(&filter)?;
+
+        self.client
+            .delete_points(
+                DeletePointsBuilder::new(collection)
+                    .points(qdrant_filter)
+                    .wait(true),
+            )
+            .await?;
+
+        Ok(DeleteResult {
+            operation_id: None,
+            deleted_count: 0,
+        })
     }
 
     async fn search(&self, collection: &str, query: SearchQuery) -> Result<Vec<SearchResult>> {
@@ -337,7 +292,7 @@ impl VectorEngine for QdrantEngine {
         let search_results: Result<Vec<SearchResult>> = result
             .result
             .into_iter()
-            .map(Self::search_result_from_scored_point)
+            .map(search_result_from_scored_point)
             .collect();
 
         search_results
@@ -363,7 +318,7 @@ impl VectorEngine for QdrantEngine {
     async fn get(&self, collection: &str, point_id: &str) -> Result<Option<VectorPoint>> {
         debug!("Getting point '{}' from collection '{}'", point_id, collection);
 
-        let id = Self::point_id_from_str(point_id);
+        let id = point_id_from_str(point_id);
 
         let result = self
             .client
@@ -375,7 +330,7 @@ impl VectorEngine for QdrantEngine {
             .await?;
 
         Ok(result.result.first().map(|p: &qdrant_client::qdrant::RetrievedPoint| {
-            Self::vector_point_from_retrieved_point(p.clone())
+            vector_point_from_retrieved_point(p.clone())
         }).transpose()?)
     }
 
@@ -384,7 +339,7 @@ impl VectorEngine for QdrantEngine {
 
         let ids: Vec<PointId> = point_ids
             .iter()
-            .map(|id| Self::point_id_from_str(id))
+            .map(|id| point_id_from_str(id))
             .collect();
 
         let result = self
@@ -398,7 +353,7 @@ impl VectorEngine for QdrantEngine {
 
         let mut points_map: HashMap<String, VectorPoint> = HashMap::new();
         for point in result.result {
-            if let Ok(vp) = Self::vector_point_from_retrieved_point(point) {
+            if let Ok(vp) = vector_point_from_retrieved_point(point) {
                 points_map.insert(vp.id.clone(), vp);
             }
         }
@@ -419,10 +374,10 @@ impl VectorEngine for QdrantEngine {
 
         let ids: Vec<PointId> = point_ids
             .iter()
-            .map(|id| Self::point_id_from_str(id))
+            .map(|id| point_id_from_str(id))
             .collect();
 
-        let qdrant_payload = Self::payload_to_qdrant_payload(&Some(payload))?;
+        let qdrant_payload = payload_to_qdrant_payload(&Some(payload))?;
 
         self.client
             .set_payload(
@@ -440,7 +395,7 @@ impl VectorEngine for QdrantEngine {
 
         let ids: Vec<PointId> = point_ids
             .iter()
-            .map(|id| Self::point_id_from_str(id))
+            .map(|id| point_id_from_str(id))
             .collect();
 
         let keys_owned: Vec<String> = keys.iter().map(|k| k.to_string()).collect();
@@ -472,7 +427,7 @@ impl VectorEngine for QdrantEngine {
             .with_vectors(with_vector.unwrap_or(false));
 
         if let Some(o) = offset {
-            let offset_id = Self::point_id_from_str(o);
+            let offset_id = point_id_from_str(o);
             builder = builder.offset(offset_id);
         }
 
@@ -481,11 +436,52 @@ impl VectorEngine for QdrantEngine {
         let points: Result<Vec<VectorPoint>> = result
             .result
             .into_iter()
-            .map(Self::vector_point_from_retrieved_point)
+            .map(vector_point_from_retrieved_point)
             .collect();
 
         let next_page = result.next_page_offset.map(|id| format!("{:?}", id));
 
         Ok((points?, next_page))
+    }
+
+    async fn create_payload_index(
+        &self,
+        collection: &str,
+        field: &str,
+        schema: PayloadSchemaType,
+    ) -> Result<()> {
+        debug!("Creating payload index for field '{}' in collection '{}'", field, collection);
+
+        let field_type = convert_field_type(schema);
+
+        self.client
+            .create_field_index(
+                CreateFieldIndexCollectionBuilder::new(collection, field, field_type)
+                    .wait(true),
+            )
+            .await?;
+
+        info!("Payload index created for field '{}' in collection '{}'", field, collection);
+        Ok(())
+    }
+
+    async fn delete_payload_index(&self, collection: &str, field: &str) -> Result<()> {
+        debug!("Deleting payload index for field '{}' in collection '{}'", field, collection);
+
+        self.client
+            .delete_field_index(
+                DeleteFieldIndexCollectionBuilder::new(collection, field)
+                    .wait(true),
+            )
+            .await?;
+
+        info!("Payload index deleted for field '{}' in collection '{}'", field, collection);
+        Ok(())
+    }
+
+    async fn list_payload_indexes(&self, _collection: &str) -> Result<Vec<(String, PayloadSchemaType)>> {
+        debug!("Listing payload indexes for collection '{}'", _collection);
+
+        Ok(Vec::new())
     }
 }

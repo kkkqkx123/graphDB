@@ -69,6 +69,10 @@ impl<'a, E: VectorEngine + ?Sized> PointApi<'a, E> {
         self.engine.delete_batch(&self.collection, point_ids).await
     }
 
+    pub async fn delete_by_filter(&self, filter: VectorFilter) -> Result<DeleteResult> {
+        self.engine.delete_by_filter(&self.collection, filter).await
+    }
+
     pub async fn set_payload(&self, point_ids: Vec<&str>, payload: Payload) -> Result<()> {
         self.engine.set_payload(&self.collection, point_ids, payload).await
     }
@@ -85,6 +89,18 @@ impl<'a, E: VectorEngine + ?Sized> PointApi<'a, E> {
         with_vector: Option<bool>,
     ) -> Result<(Vec<VectorPoint>, Option<String>)> {
         self.engine.scroll(&self.collection, limit, offset, with_payload, with_vector).await
+    }
+
+    pub async fn create_payload_index(&self, field: &str, schema: PayloadSchemaType) -> Result<()> {
+        self.engine.create_payload_index(&self.collection, field, schema).await
+    }
+
+    pub async fn delete_payload_index(&self, field: &str) -> Result<()> {
+        self.engine.delete_payload_index(&self.collection, field).await
+    }
+
+    pub async fn list_payload_indexes(&self) -> Result<Vec<(String, PayloadSchemaType)>> {
+        self.engine.list_payload_indexes(&self.collection).await
     }
 }
 

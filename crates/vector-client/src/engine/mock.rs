@@ -398,6 +398,47 @@ impl VectorEngine for MockEngine {
 
         Ok((result, next_page))
     }
+
+    async fn create_payload_index(
+        &self,
+        collection: &str,
+        field: &str,
+        _schema: PayloadSchemaType,
+    ) -> Result<()> {
+        debug!("Mock: Creating payload index for field '{}' in collection '{}'", field, collection);
+
+        let collections = self.collections.read().await;
+
+        if !collections.contains_key(collection) {
+            return Err(VectorClientError::CollectionNotFound(collection.to_string()));
+        }
+
+        Ok(())
+    }
+
+    async fn delete_payload_index(&self, collection: &str, field: &str) -> Result<()> {
+        debug!("Mock: Deleting payload index for field '{}' in collection '{}'", field, collection);
+
+        let collections = self.collections.read().await;
+
+        if !collections.contains_key(collection) {
+            return Err(VectorClientError::CollectionNotFound(collection.to_string()));
+        }
+
+        Ok(())
+    }
+
+    async fn list_payload_indexes(&self, collection: &str) -> Result<Vec<(String, PayloadSchemaType)>> {
+        debug!("Mock: Listing payload indexes for collection '{}'", collection);
+
+        let collections = self.collections.read().await;
+
+        if !collections.contains_key(collection) {
+            return Err(VectorClientError::CollectionNotFound(collection.to_string()));
+        }
+
+        Ok(Vec::new())
+    }
 }
 
 #[cfg(test)]

@@ -52,4 +52,15 @@ pub trait VectorEngine: Send + Sync + std::fmt::Debug {
         with_payload: Option<bool>,
         with_vector: Option<bool>,
     ) -> Result<(Vec<VectorPoint>, Option<String>)>;
+
+    async fn create_payload_index(
+        &self,
+        collection: &str,
+        field: &str,
+        schema: PayloadSchemaType,
+    ) -> Result<()>;
+
+    async fn delete_payload_index(&self, collection: &str, field: &str) -> Result<()>;
+
+    async fn list_payload_indexes(&self, collection: &str) -> Result<Vec<(String, PayloadSchemaType)>>;
 }
