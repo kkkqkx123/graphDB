@@ -333,6 +333,10 @@ impl SyncManager {
     }
 
     pub async fn force_commit(&self) -> Result<(), SyncError> {
+        while let Some(task) = self.buffer.try_next_task().await {
+            Self::execute_task(&self.buffer, &task, self.recovery.as_ref()).await;
+        }
+
         let results = self.buffer.commit_all().await;
 
         for (key, result) in results {

@@ -128,7 +128,13 @@ impl FulltextCoordinator {
         for (field_name, value) in properties {
             if let Some(engine) = self.manager.get_engine(space_id, tag_name, field_name) {
                 match change_type {
-                    ChangeType::Insert | ChangeType::Update => {
+                    ChangeType::Insert => {
+                        if let Value::String(text) = value {
+                            engine.index(&doc_id, text).await.map_err(FulltextError::from)?;
+                        }
+                    }
+                    ChangeType::Update => {
+                        engine.delete(&doc_id).await.ok();
                         if let Value::String(text) = value {
                             engine.index(&doc_id, text).await.map_err(FulltextError::from)?;
                         }

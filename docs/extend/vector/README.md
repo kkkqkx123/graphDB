@@ -14,6 +14,17 @@
 | [qdrant_adapter_implementation.md](./qdrant_adapter_implementation.md) | Qdrant适配器的详细实现细节 |
 | [query_integration.md](./query_integration.md) | 查询引擎集成方案，包括SQL语法扩展 |
 | [data_sync_mechanism.md](./data_sync_mechanism.md) | 数据同步机制设计 |
+| [qdrant/](./qdrant/) | Qdrant详细文档（API、功能、配置、客户端架构） |
+
+### Qdrant子目录文档
+
+| 文档 | 描述 |
+|------|------|
+| [qdrant/README.md](./qdrant/README.md) | Qdrant集成文档概览 |
+| [qdrant/qdrant_api_usage.md](./qdrant/qdrant_api_usage.md) | Qdrant Rust客户端API使用说明 |
+| [qdrant/qdrant_features.md](./qdrant/qdrant_features.md) | Qdrant功能概述和特性说明 |
+| [qdrant/qdrant_configuration.md](./qdrant/qdrant_configuration.md) | Qdrant配置参数详解 |
+| [qdrant/client_crate_architecture.md](./qdrant/client_crate_architecture.md) | 向量客户端Crate架构分析 |
 
 ---
 
