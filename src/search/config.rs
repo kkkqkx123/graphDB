@@ -1,7 +1,8 @@
-use crate::search::adapters::InversearchConfig;
-use crate::search::engine::EngineType;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+
+use crate::search::adapters::{Bm25Config, InversearchConfig};
+use crate::search::engine::EngineType;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FulltextConfig {
@@ -57,19 +58,4 @@ pub enum SyncMode {
     Sync,
     Async,
     Off,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Bm25Config {
-    pub memory_limit_mb: usize,
-    pub auto_commit: bool,
-}
-
-impl Default for Bm25Config {
-    fn default() -> Self {
-        Self {
-            memory_limit_mb: 50,
-            auto_commit: true,
-        }
-    }
 }

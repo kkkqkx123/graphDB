@@ -10,7 +10,7 @@ pub mod metrics;
 pub mod result;
 pub mod warmup;
 
-pub use config::{Bm25Config, FulltextConfig, SyncConfig, SyncMode};
+pub use config::{FulltextConfig, SyncConfig, SyncMode};
 pub use engine::{EngineType, SearchEngine};
 pub use error::{Result, SearchError};
 pub use factory::SearchEngineFactory;

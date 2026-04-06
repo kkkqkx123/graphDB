@@ -1,32 +1,13 @@
 use async_trait::async_trait;
 use inversearch_service::api::embedded::EmbeddedIndex;
+use inversearch_service::config::EmbeddedConfig;
 use parking_lot::Mutex;
-use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::core::Value;
 use crate::search::engine::SearchEngine;
 use crate::search::error::SearchError;
 use crate::search::result::{IndexStats, SearchResult};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InversearchConfig {
-    pub tokenize_mode: String,
-    pub resolution: usize,
-    pub cache_size: Option<usize>,
-    pub persistence_path: Option<PathBuf>,
-}
-
-impl Default for InversearchConfig {
-    fn default() -> Self {
-        Self {
-            tokenize_mode: "strict".to_string(),
-            resolution: 9,
-            cache_size: Some(1000),
-            persistence_path: None,
-        }
-    }
-}
 
 pub struct InversearchEngine {
     index: Mutex<EmbeddedIndex>,
@@ -40,39 +21,24 @@ impl std::fmt::Debug for InversearchEngine {
 }
 
 impl InversearchEngine {
-    pub fn new(config: InversearchConfig) -> Result<Self, SearchError> {
-        let mut index = EmbeddedIndex::create()
+    pub fn new(config: EmbeddedConfig) -> Result<Self, SearchError> {
+        let index = EmbeddedIndex::with_config(config)
             .map_err(|e| SearchError::InversearchError(e.to_string()))?;
-
-        if let Some(path) = config.persistence_path {
-            if path.exists() {
-                index
-                    .load_from(path)
-                    .map_err(|e| SearchError::InversearchError(e.to_string()))?;
-            }
-        }
-
         Ok(Self {
             index: Mutex::new(index),
         })
     }
 
-    pub fn load(path: &Path, config: InversearchConfig) -> Result<Self, SearchError> {
-        let mut index = EmbeddedIndex::create()
+    pub fn load(path: &Path, mut config: EmbeddedConfig) -> Result<Self, SearchError> {
+        config.index_path = Some(path.to_path_buf());
+        
+        let mut index = EmbeddedIndex::with_config(config.clone())
             .map_err(|e| SearchError::InversearchError(e.to_string()))?;
 
         if path.exists() {
             index
                 .load_from(path)
                 .map_err(|e| SearchError::InversearchError(e.to_string()))?;
-        }
-
-        if let Some(persistence_path) = config.persistence_path {
-            if persistence_path.exists() && persistence_path != path {
-                index
-                    .load_from(persistence_path)
-                    .map_err(|e| SearchError::InversearchError(e.to_string()))?;
-            }
         }
 
         Ok(Self {
@@ -118,16 +84,15 @@ impl SearchEngine for InversearchEngine {
     async fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>, SearchError> {
         let index = self.index.lock();
         let results = index
-            .search(query)
+            .search_with_limit(query, limit)
             .map_err(|e| SearchError::InversearchError(e.to_string()))?;
 
         let search_results = results
             .into_iter()
-            .take(limit)
             .map(|r| SearchResult {
                 doc_id: Value::Int64(r.id as i64),
                 score: r.score,
-                highlights: None,
+                highlights: r.highlights,
                 matched_fields: vec![],
             })
             .collect();
