@@ -124,6 +124,9 @@ pub enum StorageError {
 
     #[error("Deserialization error: {0}")]
     Deserialization(String),
+
+    #[error("Generic error: {0}")]
+    Generic(String),
 }
 
 #[derive(Debug, Error)]

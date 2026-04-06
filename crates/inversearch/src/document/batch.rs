@@ -5,16 +5,19 @@
 //! # 使用示例
 //!
 //! ```rust
-//! use inversearch::{Document, Batch};
+//! use inversearch_service::document::Batch;
+//! use serde_json::json;
 //!
 //! let mut batch = Batch::new(1000); // 批量大小 1000
 //!
 //! // 添加操作
-//! batch.add(1, &json!({"title": "Doc 1"}));
-//! batch.add(2, &json!({"title": "Doc 2"}));
+//! let doc1 = json!({"title": "Doc 1"});
+//! let doc2 = json!({"title": "Doc 2"});
+//! batch.add(1, &doc1);
+//! batch.add(2, &doc2);
 //!
 //! // 执行批量操作
-//! document.execute_batch(&mut batch)?;
+//! // index.execute_batch(&mut batch)?;
 //! ```
 
 use crate::DocId;

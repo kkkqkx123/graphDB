@@ -632,6 +632,11 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             .ok_or_else(|| QueryError::ExecutionError("Search engine not available".to_string()))?
             .clone();
 
+        let coordinator = context
+            .fulltext_coordinator()
+            .ok_or_else(|| QueryError::ExecutionError("Fulltext coordinator not available".to_string()))?
+            .clone();
+
         let executor = FulltextSearchExecutor::new(
             node.id(),
             statement,
@@ -639,6 +644,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             context.clone(),
             storage,
             context.expression_context().clone(),
+            coordinator,
         );
         Ok(ExecutorEnum::FulltextSearch(executor))
     }
@@ -656,6 +662,11 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             .ok_or_else(|| QueryError::ExecutionError("Search engine not available".to_string()))?
             .clone();
 
+        let coordinator = context
+            .fulltext_coordinator()
+            .ok_or_else(|| QueryError::ExecutionError("Fulltext coordinator not available".to_string()))?
+            .clone();
+
         let executor = FulltextScanExecutor::new(
             node.id(),
             node.index_name.clone(),
@@ -664,6 +675,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             context.clone(),
             storage,
             context.expression_context().clone(),
+            coordinator,
             node.limit,
         );
         Ok(ExecutorEnum::FulltextLookup(executor))
@@ -677,6 +689,11 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::data_access::MatchFulltextExecutor;
 
+        let coordinator = context
+            .fulltext_coordinator()
+            .ok_or_else(|| QueryError::ExecutionError("Fulltext coordinator not available".to_string()))?
+            .clone();
+
         let executor = MatchFulltextExecutor::new(
             node.id(),
             storage,
@@ -684,6 +701,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             node.fulltext_condition.clone(),
             node.yield_clause.clone(),
             context.expression_context().clone(),
+            coordinator,
         );
         Ok(ExecutorEnum::MatchFulltext(executor))
     }

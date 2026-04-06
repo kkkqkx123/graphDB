@@ -19,6 +19,9 @@ pub enum Bm25Error {
     #[error("Tantivy error: {0}")]
     TantivyError(#[from] tantivy::TantivyError),
 
+    #[error("Query parser error: {0}")]
+    QueryParserError(#[from] tantivy::query::QueryParserError),
+
     #[error("Serialization error: {0}")]
     SerializationError(#[from] serde_json::Error),
 
@@ -30,4 +33,16 @@ pub enum Bm25Error {
 
     #[error("Anyhow error: {0}")]
     AnyhowError(#[from] anyhow::Error),
+
+    #[error("Index creation failed: {0}")]
+    IndexCreationFailed(String),
+
+    #[error("Index commit failed: {0}")]
+    IndexCommitFailed(String),
+
+    #[error("Index not initialized")]
+    IndexNotInitialized,
+
+    #[error("Storage error: {0}")]
+    StorageError(String),
 }

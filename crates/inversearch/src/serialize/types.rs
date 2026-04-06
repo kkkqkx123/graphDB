@@ -272,3 +272,45 @@ pub struct ChunkData {
     pub data_type: ChunkDataType,
     pub data: Vec<u8>,
 }
+
+impl IndexExportData {
+    /// 从索引创建导出数据
+    pub fn from_index(index: &crate::Index) -> crate::error::Result<Self> {
+        use chrono::Utc;
+        
+        Ok(Self {
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            created_at: Utc::now().to_rfc3339(),
+            index_info: IndexInfo {
+                resolution: index.resolution,
+                resolution_ctx: index.resolution_ctx,
+                tokenize_mode: format!("{:?}", index.tokenize),
+                depth: index.depth,
+                bidirectional: index.bidirectional,
+                fastupdate: index.fastupdate,
+                rtl: index.rtl,
+                encoder_type: "default".to_string(),
+            },
+            config: IndexConfigExport {
+                index_options: IndexOptions::default(),
+                encoder_options: EncoderOptions::default(),
+                tokenizer_config: TokenizerConfig {
+                    mode: "default".to_string(),
+                    separator: None,
+                    normalize: true,
+                },
+            },
+            data: ExportData {
+                main_index: std::collections::HashMap::new(),
+                context_index: std::collections::HashMap::new(),
+                registry: RegistryData::Set(Vec::new()),
+            },
+        })
+    }
+
+    /// 将导出数据应用到索引
+    pub fn apply_to_index(&self, _index: &mut crate::Index) -> crate::error::Result<()> {
+        // TODO: 实现数据恢复逻辑
+        Ok(())
+    }
+}

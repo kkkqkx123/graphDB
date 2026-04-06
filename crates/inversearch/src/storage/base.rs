@@ -67,6 +67,11 @@ impl StorageBase {
             }
         }
 
+        // 从索引文档中导出文档内容
+        for (id, content) in &index.documents {
+            self.documents.insert(*id, content.clone());
+        }
+
         self.update_memory_usage();
     }
 

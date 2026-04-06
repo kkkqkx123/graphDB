@@ -4,40 +4,42 @@
 
 use crate::error::Result;
 use crate::r#type::{DocId, EnrichedSearchResults, SearchResults};
-use crate::storage::base::StorageBase;
+use crate::storage::common::base::StorageBase;
 use crate::storage::common::io::{load_from_file, save_to_file};
 use crate::storage::common::{FileStorageData, StorageInfo, StorageInterface, StorageMetrics};
 use crate::Index;
 use std::path::PathBuf;
+use tokio::sync::RwLock;
 
 /// 文件存储
 pub struct FileStorage {
-    base: StorageBase,
+    base: RwLock<StorageBase>,
     base_path: PathBuf,
-    is_open: bool,
+    is_open: RwLock<bool>,
 }
 
 impl FileStorage {
     /// 创建新的文件存储
     pub fn new(base_path: impl Into<PathBuf>) -> Self {
         Self {
-            base: StorageBase::new(),
+            base: RwLock::new(StorageBase::new()),
             base_path: base_path.into(),
-            is_open: false,
+            is_open: RwLock::new(false),
         }
     }
 
     /// 获取内存使用情况
     pub fn get_memory_usage(&self) -> usize {
-        self.base.get_memory_usage()
+        self.base.blocking_read().get_memory_usage()
     }
 
     /// 获取操作统计
     pub fn get_operation_stats(&self) -> StorageMetrics {
+        let base = self.base.blocking_read();
         StorageMetrics {
-            operation_count: self.base.get_operation_count(),
-            average_latency: self.base.get_average_latency(),
-            memory_usage: self.base.get_memory_usage(),
+            operation_count: base.get_operation_count(),
+            average_latency: base.get_average_latency(),
+            memory_usage: base.get_memory_usage(),
             error_count: 0,
         }
     }
@@ -50,12 +52,15 @@ impl FileStorage {
 
     /// 保存到文件
     pub async fn save_to_file(&self) -> Result<()> {
-        let data = FileStorageData {
-            version: "1.0.0".to_string(),
-            timestamp: chrono::Utc::now().to_rfc3339(),
-            data: self.base.data.clone(),
-            context_data: self.base.context_data.clone(),
-            documents: self.base.documents.clone(),
+        let data = {
+            let base = self.base.read().await;
+            FileStorageData {
+                version: "1.0.0".to_string(),
+                timestamp: chrono::Utc::now().to_rfc3339(),
+                data: base.data.clone(),
+                context_data: base.context_data.clone(),
+                documents: base.documents.clone(),
+            }
         };
 
         let data_file = self.base_path.join("data.bin");
@@ -63,14 +68,15 @@ impl FileStorage {
     }
 
     /// 从文件加载
-    pub async fn load_from_file(&mut self) -> Result<()> {
+    pub async fn load_from_file(&self) -> Result<()> {
         let data_file = self.base_path.join("data.bin");
         let data = load_from_file(&data_file).await?;
 
-        self.base.data = data.data;
-        self.base.context_data = data.context_data;
-        self.base.documents = data.documents;
-        self.base.update_memory_usage();
+        let mut base = self.base.write().await;
+        base.data = data.data;
+        base.context_data = data.context_data;
+        base.documents = data.documents;
+        base.update_memory_usage();
 
         Ok(())
     }
@@ -78,7 +84,7 @@ impl FileStorage {
 
 #[async_trait::async_trait]
 impl StorageInterface for FileStorage {
-    async fn mount(&mut self, _index: &Index) -> Result<()> {
+    async fn mount(&self, _index: &Index) -> Result<()> {
         tokio::fs::create_dir_all(&self.base_path).await?;
 
         if let Err(e) = self.load_from_file().await {
@@ -87,35 +93,38 @@ impl StorageInterface for FileStorage {
         Ok(())
     }
 
-    async fn open(&mut self) -> Result<()> {
-        self.is_open = true;
+    async fn open(&self) -> Result<()> {
+        *self.is_open.write().await = true;
         self.load_from_file().await
     }
 
-    async fn close(&mut self) -> Result<()> {
+    async fn close(&self) -> Result<()> {
         self.save_to_file().await?;
-        self.is_open = false;
+        *self.is_open.write().await = false;
         Ok(())
     }
 
-    async fn destroy(&mut self) -> Result<()> {
-        self.base.clear();
+    async fn destroy(&self) -> Result<()> {
+        let mut base = self.base.write().await;
+        base.clear();
 
         let data_file = self.base_path.join("data.bin");
         crate::storage::common::io::remove_file_safe(&data_file).await?;
 
-        self.base.update_memory_usage();
-        self.is_open = false;
+        base.update_memory_usage();
+        *self.is_open.write().await = false;
         Ok(())
     }
 
-    async fn commit(&mut self, index: &Index, _replace: bool, _append: bool) -> Result<()> {
-        let start_time = self.base.record_operation_start();
-
-        self.base.commit_from_index(index);
+    async fn commit(&self, index: &Index, _replace: bool, _append: bool) -> Result<()> {
+        {
+            let mut base = self.base.write().await;
+            let start_time = base.record_operation_start();
+            base.commit_from_index(index);
+            base.update_memory_usage();
+            base.record_operation_completion(start_time);
+        }
         self.save_to_file().await?;
-        self.base.update_memory_usage();
-        self.base.record_operation_completion(start_time);
         Ok(())
     }
 
@@ -128,54 +137,62 @@ impl StorageInterface for FileStorage {
         _resolve: bool,
         _enrich: bool,
     ) -> Result<SearchResults> {
-        let start_time = self.base.record_operation_start();
-        let results = self.base.get(key, ctx, limit, offset);
-        self.base.record_operation_completion(start_time);
+        let base = self.base.read().await;
+        let start_time = base.record_operation_start();
+        let results = base.get(key, ctx, limit, offset);
+        base.record_operation_completion(start_time);
         Ok(results)
     }
 
     async fn enrich(&self, ids: &[DocId]) -> Result<EnrichedSearchResults> {
-        let start_time = self.base.record_operation_start();
-        let results = self.base.enrich(ids);
-        self.base.record_operation_completion(start_time);
+        let base = self.base.read().await;
+        let start_time = base.record_operation_start();
+        let results = base.enrich(ids);
+        base.record_operation_completion(start_time);
         Ok(results)
     }
 
     async fn has(&self, id: DocId) -> Result<bool> {
-        let start_time = self.base.record_operation_start();
-        let result = self.base.has(id);
-        self.base.record_operation_completion(start_time);
+        let base = self.base.read().await;
+        let start_time = base.record_operation_start();
+        let result = base.has(id);
+        base.record_operation_completion(start_time);
         Ok(result)
     }
 
-    async fn remove(&mut self, ids: &[DocId]) -> Result<()> {
-        let start_time = self.base.record_operation_start();
-
-        self.base.remove(ids);
+    async fn remove(&self, ids: &[DocId]) -> Result<()> {
+        {
+            let mut base = self.base.write().await;
+            let start_time = base.record_operation_start();
+            base.remove(ids);
+            base.update_memory_usage();
+            base.record_operation_completion(start_time);
+        }
         self.save_to_file().await?;
-        self.base.update_memory_usage();
-        self.base.record_operation_completion(start_time);
         Ok(())
     }
 
-    async fn clear(&mut self) -> Result<()> {
-        let start_time = self.base.record_operation_start();
-
-        self.base.clear();
+    async fn clear(&self) -> Result<()> {
+        {
+            let mut base = self.base.write().await;
+            let start_time = base.record_operation_start();
+            base.clear();
+            base.update_memory_usage();
+            base.record_operation_completion(start_time);
+        }
         self.save_to_file().await?;
-        self.base.update_memory_usage();
-        self.base.record_operation_completion(start_time);
         Ok(())
     }
 
     async fn info(&self) -> Result<StorageInfo> {
+        let base = self.base.read().await;
         Ok(StorageInfo {
             name: "FileStorage".to_string(),
             version: "1.0.0".to_string(),
             size: self.get_file_size(),
-            document_count: self.base.get_document_count(),
-            index_count: self.base.get_index_count(),
-            is_connected: self.is_open,
+            document_count: base.get_document_count(),
+            index_count: base.get_index_count(),
+            is_connected: *self.is_open.read().await,
         })
     }
 }
@@ -192,7 +209,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let dir_path = temp_dir.path();
 
-        let mut storage = FileStorage::new(dir_path.to_str().unwrap().to_string());
+        let storage = FileStorage::new(dir_path.to_str().unwrap().to_string());
         storage.open().await.unwrap();
 
         let mut index = Index::default();
@@ -212,7 +229,7 @@ mod tests {
         storage.close().await.unwrap();
 
         // 重新打开并验证数据还在
-        let mut storage2 = FileStorage::new(dir_path.to_str().unwrap().to_string());
+        let storage2 = FileStorage::new(dir_path.to_str().unwrap().to_string());
         storage2.open().await.unwrap();
 
         let results2 = storage2

@@ -4,36 +4,38 @@
 
 use crate::error::Result;
 use crate::r#type::{DocId, EnrichedSearchResults, SearchResults};
-use crate::storage::base::StorageBase;
+use crate::storage::common::base::StorageBase;
 use crate::storage::common::{StorageInfo, StorageInterface, StorageMetrics};
 use crate::Index;
+use tokio::sync::RwLock;
 
 /// 内存存储
 pub struct MemoryStorage {
-    base: StorageBase,
-    is_open: bool,
+    base: RwLock<StorageBase>,
+    is_open: RwLock<bool>,
 }
 
 impl MemoryStorage {
     /// 创建新的内存存储
     pub fn new() -> Self {
         Self {
-            base: StorageBase::new(),
-            is_open: false,
+            base: RwLock::new(StorageBase::new()),
+            is_open: RwLock::new(false),
         }
     }
 
     /// 获取内存使用情况
     pub fn get_memory_usage(&self) -> usize {
-        self.base.get_memory_usage()
+        self.base.blocking_read().get_memory_usage()
     }
 
     /// 获取操作统计
-    pub fn get_operation_stats(&self) -> StorageMetrics {
+    pub async fn get_operation_stats(&self) -> StorageMetrics {
+        let base = self.base.read().await;
         StorageMetrics {
-            operation_count: self.base.get_operation_count(),
-            average_latency: self.base.get_average_latency(),
-            memory_usage: self.base.get_memory_usage(),
+            operation_count: base.get_operation_count(),
+            average_latency: base.get_average_latency(),
+            memory_usage: base.get_memory_usage(),
             error_count: 0,
         }
     }
@@ -47,30 +49,32 @@ impl Default for MemoryStorage {
 
 #[async_trait::async_trait]
 impl StorageInterface for MemoryStorage {
-    async fn mount(&mut self, _index: &Index) -> Result<()> {
+    async fn mount(&self, _index: &Index) -> Result<()> {
         Ok(())
     }
 
-    async fn open(&mut self) -> Result<()> {
-        self.is_open = true;
+    async fn open(&self) -> Result<()> {
+        *self.is_open.write().await = true;
         Ok(())
     }
 
-    async fn close(&mut self) -> Result<()> {
-        self.is_open = false;
+    async fn close(&self) -> Result<()> {
+        *self.is_open.write().await = false;
         Ok(())
     }
 
-    async fn destroy(&mut self) -> Result<()> {
-        self.base.clear();
-        self.is_open = false;
+    async fn destroy(&self) -> Result<()> {
+        let mut base = self.base.write().await;
+        base.clear();
+        *self.is_open.write().await = false;
         Ok(())
     }
 
-    async fn commit(&mut self, index: &Index, _replace: bool, _append: bool) -> Result<()> {
-        let start_time = self.base.record_operation_start();
-        self.base.commit_from_index(index);
-        self.base.record_operation_completion(start_time);
+    async fn commit(&self, index: &Index, _replace: bool, _append: bool) -> Result<()> {
+        let mut base = self.base.write().await;
+        let start_time = base.record_operation_start();
+        base.commit_from_index(index);
+        base.record_operation_completion(start_time);
         Ok(())
     }
 
@@ -83,50 +87,56 @@ impl StorageInterface for MemoryStorage {
         _resolve: bool,
         _enrich: bool,
     ) -> Result<SearchResults> {
-        let start_time = self.base.record_operation_start();
-        let results = self.base.get(key, ctx, limit, offset);
-        self.base.record_operation_completion(start_time);
+        let base = self.base.read().await;
+        let start_time = base.record_operation_start();
+        let results = base.get(key, ctx, limit, offset);
+        base.record_operation_completion(start_time);
         Ok(results)
     }
 
     async fn enrich(&self, ids: &[DocId]) -> Result<EnrichedSearchResults> {
-        let start_time = self.base.record_operation_start();
-        let results = self.base.enrich(ids);
-        self.base.record_operation_completion(start_time);
+        let base = self.base.read().await;
+        let start_time = base.record_operation_start();
+        let results = base.enrich(ids);
+        base.record_operation_completion(start_time);
         Ok(results)
     }
 
     async fn has(&self, id: DocId) -> Result<bool> {
-        let start_time = self.base.record_operation_start();
-        let result = self.base.has(id);
-        self.base.record_operation_completion(start_time);
+        let base = self.base.read().await;
+        let start_time = base.record_operation_start();
+        let result = base.has(id);
+        base.record_operation_completion(start_time);
         Ok(result)
     }
 
-    async fn remove(&mut self, ids: &[DocId]) -> Result<()> {
-        let start_time = self.base.record_operation_start();
-        self.base.remove(ids);
-        self.base.update_memory_usage();
-        self.base.record_operation_completion(start_time);
+    async fn remove(&self, ids: &[DocId]) -> Result<()> {
+        let mut base = self.base.write().await;
+        let start_time = base.record_operation_start();
+        base.remove(ids);
+        base.update_memory_usage();
+        base.record_operation_completion(start_time);
         Ok(())
     }
 
-    async fn clear(&mut self) -> Result<()> {
-        let start_time = self.base.record_operation_start();
-        self.base.clear();
-        self.base.update_memory_usage();
-        self.base.record_operation_completion(start_time);
+    async fn clear(&self) -> Result<()> {
+        let mut base = self.base.write().await;
+        let start_time = base.record_operation_start();
+        base.clear();
+        base.update_memory_usage();
+        base.record_operation_completion(start_time);
         Ok(())
     }
 
     async fn info(&self) -> Result<StorageInfo> {
+        let base = self.base.read().await;
         Ok(StorageInfo {
             name: "MemoryStorage".to_string(),
             version: "0.1.0".to_string(),
-            size: (self.base.get_index_count() + self.base.get_document_count()) as u64,
-            document_count: self.base.get_document_count(),
-            index_count: self.base.get_index_count(),
-            is_connected: self.is_open,
+            size: (base.get_index_count() + base.get_document_count()) as u64,
+            document_count: base.get_document_count(),
+            index_count: base.get_index_count(),
+            is_connected: *self.is_open.read().await,
         })
     }
 }
@@ -138,7 +148,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_memory_storage() {
-        let mut storage = MemoryStorage::new();
+        let storage = MemoryStorage::new();
         storage.open().await.unwrap();
 
         let mut index = Index::default();

@@ -1,6 +1,6 @@
 // Service entry point - only compiled when "service" feature is enabled
 #[cfg(feature = "service")]
-use inversearch_service::service::{run_server, ServiceConfig};
+use inversearch_service::api::server::{run_server, ServiceConfig};
 
 #[cfg(feature = "service")]
 fn main() {

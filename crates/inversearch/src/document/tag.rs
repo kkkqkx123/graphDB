@@ -5,13 +5,15 @@
 //! # 示例
 //!
 //! ```rust
-//! use inversearch::{DocId, TagSystem, TagConfig};
+//! use inversearch_service::document::{TagSystem, TagConfig};
+//! use serde_json::json;
 //!
 //! let mut tag_system = TagSystem::new();
-//! tag_system.add_config("category".to_string(), None);
+//! tag_system.add_config("category", None);
 //!
 //! // 添加标签
-//! tag_system.add_tags(1, &[("category", &json!("tech"))]);
+//! let tag_value = json!("tech");
+//! tag_system.add_tags(1, &[("category", &tag_value)]);
 //!
 //! // 按标签查询
 //! let ids = tag_system.query("category", "tech");

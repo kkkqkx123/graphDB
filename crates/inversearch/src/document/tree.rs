@@ -115,8 +115,8 @@ pub fn parse_tree_cached(key: &str, marker: &mut Vec<bool>, cache: &PathCache) -
 ///
 /// # 示例
 ///
-/// ```
-/// use inversearch::parse_tree;
+/// ```rust
+/// use inversearch_service::document::tree::parse_tree;
 ///
 /// let mut marker = vec![];
 /// let result = parse_tree("user.name", &mut marker);

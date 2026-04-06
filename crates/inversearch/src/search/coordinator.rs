@@ -5,13 +5,19 @@
 //! # 使用示例
 //!
 //! ```rust
-//! use inversearch::{Document, SearchCoordinator, MultiFieldSearchOptions};
+//! use inversearch_service::document::{Document, DocumentConfig};
+//! use inversearch_service::search::SearchCoordinator;
 //!
-//! let coordinator = SearchCoordinator::new();
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let config = DocumentConfig::new();
+//! let doc = Document::new(config)?;
+//! let mut coordinator = SearchCoordinator::new(&doc);
 //! coordinator.add_field("title", 2.0);  // title 权重 2.0
 //! coordinator.add_field("content", 1.0); // content 权重 1.0
 //!
-//! let result = coordinator.search("rust programming")?;
+//! let result = coordinator.search()?;
+//! # Ok(())
+//! # }
 //! ```
 
 use crate::error::Result;

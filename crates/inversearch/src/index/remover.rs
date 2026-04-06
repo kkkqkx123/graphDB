@@ -21,6 +21,8 @@ pub fn remove_document(index: &mut Index, id: DocId, skip_deletion: bool) -> Res
         }
     }
 
+    index.documents.remove(&id);
+
     Ok(())
 }
 

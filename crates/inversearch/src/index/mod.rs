@@ -44,6 +44,7 @@ pub struct Index {
     pub encoder: Encoder,
     pub rtl: bool,
     pub cache: Option<SearchCache>,
+    pub documents: HashMap<DocId, String>,
 }
 
 pub type ScoreFn = fn(&[u8], &str, usize, Option<usize>, Option<usize>) -> usize;
@@ -98,6 +99,7 @@ impl Index {
             encoder,
             rtl,
             cache,
+            documents: HashMap::new(),
         })
     }
 
@@ -116,6 +118,7 @@ impl Index {
             Register::Set(set) => set.clear(),
             Register::Map(map) => map.clear(),
         }
+        self.documents.clear();
     }
 
     pub fn contains(&self, id: DocId) -> bool {

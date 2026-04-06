@@ -16,12 +16,26 @@ size = 1000
 ttl = 3600
 
 [storage]
-enabled = false
-backend = "memory"
+enabled = true
+backend = "cold_warm_cache"  # Options: "file", "redis", "wal", "cold_warm_cache"
 
-[storage.redis]
-url = "redis://127.0.0.1:6379"
-pool_size = 10
+# File storage configuration
+# [storage.file]
+# base_path = "./data"
+# auto_save = true
+# save_interval_secs = 60
+
+# Redis storage configuration
+# [storage.redis]
+# url = "redis://127.0.0.1:6379"
+# pool_size = 10
+
+# WAL storage configuration
+# [storage.wal]
+# base_path = "./wal"
+# max_wal_size = 104857600  # 100MB
+# compression = true
+# snapshot_interval = 1000
 
 [logging]
 level = "info"

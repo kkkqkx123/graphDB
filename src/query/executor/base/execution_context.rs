@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::execution_result::ExecutionResult;
+use crate::coordinator::FulltextCoordinator;
 use crate::core::Value;
 use crate::query::executor::expression::functions::global_registry_ref;
 use crate::query::executor::expression::functions::OwnedFunctionRef;
@@ -26,6 +27,8 @@ pub struct ExecutionContext {
     pub expression_context: Arc<ExpressionAnalysisContext>,
     /// Search engine for full-text search
     pub search_engine: Option<Arc<dyn SearchEngine>>,
+    /// Fulltext coordinator
+    pub fulltext_coordinator: Option<Arc<FulltextCoordinator>>,
 }
 
 impl ExecutionContext {
@@ -36,6 +39,7 @@ impl ExecutionContext {
             variables: Arc::new(Mutex::new(HashMap::new())),
             expression_context,
             search_engine: None,
+            fulltext_coordinator: None,
         }
     }
 
@@ -49,6 +53,22 @@ impl ExecutionContext {
             variables: Arc::new(Mutex::new(HashMap::new())),
             expression_context,
             search_engine: Some(search_engine),
+            fulltext_coordinator: None,
+        }
+    }
+
+    /// Create a new execution context with fulltext coordinator.
+    pub fn with_fulltext_coordinator(
+        expression_context: Arc<ExpressionAnalysisContext>,
+        search_engine: Arc<dyn SearchEngine>,
+        coordinator: Arc<FulltextCoordinator>,
+    ) -> Self {
+        Self {
+            results: Arc::new(Mutex::new(HashMap::new())),
+            variables: Arc::new(Mutex::new(HashMap::new())),
+            expression_context,
+            search_engine: Some(search_engine),
+            fulltext_coordinator: Some(coordinator),
         }
     }
 
@@ -81,6 +101,11 @@ impl ExecutionContext {
     pub fn search_engine(&self) -> Option<&Arc<dyn SearchEngine>> {
         self.search_engine.as_ref()
     }
+
+    /// Obtain the fulltext coordinator.
+    pub fn fulltext_coordinator(&self) -> Option<&Arc<FulltextCoordinator>> {
+        self.fulltext_coordinator.as_ref()
+    }
 }
 
 impl Default for ExecutionContext {
@@ -91,6 +116,7 @@ impl Default for ExecutionContext {
             variables: Arc::new(Mutex::new(HashMap::new())),
             expression_context: Arc::new(ExpressionAnalysisContext::new()),
             search_engine: None,
+            fulltext_coordinator: None,
         }
     }
 }

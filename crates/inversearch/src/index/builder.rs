@@ -36,6 +36,7 @@ pub fn add_document(
         return index.update(id, content);
     }
 
+    index.documents.insert(id, content.to_string());
     let depth = index.depth;
     let encoded = index.encoder.encode(content)?;
     let word_length = encoded.len();

@@ -2,30 +2,27 @@
 
 use parking_lot::Mutex;
 use std::sync::Arc;
+use std::collections::HashMap;
 
-
+use crate::coordinator::FulltextCoordinator;
+use crate::core::error::{DBError, QueryError};
+use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
-use crate::query::parser::ast::fulltext::{FulltextMatchCondition, FulltextYieldClause};
+use crate::query::parser::ast::fulltext::{FulltextMatchCondition, FulltextYieldClause, YieldExpression};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 /// Executor for MATCH FULLTEXT operations
-/// 
-/// # Note
-/// Current implementation is a placeholder. Fields are reserved for future
-/// implementation of full-text pattern matching logic.
-#[derive(Debug)]
 pub struct MatchFulltextExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
-    /// Pattern to match (reserved for future implementation)
-    #[allow(dead_code)]
+    /// Pattern to match
     pattern: String,
-    /// Full-text match condition (reserved for future implementation)
-    #[allow(dead_code)]
+    /// Full-text match condition
     fulltext_condition: FulltextMatchCondition,
-    /// Yield clause (reserved for future implementation)
-    #[allow(dead_code)]
+    /// Yield clause
     yield_clause: Option<FulltextYieldClause>,
+    /// Fulltext coordinator
+    coordinator: Arc<FulltextCoordinator>,
 }
 
 impl<S: StorageClient> MatchFulltextExecutor<S> {
@@ -36,6 +33,7 @@ impl<S: StorageClient> MatchFulltextExecutor<S> {
         fulltext_condition: FulltextMatchCondition,
         yield_clause: Option<FulltextYieldClause>,
         expr_context: Arc<ExpressionAnalysisContext>,
+        coordinator: Arc<FulltextCoordinator>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(
@@ -47,6 +45,7 @@ impl<S: StorageClient> MatchFulltextExecutor<S> {
             pattern,
             fulltext_condition,
             yield_clause,
+            coordinator,
         }
     }
 }
@@ -59,7 +58,143 @@ impl<S: StorageClient> HasStorage<S> for MatchFulltextExecutor<S> {
 
 impl<S: StorageClient> Executor<S> for MatchFulltextExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        Ok(ExecutionResult::Empty)
+        let field = &self.fulltext_condition.field;
+        let query = &self.fulltext_condition.query;
+        
+        let index_name = self.fulltext_condition.index_name.as_ref().ok_or_else(|| {
+            DBError::Validation("Index name is required for MATCH FULLTEXT".to_string())
+        })?;
+        
+        let parts: Vec<&str> = index_name.split('_').collect();
+        
+        if parts.len() < 4 {
+            return Err(DBError::Validation(format!(
+                "Invalid index name format: {}. Expected format: space_id_tag_name_field_name",
+                index_name
+            )));
+        }
+
+        let space_id = parts[0].parse::<u64>().map_err(|e| {
+            DBError::Validation(format!("Invalid space_id in index name: {}", e))
+        })?;
+        
+        let tag_name = parts[1].to_string();
+        let _field_name = parts[2..].join("_");
+        
+        let limit = 100;
+        
+        let search_results = futures::executor::block_on(
+            self.coordinator.search(
+                space_id,
+                &tag_name,
+                field,
+                query,
+                limit,
+            )
+        ).map_err(|e| DBError::Query(QueryError::ExecutionError(format!("Search failed: {}", e))))?;
+        
+        let mut rows = Vec::new();
+        let storage = self.get_storage().clone();
+        let storage_guard = storage.lock();
+        
+        for result in search_results {
+            let vertex_id = &result.doc_id;
+            
+            let vertex = storage_guard.get_vertex("", vertex_id)
+                .map_err(|e| DBError::Storage(e))?;
+            
+            if let Some(vertex) = vertex {
+                let mut row = HashMap::new();
+                
+                if let Some(yield_clause) = &self.yield_clause {
+                    for yield_item in &yield_clause.items {
+                        let value = match &yield_item.expr {
+                            YieldExpression::Field(name) => {
+                                if let Some(tag) = vertex.tags.first() {
+                                    tag.properties.get(name).cloned().unwrap_or(Value::Null(crate::core::null::NullType::Null))
+                                } else {
+                                    Value::Null(crate::core::null::NullType::Null)
+                                }
+                            }
+                            YieldExpression::Score(_) => {
+                                Value::Float(result.score as f64)
+                            }
+                            YieldExpression::Highlight(_, _) => {
+                                if let Some(ref highlights) = result.highlights {
+                                    Value::String(highlights.join(" ... "))
+                                } else {
+                                    Value::Null(crate::core::null::NullType::Null)
+                                }
+                            }
+                            YieldExpression::MatchedFields => {
+                                let fields: Vec<Value> = result.matched_fields
+                                    .iter()
+                                    .map(|f| Value::String(f.clone()))
+                                    .collect();
+                                Value::List(crate::core::value::list::List { values: fields })
+                            }
+                            YieldExpression::Snippet(field_name, max_len) => {
+                                if let Some(tag) = vertex.tags.first() {
+                                    if let Some(Value::String(text)) = tag.properties.get(field_name) {
+                                        let max_len = max_len.unwrap_or(200);
+                                        if text.len() <= max_len {
+                                            Value::String(text.clone())
+                                        } else {
+                                            let break_point = text[..max_len].rfind(' ').unwrap_or(max_len);
+                                            Value::String(format!("{}...", &text[..break_point]))
+                                        }
+                                    } else {
+                                        Value::Null(crate::core::null::NullType::Null)
+                                    }
+                                } else {
+                                    Value::Null(crate::core::null::NullType::Null)
+                                }
+                            }
+                            YieldExpression::All => {
+                                if let Some(tag) = vertex.tags.first() {
+                                    for (k, v) in &tag.properties {
+                                        row.insert(k.clone(), v.clone());
+                                    }
+                                }
+                                continue;
+                            }
+                        };
+                        
+                        let default_alias = match &yield_item.expr {
+                            YieldExpression::Field(name) => name.clone(),
+                            YieldExpression::Score(_) => "score".to_string(),
+                            YieldExpression::Highlight(field, _) => format!("highlight({})", field),
+                            YieldExpression::MatchedFields => "matched_fields()".to_string(),
+                            YieldExpression::Snippet(field, _) => format!("snippet({})", field),
+                            YieldExpression::All => "*".to_string(),
+                        };
+                        let alias = yield_item.alias.as_ref().unwrap_or(&default_alias);
+                        
+                        row.insert(alias.clone(), value);
+                    }
+                } else {
+                    if let Some(tag) = vertex.tags.first() {
+                        for (k, v) in &tag.properties {
+                            row.insert(k.clone(), v.clone());
+                        }
+                    }
+                }
+                
+                rows.push(row);
+            }
+        }
+        
+        let mut dataset = crate::core::DataSet::new();
+        if let Some(first_row) = rows.first() {
+            for key in first_row.keys() {
+                dataset.col_names.push(key.clone());
+            }
+        }
+        for row in rows {
+            let values: Vec<Value> = dataset.col_names.iter().map(|k| row.get(k).cloned().unwrap_or(Value::Null(crate::core::null::NullType::Null))).collect();
+            dataset.rows.push(values);
+        }
+        Ok(ExecutionResult::DataSet(dataset))
     }
 
     fn open(&mut self) -> DBResult<()> {
