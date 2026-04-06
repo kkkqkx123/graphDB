@@ -118,10 +118,12 @@ mod tests {
         assert!(cache.get(&key1).is_some());
     }
 
-    #[test]
-    fn test_cache_lru_eviction() {
+    #[tokio::test]
+    async fn test_cache_lru_eviction() {
         let cache = IndexCache::new(2);
-        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let temp_dir1 = TempDir::new().expect("Failed to create temp dir");
+        let temp_dir2 = TempDir::new().expect("Failed to create temp dir");
+        let temp_dir3 = TempDir::new().expect("Failed to create temp dir");
 
         let key1 = IndexKey::new(1, "Article", "title");
         let key2 = IndexKey::new(1, "Article", "content");
@@ -129,13 +131,13 @@ mod tests {
 
         // Insert 3 engines (max is 2)
         let engine1 = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"),
+            Bm25SearchEngine::open_or_create(temp_dir1.path()).expect("Failed to create engine"),
         );
         let engine2 = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"),
+            Bm25SearchEngine::open_or_create(temp_dir2.path()).expect("Failed to create engine"),
         );
         let engine3 = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"),
+            Bm25SearchEngine::open_or_create(temp_dir3.path()).expect("Failed to create engine"),
         );
 
         cache.put(key1.clone(), engine1);
@@ -146,6 +148,9 @@ mod tests {
 
         // Insert key3, should evict key2 (least recently used)
         cache.put(key3.clone(), engine3);
+
+        // Give time for async spawn to complete
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
         assert_eq!(cache.len(), 2);
         assert!(cache.contains(&key1)); // Still exists (recently accessed)
@@ -172,19 +177,20 @@ mod tests {
         assert!(!cache.contains(&key1));
     }
 
-    #[test]
-    fn test_cache_clear() {
+    #[tokio::test]
+    async fn test_cache_clear() {
         let cache = IndexCache::new(3);
-        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let temp_dir1 = TempDir::new().expect("Failed to create temp dir");
+        let temp_dir2 = TempDir::new().expect("Failed to create temp dir");
 
         let key1 = IndexKey::new(1, "Article", "title");
         let key2 = IndexKey::new(1, "Article", "content");
 
         let engine1 = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"),
+            Bm25SearchEngine::open_or_create(temp_dir1.path()).expect("Failed to create engine"),
         );
         let engine2 = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"),
+            Bm25SearchEngine::open_or_create(temp_dir2.path()).expect("Failed to create engine"),
         );
 
         cache.put(key1.clone(), engine1);
@@ -192,6 +198,10 @@ mod tests {
         assert_eq!(cache.len(), 2);
 
         cache.clear();
+
+        // Give time for async spawn to complete
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+
         assert_eq!(cache.len(), 0);
         assert!(cache.is_empty());
     }

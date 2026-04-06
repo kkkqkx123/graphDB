@@ -429,7 +429,7 @@ mod tests {
 
     #[test]
     fn test_yield_clause() {
-        let yield_clause = YieldClause::single(YieldExpression::score());
+        let yield_clause = FulltextYieldClause::single(YieldExpression::score());
         assert_eq!(yield_clause.items.len(), 1);
     }
 

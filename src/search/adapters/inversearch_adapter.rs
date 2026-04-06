@@ -1,6 +1,5 @@
 use async_trait::async_trait;
-use inversearch_service::index::IndexOptions;
-use inversearch_service::Index;
+use inversearch_service::api::embedded::EmbeddedIndex;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -30,52 +29,54 @@ impl Default for InversearchConfig {
 }
 
 pub struct InversearchEngine {
-    index: Mutex<Index>,
-    config: InversearchConfig,
+    index: Mutex<EmbeddedIndex>,
 }
 
 impl std::fmt::Debug for InversearchEngine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("InversearchEngine")
-            .field("config", &self.config)
             .finish()
     }
 }
 
 impl InversearchEngine {
     pub fn new(config: InversearchConfig) -> Result<Self, SearchError> {
-        let options = IndexOptions {
-            resolution: Some(config.resolution),
-            depth: Some(3),
-            bidirectional: Some(true),
-            fastupdate: Some(true),
-            ..Default::default()
-        };
+        let mut index = EmbeddedIndex::create()
+            .map_err(|e| SearchError::InversearchError(e.to_string()))?;
 
-        let index =
-            Index::new(options).map_err(|e| SearchError::InversearchError(e.to_string()))?;
+        if let Some(path) = config.persistence_path {
+            if path.exists() {
+                index
+                    .load_from(path)
+                    .map_err(|e| SearchError::InversearchError(e.to_string()))?;
+            }
+        }
 
         Ok(Self {
             index: Mutex::new(index),
-            config,
         })
     }
 
-    pub fn load(_path: &Path, config: InversearchConfig) -> Result<Self, SearchError> {
-        let options = IndexOptions {
-            resolution: Some(config.resolution),
-            depth: Some(3),
-            bidirectional: Some(true),
-            fastupdate: Some(true),
-            ..Default::default()
-        };
+    pub fn load(path: &Path, config: InversearchConfig) -> Result<Self, SearchError> {
+        let mut index = EmbeddedIndex::create()
+            .map_err(|e| SearchError::InversearchError(e.to_string()))?;
 
-        let index =
-            Index::new(options).map_err(|e| SearchError::InversearchError(e.to_string()))?;
+        if path.exists() {
+            index
+                .load_from(path)
+                .map_err(|e| SearchError::InversearchError(e.to_string()))?;
+        }
+
+        if let Some(persistence_path) = config.persistence_path {
+            if persistence_path.exists() && persistence_path != path {
+                index
+                    .load_from(persistence_path)
+                    .map_err(|e| SearchError::InversearchError(e.to_string()))?;
+            }
+        }
 
         Ok(Self {
             index: Mutex::new(index),
-            config,
         })
     }
 }
@@ -91,12 +92,12 @@ impl SearchEngine for InversearchEngine {
     }
 
     async fn index(&self, doc_id: &str, content: &str) -> Result<(), SearchError> {
-        let mut index = self.index.lock();
         let doc_id_u64 = doc_id
             .parse::<u64>()
             .map_err(|_| SearchError::InvalidDocId(doc_id.to_string()))?;
+        let mut index = self.index.lock();
         index
-            .add(doc_id_u64, content, false)
+            .add(doc_id_u64, content)
             .map_err(|e| SearchError::InversearchError(e.to_string()))?;
         Ok(())
     }
@@ -108,7 +109,7 @@ impl SearchEngine for InversearchEngine {
                 .parse::<u64>()
                 .map_err(|_| SearchError::InvalidDocId(doc_id.clone()))?;
             index
-                .add(doc_id_u64, &content, false)
+                .add(doc_id_u64, &content)
                 .map_err(|e| SearchError::InversearchError(e.to_string()))?;
         }
         Ok(())
@@ -116,24 +117,16 @@ impl SearchEngine for InversearchEngine {
 
     async fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>, SearchError> {
         let index = self.index.lock();
-        let options = inversearch_service::r#type::SearchOptions {
-            query: Some(query.to_string()),
-            limit: Some(limit),
-            offset: Some(0),
-            resolve: Some(true),
-            ..Default::default()
-        };
-
-        let result = index
-            .search(&options)
+        let results = index
+            .search(query)
             .map_err(|e| SearchError::InversearchError(e.to_string()))?;
 
-        let search_results = result
-            .results
+        let search_results = results
             .into_iter()
+            .take(limit)
             .map(|r| SearchResult {
-                doc_id: Value::Int64(r as i64),
-                score: 1.0,
+                doc_id: Value::Int64(r.id as i64),
+                score: r.score,
                 highlights: None,
                 matched_fields: vec![],
             })
@@ -143,12 +136,12 @@ impl SearchEngine for InversearchEngine {
     }
 
     async fn delete(&self, doc_id: &str) -> Result<(), SearchError> {
-        let mut index = self.index.lock();
         let doc_id_u64 = doc_id
             .parse::<u64>()
             .map_err(|_| SearchError::InvalidDocId(doc_id.to_string()))?;
+        let mut index = self.index.lock();
         index
-            .remove(doc_id_u64, false)
+            .remove(doc_id_u64)
             .map_err(|e| SearchError::InversearchError(e.to_string()))?;
         Ok(())
     }
@@ -161,6 +154,10 @@ impl SearchEngine for InversearchEngine {
     }
 
     async fn commit(&self) -> Result<(), SearchError> {
+        let index = self.index.lock();
+        index
+            .save()
+            .map_err(|e| SearchError::InversearchError(e.to_string()))?;
         Ok(())
     }
 
@@ -170,23 +167,19 @@ impl SearchEngine for InversearchEngine {
 
     async fn stats(&self) -> Result<IndexStats, SearchError> {
         let index = self.index.lock();
-        let doc_count = index
-            .map
-            .index
-            .values()
-            .flat_map(|v| v.values())
-            .map(|v| v.len())
-            .sum();
+        let stats = index.stats();
+        let index_size = 0;
 
         Ok(IndexStats {
-            doc_count,
-            index_size: 0,
+            doc_count: stats.document_count,
+            index_size,
             last_updated: None,
             engine_info: None,
         })
     }
 
     async fn close(&self) -> Result<(), SearchError> {
+        self.commit().await?;
         Ok(())
     }
 }

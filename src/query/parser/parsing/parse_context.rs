@@ -303,10 +303,20 @@ impl<'a> ParseContext<'a> {
     }
 
     pub fn check_keyword(&mut self, keyword: &str) -> bool {
-        if let TokenKind::Identifier(kw) = &self.current_token.kind {
-            kw.eq_ignore_ascii_case(keyword)
-        } else {
-            false
+        match &self.current_token.kind {
+            TokenKind::Identifier(kw) => kw.eq_ignore_ascii_case(keyword),
+            // Also check for specific keyword tokens
+            TokenKind::Index => keyword.eq_ignore_ascii_case("INDEX"),
+            TokenKind::On => keyword.eq_ignore_ascii_case("ON"),
+            TokenKind::Drop => keyword.eq_ignore_ascii_case("DROP"),
+            TokenKind::Create => keyword.eq_ignore_ascii_case("CREATE"),
+            TokenKind::Alter => keyword.eq_ignore_ascii_case("ALTER"),
+            TokenKind::Show => keyword.eq_ignore_ascii_case("SHOW"),
+            TokenKind::Desc => keyword.eq_ignore_ascii_case("DESC") || keyword.eq_ignore_ascii_case("DESCRIBE"),
+            TokenKind::Search => keyword.eq_ignore_ascii_case("SEARCH"),
+            TokenKind::Lookup => keyword.eq_ignore_ascii_case("LOOKUP"),
+            TokenKind::Match => keyword.eq_ignore_ascii_case("MATCH"),
+            _ => false,
         }
     }
 

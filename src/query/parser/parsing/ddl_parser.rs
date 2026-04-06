@@ -418,6 +418,11 @@ impl DdlParser {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Drop)?;
 
+        // Check for DROP FULLTEXT INDEX
+        if ctx.check_keyword("FULLTEXT") {
+            return crate::query::parser::parsing::fulltext_parser::parse_drop_fulltext_index_after_drop(ctx);
+        }
+
         let target = if ctx.match_token(TokenKind::Space) {
             let mut if_exists = false;
             if ctx.match_token(TokenKind::If) {
@@ -619,6 +624,11 @@ impl DdlParser {
     pub fn parse_alter_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Alter)?;
+
+        // Check for ALTER FULLTEXT INDEX
+        if ctx.check_keyword("FULLTEXT") {
+            return crate::query::parser::parsing::fulltext_parser::parse_alter_fulltext_index_after_alter(ctx);
+        }
 
         // Check whether it is an ALTER USER command.
         if ctx.check_token(TokenKind::User) {

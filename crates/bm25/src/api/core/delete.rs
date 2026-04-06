@@ -13,6 +13,7 @@ pub fn delete_document(
     let term = Term::from_field_text(schema.document_id, document_id);
     writer.delete_term(term);
     writer.commit()?;
+    manager.clear_reader_cache();
     Ok(())
 }
 
@@ -31,6 +32,7 @@ pub async fn delete_document_with_storage(
     let term = Term::from_field_text(schema.document_id, document_id);
     writer.delete_term(term);
     writer.commit()?;
+    manager.clear_reader_cache();
 
     Ok(())
 }
@@ -58,6 +60,7 @@ pub fn batch_delete_documents(
     }
 
     writer.commit()?;
+    manager.clear_reader_cache();
     Ok(document_ids.len())
 }
 

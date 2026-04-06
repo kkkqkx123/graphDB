@@ -15,6 +15,7 @@ pub fn add_document(
     let doc = schema.to_document(document_id, fields);
     writer.add_document(doc)?;
     writer.commit()?;
+    manager.clear_reader_cache();
     Ok(())
 }
 
@@ -42,6 +43,7 @@ pub async fn add_document_with_storage(
     let doc = schema.to_document(document_id, fields);
     writer.add_document(doc)?;
     writer.commit()?;
+    manager.clear_reader_cache();
 
     Ok(())
 }
@@ -71,6 +73,7 @@ pub fn update_document(
     let doc = schema.to_document(document_id, fields);
     writer.add_document(doc)?;
     writer.commit()?;
+    manager.clear_reader_cache();
     Ok(())
 }
 
@@ -104,6 +107,7 @@ pub async fn update_document_with_storage(
     let doc = schema.to_document(document_id, fields);
     writer.add_document(doc)?;
     writer.commit()?;
+    manager.clear_reader_cache();
 
     Ok(())
 }

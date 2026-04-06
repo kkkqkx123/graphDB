@@ -44,11 +44,16 @@ pub fn parse_fulltext(ctx: &mut ParseContext) -> Result<Stmt, crate::query::pars
     ))
 }
 
-fn parse_create_fulltext_index(
+pub fn parse_create_fulltext_index(
     ctx: &mut ParseContext,
 ) -> Result<Stmt, crate::query::parser::ParseError> {
     ctx.consume_keyword("CREATE")?;
+    parse_create_fulltext_index_after_create(ctx)
+}
 
+pub fn parse_create_fulltext_index_after_create(
+    ctx: &mut ParseContext,
+) -> Result<Stmt, crate::query::parser::ParseError> {
     let if_not_exists = if ctx.check_keyword("IF") {
         ctx.consume_keyword("IF")?;
         ctx.consume_keyword("NOT")?;
@@ -229,10 +234,16 @@ fn parse_create_fulltext_index(
     Ok(Stmt::CreateFulltextIndex(create))
 }
 
-fn parse_drop_fulltext_index(
+pub fn parse_drop_fulltext_index(
     ctx: &mut ParseContext,
 ) -> Result<Stmt, crate::query::parser::ParseError> {
     ctx.consume_keyword("DROP")?;
+    parse_drop_fulltext_index_after_drop(ctx)
+}
+
+pub fn parse_drop_fulltext_index_after_drop(
+    ctx: &mut ParseContext,
+) -> Result<Stmt, crate::query::parser::ParseError> {
     ctx.consume_keyword("FULLTEXT")?;
     ctx.consume_keyword("INDEX")?;
 
@@ -255,10 +266,16 @@ fn parse_drop_fulltext_index(
     Ok(Stmt::DropFulltextIndex(drop))
 }
 
-fn parse_alter_fulltext_index(
+pub fn parse_alter_fulltext_index(
     ctx: &mut ParseContext,
 ) -> Result<Stmt, crate::query::parser::ParseError> {
     ctx.consume_keyword("ALTER")?;
+    parse_alter_fulltext_index_after_alter(ctx)
+}
+
+pub fn parse_alter_fulltext_index_after_alter(
+    ctx: &mut ParseContext,
+) -> Result<Stmt, crate::query::parser::ParseError> {
     ctx.consume_keyword("FULLTEXT")?;
     ctx.consume_keyword("INDEX")?;
 
@@ -647,6 +664,9 @@ mod tests {
 
         let mut parser = Parser::new(sql);
         let result = parser.parse();
+        if let Err(e) = &result {
+            eprintln!("Parse error: {:?}", e);
+        }
         assert!(result.is_ok());
     }
 
@@ -658,6 +678,9 @@ mod tests {
 
         let mut parser = Parser::new(sql);
         let result = parser.parse();
+        if let Err(e) = &result {
+            eprintln!("Parse error: {:?}", e);
+        }
         assert!(result.is_ok());
     }
 
@@ -667,6 +690,9 @@ mod tests {
 
         let mut parser = Parser::new(sql);
         let result = parser.parse();
+        if let Err(e) = &result {
+            eprintln!("Parse error: {:?}", e);
+        }
         assert!(result.is_ok());
     }
 }

@@ -164,6 +164,7 @@ impl Bm25Index {
     pub fn commit(&self) -> Result<()> {
         let mut writer = self.manager.writer()?;
         writer.commit()?;
+        self.manager.clear_reader_cache();
         
         Ok(())
     }

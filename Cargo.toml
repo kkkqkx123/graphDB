@@ -46,8 +46,8 @@ sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate", "chr
 async-trait = { version = "0.1", optional = true }
 
 # Full-text search engines
-bm25-service = { path = "crates/bm25", default-features = false }
-inversearch-service = { path = "crates/inversearch", default-features = false, features = ["store-memory", "store-cached"] }
+bm25-service = { path = "crates/bm25", default-features = false, features = ["embedded", "storage-tantivy"] }
+inversearch-service = { path = "crates/inversearch", default-features = false, features = ["embedded", "store"] }
 tantivy = "0.24"
 
 [target.'cfg(unix)'.dependencies]

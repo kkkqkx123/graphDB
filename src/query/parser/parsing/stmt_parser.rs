@@ -498,6 +498,12 @@ impl StmtParser {
             return UserParser::new().parse_create_user_statement_after_create(ctx, start_span);
         }
 
+        // Check whether it is a CREATE FULLTEXT INDEX statement.
+        if ctx.check_keyword("FULLTEXT") {
+            // Parse as full-text index statement (CREATE already consumed)
+            return crate::query::parser::parsing::fulltext_parser::parse_create_fulltext_index_after_create(ctx);
+        }
+
         // Check the DDL CREATE type.
         if ctx.check_token(TokenKind::Tag)
             || ctx.check_token(TokenKind::Edge)
