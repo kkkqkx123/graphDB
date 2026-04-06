@@ -3,15 +3,16 @@ mod tests {
     use super::super::bm25_adapter::Bm25SearchEngine;
     use crate::core::Value;
     use crate::search::engine::SearchEngine;
+    use bm25_service::config::IndexManagerConfig;
     use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_bm25_lifecycle() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let engine =
-            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine");
+            Bm25SearchEngine::open_or_create(temp_dir.path(), IndexManagerConfig::default())
+                .expect("Failed to create engine");
 
-        // Test indexing
         engine
             .index("1", "Rust programming language")
             .await
@@ -25,10 +26,8 @@ mod tests {
             .await
             .expect("Failed to index doc 3");
 
-        // Test commit
         engine.commit().await.expect("Failed to commit");
 
-        // Test search
         let results = engine.search("Rust", 10).await.expect("Failed to search");
         assert_eq!(results.len(), 2, "Expected 2 results for 'Rust'");
         assert!(
@@ -36,7 +35,6 @@ mod tests {
             "Results should be sorted by score"
         );
 
-        // Test delete
         engine.delete("1").await.expect("Failed to delete doc 1");
         engine
             .commit()
@@ -49,7 +47,6 @@ mod tests {
             .expect("Failed to search after delete");
         assert_eq!(results.len(), 1, "Expected 1 result after deletion");
 
-        // Test close
         engine.close().await.expect("Failed to close engine");
     }
 
@@ -57,20 +54,19 @@ mod tests {
     async fn test_bm25_batch_operations() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let engine =
-            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine");
+            Bm25SearchEngine::open_or_create(temp_dir.path(), IndexManagerConfig::default())
+                .expect("Failed to create engine");
 
         let docs: Vec<(String, String)> = (0..100)
             .map(|i| (i.to_string(), format!("Document content {}", i)))
             .collect();
 
-        // Batch index
         engine
             .index_batch(docs)
             .await
             .expect("Failed to batch index");
         engine.commit().await.expect("Failed to commit");
 
-        // Verify
         let results = engine
             .search("Document", 100)
             .await
@@ -83,9 +79,9 @@ mod tests {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let path = temp_dir.path().to_path_buf();
 
-        // First open, index data
         {
-            let engine = Bm25SearchEngine::open_or_create(&path).expect("Failed to create engine");
+            let engine = Bm25SearchEngine::open_or_create(&path, IndexManagerConfig::default())
+                .expect("Failed to create engine");
             engine
                 .index("1", "Persistent data")
                 .await
@@ -94,9 +90,9 @@ mod tests {
             engine.close().await.expect("Failed to close");
         }
 
-        // Second open, verify data
         {
-            let engine = Bm25SearchEngine::open_or_create(&path).expect("Failed to open engine");
+            let engine = Bm25SearchEngine::open_or_create(&path, IndexManagerConfig::default())
+                .expect("Failed to open engine");
             let results = engine
                 .search("Persistent", 10)
                 .await
@@ -114,9 +110,9 @@ mod tests {
     async fn test_bm25_search_with_limit() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let engine =
-            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine");
+            Bm25SearchEngine::open_or_create(temp_dir.path(), IndexManagerConfig::default())
+                .expect("Failed to create engine");
 
-        // Index multiple documents
         for i in 0..20 {
             engine
                 .index(&i.to_string(), &format!("Common keyword {}", i))
@@ -125,7 +121,6 @@ mod tests {
         }
         engine.commit().await.expect("Failed to commit");
 
-        // Test limit
         let results = engine.search("Common", 5).await.expect("Failed to search");
         assert_eq!(results.len(), 5, "Expected 5 results with limit");
 
@@ -137,9 +132,9 @@ mod tests {
     async fn test_bm25_delete_batch() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let engine =
-            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine");
+            Bm25SearchEngine::open_or_create(temp_dir.path(), IndexManagerConfig::default())
+                .expect("Failed to create engine");
 
-        // Index documents
         for i in 0..10 {
             engine
                 .index(&i.to_string(), &format!("Content {}", i))
@@ -148,7 +143,6 @@ mod tests {
         }
         engine.commit().await.expect("Failed to commit");
 
-        // Batch delete
         let doc_ids: Vec<&str> = vec!["0", "1", "2", "3", "4"];
         engine
             .delete_batch(doc_ids)
@@ -156,7 +150,6 @@ mod tests {
             .expect("Failed to batch delete");
         engine.commit().await.expect("Failed to commit");
 
-        // Verify
         let results = engine
             .search("Content", 10)
             .await
@@ -168,13 +161,12 @@ mod tests {
     async fn test_bm25_stats() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let engine =
-            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine");
+            Bm25SearchEngine::open_or_create(temp_dir.path(), IndexManagerConfig::default())
+                .expect("Failed to create engine");
 
-        // Initial stats
         let stats = engine.stats().await.expect("Failed to get stats");
         assert_eq!(stats.doc_count, 0, "Expected 0 docs initially");
 
-        // Index documents
         for i in 0..5 {
             engine
                 .index(&i.to_string(), &format!("Test content {}", i))
@@ -183,7 +175,6 @@ mod tests {
         }
         engine.commit().await.expect("Failed to commit");
 
-        // Updated stats
         let stats = engine.stats().await.expect("Failed to get stats");
         assert_eq!(stats.doc_count, 5, "Expected 5 docs after indexing");
         assert!(stats.index_size > 0, "Expected positive index size");
@@ -193,9 +184,9 @@ mod tests {
     async fn test_bm25_empty_search() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let engine =
-            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine");
+            Bm25SearchEngine::open_or_create(temp_dir.path(), IndexManagerConfig::default())
+                .expect("Failed to create engine");
 
-        // Search on empty index
         let results = engine
             .search("nonexistent", 10)
             .await
@@ -207,7 +198,8 @@ mod tests {
     async fn test_bm25_engine_info() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let engine =
-            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine");
+            Bm25SearchEngine::open_or_create(temp_dir.path(), IndexManagerConfig::default())
+                .expect("Failed to create engine");
 
         assert_eq!(engine.name(), "bm25", "Expected engine name 'bm25'");
         assert_eq!(engine.version(), "0.1.0", "Expected version '0.1.0'");

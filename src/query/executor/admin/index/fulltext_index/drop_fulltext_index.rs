@@ -3,13 +3,12 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 /// Executor for dropping full-text indexes
-/// 
+///
 /// # Note
 /// Current implementation is a placeholder. Fields are reserved for future
 /// implementation of index deletion logic.

@@ -256,16 +256,7 @@ impl StatementValidator for RemoveValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expr::contextual::ContextualExpression;
     use crate::core::Expression;
-    use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
-
-    fn create_contextual_expr(expr: Expression) -> ContextualExpression {
-        let ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());
-        let meta = crate::core::types::expr::ExpressionMeta::new(expr);
-        let id = ctx.register_expression(meta);
-        ContextualExpression::new(id, ctx)
-    }
 
     #[test]
     fn test_remove_validator_new() {

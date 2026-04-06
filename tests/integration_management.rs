@@ -1205,7 +1205,7 @@ fn test_auxiliary_return_operations() {
         "RETURN {name: 'Alice', age: 30}",
     ];
 
-    for (_i, query) in return_queries.iter().enumerate() {
+    for query in return_queries.iter() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -1229,7 +1229,7 @@ fn test_auxiliary_unwind_operations() {
         "UNWIND [1, 2, 3] AS n RETURN n * 2",
     ];
 
-    for (_i, query) in unwind_queries.iter().enumerate() {
+    for query in unwind_queries.iter() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }
@@ -1253,7 +1253,7 @@ fn test_auxiliary_pipe_operations() {
         "LOOKUP ON Person WHERE Person.age > 25 | YIELD Person.name",
     ];
 
-    for (_i, query) in pipe_queries.iter().enumerate() {
+    for query in pipe_queries.iter() {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err());
     }

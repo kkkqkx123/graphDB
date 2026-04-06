@@ -193,19 +193,17 @@ impl FulltextFunction {
 
         // Return original text if no highlights available
         if let Some(source) = &context.source {
-            if let Some(value) = source.get(&field_name) {
-                if let Value::String(text) = value {
-                    // Truncate if needed
-                    if text.len() > fragment_size {
-                        return Ok(Value::String(format!(
-                            "{}{}{}",
-                            pre_tag,
-                            &text[..fragment_size.min(text.len())],
-                            post_tag
-                        )));
-                    }
-                    return Ok(Value::String(text.clone()));
+            if let Some(Value::String(text)) = source.get(&field_name) {
+                // Truncate if needed
+                if text.len() > fragment_size {
+                    return Ok(Value::String(format!(
+                        "{}{}{}",
+                        pre_tag,
+                        &text[..fragment_size.min(text.len())],
+                        post_tag
+                    )));
                 }
+                return Ok(Value::String(text.clone()));
             }
         }
 
@@ -272,17 +270,15 @@ impl FulltextFunction {
 
         // Get text from source
         if let Some(source) = &context.source {
-            if let Some(value) = source.get(&field_name) {
-                if let Value::String(text) = value {
-                    if text.len() <= max_len {
-                        return Ok(Value::String(text.clone()));
-                    }
-
-                    // Try to find a good break point
-                    let break_point = text[..max_len].rfind(' ').unwrap_or(max_len);
-
-                    return Ok(Value::String(format!("{}...", &text[..break_point])));
+            if let Some(Value::String(text)) = source.get(&field_name) {
+                if text.len() <= max_len {
+                    return Ok(Value::String(text.clone()));
                 }
+
+                // Try to find a good break point
+                let break_point = text[..max_len].rfind(' ').unwrap_or(max_len);
+
+                return Ok(Value::String(format!("{}...", &text[..break_point])));
             }
         }
 

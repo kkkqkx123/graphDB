@@ -15,8 +15,7 @@ pub struct InversearchEngine {
 
 impl std::fmt::Debug for InversearchEngine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("InversearchEngine")
-            .finish()
+        f.debug_struct("InversearchEngine").finish()
     }
 }
 
@@ -31,7 +30,7 @@ impl InversearchEngine {
 
     pub fn load(path: &Path, mut config: EmbeddedConfig) -> Result<Self, SearchError> {
         config.index_path = Some(path.to_path_buf());
-        
+
         let mut index = EmbeddedIndex::with_config(config.clone())
             .map_err(|e| SearchError::InversearchError(e.to_string()))?;
 

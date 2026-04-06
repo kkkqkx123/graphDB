@@ -3,13 +3,12 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 /// Executor for describing full-text index metadata
-/// 
+///
 /// # Note
 /// Current implementation is a placeholder. The `index_name` field is reserved
 /// for future implementation of index metadata retrieval logic.

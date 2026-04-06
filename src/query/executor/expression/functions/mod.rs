@@ -232,7 +232,8 @@ impl BuiltinFunction {
             BuiltinFunction::Regex(f) => f.execute(args),
             BuiltinFunction::Aggregate(_) => Err(ExpressionError::new(
                 ExpressionErrorType::InvalidOperation,
-                "Aggregation functions need to be executed within the aggregation context".to_string(),
+                "Aggregation functions need to be executed within the aggregation context"
+                    .to_string(),
             )),
             BuiltinFunction::Conversion(f) => f.execute(args),
             BuiltinFunction::DateTime(f) => f.execute(args),
@@ -552,7 +553,8 @@ impl CustomFunction {
             #[cfg(feature = "c-api")]
             CustomFunctionImpl::Aggregate { .. } => Err(ExpressionError::new(
                 ExpressionErrorType::InvalidOperation,
-                "Aggregation functions need to be executed within the aggregation context".to_string(),
+                "Aggregation functions need to be executed within the aggregation context"
+                    .to_string(),
             )),
         }
     }

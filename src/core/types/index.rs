@@ -234,30 +234,30 @@ impl std::fmt::Display for FulltextEngineType {
 }
 
 /// Tokenization mode for Inversearch
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode,
+)]
 pub enum TokenizeMode {
+    #[serde(rename = "bidirectional")]
+    #[default]
+    Bidirectional,
     #[serde(rename = "strict")]
     Strict,
     #[serde(rename = "forward")]
     Forward,
     #[serde(rename = "reverse")]
     Reverse,
-    #[serde(rename = "bidirectional")]
-    Bidirectional,
     #[serde(rename = "full")]
     Full,
 }
 
-impl Default for TokenizeMode {
-    fn default() -> Self {
-        TokenizeMode::Bidirectional
-    }
-}
-
 /// Character set type for Inversearch
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode,
+)]
 pub enum CharsetType {
     #[serde(rename = "cjk")]
+    #[default]
     CJK,
     #[serde(rename = "latin")]
     Latin,
@@ -265,12 +265,6 @@ pub enum CharsetType {
     Exact,
     #[serde(rename = "normalized")]
     Normalized,
-}
-
-impl Default for CharsetType {
-    fn default() -> Self {
-        CharsetType::CJK
-    }
 }
 
 /// BM25 index configuration
@@ -386,9 +380,13 @@ impl Default for FulltextIndexOptions {
 
 impl FulltextIndexOptions {
     pub fn new(engine_type: FulltextEngineType) -> Self {
-        let mut options = Self::default();
-        options.engine_type = engine_type;
-        options
+        Self {
+            engine_type,
+            bm25_config: Some(BM25IndexConfig::default()),
+            inversearch_config: None,
+            fields: Vec::new(),
+            if_not_exists: false,
+        }
     }
 
     pub fn bm25() -> Self {

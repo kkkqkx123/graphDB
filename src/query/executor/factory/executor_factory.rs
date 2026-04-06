@@ -522,17 +522,21 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::admin::CreateFulltextIndexExecutor;
+        use crate::query::executor::admin::{
+            CreateFulltextIndexConfig, CreateFulltextIndexExecutor,
+        };
 
         let executor = CreateFulltextIndexExecutor::new(
             node.id(),
             storage,
-            node.index_name.clone(),
-            node.schema_name.clone(),
-            node.fields.clone(),
-            node.engine_type,
-            node.options.clone(),
-            node.if_not_exists,
+            CreateFulltextIndexConfig {
+                index_name: node.index_name.clone(),
+                schema_name: node.schema_name.clone(),
+                fields: node.fields.clone(),
+                engine_type: node.engine_type,
+                options: node.options.clone(),
+                if_not_exists: node.if_not_exists,
+            },
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::CreateFulltextIndex(executor))
@@ -634,7 +638,9 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
 
         let coordinator = context
             .fulltext_coordinator()
-            .ok_or_else(|| QueryError::ExecutionError("Fulltext coordinator not available".to_string()))?
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
+            })?
             .clone();
 
         let executor = FulltextSearchExecutor::new(
@@ -655,7 +661,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::data_access::FulltextScanExecutor;
+        use crate::query::executor::data_access::{FulltextScanConfig, FulltextScanExecutor};
 
         let search_engine = context
             .search_engine()
@@ -664,19 +670,23 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
 
         let coordinator = context
             .fulltext_coordinator()
-            .ok_or_else(|| QueryError::ExecutionError("Fulltext coordinator not available".to_string()))?
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
+            })?
             .clone();
 
         let executor = FulltextScanExecutor::new(
             node.id(),
-            node.index_name.clone(),
-            node.query.clone(),
+            FulltextScanConfig {
+                index_name: node.index_name.clone(),
+                query: node.query.clone(),
+                limit: node.limit,
+            },
             search_engine,
             context.clone(),
             storage,
             context.expression_context().clone(),
             coordinator,
-            node.limit,
         );
         Ok(ExecutorEnum::FulltextLookup(executor))
     }
@@ -691,13 +701,14 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
 
         let coordinator = context
             .fulltext_coordinator()
-            .ok_or_else(|| QueryError::ExecutionError("Fulltext coordinator not available".to_string()))?
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
+            })?
             .clone();
 
         let executor = MatchFulltextExecutor::new(
             node.id(),
             storage,
-            node.pattern.clone(),
             node.fulltext_condition.clone(),
             node.yield_clause.clone(),
             context.expression_context().clone(),

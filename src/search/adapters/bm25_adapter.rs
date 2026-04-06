@@ -160,20 +160,17 @@ mod tests {
     #[test]
     fn test_bm25_engine_creation() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
-        let engine = Bm25SearchEngine::open_or_create(
-            temp_dir.path(),
-            IndexManagerConfig::default(),
-        );
+        let engine =
+            Bm25SearchEngine::open_or_create(temp_dir.path(), IndexManagerConfig::default());
         assert!(engine.is_ok());
     }
 
     #[tokio::test]
     async fn test_bm25_index_and_search() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
-        let engine = Bm25SearchEngine::open_or_create(
-            temp_dir.path(),
-            IndexManagerConfig::default(),
-        ).expect("Failed to create engine");
+        let engine =
+            Bm25SearchEngine::open_or_create(temp_dir.path(), IndexManagerConfig::default())
+                .expect("Failed to create engine");
 
         engine
             .index("1", "Hello world from Rust")
@@ -195,10 +192,9 @@ mod tests {
     #[tokio::test]
     async fn test_bm25_delete() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
-        let engine = Bm25SearchEngine::open_or_create(
-            temp_dir.path(),
-            IndexManagerConfig::default(),
-        ).expect("Failed to create engine");
+        let engine =
+            Bm25SearchEngine::open_or_create(temp_dir.path(), IndexManagerConfig::default())
+                .expect("Failed to create engine");
 
         engine
             .index("1", "Test document")

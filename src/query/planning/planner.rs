@@ -112,20 +112,12 @@ pub trait Planner: std::fmt::Debug {
 // ============================================================================
 
 /// Full-text search planner
-#[derive(Debug, Clone)]
-pub struct FulltextSearchPlanner {
-    enabled: bool,
-}
-
-impl Default for FulltextSearchPlanner {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+#[derive(Debug, Clone, Default)]
+pub struct FulltextSearchPlanner;
 
 impl FulltextSearchPlanner {
     pub fn new() -> Self {
-        Self { enabled: true }
+        Self
     }
 }
 

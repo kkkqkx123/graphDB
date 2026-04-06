@@ -12,7 +12,7 @@ pub mod show_fulltext_index;
 mod tests;
 
 pub use alter_fulltext_index::AlterFulltextIndexExecutor;
-pub use create_fulltext_index::CreateFulltextIndexExecutor;
+pub use create_fulltext_index::{CreateFulltextIndexConfig, CreateFulltextIndexExecutor};
 pub use describe_fulltext_index::DescribeFulltextIndexExecutor;
 pub use drop_fulltext_index::DropFulltextIndexExecutor;
 pub use show_fulltext_index::ShowFulltextIndexExecutor;

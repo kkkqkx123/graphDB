@@ -4,8 +4,8 @@
 
 use crate::core::types::FulltextEngineType;
 use crate::query::parser::ast::fulltext::{
-    AlterIndexAction, FulltextMatchCondition, FulltextQueryExpr, FulltextYieldClause, IndexFieldDef, IndexOptions,
-    OrderClause, WhereClause,
+    AlterIndexAction, FulltextMatchCondition, FulltextQueryExpr, FulltextYieldClause,
+    IndexFieldDef, IndexOptions, OrderClause, WhereClause,
 };
 use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
 use crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory;

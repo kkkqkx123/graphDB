@@ -8,9 +8,9 @@ use crate::core::Value;
 use crate::query::parser::ast::fulltext::{
     AlterFulltextIndex, AlterIndexAction, BM25Options, CreateFulltextIndex, DescribeFulltextIndex,
     DropFulltextIndex, FulltextMatchCondition, FulltextOrderDirection, FulltextQueryExpr,
-    IndexFieldDef, IndexOptions, InversearchOptions, LookupFulltext, MatchFulltext, OrderClause,
-    OrderItem, SearchStatement, ShowFulltextIndex, WhereClause, WhereCondition, FulltextYieldClause,
-    FulltextYieldItem, YieldExpression,
+    FulltextYieldClause, FulltextYieldItem, IndexFieldDef, IndexOptions, InversearchOptions,
+    LookupFulltext, MatchFulltext, OrderClause, OrderItem, SearchStatement, ShowFulltextIndex,
+    WhereClause, WhereCondition, YieldExpression,
 };
 use crate::query::parser::ast::stmt::Stmt;
 use crate::query::parser::parsing::parse_context::ParseContext;

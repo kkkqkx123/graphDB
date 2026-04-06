@@ -10,8 +10,24 @@ use crate::query::parser::ast::{IndexFieldDef, IndexOptions};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
+/// Configuration for creating a full-text index
+pub struct CreateFulltextIndexConfig {
+    /// Index name
+    pub index_name: String,
+    /// Schema name where the index will be created
+    pub schema_name: String,
+    /// Fields to be indexed
+    pub fields: Vec<IndexFieldDef>,
+    /// Type of full-text search engine
+    pub engine_type: FulltextEngineType,
+    /// Index configuration options
+    pub options: IndexOptions,
+    /// Whether to skip if index already exists
+    pub if_not_exists: bool,
+}
+
 /// Executor for creating full-text indexes
-/// 
+///
 /// # Fields
 /// - `index_name`: Name of the index to create (used in future implementation)
 /// - `schema_name`: Schema name where the index will be created (used in future implementation)
@@ -19,7 +35,7 @@ use crate::storage::StorageClient;
 /// - `engine_type`: Type of full-text search engine (used in future implementation)
 /// - `options`: Index configuration options (used in future implementation)
 /// - `if_not_exists`: Whether to skip if index already exists (used in future implementation)
-/// 
+///
 /// # Note
 /// Current implementation is a placeholder. The fields are reserved for future
 /// full implementation of index creation logic.
@@ -50,12 +66,7 @@ impl<S: StorageClient> CreateFulltextIndexExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
-        index_name: String,
-        schema_name: String,
-        fields: Vec<IndexFieldDef>,
-        engine_type: FulltextEngineType,
-        options: IndexOptions,
-        if_not_exists: bool,
+        config: CreateFulltextIndexConfig,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
@@ -65,12 +76,12 @@ impl<S: StorageClient> CreateFulltextIndexExecutor<S> {
                 storage,
                 expr_context,
             ),
-            index_name,
-            schema_name,
-            fields,
-            engine_type,
-            options,
-            if_not_exists,
+            index_name: config.index_name,
+            schema_name: config.schema_name,
+            fields: config.fields,
+            engine_type: config.engine_type,
+            options: config.options,
+            if_not_exists: config.if_not_exists,
         }
     }
 }

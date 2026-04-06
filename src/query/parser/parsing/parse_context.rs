@@ -312,7 +312,9 @@ impl<'a> ParseContext<'a> {
             TokenKind::Create => keyword.eq_ignore_ascii_case("CREATE"),
             TokenKind::Alter => keyword.eq_ignore_ascii_case("ALTER"),
             TokenKind::Show => keyword.eq_ignore_ascii_case("SHOW"),
-            TokenKind::Desc => keyword.eq_ignore_ascii_case("DESC") || keyword.eq_ignore_ascii_case("DESCRIBE"),
+            TokenKind::Desc => {
+                keyword.eq_ignore_ascii_case("DESC") || keyword.eq_ignore_ascii_case("DESCRIBE")
+            }
             TokenKind::Search => keyword.eq_ignore_ascii_case("SEARCH"),
             TokenKind::Lookup => keyword.eq_ignore_ascii_case("LOOKUP"),
             TokenKind::Match => keyword.eq_ignore_ascii_case("MATCH"),

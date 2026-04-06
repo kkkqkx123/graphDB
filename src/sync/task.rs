@@ -1,8 +1,11 @@
+//! Sync Task Definition
+
 use crate::coordinator::ChangeType;
 use crate::core::Value;
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SyncTask {
     VertexChange {
         task_id: String,
@@ -35,6 +38,14 @@ pub enum SyncTask {
         field_name: String,
         created_at: DateTime<Utc>,
     },
+    BatchDelete {
+        task_id: String,
+        space_id: u64,
+        tag_name: String,
+        field_name: String,
+        doc_ids: Vec<String>,
+        created_at: DateTime<Utc>,
+    },
 }
 
 impl SyncTask {
@@ -56,12 +67,65 @@ impl SyncTask {
         }
     }
 
+    pub fn batch_index(
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+        documents: Vec<(String, String)>,
+    ) -> Self {
+        Self::BatchIndex {
+            task_id: generate_task_id(),
+            space_id,
+            tag_name: tag_name.to_string(),
+            field_name: field_name.to_string(),
+            documents,
+            created_at: Utc::now(),
+        }
+    }
+
+    pub fn commit_index(space_id: u64, tag_name: &str, field_name: &str) -> Self {
+        Self::CommitIndex {
+            task_id: generate_task_id(),
+            space_id,
+            tag_name: tag_name.to_string(),
+            field_name: field_name.to_string(),
+            created_at: Utc::now(),
+        }
+    }
+
+    pub fn rebuild_index(space_id: u64, tag_name: &str, field_name: &str) -> Self {
+        Self::RebuildIndex {
+            task_id: generate_task_id(),
+            space_id,
+            tag_name: tag_name.to_string(),
+            field_name: field_name.to_string(),
+            created_at: Utc::now(),
+        }
+    }
+
+    pub fn batch_delete(
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+        doc_ids: Vec<String>,
+    ) -> Self {
+        Self::BatchDelete {
+            task_id: generate_task_id(),
+            space_id,
+            tag_name: tag_name.to_string(),
+            field_name: field_name.to_string(),
+            doc_ids,
+            created_at: Utc::now(),
+        }
+    }
+
     pub fn task_id(&self) -> &str {
         match self {
             Self::VertexChange { task_id, .. } => task_id,
             Self::BatchIndex { task_id, .. } => task_id,
             Self::CommitIndex { task_id, .. } => task_id,
             Self::RebuildIndex { task_id, .. } => task_id,
+            Self::BatchDelete { task_id, .. } => task_id,
         }
     }
 
@@ -71,6 +135,7 @@ impl SyncTask {
             Self::BatchIndex { created_at, .. } => *created_at,
             Self::CommitIndex { created_at, .. } => *created_at,
             Self::RebuildIndex { created_at, .. } => *created_at,
+            Self::BatchDelete { created_at, .. } => *created_at,
         }
     }
 }

@@ -9,23 +9,11 @@ pub enum CoordinatorStatus {
     Error,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CoordinatorStats {
     pub total_indexes: usize,
     pub active_indexes: usize,
     pub failed_operations: u64,
     pub total_operations: u64,
     pub queue_size: usize,
-}
-
-impl Default for CoordinatorStats {
-    fn default() -> Self {
-        Self {
-            total_indexes: 0,
-            active_indexes: 0,
-            failed_operations: 0,
-            total_operations: 0,
-            queue_size: 0,
-        }
-    }
 }

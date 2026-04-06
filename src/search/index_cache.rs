@@ -86,6 +86,7 @@ impl IndexCache {
 mod tests {
     use super::*;
     use crate::search::adapters::Bm25SearchEngine;
+    use bm25_service::config::IndexManagerConfig;
     use tempfile::TempDir;
 
     #[test]
@@ -96,22 +97,21 @@ mod tests {
         let key1 = IndexKey::new(1, "Article", "title");
         let key2 = IndexKey::new(1, "Article", "content");
 
-        // Initially empty
         assert!(cache.get(&key1).is_none());
         assert_eq!(cache.len(), 0);
 
-        // Insert engines
         let engine1 = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"),
+            Bm25SearchEngine::open_or_create(temp_dir.path(), IndexManagerConfig::default())
+                .expect("Failed to create engine"),
         );
         let engine2 = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"),
+            Bm25SearchEngine::open_or_create(temp_dir.path(), IndexManagerConfig::default())
+                .expect("Failed to create engine"),
         );
 
         cache.put(key1.clone(), engine1);
         cache.put(key2.clone(), engine2);
 
-        // Check cache
         assert_eq!(cache.len(), 2);
         assert!(cache.contains(&key1));
         assert!(cache.contains(&key2));
@@ -129,33 +129,32 @@ mod tests {
         let key2 = IndexKey::new(1, "Article", "content");
         let key3 = IndexKey::new(1, "Post", "title");
 
-        // Insert 3 engines (max is 2)
         let engine1 = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir1.path()).expect("Failed to create engine"),
+            Bm25SearchEngine::open_or_create(temp_dir1.path(), IndexManagerConfig::default())
+                .expect("Failed to create engine"),
         );
         let engine2 = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir2.path()).expect("Failed to create engine"),
+            Bm25SearchEngine::open_or_create(temp_dir2.path(), IndexManagerConfig::default())
+                .expect("Failed to create engine"),
         );
         let engine3 = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir3.path()).expect("Failed to create engine"),
+            Bm25SearchEngine::open_or_create(temp_dir3.path(), IndexManagerConfig::default())
+                .expect("Failed to create engine"),
         );
 
         cache.put(key1.clone(), engine1);
         cache.put(key2.clone(), engine2);
 
-        // Access key1 to make it more recent
         let _ = cache.get(&key1);
 
-        // Insert key3, should evict key2 (least recently used)
         cache.put(key3.clone(), engine3);
 
-        // Give time for async spawn to complete
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
         assert_eq!(cache.len(), 2);
-        assert!(cache.contains(&key1)); // Still exists (recently accessed)
-        assert!(!cache.contains(&key2)); // Evicted
-        assert!(cache.contains(&key3)); // New entry
+        assert!(cache.contains(&key1));
+        assert!(!cache.contains(&key2));
+        assert!(cache.contains(&key3));
     }
 
     #[test]
@@ -165,7 +164,8 @@ mod tests {
 
         let key1 = IndexKey::new(1, "Article", "title");
         let engine = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir.path()).expect("Failed to create engine"),
+            Bm25SearchEngine::open_or_create(temp_dir.path(), IndexManagerConfig::default())
+                .expect("Failed to create engine"),
         );
 
         cache.put(key1.clone(), engine);
@@ -187,10 +187,12 @@ mod tests {
         let key2 = IndexKey::new(1, "Article", "content");
 
         let engine1 = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir1.path()).expect("Failed to create engine"),
+            Bm25SearchEngine::open_or_create(temp_dir1.path(), IndexManagerConfig::default())
+                .expect("Failed to create engine"),
         );
         let engine2 = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir2.path()).expect("Failed to create engine"),
+            Bm25SearchEngine::open_or_create(temp_dir2.path(), IndexManagerConfig::default())
+                .expect("Failed to create engine"),
         );
 
         cache.put(key1.clone(), engine1);
@@ -199,7 +201,6 @@ mod tests {
 
         cache.clear();
 
-        // Give time for async spawn to complete
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
         assert_eq!(cache.len(), 0);

@@ -3,6 +3,7 @@
 //! Used to generate C API header files and configure the build environment
 
 use std::env;
+use std::path::PathBuf;
 
 fn main() {
     // Only generate header file when c-api feature is enabled
