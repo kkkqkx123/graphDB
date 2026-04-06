@@ -9,6 +9,7 @@ use std::time::Duration;
 use dashmap::DashMap;
 use redb::Database;
 
+use crate::sync::SyncManager;
 use crate::transaction::context::TransactionContext;
 use crate::transaction::types::*;
 
@@ -27,6 +28,8 @@ pub struct TransactionManager {
     stats: Arc<TransactionStats>,
     /// Whether shutdown
     shutdown_flag: AtomicU64,
+    /// Optional sync manager for fulltext index synchronization
+    sync_manager: Option<Arc<SyncManager>>,
 }
 
 impl TransactionManager {
@@ -39,7 +42,30 @@ impl TransactionManager {
             id_generator: AtomicU64::new(1),
             stats: Arc::new(TransactionStats::new()),
             shutdown_flag: AtomicU64::new(0),
+            sync_manager: None,
         }
+    }
+
+    /// Create a new transaction manager with sync manager
+    pub fn with_sync_manager(
+        db: Arc<Database>,
+        config: TransactionManagerConfig,
+        sync_manager: Arc<SyncManager>,
+    ) -> Self {
+        Self {
+            db,
+            config,
+            active_transactions: DashMap::new(),
+            id_generator: AtomicU64::new(1),
+            stats: Arc::new(TransactionStats::new()),
+            shutdown_flag: AtomicU64::new(0),
+            sync_manager: Some(sync_manager),
+        }
+    }
+
+    /// Set sync manager
+    pub fn set_sync_manager(&mut self, sync_manager: Arc<SyncManager>) {
+        self.sync_manager = Some(sync_manager);
     }
 
     /// Start a new transaction
@@ -185,6 +211,13 @@ impl TransactionManager {
         }
 
         context.transition_to(TransactionState::Committed)?;
+
+        // Trigger fulltext index sync after successful commit
+        if let Some(ref sync_manager) = self.sync_manager {
+            if let Err(e) = futures::executor::block_on(sync_manager.force_commit()) {
+                log::warn!("Failed to sync fulltext index after commit: {}", e);
+            }
+        }
 
         // Cleanup
         self.stats.decrement_active();

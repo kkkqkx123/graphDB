@@ -3,6 +3,7 @@
 //! Coordinating various builders, parsers, and validators
 //! Responsible for creating the corresponding executor instances based on the execution plan.
 
+use crate::coordinator::FulltextCoordinator;
 use crate::core::error::QueryError;
 use crate::core::types::span::Span;
 use crate::query::executor::base::ExecutionContext;
@@ -29,6 +30,7 @@ pub struct ExecutorFactory<S: StorageClient + Send + 'static> {
     pub(crate) storage: Option<Arc<Mutex<S>>>,
     pub(crate) config: ExecutorSafetyConfig,
     pub(crate) recursion_detector: RecursionDetector,
+    pub(crate) fulltext_coordinator: Option<Arc<FulltextCoordinator>>,
 }
 
 impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
@@ -41,6 +43,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             storage: None,
             config,
             recursion_detector,
+            fulltext_coordinator: None,
         }
     }
 
@@ -49,6 +52,29 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         let mut factory = Self::new();
         factory.storage = Some(storage);
         factory
+    }
+
+    /// Setting the fulltext coordinator
+    pub fn with_fulltext_coordinator(coordinator: Arc<FulltextCoordinator>) -> Self {
+        let mut factory = Self::new();
+        factory.fulltext_coordinator = Some(coordinator);
+        factory
+    }
+
+    /// Setting both storage and fulltext coordinator
+    pub fn with_storage_and_coordinator(
+        storage: Arc<Mutex<S>>,
+        coordinator: Arc<FulltextCoordinator>,
+    ) -> Self {
+        let mut factory = Self::new();
+        factory.storage = Some(storage);
+        factory.fulltext_coordinator = Some(coordinator);
+        factory
+    }
+
+    /// Set fulltext coordinator
+    pub fn set_fulltext_coordinator(&mut self, coordinator: Arc<FulltextCoordinator>) {
+        self.fulltext_coordinator = Some(coordinator);
     }
 
     /// Analyzing the lifecycle and security of execution plans
@@ -425,6 +451,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 storage: self.storage.clone(),
                 config,
                 recursion_detector: RecursionDetector::new(max_recursion_depth),
+                fulltext_coordinator: self.fulltext_coordinator.clone(),
             };
 
             temp_factory.create_executor(body, storage.clone(), context)?
@@ -480,6 +507,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 storage: self.storage.clone(),
                 config,
                 recursion_detector: RecursionDetector::new(max_recursion_depth),
+                fulltext_coordinator: self.fulltext_coordinator.clone(),
             };
 
             temp_factory.create_executor(if_node, storage.clone(), context)?
@@ -494,6 +522,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                     storage: self.storage.clone(),
                     config,
                     recursion_detector: RecursionDetector::new(max_recursion_depth),
+                    fulltext_coordinator: self.fulltext_coordinator.clone(),
                 };
 
                 Some(temp_factory.create_executor(else_node, storage.clone(), context)?)
@@ -526,6 +555,17 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             CreateFulltextIndexConfig, CreateFulltextIndexExecutor,
         };
 
+        let coordinator = self
+            .fulltext_coordinator
+            .as_ref()
+            .or_else(|| context.fulltext_coordinator())
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
+            })?
+            .clone();
+
+        let space_id = context.current_space_id().unwrap_or(0);
+
         let executor = CreateFulltextIndexExecutor::new(
             node.id(),
             storage,
@@ -536,8 +576,10 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 engine_type: node.engine_type,
                 options: node.options.clone(),
                 if_not_exists: node.if_not_exists,
+                space_id,
             },
             context.expression_context().clone(),
+            coordinator,
         );
         Ok(ExecutorEnum::CreateFulltextIndex(executor))
     }
@@ -550,12 +592,25 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::admin::DropFulltextIndexExecutor;
 
+        let coordinator = self
+            .fulltext_coordinator
+            .as_ref()
+            .or_else(|| context.fulltext_coordinator())
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
+            })?
+            .clone();
+
+        let space_id = context.current_space_id().unwrap_or(0);
+
         let executor = DropFulltextIndexExecutor::new(
             node.id(),
             storage,
             node.index_name.clone(),
             node.if_exists,
+            space_id,
             context.expression_context().clone(),
+            coordinator,
         );
         Ok(ExecutorEnum::DropFulltextIndex(executor))
     }
@@ -586,10 +641,20 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::admin::ShowFulltextIndexExecutor;
 
+        let coordinator = self
+            .fulltext_coordinator
+            .as_ref()
+            .or_else(|| context.fulltext_coordinator())
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
+            })?
+            .clone();
+
         let executor = ShowFulltextIndexExecutor::new(
             node.id(),
             storage,
             context.expression_context().clone(),
+            coordinator,
         );
         Ok(ExecutorEnum::ShowFulltextIndex(executor))
     }
@@ -602,11 +667,24 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::admin::DescribeFulltextIndexExecutor;
 
+        let coordinator = self
+            .fulltext_coordinator
+            .as_ref()
+            .or_else(|| context.fulltext_coordinator())
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
+            })?
+            .clone();
+
+        let space_id = context.current_space_id().unwrap_or(0);
+
         let executor = DescribeFulltextIndexExecutor::new(
             node.id(),
             storage,
             node.index_name.clone(),
+            space_id,
             context.expression_context().clone(),
+            coordinator,
         );
         Ok(ExecutorEnum::DescribeFulltextIndex(executor))
     }
@@ -724,6 +802,7 @@ impl<S: StorageClient + 'static> Clone for ExecutorFactory<S> {
             storage: self.storage.clone(),
             config: self.config.clone(),
             recursion_detector: RecursionDetector::new(self.config.max_recursion_depth),
+            fulltext_coordinator: self.fulltext_coordinator.clone(),
         }
     }
 }

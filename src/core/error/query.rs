@@ -135,6 +135,8 @@ impl From<DBError> for QueryError {
             DBError::Auth(auth) => QueryError::ExecutionError(auth.to_string()),
             DBError::Permission(permission) => QueryError::ExecutionError(permission.to_string()),
             DBError::MemoryLimitExceeded(msg) => QueryError::ExecutionError(msg),
+            DBError::Fulltext(fe) => QueryError::ExecutionError(fe.to_string()),
+            DBError::Coordinator(ce) => QueryError::ExecutionError(ce.to_string()),
         }
     }
 }

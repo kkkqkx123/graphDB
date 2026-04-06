@@ -18,6 +18,7 @@ use thiserror::Error;
 pub mod auth;
 pub mod codes;
 pub mod expression;
+pub mod fulltext;
 pub mod manager;
 pub mod optimize;
 pub mod permission;
@@ -32,6 +33,7 @@ pub use codes::{ErrorCategory as CodeErrorCategory, ErrorCode, PublicError, ToPu
 // Re-export all error types
 pub use auth::{AuthError, AuthResult};
 pub use expression::{ExpressionError, ExpressionErrorType, ExpressionPosition};
+pub use fulltext::{CoordinatorError, CoordinatorResult, FulltextError, FulltextResult};
 pub use manager::{ErrorCategory, ManagerError, ManagerResult};
 pub use optimize::{CostError, CostResult, OptimizeError, OptimizeResult};
 pub use permission::{PermissionError, PermissionResult};
@@ -94,6 +96,12 @@ pub enum DBError {
 
     #[error("内存限制超出: {0}")]
     MemoryLimitExceeded(String),
+
+    #[error("全文检索错误: {0}")]
+    Fulltext(#[from] FulltextError),
+
+    #[error("协调器错误: {0}")]
+    Coordinator(#[from] CoordinatorError),
 }
 
 /// Harmonized result types
@@ -127,6 +135,8 @@ impl ToPublicError for DBError {
             DBError::Auth(_) => ErrorCode::Unauthorized,
             DBError::Permission(_) => ErrorCode::PermissionDenied,
             DBError::MemoryLimitExceeded(_) => ErrorCode::ResourceExhausted,
+            DBError::Fulltext(_) => ErrorCode::ExecutionError,
+            DBError::Coordinator(_) => ErrorCode::ExecutionError,
         }
     }
 

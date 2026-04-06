@@ -3,6 +3,7 @@
 //! Unified synchronization manager with timer-based batch commit.
 
 use crate::coordinator::{ChangeType, FulltextCoordinator};
+use crate::core::error::{CoordinatorError, CoordinatorResult, FulltextError};
 use crate::core::Value;
 use crate::sync::batch::{BatchConfig, BufferError, TaskBuffer};
 use crate::sync::recovery::RecoveryManager;
@@ -88,8 +89,7 @@ impl SyncManager {
                 let props: std::collections::HashMap<_, _> = properties.iter().cloned().collect();
                 self.coordinator
                     .on_vertex_change(space_id, tag_name, vertex_id, &props, change_type)
-                    .await
-                    .map_err(|e| SyncError::CoordinatorError(e.to_string()))?;
+                    .await?;
             }
             SyncMode::Async => {
                 let task = SyncTask::vertex_change(
@@ -176,7 +176,7 @@ impl SyncManager {
         recovery: Option<&Arc<RecoveryManager>>,
     ) {
         let coordinator = buffer.coordinator();
-        let result = match task {
+        let result: CoordinatorResult<()> = match task {
             SyncTask::VertexChange {
                 space_id,
                 tag_name,
@@ -198,7 +198,10 @@ impl SyncManager {
                 ..
             } => {
                 if let Some(engine) = coordinator.get_engine(*space_id, tag_name, field_name) {
-                    engine.index_batch(documents.clone()).await
+                    engine
+                        .index_batch(documents.clone())
+                        .await
+                        .map_err(|e| CoordinatorError::from(FulltextError::from(e)))
                 } else {
                     Ok(())
                 }
@@ -218,9 +221,12 @@ impl SyncManager {
                         }
                     }
                     if let Some(e) = last_error {
-                        Err(e)
+                        Err(CoordinatorError::from(FulltextError::from(e)))
                     } else {
-                        engine.commit().await
+                        engine
+                            .commit()
+                            .await
+                            .map_err(|e| CoordinatorError::from(FulltextError::from(e)))
                     }
                 } else {
                     Ok(())
@@ -233,7 +239,10 @@ impl SyncManager {
                 ..
             } => {
                 if let Some(engine) = coordinator.get_engine(*space_id, tag_name, field_name) {
-                    engine.commit().await
+                    engine
+                        .commit()
+                        .await
+                        .map_err(|e| CoordinatorError::from(FulltextError::from(e)))
                 } else {
                     Ok(())
                 }
@@ -305,7 +314,7 @@ pub enum SyncError {
     #[error("Buffer error: {0}")]
     BufferError(#[from] BufferError),
     #[error("Coordinator error: {0}")]
-    CoordinatorError(String),
+    CoordinatorError(#[from] CoordinatorError),
     #[error("Commit error: {0}")]
     CommitError(String),
     #[error("Recovery error: {0}")]

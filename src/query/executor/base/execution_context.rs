@@ -106,6 +106,24 @@ impl ExecutionContext {
     pub fn fulltext_coordinator(&self) -> Option<&Arc<FulltextCoordinator>> {
         self.fulltext_coordinator.as_ref()
     }
+
+    /// Get current space ID from variables
+    pub fn current_space_id(&self) -> Option<u64> {
+        self.variables
+            .lock()
+            .get("space_id")
+            .and_then(|v| match v {
+                Value::Int(id) => Some(*id as u64),
+                _ => None,
+            })
+    }
+
+    /// Set current space ID
+    pub fn set_space_id(&self, space_id: u64) {
+        self.variables
+            .lock()
+            .insert("space_id".to_string(), Value::Int(space_id as i64));
+    }
 }
 
 impl Default for ExecutionContext {

@@ -4,7 +4,7 @@
 //! including SEARCH statements and full-text scan operations.
 
 use crate::coordinator::FulltextCoordinator;
-use crate::core::error::{DBError, QueryError};
+use crate::core::error::DBError;
 use crate::core::Value;
 use crate::query::executor::base::{
     BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, HasStorage,
@@ -352,7 +352,7 @@ impl<S: StorageClient> Executor<S> for FulltextSearchExecutor<S> {
             &query_string,
             limit,
         ))
-        .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("Search failed: {}", e))))?;
+        .map_err(DBError::from)?;
 
         let mut rows = Vec::new();
         let storage = self.get_storage().clone();
@@ -554,7 +554,7 @@ impl<S: StorageClient> Executor<S> for FulltextScanExecutor<S> {
             &self.query,
             limit,
         ))
-        .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("Search failed: {}", e))))?;
+        .map_err(DBError::from)?;
 
         let mut rows = Vec::new();
         let storage = self.get_storage().clone();

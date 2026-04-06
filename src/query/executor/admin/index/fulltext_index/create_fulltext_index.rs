@@ -3,11 +3,13 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
+use crate::coordinator::FulltextCoordinator;
+use crate::core::error::{CoordinatorError, DBError, FulltextError};
 use crate::core::types::FulltextEngineType;
-
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::parser::ast::{IndexFieldDef, IndexOptions};
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::search::engine::EngineType;
 use crate::storage::StorageClient;
 
 /// Configuration for creating a full-text index
@@ -24,42 +26,23 @@ pub struct CreateFulltextIndexConfig {
     pub options: IndexOptions,
     /// Whether to skip if index already exists
     pub if_not_exists: bool,
+    /// Space ID for the index
+    pub space_id: u64,
 }
 
 /// Executor for creating full-text indexes
-///
-/// # Fields
-/// - `index_name`: Name of the index to create (used in future implementation)
-/// - `schema_name`: Schema name where the index will be created (used in future implementation)
-/// - `fields`: Fields to be indexed (used in future implementation)
-/// - `engine_type`: Type of full-text search engine (used in future implementation)
-/// - `options`: Index configuration options (used in future implementation)
-/// - `if_not_exists`: Whether to skip if index already exists (used in future implementation)
-///
-/// # Note
-/// Current implementation is a placeholder. The fields are reserved for future
-/// full implementation of index creation logic.
 #[derive(Debug)]
 pub struct CreateFulltextIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
-    /// Index name (reserved for future implementation)
-    #[allow(dead_code)]
     index_name: String,
-    /// Schema name (reserved for future implementation)
-    #[allow(dead_code)]
     schema_name: String,
-    /// Field definitions (reserved for future implementation)
-    #[allow(dead_code)]
     fields: Vec<IndexFieldDef>,
-    /// Engine type (reserved for future implementation)
-    #[allow(dead_code)]
     engine_type: FulltextEngineType,
-    /// Index options (reserved for future implementation)
     #[allow(dead_code)]
     options: IndexOptions,
-    /// If-not-exists flag (reserved for future implementation)
-    #[allow(dead_code)]
     if_not_exists: bool,
+    space_id: u64,
+    coordinator: Arc<FulltextCoordinator>,
 }
 
 impl<S: StorageClient> CreateFulltextIndexExecutor<S> {
@@ -68,6 +51,7 @@ impl<S: StorageClient> CreateFulltextIndexExecutor<S> {
         storage: Arc<Mutex<S>>,
         config: CreateFulltextIndexConfig,
         expr_context: Arc<ExpressionAnalysisContext>,
+        coordinator: Arc<FulltextCoordinator>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(
@@ -82,6 +66,15 @@ impl<S: StorageClient> CreateFulltextIndexExecutor<S> {
             engine_type: config.engine_type,
             options: config.options,
             if_not_exists: config.if_not_exists,
+            space_id: config.space_id,
+            coordinator,
+        }
+    }
+
+    fn convert_engine_type(engine_type: FulltextEngineType) -> EngineType {
+        match engine_type {
+            FulltextEngineType::Bm25 => EngineType::Bm25,
+            FulltextEngineType::Inversearch => EngineType::Inversearch,
         }
     }
 }
@@ -94,6 +87,43 @@ impl<S: StorageClient> HasStorage<S> for CreateFulltextIndexExecutor<S> {
 
 impl<S: StorageClient> Executor<S> for CreateFulltextIndexExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
+        let engine_type = Self::convert_engine_type(self.engine_type);
+        let tag_name = &self.schema_name;
+
+        for field in &self.fields {
+            let result = futures::executor::block_on(self.coordinator.create_index(
+                self.space_id,
+                tag_name,
+                &field.field_name,
+                Some(engine_type),
+            ));
+
+            match result {
+                Ok(index_id) => {
+                    log::info!(
+                        "Created fulltext index '{}' with index_id: {}",
+                        self.index_name,
+                        index_id
+                    );
+                }
+                Err(CoordinatorError::Fulltext(FulltextError::IndexAlreadyExists(_))) => {
+                    if self.if_not_exists {
+                        log::warn!(
+                            "Fulltext index '{}' already exists, skipping",
+                            self.index_name
+                        );
+                    } else {
+                        return Err(DBError::from(CoordinatorError::Fulltext(
+                            FulltextError::IndexAlreadyExists(self.index_name.clone()),
+                        )));
+                    }
+                }
+                Err(e) => {
+                    return Err(DBError::from(e));
+                }
+            }
+        }
+
         Ok(ExecutionResult::Empty)
     }
 

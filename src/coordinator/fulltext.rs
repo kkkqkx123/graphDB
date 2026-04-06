@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::core::error::{CoordinatorError, CoordinatorResult, FulltextError};
 use crate::core::{Value, Vertex};
 use crate::search::engine::EngineType;
-use crate::search::error::SearchError;
 use crate::search::manager::FulltextIndexManager;
 use crate::search::metadata::IndexMetadata;
 use crate::search::result::SearchResult;
@@ -32,10 +32,12 @@ impl FulltextCoordinator {
         tag_name: &str,
         field_name: &str,
         engine_type: Option<EngineType>,
-    ) -> Result<String, SearchError> {
+    ) -> CoordinatorResult<String> {
         self.manager
             .create_index(space_id, tag_name, field_name, engine_type)
             .await
+            .map_err(FulltextError::from)?;
+        Ok(format!("{}_{}_{}", space_id, tag_name, field_name))
     }
 
     pub async fn drop_index(
@@ -43,23 +45,25 @@ impl FulltextCoordinator {
         space_id: u64,
         tag_name: &str,
         field_name: &str,
-    ) -> Result<(), SearchError> {
+    ) -> CoordinatorResult<()> {
         self.manager
             .drop_index(space_id, tag_name, field_name)
             .await
+            .map_err(FulltextError::from)?;
+        Ok(())
     }
 
     pub async fn on_vertex_inserted(
         &self,
         space_id: u64,
         vertex: &Vertex,
-    ) -> Result<(), SearchError> {
+    ) -> CoordinatorResult<()> {
         for tag in &vertex.tags {
             for (field_name, value) in &tag.properties {
                 if let Some(engine) = self.manager.get_engine(space_id, &tag.name, field_name) {
                     if let Value::String(text) = value {
                         let doc_id = vertex.vid.to_string();
-                        engine.index(&doc_id, text).await?;
+                        engine.index(&doc_id, text).await.map_err(FulltextError::from)?;
                     }
                 }
             }
@@ -72,15 +76,15 @@ impl FulltextCoordinator {
         space_id: u64,
         vertex: &Vertex,
         changed_fields: &[String],
-    ) -> Result<(), SearchError> {
+    ) -> CoordinatorResult<()> {
         for tag in &vertex.tags {
             for field_name in changed_fields {
                 if let Some(value) = tag.properties.get(field_name) {
                     if let Some(engine) = self.manager.get_engine(space_id, &tag.name, field_name) {
                         if let Value::String(text) = value {
                             let doc_id = vertex.vid.to_string();
-                            engine.delete(&doc_id).await?;
-                            engine.index(&doc_id, text).await?;
+                            engine.delete(&doc_id).await.map_err(FulltextError::from)?;
+                            engine.index(&doc_id, text).await.map_err(FulltextError::from)?;
                         }
                     }
                 }
@@ -94,7 +98,7 @@ impl FulltextCoordinator {
         space_id: u64,
         tag_name: &str,
         vertex_id: &Value,
-    ) -> Result<(), SearchError> {
+    ) -> CoordinatorResult<()> {
         let doc_id = ToString::to_string(&vertex_id);
 
         let indexes = self.manager.get_space_indexes(space_id);
@@ -104,7 +108,7 @@ impl FulltextCoordinator {
                     self.manager
                         .get_engine(space_id, &metadata.tag_name, &metadata.field_name)
                 {
-                    engine.delete(&doc_id).await?;
+                    engine.delete(&doc_id).await.map_err(FulltextError::from)?;
                 }
             }
         }
@@ -118,7 +122,7 @@ impl FulltextCoordinator {
         vertex_id: &Value,
         properties: &HashMap<String, Value>,
         change_type: ChangeType,
-    ) -> Result<(), SearchError> {
+    ) -> CoordinatorResult<()> {
         let doc_id = ToString::to_string(&vertex_id);
 
         for (field_name, value) in properties {
@@ -126,11 +130,11 @@ impl FulltextCoordinator {
                 match change_type {
                     ChangeType::Insert | ChangeType::Update => {
                         if let Value::String(text) = value {
-                            engine.index(&doc_id, text).await?;
+                            engine.index(&doc_id, text).await.map_err(FulltextError::from)?;
                         }
                     }
                     ChangeType::Delete => {
-                        engine.delete(&doc_id).await?;
+                        engine.delete(&doc_id).await.map_err(FulltextError::from)?;
                     }
                 }
             }
@@ -146,10 +150,12 @@ impl FulltextCoordinator {
         field_name: &str,
         query: &str,
         limit: usize,
-    ) -> Result<Vec<SearchResult>, SearchError> {
+    ) -> CoordinatorResult<Vec<SearchResult>> {
         self.manager
             .search(space_id, tag_name, field_name, query, limit)
             .await
+            .map_err(FulltextError::from)
+            .map_err(CoordinatorError::from)
     }
 
     pub fn get_engine(
@@ -166,15 +172,18 @@ impl FulltextCoordinator {
         space_id: u64,
         tag_name: &str,
         field_name: &str,
-    ) -> Result<(), SearchError> {
+    ) -> CoordinatorResult<()> {
         let engine = self
             .manager
             .get_engine(space_id, tag_name, field_name)
             .ok_or_else(|| {
-                SearchError::IndexNotFound(format!("{}.{}.{}", space_id, tag_name, field_name))
+                CoordinatorError::FieldNotIndexed {
+                    tag_name: tag_name.to_string(),
+                    field_name: field_name.to_string(),
+                }
             })?;
 
-        engine.commit().await?;
+        engine.commit().await.map_err(FulltextError::from)?;
         Ok(())
     }
 
@@ -182,7 +191,8 @@ impl FulltextCoordinator {
         self.manager.list_indexes()
     }
 
-    pub async fn commit_all(&self) -> Result<(), SearchError> {
-        self.manager.commit_all().await
+    pub async fn commit_all(&self) -> CoordinatorResult<()> {
+        self.manager.commit_all().await.map_err(FulltextError::from)?;
+        Ok(())
     }
 }

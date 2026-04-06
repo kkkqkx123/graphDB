@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::coordinator::FulltextCoordinator;
-use crate::core::error::{DBError, QueryError};
+use crate::core::error::DBError;
 use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::parser::ast::fulltext::{
@@ -86,7 +86,7 @@ impl<S: StorageClient> Executor<S> for MatchFulltextExecutor<S> {
             self.coordinator
                 .search(space_id, &tag_name, field, query, limit),
         )
-        .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("Search failed: {}", e))))?;
+        .map_err(DBError::from)?;
 
         let mut rows = Vec::new();
         let storage = self.get_storage().clone();
