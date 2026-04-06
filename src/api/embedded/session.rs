@@ -1,15 +1,18 @@
 //! Session Management Module
 //!
-//! Provide the concept of a “session” as the context in which queries are executed.
+//! Provide the concept of a "session" as the context in which queries are executed.
 
 use crate::api::core::{CoreError, CoreResult, QueryApi, QueryRequest, SchemaApi};
 use crate::api::embedded::batch::BatchInserter;
 use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::transaction::{Transaction, TransactionConfig};
+use crate::coordinator::FulltextCoordinator;
 use crate::core::SessionStatistics;
 use crate::core::Value;
 use crate::query::executor::expression::functions::{CustomFunction, FunctionRegistry};
+use crate::search::FulltextIndexManager;
 use crate::storage::StorageClient;
+use crate::sync::SyncManager;
 use crate::transaction::TransactionManager;
 use crate::transaction::TransactionOptions;
 use parking_lot::Mutex;
@@ -55,11 +58,14 @@ pub struct Session<S: StorageClient + Clone + 'static> {
 
 /// Internal structure of the database, used for sharing data between Session and GraphDatabase
 #[repr(C)]
-pub(crate) struct GraphDatabaseInner<S: StorageClient + 'static> {
+pub(crate) struct GraphDatabaseInner<S: StorageClient + Clone + 'static> {
     pub(crate) query_api: Arc<Mutex<QueryApi<S>>>,
     pub(crate) schema_api: SchemaApi<S>,
     pub(crate) txn_manager: Arc<TransactionManager>,
     pub(crate) storage: Arc<Mutex<S>>,
+    pub(crate) fulltext_manager: Option<Arc<FulltextIndexManager>>,
+    pub(crate) fulltext_coordinator: Option<Arc<FulltextCoordinator>>,
+    pub(crate) sync_manager: Option<Arc<SyncManager>>,
 }
 
 impl<S: StorageClient + Clone + 'static> Session<S> {

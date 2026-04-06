@@ -5,15 +5,18 @@
 use crate::coordinator::{ChangeType, FulltextCoordinator};
 use crate::core::error::{CoordinatorError, CoordinatorResult, FulltextError};
 use crate::core::Value;
+use crate::search::SyncConfig;
 use crate::sync::batch::{BatchConfig, BufferError, TaskBuffer};
 use crate::sync::recovery::RecoveryManager;
 use crate::sync::task::SyncTask;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::{interval, Duration};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum SyncMode {
     Sync,
     Async,
@@ -37,6 +40,28 @@ impl SyncManager {
             coordinator,
             buffer,
             mode: Arc::new(RwLock::new(SyncMode::Async)),
+            running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            recovery: None,
+            handle: Mutex::new(None),
+        }
+    }
+
+    pub fn with_sync_config(
+        coordinator: Arc<FulltextCoordinator>,
+        sync_config: SyncConfig,
+    ) -> Self {
+        let batch_config = BatchConfig {
+            batch_size: sync_config.batch_size,
+            commit_interval: Duration::from_millis(sync_config.commit_interval_ms),
+            max_wait_time: Duration::from_secs(5),
+            queue_capacity: sync_config.queue_size,
+        };
+        let buffer = Arc::new(TaskBuffer::new(coordinator.clone(), batch_config));
+
+        Self {
+            coordinator,
+            buffer,
+            mode: Arc::new(RwLock::new(sync_config.mode)),
             running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             recovery: None,
             handle: Mutex::new(None),
@@ -68,6 +93,30 @@ impl SyncManager {
             coordinator,
             buffer,
             mode: Arc::new(RwLock::new(SyncMode::Async)),
+            running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            recovery: Some(recovery),
+            handle: Mutex::new(None),
+        }
+    }
+
+    pub fn with_sync_config_and_recovery(
+        coordinator: Arc<FulltextCoordinator>,
+        sync_config: SyncConfig,
+        data_dir: PathBuf,
+    ) -> Self {
+        let batch_config = BatchConfig {
+            batch_size: sync_config.batch_size,
+            commit_interval: Duration::from_millis(sync_config.commit_interval_ms),
+            max_wait_time: Duration::from_secs(5),
+            queue_capacity: sync_config.queue_size,
+        };
+        let buffer = Arc::new(TaskBuffer::new(coordinator.clone(), batch_config));
+        let recovery = Arc::new(RecoveryManager::new(buffer.clone(), data_dir));
+
+        Self {
+            coordinator,
+            buffer,
+            mode: Arc::new(RwLock::new(sync_config.mode)),
             running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             recovery: Some(recovery),
             handle: Mutex::new(None),
@@ -321,4 +370,131 @@ pub enum SyncError {
     RecoveryError(String),
     #[error("Internal error: {0}")]
     Internal(String),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::search::{FulltextConfig, FulltextIndexManager, SyncConfig};
+    use tempfile::TempDir;
+
+    async fn create_test_sync_manager() -> (Arc<FulltextCoordinator>, SyncManager, TempDir) {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let config = FulltextConfig {
+            enabled: true,
+            index_path: temp_dir.path().to_path_buf(),
+            default_engine: crate::search::EngineType::Bm25,
+            sync: SyncConfig::default(),
+            bm25: Default::default(),
+            inversearch: Default::default(),
+            cache_size: 100,
+            max_result_cache: 1000,
+            result_cache_ttl_secs: 60,
+        };
+
+        let manager = Arc::new(
+            FulltextIndexManager::new(config).expect("Failed to create manager"),
+        );
+        let coordinator = Arc::new(FulltextCoordinator::new(manager));
+        let sync_config = SyncConfig {
+            mode: SyncMode::Async,
+            queue_size: 100,
+            commit_interval_ms: 100,
+            batch_size: 10,
+        };
+        let sync_manager = SyncManager::with_sync_config(coordinator.clone(), sync_config);
+
+        (coordinator, sync_manager, temp_dir)
+    }
+
+    #[tokio::test]
+    async fn test_sync_mode_default() {
+        let (_, sync_manager, _temp) = create_test_sync_manager().await;
+        let mode = sync_manager.get_mode().await;
+        assert_eq!(mode, SyncMode::Async);
+    }
+
+    #[tokio::test]
+    async fn test_sync_mode_set_and_get() {
+        let (_, sync_manager, _temp) = create_test_sync_manager().await;
+
+        sync_manager.set_mode(SyncMode::Sync).await;
+        assert_eq!(sync_manager.get_mode().await, SyncMode::Sync);
+
+        sync_manager.set_mode(SyncMode::Off).await;
+        assert_eq!(sync_manager.get_mode().await, SyncMode::Off);
+
+        sync_manager.set_mode(SyncMode::Async).await;
+        assert_eq!(sync_manager.get_mode().await, SyncMode::Async);
+    }
+
+    #[tokio::test]
+    async fn test_sync_mode_off_skips_processing() {
+        let (_, sync_manager, _temp) = create_test_sync_manager().await;
+
+        sync_manager.set_mode(SyncMode::Off).await;
+
+        let result = sync_manager
+            .on_vertex_change(
+                1,
+                "test_tag",
+                &crate::core::Value::Int(1),
+                &[("name".to_string(), crate::core::Value::String("test".to_string()))],
+                crate::coordinator::ChangeType::Insert,
+            )
+            .await;
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_sync_mode_serde() {
+        let mode = SyncMode::Sync;
+        let json = serde_json::to_string(&mode).expect("Failed to serialize");
+        assert_eq!(json, "\"sync\"");
+
+        let mode = SyncMode::Async;
+        let json = serde_json::to_string(&mode).expect("Failed to serialize");
+        assert_eq!(json, "\"async\"");
+
+        let mode = SyncMode::Off;
+        let json = serde_json::to_string(&mode).expect("Failed to serialize");
+        assert_eq!(json, "\"off\"");
+    }
+
+    #[test]
+    fn test_sync_mode_deserialize() {
+        let mode: SyncMode = serde_json::from_str("\"sync\"").expect("Failed to deserialize");
+        assert_eq!(mode, SyncMode::Sync);
+
+        let mode: SyncMode = serde_json::from_str("\"async\"").expect("Failed to deserialize");
+        assert_eq!(mode, SyncMode::Async);
+
+        let mode: SyncMode = serde_json::from_str("\"off\"").expect("Failed to deserialize");
+        assert_eq!(mode, SyncMode::Off);
+    }
+
+    #[test]
+    fn test_sync_config_with_sync_mode() {
+        let sync_config = SyncConfig {
+            mode: SyncMode::Sync,
+            queue_size: 5000,
+            commit_interval_ms: 500,
+            batch_size: 50,
+        };
+
+        assert_eq!(sync_config.mode, SyncMode::Sync);
+        assert_eq!(sync_config.queue_size, 5000);
+        assert_eq!(sync_config.commit_interval_ms, 500);
+        assert_eq!(sync_config.batch_size, 50);
+    }
+
+    #[test]
+    fn test_sync_config_default() {
+        let config = SyncConfig::default();
+        assert_eq!(config.mode, SyncMode::Async);
+        assert_eq!(config.queue_size, 10000);
+        assert_eq!(config.commit_interval_ms, 1000);
+        assert_eq!(config.batch_size, 100);
+    }
 }

@@ -6,8 +6,11 @@ use crate::api::core::{CoreError, CoreResult, QueryApi, SchemaApi, SpaceConfig};
 use crate::api::embedded::config::DatabaseConfig;
 use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::session::{GraphDatabaseInner, Session};
+use crate::coordinator::FulltextCoordinator;
 use crate::core::Value;
+use crate::search::{FulltextConfig, FulltextIndexManager};
 use crate::storage::{RedbStorage, StorageClient};
+use crate::sync::SyncManager;
 use crate::transaction::{TransactionManager, TransactionManagerConfig};
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -101,8 +104,33 @@ impl GraphDatabase<RedbStorage> {
         let storage = Arc::new(Mutex::new(storage));
         let db = storage.lock().get_db().clone();
 
+        let fulltext_config = FulltextConfig::default();
+        let (fulltext_manager, fulltext_coordinator, sync_manager) =
+            if fulltext_config.enabled {
+                let manager = Arc::new(
+                    FulltextIndexManager::new(fulltext_config.clone())
+                        .map_err(|e| CoreError::InternalError(e.to_string()))?,
+                );
+                let coordinator = Arc::new(FulltextCoordinator::new(manager.clone()));
+                let sync = Arc::new(SyncManager::with_sync_config(
+                    coordinator.clone(),
+                    fulltext_config.sync.clone(),
+                ));
+                (Some(manager), Some(coordinator), Some(sync))
+            } else {
+                (None, None, None)
+            };
+
         let txn_manager_config = TransactionManagerConfig::default();
-        let txn_manager = Arc::new(TransactionManager::new(db, txn_manager_config));
+        let txn_manager = if let Some(ref sync) = sync_manager {
+            Arc::new(TransactionManager::with_sync_manager(
+                db,
+                txn_manager_config,
+                sync.clone(),
+            ))
+        } else {
+            Arc::new(TransactionManager::new(db, txn_manager_config))
+        };
 
         let query_api = Arc::new(Mutex::new(QueryApi::new(storage.clone())));
         let schema_api = SchemaApi::new(storage.clone());
@@ -112,6 +140,9 @@ impl GraphDatabase<RedbStorage> {
             schema_api,
             txn_manager,
             storage,
+            fulltext_manager,
+            fulltext_coordinator,
+            sync_manager,
         });
 
         Ok(Self { inner, config })
@@ -250,6 +281,9 @@ impl GraphDatabase<MockStorage> {
             schema_api,
             txn_manager,
             storage,
+            fulltext_manager: None,
+            fulltext_coordinator: None,
+            sync_manager: None,
         });
 
         Ok(Self {

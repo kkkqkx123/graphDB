@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use crate::search::adapters::{Bm25Config, InversearchConfig};
 use crate::search::engine::EngineType;
+use crate::sync::SyncMode;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FulltextConfig {
@@ -50,12 +51,4 @@ impl Default for SyncConfig {
             batch_size: 100,
         }
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum SyncMode {
-    Sync,
-    Async,
-    Off,
 }
