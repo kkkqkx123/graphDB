@@ -7,10 +7,10 @@
 //! - Simple errors (e.g., transactions, indexes) are designed using enumerations for simplicity and efficiency
 //!
 //! 2. **Layered conversion**:
-//!    - 核心错误使用 `#[from]` 注解自动转换，保留完整错误信息
-//! - External errors are converted to strings using the custom `From` implementation, reducing module coupling.
+//!    - Core errors use `#[from]` attribute for automatic conversion, preserving complete error information
+//! - External errors are converted to strings using custom `From` implementation, reducing module coupling
 //!
-//! 3. **Harmonized interface**: `DBResult<T>` Provides harmonized return types to simplify error propagation
+//! 3. **Harmonized interface**: `DBResult<T>` provides harmonized return types to simplify error propagation
 
 use thiserror::Error;
 
@@ -26,6 +26,7 @@ pub mod query;
 pub mod session;
 pub mod storage;
 pub mod validation;
+pub mod vector;
 
 // Re-export the error code
 pub use codes::{ErrorCategory as CodeErrorCategory, ErrorCode, PublicError, ToPublicError};
@@ -43,65 +44,72 @@ pub use storage::{StorageError, StorageResult};
 pub use validation::{
     SchemaValidationError, SchemaValidationResult, ValidationError, ValidationErrorType,
 };
+pub use vector::{VectorCoordinatorError, VectorCoordinatorResult, VectorError, VectorResult};
 
 pub use crate::core::types::DataType;
 
 /// Harmonized database error types
 #[derive(Error, Debug, Clone)]
 pub enum DBError {
-    #[error("存储错误: {0}")]
+    #[error("Storage error: {0}")]
     Storage(#[from] StorageError),
 
-    #[error("查询错误: {0}")]
+    #[error("Query error: {0}")]
     Query(#[from] QueryError),
 
-    #[error("表达式错误: {0}")]
+    #[error("Expression error: {0}")]
     Expression(#[from] ExpressionError),
 
-    #[error("计划节点访问错误: {0}")]
+    #[error("Plan node visit error: {0}")]
     Plan(#[from] PlanNodeVisitError),
 
-    #[error("管理器错误: {0}")]
+    #[error("Manager error: {0}")]
     Manager(#[from] ManagerError),
 
-    #[error("验证错误: {0}")]
+    #[error("Validation error: {0}")]
     Validation(String),
 
-    #[error("IO错误: {0}")]
+    #[error("IO error: {0}")]
     Io(String),
 
-    #[error("类型推导错误: {0}")]
+    #[error("Type deduction error: {0}")]
     TypeDeduction(String),
 
-    #[error("序列化错误: {0}")]
+    #[error("Serialization error: {0}")]
     Serialization(String),
 
-    #[error("索引错误: {0}")]
+    #[error("Index error: {0}")]
     Index(String),
 
-    #[error("事务错误: {0}")]
+    #[error("Transaction error: {0}")]
     Transaction(String),
 
-    #[error("内部错误: {0}")]
+    #[error("Internal error: {0}")]
     Internal(String),
 
-    #[error("会话错误: {0}")]
+    #[error("Session error: {0}")]
     Session(#[from] SessionError),
 
-    #[error("认证错误: {0}")]
+    #[error("Auth error: {0}")]
     Auth(#[from] AuthError),
 
-    #[error("权限错误: {0}")]
+    #[error("Permission error: {0}")]
     Permission(#[from] PermissionError),
 
-    #[error("内存限制超出: {0}")]
+    #[error("Memory limit exceeded: {0}")]
     MemoryLimitExceeded(String),
 
-    #[error("全文检索错误: {0}")]
+    #[error("Fulltext search error: {0}")]
     Fulltext(#[from] FulltextError),
 
-    #[error("协调器错误: {0}")]
+    #[error("Coordinator error: {0}")]
     Coordinator(#[from] CoordinatorError),
+
+    #[error("Vector search error: {0}")]
+    Vector(#[from] VectorError),
+
+    #[error("Vector coordinator error: {0}")]
+    VectorCoordinator(#[from] VectorCoordinatorError),
 }
 
 /// Harmonized result types
@@ -137,17 +145,17 @@ impl ToPublicError for DBError {
             DBError::MemoryLimitExceeded(_) => ErrorCode::ResourceExhausted,
             DBError::Fulltext(_) => ErrorCode::ExecutionError,
             DBError::Coordinator(_) => ErrorCode::ExecutionError,
+            DBError::Vector(_) => ErrorCode::ExecutionError,
+            DBError::VectorCoordinator(_) => ErrorCode::ExecutionError,
         }
     }
 
     fn to_public_message(&self) -> String {
         match self {
-            // Internal errors do not reveal details
-            DBError::Internal(_) => "内部服务器错误".to_string(),
-            DBError::Io(_) => "IO操作失败".to_string(),
-            DBError::Serialization(_) => "数据序列化失败".to_string(),
-            DBError::Index(_) => "索引操作失败".to_string(),
-            // Other errors return the original message
+            DBError::Internal(_) => "Internal server error".to_string(),
+            DBError::Io(_) => "IO operation failed".to_string(),
+            DBError::Serialization(_) => "Data serialization failed".to_string(),
+            DBError::Index(_) => "Index operation failed".to_string(),
             _ => self.to_string(),
         }
     }

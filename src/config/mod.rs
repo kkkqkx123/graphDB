@@ -3,6 +3,8 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::vector::config::VectorConfig;
+
 /// Database configuration
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DatabaseConfig {
@@ -214,6 +216,9 @@ pub struct Config {
     /// Monitoring configuration
     #[serde(default)]
     pub monitoring: MonitoringConfig,
+    /// Vector search configuration
+    #[serde(default)]
+    pub vector: VectorConfig,
 }
 
 impl Config {

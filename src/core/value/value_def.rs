@@ -135,6 +135,39 @@ impl Value {
         }
     }
 
+    /// Get vector value as Vec<f32> from List of Float values
+    pub fn as_vector(&self) -> Option<Vec<f32>> {
+        match self {
+            Value::List(list) => {
+                let vector: Option<Vec<f32>> = list
+                    .iter()
+                    .map(|v| match v {
+                        Value::Float(f) => Some(*f as f32),
+                        Value::Int(i) => Some(*i as f32),
+                        _ => None,
+                    })
+                    .collect();
+                vector
+            }
+            Value::Blob(blob) => {
+                if blob.len() % std::mem::size_of::<f32>() == 0 {
+                    let len = blob.len() / std::mem::size_of::<f32>();
+                    let mut vector = Vec::with_capacity(len);
+                    let ptr = blob.as_ptr() as *const f32;
+                    for i in 0..len {
+                        unsafe {
+                            vector.push(*ptr.add(i));
+                        }
+                    }
+                    Some(vector)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
     /// Create fixed-length string value
     pub fn fixed_string(len: usize, data: String) -> Self {
         let padded_data = if data.len() > len {

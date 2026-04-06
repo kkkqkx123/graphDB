@@ -137,6 +137,8 @@ impl From<DBError> for QueryError {
             DBError::MemoryLimitExceeded(msg) => QueryError::ExecutionError(msg),
             DBError::Fulltext(fe) => QueryError::ExecutionError(fe.to_string()),
             DBError::Coordinator(ce) => QueryError::ExecutionError(ce.to_string()),
+            DBError::Vector(ve) => QueryError::ExecutionError(ve.to_string()),
+            DBError::VectorCoordinator(vce) => QueryError::ExecutionError(vce.to_string()),
         }
     }
 }

@@ -14,6 +14,7 @@ pub mod storage;
 pub mod sync;
 pub mod transaction;
 pub mod utils;
+pub mod vector;
 
 #[cfg(feature = "c-api")]
 pub mod c_api;

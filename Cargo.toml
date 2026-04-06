@@ -50,6 +50,9 @@ bm25-service = { path = "crates/bm25", default-features = false, features = ["em
 inversearch-service = { path = "crates/inversearch", default-features = false, features = ["embedded", "store"] }
 tantivy = "0.24"
 
+# Vector search engine
+vector-client = { path = "crates/vector-client" }
+
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
@@ -73,6 +76,9 @@ default = ["server", "redb"]
 
 # Storage backend
 redb = ["dep:redb"]
+
+# Vector search backend
+qdrant = ["vector-client/qdrant"]
 
 # Embedded API for standalone/embedded usage (Rust API only)
 embedded = []
