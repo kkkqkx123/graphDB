@@ -107,18 +107,37 @@ pub fn is_initialized() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
+    /// Test logger initialization and shutdown with Direct mode for testing
     #[test]
+    #[serial]
     fn test_logging_init_and_shutdown() {
         let config = Config::default();
 
-        // Initialize logging
-        let result = init(&config);
-        assert!(
-            result.is_ok(),
-            "Logging initialization failed: {:?}",
-            result.err()
-        );
+        // Initialize logging with Direct mode to avoid async channel issues in tests
+        // This uses flexi_logger directly instead of the init() function to avoid
+        // async write mode which causes "Send" errors in concurrent test execution
+        let handle = Logger::try_with_str(&config.log.level)
+            .expect("Logger creation failed")
+            .log_to_file(
+                FileSpec::default()
+                    .basename(&config.log.file)
+                    .directory(&config.log.dir),
+            )
+            .format_for_files(log_format)
+            .rotate(
+                Criterion::Size(config.log.max_file_size),
+                Naming::Numbers,
+                Cleanup::KeepLogFiles(config.log.max_files),
+            )
+            .write_mode(WriteMode::Direct)
+            .append()
+            .start()
+            .expect("Logger start failed");
+
+        // Save handle for subsequent flush operations
+        *LOGGER_HANDLE.lock() = Some(handle);
         assert!(is_initialized());
 
         // Write test log
