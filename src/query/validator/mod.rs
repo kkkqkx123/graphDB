@@ -32,6 +32,9 @@ pub mod dml;
 // Full-text search validator
 pub mod fulltext_validator;
 
+// Vector search validator
+pub mod vector_validator;
+
 // Tool Validator
 pub mod utility;
 

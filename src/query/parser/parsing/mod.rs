@@ -7,6 +7,7 @@ mod fulltext_parser;
 mod parse_context;
 mod parser;
 mod stmt_parser;
+mod vector_parser;
 
 // Sub-module parser
 mod clause_parser;
@@ -24,6 +25,7 @@ pub use fulltext_parser::parse_fulltext;
 pub use parse_context::ParseContext;
 pub use parser::{Parser, ParserResult};
 pub use stmt_parser::StmtParser;
+pub use vector_parser::parse_vector;
 
 // Export Submodule Parser
 pub use clause_parser::ClauseParser;

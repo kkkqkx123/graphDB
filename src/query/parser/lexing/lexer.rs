@@ -455,6 +455,7 @@ impl<'a> Lexer<'a> {
             "TOP" => Tk::Top,
             "TEXT" => Tk::Text,
             "SEARCH" => Tk::Search,
+            "VECTOR" => Tk::KeywordVector,
             "CLIENT" => Tk::Client,
             "CLIENTS" => Tk::Clients,
             "SIGN" => Tk::Sign,

@@ -34,6 +34,7 @@ use crate::query::validator::dml::query_validator::QueryValidator;
 use crate::query::validator::dml::set_operation_validator::SetOperationValidator;
 use crate::query::validator::dml::use_validator::UseValidator;
 use crate::query::validator::fulltext_validator::FulltextValidator;
+use crate::query::validator::vector_validator::VectorValidator;
 use crate::query::validator::statements::create_validator::CreateValidator;
 use crate::query::validator::statements::delete_validator::DeleteValidator;
 use crate::query::validator::statements::fetch_edges_validator::FetchEdgesValidator;
@@ -191,6 +192,8 @@ pub enum Validator {
     // Full-text Search validators
     /// Full-text search statement validator
     Fulltext(FulltextValidator),
+    /// Vector search statement validator
+    Vector(VectorValidator),
 }
 
 impl Validator {
@@ -252,6 +255,7 @@ impl Validator {
             Validator::UpdateConfig(v) => v.statement_type(),
             Validator::ClearSpace(v) => v.statement_type(),
             Validator::Fulltext(v) => v.statement_type(),
+            Validator::Vector(v) => v.statement_type(),
         }
     }
 
@@ -423,6 +427,9 @@ impl Validator {
             Validator::Fulltext(v) => v
                 .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Vector(v) => v
+                .validate(ast, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
         }
     }
 
@@ -484,6 +491,7 @@ impl Validator {
             Validator::UpdateConfig(v) => v.inputs().to_vec(),
             Validator::ClearSpace(v) => v.inputs().to_vec(),
             Validator::Fulltext(v) => v.inputs().to_vec(),
+            Validator::Vector(v) => v.inputs().to_vec(),
         }
     }
 
@@ -545,6 +553,7 @@ impl Validator {
             Validator::UpdateConfig(v) => v.outputs().to_vec(),
             Validator::ClearSpace(v) => v.outputs().to_vec(),
             Validator::Fulltext(v) => v.outputs().to_vec(),
+            Validator::Vector(v) => v.outputs().to_vec(),
         }
     }
 }
@@ -652,6 +661,12 @@ impl Validator {
             Stmt::Search(_) => StatementType::Search,
             Stmt::LookupFulltext(_) => StatementType::LookupFulltext,
             Stmt::MatchFulltext(_) => StatementType::MatchFulltext,
+            // Vector Search statements
+            Stmt::CreateVectorIndex(_) => StatementType::CreateVectorIndex,
+            Stmt::DropVectorIndex(_) => StatementType::DropVectorIndex,
+            Stmt::SearchVector(_) => StatementType::SearchVector,
+            Stmt::LookupVector(_) => StatementType::LookupVector,
+            Stmt::MatchVector(_) => StatementType::MatchVector,
         }
     }
 
@@ -731,6 +746,11 @@ impl Validator {
             | StatementType::Search
             | StatementType::LookupFulltext
             | StatementType::MatchFulltext => Validator::Fulltext(FulltextValidator::new()),
+            StatementType::CreateVectorIndex
+            | StatementType::DropVectorIndex
+            | StatementType::SearchVector
+            | StatementType::LookupVector
+            | StatementType::MatchVector => Validator::Vector(VectorValidator::new()),
             StatementType::DropSpace
             | StatementType::DropTag
             | StatementType::DropEdge

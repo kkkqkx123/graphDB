@@ -80,6 +80,9 @@ impl StmtParser {
             // Full-text search statements
             TokenKind::Search => self.parse_fulltext_statement(ctx),
 
+            // Vector search statements
+            TokenKind::KeywordVector => self.parse_vector_statement(ctx),
+
             // Variable assignment statement ($var = statement)
             TokenKind::Dollar => self.parse_assignment_statement(ctx),
 
@@ -526,6 +529,10 @@ impl StmtParser {
     /// Parse full-text search statements
     fn parse_fulltext_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         crate::query::parser::parsing::fulltext_parser::parse_fulltext(ctx)
+    }
+
+    fn parse_vector_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+        crate::query::parser::parsing::vector_parser::parse_vector(ctx)
     }
 
     /// Pipeline after parsing set operation statements, or end of the process.

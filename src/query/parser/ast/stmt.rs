@@ -7,6 +7,10 @@ use std::sync::Arc;
 pub use super::fulltext::*;
 pub use super::pattern::*;
 pub use super::types::*;
+pub use super::vector::{
+    CreateVectorIndex, DropVectorIndex, LookupVector, MatchVector, SearchVectorStatement,
+    VectorQueryExpr, VectorQueryType,
+};
 use crate::core::types::expr::analysis_utils::collect_variables_from_contextual;
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::PropertyDef;
@@ -101,6 +105,12 @@ pub enum Stmt {
     Search(SearchStatement),
     LookupFulltext(LookupFulltext),
     MatchFulltext(MatchFulltext),
+    // Vector search statements
+    CreateVectorIndex(CreateVectorIndex),
+    DropVectorIndex(DropVectorIndex),
+    SearchVector(SearchVectorStatement),
+    LookupVector(LookupVector),
+    MatchVector(MatchVector),
 }
 
 impl Stmt {
@@ -161,6 +171,12 @@ impl Stmt {
             Stmt::Search(s) => s.span,
             Stmt::LookupFulltext(s) => s.span,
             Stmt::MatchFulltext(s) => s.span,
+            // Vector search statements
+            Stmt::CreateVectorIndex(s) => s.span,
+            Stmt::DropVectorIndex(s) => s.span,
+            Stmt::SearchVector(s) => s.span,
+            Stmt::LookupVector(s) => s.span,
+            Stmt::MatchVector(s) => s.span,
         }
     }
 
@@ -221,6 +237,12 @@ impl Stmt {
             Stmt::Search(_) => "SEARCH",
             Stmt::LookupFulltext(_) => "LOOKUP FULLTEXT",
             Stmt::MatchFulltext(_) => "MATCH FULLTEXT",
+            // Vector search statements
+            Stmt::CreateVectorIndex(_) => "CREATE VECTOR INDEX",
+            Stmt::DropVectorIndex(_) => "DROP VECTOR INDEX",
+            Stmt::SearchVector(_) => "SEARCH VECTOR",
+            Stmt::LookupVector(_) => "LOOKUP VECTOR",
+            Stmt::MatchVector(_) => "MATCH VECTOR",
         }
     }
 
@@ -534,6 +556,36 @@ impl Stmt {
     pub fn as_match_fulltext(&self) -> Option<&MatchFulltext> {
         match self {
             Stmt::MatchFulltext(s) => Some(s),
+            _ => None,
+        }
+    }
+    pub fn as_create_vector_index(&self) -> Option<&CreateVectorIndex> {
+        match self {
+            Stmt::CreateVectorIndex(s) => Some(s),
+            _ => None,
+        }
+    }
+    pub fn as_drop_vector_index(&self) -> Option<&DropVectorIndex> {
+        match self {
+            Stmt::DropVectorIndex(s) => Some(s),
+            _ => None,
+        }
+    }
+    pub fn as_search_vector(&self) -> Option<&SearchVectorStatement> {
+        match self {
+            Stmt::SearchVector(s) => Some(s),
+            _ => None,
+        }
+    }
+    pub fn as_lookup_vector(&self) -> Option<&LookupVector> {
+        match self {
+            Stmt::LookupVector(s) => Some(s),
+            _ => None,
+        }
+    }
+    pub fn as_match_vector(&self) -> Option<&MatchVector> {
+        match self {
+            Stmt::MatchVector(s) => Some(s),
             _ => None,
         }
     }

@@ -17,6 +17,9 @@ pub mod pattern;
 // Full-text search definitions
 pub mod fulltext;
 
+// Vector search definitions
+pub mod vector;
+
 // Utility functions
 pub mod utils;
 pub use utils::*;

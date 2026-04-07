@@ -207,6 +207,7 @@ pub enum TokenKind {
     Top,
     Text,
     Search,
+    KeywordVector,
     Client,
     Clients,
     Sign,

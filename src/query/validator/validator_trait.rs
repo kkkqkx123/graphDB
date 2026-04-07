@@ -233,6 +233,13 @@ pub enum StatementType {
     Search,
     LookupFulltext,
     MatchFulltext,
+
+    // Vector Search statements
+    CreateVectorIndex,
+    DropVectorIndex,
+    SearchVector,
+    LookupVector,
+    MatchVector,
 }
 
 impl StatementType {
