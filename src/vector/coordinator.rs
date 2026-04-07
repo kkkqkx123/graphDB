@@ -12,7 +12,7 @@ use crate::core::{Value, Vertex};
 use crate::vector::config::{VectorIndexConfig, VectorIndexMetadata};
 use crate::vector::manager::VectorIndexManager;
 
-use vector_client::types::{SearchQuery, SearchResult, VectorPoint, VectorFilter};
+use vector_client::types::{SearchQuery, SearchResult, VectorFilter, VectorPoint};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum VectorChangeType {
@@ -28,6 +28,108 @@ impl From<crate::coordinator::ChangeType> for VectorChangeType {
             crate::coordinator::ChangeType::Update => VectorChangeType::Update,
             crate::coordinator::ChangeType::Delete => VectorChangeType::Delete,
         }
+    }
+}
+
+/// 向量索引位置标识
+///
+/// 用于唯一标识一个向量索引字段，在向量变更、索引管理等场景中复用
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct VectorIndexLocation {
+    pub space_id: u64,
+    pub tag_name: String,
+    pub field_name: String,
+}
+
+impl VectorIndexLocation {
+    pub fn new(space_id: u64, tag_name: impl Into<String>, field_name: impl Into<String>) -> Self {
+        Self {
+            space_id,
+            tag_name: tag_name.into(),
+            field_name: field_name.into(),
+        }
+    }
+
+    /// 生成集合名称（用于 Qdrant 等向量引擎）
+    pub fn to_collection_name(&self) -> String {
+        format!(
+            "space_{}_{}_{}",
+            self.space_id, self.tag_name, self.field_name
+        )
+    }
+}
+
+/// 向量变更数据
+///
+/// 封装向量变更操作的核心数据，与具体的索引位置无关
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VectorChangeData {
+    pub vertex_id: Value,
+    pub vector: Option<Vec<f32>>,
+    pub payload: HashMap<String, Value>,
+}
+
+impl VectorChangeData {
+    pub fn new(
+        vertex_id: Value,
+        vector: Option<Vec<f32>>,
+        payload: HashMap<String, Value>,
+    ) -> Self {
+        Self {
+            vertex_id,
+            vector,
+            payload,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct VectorChangeContext {
+    pub location: VectorIndexLocation,
+    pub data: VectorChangeData,
+    pub change_type: VectorChangeType,
+}
+
+impl VectorChangeContext {
+    pub fn new(
+        space_id: u64,
+        tag_name: impl Into<String>,
+        field_name: impl Into<String>,
+        vertex_id: Value,
+        vector: Option<Vec<f32>>,
+        payload: HashMap<String, Value>,
+        change_type: VectorChangeType,
+    ) -> Self {
+        Self {
+            location: VectorIndexLocation::new(space_id, tag_name, field_name),
+            data: VectorChangeData::new(vertex_id, vector, payload),
+            change_type,
+        }
+    }
+
+    /// 便捷访问方法
+    pub fn space_id(&self) -> u64 {
+        self.location.space_id
+    }
+
+    pub fn tag_name(&self) -> &str {
+        &self.location.tag_name
+    }
+
+    pub fn field_name(&self) -> &str {
+        &self.location.field_name
+    }
+
+    pub fn vertex_id(&self) -> &Value {
+        &self.data.vertex_id
+    }
+
+    pub fn vector(&self) -> Option<&Vec<f32>> {
+        self.data.vector.as_ref()
+    }
+
+    pub fn payload(&self) -> &HashMap<String, Value> {
+        &self.data.payload
     }
 }
 
@@ -116,10 +218,12 @@ impl VectorCoordinator {
                     if let Some(vector) = value.as_vector() {
                         let point_id = format!("{}", vertex.vid);
                         let mut payload = HashMap::new();
-                        payload.insert("vertex_id".to_string(), serde_json::to_value(&vertex.vid).unwrap_or(serde_json::Value::Null));
+                        payload.insert(
+                            "vertex_id".to_string(),
+                            serde_json::to_value(&vertex.vid).unwrap_or(serde_json::Value::Null),
+                        );
 
-                        let point = VectorPoint::new(point_id, vector)
-                            .with_payload(payload);
+                        let point = VectorPoint::new(point_id, vector).with_payload(payload);
 
                         self.manager
                             .upsert(space_id, &tag.name, field_name, point)
@@ -145,10 +249,13 @@ impl VectorCoordinator {
 
                         if let Some(vector) = value.as_vector() {
                             let mut payload = HashMap::new();
-                            payload.insert("vertex_id".to_string(), serde_json::to_value(&vertex.vid).unwrap_or(serde_json::Value::Null));
+                            payload.insert(
+                                "vertex_id".to_string(),
+                                serde_json::to_value(&vertex.vid)
+                                    .unwrap_or(serde_json::Value::Null),
+                            );
 
-                            let point = VectorPoint::new(point_id, vector)
-                                .with_payload(payload);
+                            let point = VectorPoint::new(point_id, vector).with_payload(payload);
 
                             self.manager
                                 .upsert(space_id, &tag.name, field_name, point)
@@ -177,46 +284,51 @@ impl VectorCoordinator {
         for metadata in indexes {
             if metadata.space_id == space_id && metadata.tag_name == tag_name {
                 self.manager
-                    .delete(space_id, &metadata.tag_name, &metadata.field_name, &point_id)
+                    .delete(
+                        space_id,
+                        &metadata.tag_name,
+                        &metadata.field_name,
+                        &point_id,
+                    )
                     .await?;
             }
         }
         Ok(())
     }
 
-    pub async fn on_vector_change(
-        &self,
-        space_id: u64,
-        tag_name: &str,
-        field_name: &str,
-        vertex_id: &Value,
-        vector: Option<Vec<f32>>,
-        payload: HashMap<String, Value>,
-        change_type: VectorChangeType,
-    ) -> VectorCoordinatorResult<()> {
-        let point_id = format!("{}", vertex_id);
+    pub async fn on_vector_change(&self, ctx: VectorChangeContext) -> VectorCoordinatorResult<()> {
+        let point_id = format!("{}", ctx.data.vertex_id);
 
-        match change_type {
+        match ctx.change_type {
             VectorChangeType::Insert | VectorChangeType::Update => {
-                if let Some(vec) = vector {
-                    let json_payload: HashMap<String, serde_json::Value> = payload
+                if let Some(vec) = ctx.data.vector {
+                    let json_payload: HashMap<String, serde_json::Value> = ctx
+                        .data
+                        .payload
                         .into_iter()
-                        .filter_map(|(k, v)| {
-                            serde_json::to_value(&v).ok().map(|json| (k, json))
-                        })
+                        .filter_map(|(k, v)| serde_json::to_value(&v).ok().map(|json| (k, json)))
                         .collect();
 
-                    let point = VectorPoint::new(point_id, vec)
-                        .with_payload(json_payload);
+                    let point = VectorPoint::new(point_id, vec).with_payload(json_payload);
 
                     self.manager
-                        .upsert(space_id, tag_name, field_name, point)
+                        .upsert(
+                            ctx.location.space_id,
+                            &ctx.location.tag_name,
+                            &ctx.location.field_name,
+                            point,
+                        )
                         .await?;
                 }
             }
             VectorChangeType::Delete => {
                 self.manager
-                    .delete(space_id, tag_name, field_name, &point_id)
+                    .delete(
+                        ctx.location.space_id,
+                        &ctx.location.tag_name,
+                        &ctx.location.field_name,
+                        &point_id,
+                    )
                     .await?;
             }
         }
@@ -234,7 +346,8 @@ impl VectorCoordinator {
     ) -> VectorCoordinatorResult<Vec<SearchResult>> {
         let query = SearchQuery::new(query_vector, limit);
 
-        let results = self.manager
+        let results = self
+            .manager
             .search(space_id, tag_name, field_name, query)
             .await?;
 
@@ -250,10 +363,10 @@ impl VectorCoordinator {
         limit: usize,
         filter: VectorFilter,
     ) -> VectorCoordinatorResult<Vec<SearchResult>> {
-        let query = SearchQuery::new(query_vector, limit)
-            .with_filter(filter);
+        let query = SearchQuery::new(query_vector, limit).with_filter(filter);
 
-        let results = self.manager
+        let results = self
+            .manager
             .search(space_id, tag_name, field_name, query)
             .await?;
 
@@ -269,10 +382,10 @@ impl VectorCoordinator {
         limit: usize,
         threshold: f32,
     ) -> VectorCoordinatorResult<Vec<SearchResult>> {
-        let query = SearchQuery::new(query_vector, limit)
-            .with_score_threshold(threshold);
+        let query = SearchQuery::new(query_vector, limit).with_score_threshold(threshold);
 
-        let results = self.manager
+        let results = self
+            .manager
             .search(space_id, tag_name, field_name, query)
             .await?;
 

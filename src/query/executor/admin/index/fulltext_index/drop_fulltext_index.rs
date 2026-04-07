@@ -67,10 +67,11 @@ impl<S: StorageClient> Executor<S> for DropFulltextIndexExecutor<S> {
 
         match parsed {
             Some((tag_name, field_name)) => {
-                let result = futures::executor::block_on(
-                    self.coordinator
-                        .drop_index(self.space_id, &tag_name, &field_name),
-                );
+                let result = futures::executor::block_on(self.coordinator.drop_index(
+                    self.space_id,
+                    &tag_name,
+                    &field_name,
+                ));
 
                 match result {
                     Ok(()) => {

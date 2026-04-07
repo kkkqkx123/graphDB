@@ -701,6 +701,7 @@ fn create_test_config() -> Config {
         bootstrap: graphdb::config::BootstrapConfig::default(),
         optimizer: graphdb::config::OptimizerConfig::default(),
         monitoring: graphdb::config::MonitoringConfig::default(),
+        vector: graphdb::vector::config::VectorConfig::default(),
     }
 }
 

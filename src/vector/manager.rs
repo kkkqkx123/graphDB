@@ -3,15 +3,15 @@
 //! Manages vector index lifecycle and operations.
 
 use dashmap::DashMap;
-use std::sync::Arc;
 use log::{debug, info, warn};
+use std::sync::Arc;
 
 use crate::core::error::{VectorError, VectorResult};
 use crate::vector::config::{VectorConfig, VectorIndexConfig, VectorIndexMetadata};
 
-use vector_client::VectorEngine;
+use vector_client::types::{SearchQuery, SearchResult, VectorPoint};
 use vector_client::QdrantEngine;
-use vector_client::types::{SearchQuery, VectorPoint, SearchResult};
+use vector_client::VectorEngine;
 
 type IndexKey = (u64, String, String);
 
@@ -37,17 +37,23 @@ impl VectorIndexManager {
             crate::vector::config::VectorEngineType::Qdrant => {
                 info!("Initializing Qdrant engine");
                 let qdrant_config = config.qdrant.to_client_config();
-                let qdrant_engine = QdrantEngine::new(qdrant_config).await
+                let qdrant_engine = QdrantEngine::new(qdrant_config)
+                    .await
                     .map_err(|e| VectorError::ConnectionFailed(e.to_string()))?;
                 Arc::new(qdrant_engine) as Arc<dyn VectorEngine>
             }
         };
 
-        let health = engine.health_check().await
+        let health = engine
+            .health_check()
+            .await
             .map_err(|e| VectorError::ConnectionFailed(e.to_string()))?;
 
         if health.is_healthy {
-            info!("Vector engine health check passed: {} {}", health.engine_name, health.engine_version);
+            info!(
+                "Vector engine health check passed: {} {}",
+                health.engine_name, health.engine_version
+            );
         } else {
             warn!("Vector engine health check failed: {:?}", health.message);
         }
@@ -75,7 +81,7 @@ impl VectorIndexManager {
             )));
         }
 
-        let config = index_config.unwrap_or_else(|| VectorIndexConfig {
+        let config = index_config.unwrap_or(VectorIndexConfig {
             vector_size: self.config.default_vector_size,
             distance: self.config.default_distance,
             hnsw: None,
@@ -116,7 +122,9 @@ impl VectorIndexManager {
 
         if let Some((_, metadata)) = self.metadata.remove(&key) {
             debug!("Dropping vector collection: {}", metadata.collection_name);
-            self.engine.delete_collection(&metadata.collection_name).await?;
+            self.engine
+                .delete_collection(&metadata.collection_name)
+                .await?;
             info!("Vector index dropped: {}", metadata.collection_name);
         }
 
@@ -142,7 +150,12 @@ impl VectorIndexManager {
         self.metadata.contains_key(&key)
     }
 
-    pub fn get_collection_name(&self, space_id: u64, tag_name: &str, field_name: &str) -> Option<String> {
+    pub fn get_collection_name(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+    ) -> Option<String> {
         let key = (space_id, tag_name.to_string(), field_name.to_string());
         self.metadata.get(&key).map(|m| m.collection_name.clone())
     }
@@ -154,7 +167,8 @@ impl VectorIndexManager {
         field_name: &str,
         point: VectorPoint,
     ) -> VectorResult<()> {
-        let collection_name = self.get_collection_name(space_id, tag_name, field_name)
+        let collection_name = self
+            .get_collection_name(space_id, tag_name, field_name)
             .ok_or_else(|| VectorError::EngineNotFound {
                 space_id,
                 tag_name: tag_name.to_string(),
@@ -172,7 +186,8 @@ impl VectorIndexManager {
         field_name: &str,
         points: Vec<VectorPoint>,
     ) -> VectorResult<()> {
-        let collection_name = self.get_collection_name(space_id, tag_name, field_name)
+        let collection_name = self
+            .get_collection_name(space_id, tag_name, field_name)
             .ok_or_else(|| VectorError::EngineNotFound {
                 space_id,
                 tag_name: tag_name.to_string(),
@@ -190,7 +205,8 @@ impl VectorIndexManager {
         field_name: &str,
         point_id: &str,
     ) -> VectorResult<()> {
-        let collection_name = self.get_collection_name(space_id, tag_name, field_name)
+        let collection_name = self
+            .get_collection_name(space_id, tag_name, field_name)
             .ok_or_else(|| VectorError::EngineNotFound {
                 space_id,
                 tag_name: tag_name.to_string(),
@@ -208,14 +224,17 @@ impl VectorIndexManager {
         field_name: &str,
         point_ids: Vec<&str>,
     ) -> VectorResult<()> {
-        let collection_name = self.get_collection_name(space_id, tag_name, field_name)
+        let collection_name = self
+            .get_collection_name(space_id, tag_name, field_name)
             .ok_or_else(|| VectorError::EngineNotFound {
                 space_id,
                 tag_name: tag_name.to_string(),
                 field_name: field_name.to_string(),
             })?;
 
-        self.engine.delete_batch(&collection_name, point_ids).await?;
+        self.engine
+            .delete_batch(&collection_name, point_ids)
+            .await?;
         Ok(())
     }
 
@@ -226,7 +245,8 @@ impl VectorIndexManager {
         field_name: &str,
         query: SearchQuery,
     ) -> VectorResult<Vec<SearchResult>> {
-        let collection_name = self.get_collection_name(space_id, tag_name, field_name)
+        let collection_name = self
+            .get_collection_name(space_id, tag_name, field_name)
             .ok_or_else(|| VectorError::EngineNotFound {
                 space_id,
                 tag_name: tag_name.to_string(),
@@ -244,7 +264,8 @@ impl VectorIndexManager {
         field_name: &str,
         point_id: &str,
     ) -> VectorResult<Option<VectorPoint>> {
-        let collection_name = self.get_collection_name(space_id, tag_name, field_name)
+        let collection_name = self
+            .get_collection_name(space_id, tag_name, field_name)
             .ok_or_else(|| VectorError::EngineNotFound {
                 space_id,
                 tag_name: tag_name.to_string(),
@@ -261,7 +282,8 @@ impl VectorIndexManager {
         tag_name: &str,
         field_name: &str,
     ) -> VectorResult<u64> {
-        let collection_name = self.get_collection_name(space_id, tag_name, field_name)
+        let collection_name = self
+            .get_collection_name(space_id, tag_name, field_name)
             .ok_or_else(|| VectorError::EngineNotFound {
                 space_id,
                 tag_name: tag_name.to_string(),

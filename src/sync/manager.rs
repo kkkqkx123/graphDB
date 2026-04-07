@@ -50,10 +50,7 @@ impl SyncManager {
         }
     }
 
-    pub fn with_vector_coordinator(
-        mut self,
-        vector_coordinator: Arc<VectorCoordinator>,
-    ) -> Self {
+    pub fn with_vector_coordinator(mut self, vector_coordinator: Arc<VectorCoordinator>) -> Self {
         self.vector_coordinator = Some(vector_coordinator);
         self
     }
@@ -82,7 +79,10 @@ impl SyncManager {
     }
 
     pub fn with_mode(fulltext_coordinator: Arc<FulltextCoordinator>, mode: SyncMode) -> Self {
-        let buffer = Arc::new(TaskBuffer::new(fulltext_coordinator.clone(), BatchConfig::default()));
+        let buffer = Arc::new(TaskBuffer::new(
+            fulltext_coordinator.clone(),
+            BatchConfig::default(),
+        ));
 
         Self {
             fulltext_coordinator,
@@ -100,7 +100,10 @@ impl SyncManager {
         config: BatchConfig,
         data_dir: PathBuf,
     ) -> Self {
-        let buffer = Arc::new(TaskBuffer::new(fulltext_coordinator.clone(), config.clone()));
+        let buffer = Arc::new(TaskBuffer::new(
+            fulltext_coordinator.clone(),
+            config.clone(),
+        ));
         let recovery = Arc::new(RecoveryManager::new(buffer.clone(), data_dir));
 
         Self {
@@ -158,8 +161,14 @@ impl SyncManager {
 
                 if let Some(ref vector_coord) = self.vector_coordinator {
                     self.execute_vector_vertex_change_sync(
-                        space_id, tag_name, vertex_id, properties, change_type, vector_coord
-                    ).await?;
+                        space_id,
+                        tag_name,
+                        vertex_id,
+                        properties,
+                        change_type,
+                        vector_coord,
+                    )
+                    .await?;
                 }
             }
             SyncMode::Async => {
@@ -194,16 +203,18 @@ impl SyncManager {
                 let mut payload = HashMap::new();
                 payload.insert("vertex_id".to_string(), vertex_id.clone());
 
+                let ctx = crate::vector::coordinator::VectorChangeContext::new(
+                    space_id,
+                    tag_name,
+                    field_name,
+                    vertex_id.clone(),
+                    vector,
+                    payload,
+                    VectorChangeType::from(change_type),
+                );
+
                 vector_coord
-                    .on_vector_change(
-                        space_id,
-                        tag_name,
-                        field_name,
-                        vertex_id,
-                        vector,
-                        payload,
-                        VectorChangeType::from(change_type),
-                    )
+                    .on_vector_change(ctx.clone())
                     .await
                     .map_err(|e| SyncError::VectorError(e.to_string()))?;
             }
@@ -211,15 +222,9 @@ impl SyncManager {
         Ok(())
     }
 
-    pub async fn on_vector_change(
+    pub async fn on_vector_change_with_context(
         &self,
-        space_id: u64,
-        tag_name: &str,
-        field_name: &str,
-        vertex_id: &Value,
-        vector: Option<Vec<f32>>,
-        payload: HashMap<String, Value>,
-        change_type: VectorChangeType,
+        ctx: crate::vector::coordinator::VectorChangeContext,
     ) -> Result<(), SyncError> {
         if self.vector_coordinator.is_none() {
             return Ok(());
@@ -231,21 +236,23 @@ impl SyncManager {
             SyncMode::Sync => {
                 if let Some(ref vector_coord) = self.vector_coordinator {
                     vector_coord
-                        .on_vector_change(space_id, tag_name, field_name, vertex_id, vector, payload, change_type)
+                        .on_vector_change(ctx)
                         .await
                         .map_err(|e| SyncError::VectorError(e.to_string()))?;
                 }
             }
             SyncMode::Async => {
-                let task = SyncTask::vector_change(
-                    space_id,
-                    tag_name,
-                    field_name,
-                    vertex_id,
-                    vector,
-                    payload,
-                    change_type,
-                );
+                let task = SyncTask::VectorChange {
+                    task_id: uuid::Uuid::new_v4().to_string(),
+                    space_id: ctx.space_id(),
+                    tag_name: ctx.tag_name().to_string(),
+                    field_name: ctx.field_name().to_string(),
+                    vertex_id: ctx.vertex_id().clone(),
+                    vector: ctx.vector().cloned(),
+                    payload: ctx.payload().clone(),
+                    change_type: ctx.change_type,
+                    created_at: chrono::Utc::now(),
+                };
 
                 self.buffer.submit(task).await?;
             }
@@ -253,6 +260,13 @@ impl SyncManager {
         }
 
         Ok(())
+    }
+
+    pub async fn on_vector_change(
+        &self,
+        ctx: crate::vector::coordinator::VectorChangeContext,
+    ) -> Result<(), SyncError> {
+        self.on_vector_change_with_context(ctx).await
     }
 
     pub async fn start(&self) {
@@ -271,7 +285,13 @@ impl SyncManager {
                 ticker.tick().await;
 
                 if let Some(task) = buffer.try_next_task().await {
-                    Self::execute_task(&buffer, &task, recovery.as_ref(), vector_coordinator.as_ref()).await;
+                    Self::execute_task(
+                        &buffer,
+                        &task,
+                        recovery.as_ref(),
+                        vector_coordinator.as_ref(),
+                    )
+                    .await;
                 }
 
                 let keys = buffer.get_buffer_keys().await;
@@ -309,7 +329,13 @@ impl SyncManager {
 
             match self.buffer.next_task().await {
                 Some(task) => {
-                    Self::execute_task(&self.buffer, &task, self.recovery.as_ref(), self.vector_coordinator.as_ref()).await;
+                    Self::execute_task(
+                        &self.buffer,
+                        &task,
+                        self.recovery.as_ref(),
+                        self.vector_coordinator.as_ref(),
+                    )
+                    .await;
                 }
                 None => {
                     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -368,16 +394,18 @@ impl SyncManager {
                             let mut payload = HashMap::new();
                             payload.insert("vertex_id".to_string(), vertex_id.clone());
 
+                            let ctx = crate::vector::coordinator::VectorChangeContext::new(
+                                *space_id,
+                                tag_name,
+                                field_name,
+                                vertex_id.clone(),
+                                vector,
+                                payload,
+                                VectorChangeType::from(*change_type),
+                            );
+
                             vector_coord
-                                .on_vector_change(
-                                    *space_id,
-                                    tag_name,
-                                    field_name,
-                                    vertex_id,
-                                    vector,
-                                    payload,
-                                    VectorChangeType::from(*change_type),
-                                )
+                                .on_vector_change(ctx.clone())
                                 .await
                                 .map_err(|e| SyncError::VectorError(e.to_string()))?;
                         }
@@ -392,11 +420,13 @@ impl SyncManager {
                 documents,
                 ..
             } => {
-                if let Some(engine) = buffer.coordinator().get_engine(*space_id, tag_name, field_name) {
-                    engine
-                        .index_batch(documents.clone())
-                        .await
-                        .map_err(|e| SyncError::from(CoordinatorError::from(FulltextError::from(e))))?;
+                if let Some(engine) = buffer
+                    .coordinator()
+                    .get_engine(*space_id, tag_name, field_name)
+                {
+                    engine.index_batch(documents.clone()).await.map_err(|e| {
+                        SyncError::from(CoordinatorError::from(FulltextError::from(e)))
+                    })?;
                 }
                 Ok(())
             }
@@ -407,7 +437,10 @@ impl SyncManager {
                 doc_ids,
                 ..
             } => {
-                if let Some(engine) = buffer.coordinator().get_engine(*space_id, tag_name, field_name) {
+                if let Some(engine) = buffer
+                    .coordinator()
+                    .get_engine(*space_id, tag_name, field_name)
+                {
                     let mut last_error = None;
                     for doc_id in doc_ids {
                         if let Err(e) = engine.delete(doc_id).await {
@@ -415,12 +448,13 @@ impl SyncManager {
                         }
                     }
                     if let Some(e) = last_error {
-                        return Err(SyncError::from(CoordinatorError::from(FulltextError::from(e))));
+                        return Err(SyncError::from(CoordinatorError::from(
+                            FulltextError::from(e),
+                        )));
                     } else {
-                        engine
-                            .commit()
-                            .await
-                            .map_err(|e| SyncError::from(CoordinatorError::from(FulltextError::from(e))))?;
+                        engine.commit().await.map_err(|e| {
+                            SyncError::from(CoordinatorError::from(FulltextError::from(e)))
+                        })?;
                     }
                 }
                 Ok(())
@@ -431,11 +465,13 @@ impl SyncManager {
                 field_name,
                 ..
             } => {
-                if let Some(engine) = buffer.coordinator().get_engine(*space_id, tag_name, field_name) {
-                    engine
-                        .commit()
-                        .await
-                        .map_err(|e| SyncError::from(CoordinatorError::from(FulltextError::from(e))))?;
+                if let Some(engine) = buffer
+                    .coordinator()
+                    .get_engine(*space_id, tag_name, field_name)
+                {
+                    engine.commit().await.map_err(|e| {
+                        SyncError::from(CoordinatorError::from(FulltextError::from(e)))
+                    })?;
                 }
                 Ok(())
             }
@@ -445,7 +481,8 @@ impl SyncManager {
                 field_name,
                 ..
             } => {
-                buffer.coordinator()
+                buffer
+                    .coordinator()
                     .rebuild_index(*space_id, tag_name, field_name)
                     .await?;
                 Ok(())
@@ -462,8 +499,17 @@ impl SyncManager {
                 ..
             } => {
                 if let Some(vector_coord) = vector_coordinator {
+                    let ctx = crate::vector::coordinator::VectorChangeContext::new(
+                        *space_id,
+                        tag_name,
+                        field_name,
+                        vertex_id.clone(),
+                        vector.clone(),
+                        payload.clone(),
+                        *change_type,
+                    );
                     vector_coord
-                        .on_vector_change(*space_id, tag_name, field_name, vertex_id, vector.clone(), payload.clone(), *change_type)
+                        .on_vector_change(ctx.clone())
                         .await
                         .map_err(|e| SyncError::VectorError(e.to_string()))?;
                 }
@@ -480,7 +526,8 @@ impl SyncManager {
                     let vector_points: Vec<vector_client::types::VectorPoint> = points
                         .iter()
                         .map(|p| {
-                            let json_payload: HashMap<String, serde_json::Value> = p.payload
+                            let json_payload: HashMap<String, serde_json::Value> = p
+                                .payload
                                 .iter()
                                 .filter_map(|(k, v)| {
                                     serde_json::to_value(v).ok().map(|json| (k.clone(), json))
@@ -507,7 +554,12 @@ impl SyncManager {
             } => {
                 if let Some(vector_coord) = vector_coordinator {
                     vector_coord
-                        .delete_batch(*space_id, tag_name, field_name, point_ids.iter().map(|s| s.as_str()).collect())
+                        .delete_batch(
+                            *space_id,
+                            tag_name,
+                            field_name,
+                            point_ids.iter().map(|s| s.as_str()).collect(),
+                        )
                         .await
                         .map_err(|e| SyncError::VectorError(e.to_string()))?;
                 }
@@ -541,7 +593,13 @@ impl SyncManager {
 
     pub async fn force_commit(&self) -> Result<(), SyncError> {
         while let Some(task) = self.buffer.try_next_task().await {
-            Self::execute_task(&self.buffer, &task, self.recovery.as_ref(), self.vector_coordinator.as_ref()).await;
+            Self::execute_task(
+                &self.buffer,
+                &task,
+                self.recovery.as_ref(),
+                self.vector_coordinator.as_ref(),
+            )
+            .await;
         }
 
         let results = self.buffer.commit_all().await;
@@ -615,9 +673,8 @@ mod tests {
             result_cache_ttl_secs: 60,
         };
 
-        let manager = Arc::new(
-            FulltextIndexManager::new(config).expect("Failed to create manager"),
-        );
+        let manager =
+            Arc::new(FulltextIndexManager::new(config).expect("Failed to create manager"));
         let coordinator = Arc::new(FulltextCoordinator::new(manager));
         let sync_config = SyncConfig {
             mode: SyncMode::Async,
@@ -662,7 +719,10 @@ mod tests {
                 1,
                 "test_tag",
                 &crate::core::Value::Int(1),
-                &[("name".to_string(), crate::core::Value::String("test".to_string()))],
+                &[(
+                    "name".to_string(),
+                    crate::core::Value::String("test".to_string()),
+                )],
                 crate::coordinator::ChangeType::Insert,
             )
             .await;

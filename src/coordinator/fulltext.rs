@@ -63,7 +63,10 @@ impl FulltextCoordinator {
                 if let Some(engine) = self.manager.get_engine(space_id, &tag.name, field_name) {
                     if let Value::String(text) = value {
                         let doc_id = vertex.vid.to_string();
-                        engine.index(&doc_id, text).await.map_err(FulltextError::from)?;
+                        engine
+                            .index(&doc_id, text)
+                            .await
+                            .map_err(FulltextError::from)?;
                     }
                 }
             }
@@ -84,7 +87,10 @@ impl FulltextCoordinator {
                         if let Value::String(text) = value {
                             let doc_id = vertex.vid.to_string();
                             engine.delete(&doc_id).await.map_err(FulltextError::from)?;
-                            engine.index(&doc_id, text).await.map_err(FulltextError::from)?;
+                            engine
+                                .index(&doc_id, text)
+                                .await
+                                .map_err(FulltextError::from)?;
                         }
                     }
                 }
@@ -130,13 +136,19 @@ impl FulltextCoordinator {
                 match change_type {
                     ChangeType::Insert => {
                         if let Value::String(text) = value {
-                            engine.index(&doc_id, text).await.map_err(FulltextError::from)?;
+                            engine
+                                .index(&doc_id, text)
+                                .await
+                                .map_err(FulltextError::from)?;
                         }
                     }
                     ChangeType::Update => {
                         engine.delete(&doc_id).await.ok();
                         if let Value::String(text) = value {
-                            engine.index(&doc_id, text).await.map_err(FulltextError::from)?;
+                            engine
+                                .index(&doc_id, text)
+                                .await
+                                .map_err(FulltextError::from)?;
                         }
                     }
                     ChangeType::Delete => {
@@ -182,11 +194,9 @@ impl FulltextCoordinator {
         let engine = self
             .manager
             .get_engine(space_id, tag_name, field_name)
-            .ok_or_else(|| {
-                CoordinatorError::FieldNotIndexed {
-                    tag_name: tag_name.to_string(),
-                    field_name: field_name.to_string(),
-                }
+            .ok_or_else(|| CoordinatorError::FieldNotIndexed {
+                tag_name: tag_name.to_string(),
+                field_name: field_name.to_string(),
             })?;
 
         engine.commit().await.map_err(FulltextError::from)?;
@@ -198,7 +208,10 @@ impl FulltextCoordinator {
     }
 
     pub async fn commit_all(&self) -> CoordinatorResult<()> {
-        self.manager.commit_all().await.map_err(FulltextError::from)?;
+        self.manager
+            .commit_all()
+            .await
+            .map_err(FulltextError::from)?;
         Ok(())
     }
 }

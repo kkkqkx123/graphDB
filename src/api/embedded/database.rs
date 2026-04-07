@@ -105,21 +105,20 @@ impl GraphDatabase<RedbStorage> {
         let db = storage.lock().get_db().clone();
 
         let fulltext_config = FulltextConfig::default();
-        let (fulltext_manager, fulltext_coordinator, sync_manager) =
-            if fulltext_config.enabled {
-                let manager = Arc::new(
-                    FulltextIndexManager::new(fulltext_config.clone())
-                        .map_err(|e| CoreError::InternalError(e.to_string()))?,
-                );
-                let coordinator = Arc::new(FulltextCoordinator::new(manager.clone()));
-                let sync = Arc::new(SyncManager::with_sync_config(
-                    coordinator.clone(),
-                    fulltext_config.sync.clone(),
-                ));
-                (Some(manager), Some(coordinator), Some(sync))
-            } else {
-                (None, None, None)
-            };
+        let (fulltext_manager, fulltext_coordinator, sync_manager) = if fulltext_config.enabled {
+            let manager: Arc<FulltextIndexManager> = Arc::new(
+                FulltextIndexManager::new(fulltext_config.clone())
+                    .map_err(|e| CoreError::Internal(e.to_string()))?,
+            );
+            let coordinator = Arc::new(FulltextCoordinator::new(manager.clone()));
+            let sync = Arc::new(SyncManager::with_sync_config(
+                coordinator.clone(),
+                fulltext_config.sync.clone(),
+            ));
+            (Some(manager), Some(coordinator), Some(sync))
+        } else {
+            (None, None, None)
+        };
 
         let txn_manager_config = TransactionManagerConfig::default();
         let txn_manager = if let Some(ref sync) = sync_manager {

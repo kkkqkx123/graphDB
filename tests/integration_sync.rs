@@ -52,9 +52,8 @@ impl SyncTestContext {
             result_cache_ttl_secs: 60,
         };
 
-        let manager = Arc::new(
-            FulltextIndexManager::new(config.clone()).expect("Failed to create manager"),
-        );
+        let manager =
+            Arc::new(FulltextIndexManager::new(config.clone()).expect("Failed to create manager"));
         let coordinator = Arc::new(FulltextCoordinator::new(manager));
         let sync_manager = Arc::new(SyncManager::with_sync_config(
             coordinator.clone(),
@@ -82,9 +81,8 @@ impl SyncTestContext {
             result_cache_ttl_secs: 60,
         };
 
-        let manager = Arc::new(
-            FulltextIndexManager::new(config.clone()).expect("Failed to create manager"),
-        );
+        let manager =
+            Arc::new(FulltextIndexManager::new(config.clone()).expect("Failed to create manager"));
         let coordinator = Arc::new(FulltextCoordinator::new(manager));
         let sync_manager = Arc::new(SyncManager::with_sync_config(
             coordinator.clone(),
@@ -125,11 +123,20 @@ async fn test_sync_mode_sync_processes_immediately() {
         .collect();
 
     ctx.sync_manager
-        .on_vertex_change(1, "Article", &Value::Int(1), &properties, ChangeType::Insert)
+        .on_vertex_change(
+            1,
+            "Article",
+            &Value::Int(1),
+            &properties,
+            ChangeType::Insert,
+        )
         .await
         .expect("Failed to process vertex change");
 
-    ctx.coordinator.commit_all().await.expect("Failed to commit");
+    ctx.coordinator
+        .commit_all()
+        .await
+        .expect("Failed to commit");
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let results = ctx
@@ -155,11 +162,20 @@ async fn test_sync_mode_async_queues_task() {
     )];
 
     ctx.sync_manager
-        .on_vertex_change(1, "Article", &Value::Int(1), &properties, ChangeType::Insert)
+        .on_vertex_change(
+            1,
+            "Article",
+            &Value::Int(1),
+            &properties,
+            ChangeType::Insert,
+        )
         .await
         .expect("Failed to submit task");
 
-    ctx.sync_manager.force_commit().await.expect("Failed to commit");
+    ctx.sync_manager
+        .force_commit()
+        .await
+        .expect("Failed to commit");
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let results = ctx
@@ -185,11 +201,20 @@ async fn test_sync_mode_off_skips_processing() {
     )];
 
     ctx.sync_manager
-        .on_vertex_change(1, "Article", &Value::Int(1), &properties, ChangeType::Insert)
+        .on_vertex_change(
+            1,
+            "Article",
+            &Value::Int(1),
+            &properties,
+            ChangeType::Insert,
+        )
         .await
         .expect("Should not fail in Off mode");
 
-    ctx.sync_manager.force_commit().await.expect("Failed to commit");
+    ctx.sync_manager
+        .force_commit()
+        .await
+        .expect("Failed to commit");
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let results = ctx
@@ -221,11 +246,20 @@ async fn test_sync_mode_runtime_switch() {
         Value::String("Test Content".to_string()),
     )];
     ctx.sync_manager
-        .on_vertex_change(1, "Article", &Value::Int(1), &properties, ChangeType::Insert)
+        .on_vertex_change(
+            1,
+            "Article",
+            &Value::Int(1),
+            &properties,
+            ChangeType::Insert,
+        )
         .await
         .expect("Failed to process");
 
-    ctx.coordinator.commit_all().await.expect("Failed to commit");
+    ctx.coordinator
+        .commit_all()
+        .await
+        .expect("Failed to commit");
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     ctx.sync_manager.set_mode(SyncMode::Off).await;
@@ -236,11 +270,20 @@ async fn test_sync_mode_runtime_switch() {
         Value::String("Skipped Content".to_string()),
     )];
     ctx.sync_manager
-        .on_vertex_change(1, "Article", &Value::Int(2), &properties2, ChangeType::Insert)
+        .on_vertex_change(
+            1,
+            "Article",
+            &Value::Int(2),
+            &properties2,
+            ChangeType::Insert,
+        )
         .await
         .expect("Should not fail");
 
-    ctx.coordinator.commit_all().await.expect("Failed to commit");
+    ctx.coordinator
+        .commit_all()
+        .await
+        .expect("Failed to commit");
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let results = ctx
@@ -260,12 +303,15 @@ async fn test_sync_mode_switch_to_async_after_off() {
         .await
         .expect("Failed to create index");
 
-    let properties = vec![(
-        "content".to_string(),
-        Value::String("Skipped".to_string()),
-    )];
+    let properties = vec![("content".to_string(), Value::String("Skipped".to_string()))];
     ctx.sync_manager
-        .on_vertex_change(1, "Article", &Value::Int(1), &properties, ChangeType::Insert)
+        .on_vertex_change(
+            1,
+            "Article",
+            &Value::Int(1),
+            &properties,
+            ChangeType::Insert,
+        )
         .await
         .expect("Should not fail");
 
@@ -276,11 +322,20 @@ async fn test_sync_mode_switch_to_async_after_off() {
         Value::String("Processed".to_string()),
     )];
     ctx.sync_manager
-        .on_vertex_change(1, "Article", &Value::Int(2), &properties2, ChangeType::Insert)
+        .on_vertex_change(
+            1,
+            "Article",
+            &Value::Int(2),
+            &properties2,
+            ChangeType::Insert,
+        )
         .await
         .expect("Should not fail");
 
-    ctx.sync_manager.force_commit().await.expect("Failed to commit");
+    ctx.sync_manager
+        .force_commit()
+        .await
+        .expect("Failed to commit");
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let results = ctx
@@ -288,7 +343,11 @@ async fn test_sync_mode_switch_to_async_after_off() {
         .search(1, "Article", "content", "Processed", 10)
         .await
         .expect("Failed to search");
-    assert_eq!(results.len(), 1, "Async mode insert should be indexed after mode switch");
+    assert_eq!(
+        results.len(),
+        1,
+        "Async mode insert should be indexed after mode switch"
+    );
 }
 
 // ==================== Config Integration Tests ====================
@@ -339,12 +398,21 @@ async fn test_sync_config_custom_queue_size() {
             Value::String(format!("Content {}", i)),
         )];
         ctx.sync_manager
-            .on_vertex_change(1, "Article", &Value::Int(i), &properties, ChangeType::Insert)
+            .on_vertex_change(
+                1,
+                "Article",
+                &Value::Int(i),
+                &properties,
+                ChangeType::Insert,
+            )
             .await
             .expect("Failed to submit task");
     }
 
-    ctx.sync_manager.force_commit().await.expect("Failed to commit");
+    ctx.sync_manager
+        .force_commit()
+        .await
+        .expect("Failed to commit");
     tokio::time::sleep(Duration::from_millis(200)).await;
 
     let results = ctx
@@ -371,11 +439,20 @@ async fn test_vertex_insert_change() {
         Value::String("New Article".to_string()),
     )];
     ctx.sync_manager
-        .on_vertex_change(1, "Article", &Value::Int(1), &properties, ChangeType::Insert)
+        .on_vertex_change(
+            1,
+            "Article",
+            &Value::Int(1),
+            &properties,
+            ChangeType::Insert,
+        )
         .await
         .expect("Failed to process insert");
 
-    ctx.coordinator.commit_all().await.expect("Failed to commit");
+    ctx.coordinator
+        .commit_all()
+        .await
+        .expect("Failed to commit");
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let results = ctx
@@ -400,11 +477,20 @@ async fn test_vertex_update_change() {
         Value::String("Original Content".to_string()),
     )];
     ctx.sync_manager
-        .on_vertex_change(1, "Article", &Value::Int(1), &properties, ChangeType::Insert)
+        .on_vertex_change(
+            1,
+            "Article",
+            &Value::Int(1),
+            &properties,
+            ChangeType::Insert,
+        )
         .await
         .expect("Failed to process insert");
 
-    ctx.coordinator.commit_all().await.expect("Failed to commit");
+    ctx.coordinator
+        .commit_all()
+        .await
+        .expect("Failed to commit");
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let properties_update = vec![(
@@ -412,11 +498,20 @@ async fn test_vertex_update_change() {
         Value::String("Updated Content".to_string()),
     )];
     ctx.sync_manager
-        .on_vertex_change(1, "Article", &Value::Int(1), &properties_update, ChangeType::Update)
+        .on_vertex_change(
+            1,
+            "Article",
+            &Value::Int(1),
+            &properties_update,
+            ChangeType::Update,
+        )
         .await
         .expect("Failed to process update");
 
-    ctx.coordinator.commit_all().await.expect("Failed to commit");
+    ctx.coordinator
+        .commit_all()
+        .await
+        .expect("Failed to commit");
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let results = ctx
@@ -448,11 +543,20 @@ async fn test_vertex_delete_change() {
         Value::String("To Be Deleted".to_string()),
     )];
     ctx.sync_manager
-        .on_vertex_change(1, "Article", &Value::Int(1), &properties, ChangeType::Insert)
+        .on_vertex_change(
+            1,
+            "Article",
+            &Value::Int(1),
+            &properties,
+            ChangeType::Insert,
+        )
         .await
         .expect("Failed to process insert");
 
-    ctx.coordinator.commit_all().await.expect("Failed to commit");
+    ctx.coordinator
+        .commit_all()
+        .await
+        .expect("Failed to commit");
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let results = ctx
@@ -467,11 +571,20 @@ async fn test_vertex_delete_change() {
         Value::String("To Be Deleted".to_string()),
     )];
     ctx.sync_manager
-        .on_vertex_change(1, "Article", &Value::Int(1), &delete_props, ChangeType::Delete)
+        .on_vertex_change(
+            1,
+            "Article",
+            &Value::Int(1),
+            &delete_props,
+            ChangeType::Delete,
+        )
         .await
         .expect("Failed to process delete");
 
-    ctx.coordinator.commit_all().await.expect("Failed to commit");
+    ctx.coordinator
+        .commit_all()
+        .await
+        .expect("Failed to commit");
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let results = ctx
@@ -501,8 +614,14 @@ async fn test_concurrent_vertex_changes() {
                 "content".to_string(),
                 Value::String(format!("Content {}", i)),
             )];
-            sync.on_vertex_change(1, "Article", &Value::Int(i), &properties, ChangeType::Insert)
-                .await
+            sync.on_vertex_change(
+                1,
+                "Article",
+                &Value::Int(i),
+                &properties,
+                ChangeType::Insert,
+            )
+            .await
         });
         handles.push(handle);
     }
@@ -511,7 +630,10 @@ async fn test_concurrent_vertex_changes() {
         handle.await.expect("Task panicked").expect("Insert failed");
     }
 
-    ctx.sync_manager.force_commit().await.expect("Failed to commit");
+    ctx.sync_manager
+        .force_commit()
+        .await
+        .expect("Failed to commit");
     tokio::time::sleep(Duration::from_millis(200)).await;
 
     let results = ctx
@@ -519,7 +641,11 @@ async fn test_concurrent_vertex_changes() {
         .search(1, "Article", "content", "Content", 100)
         .await
         .expect("Failed to search");
-    assert_eq!(results.len(), 20, "All concurrent inserts should be indexed");
+    assert_eq!(
+        results.len(),
+        20,
+        "All concurrent inserts should be indexed"
+    );
 }
 
 #[tokio::test]
@@ -574,14 +700,26 @@ async fn test_multiple_indexes_sync() {
 
     let properties = vec![
         ("title".to_string(), Value::String("Test Title".to_string())),
-        ("content".to_string(), Value::String("Test Content".to_string())),
+        (
+            "content".to_string(),
+            Value::String("Test Content".to_string()),
+        ),
     ];
     ctx.sync_manager
-        .on_vertex_change(1, "Article", &Value::Int(1), &properties, ChangeType::Insert)
+        .on_vertex_change(
+            1,
+            "Article",
+            &Value::Int(1),
+            &properties,
+            ChangeType::Insert,
+        )
         .await
         .expect("Failed to process");
 
-    ctx.coordinator.commit_all().await.expect("Failed to commit");
+    ctx.coordinator
+        .commit_all()
+        .await
+        .expect("Failed to commit");
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let title_results = ctx
@@ -612,19 +750,28 @@ async fn test_multiple_tags_sync() {
         .await
         .expect("Failed to create News index");
 
-    let blog_props = vec![("content".to_string(), Value::String("Blog Post".to_string()))];
+    let blog_props = vec![(
+        "content".to_string(),
+        Value::String("Blog Post".to_string()),
+    )];
     ctx.sync_manager
         .on_vertex_change(1, "Blog", &Value::Int(1), &blog_props, ChangeType::Insert)
         .await
         .expect("Failed to process blog");
 
-    let news_props = vec![("content".to_string(), Value::String("News Article".to_string()))];
+    let news_props = vec![(
+        "content".to_string(),
+        Value::String("News Article".to_string()),
+    )];
     ctx.sync_manager
         .on_vertex_change(1, "News", &Value::Int(2), &news_props, ChangeType::Insert)
         .await
         .expect("Failed to process news");
 
-    ctx.coordinator.commit_all().await.expect("Failed to commit");
+    ctx.coordinator
+        .commit_all()
+        .await
+        .expect("Failed to commit");
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let blog_results = ctx
@@ -664,13 +811,16 @@ async fn test_empty_properties() {
 async fn test_nonexistent_index() {
     let ctx = SyncTestContext::with_sync_mode(SyncMode::Sync);
 
-    let properties = vec![(
-        "content".to_string(),
-        Value::String("Test".to_string()),
-    )];
+    let properties = vec![("content".to_string(), Value::String("Test".to_string()))];
     let result = ctx
         .sync_manager
-        .on_vertex_change(1, "NonExistent", &Value::Int(1), &properties, ChangeType::Insert)
+        .on_vertex_change(
+            1,
+            "NonExistent",
+            &Value::Int(1),
+            &properties,
+            ChangeType::Insert,
+        )
         .await;
     assert!(result.is_ok(), "Non-existent index should not fail");
 }
@@ -687,11 +837,20 @@ async fn test_large_content() {
     let large_content = "word ".repeat(1000);
     let properties = vec![("content".to_string(), Value::String(large_content.clone()))];
     ctx.sync_manager
-        .on_vertex_change(1, "Article", &Value::Int(1), &properties, ChangeType::Insert)
+        .on_vertex_change(
+            1,
+            "Article",
+            &Value::Int(1),
+            &properties,
+            ChangeType::Insert,
+        )
         .await
         .expect("Failed to process large content");
 
-    ctx.coordinator.commit_all().await.expect("Failed to commit");
+    ctx.coordinator
+        .commit_all()
+        .await
+        .expect("Failed to commit");
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let results = ctx

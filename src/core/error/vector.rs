@@ -143,9 +143,7 @@ impl From<vector_client::VectorClientError> for VectorError {
                 VectorError::ConfigError(format!("Invalid collection name: {}", name))
             }
             vector_client::VectorClientError::InvalidPointId(id) => VectorError::InvalidPointId(id),
-            vector_client::VectorClientError::Timeout(_msg) => {
-                VectorError::Timeout
-            }
+            vector_client::VectorClientError::Timeout(_msg) => VectorError::Timeout,
             vector_client::VectorClientError::InvalidConfig(msg) => VectorError::ConfigError(msg),
             vector_client::VectorClientError::SearchError(msg) => VectorError::QdrantError(msg),
             vector_client::VectorClientError::UpsertError(msg) => VectorError::QdrantError(msg),
@@ -166,7 +164,6 @@ impl From<vector_client::VectorClientError> for VectorError {
                 VectorError::Internal(e.to_string())
             }
             vector_client::VectorClientError::InternalError(msg) => VectorError::Internal(msg),
-            #[cfg(feature = "qdrant")]
             vector_client::VectorClientError::QdrantError(msg) => VectorError::QdrantError(msg),
         }
     }

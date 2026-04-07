@@ -3,10 +3,10 @@
 ## Summary
 
 - **Total Errors**: 0
-- **Total Warnings**: 3
-- **Total Issues**: 3
+- **Total Warnings**: 1
+- **Total Issues**: 1
 - **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 2
+- **Unique Warning Patterns**: 1
 - **Files with Issues**: 1
 
 ## Error Statistics
@@ -15,26 +15,24 @@
 
 ## Warning Statistics
 
-**Total Warnings**: 3
+**Total Warnings**: 1
 
 ### Warning Type Breakdown
 
-- **warning**: 3 warnings
+- **warning**: 1 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\query\executor\data_access\fulltext_search.rs`: 3 warnings
+- `src\sync\manager.rs`: 1 warnings
 
 ## Detailed Warning Categorization
 
-### warning: redundant closure: help: replace the closure with the tuple variant itself: `DBError::Storage`
+### warning: this function has too many arguments (8/7)
 
-**Total Occurrences**: 3  
+**Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\query\executor\data_access\fulltext_search.rs`: 3 occurrences
+#### `src\sync\manager.rs`: 1 occurrences
 
-- Line 364: redundant closure: help: replace the closure with the tuple variant itself: `DBError::Storage`
-- Line 445: this expression can be written more simply using `.retain()`: help: consider calling `.retain()` instead: `rows.retain(|row| self.evaluate_where_condition(row, &where_clause.condition))`
-- Line 555: redundant closure: help: replace the closure with the tuple variant itself: `DBError::Storage`
+- Line 265: this function has too many arguments (8/7)
 
