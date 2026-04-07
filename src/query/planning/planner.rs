@@ -17,7 +17,6 @@ use crate::query::QueryContext;
 pub use crate::query::validator::ValidatedStatement;
 
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
-use crate::query::planning::rewrite::{rewrite_plan, RewriteError};
 use crate::query::planning::statements::ddl::maintain_planner::MaintainPlanner;
 use crate::query::planning::statements::ddl::use_planner::UsePlanner;
 use crate::query::planning::statements::ddl::user_management_planner::UserManagementPlanner;
@@ -96,9 +95,7 @@ pub trait Planner: std::fmt::Debug {
         let sub_plan = self.transform(validated, qctx)?;
         let plan = ExecutionPlan::new(sub_plan.root().clone());
 
-        // Application plan rewrite and optimization
-        let plan = rewrite_plan(plan)?;
-
+        // Note: Plan optimization is handled by QueryPipelineManager
         Ok(plan)
     }
 
@@ -125,15 +122,21 @@ impl Planner for FulltextSearchPlanner {
     fn transform(
         &mut self,
         validated: &ValidatedStatement,
-        _qctx: Arc<QueryContext>,
+        qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         let stmt = validated.stmt();
+        let space_name = qctx.space_name().unwrap_or_else(|| "default".to_string());
 
         match stmt {
             Stmt::CreateFulltextIndex(create) => {
+                let schema_name = if create.schema_name.is_empty() {
+                    space_name
+                } else {
+                    create.schema_name.clone()
+                };
                 let node = CreateFulltextIndexNode::new(
                     create.index_name.clone(),
-                    create.schema_name.clone(),
+                    schema_name,
                     create.fields.clone(),
                     create.engine_type,
                     create.options.clone(),
@@ -154,8 +157,13 @@ impl Planner for FulltextSearchPlanner {
                 Ok(sub_plan)
             }
             Stmt::ShowFulltextIndex(show) => {
+                let from_schema = if show.from_schema.is_none() {
+                    Some(space_name.clone())
+                } else {
+                    show.from_schema.clone()
+                };
                 let node =
-                    ShowFulltextIndexNode::new(show.pattern.clone(), show.from_schema.clone());
+                    ShowFulltextIndexNode::new(show.pattern.clone(), from_schema);
                 let sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
@@ -178,8 +186,13 @@ impl Planner for FulltextSearchPlanner {
                 Ok(sub_plan)
             }
             Stmt::LookupFulltext(lookup) => {
+                let schema_name = if lookup.schema_name.is_empty() {
+                    space_name
+                } else {
+                    lookup.schema_name.clone()
+                };
                 let node = FulltextLookupNode::new(
-                    lookup.schema_name.clone(),
+                    schema_name,
                     lookup.index_name.clone(),
                     lookup.query.clone(),
                     lookup.yield_clause.clone(),
@@ -467,13 +480,6 @@ pub enum PlannerError {
 impl From<crate::core::error::DBError> for PlannerError {
     fn from(err: crate::core::error::DBError) -> Self {
         PlannerError::PlanGenerationFailed(err.to_string())
-    }
-}
-
-// Implement the From conversion for the RewriteError
-impl From<RewriteError> for PlannerError {
-    fn from(err: RewriteError) -> Self {
-        PlannerError::PlanGenerationFailed(format!("Plan rewrite failed: {}", err))
     }
 }
 

@@ -1,25 +1,25 @@
-//! Rules for converting Vertex-Edge JOIN to ExpandAll
+//! Rules for converting Edge-Vertex JOIN to AppendVertices
 //!
-//! This rule converts a JOIN between vertices and edges into an ExpandAll operation,
-//! which is more efficient for graph traversal patterns.
+//! This rule converts a JOIN between edges and vertices into an AppendVertices operation,
+//! which is more efficient for fetching vertex properties.
 //!
 //! # Conversion example
 //!
 //! Before:
 //! ```text
-//!   ScanVertices(v) → HashInnerJoin(ON v.id = e._src) → ScanEdges(e)
+//!   ScanEdges(e) → HashInnerJoin(ON e._dst = v.id) → ScanVertices(v)
 //! ```
 //!
 //! After:
 //! ```text
-//!   ScanVertices(v) → ExpandAll(edge_types, direction=OUT)
+//!   ScanEdges(e) → AppendVertices(vertex_tag)
 //! ```
 //!
 //! # Applicable Conditions
 //!
-//! One side is ScanVertices, the other is ScanEdges
-//! JOIN condition connects vertex ID to edge source/destination
-//! The edge types can be determined from the ScanEdges
+//! One side is ScanEdges, the other is ScanVertices
+//! JOIN condition connects edge destination/source to vertex ID
+//! The vertex tag can be determined from the ScanVertices
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::visitor::ExpressionVisitor;
@@ -27,18 +27,18 @@ use crate::core::types::expr::visitor_collectors::VariableCollector;
 use crate::query::planning::plan::core::nodes::access::graph_scan_node::{ScanEdgesNode, ScanVerticesNode};
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{MultipleInputNode, SingleInputNode};
 use crate::query::planning::plan::core::nodes::join::join_node::HashInnerJoinNode;
-use crate::query::planning::plan::core::nodes::traversal::traversal_node::ExpandAllNode;
+use crate::query::planning::plan::core::nodes::traversal::traversal_node::AppendVerticesNode;
 use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteError, RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::RewriteRule;
 
-/// Rules for converting Vertex-Edge JOIN to ExpandAll
+/// Rules for converting Edge-Vertex JOIN to AppendVertices
 #[derive(Debug)]
-pub struct JoinToExpandRule;
+pub struct JoinToAppendVerticesRule;
 
-impl JoinToExpandRule {
+impl JoinToAppendVerticesRule {
     pub fn new() -> Self {
         Self
     }
@@ -68,14 +68,9 @@ impl JoinToExpandRule {
         Some((hash_var, probe_var))
     }
 
-    fn determine_direction(&self, _edge_var: &str, join_key: &str) -> Option<&'static str> {
-        if join_key.ends_with("._src") || join_key.contains("src") {
-            Some("OUT")
-        } else if join_key.ends_with("._dst") || join_key.contains("dst") {
-            Some("IN")
-        } else {
-            None
-        }
+    fn is_edge_to_vertex_join(&self, edge_key: &str, vertex_key: &str) -> bool {
+        (edge_key.ends_with("._dst") || edge_key.ends_with("._src") || edge_key.contains("dst") || edge_key.contains("src"))
+            && (vertex_key.ends_with(".id") || vertex_key == "id" || vertex_key.contains("id"))
     }
 
     fn apply_to_hash_inner_join(
@@ -85,13 +80,13 @@ impl JoinToExpandRule {
         let left = join.left_input();
         let right = join.right_input();
 
-        let (scan_vertices, scan_edges, vertex_on_left) = match (left, right) {
-            (PlanNodeEnum::ScanVertices(v), PlanNodeEnum::ScanEdges(e)) => (v, e, true),
-            (PlanNodeEnum::ScanEdges(e), PlanNodeEnum::ScanVertices(v)) => (v, e, false),
+        let (scan_edges, scan_vertices, edge_on_left) = match (left, right) {
+            (PlanNodeEnum::ScanEdges(e), PlanNodeEnum::ScanVertices(v)) => (e, v, true),
+            (PlanNodeEnum::ScanVertices(v), PlanNodeEnum::ScanEdges(e)) => (e, v, false),
             _ => return Ok(None),
         };
 
-        let (hash_keys, probe_keys) = if vertex_on_left {
+        let (hash_keys, probe_keys) = if edge_on_left {
             (join.hash_keys(), join.probe_keys())
         } else {
             (join.probe_keys(), join.hash_keys())
@@ -102,37 +97,38 @@ impl JoinToExpandRule {
             None => return Ok(None),
         };
 
-        let direction = self.determine_direction(&probe_var, &probe_var);
-        let direction = match direction {
-            Some(d) => d,
-            None => return Ok(None),
+        let (edge_key, vertex_key) = if edge_on_left {
+            (&hash_var, &probe_var)
+        } else {
+            (&probe_var, &hash_var)
         };
 
-        let edge_types = scan_edges.edge_type()
-            .map(|et| vec![et])
-            .unwrap_or_default();
+        if !self.is_edge_to_vertex_join(edge_key, vertex_key) {
+            return Ok(None);
+        }
 
-        let mut expand_all = ExpandAllNode::new(scan_vertices.space_id(), edge_types, direction);
+        let vertex_tag = scan_vertices.tag().cloned().unwrap_or_default();
+        let mut append_vertices = AppendVerticesNode::new(scan_vertices.space_id(), &vertex_tag);
         
-        expand_all.add_input(left.clone());
+        append_vertices.add_input(if edge_on_left { left.clone() } else { right.clone() });
 
         let mut result = TransformResult::new();
         result.erase_curr = true;
-        result.add_new_node(PlanNodeEnum::ExpandAll(expand_all));
+        result.add_new_node(PlanNodeEnum::AppendVertices(append_vertices));
 
         Ok(Some(result))
     }
 }
 
-impl Default for JoinToExpandRule {
+impl Default for JoinToAppendVerticesRule {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl RewriteRule for JoinToExpandRule {
+impl RewriteRule for JoinToAppendVerticesRule {
     fn name(&self) -> &'static str {
-        "JoinToExpandRule"
+        "JoinToAppendVerticesRule"
     }
 
     fn pattern(&self) -> Pattern {
@@ -157,13 +153,13 @@ mod tests {
 
     #[test]
     fn test_rule_name() {
-        let rule = JoinToExpandRule::new();
-        assert_eq!(rule.name(), "JoinToExpandRule");
+        let rule = JoinToAppendVerticesRule::new();
+        assert_eq!(rule.name(), "JoinToAppendVerticesRule");
     }
 
     #[test]
     fn test_rule_pattern() {
-        let rule = JoinToExpandRule::new();
+        let rule = JoinToAppendVerticesRule::new();
         let pattern = rule.pattern();
         assert!(pattern.node.is_some());
     }

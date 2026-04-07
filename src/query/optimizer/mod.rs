@@ -4,25 +4,45 @@
 //!
 //! ## Module Structure
 //!
-//! “Engine” refers to the optimizer engine, which is a globally unique instance of the optimizer that integrates all optimization components.
-//! The “stats” module is responsible for managing statistical data related to tags, edge types, and their attributes.
-//! `cost` – A module for calculating costs, which determines the cost of query operations.
-//! “Analysis” module: This module is responsible for plan analysis, providing information on reference counts as well as an analysis of expressions.
-//! “Strategy” module: an optimization strategy module that provides options for selecting the starting point and the index for traversal.
-//! Optimization of the decision-making module: Implementation of a cache mechanism based on the decision-making process.
+//! The optimizer is organized into two main optimization phases:
+//!
+//! ### Phase 1: Heuristic Optimization (`heuristic/`)
+//! Rule-based optimizations that always produce better or equivalent plans:
+//! - Predicate Pushdown
+//! - Projection Pushdown
+//! - Elimination Rules
+//! - Merge Operations
+//! - Limit Pushdown
+//!
+//! ### Phase 2: Cost-Based Optimization (`cost_based/`)
+//! Statistics-driven optimizations that use cost models:
+//! - Join Order Optimization
+//! - Index Selection
+//! - Traversal Start/Direction Selection
+//! - Aggregate Strategy Selection
+//! - Materialization Decision
+//!
+//! ### Supporting Modules
+//! - `engine` – The globally unique optimizer engine instance
+//! - `stats` – Statistical information management
+//! - `cost` – Cost calculation and estimation
+//! - `analysis` – Plan analysis utilities
+//! - `decision` – Optimization decision types
+//! - `pipeline` – Optimization pipeline coordination
 //!
 //! ## Usage Examples
 //!
 //! ```rust
 //! use graphdb::query::optimizer::OptimizerEngine;
 //!
-// Create the optimizer engine (global instance)
+//! // Create the optimizer engine (global instance)
 //! let optimizer = OptimizerEngine::default();
 //!
-// Calculate the optimization decision
+//! // Calculate the optimization decision
 //! let decision = optimizer.compute_decision(&stmt, sentence_kind);
 //! ```
 
+// Core modules
 pub mod analysis;
 pub mod builder;
 pub mod context;
@@ -30,7 +50,13 @@ pub mod cost;
 pub mod decision;
 pub mod engine;
 pub mod stats;
-pub mod strategy;
+
+// Optimization phases
+pub mod cost_based;  // Cost-based optimization strategies
+pub mod heuristic;   // Heuristic rewrite rules
+
+// Pipeline coordination
+pub mod pipeline;
 
 // Re-export the main types
 pub use builder::OptimizerEngineBuilder;
@@ -53,7 +79,8 @@ pub use analysis::{
 
 pub use context::OptimizationContext;
 
-pub use strategy::{
+// Re-export cost_based types (formerly strategy)
+pub use cost_based::{
     AggregateContext, AggregateSelectionReason, AggregateStrategy, AggregateStrategyDecision,
     AggregateStrategySelector, CandidateStart, CteCacheConfig, CteCacheDecision,
     CteCacheDecisionMaker, CteCacheEntry, CteCacheManager, CteCacheStats, DegreeInfo,
@@ -66,6 +93,16 @@ pub use strategy::{
     TraversalDirectionOptimizer, TraversalSelectionReason, TraversalStartSelector, UnnestDecision,
     UnnestReason,
 };
+
+// Re-export heuristic types
+pub use heuristic::{
+    BaseRewriteRule, EliminationRule, HeuristicRule, HeuristicRuleAdapter, IntoOptRule,
+    MatchedResult, MergeRule, PlanRewriter, PushDownRule, RewriteContext, RewriteError,
+    RewriteRule, RuleWrapper, TransformResult,
+};
+
+// Re-export pipeline types
+pub use pipeline::{OptimizationPhase, OptimizationPipeline, PipelineConfig};
 
 pub use decision::{
     AccessPath, EntityIndexChoice, EntityType, IndexChoice, IndexSelectionDecision, JoinAlgorithm,

@@ -1,5 +1,14 @@
 //! Planner module for generating execution plans from AST
 //! Contains the Planner trait, ExecutionPlan structure, and various specific planners
+//!
+//! # Planning Pipeline
+//!
+//! The planning process consists of:
+//! 1. AST to Execution Plan conversion
+//! 2. Heuristic optimization (via `optimizer::heuristic`)
+//! 3. Cost-based optimization (via `optimizer::cost_based`)
+//!
+//! Note: The heuristic rewrite module has been moved to `optimizer::heuristic`.
 
 // Core modules
 pub mod connector;
@@ -9,9 +18,6 @@ pub mod template_extractor;
 
 // Modules organized by function
 pub mod statements;
-
-// Plan to rewrite the module (heuristic optimization rules)
-pub mod rewrite;
 
 // Re-export the main types.
 pub use connector::SegmentsConnector;
