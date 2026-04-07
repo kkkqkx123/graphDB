@@ -623,12 +623,22 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::admin::AlterFulltextIndexExecutor;
 
+        let coordinator = self
+            .fulltext_coordinator
+            .as_ref()
+            .or_else(|| context.fulltext_coordinator())
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
+            })?
+            .clone();
+
         let executor = AlterFulltextIndexExecutor::new(
             node.id(),
             storage,
             node.index_name.clone(),
             node.actions.clone(),
             context.expression_context().clone(),
+            coordinator,
         );
         Ok(ExecutorEnum::AlterFulltextIndex(executor))
     }

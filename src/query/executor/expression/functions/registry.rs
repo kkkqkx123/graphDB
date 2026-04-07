@@ -218,6 +218,9 @@ impl FunctionRegistry {
         use super::PathFunction;
         self.register_builtin(BuiltinFunction::Path(PathFunction::Nodes));
         self.register_builtin(BuiltinFunction::Path(PathFunction::Relationships));
+
+        // Register full-text search functions
+        super::fulltext::register_fulltext_functions(self);
     }
 }
 
