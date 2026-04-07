@@ -20,17 +20,17 @@ enabled = true
 backend = "cold_warm_cache"  # Options: "file", "redis", "wal", "cold_warm_cache"
 
 # File storage configuration
-# [storage.file]
-# base_path = "./data"
-# auto_save = true
-# save_interval_secs = 60
+[storage.file]
+base_path = "./data"
+auto_save = true
+save_interval_secs = 60
 
-# Redis storage configuration
+# Redis storage configuration (requires store-redis feature)
 # [storage.redis]
 # url = "redis://127.0.0.1:6379"
 # pool_size = 10
 
-# WAL storage configuration
+# WAL storage configuration (requires store-wal feature)
 # [storage.wal]
 # base_path = "./wal"
 # max_wal_size = 104857600  # 100MB

@@ -406,7 +406,7 @@ impl InversearchServiceTrait for InversearchService {
 
 /// Run the gRPC server
 pub async fn run_server(config: ServiceConfig) -> Result<(), Box<dyn std::error::Error>> {
-    let addr = format!("{}:{}", config.host, config.port).parse::<SocketAddr>()?;
+    let addr = format!("{}:{}", config.server.host, config.server.port).parse::<SocketAddr>()?;
     let service = InversearchService::new();
 
     tracing::info!("Inversearch service listening on {}", addr);
@@ -424,7 +424,7 @@ pub async fn run_server_with_storage<S: StorageInterface + Send + Sync + 'static
     config: ServiceConfig,
     storage: S,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let addr = format!("{}:{}", config.host, config.port).parse::<SocketAddr>()?;
+    let addr = format!("{}:{}", config.server.host, config.server.port).parse::<SocketAddr>()?;
     let service = InversearchService::with_storage(storage);
 
     tracing::info!("Inversearch service listening on {}", addr);
@@ -442,7 +442,7 @@ pub async fn run_server_with_service(
     config: ServiceConfig,
     service: InversearchService,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let addr = format!("{}:{}", config.host, config.port).parse::<SocketAddr>()?;
+    let addr = format!("{}:{}", config.server.host, config.server.port).parse::<SocketAddr>()?;
 
     tracing::info!("Inversearch service listening on {}", addr);
 
@@ -461,7 +461,7 @@ mod tests {
     #[test]
     fn test_service_config_default() {
         let config = ServiceConfig::default();
-        assert_eq!(config.host, "0.0.0.0");
-        assert_eq!(config.port, 50051);
+        assert_eq!(config.server.host, "0.0.0.0");
+        assert_eq!(config.server.port, 50051);
     }
 }

@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+pub mod validator;
+
+pub use validator::{ConfigValidator, ValidationError, ValidationResult};
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     pub server: ServerConfig,
@@ -425,6 +429,7 @@ impl Config {
     pub fn from_file(path: &str) -> anyhow::Result<Self> {
         let content = std::fs::read_to_string(path)?;
         let config: Config = toml::from_str(&content)?;
+        config.validate()?;  // 添加配置验证
         Ok(config)
     }
 

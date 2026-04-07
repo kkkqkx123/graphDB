@@ -23,7 +23,6 @@ service = [
     "tracing-subscriber",
     "prost-build",
     "tonic-build",
-    "async-trait",
 ]
 storage-tantivy = ["async-trait"]
 storage-redis = ["redis", "async-trait", "bb8"]
