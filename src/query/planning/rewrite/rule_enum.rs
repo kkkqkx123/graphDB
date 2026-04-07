@@ -30,6 +30,7 @@ use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::planning::rewrite::aggregate;
 use crate::query::planning::rewrite::context::RewriteContext;
 use crate::query::planning::rewrite::elimination;
+use crate::query::planning::rewrite::join_optimization;
 use crate::query::planning::rewrite::limit_pushdown;
 use crate::query::planning::rewrite::merge;
 use crate::query::planning::rewrite::pattern::Pattern;
@@ -170,6 +171,17 @@ define_rewrite_rules! {
 
         // ==================== Aggregation Optimization Rules ====================
         PushFilterDownAggregate(aggregate::PushFilterDownAggregateRule),
+
+        // ==================== JOIN Optimization Rules ====================
+        PushProjectDownJoin(join_optimization::PushProjectDownJoinRule),
+        LeftJoinToInnerJoin(join_optimization::LeftJoinToInnerJoinRule),
+        JoinConditionSimplify(join_optimization::JoinConditionSimplifyRule),
+        JoinToExpand(join_optimization::JoinToExpandRule),
+        JoinToAppendVertices(join_optimization::JoinToAppendVerticesRule),
+        MergeConsecutiveExpand(join_optimization::MergeConsecutiveExpandRule),
+        JoinElimination(join_optimization::JoinEliminationRule),
+        IndexJoinSelection(join_optimization::IndexJoinSelectionRule),
+        JoinReorder(join_optimization::JoinReorderRule),
     }
 }
 
@@ -326,6 +338,33 @@ impl Default for RuleRegistry {
         registry.add(RewriteRule::PushFilterDownAggregate(
             aggregate::PushFilterDownAggregateRule::new(),
         ));
+        registry.add(RewriteRule::PushProjectDownJoin(
+            join_optimization::PushProjectDownJoinRule::new(),
+        ));
+        registry.add(RewriteRule::LeftJoinToInnerJoin(
+            join_optimization::LeftJoinToInnerJoinRule::new(),
+        ));
+        registry.add(RewriteRule::JoinConditionSimplify(
+            join_optimization::JoinConditionSimplifyRule::new(),
+        ));
+        registry.add(RewriteRule::JoinToExpand(
+            join_optimization::JoinToExpandRule::new(),
+        ));
+        registry.add(RewriteRule::JoinToAppendVertices(
+            join_optimization::JoinToAppendVerticesRule::new(),
+        ));
+        registry.add(RewriteRule::MergeConsecutiveExpand(
+            join_optimization::MergeConsecutiveExpandRule::new(),
+        ));
+        registry.add(RewriteRule::JoinElimination(
+            join_optimization::JoinEliminationRule::new(),
+        ));
+        registry.add(RewriteRule::IndexJoinSelection(
+            join_optimization::IndexJoinSelectionRule::new(),
+        ));
+        registry.add(RewriteRule::JoinReorder(
+            join_optimization::JoinReorderRule::new(),
+        ));
         registry
     }
 }
@@ -337,7 +376,7 @@ mod tests {
     #[test]
     fn test_rule_registry_default() {
         let registry = RuleRegistry::default();
-        assert_eq!(registry.len(), 39);
+        assert_eq!(registry.len(), 48);
     }
 
     #[test]

@@ -92,6 +92,7 @@ pub mod rule_enum;
 // Specific Rules Module
 pub mod aggregate;
 pub mod elimination;
+pub mod join_optimization;
 pub mod limit_pushdown;
 pub mod merge;
 pub mod predicate_pushdown;
@@ -122,6 +123,7 @@ pub use rule_enum::{RewriteRule as RewriteRuleEnum, RuleRegistry};
 // Export all rewriting rules in a unified manner.
 pub use aggregate::*;
 pub use elimination::*;
+pub use join_optimization::*;
 pub use limit_pushdown::*;
 pub use merge::*;
 pub use predicate_pushdown::*;
