@@ -326,7 +326,128 @@ CREATE INDEX idx_follow_degree ON follow(degree)
 
 ---
 
-## 6. ALTER TAG - 修改标签
+## 6. CREATE FULLTEXT INDEX - 创建全文索引
+
+### 功能
+在标签或边类型的文本属性上创建全文索引，支持高效的文本搜索功能。
+
+### 语法结构
+```cypher
+CREATE FULLTEXT INDEX [IF NOT EXISTS] <index_name> ON <tag_or_edge_name> (<field_list>)
+[ENGINE = {BM25 | INVERSEARCH}]
+[OPTIONS (key=value, ...)]
+```
+
+### 全文检索引擎类型
+
+| 引擎 | 说明 | 适用场景 |
+|------|------|----------|
+| `BM25` | 基于概率相关性的文本排名算法 | 通用文本搜索，文档检索 |
+| `INVERSEARCH` | 倒排索引引擎 | 快速关键词匹配，高频查询 |
+
+### 全文索引选项
+
+| 选项 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `k1` | FLOAT | 1.5 | BM25 词频调节参数 |
+| `b` | FLOAT | 0.75 | BM25 文档长度调节参数 |
+| `analyzer` | STRING | default | 分词器名称 |
+| `store_original` | BOOL | true | 是否存储原文 |
+
+### 关键特性
+- 支持多种文本搜索查询类型
+- 支持布尔查询（MUST, SHOULD, MUST_NOT）
+- 支持短语搜索
+- 支持前缀和通配符搜索
+- 支持模糊搜索
+- 支持评分排序
+- 支持高亮显示
+
+### 示例
+```cypher
+-- 创建基础全文索引（默认使用BM25引擎）
+CREATE FULLTEXT INDEX IF NOT EXISTS idx_article_content ON Article(content)
+
+-- 创建指定引擎的全文索引
+CREATE FULLTEXT INDEX idx_news_title ON News(title, summary) ENGINE = BM25
+
+-- 创建带选项的全文索引
+CREATE FULLTEXT INDEX idx_product_desc ON Product(description)
+OPTIONS (k1=1.2, b=0.8, analyzer=standard)
+```
+
+---
+
+## 7. CREATE VECTOR INDEX - 创建向量索引
+
+### 功能
+在标签或边类型的向量属性上创建向量索引，支持向量相似度搜索。
+
+### 语法结构
+```cypher
+CREATE VECTOR INDEX [IF NOT EXISTS] <index_name> ON <tag_or_edge_name> (<field>)
+WITH (vector_size=<dimension>, distance={COSINE | EUCLID | DOT})
+[HNSW (m=<value>, ef_construction=<value>)]
+[QUANTIZATION (type={SQ8 | PQ16}, ratio=<value>)]
+```
+
+### 向量索引参数
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `vector_size` | INT | 是 | 向量维度大小 |
+| `distance` | STRING | 是 | 距离度量方式 |
+
+### 距离度量方式
+
+| 方式 | 说明 | 适用场景 |
+|------|------|----------|
+| `COSINE` | 余弦相似度 | 文本嵌入、图像特征 |
+| `EUCLID` | 欧氏距离 | 坐标数据、推荐系统 |
+| `DOT` | 点积相似度 | 归一化向量 |
+
+### HNSW 参数（可选）
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `m` | INT | 16 | 每层最大连接数 |
+| `ef_construction` | INT | 200 | 构建时动态列表大小 |
+
+### 量化参数（可选）
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `type` | STRING | 量化类型（SQ8, PQ16） |
+| `ratio` | FLOAT | 压缩比 |
+
+### 关键特性
+- 支持多种距离度量
+- 支持向量相似度搜索
+- 支持阈值过滤
+- 支持属性过滤
+- 支持批量操作
+- 支持与 Qdrant 集成
+
+### 示例
+```cypher
+-- 创建基础向量索引（余弦距离）
+CREATE VECTOR INDEX IF NOT EXISTS idx_doc_embedding ON Document(embedding)
+WITH (vector_size=768, distance=COSINE)
+
+-- 创建带 HNSW 参数的向量索引
+CREATE VECTOR INDEX idx_article_vector ON Article(content_vector)
+WITH (vector_size=1024, distance=COSINE)
+HNSW (m=32, ef_construction=300)
+
+-- 创建带量化参数的向量索引
+CREATE VECTOR INDEX idx_product_vector ON Product(feature_vector)
+WITH (vector_size=512, distance=EUCLID)
+QUANTIZATION (type=PQ16, ratio=0.5)
+```
+
+---
+
+## 8. ALTER TAG - 修改标签
 
 ### 功能
 修改标签定义。
@@ -353,7 +474,7 @@ ALTER TAG person CHANGE (old_name new_name: STRING)
 
 ---
 
-## 7. ALTER EDGE - 修改边类型
+## 9. ALTER EDGE - 修改边类型
 
 ### 功能
 修改边类型定义。
@@ -379,7 +500,7 @@ ALTER EDGE follow DROP (old_field)
 
 ---
 
-## 8. DROP TAG - 删除标签
+## 10. DROP TAG - 删除标签
 
 ### 功能
 删除标签定义。
@@ -401,7 +522,7 @@ DROP TAG IF EXISTS person, company
 
 ---
 
-## 9. DROP EDGE - 删除边类型
+## 11. DROP EDGE - 删除边类型
 
 ### 功能
 删除边类型定义。
@@ -423,7 +544,7 @@ DROP EDGE IF EXISTS follow, like
 
 ---
 
-## 10. DROP SPACE - 删除图空间
+## 12. DROP SPACE - 删除图空间
 
 ### 功能
 删除图空间。
@@ -440,7 +561,7 @@ DROP SPACE IF EXISTS test_space
 
 ---
 
-## 11. DROP INDEX - 删除索引
+## 13. DROP INDEX - 删除索引
 
 ### 功能
 删除索引。
@@ -460,7 +581,41 @@ DROP TAG INDEX idx_person_name ON test_space
 
 ---
 
-## 12. DESC/DESCRIBE - 描述对象
+## 14. DROP FULLTEXT INDEX - 删除全文索引
+
+### 功能
+删除全文索引。
+
+### 语法结构
+```cypher
+DROP FULLTEXT INDEX [IF EXISTS] <index_name>
+```
+
+### 示例
+```cypher
+DROP FULLTEXT INDEX IF EXISTS idx_article_content
+```
+
+---
+
+## 15. DROP VECTOR INDEX - 删除向量索引
+
+### 功能
+删除向量索引。
+
+### 语法结构
+```cypher
+DROP VECTOR INDEX [IF EXISTS] <index_name>
+```
+
+### 示例
+```cypher
+DROP VECTOR INDEX IF EXISTS idx_doc_embedding
+```
+
+---
+
+## 16. DESC/DESCRIBE - 描述对象
 
 ### 功能
 显示标签、边类型或用户的定义。
@@ -486,7 +641,7 @@ DESCRIBE SPACE test_space
 
 ---
 
-## 13. SHOW - 显示信息
+## 17. SHOW - 显示信息
 
 ### 功能
 显示数据库中的各种信息。
@@ -497,6 +652,8 @@ SHOW SPACES
 SHOW TAGS
 SHOW EDGES
 SHOW INDEXES
+SHOW FULLTEXT INDEXES
+SHOW VECTOR INDEXES
 ```
 
 ### 示例
@@ -504,11 +661,13 @@ SHOW INDEXES
 SHOW SPACES
 SHOW TAGS
 SHOW EDGES
+SHOW FULLTEXT INDEXES
+SHOW VECTOR INDEXES
 ```
 
 ---
 
-## 14. SHOW CREATE - 显示创建语句
+## 18. SHOW CREATE - 显示创建语句
 
 ### 功能
 显示对象的完整创建语句（DDL），便于查看对象定义或迁移数据。
