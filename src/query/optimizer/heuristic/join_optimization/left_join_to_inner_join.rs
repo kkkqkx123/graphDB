@@ -26,16 +26,16 @@
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::operators::BinaryOperator;
 use crate::core::Expression;
+use crate::query::optimizer::heuristic::context::RewriteContext;
+use crate::query::optimizer::heuristic::pattern::Pattern;
+use crate::query::optimizer::heuristic::result::{RewriteError, RewriteResult, TransformResult};
+use crate::query::optimizer::heuristic::rule::{PushDownRule, RewriteRule};
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planning::plan::core::nodes::join::join_node::{
     HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode, LeftJoinNode,
 };
 use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
 use crate::query::planning::plan::PlanNodeEnum;
-use crate::query::optimizer::heuristic::context::RewriteContext;
-use crate::query::optimizer::heuristic::pattern::Pattern;
-use crate::query::optimizer::heuristic::result::{RewriteError, RewriteResult, TransformResult};
-use crate::query::optimizer::heuristic::rule::{PushDownRule, RewriteRule};
 
 /// Rules for converting LeftJoin to InnerJoin
 ///
@@ -48,11 +48,7 @@ impl LeftJoinToInnerJoinRule {
         Self
     }
 
-    fn check_is_not_null_condition(
-        &self,
-        expr: &Expression,
-        right_col_names: &[String],
-    ) -> bool {
+    fn check_is_not_null_condition(&self, expr: &Expression, right_col_names: &[String]) -> bool {
         match expr {
             Expression::Function { name, args } if name == "is_not_null" && args.len() == 1 => {
                 if let Expression::Variable(var_name) = &args[0] {
@@ -71,13 +67,17 @@ impl LeftJoinToInnerJoinRule {
             }
             Expression::Binary { left, op, right } => {
                 if *op == BinaryOperator::NotEqual {
-                    if let (Expression::Variable(var_name), Expression::Literal(crate::core::Value::Null(_))) =
-                        (left.as_ref(), right.as_ref())
+                    if let (
+                        Expression::Variable(var_name),
+                        Expression::Literal(crate::core::Value::Null(_)),
+                    ) = (left.as_ref(), right.as_ref())
                     {
                         return right_col_names.contains(var_name);
                     }
-                    if let (Expression::Literal(crate::core::Value::Null(_)), Expression::Variable(var_name)) =
-                        (left.as_ref(), right.as_ref())
+                    if let (
+                        Expression::Literal(crate::core::Value::Null(_)),
+                        Expression::Variable(var_name),
+                    ) = (left.as_ref(), right.as_ref())
                     {
                         return right_col_names.contains(var_name);
                     }
@@ -136,15 +136,19 @@ impl LeftJoinToInnerJoinRule {
             }
             Expression::Binary { left, op, right } => {
                 if *op == BinaryOperator::NotEqual {
-                    if let (Expression::Variable(var_name), Expression::Literal(crate::core::Value::Null(_))) =
-                        (left.as_ref(), right.as_ref())
+                    if let (
+                        Expression::Variable(var_name),
+                        Expression::Literal(crate::core::Value::Null(_)),
+                    ) = (left.as_ref(), right.as_ref())
                     {
                         if right_col_names.contains(var_name) {
                             return None;
                         }
                     }
-                    if let (Expression::Literal(crate::core::Value::Null(_)), Expression::Variable(var_name)) =
-                        (left.as_ref(), right.as_ref())
+                    if let (
+                        Expression::Literal(crate::core::Value::Null(_)),
+                        Expression::Variable(var_name),
+                    ) = (left.as_ref(), right.as_ref())
                     {
                         if right_col_names.contains(var_name) {
                             return None;
@@ -181,27 +185,30 @@ impl LeftJoinToInnerJoinRule {
 
         if let Some(expr_meta) = filter_condition.expression() {
             let remaining = self.remove_not_null_conditions(expr_meta.inner(), &right_col_names);
-            
+
             let mut result = TransformResult::new();
-            
+
             if let Some(rem_expr) = remaining {
                 let ctx = filter_condition.context().clone();
                 let meta = crate::core::types::expr::ExpressionMeta::new(rem_expr);
                 let id = ctx.register_expression(meta);
                 let new_ctx_expr = ContextualExpression::new(id, ctx);
-                
-                let new_filter = FilterNode::new(PlanNodeEnum::HashInnerJoin(new_join), new_ctx_expr)
-                    .map_err(|e| {
-                        RewriteError::rewrite_failed(format!("Failed to create FilterNode: {:?}", e))
-                    })?;
-                
+
+                let new_filter = FilterNode::new(
+                    PlanNodeEnum::HashInnerJoin(new_join),
+                    new_ctx_expr,
+                )
+                .map_err(|e| {
+                    RewriteError::rewrite_failed(format!("Failed to create FilterNode: {:?}", e))
+                })?;
+
                 result.erase_curr = true;
                 result.add_new_node(PlanNodeEnum::Filter(new_filter));
             } else {
                 result.erase_curr = true;
                 result.add_new_node(PlanNodeEnum::HashInnerJoin(new_join));
             }
-            
+
             return Ok(Some(result));
         }
 
@@ -232,27 +239,27 @@ impl LeftJoinToInnerJoinRule {
 
         if let Some(expr_meta) = filter_condition.expression() {
             let remaining = self.remove_not_null_conditions(expr_meta.inner(), &right_col_names);
-            
+
             let mut result = TransformResult::new();
-            
+
             if let Some(rem_expr) = remaining {
                 let ctx = filter_condition.context().clone();
                 let meta = crate::core::types::expr::ExpressionMeta::new(rem_expr);
                 let id = ctx.register_expression(meta);
                 let new_ctx_expr = ContextualExpression::new(id, ctx);
-                
+
                 let new_filter = FilterNode::new(PlanNodeEnum::InnerJoin(new_join), new_ctx_expr)
                     .map_err(|e| {
-                        RewriteError::rewrite_failed(format!("Failed to create FilterNode: {:?}", e))
-                    })?;
-                
+                    RewriteError::rewrite_failed(format!("Failed to create FilterNode: {:?}", e))
+                })?;
+
                 result.erase_curr = true;
                 result.add_new_node(PlanNodeEnum::Filter(new_filter));
             } else {
                 result.erase_curr = true;
                 result.add_new_node(PlanNodeEnum::InnerJoin(new_join));
             }
-            
+
             return Ok(Some(result));
         }
 

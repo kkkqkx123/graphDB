@@ -1,6 +1,9 @@
 //! Implementation of the PlanNode visitor pattern
 
 use super::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::data_access::vector_search::{
+    CreateVectorIndexNode, DropVectorIndexNode, VectorLookupNode, VectorMatchNode, VectorSearchNode,
+};
 use crate::query::planning::plan::core::nodes::data_modification::{
     DeleteEdgesNode, DeleteVerticesNode, InsertEdgesNode, InsertVerticesNode, UpdateEdgesNode,
     UpdateNode, UpdateVerticesNode,
@@ -12,9 +15,6 @@ use crate::query::planning::plan::core::nodes::management::fulltext_nodes::{
     AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
     DropFulltextIndexNode, FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
     ShowFulltextIndexNode,
-};
-use crate::query::planning::plan::core::nodes::data_access::vector_search::{
-    CreateVectorIndexNode, DropVectorIndexNode, VectorLookupNode, VectorMatchNode, VectorSearchNode,
 };
 use crate::query::planning::plan::core::nodes::management::index_nodes::{
     CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,

@@ -26,13 +26,13 @@
 //! The kind of the DataCollect node is kRowBasedMove.
 //! The child node of DataCollect is Project.
 
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planning::plan::core::nodes::data_processing::data_processing_node::DataCollectNode;
-use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::{EliminationRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::core::nodes::data_processing::data_processing_node::DataCollectNode;
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// Rules for eliminating redundant data collection operations
 ///

@@ -36,13 +36,13 @@
 //!     → HashInnerJoin → C → D
 //! ```
 
-use std::collections::HashSet;
-use crate::query::planning::plan::core::nodes::join::join_node::HashInnerJoinNode;
-use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::RewriteRule;
+use crate::query::planning::plan::core::nodes::join::join_node::HashInnerJoinNode;
+use crate::query::planning::plan::PlanNodeEnum;
+use std::collections::HashSet;
 
 /// Information about a table in the JOIN tree
 #[derive(Debug, Clone)]
@@ -147,7 +147,7 @@ impl JoinReorderRule {
     ) {
         let mut remaining: HashSet<usize> = (0..tables.len()).collect();
         let mut result = Vec::new();
-        
+
         let mut min_rows = f64::MAX;
         let mut first_table = 0;
         for (i, table) in tables.iter().enumerate() {
@@ -197,7 +197,7 @@ impl JoinReorderRule {
             let right_rows = tables[order[i]].estimated_rows;
             let selectivity = self.estimate_selectivity(&[]);
             let join_rows = self.estimate_join_cardinality(current_rows, right_rows, selectivity);
-            
+
             total_cost += current_rows + right_rows;
             current_rows = join_rows;
         }
@@ -210,7 +210,7 @@ impl JoinReorderRule {
         join: &HashInnerJoinNode,
     ) -> RewriteResult<Option<TransformResult>> {
         let tables = self.collect_tables(&PlanNodeEnum::HashInnerJoin(join.clone()));
-        
+
         if tables.len() < 3 {
             return Ok(None);
         }
@@ -298,7 +298,7 @@ mod tests {
 
         let best_order = rule.find_best_join_order(&tables);
         assert!(best_order.is_some());
-        
+
         let order = best_order.unwrap();
         assert_eq!(order.len(), 3);
     }
@@ -332,7 +332,7 @@ mod tests {
         let mut best_order: Vec<usize> = (0..tables.len()).collect();
         let mut best_cost = f64::MAX;
         rule.greedy_find_best(&mut best_order, &mut best_cost, &tables);
-        
+
         assert_eq!(best_order.len(), 4);
         assert!(best_cost > 0.0);
     }

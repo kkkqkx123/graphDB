@@ -23,5 +23,5 @@ pub use path::AllPathsExecutor;
 pub use property::GetPropExecutor;
 pub use search::IndexScanExecutor;
 pub use vector_index::{CreateVectorIndexExecutor, DropVectorIndexExecutor};
-pub use vector_search::{VectorSearchExecutor, VectorLookupExecutor, VectorMatchExecutor};
+pub use vector_search::{VectorLookupExecutor, VectorMatchExecutor, VectorSearchExecutor};
 pub use vertex::{GetVerticesExecutor, GetVerticesParams, ScanVerticesExecutor};

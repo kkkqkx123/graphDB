@@ -1,11 +1,11 @@
 //! Combine the rules for obtaining vertices and performing projection operations.
 
-use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::{MergeRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 
 /// Merge the rules for obtaining vertices and performing projection operations.
 ///

@@ -22,13 +22,17 @@
 //! Compatible edge types and directions
 
 use crate::core::types::EdgeDirection;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::{MultipleInputNode, SingleInputNode};
-use crate::query::planning::plan::core::nodes::traversal::traversal_node::{ExpandAllNode, TraverseNode};
-use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::RewriteRule;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
+    MultipleInputNode, SingleInputNode,
+};
+use crate::query::planning::plan::core::nodes::traversal::traversal_node::{
+    ExpandAllNode, TraverseNode,
+};
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// Rules for merging consecutive ExpandAll operations into Traverse
 #[derive(Debug)]
@@ -65,10 +69,7 @@ impl MergeConsecutiveExpandRule {
         merged
     }
 
-    fn apply_to_expand_all(
-        &self,
-        outer: &ExpandAllNode,
-    ) -> RewriteResult<Option<TransformResult>> {
+    fn apply_to_expand_all(&self, outer: &ExpandAllNode) -> RewriteResult<Option<TransformResult>> {
         let inner = match outer.inputs().first() {
             Some(PlanNodeEnum::ExpandAll(inner)) => inner,
             _ => return Ok(None),
@@ -143,8 +144,17 @@ mod tests {
 
     #[test]
     fn test_parse_direction() {
-        assert!(matches!(MergeConsecutiveExpandRule::parse_direction("OUT"), EdgeDirection::Out));
-        assert!(matches!(MergeConsecutiveExpandRule::parse_direction("IN"), EdgeDirection::In));
-        assert!(matches!(MergeConsecutiveExpandRule::parse_direction("BOTH"), EdgeDirection::Both));
+        assert!(matches!(
+            MergeConsecutiveExpandRule::parse_direction("OUT"),
+            EdgeDirection::Out
+        ));
+        assert!(matches!(
+            MergeConsecutiveExpandRule::parse_direction("IN"),
+            EdgeDirection::In
+        ));
+        assert!(matches!(
+            MergeConsecutiveExpandRule::parse_direction("BOTH"),
+            EdgeDirection::Both
+        ));
     }
 }

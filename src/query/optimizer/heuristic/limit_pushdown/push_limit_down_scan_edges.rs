@@ -3,10 +3,10 @@
 //! This rule identifies the “Limit -> ScanEdges” mode.
 //! And integrate the LIMIT value into the ScanEdges operation.
 
-use crate::query::planning::plan::core::nodes::access::graph_scan_node::ScanEdgesNode;
-use crate::query::planning::plan::core::nodes::operation::sort_node::LimitNode;
 use crate::query::optimizer::heuristic::macros::define_rewrite_pushdown_rule;
 use crate::query::optimizer::heuristic::result::TransformResult;
+use crate::query::planning::plan::core::nodes::access::graph_scan_node::ScanEdgesNode;
+use crate::query::planning::plan::core::nodes::operation::sort_node::LimitNode;
 
 define_rewrite_pushdown_rule! {
     /// The rule that pushes the LIMIT statement down to the operation level of the scan process

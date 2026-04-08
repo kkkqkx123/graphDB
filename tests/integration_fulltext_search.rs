@@ -53,9 +53,7 @@ async fn setup_coordinator() -> (FulltextCoordinator, TempDir) {
     (coordinator, temp_dir)
 }
 
-async fn setup_coordinator_with_engine(
-    engine_type: EngineType,
-) -> (FulltextCoordinator, TempDir) {
+async fn setup_coordinator_with_engine(engine_type: EngineType) -> (FulltextCoordinator, TempDir) {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let config = FulltextConfig {
         enabled: true,
@@ -76,19 +74,16 @@ async fn setup_coordinator_with_engine(
 async fn setup_sync_manager() -> (SyncManager, Arc<FulltextCoordinator>, TempDir) {
     let (coordinator, temp_dir) = setup_coordinator().await;
     let coordinator = Arc::new(coordinator);
-    
+
     let sync_config = SyncConfig {
         mode: SyncMode::Async,
         batch_size: 100,
         commit_interval_ms: 100,
         queue_size: 10000,
     };
-    
-    let sync_manager = SyncManager::with_sync_config(
-        coordinator.clone(),
-        sync_config,
-    );
-    
+
+    let sync_manager = SyncManager::with_sync_config(coordinator.clone(), sync_config);
+
     (sync_manager, coordinator, temp_dir)
 }
 
@@ -126,10 +121,16 @@ async fn test_fulltext_create_index() {
         .create_index(1, "Article", "title", Some(EngineType::Bm25))
         .await
         .expect("Failed to create index");
-    
+
     assert!(!index_id.is_empty(), "Index ID should not be empty");
-    assert!(index_id.contains("Article"), "Index ID should contain tag name");
-    assert!(index_id.contains("title"), "Index ID should contain field name");
+    assert!(
+        index_id.contains("Article"),
+        "Index ID should contain tag name"
+    );
+    assert!(
+        index_id.contains("title"),
+        "Index ID should contain field name"
+    );
 }
 
 #[tokio::test]
@@ -146,7 +147,7 @@ async fn test_fulltext_insert_and_search() {
         .on_vertex_inserted(1, &vertex)
         .await
         .expect("Failed to insert vertex");
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(200)).await;
 
@@ -154,7 +155,7 @@ async fn test_fulltext_insert_and_search() {
         .search(1, "Post", "content", "Hello", 10)
         .await
         .expect("Failed to search");
-    
+
     assert_eq!(results.len(), 1, "Expected 1 result for 'Hello'");
     assert_eq!(results[0].doc_id, Value::Int(1), "Doc ID should match");
     assert!(results[0].score > 0.0, "Score should be positive");
@@ -174,7 +175,7 @@ async fn test_fulltext_update_vertex() {
         .on_vertex_inserted(1, &vertex)
         .await
         .expect("Failed to insert vertex");
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(200)).await;
 
@@ -183,7 +184,7 @@ async fn test_fulltext_update_vertex() {
         .on_vertex_updated(1, &updated_vertex, &["title".to_string()])
         .await
         .expect("Failed to update vertex");
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(200)).await;
 
@@ -214,7 +215,7 @@ async fn test_fulltext_delete_vertex() {
         .on_vertex_inserted(1, &vertex)
         .await
         .expect("Failed to insert vertex");
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(200)).await;
 
@@ -222,7 +223,7 @@ async fn test_fulltext_delete_vertex() {
         .on_vertex_deleted(1, "Document", &Value::Int(1))
         .await
         .expect("Failed to delete vertex");
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(200)).await;
 
@@ -230,7 +231,7 @@ async fn test_fulltext_delete_vertex() {
         .search(1, "Document", "content", "deleted", 10)
         .await
         .expect("Failed to search");
-    
+
     assert_eq!(results.len(), 0, "Deleted document should not be found");
 }
 
@@ -244,12 +245,12 @@ async fn test_fulltext_multiple_fields_on_same_tag() {
         .create_index(1, "Article", "title", Some(EngineType::Bm25))
         .await
         .expect("Failed to create title index");
-    
+
     coordinator
         .create_index(1, "Article", "content", Some(EngineType::Bm25))
         .await
         .expect("Failed to create content index");
-    
+
     coordinator
         .create_index(1, "Article", "author", Some(EngineType::Bm25))
         .await
@@ -264,12 +265,12 @@ async fn test_fulltext_multiple_fields_on_same_tag() {
             ("author", "John Doe"),
         ],
     );
-    
+
     coordinator
         .on_vertex_inserted(1, &vertex)
         .await
         .expect("Failed to insert vertex");
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(200)).await;
 
@@ -300,7 +301,7 @@ async fn test_fulltext_same_field_on_different_tags() {
         .create_index(1, "Blog", "title", Some(EngineType::Bm25))
         .await
         .expect("Failed to create Blog index");
-    
+
     coordinator
         .create_index(1, "News", "title", Some(EngineType::Bm25))
         .await
@@ -313,12 +314,12 @@ async fn test_fulltext_same_field_on_different_tags() {
         .on_vertex_inserted(1, &blog_vertex)
         .await
         .expect("Failed to insert blog");
-    
+
     coordinator
         .on_vertex_inserted(1, &news_vertex)
         .await
         .expect("Failed to insert news");
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(200)).await;
 
@@ -363,7 +364,7 @@ async fn test_fulltext_batch_insert() {
             .await
             .expect("Failed to insert vertex");
     }
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(300)).await;
 
@@ -371,7 +372,7 @@ async fn test_fulltext_batch_insert() {
         .search(1, "Document", "content", "Document", 100)
         .await
         .expect("Failed to search");
-    
+
     assert_eq!(results.len(), 50, "Should find all 50 documents");
 }
 
@@ -395,7 +396,7 @@ async fn test_fulltext_batch_delete() {
             .await
             .expect("Failed to insert vertex");
     }
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(200)).await;
 
@@ -405,7 +406,7 @@ async fn test_fulltext_batch_delete() {
             .await
             .expect("Failed to delete vertex");
     }
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(200)).await;
 
@@ -413,7 +414,7 @@ async fn test_fulltext_batch_delete() {
         .search(1, "Article", "content", "Article", 100)
         .await
         .expect("Failed to search");
-    
+
     assert_eq!(results.len(), 10, "Should find remaining 10 articles");
 }
 
@@ -444,7 +445,7 @@ async fn test_fulltext_scoring_and_sorting() {
         .on_vertex_inserted(1, &vertex3)
         .await
         .expect("Failed to insert vertex 3");
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(200)).await;
 
@@ -452,9 +453,9 @@ async fn test_fulltext_scoring_and_sorting() {
         .search(1, "Post", "content", "Rust", 10)
         .await
         .expect("Failed to search");
-    
+
     assert_eq!(results.len(), 3, "Should find 3 posts");
-    
+
     assert!(
         results[0].score >= results[1].score,
         "Results should be sorted by score descending"
@@ -485,7 +486,7 @@ async fn test_fulltext_limit_and_offset() {
             .await
             .expect("Failed to insert vertex");
     }
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(200)).await;
 
@@ -516,12 +517,12 @@ async fn test_fulltext_special_characters() {
         "Document",
         vec![("content", "Special chars: @#$% ^&*()")],
     );
-    
+
     coordinator
         .on_vertex_inserted(1, &vertex)
         .await
         .expect("Failed to insert vertex");
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(200)).await;
 
@@ -529,7 +530,7 @@ async fn test_fulltext_special_characters() {
         .search(1, "Document", "content", "Special", 10)
         .await
         .expect("Failed to search");
-    
+
     assert_eq!(results.len(), 1, "Should find document with special chars");
 }
 
@@ -542,17 +543,13 @@ async fn test_fulltext_unicode_content() {
         .await
         .expect("Failed to create index");
 
-    let vertex = create_vertex(
-        1,
-        "Article",
-        vec![("title", "中文标题 🚀 Unicode テスト")],
-    );
-    
+    let vertex = create_vertex(1, "Article", vec![("title", "中文标题 🚀 Unicode テスト")]);
+
     coordinator
         .on_vertex_inserted(1, &vertex)
         .await
         .expect("Failed to insert vertex");
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(200)).await;
 
@@ -560,7 +557,7 @@ async fn test_fulltext_unicode_content() {
         .search(1, "Article", "title", "中文", 10)
         .await
         .expect("Failed to search");
-    
+
     assert_eq!(results.len(), 1, "Should find Unicode content");
 }
 
@@ -576,12 +573,12 @@ async fn test_fulltext_bm25_engine() {
         .expect("Failed to create index");
 
     let vertex = create_vertex(1, "Post", vec![("content", "BM25 engine test")]);
-    
+
     coordinator
         .on_vertex_inserted(1, &vertex)
         .await
         .expect("Failed to insert vertex");
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(200)).await;
 
@@ -589,7 +586,7 @@ async fn test_fulltext_bm25_engine() {
         .search(1, "Post", "content", "BM25", 10)
         .await
         .expect("Failed to search");
-    
+
     assert_eq!(results.len(), 1, "BM25 engine should work");
 }
 
@@ -603,12 +600,12 @@ async fn test_fulltext_inversearch_engine() {
         .expect("Failed to create index");
 
     let vertex = create_vertex(1, "Post", vec![("content", "Inversearch engine test")]);
-    
+
     coordinator
         .on_vertex_inserted(1, &vertex)
         .await
         .expect("Failed to insert vertex");
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(200)).await;
 
@@ -616,7 +613,7 @@ async fn test_fulltext_inversearch_engine() {
         .search(1, "Post", "content", "Inversearch", 10)
         .await
         .expect("Failed to search");
-    
+
     assert_eq!(results.len(), 1, "Inversearch engine should work");
 }
 
@@ -632,12 +629,12 @@ async fn test_sync_manager_async_mode() {
         .expect("Failed to create index");
 
     let vertex = create_vertex(1, "Article", vec![("content", "Async sync test")]);
-    
+
     coordinator
         .on_vertex_inserted(1, &vertex)
         .await
         .expect("Failed to insert vertex");
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(300)).await;
 
@@ -645,7 +642,7 @@ async fn test_sync_manager_async_mode() {
         .search(1, "Article", "content", "Async", 10)
         .await
         .expect("Failed to search");
-    
+
     assert_eq!(results.len(), 1, "Async sync should work");
 }
 
@@ -653,7 +650,7 @@ async fn test_sync_manager_async_mode() {
 async fn test_sync_manager_sync_mode() {
     let (coordinator, _temp) = setup_coordinator().await;
     let coordinator = Arc::new(coordinator);
-    
+
     let sync_manager = SyncManager::with_mode(coordinator.clone(), SyncMode::Sync);
 
     coordinator
@@ -662,25 +659,28 @@ async fn test_sync_manager_sync_mode() {
         .expect("Failed to create index");
 
     let vertex = create_vertex(1, "Document", vec![("title", "Sync mode test")]);
-    
+
     sync_manager
         .on_vertex_change(
             1,
             "Document",
             &Value::Int(1),
-            &[("title".to_string(), Value::String("Sync mode test".to_string()))],
+            &[(
+                "title".to_string(),
+                Value::String("Sync mode test".to_string()),
+            )],
             ChangeType::Insert,
         )
         .await
         .expect("Failed to sync vertex");
-    
+
     sleep(Duration::from_millis(200)).await;
 
     let results = coordinator
         .search(1, "Document", "title", "Sync", 10)
         .await
         .expect("Failed to search");
-    
+
     assert_eq!(results.len(), 1, "Sync mode should work");
 }
 
@@ -699,7 +699,7 @@ async fn test_fulltext_empty_search() {
         .search(1, "Article", "content", "nonexistent", 10)
         .await
         .expect("Failed to search");
-    
+
     assert_eq!(results.len(), 0, "Empty search should return 0 results");
 }
 
@@ -710,13 +710,13 @@ async fn test_fulltext_duplicate_index_creation() {
     let result1 = coordinator
         .create_index(1, "Article", "title", Some(EngineType::Bm25))
         .await;
-    
+
     assert!(result1.is_ok(), "First index creation should succeed");
 
     let result2 = coordinator
         .create_index(1, "Article", "title", Some(EngineType::Bm25))
         .await;
-    
+
     assert!(result2.is_err(), "Duplicate index creation should fail");
 }
 
@@ -727,7 +727,7 @@ async fn test_fulltext_non_existent_index_search() {
     let results = coordinator
         .search(999, "NonExistent", "field", "query", 10)
         .await;
-    
+
     assert!(results.is_err(), "Search on non-existent index should fail");
 }
 
@@ -741,12 +741,12 @@ async fn test_fulltext_rebuild_index() {
         .expect("Failed to create index");
 
     let vertex = create_vertex(1, "Article", vec![("content", "Test content for rebuild")]);
-    
+
     coordinator
         .on_vertex_inserted(1, &vertex)
         .await
         .expect("Failed to insert vertex");
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(200)).await;
 
@@ -754,13 +754,17 @@ async fn test_fulltext_rebuild_index() {
         .search(1, "Article", "content", "Test", 10)
         .await
         .expect("Failed to search before rebuild");
-    assert_eq!(before_results.len(), 1, "Should find content before rebuild");
+    assert_eq!(
+        before_results.len(),
+        1,
+        "Should find content before rebuild"
+    );
 
     coordinator
         .rebuild_index(1, "Article", "content")
         .await
         .expect("Failed to rebuild index");
-    
+
     sleep(Duration::from_millis(200)).await;
 
     let after_results = coordinator
@@ -803,20 +807,16 @@ async fn test_fulltext_concurrent_inserts() {
         let _ = handle.await;
     }
 
-    let coordinator = Arc::try_unwrap(coordinator)
-        .expect("Arc still has multiple owners");
-    coordinator
-        .commit_all()
-        .await
-        .expect("Failed to commit");
-    
+    let coordinator = Arc::try_unwrap(coordinator).expect("Arc still has multiple owners");
+    coordinator.commit_all().await.expect("Failed to commit");
+
     sleep(Duration::from_millis(300)).await;
 
     let results = coordinator
         .search(1, "Document", "content", "Concurrent", 100)
         .await
         .expect("Failed to search");
-    
+
     assert_eq!(results.len(), 50, "Should find all 50 concurrent inserts");
 }
 
@@ -831,12 +831,12 @@ async fn test_fulltext_concurrent_searches() {
         .expect("Failed to create index");
 
     let vertex = create_vertex(1, "Article", vec![("title", "Concurrent search test")]);
-    
+
     coordinator
         .on_vertex_inserted(1, &vertex)
         .await
         .expect("Failed to insert vertex");
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(200)).await;
 
@@ -854,9 +854,13 @@ async fn test_fulltext_concurrent_searches() {
     }
 
     let results = futures::future::join_all(handles).await;
-    
+
     for result_count in results {
-        assert_eq!(result_count.unwrap(), 1, "Each concurrent search should find 1 result");
+        assert_eq!(
+            result_count.unwrap(),
+            1,
+            "Each concurrent search should find 1 result"
+        );
     }
 }
 
@@ -888,17 +892,13 @@ async fn test_fulltext_with_storage_layer() {
         .expect("Failed to create index");
 
     // Create and insert vertex through coordinator
-    let person_vertex = create_vertex(
-        1,
-        "Person",
-        vec![("name", "Alice Johnson")],
-    );
+    let person_vertex = create_vertex(1, "Person", vec![("name", "Alice Johnson")]);
 
     coordinator
         .on_vertex_inserted(1, &person_vertex)
         .await
         .expect("Failed to insert vertex");
-    
+
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(200)).await;
 
@@ -907,7 +907,7 @@ async fn test_fulltext_with_storage_layer() {
         .search(1, "Person", "name", "Alice", 10)
         .await
         .expect("Failed to search");
-    
+
     assert_eq!(results.len(), 1, "Should find person by name");
     assert_eq!(results[0].doc_id, Value::Int(1), "Doc ID should match");
 }

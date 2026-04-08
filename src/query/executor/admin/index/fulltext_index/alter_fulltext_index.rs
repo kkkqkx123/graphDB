@@ -76,15 +76,12 @@ impl<S: StorageClient> AlterFulltextIndexExecutor<S> {
                         })?;
                 }
                 AlterIndexAction::Optimize => {
-                    self.coordinator
-                        .commit_all()
-                        .await
-                        .map_err(|e| {
-                            crate::core::error::DBError::Internal(format!(
-                                "Failed to optimize index: {}",
-                                e
-                            ))
-                        })?;
+                    self.coordinator.commit_all().await.map_err(|e| {
+                        crate::core::error::DBError::Internal(format!(
+                            "Failed to optimize index: {}",
+                            e
+                        ))
+                    })?;
                 }
                 AlterIndexAction::AddField(_) => {
                     return Err(crate::core::error::DBError::Internal(
@@ -116,8 +113,7 @@ impl<S: StorageClient> HasStorage<S> for AlterFulltextIndexExecutor<S> {
 
 impl<S: StorageClient> Executor<S> for AlterFulltextIndexExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        tokio::runtime::Handle::current()
-            .block_on(self.execute_alter_actions())
+        tokio::runtime::Handle::current().block_on(self.execute_alter_actions())
     }
 
     fn open(&mut self) -> DBResult<()> {

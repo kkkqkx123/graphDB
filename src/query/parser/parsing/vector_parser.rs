@@ -3,13 +3,13 @@
 //! This module implements the parser for vector search SQL statements,
 //! including CREATE VECTOR INDEX, SEARCH VECTOR, and related queries.
 
+use crate::query::parser::ast::stmt::Stmt;
 use crate::query::parser::ast::vector::{
     CreateVectorIndex, DropVectorIndex, LookupVector, MatchVector, OrderClause, OrderItem,
     SearchVectorStatement, VectorDistance, VectorIndexConfig, VectorMatchCondition,
     VectorOrderDirection, VectorQueryExpr, VectorQueryType, VectorYieldClause, VectorYieldItem,
     WhereClause, WhereCondition,
 };
-use crate::query::parser::ast::stmt::Stmt;
 use crate::query::parser::parsing::parse_context::ParseContext;
 use crate::query::parser::TokenKind;
 
@@ -277,10 +277,7 @@ fn parse_vector_query_expr(
     } else {
         return Err(crate::query::parser::ParseError::new(
             crate::query::parser::core::error::ParseErrorKind::SyntaxError,
-            format!(
-                "Expected 'vector', 'text', or 'param', found '{}'",
-                keyword
-            ),
+            format!("Expected 'vector', 'text', or 'param', found '{}'", keyword),
             ctx.current_position(),
         ));
     };
@@ -293,7 +290,9 @@ fn parse_vector_query_expr(
 }
 
 /// Parse vector literal
-fn parse_vector_literal(ctx: &mut ParseContext) -> Result<String, crate::query::parser::ParseError> {
+fn parse_vector_literal(
+    ctx: &mut ParseContext,
+) -> Result<String, crate::query::parser::ParseError> {
     ctx.expect_token(TokenKind::LBracket)?;
     let mut elements = Vec::new();
 
@@ -311,12 +310,14 @@ fn parse_vector_literal(ctx: &mut ParseContext) -> Result<String, crate::query::
 }
 
 /// Parse WHERE clause
-fn parse_where_clause(ctx: &mut ParseContext) -> Result<WhereClause, crate::query::parser::ParseError> {
+fn parse_where_clause(
+    ctx: &mut ParseContext,
+) -> Result<WhereClause, crate::query::parser::ParseError> {
     ctx.consume_keyword("WHERE")?;
-    
+
     // Simplified WHERE condition parsing - just parse basic comparison
     let left = ctx.consume_identifier()?;
-    
+
     // Parse comparison operator
     let op = if ctx.check_token(TokenKind::Eq) {
         ctx.consume_token("=")?;
@@ -343,16 +344,18 @@ fn parse_where_clause(ctx: &mut ParseContext) -> Result<WhereClause, crate::quer
             ctx.current_position(),
         ));
     };
-    
+
     // Parse right side value
     let right = ctx.consume_value()?;
-    
+
     let condition = WhereCondition::Comparison(left, op, right);
     Ok(WhereClause { condition })
 }
 
 /// Parse ORDER BY clause
-fn parse_order_clause(ctx: &mut ParseContext) -> Result<OrderClause, crate::query::parser::ParseError> {
+fn parse_order_clause(
+    ctx: &mut ParseContext,
+) -> Result<OrderClause, crate::query::parser::ParseError> {
     let mut items = Vec::new();
 
     loop {
@@ -376,7 +379,9 @@ fn parse_order_clause(ctx: &mut ParseContext) -> Result<OrderClause, crate::quer
 }
 
 /// Parse YIELD clause
-fn parse_vector_yield_clause(ctx: &mut ParseContext) -> Result<VectorYieldClause, crate::query::parser::ParseError> {
+fn parse_vector_yield_clause(
+    ctx: &mut ParseContext,
+) -> Result<VectorYieldClause, crate::query::parser::ParseError> {
     let mut items = Vec::new();
 
     loop {

@@ -3,10 +3,10 @@
 //! This rule identifies the “Limit -> ScanVertices” mode.
 //! And integrate the LIMIT value into the ScanVertices operation.
 
-use crate::query::planning::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;
-use crate::query::planning::plan::core::nodes::operation::sort_node::LimitNode;
 use crate::query::optimizer::heuristic::macros::define_rewrite_pushdown_rule;
 use crate::query::optimizer::heuristic::result::TransformResult;
+use crate::query::planning::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;
+use crate::query::planning::plan::core::nodes::operation::sort_node::LimitNode;
 
 define_rewrite_pushdown_rule! {
     /// The rule for pushing down the LIMIT statement to the operation that scans the vertices

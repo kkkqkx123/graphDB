@@ -25,9 +25,10 @@ use super::base::{
     BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, InputExecutor, StartExecutor,
 };
 use super::data_access::{
-    CreateVectorIndexExecutor, DropVectorIndexExecutor, FulltextScanExecutor, FulltextSearchExecutor, GetEdgesExecutor, GetNeighborsExecutor,
-    GetPropExecutor, GetVerticesExecutor, IndexScanExecutor, MatchFulltextExecutor,
-    ScanEdgesExecutor, ScanVerticesExecutor, VectorSearchExecutor, VectorLookupExecutor, VectorMatchExecutor,
+    CreateVectorIndexExecutor, DropVectorIndexExecutor, FulltextScanExecutor,
+    FulltextSearchExecutor, GetEdgesExecutor, GetNeighborsExecutor, GetPropExecutor,
+    GetVerticesExecutor, IndexScanExecutor, MatchFulltextExecutor, ScanEdgesExecutor,
+    ScanVerticesExecutor, VectorLookupExecutor, VectorMatchExecutor, VectorSearchExecutor,
 };
 use super::data_modification::{DeleteExecutor, InsertExecutor, RemoveExecutor, UpdateExecutor};
 use super::data_processing::graph_traversal::algorithms::BFSShortestExecutor;

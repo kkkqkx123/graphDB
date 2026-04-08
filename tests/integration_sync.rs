@@ -966,8 +966,9 @@ mod vector_sync_tests {
             let vector_coordinator = Arc::new(VectorCoordinator::new(vector_manager.clone()));
 
             // Setup sync manager with both coordinators
-            let sync_manager = SyncManager::with_sync_config(fulltext_coordinator.clone(), fulltext_config.sync)
-                .with_vector_coordinator(vector_coordinator.clone());
+            let sync_manager =
+                SyncManager::with_sync_config(fulltext_coordinator.clone(), fulltext_config.sync)
+                    .with_vector_coordinator(vector_coordinator.clone());
             let sync_manager = Arc::new(sync_manager);
 
             Self {
@@ -980,13 +981,25 @@ mod vector_sync_tests {
     }
 
     fn create_test_vector(size: usize, offset: f32) -> Vec<f32> {
-        (0..size).map(|i| (i as f32 + offset) / size as f32).collect()
+        (0..size)
+            .map(|i| (i as f32 + offset) / size as f32)
+            .collect()
     }
 
-    fn create_test_vertex_with_vector(vid: i64, tag_name: &str, field_name: &str, vector: Vec<f32>) -> Vertex {
+    fn create_test_vertex_with_vector(
+        vid: i64,
+        tag_name: &str,
+        field_name: &str,
+        vector: Vec<f32>,
+    ) -> Vertex {
         let mut props = HashMap::new();
         let list_values: Vec<Value> = vector.iter().map(|&v| Value::Float(v as f64)).collect();
-        props.insert(field_name.to_string(), Value::List(graphdb::core::List { values: list_values }));
+        props.insert(
+            field_name.to_string(),
+            Value::List(graphdb::core::List {
+                values: list_values,
+            }),
+        );
         let tag = Tag::new(tag_name.to_string(), props);
         Vertex::new(Value::Int(vid), vec![tag])
     }
@@ -1032,7 +1045,11 @@ mod vector_sync_tests {
             .await
             .expect("Failed to search");
 
-        assert_eq!(results.len(), 1, "Sync mode should process vector immediately");
+        assert_eq!(
+            results.len(),
+            1,
+            "Sync mode should process vector immediately"
+        );
         assert_eq!(results[0].id, "1");
     }
 
@@ -1077,7 +1094,11 @@ mod vector_sync_tests {
             .await
             .expect("Failed to search");
 
-        assert_eq!(results.len(), 1, "Async mode should process vector after commit");
+        assert_eq!(
+            results.len(),
+            1,
+            "Async mode should process vector after commit"
+        );
     }
 
     #[tokio::test]
@@ -1135,7 +1156,8 @@ mod vector_sync_tests {
 
         // Insert initial vector
         let old_vector = create_test_vector(3, 0.0);
-        let vertex_old = create_test_vertex_with_vector(1, "Document", "embedding", old_vector.clone());
+        let vertex_old =
+            create_test_vertex_with_vector(1, "Document", "embedding", old_vector.clone());
 
         let old_properties: Vec<(String, Value)> = vertex_old.tags[0]
             .properties
@@ -1144,7 +1166,13 @@ mod vector_sync_tests {
             .collect();
 
         ctx.sync_manager
-            .on_vertex_change(1, "Document", &Value::Int(1), &old_properties, ChangeType::Insert)
+            .on_vertex_change(
+                1,
+                "Document",
+                &Value::Int(1),
+                &old_properties,
+                ChangeType::Insert,
+            )
             .await
             .expect("Failed to insert initial vector");
 
@@ -1156,7 +1184,8 @@ mod vector_sync_tests {
 
         // Update vector
         let new_vector = create_test_vector(3, 1.0);
-        let vertex_new = create_test_vertex_with_vector(1, "Document", "embedding", new_vector.clone());
+        let vertex_new =
+            create_test_vertex_with_vector(1, "Document", "embedding", new_vector.clone());
 
         let new_properties: Vec<(String, Value)> = vertex_new.tags[0]
             .properties
@@ -1165,7 +1194,13 @@ mod vector_sync_tests {
             .collect();
 
         ctx.sync_manager
-            .on_vertex_change(1, "Document", &Value::Int(1), &new_properties, ChangeType::Update)
+            .on_vertex_change(
+                1,
+                "Document",
+                &Value::Int(1),
+                &new_properties,
+                ChangeType::Update,
+            )
             .await
             .expect("Failed to update vector");
 
@@ -1213,7 +1248,13 @@ mod vector_sync_tests {
 
         // Insert vector
         ctx.sync_manager
-            .on_vertex_change(1, "Document", &Value::Int(1), &properties, ChangeType::Insert)
+            .on_vertex_change(
+                1,
+                "Document",
+                &Value::Int(1),
+                &properties,
+                ChangeType::Insert,
+            )
             .await
             .expect("Failed to insert vector");
 
@@ -1253,7 +1294,10 @@ mod vector_sync_tests {
         // This test documents the expected behavior
         // assert_eq!(results.len(), 0, "Deleted vector should not be searchable");
         // For now, just verify the delete operation doesn't crash
-        println!("Delete test: found {} results after deletion", results.len());
+        println!(
+            "Delete test: found {} results after deletion",
+            results.len()
+        );
     }
 
     #[tokio::test]
@@ -1276,8 +1320,16 @@ mod vector_sync_tests {
         let mut props = HashMap::new();
 
         let list_values: Vec<Value> = vector.iter().map(|&v| Value::Float(v as f64)).collect();
-        props.insert("embedding".to_string(), Value::List(graphdb::core::List { values: list_values }));
-        props.insert("content".to_string(), Value::String("Test content for fulltext search".to_string()));
+        props.insert(
+            "embedding".to_string(),
+            Value::List(graphdb::core::List {
+                values: list_values,
+            }),
+        );
+        props.insert(
+            "content".to_string(),
+            Value::String("Test content for fulltext search".to_string()),
+        );
 
         let tag = Tag::new("Document".to_string(), props);
         let vertex = Vertex::new(Value::Int(1), vec![tag]);
@@ -1289,7 +1341,13 @@ mod vector_sync_tests {
             .collect();
 
         ctx.sync_manager
-            .on_vertex_change(1, "Document", &Value::Int(1), &properties, ChangeType::Insert)
+            .on_vertex_change(
+                1,
+                "Document",
+                &Value::Int(1),
+                &properties,
+                ChangeType::Insert,
+            )
             .await
             .expect("Failed to process vertex");
 
@@ -1314,7 +1372,11 @@ mod vector_sync_tests {
             .expect("Failed to search fulltext");
 
         assert_eq!(vector_results.len(), 1, "Vector search should find result");
-        assert_eq!(fulltext_results.len(), 1, "Fulltext search should find result");
+        assert_eq!(
+            fulltext_results.len(),
+            1,
+            "Fulltext search should find result"
+        );
     }
 
     #[tokio::test]
@@ -1338,7 +1400,13 @@ mod vector_sync_tests {
                 .collect();
 
             ctx.sync_manager
-                .on_vertex_change(1, "Document", &Value::Int(i + 1), &properties, ChangeType::Insert)
+                .on_vertex_change(
+                    1,
+                    "Document",
+                    &Value::Int(i + 1),
+                    &properties,
+                    ChangeType::Insert,
+                )
                 .await
                 .expect("Failed to submit vector task");
         }
@@ -1357,7 +1425,11 @@ mod vector_sync_tests {
             .await
             .expect("Failed to search");
 
-        assert_eq!(results.len(), 5, "All batch inserted vectors should be indexed");
+        assert_eq!(
+            results.len(),
+            5,
+            "All batch inserted vectors should be indexed"
+        );
     }
 
     #[tokio::test]
@@ -1383,7 +1455,13 @@ mod vector_sync_tests {
             .collect();
 
         ctx.sync_manager
-            .on_vertex_change(1, "Document", &Value::Int(1), &properties1, ChangeType::Insert)
+            .on_vertex_change(
+                1,
+                "Document",
+                &Value::Int(1),
+                &properties1,
+                ChangeType::Insert,
+            )
             .await
             .expect("Failed to process in Sync mode");
 
@@ -1405,7 +1483,13 @@ mod vector_sync_tests {
             .collect();
 
         ctx.sync_manager
-            .on_vertex_change(1, "Document", &Value::Int(2), &properties2, ChangeType::Insert)
+            .on_vertex_change(
+                1,
+                "Document",
+                &Value::Int(2),
+                &properties2,
+                ChangeType::Insert,
+            )
             .await
             .expect("Should not fail in Off mode");
 

@@ -15,11 +15,19 @@ use crate::storage::StorageClient;
 use crate::vector::VectorCoordinator;
 use parking_lot::Mutex;
 
-fn convert_distance(dist: crate::query::parser::ast::vector::VectorDistance) -> crate::vector::config::VectorDistance {
+fn convert_distance(
+    dist: crate::query::parser::ast::vector::VectorDistance,
+) -> crate::vector::config::VectorDistance {
     match dist {
-        crate::query::parser::ast::vector::VectorDistance::Cosine => crate::vector::config::VectorDistance::Cosine,
-        crate::query::parser::ast::vector::VectorDistance::Euclidean => crate::vector::config::VectorDistance::Euclid,
-        crate::query::parser::ast::vector::VectorDistance::Dot => crate::vector::config::VectorDistance::Dot,
+        crate::query::parser::ast::vector::VectorDistance::Cosine => {
+            crate::vector::config::VectorDistance::Cosine
+        }
+        crate::query::parser::ast::vector::VectorDistance::Euclidean => {
+            crate::vector::config::VectorDistance::Euclid
+        }
+        crate::query::parser::ast::vector::VectorDistance::Dot => {
+            crate::vector::config::VectorDistance::Dot
+        }
     }
 }
 
@@ -57,16 +65,12 @@ impl<S: StorageClient> CreateVectorIndexExecutor<S> {
 impl<S: StorageClient> Executor<S> for CreateVectorIndexExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         // Get space_id from execution context
-        let space_id = self
-            .base
-            .context
-            .current_space_id()
-            .unwrap_or(0);
+        let space_id = self.base.context.current_space_id().unwrap_or(0);
 
         // Check if index already exists
-        let exists = self
-            .coordinator
-            .index_exists(space_id, &self.node.tag_name, &self.node.field_name);
+        let exists =
+            self.coordinator
+                .index_exists(space_id, &self.node.tag_name, &self.node.field_name);
 
         if exists {
             if !self.node.if_not_exists {
@@ -99,17 +103,10 @@ impl<S: StorageClient> Executor<S> for CreateVectorIndexExecutor<S> {
         tokio::runtime::Handle::current()
             .block_on(async move {
                 coordinator
-                    .create_vector_index_with_config(
-                        space_id,
-                        &tag_name,
-                        &field_name,
-                        config,
-                    )
+                    .create_vector_index_with_config(space_id, &tag_name, &field_name, config)
                     .await
             })
-            .map_err(|e| {
-                DBError::Internal(format!("Failed to create vector index: {}", e))
-            })?;
+            .map_err(|e| DBError::Internal(format!("Failed to create vector index: {}", e)))?;
 
         Ok(ExecutionResult::Success)
     }
@@ -149,7 +146,10 @@ impl<S: StorageClient> Executor<S> for CreateVectorIndexExecutor<S> {
 
 impl<S: StorageClient> HasStorage<S> for CreateVectorIndexExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("storage should be initialized")
+        self.base
+            .storage
+            .as_ref()
+            .expect("storage should be initialized")
     }
 }
 
@@ -187,17 +187,13 @@ impl<S: StorageClient> DropVectorIndexExecutor<S> {
 impl<S: StorageClient> Executor<S> for DropVectorIndexExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         // Get space_id from execution context
-        let space_id = self
-            .base
-            .context
-            .current_space_id()
-            .unwrap_or(0);
+        let space_id = self.base.context.current_space_id().unwrap_or(0);
 
         // Find index metadata by name
         let indexes = self.coordinator.list_indexes();
-        let index_metadata = indexes.iter().find(|idx| {
-            idx.collection_name == self.node.index_name
-        });
+        let index_metadata = indexes
+            .iter()
+            .find(|idx| idx.collection_name == self.node.index_name);
 
         if index_metadata.is_none() {
             if !self.node.if_exists {
@@ -222,9 +218,7 @@ impl<S: StorageClient> Executor<S> for DropVectorIndexExecutor<S> {
                     .drop_vector_index(space_id, &tag_name, &field_name)
                     .await
             })
-            .map_err(|e| {
-                DBError::Internal(format!("Failed to drop vector index: {}", e))
-            })?;
+            .map_err(|e| DBError::Internal(format!("Failed to drop vector index: {}", e)))?;
 
         Ok(ExecutionResult::Success)
     }
@@ -264,6 +258,9 @@ impl<S: StorageClient> Executor<S> for DropVectorIndexExecutor<S> {
 
 impl<S: StorageClient> HasStorage<S> for DropVectorIndexExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("storage should be initialized")
+        self.base
+            .storage
+            .as_ref()
+            .expect("storage should be initialized")
     }
 }

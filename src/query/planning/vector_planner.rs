@@ -8,11 +8,11 @@ use crate::query::parser::ast::vector::{
     CreateVectorIndex, DropVectorIndex, LookupVector, MatchVector, SearchVectorStatement,
 };
 use crate::query::parser::ast::Stmt;
-use crate::query::planning::plan::SubPlan;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::query::planning::plan::core::nodes::data_access::vector_search::{
     CreateVectorIndexNode, DropVectorIndexNode, VectorLookupNode, VectorMatchNode, VectorSearchNode,
 };
+use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
 
@@ -40,18 +40,14 @@ impl Planner for VectorSearchPlanner {
             Stmt::CreateVectorIndex(create) => {
                 self.transform_create_vector_index(create, &space_name)
             }
-            Stmt::DropVectorIndex(drop) => {
-                self.transform_drop_vector_index(drop, &space_name)
-            }
+            Stmt::DropVectorIndex(drop) => self.transform_drop_vector_index(drop, &space_name),
             Stmt::SearchVector(search) => {
                 self.transform_search_vector(search, space_id, &space_name, qctx.clone())
             }
             Stmt::LookupVector(lookup) => {
                 self.transform_lookup_vector(lookup, space_id, &space_name)
             }
-            Stmt::MatchVector(match_stmt) => {
-                self.transform_match_vector(match_stmt, space_id)
-            }
+            Stmt::MatchVector(match_stmt) => self.transform_match_vector(match_stmt, space_id),
             _ => Err(PlannerError::PlanGenerationFailed(
                 "Not a vector search statement".to_string(),
             )),

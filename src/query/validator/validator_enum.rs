@@ -34,7 +34,6 @@ use crate::query::validator::dml::query_validator::QueryValidator;
 use crate::query::validator::dml::set_operation_validator::SetOperationValidator;
 use crate::query::validator::dml::use_validator::UseValidator;
 use crate::query::validator::fulltext_validator::FulltextValidator;
-use crate::query::validator::vector_validator::VectorValidator;
 use crate::query::validator::statements::create_validator::CreateValidator;
 use crate::query::validator::statements::delete_validator::DeleteValidator;
 use crate::query::validator::statements::fetch_edges_validator::FetchEdgesValidator;
@@ -57,6 +56,7 @@ use crate::query::validator::utility::acl_validator::{
 };
 use crate::query::validator::utility::explain_validator::{ExplainValidator, ProfileValidator};
 use crate::query::validator::utility::update_config_validator::UpdateConfigsValidator;
+use crate::query::validator::vector_validator::VectorValidator;
 
 /// Unified Validator Enumeration
 ///

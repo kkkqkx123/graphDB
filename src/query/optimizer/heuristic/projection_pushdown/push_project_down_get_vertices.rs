@@ -17,13 +17,13 @@
 //! ```
 
 use crate::core::YieldColumn;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planning::plan::core::nodes::GetVerticesNode;
-use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::{PushDownRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::core::nodes::GetVerticesNode;
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// GetVertices Projection Pushdown Rule
 ///

@@ -29,8 +29,8 @@ use crate::core::error::optimize::OptimizeResult;
 use crate::query::optimizer::analysis::BatchPlanAnalysis;
 use crate::query::optimizer::context::OptimizationContext;
 use crate::query::optimizer::cost::StrategyThresholds;
-use crate::query::optimizer::stats::StatisticsManager;
 use crate::query::optimizer::cost_based::trait_def::OptimizationStrategy;
+use crate::query::optimizer::stats::StatisticsManager;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planning::plan::core::nodes::{MaterializeNode, PlanNodeEnum};
 

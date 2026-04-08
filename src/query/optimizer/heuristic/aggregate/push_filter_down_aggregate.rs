@@ -31,14 +31,14 @@ use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::visitor_checkers::AggregateFunctionChecker;
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Expression;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planning::plan::core::nodes::data_processing::aggregate_node::AggregateNode;
-use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
-use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::{PushDownRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::core::nodes::data_processing::aggregate_node::AggregateNode;
+use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// Rules that filter the data before it is aggregated
 #[derive(Debug)]

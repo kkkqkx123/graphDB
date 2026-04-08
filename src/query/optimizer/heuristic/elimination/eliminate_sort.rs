@@ -26,13 +26,13 @@
 //! As soon as it is detected that the input is in order and matches the sorting requirements, the sorting process is directly canceled.
 //! The cost-based TopN conversion decision-making mechanism is still implemented in the strategy::sort_elimination module.
 
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planning::plan::core::nodes::{SortItem, SortNode};
-use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::{EliminationRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::core::nodes::{SortItem, SortNode};
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// Sorting elimination rules
 ///

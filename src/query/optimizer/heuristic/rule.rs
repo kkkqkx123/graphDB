@@ -5,10 +5,10 @@
 //!
 //! This is a version that has been separated from the optimizer layer and focuses on the requirements of the planner layer.
 
-use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{MatchedResult, RewriteResult, TransformResult};
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// Rewrite the rule for the `trait`.
 ///

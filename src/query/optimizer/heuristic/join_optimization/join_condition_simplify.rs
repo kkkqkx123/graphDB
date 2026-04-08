@@ -33,17 +33,16 @@
 //! JOIN condition is a constant true.
 //! JOIN conditions can be simplified.
 
-use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::operators::BinaryOperator;
 use crate::core::{Expression, Value};
-use crate::query::planning::plan::core::nodes::join::join_node::{
-    CrossJoinNode, HashInnerJoinNode, InnerJoinNode,
-};
-use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteError, RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::RewriteRule;
+use crate::query::planning::plan::core::nodes::join::join_node::{
+    CrossJoinNode, HashInnerJoinNode, InnerJoinNode,
+};
+use crate::query::planning::plan::PlanNodeEnum;
 use std::collections::HashSet;
 
 /// Rules for simplifying JOIN conditions
@@ -75,7 +74,11 @@ impl JoinConditionSimplifyRule {
                 parts.join(" AND ")
             }
             Expression::Binary { left, op, right } if *op == BinaryOperator::Or => {
-                format!("{} OR {}", self.normalize_expression(left), self.normalize_expression(right))
+                format!(
+                    "{} OR {}",
+                    self.normalize_expression(left),
+                    self.normalize_expression(right)
+                )
             }
             Expression::Binary { left, op, right } => {
                 let left_str = self.normalize_expression(left);
@@ -93,7 +96,8 @@ impl JoinConditionSimplifyRule {
                 format!("{}.{}", self.normalize_expression(object), property)
             }
             Expression::Function { name, args } => {
-                let args_str: Vec<String> = args.iter().map(|a| self.normalize_expression(a)).collect();
+                let args_str: Vec<String> =
+                    args.iter().map(|a| self.normalize_expression(a)).collect();
                 format!("{}({})", name, args_str.join(","))
             }
             Expression::Literal(v) => match v {
@@ -166,7 +170,6 @@ impl JoinConditionSimplifyRule {
     fn apply_to_hash_inner_join(
         &self,
         join: &HashInnerJoinNode,
-        ctx: &RewriteContext,
     ) -> RewriteResult<Option<TransformResult>> {
         let hash_keys = join.hash_keys();
         let probe_keys = join.probe_keys();
@@ -186,10 +189,13 @@ impl JoinConditionSimplifyRule {
         });
 
         if all_true {
-            let cross_join = CrossJoinNode::new(join.left_input().clone(), join.right_input().clone())
-                .map_err(|e| {
-                    RewriteError::rewrite_failed(format!("Failed to create CrossJoinNode: {:?}", e))
-                })?;
+            let cross_join = CrossJoinNode::new(
+                join.left_input().clone(),
+                join.right_input().clone(),
+            )
+            .map_err(|e| {
+                RewriteError::rewrite_failed(format!("Failed to create CrossJoinNode: {:?}", e))
+            })?;
 
             let mut result = TransformResult::new();
             result.erase_curr = true;
@@ -200,11 +206,7 @@ impl JoinConditionSimplifyRule {
         Ok(None)
     }
 
-    fn apply_to_inner_join(
-        &self,
-        join: &InnerJoinNode,
-        ctx: &RewriteContext,
-    ) -> RewriteResult<Option<TransformResult>> {
+    fn apply_to_inner_join(&self, join: &InnerJoinNode) -> RewriteResult<Option<TransformResult>> {
         let hash_keys = join.hash_keys();
         let probe_keys = join.probe_keys();
 
@@ -223,10 +225,13 @@ impl JoinConditionSimplifyRule {
         });
 
         if all_true {
-            let cross_join = CrossJoinNode::new(join.left_input().clone(), join.right_input().clone())
-                .map_err(|e| {
-                    RewriteError::rewrite_failed(format!("Failed to create CrossJoinNode: {:?}", e))
-                })?;
+            let cross_join = CrossJoinNode::new(
+                join.left_input().clone(),
+                join.right_input().clone(),
+            )
+            .map_err(|e| {
+                RewriteError::rewrite_failed(format!("Failed to create CrossJoinNode: {:?}", e))
+            })?;
 
             let mut result = TransformResult::new();
             result.erase_curr = true;
@@ -255,12 +260,12 @@ impl RewriteRule for JoinConditionSimplifyRule {
 
     fn apply(
         &self,
-        ctx: &mut RewriteContext,
+        _ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
         match node {
-            PlanNodeEnum::HashInnerJoin(join) => self.apply_to_hash_inner_join(join, ctx),
-            PlanNodeEnum::InnerJoin(join) => self.apply_to_inner_join(join, ctx),
+            PlanNodeEnum::HashInnerJoin(join) => self.apply_to_hash_inner_join(join),
+            PlanNodeEnum::InnerJoin(join) => self.apply_to_inner_join(join),
             _ => Ok(None),
         }
     }
@@ -295,10 +300,7 @@ mod tests {
     fn test_extract_and_conditions() {
         let rule = JoinConditionSimplifyRule::new();
 
-        let expr = Expression::and(
-            Expression::variable("a"),
-            Expression::variable("b"),
-        );
+        let expr = Expression::and(Expression::variable("a"), Expression::variable("b"));
         let conditions = rule.extract_and_conditions(&expr);
         assert_eq!(conditions.len(), 2);
 
@@ -311,14 +313,8 @@ mod tests {
     fn test_remove_duplicate_conditions() {
         let rule = JoinConditionSimplifyRule::new();
 
-        let cond1 = Expression::eq(
-            Expression::variable("a.id"),
-            Expression::variable("b.id"),
-        );
-        let cond2 = Expression::eq(
-            Expression::variable("b.id"),
-            Expression::variable("a.id"),
-        );
+        let cond1 = Expression::eq(Expression::variable("a.id"), Expression::variable("b.id"));
+        let cond2 = Expression::eq(Expression::variable("b.id"), Expression::variable("a.id"));
         let expr = Expression::and(cond1, cond2);
 
         let result = rule.remove_duplicate_conditions(&expr);

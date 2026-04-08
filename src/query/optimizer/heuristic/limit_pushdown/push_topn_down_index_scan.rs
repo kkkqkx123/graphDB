@@ -3,10 +3,10 @@
 //! This rule identifies the TopN -> IndexScan mode.
 //! Integrate the limitations of TopN and the sorting information into the IndexScan operation.
 
-use crate::query::planning::plan::core::nodes::access::{IndexScanNode, OrderByItem};
-use crate::query::planning::plan::core::nodes::operation::sort_node::TopNNode;
 use crate::query::optimizer::heuristic::macros::define_rewrite_pushdown_rule;
 use crate::query::optimizer::heuristic::result::TransformResult;
+use crate::query::planning::plan::core::nodes::access::{IndexScanNode, OrderByItem};
+use crate::query::planning::plan::core::nodes::operation::sort_node::TopNNode;
 
 define_rewrite_pushdown_rule! {
     /// Rules for pushing the TopN results down to the index scanning operation

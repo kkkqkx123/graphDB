@@ -10,12 +10,12 @@
 //! Better cache locality
 //! Compilers can perform in-line optimizations.
 
-use crate::query::planning::plan::ExecutionPlan;
-use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::result::RewriteResult;
 use crate::query::optimizer::heuristic::rule_enum::{RewriteRule as RewriteRuleEnum, RuleRegistry};
 use crate::query::optimizer::heuristic::visitor::ChildRewriteVisitor;
+use crate::query::planning::plan::ExecutionPlan;
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// Plan Rewriter
 ///

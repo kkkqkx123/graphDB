@@ -28,13 +28,12 @@
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::visitor::ExpressionVisitor;
 use crate::core::types::expr::visitor_collectors::VariableCollector;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planning::plan::core::nodes::join::join_node::HashInnerJoinNode;
-use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::RewriteRule;
+use crate::query::planning::plan::core::nodes::join::join_node::HashInnerJoinNode;
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// Rules for index-based JOIN selection
 #[derive(Debug)]
@@ -56,8 +55,8 @@ impl IndexJoinSelectionRule {
     }
 
     fn is_indexable_join_key(&self, key: &str) -> bool {
-        key.ends_with(".id") 
-            || key.ends_with("._src") 
+        key.ends_with(".id")
+            || key.ends_with("._src")
             || key.ends_with("._dst")
             || key.contains("id")
     }
@@ -68,17 +67,11 @@ impl IndexJoinSelectionRule {
         build_cost + probe_cost
     }
 
-    fn estimate_index_join_cost(&self, left_rows: f64, right_rows: f64, selectivity: f64) -> f64 {
-        let index_lookup_cost = left_rows * selectivity * 2.0;
-        index_lookup_cost
+    fn estimate_index_join_cost(&self, left_rows: f64, _right_rows: f64, selectivity: f64) -> f64 {
+        left_rows * selectivity * 2.0
     }
 
-    fn should_use_index_join(
-        &self,
-        left_rows: f64,
-        right_rows: f64,
-        selectivity: f64,
-    ) -> bool {
+    fn should_use_index_join(&self, left_rows: f64, right_rows: f64, selectivity: f64) -> bool {
         if left_rows <= 0.0 || right_rows <= 0.0 {
             return false;
         }
@@ -173,10 +166,10 @@ mod tests {
     #[test]
     fn test_cost_estimation() {
         let rule = IndexJoinSelectionRule::new();
-        
+
         let hash_cost = rule.estimate_hash_join_cost(1000.0, 1000.0);
         assert!(hash_cost > 0.0);
-        
+
         let index_cost = rule.estimate_index_join_cost(1000.0, 1000.0, 0.1);
         assert!(index_cost > 0.0);
     }
@@ -184,7 +177,7 @@ mod tests {
     #[test]
     fn test_should_use_index_join() {
         let rule = IndexJoinSelectionRule::new();
-        
+
         assert!(rule.should_use_index_join(100.0, 10000.0, 0.01));
         assert!(!rule.should_use_index_join(10000.0, 100.0, 0.5));
     }

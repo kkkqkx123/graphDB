@@ -30,16 +30,16 @@
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::visitor_checkers::PathBuildContainsChecker;
+use crate::query::optimizer::heuristic::context::RewriteContext;
+use crate::query::optimizer::heuristic::pattern::Pattern;
+use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
+use crate::query::optimizer::heuristic::rule::RewriteRule;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
     MultipleInputNode, SingleInputNode,
 };
 use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
 use crate::query::planning::plan::core::nodes::traversal::traversal_node::AppendVerticesNode;
 use crate::query::planning::plan::PlanNodeEnum;
-use crate::query::optimizer::heuristic::context::RewriteContext;
-use crate::query::optimizer::heuristic::pattern::Pattern;
-use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
-use crate::query::optimizer::heuristic::rule::RewriteRule;
 
 /// Rules for removing redundancy and adding vertex operations
 ///

@@ -10,14 +10,14 @@
 //! Easy to expand: When adding new node types, you only need to implement the corresponding methods.
 //! – Compatible with the existing architecture: Make use of the existing PlanNodeVisitor.
 
+use crate::query::optimizer::heuristic::context::RewriteContext;
+use crate::query::optimizer::heuristic::plan_rewriter::PlanRewriter;
+use crate::query::optimizer::heuristic::result::RewriteResult;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
     MultipleInputNode, SingleInputNode,
 };
 use crate::query::planning::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor;
 use crate::query::planning::plan::PlanNodeEnum;
-use crate::query::optimizer::heuristic::context::RewriteContext;
-use crate::query::optimizer::heuristic::plan_rewriter::PlanRewriter;
-use crate::query::optimizer::heuristic::result::RewriteResult;
 
 use crate::query::planning::plan::core::nodes::access::graph_scan_node::{
     EdgeIndexScanNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode,

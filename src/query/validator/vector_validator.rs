@@ -168,10 +168,7 @@ impl VectorValidator {
         Ok(())
     }
 
-    fn validate_lookup(
-        &self,
-        lookup: &LookupVector,
-    ) -> Result<ValidationInfo, ValidationError> {
+    fn validate_lookup(&self, lookup: &LookupVector) -> Result<ValidationInfo, ValidationError> {
         if lookup.schema_name.is_empty() {
             return Err(ValidationError::new(
                 "Schema name cannot be empty",
@@ -200,10 +197,7 @@ impl VectorValidator {
         Ok(ValidationInfo::new())
     }
 
-    fn validate_match(
-        &self,
-        match_stmt: &MatchVector,
-    ) -> Result<ValidationInfo, ValidationError> {
+    fn validate_match(&self, match_stmt: &MatchVector) -> Result<ValidationInfo, ValidationError> {
         if match_stmt.pattern.is_empty() {
             return Err(ValidationError::new(
                 "Match pattern cannot be empty",

@@ -5,9 +5,9 @@
 
 use std::sync::Arc;
 
-use crate::query::optimizer::OptimizerEngine;
 use crate::query::optimizer::heuristic::PlanRewriter;
 use crate::query::optimizer::pipeline::config::PipelineConfig;
+use crate::query::optimizer::OptimizerEngine;
 use crate::query::planning::plan::ExecutionPlan;
 
 /// Optimization result type

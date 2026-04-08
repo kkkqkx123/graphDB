@@ -13,10 +13,10 @@ use crate::query::executor::base::{
     BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, HasStorage,
 };
 use crate::query::parser::ast::vector::{VectorQueryExpr, VectorQueryType};
+use crate::query::planning::plan::core::nodes::data_access::vector_search::VectorLookupNode;
 use crate::query::planning::plan::core::nodes::data_access::vector_search::{
     OutputField, VectorSearchNode,
 };
-use crate::query::planning::plan::core::nodes::data_access::vector_search::VectorLookupNode;
 use crate::storage::StorageClient;
 use crate::vector::VectorCoordinator;
 use parking_lot::Mutex;
@@ -57,23 +57,22 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
         match query.query_type {
             VectorQueryType::Vector => {
                 // Parse vector literal: [0.1, 0.2, 0.3, ...]
-                self.parse_vector_literal(&query.query_data)
-                    .ok_or_else(|| {
-                        DBError::Validation(format!("Invalid vector format: {}", query.query_data))
-                    })
+                self.parse_vector_literal(&query.query_data).ok_or_else(|| {
+                    DBError::Validation(format!("Invalid vector format: {}", query.query_data))
+                })
             }
             VectorQueryType::Text => {
                 // Text query: use embedding service to convert text to vector
                 let text = &query.query_data;
                 let coordinator = self.coordinator.clone();
-                
+
                 // Use tokio runtime to execute async embedding
-                tokio::runtime::Handle::current()
-                    .block_on(async move {
-                        coordinator.embed_text(text)
-                            .await
-                            .map_err(|e| DBError::Internal(format!("Text embedding failed: {}", e)))
-                    })
+                tokio::runtime::Handle::current().block_on(async move {
+                    coordinator
+                        .embed_text(text)
+                        .await
+                        .map_err(|e| DBError::Internal(format!("Text embedding failed: {}", e)))
+                })
             }
             VectorQueryType::Parameter => {
                 // Parameter reference: resolve from execution context
@@ -87,22 +86,25 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
                                     if let crate::core::Value::Float(f) = v {
                                         Ok(*f as f32)
                                     } else {
-                                        Err(DBError::Validation(
-                                            format!("Parameter {} contains non-float value", param_name)
-                                        ))
+                                        Err(DBError::Validation(format!(
+                                            "Parameter {} contains non-float value",
+                                            param_name
+                                        )))
                                     }
                                 })
                                 .collect();
                             vector
                         }
-                        _ => Err(DBError::Validation(
-                            format!("Parameter {} is not a vector", param_name)
-                        )),
+                        _ => Err(DBError::Validation(format!(
+                            "Parameter {} is not a vector",
+                            param_name
+                        ))),
                     }
                 } else {
-                    Err(DBError::Validation(
-                        format!("Parameter {} not found", param_name)
-                    ))
+                    Err(DBError::Validation(format!(
+                        "Parameter {} not found",
+                        param_name
+                    )))
                 }
             }
         }
@@ -142,15 +144,16 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
         let result = tokio::runtime::Handle::current()
             .block_on(async move {
                 if let Some(threshold) = threshold {
-                    coordinator.search_with_threshold(
-                        space_id,
-                        &tag_name,
-                        &field_name,
-                        query_vector,
-                        limit,
-                        threshold,
-                    )
-                    .await
+                    coordinator
+                        .search_with_threshold(
+                            space_id,
+                            &tag_name,
+                            &field_name,
+                            query_vector,
+                            limit,
+                            threshold,
+                        )
+                        .await
                 } else {
                     coordinator
                         .search(space_id, &tag_name, &field_name, query_vector, limit)
@@ -179,11 +182,7 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
     }
 
     /// Extract field value from search result
-    fn extract_field_value(
-        &self,
-        field: &OutputField,
-        result: &SearchResult,
-    ) -> DBResult<Value> {
+    fn extract_field_value(&self, field: &OutputField, result: &SearchResult) -> DBResult<Value> {
         match field.name.as_str() {
             "id" | "vertex_id" => Ok(Value::String(result.id.clone())),
             "score" => Ok(Value::Float(result.score as f64)),
@@ -226,10 +225,8 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
             }
             serde_json::Value::String(s) => Ok(Value::String(s.clone())),
             serde_json::Value::Array(arr) => {
-                let vec: DBResult<Vec<Value>> = arr
-                    .iter()
-                    .map(|v| self.json_value_to_value(v))
-                    .collect();
+                let vec: DBResult<Vec<Value>> =
+                    arr.iter().map(|v| self.json_value_to_value(v)).collect();
                 Ok(Value::List(List::from(vec?)))
             }
             serde_json::Value::Object(obj) => {
@@ -338,24 +335,26 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
     fn parse_query_vector(&self, query: &VectorQueryExpr) -> DBResult<Vec<f32>> {
         match query.query_type {
             VectorQueryType::Vector => {
-                let text = query.query_data.trim().trim_start_matches('[').trim_end_matches(']');
+                let text = query
+                    .query_data
+                    .trim()
+                    .trim_start_matches('[')
+                    .trim_end_matches(']');
                 text.split(',')
                     .map(|s| s.trim().parse::<f32>())
                     .collect::<Result<Vec<_>, _>>()
-                    .map_err(|e| {
-                        DBError::Validation(format!("Invalid vector format: {}", e))
-                    })
+                    .map_err(|e| DBError::Validation(format!("Invalid vector format: {}", e)))
             }
             VectorQueryType::Text => {
                 let text = &query.query_data;
                 let coordinator = self.coordinator.clone();
-                
-                tokio::runtime::Handle::current()
-                    .block_on(async move {
-                        coordinator.embed_text(text)
-                            .await
-                            .map_err(|e| DBError::Internal(format!("Text embedding failed: {}", e)))
-                    })
+
+                tokio::runtime::Handle::current().block_on(async move {
+                    coordinator
+                        .embed_text(text)
+                        .await
+                        .map_err(|e| DBError::Internal(format!("Text embedding failed: {}", e)))
+                })
             }
             VectorQueryType::Parameter => {
                 let param_name = &query.query_data;
@@ -368,22 +367,25 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
                                     if let crate::core::Value::Float(f) = v {
                                         Ok(*f as f32)
                                     } else {
-                                        Err(DBError::Validation(
-                                            format!("Parameter {} contains non-float value", param_name)
-                                        ))
+                                        Err(DBError::Validation(format!(
+                                            "Parameter {} contains non-float value",
+                                            param_name
+                                        )))
                                     }
                                 })
                                 .collect();
                             vector
                         }
-                        _ => Err(DBError::Validation(
-                            format!("Parameter {} is not a vector", param_name)
-                        )),
+                        _ => Err(DBError::Validation(format!(
+                            "Parameter {} is not a vector",
+                            param_name
+                        ))),
                     }
                 } else {
-                    Err(DBError::Validation(
-                        format!("Parameter {} not found", param_name)
-                    ))
+                    Err(DBError::Validation(format!(
+                        "Parameter {} not found",
+                        param_name
+                    )))
                 }
             }
         }
@@ -403,21 +405,18 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
         let query_vector = self.parse_query_vector(&self.node.query)?;
 
         let coordinator = self.coordinator.clone();
-        let space_id = self
-            .base
-            .context
-            .current_space_id()
-            .unwrap_or(0);
+        let space_id = self.base.context.current_space_id().unwrap_or(0);
         let tag_name = self.node.schema_name.clone();
         let field_name = self.node.index_name.clone();
         let limit = self.node.limit;
 
-        tokio::runtime::Handle::current().block_on(async move {
-            coordinator
-                .search(space_id, &tag_name, &field_name, query_vector, limit)
-                .await
-        })
-        .map_err(|e| DBError::Internal(format!("Vector lookup failed: {}", e)))
+        tokio::runtime::Handle::current()
+            .block_on(async move {
+                coordinator
+                    .search(space_id, &tag_name, &field_name, query_vector, limit)
+                    .await
+            })
+            .map_err(|e| DBError::Internal(format!("Vector lookup failed: {}", e)))
     }
 
     /// Build result dataset from search results
@@ -437,11 +436,7 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
     }
 
     /// Extract field value from search result
-    fn extract_field_value(
-        &self,
-        field: &OutputField,
-        result: &SearchResult,
-    ) -> DBResult<Value> {
+    fn extract_field_value(&self, field: &OutputField, result: &SearchResult) -> DBResult<Value> {
         match field.name.as_str() {
             "id" | "vertex_id" => Ok(Value::String(result.id.clone())),
             "score" => Ok(Value::Float(result.score as f64)),
@@ -472,10 +467,8 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
             }
             serde_json::Value::String(s) => Ok(Value::String(s.clone())),
             serde_json::Value::Array(arr) => {
-                let vec: DBResult<Vec<Value>> = arr
-                    .iter()
-                    .map(|v| self.json_value_to_value(v))
-                    .collect();
+                let vec: DBResult<Vec<Value>> =
+                    arr.iter().map(|v| self.json_value_to_value(v)).collect();
                 Ok(Value::List(List::from(vec?)))
             }
             serde_json::Value::Object(obj) => {
@@ -557,12 +550,7 @@ impl<S: StorageClient> VectorMatchExecutor<S> {
         coordinator: Arc<VectorCoordinator>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(
-                id,
-                "VectorMatchExecutor".to_string(),
-                storage,
-                expr_context,
-            ),
+            base: BaseExecutor::new(id, "VectorMatchExecutor".to_string(), storage, expr_context),
             node,
             coordinator,
             _phantom: std::marker::PhantomData,
@@ -573,24 +561,26 @@ impl<S: StorageClient> VectorMatchExecutor<S> {
     fn parse_query_vector(&self, query: &VectorQueryExpr) -> DBResult<Vec<f32>> {
         match query.query_type {
             VectorQueryType::Vector => {
-                let text = query.query_data.trim().trim_start_matches('[').trim_end_matches(']');
+                let text = query
+                    .query_data
+                    .trim()
+                    .trim_start_matches('[')
+                    .trim_end_matches(']');
                 text.split(',')
                     .map(|s| s.trim().parse::<f32>())
                     .collect::<Result<Vec<_>, _>>()
-                    .map_err(|e| {
-                        DBError::Validation(format!("Invalid vector format: {}", e))
-                    })
+                    .map_err(|e| DBError::Validation(format!("Invalid vector format: {}", e)))
             }
             VectorQueryType::Text => {
                 let text = &query.query_data;
                 let coordinator = self.coordinator.clone();
-                
-                tokio::runtime::Handle::current()
-                    .block_on(async move {
-                        coordinator.embed_text(text)
-                            .await
-                            .map_err(|e| DBError::Internal(format!("Text embedding failed: {}", e)))
-                    })
+
+                tokio::runtime::Handle::current().block_on(async move {
+                    coordinator
+                        .embed_text(text)
+                        .await
+                        .map_err(|e| DBError::Internal(format!("Text embedding failed: {}", e)))
+                })
             }
             VectorQueryType::Parameter => {
                 let param_name = &query.query_data;
@@ -603,22 +593,25 @@ impl<S: StorageClient> VectorMatchExecutor<S> {
                                     if let crate::core::Value::Float(f) = v {
                                         Ok(*f as f32)
                                     } else {
-                                        Err(DBError::Validation(
-                                            format!("Parameter {} contains non-float value", param_name)
-                                        ))
+                                        Err(DBError::Validation(format!(
+                                            "Parameter {} contains non-float value",
+                                            param_name
+                                        )))
                                     }
                                 })
                                 .collect();
                             vector
                         }
-                        _ => Err(DBError::Validation(
-                            format!("Parameter {} is not a vector", param_name)
-                        )),
+                        _ => Err(DBError::Validation(format!(
+                            "Parameter {} is not a vector",
+                            param_name
+                        ))),
                     }
                 } else {
-                    Err(DBError::Validation(
-                        format!("Parameter {} not found", param_name)
-                    ))
+                    Err(DBError::Validation(format!(
+                        "Parameter {} not found",
+                        param_name
+                    )))
                 }
             }
         }
@@ -629,35 +622,39 @@ impl<S: StorageClient> VectorMatchExecutor<S> {
         let query_vector = self.parse_query_vector(&self.node.query)?;
 
         let coordinator = self.coordinator.clone();
-        let space_id = self
-            .base
-            .context
-            .current_space_id()
-            .unwrap_or(0);
+        let space_id = self.base.context.current_space_id().unwrap_or(0);
         let tag_name = self.node.field.clone();
         let field_name = self.node.pattern.clone();
         let limit = 100; // Default limit for MATCH
         let threshold = self.node.threshold;
 
-        tokio::runtime::Handle::current().block_on(async move {
-            if let Some(threshold) = threshold {
-                coordinator
-                    .search_with_threshold(space_id, &tag_name, &field_name, query_vector, limit, threshold)
-                    .await
-            } else {
-                coordinator
-                    .search(space_id, &tag_name, &field_name, query_vector, limit)
-                    .await
-            }
-        })
-        .map_err(|e| DBError::Internal(format!("Vector match failed: {}", e)))
+        tokio::runtime::Handle::current()
+            .block_on(async move {
+                if let Some(threshold) = threshold {
+                    coordinator
+                        .search_with_threshold(
+                            space_id,
+                            &tag_name,
+                            &field_name,
+                            query_vector,
+                            limit,
+                            threshold,
+                        )
+                        .await
+                } else {
+                    coordinator
+                        .search(space_id, &tag_name, &field_name, query_vector, limit)
+                        .await
+                }
+            })
+            .map_err(|e| DBError::Internal(format!("Vector match failed: {}", e)))
     }
 }
 
 impl<S: StorageClient> Executor<S> for VectorMatchExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let results = self.execute_search()?;
-        
+
         // For MATCH, we need to bind results to pattern variables
         // This is a simplified implementation
         let mut dataset = DataSet::new();

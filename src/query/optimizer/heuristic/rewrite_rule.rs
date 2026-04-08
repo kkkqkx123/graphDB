@@ -5,11 +5,11 @@
 //!
 //! The current implementation uses types that are independent of the planner layer and no longer relies on the optimizer module.
 
-use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::RewriteRule;
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// Heuristic rewriting rule trait (compatibility layer)
 ///

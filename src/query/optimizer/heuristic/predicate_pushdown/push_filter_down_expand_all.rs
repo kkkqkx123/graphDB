@@ -3,12 +3,12 @@
 //! This rule identifies the “Filter -> ExpandAll” mode.
 //! And push the filtering criteria up to the ExpandAll node.
 
-use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::{PushDownRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 
 /// Rules that push the filtering criteria forward to the ExpandAll operation
 ///

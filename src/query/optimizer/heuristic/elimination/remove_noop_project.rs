@@ -24,13 +24,13 @@
 //! The child node is in the allowed list (removing a project is not allowed for certain types of nodes).
 
 use crate::core::Expression;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
-use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::{EliminationRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
+use crate::query::planning::plan::PlanNodeEnum;
 use std::collections::HashSet;
 
 /// Remove the rule that applies to projections with no operations.

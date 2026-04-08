@@ -24,15 +24,14 @@
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::visitor::ExpressionVisitor;
 use crate::core::types::expr::visitor_collectors::VariableCollector;
-use crate::query::planning::plan::core::nodes::access::graph_scan_node::{ScanEdgesNode, ScanVerticesNode};
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::{MultipleInputNode, SingleInputNode};
+use crate::query::optimizer::heuristic::context::RewriteContext;
+use crate::query::optimizer::heuristic::pattern::Pattern;
+use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
+use crate::query::optimizer::heuristic::rule::RewriteRule;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::MultipleInputNode;
 use crate::query::planning::plan::core::nodes::join::join_node::HashInnerJoinNode;
 use crate::query::planning::plan::core::nodes::traversal::traversal_node::ExpandAllNode;
 use crate::query::planning::plan::PlanNodeEnum;
-use crate::query::optimizer::heuristic::context::RewriteContext;
-use crate::query::optimizer::heuristic::pattern::Pattern;
-use crate::query::optimizer::heuristic::result::{RewriteError, RewriteResult, TransformResult};
-use crate::query::optimizer::heuristic::rule::RewriteRule;
 
 /// Rules for converting Vertex-Edge JOIN to ExpandAll
 #[derive(Debug)]
@@ -53,19 +52,12 @@ impl JoinToExpandRule {
         }
     }
 
-    fn analyze_join_condition(
-        &self,
-        hash_keys: &[ContextualExpression],
-        probe_keys: &[ContextualExpression],
-    ) -> Option<(String, String)> {
-        if hash_keys.len() != 1 || probe_keys.len() != 1 {
+    fn analyze_join_condition(&self, probe_keys: &[ContextualExpression]) -> Option<String> {
+        if probe_keys.len() != 1 {
             return None;
         }
 
-        let hash_var = self.extract_join_key_variable(&hash_keys[0])?;
-        let probe_var = self.extract_join_key_variable(&probe_keys[0])?;
-
-        Some((hash_var, probe_var))
+        self.extract_join_key_variable(&probe_keys[0])
     }
 
     fn determine_direction(&self, _edge_var: &str, join_key: &str) -> Option<&'static str> {
@@ -91,14 +83,14 @@ impl JoinToExpandRule {
             _ => return Ok(None),
         };
 
-        let (hash_keys, probe_keys) = if vertex_on_left {
-            (join.hash_keys(), join.probe_keys())
+        let probe_keys = if vertex_on_left {
+            join.probe_keys()
         } else {
-            (join.probe_keys(), join.hash_keys())
+            join.hash_keys()
         };
 
-        let (hash_var, probe_var) = match self.analyze_join_condition(hash_keys, probe_keys) {
-            Some(vars) => vars,
+        let probe_var = match self.analyze_join_condition(probe_keys) {
+            Some(var) => var,
             None => return Ok(None),
         };
 
@@ -108,12 +100,13 @@ impl JoinToExpandRule {
             None => return Ok(None),
         };
 
-        let edge_types = scan_edges.edge_type()
+        let edge_types = scan_edges
+            .edge_type()
             .map(|et| vec![et])
             .unwrap_or_default();
 
         let mut expand_all = ExpandAllNode::new(scan_vertices.space_id(), edge_types, direction);
-        
+
         expand_all.add_input(left.clone());
 
         let mut result = TransformResult::new();

@@ -31,7 +31,7 @@ impl VectorTestContext {
     async fn with_mock_engine() -> Self {
         // Create manager with disabled vector search (uses MockEngine)
         let mut vector_config = VectorConfig::default();
-        vector_config.enabled = false;  // Disabled = uses MockEngine
+        vector_config.enabled = false; // Disabled = uses MockEngine
 
         let manager = Arc::new(
             VectorIndexManager::new(vector_config.clone())
@@ -48,7 +48,9 @@ impl VectorTestContext {
 }
 
 fn create_test_vector(size: usize, offset: f32) -> Vec<f32> {
-    (0..size).map(|i| (i as f32 + offset) / size as f32).collect()
+    (0..size)
+        .map(|i| (i as f32 + offset) / size as f32)
+        .collect()
 }
 
 fn create_test_vertex_with_vector(
@@ -59,7 +61,12 @@ fn create_test_vertex_with_vector(
 ) -> Vertex {
     let mut props = HashMap::new();
     let list_values: Vec<Value> = vector.iter().map(|&v| Value::Float(v as f64)).collect();
-    props.insert(field_name.to_string(), Value::List(graphdb::core::List { values: list_values }));
+    props.insert(
+        field_name.to_string(),
+        Value::List(graphdb::core::List {
+            values: list_values,
+        }),
+    );
     let tag = Tag::new(tag_name.to_string(), props);
     Vertex::new(Value::Int(vid), vec![tag])
 }
@@ -124,10 +131,7 @@ async fn test_vector_index_manager_create_duplicate_index() {
         )
         .await;
 
-    assert!(
-        result.is_err(),
-        "Creating duplicate index should fail"
-    );
+    assert!(result.is_err(), "Creating duplicate index should fail");
 }
 
 #[tokio::test]
@@ -193,7 +197,10 @@ async fn test_vector_coordinator_create_index() {
         .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
         .await;
 
-    assert!(result.is_ok(), "Creating index via coordinator should succeed");
+    assert!(
+        result.is_ok(),
+        "Creating index via coordinator should succeed"
+    );
     let index_name = result.unwrap();
     assert!(index_name.contains("1_Document_embedding"));
 }
@@ -212,7 +219,10 @@ async fn test_vector_coordinator_drop_index() {
         .drop_vector_index(1, "Document", "embedding")
         .await;
 
-    assert!(result.is_ok(), "Dropping index via coordinator should succeed");
+    assert!(
+        result.is_ok(),
+        "Dropping index via coordinator should succeed"
+    );
 }
 
 #[tokio::test]
@@ -269,7 +279,10 @@ async fn test_vector_search_basic() {
 
     for result in &results {
         assert!(!result.id.is_empty(), "Result should have ID");
-        assert!(result.score >= 0.0 && result.score <= 1.0, "Score should be in [0, 1]");
+        assert!(
+            result.score >= 0.0 && result.score <= 1.0,
+            "Score should be in [0, 1]"
+        );
     }
 }
 
@@ -299,7 +312,10 @@ async fn test_vector_search_with_threshold() {
         .await
         .expect("Searching with threshold should succeed");
 
-    assert!(!results.is_empty(), "Should return at least one similar result");
+    assert!(
+        !results.is_empty(),
+        "Should return at least one similar result"
+    );
 
     for result in &results {
         assert!(result.score >= 0.9, "Score should meet threshold");
@@ -513,7 +529,10 @@ async fn test_vector_batch_delete() {
         .await
         .expect("Searching should succeed");
 
-    assert!(remaining.len() <= 2, "Should have at most 2 remaining points");
+    assert!(
+        remaining.len() <= 2,
+        "Should have at most 2 remaining points"
+    );
 }
 
 // ==================== Health Check Tests ====================
@@ -572,7 +591,11 @@ async fn test_multiple_indexes_independent() {
         .expect("Searching second index should succeed");
 
     assert_eq!(doc_results.len(), 1, "First index should have 1 result");
-    assert_eq!(article_results.len(), 1, "Second index should have 1 result");
+    assert_eq!(
+        article_results.len(),
+        1,
+        "Second index should have 1 result"
+    );
     assert_eq!(doc_results[0].id, "doc1");
     assert_eq!(article_results[0].id, "article1");
 }
@@ -609,7 +632,10 @@ async fn test_distance_metrics_cosine() {
     assert_eq!(results[0].id, "1");
 
     if results.len() > 1 {
-        assert!(results[0].score > results[1].score, "Identical vector should have higher score");
+        assert!(
+            results[0].score > results[1].score,
+            "Identical vector should have higher score"
+        );
     }
 }
 
@@ -687,7 +713,10 @@ async fn test_upsert_nonexistent_index() {
         .upsert_batch(1, "NonExistent", "field", vec![point])
         .await;
 
-    assert!(result.is_err(), "Upserting to non-existent index should fail");
+    assert!(
+        result.is_err(),
+        "Upserting to non-existent index should fail"
+    );
 }
 
 #[tokio::test]

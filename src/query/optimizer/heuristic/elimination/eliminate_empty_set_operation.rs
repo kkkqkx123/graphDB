@@ -30,13 +30,13 @@
 //! Start (the empty set)
 //! ```
 
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
-use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::{EliminationRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// Optimization rules for set operations involving the empty set
 ///

@@ -163,8 +163,7 @@ impl Planner for FulltextSearchPlanner {
                 } else {
                     show.from_schema.clone()
                 };
-                let node =
-                    ShowFulltextIndexNode::new(show.pattern.clone(), from_schema);
+                let node = ShowFulltextIndexNode::new(show.pattern.clone(), from_schema);
                 let sub_plan = SubPlan::new(Some(node.into_enum()), None);
                 Ok(sub_plan)
             }
@@ -310,9 +309,7 @@ impl PlannerEnum {
             | Stmt::DropVectorIndex(_)
             | Stmt::SearchVector(_)
             | Stmt::LookupVector(_)
-            | Stmt::MatchVector(_) => {
-                Some(PlannerEnum::VectorSearch(VectorSearchPlanner::new()))
-            }
+            | Stmt::MatchVector(_) => Some(PlannerEnum::VectorSearch(VectorSearchPlanner::new())),
             // DDL/DML operations use the Maintain planner.
             Stmt::Create(_)
             | Stmt::Drop(_)

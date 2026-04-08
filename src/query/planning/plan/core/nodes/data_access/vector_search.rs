@@ -87,7 +87,9 @@ impl PlanNode for VectorSearchNode {
     fn into_enum(
         self,
     ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::VectorSearch(self)
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::VectorSearch(
+            self,
+        )
     }
 }
 
@@ -281,7 +283,9 @@ impl PlanNode for VectorLookupNode {
     fn into_enum(
         self,
     ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::VectorLookup(self)
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::VectorLookup(
+            self,
+        )
     }
 }
 
@@ -345,7 +349,9 @@ impl PlanNode for VectorMatchNode {
     fn into_enum(
         self,
     ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::VectorMatch(self)
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::VectorMatch(
+            self,
+        )
     }
 }
 
@@ -358,7 +364,15 @@ impl crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryE
         std::mem::size_of::<Self>()
             + self.schema_name.capacity()
             + self.index_name.capacity()
-            + self.yield_fields.iter().map(|f| std::mem::size_of::<OutputField>() + f.name.capacity() + f.alias.as_ref().map_or(0, |a| a.capacity())).sum::<usize>()
+            + self
+                .yield_fields
+                .iter()
+                .map(|f| {
+                    std::mem::size_of::<OutputField>()
+                        + f.name.capacity()
+                        + f.alias.as_ref().map_or(0, |a| a.capacity())
+                })
+                .sum::<usize>()
     }
 }
 
@@ -369,7 +383,15 @@ impl crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryE
         std::mem::size_of::<Self>()
             + self.pattern.capacity()
             + self.field.capacity()
-            + self.yield_fields.iter().map(|f| std::mem::size_of::<OutputField>() + f.name.capacity() + f.alias.as_ref().map_or(0, |a| a.capacity())).sum::<usize>()
+            + self
+                .yield_fields
+                .iter()
+                .map(|f| {
+                    std::mem::size_of::<OutputField>()
+                        + f.name.capacity()
+                        + f.alias.as_ref().map_or(0, |a| a.capacity())
+                })
+                .sum::<usize>()
     }
 }
 
@@ -381,7 +403,15 @@ impl crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryE
             + self.index_name.capacity()
             + self.tag_name.capacity()
             + self.field_name.capacity()
-            + self.output_fields.iter().map(|f| std::mem::size_of::<OutputField>() + f.name.capacity() + f.alias.as_ref().map_or(0, |a| a.capacity())).sum::<usize>()
+            + self
+                .output_fields
+                .iter()
+                .map(|f| {
+                    std::mem::size_of::<OutputField>()
+                        + f.name.capacity()
+                        + f.alias.as_ref().map_or(0, |a| a.capacity())
+                })
+                .sum::<usize>()
     }
 }
 
@@ -401,8 +431,6 @@ impl crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryE
     for DropVectorIndexNode
 {
     fn estimate_memory(&self) -> usize {
-        std::mem::size_of::<Self>()
-            + self.index_name.capacity()
-            + self.space_name.capacity()
+        std::mem::size_of::<Self>() + self.index_name.capacity() + self.space_name.capacity()
     }
 }

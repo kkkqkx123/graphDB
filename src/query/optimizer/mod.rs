@@ -52,8 +52,8 @@ pub mod engine;
 pub mod stats;
 
 // Optimization phases
-pub mod cost_based;  // Cost-based optimization strategies
-pub mod heuristic;   // Heuristic rewrite rules
+pub mod cost_based; // Cost-based optimization strategies
+pub mod heuristic; // Heuristic rewrite rules
 
 // Pipeline coordination
 pub mod pipeline;

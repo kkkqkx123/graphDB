@@ -9,7 +9,10 @@ pub mod manager;
 
 pub use config::*;
 pub use coordinator::{VectorChangeType, VectorCoordinator};
-pub use embedding::{EmbeddingService, EmbeddingServiceHandle, MockEmbeddingService, QdrantEmbeddingConfig, QdrantEmbeddingService};
+pub use embedding::{
+    EmbeddingService, EmbeddingServiceHandle, MockEmbeddingService, QdrantEmbeddingConfig,
+    QdrantEmbeddingService,
+};
 pub use manager::VectorIndexManager;
 
 pub use vector_client::types::{SearchQuery, SearchResult, VectorFilter, VectorPoint};

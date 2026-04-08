@@ -2,4 +2,6 @@
 
 pub mod vector_search;
 
-pub use vector_search::{VectorSearchNode, CreateVectorIndexNode, DropVectorIndexNode, VectorLookupNode, VectorMatchNode};
+pub use vector_search::{
+    CreateVectorIndexNode, DropVectorIndexNode, VectorLookupNode, VectorMatchNode, VectorSearchNode,
+};

@@ -35,16 +35,16 @@ use crate::core::types::expr::visitor::ExpressionVisitor;
 use crate::core::types::expr::visitor_collectors::VariableCollector;
 use crate::core::types::YieldColumn;
 use crate::core::Expression;
+use crate::query::optimizer::heuristic::context::RewriteContext;
+use crate::query::optimizer::heuristic::pattern::Pattern;
+use crate::query::optimizer::heuristic::result::{RewriteError, RewriteResult, TransformResult};
+use crate::query::optimizer::heuristic::rule::{PushDownRule, RewriteRule};
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planning::plan::core::nodes::join::join_node::{
     HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode, LeftJoinNode,
 };
 use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
 use crate::query::planning::plan::PlanNodeEnum;
-use crate::query::optimizer::heuristic::context::RewriteContext;
-use crate::query::optimizer::heuristic::pattern::Pattern;
-use crate::query::optimizer::heuristic::result::{RewriteError, RewriteResult, TransformResult};
-use crate::query::optimizer::heuristic::rule::{PushDownRule, RewriteRule};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use std::sync::Arc;
 
@@ -106,7 +106,9 @@ impl PushProjectDownJoinRule {
 
         ProjectNode::new(input, yield_columns)
             .map(PlanNodeEnum::Project)
-            .map_err(|e| RewriteError::rewrite_failed(format!("Failed to create ProjectNode: {:?}", e)))
+            .map_err(|e| {
+                RewriteError::rewrite_failed(format!("Failed to create ProjectNode: {:?}", e))
+            })
     }
 
     fn split_columns_for_join(
@@ -197,7 +199,9 @@ impl PushProjectDownJoinRule {
             join.hash_keys().to_vec(),
             join.probe_keys().to_vec(),
         )
-        .map_err(|e| RewriteError::rewrite_failed(format!("Failed to create HashInnerJoinNode: {:?}", e)))?;
+        .map_err(|e| {
+            RewriteError::rewrite_failed(format!("Failed to create HashInnerJoinNode: {:?}", e))
+        })?;
 
         let mut result = TransformResult::new();
         result.erase_curr = true;
@@ -250,7 +254,9 @@ impl PushProjectDownJoinRule {
             join.hash_keys().to_vec(),
             join.probe_keys().to_vec(),
         )
-        .map_err(|e| RewriteError::rewrite_failed(format!("Failed to create HashLeftJoinNode: {:?}", e)))?;
+        .map_err(|e| {
+            RewriteError::rewrite_failed(format!("Failed to create HashLeftJoinNode: {:?}", e))
+        })?;
 
         let mut result = TransformResult::new();
         result.erase_curr = true;
@@ -303,7 +309,9 @@ impl PushProjectDownJoinRule {
             join.hash_keys().to_vec(),
             join.probe_keys().to_vec(),
         )
-        .map_err(|e| RewriteError::rewrite_failed(format!("Failed to create InnerJoinNode: {:?}", e)))?;
+        .map_err(|e| {
+            RewriteError::rewrite_failed(format!("Failed to create InnerJoinNode: {:?}", e))
+        })?;
 
         let mut result = TransformResult::new();
         result.erase_curr = true;
@@ -356,7 +364,9 @@ impl PushProjectDownJoinRule {
             join.hash_keys().to_vec(),
             join.probe_keys().to_vec(),
         )
-        .map_err(|e| RewriteError::rewrite_failed(format!("Failed to create LeftJoinNode: {:?}", e)))?;
+        .map_err(|e| {
+            RewriteError::rewrite_failed(format!("Failed to create LeftJoinNode: {:?}", e))
+        })?;
 
         let mut result = TransformResult::new();
         result.erase_curr = true;
@@ -394,12 +404,8 @@ impl RewriteRule for PushProjectDownJoinRule {
         let input = project.input();
 
         match input {
-            PlanNodeEnum::HashInnerJoin(join) => {
-                self.apply_to_hash_inner_join(project, join, ctx)
-            }
-            PlanNodeEnum::HashLeftJoin(join) => {
-                self.apply_to_hash_left_join(project, join, ctx)
-            }
+            PlanNodeEnum::HashInnerJoin(join) => self.apply_to_hash_inner_join(project, join, ctx),
+            PlanNodeEnum::HashLeftJoin(join) => self.apply_to_hash_left_join(project, join, ctx),
             PlanNodeEnum::InnerJoin(join) => self.apply_to_inner_join(project, join, ctx),
             PlanNodeEnum::LeftJoin(join) => self.apply_to_left_join(project, join, ctx),
             _ => Ok(None),

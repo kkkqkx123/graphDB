@@ -39,6 +39,10 @@ use crate::core::types::expr::visitor_collectors::PropertyCollector;
 use crate::core::types::expr::ExpressionMeta;
 use crate::core::types::YieldColumn;
 use crate::core::Expression;
+use crate::query::optimizer::heuristic::context::RewriteContext;
+use crate::query::optimizer::heuristic::pattern::Pattern;
+use crate::query::optimizer::heuristic::result::{RewriteError, RewriteResult, TransformResult};
+use crate::query::optimizer::heuristic::rule::RewriteRule;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
     MultipleInputNode, SingleInputNode,
 };
@@ -47,10 +51,6 @@ use crate::query::planning::plan::core::nodes::join::join_node::{
 };
 use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
 use crate::query::planning::plan::PlanNodeEnum;
-use crate::query::optimizer::heuristic::context::RewriteContext;
-use crate::query::optimizer::heuristic::pattern::Pattern;
-use crate::query::optimizer::heuristic::result::{RewriteError, RewriteResult, TransformResult};
-use crate::query::optimizer::heuristic::rule::RewriteRule;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use std::sync::Arc;
 

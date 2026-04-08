@@ -13,14 +13,14 @@
 //! The upper-level project does not rely on the alias resolution of the lower-level project.
 
 use crate::core::YieldColumn;
-use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::expression_utils::rewrite_contextual_expression;
 use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::{MergeRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
 use std::collections::HashMap;
 
 /// Merge consecutive projection rules

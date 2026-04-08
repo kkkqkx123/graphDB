@@ -18,6 +18,9 @@ pub use access::{IndexLimit, IndexScanNode, OrderByItem, ScanType};
 pub use base::plan_node_traits::*;
 pub use base::{PlanNodeCategory, PlanNodeEnum, PlanNodeVisitor};
 pub use control_flow::{ArgumentNode, LoopNode, PassThroughNode, SelectNode, StartNode};
+pub use data_access::{
+    CreateVectorIndexNode, DropVectorIndexNode, VectorLookupNode, VectorMatchNode, VectorSearchNode,
+};
 pub use data_modification::{
     DeleteEdgesNode, DeleteVerticesNode, EdgeDeleteInfo, EdgeInsertInfo, EdgeUpdateInfo,
     InsertEdgesNode, InsertVerticesNode, TagInsertSpec, UpdateEdgesNode, UpdateNode,
@@ -44,7 +47,6 @@ pub use management::{
     ShowStatsType, ShowTagIndexesNode, ShowTagsNode, SpaceAlterOption, SpaceManageInfo,
     SwitchSpaceNode, TagAlterInfo, TagManageInfo,
 };
-pub use data_access::{CreateVectorIndexNode, DropVectorIndexNode, VectorLookupNode, VectorMatchNode, VectorSearchNode};
 pub use operation::{FilterNode, LimitNode, ProjectNode, SampleNode, SortItem, SortNode, TopNNode};
 pub use plan_node_factory::PlanNodeFactory;
 pub use traversal::{

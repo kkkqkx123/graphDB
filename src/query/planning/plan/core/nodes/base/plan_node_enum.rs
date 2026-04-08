@@ -9,6 +9,9 @@ use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEs
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
     PlanNode, SingleInputNode,
 };
+use crate::query::planning::plan::core::nodes::data_access::vector_search::{
+    CreateVectorIndexNode, DropVectorIndexNode, VectorLookupNode, VectorMatchNode, VectorSearchNode,
+};
 use crate::query::planning::plan::core::nodes::data_modification::{
     DeleteEdgesNode, DeleteVerticesNode, InsertEdgesNode, InsertVerticesNode, UpdateEdgesNode,
     UpdateNode, UpdateVerticesNode,
@@ -36,9 +39,6 @@ use crate::query::planning::plan::core::nodes::management::tag_nodes::{
 };
 use crate::query::planning::plan::core::nodes::management::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode,
-};
-use crate::query::planning::plan::core::nodes::data_access::vector_search::{
-    VectorSearchNode, CreateVectorIndexNode, DropVectorIndexNode, VectorLookupNode, VectorMatchNode,
 };
 
 // Import and re-export all specific node types.

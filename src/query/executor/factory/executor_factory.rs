@@ -430,23 +430,17 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 self.build_fulltext_lookup(node, storage, context)
             }
             PlanNodeEnum::MatchFulltext(node) => self.build_match_fulltext(node, storage, context),
-            
+
             // Vector Search Executor
-            PlanNodeEnum::VectorSearch(node) => {
-                self.build_vector_search(node, storage, context)
-            }
+            PlanNodeEnum::VectorSearch(node) => self.build_vector_search(node, storage, context),
             PlanNodeEnum::CreateVectorIndex(node) => {
                 self.build_create_vector_index(node, storage, context)
             }
             PlanNodeEnum::DropVectorIndex(node) => {
                 self.build_drop_vector_index(node, storage, context)
             }
-            PlanNodeEnum::VectorLookup(node) => {
-                self.build_vector_lookup(node, storage, context)
-            }
-            PlanNodeEnum::VectorMatch(node) => {
-                self.build_vector_match(node, storage, context)
-            }
+            PlanNodeEnum::VectorLookup(node) => self.build_vector_lookup(node, storage, context),
+            PlanNodeEnum::VectorMatch(node) => self.build_vector_match(node, storage, context),
         }
     }
 

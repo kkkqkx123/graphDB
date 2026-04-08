@@ -537,8 +537,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         plan: crate::query::planning::plan::ExecutionPlan,
     ) -> DBResult<crate::query::planning::plan::ExecutionPlan> {
         use crate::query::optimizer::cost_based::{MaterializationOptimizer, StrategyChain};
-        use crate::query::optimizer::OptimizationContext;
         use crate::query::optimizer::heuristic::rewrite_plan;
+        use crate::query::optimizer::OptimizationContext;
 
         // Create optimization context from OptimizerEngine
         let mut ctx = OptimizationContext::from(&self.optimizer_engine);

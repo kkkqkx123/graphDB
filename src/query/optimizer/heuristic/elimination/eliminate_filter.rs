@@ -25,12 +25,12 @@
 
 use crate::core::types::operators::BinaryOperator;
 use crate::core::{Expression, Value};
-use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
-use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::{EliminationRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// Rules for eliminating the "always false" filtering operation
 ///

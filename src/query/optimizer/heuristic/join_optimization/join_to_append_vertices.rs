@@ -24,15 +24,14 @@
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::visitor::ExpressionVisitor;
 use crate::core::types::expr::visitor_collectors::VariableCollector;
-use crate::query::planning::plan::core::nodes::access::graph_scan_node::{ScanEdgesNode, ScanVerticesNode};
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::{MultipleInputNode, SingleInputNode};
+use crate::query::optimizer::heuristic::context::RewriteContext;
+use crate::query::optimizer::heuristic::pattern::Pattern;
+use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
+use crate::query::optimizer::heuristic::rule::RewriteRule;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::MultipleInputNode;
 use crate::query::planning::plan::core::nodes::join::join_node::HashInnerJoinNode;
 use crate::query::planning::plan::core::nodes::traversal::traversal_node::AppendVerticesNode;
 use crate::query::planning::plan::PlanNodeEnum;
-use crate::query::optimizer::heuristic::context::RewriteContext;
-use crate::query::optimizer::heuristic::pattern::Pattern;
-use crate::query::optimizer::heuristic::result::{RewriteError, RewriteResult, TransformResult};
-use crate::query::optimizer::heuristic::rule::RewriteRule;
 
 /// Rules for converting Edge-Vertex JOIN to AppendVertices
 #[derive(Debug)]
@@ -69,7 +68,10 @@ impl JoinToAppendVerticesRule {
     }
 
     fn is_edge_to_vertex_join(&self, edge_key: &str, vertex_key: &str) -> bool {
-        (edge_key.ends_with("._dst") || edge_key.ends_with("._src") || edge_key.contains("dst") || edge_key.contains("src"))
+        (edge_key.ends_with("._dst")
+            || edge_key.ends_with("._src")
+            || edge_key.contains("dst")
+            || edge_key.contains("src"))
             && (vertex_key.ends_with(".id") || vertex_key == "id" || vertex_key.contains("id"))
     }
 
@@ -80,9 +82,9 @@ impl JoinToAppendVerticesRule {
         let left = join.left_input();
         let right = join.right_input();
 
-        let (scan_edges, scan_vertices, edge_on_left) = match (left, right) {
-            (PlanNodeEnum::ScanEdges(e), PlanNodeEnum::ScanVertices(v)) => (e, v, true),
-            (PlanNodeEnum::ScanVertices(v), PlanNodeEnum::ScanEdges(e)) => (e, v, false),
+        let (scan_vertices, edge_on_left) = match (left, right) {
+            (PlanNodeEnum::ScanEdges(_), PlanNodeEnum::ScanVertices(v)) => (v, true),
+            (PlanNodeEnum::ScanVertices(v), PlanNodeEnum::ScanEdges(_)) => (v, false),
             _ => return Ok(None),
         };
 
@@ -109,8 +111,12 @@ impl JoinToAppendVerticesRule {
 
         let vertex_tag = scan_vertices.tag().cloned().unwrap_or_default();
         let mut append_vertices = AppendVerticesNode::new(scan_vertices.space_id(), &vertex_tag);
-        
-        append_vertices.add_input(if edge_on_left { left.clone() } else { right.clone() });
+
+        append_vertices.add_input(if edge_on_left {
+            left.clone()
+        } else {
+            right.clone()
+        });
 
         let mut result = TransformResult::new();
         result.erase_curr = true;

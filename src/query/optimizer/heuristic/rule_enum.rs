@@ -26,7 +26,6 @@
 //! }
 //! ```
 
-use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::optimizer::heuristic::aggregate;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::elimination;
@@ -38,6 +37,7 @@ use crate::query::optimizer::heuristic::predicate_pushdown;
 use crate::query::optimizer::heuristic::projection_pushdown;
 use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::RewriteRule as RewriteRuleTrait;
+use crate::query::planning::plan::PlanNodeEnum;
 
 macro_rules! define_rewrite_rules {
     (

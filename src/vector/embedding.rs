@@ -36,11 +36,11 @@ impl EmbeddingService for MockEmbeddingService {
         // Generate a deterministic mock vector based on text hash
         let hash = text.as_bytes().iter().map(|&b| b as u32).sum::<u32>();
         let mut vector = vec![0.0; self.dimension];
-        
+
         for (i, val) in vector.iter_mut().enumerate().take(self.dimension) {
             *val = ((hash + i as u32) % 1000) as f32 / 1000.0;
         }
-        
+
         Ok(vector)
     }
 
@@ -100,7 +100,10 @@ impl QdrantEmbeddingService {
                 log::info!("Connected to Qdrant for embedding service");
             }
             Err(e) => {
-                log::warn!("Failed to connect to Qdrant: {}. Text embedding will be unavailable.", e);
+                log::warn!(
+                    "Failed to connect to Qdrant: {}. Text embedding will be unavailable.",
+                    e
+                );
             }
         }
 
@@ -113,10 +116,7 @@ impl QdrantEmbeddingService {
             768 // Default fallback
         };
 
-        Ok(Self {
-            config,
-            dimension,
-        })
+        Ok(Self { config, dimension })
     }
 
     pub fn is_available(&self) -> bool {
@@ -131,16 +131,16 @@ impl EmbeddingService for QdrantEmbeddingService {
         // Use Qdrant's embedding API if available
         // This is a placeholder - actual implementation depends on Qdrant's embedding API
         log::debug!("Embedding text: {}", text);
-        
+
         // For now, return a mock vector based on text hash
         // In production, this would call Qdrant's embedding endpoint
         let hash = text.as_bytes().iter().map(|&b| b as u32).sum::<u32>();
         let mut vector = vec![0.0; self.dimension];
-        
+
         for (i, val) in vector.iter_mut().enumerate().take(self.dimension) {
             *val = ((hash + i as u32) % 1000) as f32 / 1000.0;
         }
-        
+
         Ok(vector)
     }
 

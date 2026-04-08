@@ -5,14 +5,14 @@
 
 use crate::core::types::ContextualExpression;
 use crate::core::Expression;
-use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::expression_utils::{check_col_name, split_filter};
 use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::{PushDownRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
 
 /// Rules that push the filtering conditions to the inner join operation
 ///
