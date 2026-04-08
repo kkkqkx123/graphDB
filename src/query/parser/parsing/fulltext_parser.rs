@@ -30,8 +30,26 @@ pub fn parse_fulltext(ctx: &mut ParseContext) -> Result<Stmt, crate::query::pars
     } else if ctx.check_keyword("DESCRIBE") || ctx.check_keyword("DESC") {
         return parse_describe_fulltext_index(ctx);
     } else if ctx.check_keyword("SEARCH") {
-        return parse_search_statement(ctx);
+        // Check if it's SEARCH VECTOR or SEARCH INDEX
+        if ctx.check_keyword_sequence(&["SEARCH", "VECTOR"]) {
+            // Forward to vector parser
+            return crate::query::parser::parsing::vector_parser::parse_vector(ctx);
+        }
+        // Check if it's SEARCH INDEX - if so, we need to consume INDEX here
+        let is_search_index = ctx.check_keyword_sequence(&["SEARCH", "INDEX"]);
+        // Consume SEARCH and continue with fulltext parsing
+        ctx.consume_keyword("SEARCH")?;
+        if is_search_index {
+            // Also consume INDEX here before calling parse_search_statement_after_search
+            ctx.consume_keyword("INDEX")?;
+        }
+        return parse_search_statement_after_search(ctx);
     } else if ctx.check_keyword("LOOKUP") {
+        // Check if it's LOOKUP VECTOR
+        if ctx.check_keyword_sequence(&["LOOKUP", "VECTOR"]) {
+            // Forward to vector parser
+            return crate::query::parser::parsing::vector_parser::parse_vector(ctx);
+        }
         return parse_lookup_fulltext(ctx);
     } else if ctx.check_keyword("MATCH") {
         return parse_match_fulltext(ctx);
@@ -381,12 +399,10 @@ fn parse_describe_fulltext_index(
     Ok(Stmt::DescribeFulltextIndex(describe))
 }
 
-fn parse_search_statement(
+fn parse_search_statement_after_search(
     ctx: &mut ParseContext,
 ) -> Result<Stmt, crate::query::parser::ParseError> {
-    ctx.consume_keyword("SEARCH")?;
-    ctx.consume_keyword("INDEX")?;
-
+    // INDEX keyword has already been consumed by the caller
     let index_name = ctx.consume_identifier()?;
     ctx.consume_keyword("MATCH")?;
 

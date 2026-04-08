@@ -318,8 +318,38 @@ impl<'a> ParseContext<'a> {
             TokenKind::Search => keyword.eq_ignore_ascii_case("SEARCH"),
             TokenKind::Lookup => keyword.eq_ignore_ascii_case("LOOKUP"),
             TokenKind::Match => keyword.eq_ignore_ascii_case("MATCH"),
+            TokenKind::KeywordVector => keyword.eq_ignore_ascii_case("VECTOR"),
             _ => false,
         }
+    }
+
+    /// Check if the next tokens match the given sequence (non-consuming)
+    pub fn check_keyword_sequence(&mut self, keywords: &[&str]) -> bool {
+        if keywords.is_empty() {
+            return false;
+        }
+
+        // Save lexer state
+        let saved_lexer = self.lexer.clone();
+        let saved_token = self.current_token.clone();
+
+        // Check each keyword in sequence
+        for (i, &keyword) in keywords.iter().enumerate() {
+            if i > 0 {
+                self.next_token();
+            }
+            if !self.check_keyword(keyword) {
+                // Restore lexer state
+                self.lexer = saved_lexer;
+                self.current_token = saved_token;
+                return false;
+            }
+        }
+
+        // Restore lexer state
+        self.lexer = saved_lexer;
+        self.current_token = saved_token;
+        true
     }
 
     pub fn consume_keyword(&mut self, keyword: &str) -> Result<(), ParseError> {

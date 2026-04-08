@@ -65,7 +65,7 @@ pub fn parse_create_vector_index_after_create(
     let field_name = ctx.consume_identifier()?;
     ctx.expect_token(TokenKind::RParen)?;
 
-    ctx.consume_keyword("WITH")?;
+    ctx.expect_token(TokenKind::With)?;
     let config = parse_vector_index_config(ctx)?;
 
     let mut create = CreateVectorIndex::new(
@@ -93,14 +93,19 @@ fn parse_vector_index_config(
 
     loop {
         let key = ctx.consume_identifier()?;
-        ctx.expect_token(TokenKind::Eq)?;
+        ctx.expect_token(TokenKind::Assign)?;
 
         match key.to_lowercase().as_str() {
             "vector_size" => {
                 vector_size = Some(ctx.consume_int()? as usize);
             }
             "distance" => {
-                let dist_str = ctx.consume_identifier()?;
+                // Accept both identifier and string literal for distance
+                let dist_str = if matches!(ctx.current_token().kind, TokenKind::StringLiteral(_)) {
+                    ctx.consume_string()?
+                } else {
+                    ctx.consume_identifier()?
+                };
                 distance = match dist_str.to_lowercase().as_str() {
                     "cosine" => VectorDistance::Cosine,
                     "euclidean" => VectorDistance::Euclidean,

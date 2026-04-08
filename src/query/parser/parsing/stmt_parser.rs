@@ -78,10 +78,16 @@ impl StmtParser {
             TokenKind::Remove => UtilStmtParser::new().parse_remove_statement(ctx),
 
             // Full-text search statements
-            TokenKind::Search => self.parse_fulltext_statement(ctx),
-
-            // Vector search statements
-            TokenKind::KeywordVector => self.parse_vector_statement(ctx),
+            // Check if it's SEARCH VECTOR or SEARCH INDEX
+            TokenKind::Search => {
+                // Peek ahead to check if it's SEARCH VECTOR
+                if ctx.check_keyword_sequence(&["SEARCH", "VECTOR"]) {
+                    // It's a vector search, call vector parser
+                    return crate::query::parser::parsing::vector_parser::parse_vector(ctx);
+                }
+                // Otherwise, it's a fulltext search
+                self.parse_fulltext_statement(ctx)
+            }
 
             // Variable assignment statement ($var = statement)
             TokenKind::Dollar => self.parse_assignment_statement(ctx),
@@ -507,6 +513,12 @@ impl StmtParser {
             return crate::query::parser::parsing::fulltext_parser::parse_create_fulltext_index_after_create(ctx);
         }
 
+        // Check whether it is a CREATE VECTOR INDEX statement.
+        if ctx.check_keyword("VECTOR") {
+            // Parse as vector index statement (CREATE already consumed)
+            return crate::query::parser::parsing::vector_parser::parse_create_vector_index_after_create(ctx);
+        }
+
         // Check the DDL CREATE type.
         if ctx.check_token(TokenKind::Tag)
             || ctx.check_token(TokenKind::Edge)
@@ -529,10 +541,6 @@ impl StmtParser {
     /// Parse full-text search statements
     fn parse_fulltext_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         crate::query::parser::parsing::fulltext_parser::parse_fulltext(ctx)
-    }
-
-    fn parse_vector_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
-        crate::query::parser::parsing::vector_parser::parse_vector(ctx)
     }
 
     /// Pipeline after parsing set operation statements, or end of the process.

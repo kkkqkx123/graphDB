@@ -38,7 +38,7 @@ impl VectorQueryTestContext {
 
 #[tokio::test]
 async fn test_parse_vector_search_query() {
-    let query = r#"SEARCH VECTOR [0.1, 0.2, 0.3] FROM Document.embedding LIMIT 10"#;
+    let query = r#"SEARCH VECTOR idx_embedding WITH vector = [0.1, 0.2, 0.3] LIMIT 10"#;
 
     let mut parser = Parser::new(query);
     let result = parser.parse();
@@ -80,7 +80,7 @@ async fn test_parse_vector_match_query() {
 
 #[tokio::test]
 async fn test_parse_create_vector_index() {
-    let query = r#"CREATE VECTOR INDEX doc_embedding_index ON Document(embedding) OPTIONS {vector_size: 3}"#;
+    let query = r#"CREATE VECTOR INDEX doc_embedding_index ON Document(embedding) WITH (vector_size = 3, distance = 'cosine')"#;
 
     let mut parser = Parser::new(query);
     let result = parser.parse();
