@@ -109,7 +109,7 @@ async fn test_fulltext_phrase_search() {
         .await
         .expect("Failed to search");
 
-    assert!(results.len() >= 1, "Should find documents with phrase");
+    assert!(!results.is_empty(), "Should find documents with phrase");
     assert_eq!(
         results[0].doc_id,
         Value::Int(1),
@@ -473,7 +473,7 @@ async fn test_sync_manager_with_recovery() {
         .await
         .expect("Failed to create index");
 
-    let vertex = create_vertex(1, "Document", vec![("content", "Recovery test document")]);
+    let _vertex = create_vertex(1, "Document", vec![("content", "Recovery test document")]);
 
     sync_manager
         .on_vertex_change(

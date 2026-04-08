@@ -47,8 +47,10 @@ use std::collections::HashSet;
 /// Information about a table in the JOIN tree
 #[derive(Debug, Clone)]
 struct TableInfo {
+    #[allow(dead_code)]
     name: String,
     estimated_rows: f64,
+    #[allow(dead_code)]
     columns: HashSet<String>,
 }
 
@@ -84,8 +86,8 @@ impl JoinReorderRule {
                 });
             }
             PlanNodeEnum::HashInnerJoin(join) => {
-                self.collect_tables_recursive(&join.left_input(), tables);
-                self.collect_tables_recursive(&join.right_input(), tables);
+                self.collect_tables_recursive(join.left_input(), tables);
+                self.collect_tables_recursive(join.right_input(), tables);
             }
             _ => {}
         }

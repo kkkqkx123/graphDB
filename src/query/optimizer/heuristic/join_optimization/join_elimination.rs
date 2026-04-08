@@ -75,7 +75,7 @@ impl JoinEliminationRule {
         let left = join.left_input();
         let right = join.right_input();
 
-        if self.is_self_join(&left, &right) {
+        if self.is_self_join(left, right) {
             let mut result = TransformResult::new();
             result.erase_curr = true;
             result.add_new_node(left.clone());

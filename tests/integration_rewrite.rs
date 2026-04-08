@@ -8,7 +8,7 @@
 
 mod common;
 
-use graphdb::query::planning::rewrite::{
+use graphdb::query::optimizer::heuristic::{
     create_default_rewriter, CombineFilterRule, EliminateFilterRule, PlanRewriter,
     PushFilterDownAggregateRule, PushFilterDownTraverseRule, PushLimitDownGetVerticesRule,
     RemoveNoopProjectRule, RewriteRuleEnum, RuleRegistry,
@@ -34,7 +34,7 @@ fn test_rule_registry_iter() {
 
     for rule in registry.iter() {
         count += 1;
-        let name = rule.name();
+        let name: &str = rule.name();
         assert!(!name.is_empty(), "The name of the rule should not be empty");
         assert!(name.ends_with("Rule"), "Rule names should end with 'Rule'");
     }
@@ -142,7 +142,7 @@ fn test_rewrite_rule_names() {
         "PushFilterDownAggregateRule",
     ];
 
-    let mut actual_names: Vec<_> = registry.iter().map(|rule| rule.name()).collect();
+    let mut actual_names: Vec<&str> = registry.iter().map(|rule: &RewriteRuleEnum| rule.name()).collect();
 
     actual_names.sort();
     let mut expected_sorted = expected_names.clone();
@@ -219,7 +219,7 @@ fn test_static_dispatch_overhead() {
 
     for _ in 0..iterations {
         for rule in &rules {
-            let name = rule.name();
+            let name: &str = rule.name();
             assert!(!name.is_empty());
         }
     }
@@ -382,7 +382,7 @@ fn test_aggregate_rules_count() {
 fn test_rule_names_unique() {
     let registry = RuleRegistry::default();
 
-    let mut names: Vec<_> = registry.iter().map(|rule| rule.name()).collect();
+    let mut names: Vec<&str> = registry.iter().map(|rule: &RewriteRuleEnum| rule.name()).collect();
 
     names.sort();
     names.dedup();

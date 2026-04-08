@@ -30,8 +30,10 @@ struct VectorTestContext {
 impl VectorTestContext {
     async fn with_mock_engine() -> Self {
         // Create manager with disabled vector search (uses MockEngine)
-        let mut vector_config = VectorConfig::default();
-        vector_config.enabled = false; // Disabled = uses MockEngine
+        let vector_config = VectorConfig {
+            enabled: false, // Disabled = uses MockEngine
+            ..Default::default()
+        };
 
         let manager = Arc::new(
             VectorIndexManager::new(vector_config.clone())

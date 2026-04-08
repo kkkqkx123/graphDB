@@ -127,7 +127,7 @@ impl VectorValidator {
         self.validate_vector_query_expr(&search.query)?;
 
         if let Some(threshold) = search.threshold {
-            if threshold < 0.0 || threshold > 1.0 {
+            if !(0.0..=1.0).contains(&threshold) {
                 return Err(ValidationError::new(
                     format!("Threshold must be between 0 and 1, got {}", threshold),
                     ValidationErrorType::SemanticError,
@@ -215,7 +215,7 @@ impl VectorValidator {
         self.validate_vector_query_expr(&match_stmt.vector_condition.query)?;
 
         if let Some(threshold) = match_stmt.vector_condition.threshold {
-            if threshold < 0.0 || threshold > 1.0 {
+            if !(0.0..=1.0).contains(&threshold) {
                 return Err(ValidationError::new(
                     format!("Threshold must be between 0 and 1, got {}", threshold),
                     ValidationErrorType::SemanticError,

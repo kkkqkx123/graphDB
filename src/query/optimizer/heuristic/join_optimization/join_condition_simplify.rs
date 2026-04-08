@@ -60,16 +60,18 @@ impl JoinConditionSimplifyRule {
         matches!(expr, Expression::Literal(Value::Bool(true)))
     }
 
+    #[allow(dead_code)]
     fn is_false_expression(&self, expr: &Expression) -> bool {
         matches!(expr, Expression::Literal(Value::Bool(false)))
     }
 
+    #[allow(dead_code)]
     fn normalize_expression(&self, expr: &Expression) -> String {
         match expr {
             Expression::Binary { left, op, right } if *op == BinaryOperator::And => {
                 let left_str = self.normalize_expression(left);
                 let right_str = self.normalize_expression(right);
-                let mut parts = vec![left_str, right_str];
+                let mut parts = [left_str, right_str];
                 parts.sort();
                 parts.join(" AND ")
             }
@@ -84,7 +86,7 @@ impl JoinConditionSimplifyRule {
                 let left_str = self.normalize_expression(left);
                 let right_str = self.normalize_expression(right);
                 if *op == BinaryOperator::Equal {
-                    let mut parts = vec![left_str, right_str];
+                    let mut parts = [left_str, right_str];
                     parts.sort();
                     format!("{}={}{}", parts[0], op, parts[1])
                 } else {
@@ -115,6 +117,7 @@ impl JoinConditionSimplifyRule {
         }
     }
 
+    #[allow(dead_code)]
     fn extract_and_conditions(&self, expr: &Expression) -> Vec<Expression> {
         match expr {
             Expression::Binary { left, op, right } if *op == BinaryOperator::And => {
@@ -126,6 +129,7 @@ impl JoinConditionSimplifyRule {
         }
     }
 
+    #[allow(dead_code)]
     fn remove_duplicate_conditions(&self, expr: &Expression) -> Option<Expression> {
         let conditions = self.extract_and_conditions(expr);
         let mut seen: HashSet<String> = HashSet::new();
@@ -155,6 +159,7 @@ impl JoinConditionSimplifyRule {
         Some(result)
     }
 
+    #[allow(dead_code)]
     fn simplify_condition(&self, expr: &Expression) -> Option<Expression> {
         if self.is_true_expression(expr) {
             return None;

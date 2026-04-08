@@ -119,6 +119,7 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
     }
 
     /// Build column names from output fields
+    #[allow(dead_code)]
     fn build_col_names(&self) -> Vec<String> {
         self.node
             .output_fields
@@ -172,7 +173,7 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
         for result in results {
             let mut row = Vec::new();
             for field in &self.node.output_fields {
-                let value = self.extract_field_value(&field, &result)?;
+                let value = self.extract_field_value(field, &result)?;
                 row.push(value);
             }
             dataset.add_row(row);
@@ -290,15 +291,6 @@ impl<S: StorageClient> HasStorage<S> for VectorSearchExecutor<S> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_parse_vector_literal() {
-        // Skip this test for now as it requires full storage setup
-        // The parse_vector_literal method is tested indirectly through integration tests
-    }
-}
-
 // ============== Vector Lookup Executor ==============
 
 /// Vector lookup executor
@@ -392,6 +384,7 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
     }
 
     /// Build column names from yield fields
+    #[allow(dead_code)]
     fn build_col_names(&self) -> Vec<String> {
         self.node
             .yield_fields
@@ -426,7 +419,7 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
         for result in results {
             let mut row = Vec::new();
             for field in &self.node.yield_fields {
-                let value = self.extract_field_value(&field, &result)?;
+                let value = self.extract_field_value(field, &result)?;
                 row.push(value);
             }
             dataset.add_row(row);
@@ -705,5 +698,14 @@ impl<S: StorageClient> Executor<S> for VectorMatchExecutor<S> {
 impl<S: StorageClient> HasStorage<S> for VectorMatchExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_parse_vector_literal() {
+        // Skip this test for now as it requires full storage setup
+        // The parse_vector_literal method is tested indirectly through integration tests
     }
 }

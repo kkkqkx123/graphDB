@@ -110,10 +110,8 @@ impl QdrantEmbeddingService {
         // Default dimension for common models
         let dimension = if config.model_name.contains("all-MiniLM-L6") {
             384
-        } else if config.model_name.contains("all-MPNet-base") {
-            768
         } else {
-            768 // Default fallback
+            768 // Default fallback for all-MPNet-base and other models
         };
 
         Ok(Self { config, dimension })

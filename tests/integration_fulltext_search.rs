@@ -15,7 +15,6 @@
 mod common;
 
 use common::{
-    assertions::assert_ok,
     storage_helpers::{create_test_space, get_storage, person_tag_info},
     TestStorage,
 };
@@ -99,6 +98,7 @@ fn create_vertex(vid: i64, tag_name: &str, properties: Vec<(&str, &str)>) -> Ver
     Vertex::new(Value::Int(vid), vec![tag])
 }
 
+#[allow(dead_code)]
 fn create_vertex_with_int(vid: i64, tag_name: &str, properties: Vec<(&str, Value)>) -> Vertex {
     let mut props = HashMap::new();
     for (key, value) in properties {
@@ -658,7 +658,7 @@ async fn test_sync_manager_sync_mode() {
         .await
         .expect("Failed to create index");
 
-    let vertex = create_vertex(1, "Document", vec![("title", "Sync mode test")]);
+    let _vertex = create_vertex(1, "Document", vec![("title", "Sync mode test")]);
 
     sync_manager
         .on_vertex_change(

@@ -955,8 +955,10 @@ mod vector_sync_tests {
             let fulltext_coordinator = Arc::new(FulltextCoordinator::new(fulltext_manager));
 
             // Setup vector coordinator
-            let mut vector_config = VectorConfig::default();
-            vector_config.enabled = false; // Use mock engine
+            let vector_config = VectorConfig {
+                enabled: false, // Use mock engine
+                ..Default::default()
+            };
 
             let vector_manager = Arc::new(
                 VectorIndexManager::new(vector_config.clone())

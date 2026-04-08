@@ -31,6 +31,7 @@ pub struct VectorSearchNode {
 }
 
 impl VectorSearchNode {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         index_name: String,
         space_id: u64,
@@ -111,6 +112,7 @@ pub struct CreateVectorIndexNode {
 }
 
 impl CreateVectorIndexNode {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         index_name: String,
         space_name: String,

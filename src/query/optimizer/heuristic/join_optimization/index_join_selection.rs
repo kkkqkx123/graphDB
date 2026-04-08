@@ -61,16 +61,19 @@ impl IndexJoinSelectionRule {
             || key.contains("id")
     }
 
+    #[allow(dead_code)]
     fn estimate_hash_join_cost(&self, left_rows: f64, right_rows: f64) -> f64 {
         let build_cost = right_rows;
         let probe_cost = left_rows;
         build_cost + probe_cost
     }
 
+    #[allow(dead_code)]
     fn estimate_index_join_cost(&self, left_rows: f64, _right_rows: f64, selectivity: f64) -> f64 {
         left_rows * selectivity * 2.0
     }
 
+    #[allow(dead_code)]
     fn should_use_index_join(&self, left_rows: f64, right_rows: f64, selectivity: f64) -> bool {
         if left_rows <= 0.0 || right_rows <= 0.0 {
             return false;
