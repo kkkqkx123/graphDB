@@ -37,6 +37,9 @@ use crate::query::planning::plan::core::nodes::management::tag_nodes::{
 use crate::query::planning::plan::core::nodes::management::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode,
 };
+use crate::query::planning::plan::core::nodes::data_access::vector_search::{
+    VectorSearchNode, CreateVectorIndexNode, DropVectorIndexNode, VectorLookupNode, VectorMatchNode,
+};
 
 // Import and re-export all specific node types.
 pub use crate::query::planning::plan::core::nodes::access::graph_scan_node::{
@@ -205,6 +208,13 @@ pub enum PlanNodeEnum {
     FulltextSearch(FulltextSearchNode),
     FulltextLookup(FulltextLookupNode),
     MatchFulltext(MatchFulltextNode),
+
+    // Vector Search Nodes
+    VectorSearch(VectorSearchNode),
+    CreateVectorIndex(CreateVectorIndexNode),
+    DropVectorIndex(DropVectorIndexNode),
+    VectorLookup(VectorLookupNode),
+    VectorMatch(VectorMatchNode),
 }
 
 impl Default for PlanNodeEnum {
@@ -325,6 +335,12 @@ crate::define_enum_is_methods! {
     (FulltextSearch, is_fulltext_search),
     (FulltextLookup, is_fulltext_lookup),
     (MatchFulltext, is_match_fulltext),
+    // Vector Search Nodes
+    (VectorSearch, is_vector_search),
+    (CreateVectorIndex, is_create_vector_index),
+    (DropVectorIndex, is_drop_vector_index),
+    (VectorLookup, is_vector_lookup),
+    (VectorMatch, is_vector_match),
 }
 
 // Use macros to generate the as_xxx method.
@@ -439,6 +455,12 @@ crate::define_enum_as_methods! {
     (FulltextSearch, as_fulltext_search, FulltextSearchNode),
     (FulltextLookup, as_fulltext_lookup, FulltextLookupNode),
     (MatchFulltext, as_match_fulltext, MatchFulltextNode),
+    // Vector Search Nodes
+    (VectorSearch, as_vector_search, VectorSearchNode),
+    (CreateVectorIndex, as_create_vector_index, CreateVectorIndexNode),
+    (DropVectorIndex, as_drop_vector_index, DropVectorIndexNode),
+    (VectorLookup, as_vector_lookup, VectorLookupNode),
+    (VectorMatch, as_vector_match, VectorMatchNode),
 }
 
 // Use macros to generate the _xxx_mut method.
@@ -553,6 +575,12 @@ crate::define_enum_as_mut_methods! {
     (FulltextSearch, as_fulltext_search_mut, FulltextSearchNode),
     (FulltextLookup, as_fulltext_lookup_mut, FulltextLookupNode),
     (MatchFulltext, as_match_fulltext_mut, MatchFulltextNode),
+    // Vector Search Nodes
+    (VectorSearch, as_vector_search_mut, VectorSearchNode),
+    (CreateVectorIndex, as_create_vector_index_mut, CreateVectorIndexNode),
+    (DropVectorIndex, as_drop_vector_index_mut, DropVectorIndexNode),
+    (VectorLookup, as_vector_lookup_mut, VectorLookupNode),
+    (VectorMatch, as_vector_match_mut, VectorMatchNode),
 }
 
 // Use macros to generate the type_name method.
@@ -669,6 +697,12 @@ crate::define_enum_type_name! {
     (FulltextSearch, "FulltextSearch"),
     (FulltextLookup, "FulltextLookup"),
     (MatchFulltext, "MatchFulltext"),
+    // Vector Search Nodes
+    (VectorSearch, "VectorSearch"),
+    (CreateVectorIndex, "CreateVectorIndex"),
+    (DropVectorIndex, "DropVectorIndex"),
+    (VectorLookup, "VectorLookup"),
+    (VectorMatch, "VectorMatch"),
 }
 
 // Use macros to generate the `category` method.
@@ -779,6 +813,12 @@ crate::define_enum_category! {
     (FulltextSearch, PlanNodeCategory::DataAccess),
     (FulltextLookup, PlanNodeCategory::DataAccess),
     (MatchFulltext, PlanNodeCategory::DataAccess),
+    // Vector Search Nodes
+    (VectorSearch, PlanNodeCategory::DataAccess),
+    (CreateVectorIndex, PlanNodeCategory::Management),
+    (DropVectorIndex, PlanNodeCategory::Management),
+    (VectorLookup, PlanNodeCategory::DataAccess),
+    (VectorMatch, PlanNodeCategory::DataAccess),
 }
 
 // Use macros to generate the describe method.
@@ -892,6 +932,12 @@ crate::define_enum_describe! {
     (FulltextSearch, "FulltextSearch"),
     (FulltextLookup, "FulltextLookup"),
     (MatchFulltext, "MatchFulltext"),
+    // Vector Search Nodes
+    (VectorSearch, "VectorSearch"),
+    (CreateVectorIndex, "CreateVectorIndex"),
+    (DropVectorIndex, "DropVectorIndex"),
+    (VectorLookup, "VectorLookup"),
+    (VectorMatch, "VectorMatch"),
     // Show Create Tag node
     (ShowCreateTag, "ShowCreateTag"),
 }
@@ -1327,6 +1373,12 @@ impl PlanNodeEnum {
                 }
                 total
             }
+            // Vector Search Nodes
+            PlanNodeEnum::VectorSearch(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::CreateVectorIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DropVectorIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::VectorLookup(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::VectorMatch(node) => base_size + estimate_node_memory(node),
         }
     }
 
@@ -1608,6 +1660,12 @@ impl PlanNodeEnum {
                 }
                 total
             }
+            // Vector Search Nodes
+            PlanNodeEnum::VectorSearch(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::CreateVectorIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::DropVectorIndex(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::VectorLookup(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::VectorMatch(node) => base_size + estimate_node_memory(node),
         }
     }
 

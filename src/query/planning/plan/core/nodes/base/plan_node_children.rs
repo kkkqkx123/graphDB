@@ -179,6 +179,12 @@ impl PlanNodeEnum {
             PlanNodeEnum::FulltextSearch(_) => vec![],
             PlanNodeEnum::FulltextLookup(_) => vec![],
             PlanNodeEnum::MatchFulltext(_) => vec![],
+            // Vector Search Nodes
+            PlanNodeEnum::VectorSearch(_) => vec![],
+            PlanNodeEnum::CreateVectorIndex(_) => vec![],
+            PlanNodeEnum::DropVectorIndex(_) => vec![],
+            PlanNodeEnum::VectorLookup(_) => vec![],
+            PlanNodeEnum::VectorMatch(_) => vec![],
         }
     }
 }

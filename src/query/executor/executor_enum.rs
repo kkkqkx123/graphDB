@@ -25,9 +25,9 @@ use super::base::{
     BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, InputExecutor, StartExecutor,
 };
 use super::data_access::{
-    FulltextScanExecutor, FulltextSearchExecutor, GetEdgesExecutor, GetNeighborsExecutor,
+    CreateVectorIndexExecutor, DropVectorIndexExecutor, FulltextScanExecutor, FulltextSearchExecutor, GetEdgesExecutor, GetNeighborsExecutor,
     GetPropExecutor, GetVerticesExecutor, IndexScanExecutor, MatchFulltextExecutor,
-    ScanEdgesExecutor, ScanVerticesExecutor,
+    ScanEdgesExecutor, ScanVerticesExecutor, VectorSearchExecutor, VectorLookupExecutor, VectorMatchExecutor,
 };
 use super::data_modification::{DeleteExecutor, InsertExecutor, RemoveExecutor, UpdateExecutor};
 use super::data_processing::graph_traversal::algorithms::BFSShortestExecutor;
@@ -157,6 +157,12 @@ pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
     FulltextSearch(FulltextSearchExecutor<S>),
     FulltextLookup(FulltextScanExecutor<S>),
     MatchFulltext(MatchFulltextExecutor<S>),
+    // Vector Search Executors
+    VectorSearch(VectorSearchExecutor<S>),
+    CreateVectorIndex(CreateVectorIndexExecutor<S>),
+    DropVectorIndex(DropVectorIndexExecutor<S>),
+    VectorLookup(VectorLookupExecutor<S>),
+    VectorMatch(VectorMatchExecutor<S>),
 }
 
 impl<S: StorageClient + Send + 'static> Debug for ExecutorEnum<S> {
@@ -261,6 +267,12 @@ impl<S: StorageClient + Send + 'static> Debug for ExecutorEnum<S> {
             ExecutorEnum::FulltextSearch(exec) => ("FulltextSearch", exec.name()),
             ExecutorEnum::FulltextLookup(exec) => ("FulltextLookup", exec.name()),
             ExecutorEnum::MatchFulltext(exec) => ("MatchFulltext", exec.name()),
+            // Vector Search Executors
+            ExecutorEnum::VectorSearch(exec) => ("VectorSearch", exec.name()),
+            ExecutorEnum::CreateVectorIndex(exec) => ("CreateVectorIndex", exec.name()),
+            ExecutorEnum::DropVectorIndex(exec) => ("DropVectorIndex", exec.name()),
+            ExecutorEnum::VectorLookup(exec) => ("VectorLookup", exec.name()),
+            ExecutorEnum::VectorMatch(exec) => ("VectorMatch", exec.name()),
         };
         f.write_str(&format!("ExecutorEnum::{}({})", variant_name, exec_name))
     }
@@ -491,6 +503,12 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::FulltextSearch(_) => "fulltext_search",
             ExecutorEnum::FulltextLookup(_) => "fulltext_lookup",
             ExecutorEnum::MatchFulltext(_) => "match_fulltext",
+            // Vector Search Executors
+            ExecutorEnum::VectorSearch(_) => "vector_search",
+            ExecutorEnum::CreateVectorIndex(_) => "create_vector_index",
+            ExecutorEnum::DropVectorIndex(_) => "drop_vector_index",
+            ExecutorEnum::VectorLookup(_) => "vector_lookup",
+            ExecutorEnum::VectorMatch(_) => "vector_match",
         }
     }
 
@@ -595,6 +613,12 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::FulltextSearch(_) => "Fulltext Search",
             ExecutorEnum::FulltextLookup(_) => "Fulltext Lookup",
             ExecutorEnum::MatchFulltext(_) => "Match Fulltext",
+            // Vector Search Executors
+            ExecutorEnum::VectorSearch(_) => "Vector Search",
+            ExecutorEnum::CreateVectorIndex(_) => "Create Vector Index",
+            ExecutorEnum::DropVectorIndex(_) => "Drop Vector Index",
+            ExecutorEnum::VectorLookup(_) => "Vector Lookup",
+            ExecutorEnum::VectorMatch(_) => "Vector Match",
         }
     }
 
@@ -699,6 +723,12 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::FulltextSearch(_) => NodeCategory::Scan,
             ExecutorEnum::FulltextLookup(_) => NodeCategory::Scan,
             ExecutorEnum::MatchFulltext(_) => NodeCategory::Scan,
+            // Vector Search Executors
+            ExecutorEnum::VectorSearch(_) => NodeCategory::Scan,
+            ExecutorEnum::CreateVectorIndex(_) => NodeCategory::Admin,
+            ExecutorEnum::DropVectorIndex(_) => NodeCategory::Admin,
+            ExecutorEnum::VectorLookup(_) => NodeCategory::Scan,
+            ExecutorEnum::VectorMatch(_) => NodeCategory::Scan,
         }
     }
 }
@@ -808,6 +838,12 @@ mod macros {
                 ExecutorEnum::FulltextSearch(exec) => exec.$method(),
                 ExecutorEnum::FulltextLookup(exec) => exec.$method(),
                 ExecutorEnum::MatchFulltext(exec) => exec.$method(),
+                // Vector Search Executors
+                ExecutorEnum::VectorSearch(exec) => exec.$method(),
+                ExecutorEnum::CreateVectorIndex(exec) => exec.$method(),
+                ExecutorEnum::DropVectorIndex(exec) => exec.$method(),
+                ExecutorEnum::VectorLookup(exec) => exec.$method(),
+                ExecutorEnum::VectorMatch(exec) => exec.$method(),
             }
         };
     }
@@ -915,6 +951,12 @@ mod macros {
                 ExecutorEnum::FulltextSearch(exec) => exec.$method(),
                 ExecutorEnum::FulltextLookup(exec) => exec.$method(),
                 ExecutorEnum::MatchFulltext(exec) => exec.$method(),
+                // Vector Search Executors
+                ExecutorEnum::VectorSearch(exec) => exec.$method(),
+                ExecutorEnum::CreateVectorIndex(exec) => exec.$method(),
+                ExecutorEnum::DropVectorIndex(exec) => exec.$method(),
+                ExecutorEnum::VectorLookup(exec) => exec.$method(),
+                ExecutorEnum::VectorMatch(exec) => exec.$method(),
             }
         };
     }

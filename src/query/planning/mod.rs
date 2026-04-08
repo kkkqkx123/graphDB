@@ -16,6 +16,9 @@ pub mod plan;
 pub mod planner;
 pub mod template_extractor;
 
+// Planner modules
+pub mod vector_planner;
+
 // Modules organized by function
 pub mod statements;
 

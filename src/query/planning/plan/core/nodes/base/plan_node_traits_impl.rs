@@ -103,6 +103,12 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::FulltextSearch(_) => "fulltext_search",
             PlanNodeEnum::FulltextLookup(_) => "fulltext_lookup",
             PlanNodeEnum::MatchFulltext(_) => "match_fulltext",
+            // Vector Search Nodes
+            PlanNodeEnum::VectorSearch(_) => "vector_search",
+            PlanNodeEnum::CreateVectorIndex(_) => "create_vector_index",
+            PlanNodeEnum::DropVectorIndex(_) => "drop_vector_index",
+            PlanNodeEnum::VectorLookup(_) => "vector_lookup",
+            PlanNodeEnum::VectorMatch(_) => "vector_match",
         }
     }
 
@@ -202,6 +208,12 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::FulltextSearch(_) => "Fulltext Search",
             PlanNodeEnum::FulltextLookup(_) => "Fulltext Lookup",
             PlanNodeEnum::MatchFulltext(_) => "Match Fulltext",
+            // Vector Search Nodes
+            PlanNodeEnum::VectorSearch(_) => "Vector Search",
+            PlanNodeEnum::CreateVectorIndex(_) => "Create Vector Index",
+            PlanNodeEnum::DropVectorIndex(_) => "Drop Vector Index",
+            PlanNodeEnum::VectorLookup(_) => "Vector Lookup",
+            PlanNodeEnum::VectorMatch(_) => "Vector Match",
         }
     }
 
@@ -301,6 +313,12 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::FulltextSearch(_) => NodeCategory::DataAccess,
             PlanNodeEnum::FulltextLookup(_) => NodeCategory::DataAccess,
             PlanNodeEnum::MatchFulltext(_) => NodeCategory::DataAccess,
+            // Vector Search Nodes
+            PlanNodeEnum::VectorSearch(_) => NodeCategory::DataAccess,
+            PlanNodeEnum::CreateVectorIndex(_) => NodeCategory::Admin,
+            PlanNodeEnum::DropVectorIndex(_) => NodeCategory::Admin,
+            PlanNodeEnum::VectorLookup(_) => NodeCategory::DataAccess,
+            PlanNodeEnum::VectorMatch(_) => NodeCategory::DataAccess,
         }
     }
 }
@@ -405,6 +423,12 @@ impl NodeTypeMapping for PlanNodeEnum {
             PlanNodeEnum::FulltextSearch(_) => Some("fulltext_search"),
             PlanNodeEnum::FulltextLookup(_) => Some("fulltext_lookup"),
             PlanNodeEnum::MatchFulltext(_) => Some("match_fulltext"),
+            // Vector Search Nodes
+            PlanNodeEnum::VectorSearch(_) => Some("vector_search"),
+            PlanNodeEnum::CreateVectorIndex(_) => Some("create_vector_index"),
+            PlanNodeEnum::DropVectorIndex(_) => Some("drop_vector_index"),
+            PlanNodeEnum::VectorLookup(_) => Some("vector_lookup"),
+            PlanNodeEnum::VectorMatch(_) => Some("vector_match"),
         }
     }
 }

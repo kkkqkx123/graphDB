@@ -352,6 +352,12 @@ impl PlanNodeEnum {
             PlanNodeEnum::FulltextSearch(node) => visitor.visit_fulltext_search(node),
             PlanNodeEnum::FulltextLookup(node) => visitor.visit_fulltext_lookup(node),
             PlanNodeEnum::MatchFulltext(node) => visitor.visit_match_fulltext(node),
+            // Vector Search Nodes
+            PlanNodeEnum::VectorSearch(node) => visitor.visit_vector_search(node),
+            PlanNodeEnum::CreateVectorIndex(node) => visitor.visit_create_vector_index(node),
+            PlanNodeEnum::DropVectorIndex(node) => visitor.visit_drop_vector_index(node),
+            PlanNodeEnum::VectorLookup(node) => visitor.visit_vector_lookup(node),
+            PlanNodeEnum::VectorMatch(node) => visitor.visit_vector_match(node),
         }
     }
 }

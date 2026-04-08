@@ -4,6 +4,7 @@
 //! ensuring semantic correctness before plan generation.
 
 use std::fmt;
+use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::{
@@ -234,12 +235,12 @@ impl VectorValidator {
 
 impl StatementValidator for VectorValidator {
     fn validate(
-        &self,
-        stmt: &crate::query::parser::ast::Stmt,
-        qctx: &QueryContext,
-    ) -> ValidationResult {
-        self.validate_impl(stmt, qctx)
-            .map(|info| ValidationInfo::with_statement_type(info, StatementType::VectorSearch))
+        &mut self,
+        stmt: crate::query::parser::ast::Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<ValidationInfo, ValidationError> {
+        self.validate_impl(&stmt, &qctx)
+            .map(|info| ValidationInfo::with_statement_type(info, StatementType::SearchVector))
     }
 
     fn inputs(&self) -> &[ColumnDef] {
@@ -252,5 +253,17 @@ impl StatementValidator for VectorValidator {
 
     fn expression_props(&self) -> &ExpressionProps {
         &self.expression_props
+    }
+
+    fn statement_type(&self) -> StatementType {
+        StatementType::SearchVector
+    }
+
+    fn is_global_statement(&self) -> bool {
+        false
+    }
+
+    fn user_defined_vars(&self) -> &[String] {
+        &[]
     }
 }

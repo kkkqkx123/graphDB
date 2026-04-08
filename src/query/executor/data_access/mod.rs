@@ -10,6 +10,8 @@ pub mod neighbor;
 pub mod path;
 pub mod property;
 pub mod search;
+pub mod vector_index;
+pub mod vector_search;
 pub mod vertex;
 
 pub use edge::{GetEdgesExecutor, ScanEdgesExecutor};
@@ -20,4 +22,6 @@ pub use neighbor::GetNeighborsExecutor;
 pub use path::AllPathsExecutor;
 pub use property::GetPropExecutor;
 pub use search::IndexScanExecutor;
+pub use vector_index::{CreateVectorIndexExecutor, DropVectorIndexExecutor};
+pub use vector_search::{VectorSearchExecutor, VectorLookupExecutor, VectorMatchExecutor};
 pub use vertex::{GetVerticesExecutor, GetVerticesParams, ScanVerticesExecutor};

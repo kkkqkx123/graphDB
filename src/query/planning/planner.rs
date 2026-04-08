@@ -44,6 +44,7 @@ use crate::query::planning::plan::core::nodes::management::{
     DropFulltextIndexNode, FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
     ShowFulltextIndexNode,
 };
+use crate::query::planning::vector_planner::VectorSearchPlanner;
 
 ///  Planner Configuration
 #[derive(Debug, Clone)]
@@ -261,6 +262,7 @@ pub enum PlannerEnum {
     Return(ReturnPlanner),
     Yield(YieldPlanner),
     FulltextSearch(FulltextSearchPlanner),
+    VectorSearch(VectorSearchPlanner),
 }
 
 impl PlannerEnum {
@@ -303,6 +305,13 @@ impl PlannerEnum {
             | Stmt::LookupFulltext(_)
             | Stmt::MatchFulltext(_) => {
                 Some(PlannerEnum::FulltextSearch(FulltextSearchPlanner::new()))
+            }
+            Stmt::CreateVectorIndex(_)
+            | Stmt::DropVectorIndex(_)
+            | Stmt::SearchVector(_)
+            | Stmt::LookupVector(_)
+            | Stmt::MatchVector(_) => {
+                Some(PlannerEnum::VectorSearch(VectorSearchPlanner::new()))
             }
             // DDL/DML operations use the Maintain planner.
             Stmt::Create(_)
@@ -366,6 +375,7 @@ impl PlannerEnum {
             PlannerEnum::Return(planner) => planner.transform(validated, qctx),
             PlannerEnum::Yield(planner) => planner.transform(validated, qctx),
             PlannerEnum::FulltextSearch(planner) => planner.transform(validated, qctx),
+            PlannerEnum::VectorSearch(planner) => planner.transform(validated, qctx),
         }
     }
 
@@ -394,6 +404,7 @@ impl PlannerEnum {
             PlannerEnum::Return(_) => "ReturnPlanner",
             PlannerEnum::Yield(_) => "YieldPlanner",
             PlannerEnum::FulltextSearch(_) => "FulltextSearchPlanner",
+            PlannerEnum::VectorSearch(_) => "VectorSearchPlanner",
         }
     }
 
@@ -422,6 +433,7 @@ impl PlannerEnum {
             PlannerEnum::Return(planner) => planner.match_planner(stmt),
             PlannerEnum::Yield(planner) => planner.match_planner(stmt),
             PlannerEnum::FulltextSearch(planner) => planner.match_planner(stmt),
+            PlannerEnum::VectorSearch(planner) => planner.match_planner(stmt),
         }
     }
 }

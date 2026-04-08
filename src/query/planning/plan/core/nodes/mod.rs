@@ -1,6 +1,7 @@
 pub mod access;
 pub mod base;
 pub mod control_flow;
+pub mod data_access;
 pub mod data_modification;
 pub mod data_processing;
 pub mod join;
@@ -43,6 +44,7 @@ pub use management::{
     ShowStatsType, ShowTagIndexesNode, ShowTagsNode, SpaceAlterOption, SpaceManageInfo,
     SwitchSpaceNode, TagAlterInfo, TagManageInfo,
 };
+pub use data_access::{CreateVectorIndexNode, DropVectorIndexNode, VectorLookupNode, VectorMatchNode, VectorSearchNode};
 pub use operation::{FilterNode, LimitNode, ProjectNode, SampleNode, SortItem, SortNode, TopNNode};
 pub use plan_node_factory::PlanNodeFactory;
 pub use traversal::{

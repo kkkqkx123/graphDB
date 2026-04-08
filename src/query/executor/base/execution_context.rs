@@ -13,6 +13,7 @@ use crate::query::executor::expression::functions::global_registry_ref;
 use crate::query::executor::expression::functions::OwnedFunctionRef;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::search::SearchEngine;
+use crate::vector::VectorCoordinator;
 
 /// Execution Context
 ///
@@ -29,6 +30,8 @@ pub struct ExecutionContext {
     pub search_engine: Option<Arc<dyn SearchEngine>>,
     /// Fulltext coordinator
     pub fulltext_coordinator: Option<Arc<FulltextCoordinator>>,
+    /// Vector coordinator for vector search operations
+    pub vector_coordinator: Option<Arc<VectorCoordinator>>,
 }
 
 impl ExecutionContext {
@@ -40,6 +43,7 @@ impl ExecutionContext {
             expression_context,
             search_engine: None,
             fulltext_coordinator: None,
+            vector_coordinator: None,
         }
     }
 
@@ -54,6 +58,7 @@ impl ExecutionContext {
             expression_context,
             search_engine: Some(search_engine),
             fulltext_coordinator: None,
+            vector_coordinator: None,
         }
     }
 
@@ -69,6 +74,23 @@ impl ExecutionContext {
             expression_context,
             search_engine: Some(search_engine),
             fulltext_coordinator: Some(coordinator),
+            vector_coordinator: None,
+        }
+    }
+
+    /// Create a new execution context with vector coordinator.
+    pub fn with_vector_coordinator(
+        expression_context: Arc<ExpressionAnalysisContext>,
+        search_engine: Arc<dyn SearchEngine>,
+        coordinator: Arc<VectorCoordinator>,
+    ) -> Self {
+        Self {
+            results: Arc::new(Mutex::new(HashMap::new())),
+            variables: Arc::new(Mutex::new(HashMap::new())),
+            expression_context,
+            search_engine: Some(search_engine),
+            fulltext_coordinator: None,
+            vector_coordinator: Some(coordinator),
         }
     }
 
@@ -107,6 +129,11 @@ impl ExecutionContext {
         self.fulltext_coordinator.as_ref()
     }
 
+    /// Obtain the vector coordinator.
+    pub fn vector_coordinator(&self) -> Option<&Arc<VectorCoordinator>> {
+        self.vector_coordinator.as_ref()
+    }
+
     /// Get current space ID from variables
     pub fn current_space_id(&self) -> Option<u64> {
         self.variables.lock().get("space_id").and_then(|v| match v {
@@ -132,6 +159,7 @@ impl Default for ExecutionContext {
             expression_context: Arc::new(ExpressionAnalysisContext::new()),
             search_engine: None,
             fulltext_coordinator: None,
+            vector_coordinator: None,
         }
     }
 }

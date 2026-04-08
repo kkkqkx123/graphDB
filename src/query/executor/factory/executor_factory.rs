@@ -17,6 +17,7 @@ use crate::query::executor::factory::validators::RecursionDetector;
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::storage::StorageClient;
+use crate::vector::VectorCoordinator;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
@@ -31,6 +32,7 @@ pub struct ExecutorFactory<S: StorageClient + Send + 'static> {
     pub(crate) config: ExecutorSafetyConfig,
     pub(crate) recursion_detector: RecursionDetector,
     pub(crate) fulltext_coordinator: Option<Arc<FulltextCoordinator>>,
+    pub(crate) vector_coordinator: Option<Arc<VectorCoordinator>>,
 }
 
 impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
@@ -44,6 +46,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             config,
             recursion_detector,
             fulltext_coordinator: None,
+            vector_coordinator: None,
         }
     }
 
@@ -58,6 +61,13 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     pub fn with_fulltext_coordinator(coordinator: Arc<FulltextCoordinator>) -> Self {
         let mut factory = Self::new();
         factory.fulltext_coordinator = Some(coordinator);
+        factory
+    }
+
+    /// Setting the vector coordinator
+    pub fn with_vector_coordinator(coordinator: Arc<VectorCoordinator>) -> Self {
+        let mut factory = Self::new();
+        factory.vector_coordinator = Some(coordinator);
         factory
     }
 
@@ -420,6 +430,23 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 self.build_fulltext_lookup(node, storage, context)
             }
             PlanNodeEnum::MatchFulltext(node) => self.build_match_fulltext(node, storage, context),
+            
+            // Vector Search Executor
+            PlanNodeEnum::VectorSearch(node) => {
+                self.build_vector_search(node, storage, context)
+            }
+            PlanNodeEnum::CreateVectorIndex(node) => {
+                self.build_create_vector_index(node, storage, context)
+            }
+            PlanNodeEnum::DropVectorIndex(node) => {
+                self.build_drop_vector_index(node, storage, context)
+            }
+            PlanNodeEnum::VectorLookup(node) => {
+                self.build_vector_lookup(node, storage, context)
+            }
+            PlanNodeEnum::VectorMatch(node) => {
+                self.build_vector_match(node, storage, context)
+            }
         }
     }
 
@@ -804,6 +831,137 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         );
         Ok(ExecutorEnum::MatchFulltext(executor))
     }
+
+    // Vector Search build methods
+    fn build_vector_search(
+        &mut self,
+        node: &crate::query::planning::plan::core::nodes::data_access::vector_search::VectorSearchNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        use crate::query::executor::data_access::VectorSearchExecutor;
+
+        let coordinator = self
+            .vector_coordinator
+            .clone()
+            .or_else(|| context.vector_coordinator().cloned())
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Vector coordinator not available".to_string())
+            })?;
+
+        let executor = VectorSearchExecutor::new(
+            node.id(),
+            node.clone(),
+            storage,
+            context.expression_context().clone(),
+            coordinator,
+        );
+        Ok(ExecutorEnum::VectorSearch(executor))
+    }
+
+    fn build_create_vector_index(
+        &mut self,
+        node: &crate::query::planning::plan::core::nodes::data_access::vector_search::CreateVectorIndexNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        use crate::query::executor::data_access::CreateVectorIndexExecutor;
+
+        let coordinator = self
+            .vector_coordinator
+            .clone()
+            .or_else(|| context.vector_coordinator().cloned())
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Vector coordinator not available".to_string())
+            })?;
+
+        let executor = CreateVectorIndexExecutor::new(
+            node.id(),
+            node.clone(),
+            storage,
+            context.expression_context().clone(),
+            coordinator,
+        );
+        Ok(ExecutorEnum::CreateVectorIndex(executor))
+    }
+
+    fn build_drop_vector_index(
+        &mut self,
+        node: &crate::query::planning::plan::core::nodes::data_access::vector_search::DropVectorIndexNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        use crate::query::executor::data_access::DropVectorIndexExecutor;
+
+        let coordinator = self
+            .vector_coordinator
+            .clone()
+            .or_else(|| context.vector_coordinator().cloned())
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Vector coordinator not available".to_string())
+            })?;
+
+        let executor = DropVectorIndexExecutor::new(
+            node.id(),
+            node.clone(),
+            storage,
+            context.expression_context().clone(),
+            coordinator,
+        );
+        Ok(ExecutorEnum::DropVectorIndex(executor))
+    }
+
+    fn build_vector_lookup(
+        &mut self,
+        node: &crate::query::planning::plan::core::nodes::data_access::vector_search::VectorLookupNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        use crate::query::executor::data_access::VectorLookupExecutor;
+
+        let coordinator = self
+            .vector_coordinator
+            .clone()
+            .or_else(|| context.vector_coordinator().cloned())
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Vector coordinator not available".to_string())
+            })?;
+
+        let executor = VectorLookupExecutor::new(
+            node.id(),
+            node.clone(),
+            storage,
+            context.expression_context().clone(),
+            coordinator,
+        );
+        Ok(ExecutorEnum::VectorLookup(executor))
+    }
+
+    fn build_vector_match(
+        &mut self,
+        node: &crate::query::planning::plan::core::nodes::data_access::vector_search::VectorMatchNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        use crate::query::executor::data_access::VectorMatchExecutor;
+
+        let coordinator = self
+            .vector_coordinator
+            .clone()
+            .or_else(|| context.vector_coordinator().cloned())
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Vector coordinator not available".to_string())
+            })?;
+
+        let executor = VectorMatchExecutor::new(
+            node.id(),
+            node.clone(),
+            storage,
+            context.expression_context().clone(),
+            coordinator,
+        );
+        Ok(ExecutorEnum::VectorMatch(executor))
+    }
 }
 
 impl<S: StorageClient + 'static> Clone for ExecutorFactory<S> {
@@ -813,6 +971,7 @@ impl<S: StorageClient + 'static> Clone for ExecutorFactory<S> {
             config: self.config.clone(),
             recursion_detector: RecursionDetector::new(self.config.max_recursion_depth),
             fulltext_coordinator: self.fulltext_coordinator.clone(),
+            vector_coordinator: self.vector_coordinator.clone(),
         }
     }
 }

@@ -823,6 +823,7 @@ impl Validator {
             Validator::UpdateConfig(v) => v.user_defined_vars(),
             Validator::ClearSpace(v) => v.user_defined_vars(),
             Validator::Fulltext(v) => v.user_defined_vars(),
+            Validator::Vector(v) => v.user_defined_vars(),
         }
     }
 
@@ -889,6 +890,7 @@ impl Validator {
             Validator::UpdateConfig(v) => v.expression_props(),
             Validator::ClearSpace(v) => v.expression_props(),
             Validator::Fulltext(v) => v.expression_props(),
+            Validator::Vector(v) => v.expression_props(),
         }
     }
 }

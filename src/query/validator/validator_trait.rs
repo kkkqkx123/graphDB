@@ -340,6 +340,13 @@ impl StatementType {
             StatementType::Search => "SEARCH",
             StatementType::LookupFulltext => "LOOKUP_FULLTEXT",
             StatementType::MatchFulltext => "MATCH_FULLTEXT",
+            
+            // Vector Search statements
+            StatementType::CreateVectorIndex => "CREATE_VECTOR_INDEX",
+            StatementType::DropVectorIndex => "DROP_VECTOR_INDEX",
+            StatementType::SearchVector => "SEARCH_VECTOR",
+            StatementType::LookupVector => "LOOKUP_VECTOR",
+            StatementType::MatchVector => "MATCH_VECTOR",
         }
     }
 
