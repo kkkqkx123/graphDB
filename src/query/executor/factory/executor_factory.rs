@@ -479,6 +479,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 config,
                 recursion_detector: RecursionDetector::new(max_recursion_depth),
                 fulltext_coordinator: self.fulltext_coordinator.clone(),
+                vector_coordinator: self.vector_coordinator.clone(),
             };
 
             temp_factory.create_executor(body, storage.clone(), context)?
@@ -535,6 +536,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 config,
                 recursion_detector: RecursionDetector::new(max_recursion_depth),
                 fulltext_coordinator: self.fulltext_coordinator.clone(),
+                vector_coordinator: self.vector_coordinator.clone(),
             };
 
             temp_factory.create_executor(if_node, storage.clone(), context)?
@@ -550,6 +552,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                     config,
                     recursion_detector: RecursionDetector::new(max_recursion_depth),
                     fulltext_coordinator: self.fulltext_coordinator.clone(),
+                    vector_coordinator: self.vector_coordinator.clone(),
                 };
 
                 Some(temp_factory.create_executor(else_node, storage.clone(), context)?)

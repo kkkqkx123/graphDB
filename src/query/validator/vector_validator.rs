@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::{
-    CreateVectorIndex, DropVectorIndex, LookupVector, MatchVector, SearchVectorStatement,
+    Ast, CreateVectorIndex, DropVectorIndex, LookupVector, MatchVector, SearchVectorStatement,
     VectorQueryType,
 };
 use crate::query::validator::validator_trait::{
@@ -236,11 +236,12 @@ impl VectorValidator {
 impl StatementValidator for VectorValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
-    ) -> Result<ValidationInfo, ValidationError> {
-        self.validate_impl(&stmt, &qctx)
-            .map(|info| ValidationInfo::with_statement_type(info, StatementType::SearchVector))
+    ) -> Result<ValidationResult, ValidationError> {
+        let stmt = ast.stmt.clone();
+        let info = self.validate_impl(&stmt, &qctx)?;
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn inputs(&self) -> &[ColumnDef] {

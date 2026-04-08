@@ -9,6 +9,7 @@ use crate::query::parser::ast::vector::{
 };
 use crate::query::parser::ast::Stmt;
 use crate::query::planning::plan::SubPlan;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::query::planning::plan::core::nodes::data_access::vector_search::{
     CreateVectorIndexNode, DropVectorIndexNode, VectorLookupNode, VectorMatchNode, VectorSearchNode,
 };
@@ -43,7 +44,7 @@ impl Planner for VectorSearchPlanner {
                 self.transform_drop_vector_index(drop, &space_name)
             }
             Stmt::SearchVector(search) => {
-                self.transform_search_vector(search, space_id, &space_name, qctx)
+                self.transform_search_vector(search, space_id, &space_name, qctx.clone())
             }
             Stmt::LookupVector(lookup) => {
                 self.transform_lookup_vector(lookup, space_id, &space_name)
@@ -84,7 +85,7 @@ impl VectorSearchPlanner {
         let node = CreateVectorIndexNode::new(
             create.index_name.clone(),
             schema_name,
-            create.tag_name.clone(),
+            create.schema_name.clone(),
             create.field_name.clone(),
             create.config.vector_size,
             create.config.distance,
@@ -115,7 +116,7 @@ impl VectorSearchPlanner {
         search: &SearchVectorStatement,
         space_id: u64,
         space_name: &str,
-        qctx: Arc<QueryContext>,
+        _qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         // Parse output fields from yield clause
         let output_fields = if let Some(yield_clause) = &search.yield_clause {
@@ -157,7 +158,7 @@ impl VectorSearchPlanner {
     fn transform_lookup_vector(
         &self,
         lookup: &LookupVector,
-        space_id: u64,
+        _space_id: u64,
         space_name: &str,
     ) -> Result<SubPlan, PlannerError> {
         let schema_name = if lookup.schema_name.is_empty() {
@@ -191,7 +192,7 @@ impl VectorSearchPlanner {
     fn transform_match_vector(
         &self,
         match_stmt: &MatchVector,
-        space_id: u64,
+        _space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
         let yield_fields = match_stmt.yield_clause.as_ref().map_or_else(Vec::new, |yield_clause| {
             yield_clause

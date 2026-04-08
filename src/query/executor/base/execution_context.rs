@@ -32,6 +32,8 @@ pub struct ExecutionContext {
     pub fulltext_coordinator: Option<Arc<FulltextCoordinator>>,
     /// Vector coordinator for vector search operations
     pub vector_coordinator: Option<Arc<VectorCoordinator>>,
+    /// Query parameters
+    pub parameters: Arc<HashMap<String, crate::core::Value>>,
 }
 
 impl ExecutionContext {
@@ -44,6 +46,23 @@ impl ExecutionContext {
             search_engine: None,
             fulltext_coordinator: None,
             vector_coordinator: None,
+            parameters: Arc::new(HashMap::new()),
+        }
+    }
+
+    /// Create a new execution context with parameters.
+    pub fn with_parameters(
+        expression_context: Arc<ExpressionAnalysisContext>,
+        parameters: HashMap<String, crate::core::Value>,
+    ) -> Self {
+        Self {
+            results: Arc::new(Mutex::new(HashMap::new())),
+            variables: Arc::new(Mutex::new(HashMap::new())),
+            expression_context,
+            search_engine: None,
+            fulltext_coordinator: None,
+            vector_coordinator: None,
+            parameters: Arc::new(parameters),
         }
     }
 
@@ -59,6 +78,7 @@ impl ExecutionContext {
             search_engine: Some(search_engine),
             fulltext_coordinator: None,
             vector_coordinator: None,
+            parameters: Arc::new(HashMap::new()),
         }
     }
 
@@ -75,6 +95,7 @@ impl ExecutionContext {
             search_engine: Some(search_engine),
             fulltext_coordinator: Some(coordinator),
             vector_coordinator: None,
+            parameters: Arc::new(HashMap::new()),
         }
     }
 
@@ -91,6 +112,7 @@ impl ExecutionContext {
             search_engine: Some(search_engine),
             fulltext_coordinator: None,
             vector_coordinator: Some(coordinator),
+            parameters: Arc::new(HashMap::new()),
         }
     }
 
@@ -134,6 +156,11 @@ impl ExecutionContext {
         self.vector_coordinator.as_ref()
     }
 
+    /// Get query parameter
+    pub fn get_param(&self, name: &str) -> Option<&crate::core::Value> {
+        self.parameters.get(name)
+    }
+
     /// Get current space ID from variables
     pub fn current_space_id(&self) -> Option<u64> {
         self.variables.lock().get("space_id").and_then(|v| match v {
@@ -160,6 +187,7 @@ impl Default for ExecutionContext {
             search_engine: None,
             fulltext_coordinator: None,
             vector_coordinator: None,
+            parameters: Arc::new(HashMap::new()),
         }
     }
 }

@@ -188,7 +188,10 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
         // Create an execution context.
         let expr_context =
             Arc::new(crate::query::validator::context::ExpressionAnalysisContext::new());
-        let execution_context = ExecutionContext::new(expr_context);
+        let execution_context = ExecutionContext::with_parameters(
+            expr_context,
+            query_context.parameters().clone(),
+        );
 
         let executor_type = root_node.name();
         let is_stateful_executor = matches!(

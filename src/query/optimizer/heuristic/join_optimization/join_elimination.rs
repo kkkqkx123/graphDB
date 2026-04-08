@@ -27,14 +27,11 @@
 //! ```
 
 use crate::core::types::expr::contextual::ContextualExpression;
-use crate::core::types::expr::visitor::ExpressionVisitor;
-use crate::core::Expression;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planning::plan::core::nodes::join::join_node::{CrossJoinNode, HashInnerJoinNode, HashLeftJoinNode};
 use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::pattern::Pattern;
-use crate::query::optimizer::heuristic::result::{RewriteError, RewriteResult, TransformResult};
+use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::RewriteRule;
 
 /// Rules for eliminating redundant JOIN operations

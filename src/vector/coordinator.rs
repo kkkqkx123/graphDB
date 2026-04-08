@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::core::error::{VectorCoordinatorError, VectorCoordinatorResult};
 use crate::core::{Value, Vertex};
 use crate::vector::config::{VectorIndexConfig, VectorIndexMetadata};
+use crate::vector::embedding::EmbeddingServiceHandle;
 use crate::vector::manager::VectorIndexManager;
 
 use vector_client::types::{SearchQuery, SearchResult, VectorFilter, VectorPoint};
@@ -136,11 +137,28 @@ impl VectorChangeContext {
 #[derive(Debug)]
 pub struct VectorCoordinator {
     manager: Arc<VectorIndexManager>,
+    embedding_service: Option<EmbeddingServiceHandle>,
 }
 
 impl VectorCoordinator {
     pub fn new(manager: Arc<VectorIndexManager>) -> Self {
-        Self { manager }
+        Self {
+            manager,
+            embedding_service: None,
+        }
+    }
+
+    pub fn with_embedding_service(mut self, service: EmbeddingServiceHandle) -> Self {
+        self.embedding_service = Some(service);
+        self
+    }
+
+    pub fn set_embedding_service(&mut self, service: EmbeddingServiceHandle) {
+        self.embedding_service = Some(service);
+    }
+
+    pub fn embedding_service(&self) -> Option<&EmbeddingServiceHandle> {
+        self.embedding_service.as_ref()
     }
 
     pub async fn create_vector_index(
@@ -419,6 +437,18 @@ impl VectorCoordinator {
 
     pub async fn health_check(&self) -> VectorCoordinatorResult<bool> {
         self.manager.health_check().await.map_err(Into::into)
+    }
+
+    /// Convert text to vector using embedding service
+    pub async fn embed_text(&self, text: &str) -> VectorCoordinatorResult<Vec<f32>> {
+        if let Some(embedding_service) = &self.embedding_service {
+            embedding_service
+                .embed(text)
+                .await
+                .map_err(|e| VectorCoordinatorError::Internal(e.to_string()))
+        } else {
+            Err(VectorCoordinatorError::EmbeddingServiceNotAvailable)
+        }
     }
 
     pub async fn upsert_batch(

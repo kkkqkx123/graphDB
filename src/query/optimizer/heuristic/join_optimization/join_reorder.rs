@@ -36,8 +36,7 @@
 //!     → HashInnerJoin → C → D
 //! ```
 
-use std::collections::{HashMap, HashSet};
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use std::collections::HashSet;
 use crate::query::planning::plan::core::nodes::join::join_node::HashInnerJoinNode;
 use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::optimizer::heuristic::context::RewriteContext;

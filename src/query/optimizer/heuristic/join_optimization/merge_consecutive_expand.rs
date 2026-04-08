@@ -27,7 +27,7 @@ use crate::query::planning::plan::core::nodes::traversal::traversal_node::{Expan
 use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::pattern::Pattern;
-use crate::query::optimizer::heuristic::result::{RewriteError, RewriteResult, TransformResult};
+use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::RewriteRule;
 
 /// Rules for merging consecutive ExpandAll operations into Traverse

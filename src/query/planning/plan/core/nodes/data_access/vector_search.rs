@@ -1,7 +1,6 @@
 //! Vector Search Plan Nodes
 
 use crate::core::types::expr::contextual::ContextualExpression;
-use crate::core::types::span::Span;
 use crate::query::parser::ast::vector::{VectorDistance, VectorQueryExpr};
 use crate::query::planning::plan::core::node_id_generator::next_node_id;
 use crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory;
@@ -16,7 +15,7 @@ pub struct OutputField {
 }
 
 /// Vector search plan node
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct VectorSearchNode {
     id: i64,
     pub index_name: String,
@@ -371,5 +370,39 @@ impl crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryE
             + self.pattern.capacity()
             + self.field.capacity()
             + self.yield_fields.iter().map(|f| std::mem::size_of::<OutputField>() + f.name.capacity() + f.alias.as_ref().map_or(0, |a| a.capacity())).sum::<usize>()
+    }
+}
+
+impl crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable
+    for VectorSearchNode
+{
+    fn estimate_memory(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.index_name.capacity()
+            + self.tag_name.capacity()
+            + self.field_name.capacity()
+            + self.output_fields.iter().map(|f| std::mem::size_of::<OutputField>() + f.name.capacity() + f.alias.as_ref().map_or(0, |a| a.capacity())).sum::<usize>()
+    }
+}
+
+impl crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable
+    for CreateVectorIndexNode
+{
+    fn estimate_memory(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.index_name.capacity()
+            + self.space_name.capacity()
+            + self.tag_name.capacity()
+            + self.field_name.capacity()
+    }
+}
+
+impl crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable
+    for DropVectorIndexNode
+{
+    fn estimate_memory(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.index_name.capacity()
+            + self.space_name.capacity()
     }
 }

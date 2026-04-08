@@ -13,6 +13,9 @@ use crate::query::planning::plan::core::nodes::management::fulltext_nodes::{
     DropFulltextIndexNode, FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
     ShowFulltextIndexNode,
 };
+use crate::query::planning::plan::core::nodes::data_access::vector_search::{
+    CreateVectorIndexNode, DropVectorIndexNode, VectorLookupNode, VectorMatchNode, VectorSearchNode,
+};
 use crate::query::planning::plan::core::nodes::management::index_nodes::{
     CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,
     DropEdgeIndexNode, DropTagIndexNode, RebuildEdgeIndexNode, RebuildTagIndexNode,
@@ -243,6 +246,12 @@ pub trait PlanNodeVisitor {
         FulltextSearch, FulltextSearchNode, visit_fulltext_search;
         FulltextLookup, FulltextLookupNode, visit_fulltext_lookup;
         MatchFulltext, MatchFulltextNode, visit_match_fulltext;
+        // Vector Search Nodes
+        VectorSearch, VectorSearchNode, visit_vector_search;
+        CreateVectorIndex, CreateVectorIndexNode, visit_create_vector_index;
+        DropVectorIndex, DropVectorIndexNode, visit_drop_vector_index;
+        VectorLookup, VectorLookupNode, visit_vector_lookup;
+        VectorMatch, VectorMatchNode, visit_vector_match;
     );
 }
 

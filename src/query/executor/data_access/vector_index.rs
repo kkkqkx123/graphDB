@@ -15,6 +15,14 @@ use crate::storage::StorageClient;
 use crate::vector::VectorCoordinator;
 use parking_lot::Mutex;
 
+fn convert_distance(dist: crate::query::parser::ast::vector::VectorDistance) -> crate::vector::config::VectorDistance {
+    match dist {
+        crate::query::parser::ast::vector::VectorDistance::Cosine => crate::vector::config::VectorDistance::Cosine,
+        crate::query::parser::ast::vector::VectorDistance::Euclidean => crate::vector::config::VectorDistance::Euclid,
+        crate::query::parser::ast::vector::VectorDistance::Dot => crate::vector::config::VectorDistance::Dot,
+    }
+}
+
 /// Create vector index executor
 pub struct CreateVectorIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -73,10 +81,12 @@ impl<S: StorageClient> Executor<S> for CreateVectorIndexExecutor<S> {
         // Build vector index config
         let config = crate::vector::config::VectorIndexConfig {
             vector_size: self.node.vector_size,
-            distance: self.node.distance,
-            hnsw: Some(vector_client::types::HnswConfig {
+            distance: convert_distance(self.node.distance),
+            hnsw: Some(crate::vector::config::HnswConfigOptions {
                 m: self.node.hnsw_m.unwrap_or(16),
                 ef_construct: self.node.hnsw_ef_construct.unwrap_or(100),
+                full_scan_threshold: None,
+                on_disk: None,
             }),
             quantization: None,
         };
@@ -129,17 +139,17 @@ impl<S: StorageClient> Executor<S> for CreateVectorIndexExecutor<S> {
     }
 
     fn stats(&self) -> &ExecutorStats {
-        &self.base.stats
+        self.base.stats()
     }
 
     fn stats_mut(&mut self) -> &mut ExecutorStats {
-        &mut self.base.stats
+        self.base.stats_mut()
     }
 }
 
 impl<S: StorageClient> HasStorage<S> for CreateVectorIndexExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage()
+        self.base.storage.as_ref().expect("storage should be initialized")
     }
 }
 
@@ -244,16 +254,16 @@ impl<S: StorageClient> Executor<S> for DropVectorIndexExecutor<S> {
     }
 
     fn stats(&self) -> &ExecutorStats {
-        &self.base.stats
+        self.base.stats()
     }
 
     fn stats_mut(&mut self) -> &mut ExecutorStats {
-        &mut self.base.stats
+        self.base.stats_mut()
     }
 }
 
 impl<S: StorageClient> HasStorage<S> for DropVectorIndexExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage()
+        self.base.storage.as_ref().expect("storage should be initialized")
     }
 }

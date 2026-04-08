@@ -3,7 +3,6 @@
 //! This module implements the parser for vector search SQL statements,
 //! including CREATE VECTOR INDEX, SEARCH VECTOR, and related queries.
 
-use crate::core::types::span::Span;
 use crate::query::parser::ast::vector::{
     CreateVectorIndex, DropVectorIndex, LookupVector, MatchVector, OrderClause, OrderItem,
     SearchVectorStatement, VectorDistance, VectorIndexConfig, VectorMatchCondition,
@@ -236,7 +235,6 @@ pub fn parse_search_vector_statement(
 
     let mut yield_clause = None;
     if ctx.check_keyword("YIELD") || ctx.check_keyword("RETURN") {
-        ctx.consume_optional_keyword("RETURN");
         ctx.consume_keyword("YIELD")?;
         yield_clause = Some(parse_vector_yield_clause(ctx)?);
     }
@@ -273,7 +271,8 @@ fn parse_vector_query_expr(
         (VectorQueryType::Text, text)
     } else if keyword.to_lowercase() == "param" || keyword.to_lowercase() == "parameter" {
         // param = $param_name
-        let param = ctx.consume_parameter()?;
+        ctx.expect_token(TokenKind::Dollar)?;
+        let param = ctx.expect_identifier()?;
         (VectorQueryType::Parameter, param)
     } else {
         return Err(crate::query::parser::ParseError::new(
@@ -313,44 +312,43 @@ fn parse_vector_literal(ctx: &mut ParseContext) -> Result<String, crate::query::
 
 /// Parse WHERE clause
 fn parse_where_clause(ctx: &mut ParseContext) -> Result<WhereClause, crate::query::parser::ParseError> {
-    let condition = parse_where_condition(ctx)?;
-    Ok(WhereClause { condition })
-}
-
-fn parse_where_condition(ctx: &mut ParseContext) -> Result<WhereCondition, crate::query::parser::ParseError> {
-    // Simplified WHERE condition parsing
+    ctx.consume_keyword("WHERE")?;
+    
+    // Simplified WHERE condition parsing - just parse basic comparison
     let left = ctx.consume_identifier()?;
-
-    if let Some(op) = parse_comparison_op(ctx) {
-        let right = ctx.consume_value()?;
-        return Ok(WhereCondition::Comparison(left, op, right));
-    }
-
-    Err(crate::query::parser::ParseError::new(
-        crate::query::parser::core::error::ParseErrorKind::SyntaxError,
-        "Expected comparison operator".to_string(),
-        ctx.current_position(),
-    ))
-}
-
-fn parse_comparison_op(ctx: &mut ParseContext) -> Option<crate::query::parser::ast::ComparisonOp> {
-    use crate::query::parser::ast::ComparisonOp;
-
-    if ctx.consume_optional_keyword("=").is_some() {
-        Some(ComparisonOp::Eq)
-    } else if ctx.consume_optional_keyword("!=").is_some() {
-        Some(ComparisonOp::Ne)
-    } else if ctx.consume_optional_keyword("<").is_some() {
-        Some(ComparisonOp::Lt)
-    } else if ctx.consume_optional_keyword("<=").is_some() {
-        Some(ComparisonOp::Le)
-    } else if ctx.consume_optional_keyword(">").is_some() {
-        Some(ComparisonOp::Gt)
-    } else if ctx.consume_optional_keyword(">=").is_some() {
-        Some(ComparisonOp::Ge)
+    
+    // Parse comparison operator
+    let op = if ctx.check_token(TokenKind::Eq) {
+        ctx.consume_token("=")?;
+        crate::query::parser::ast::vector::ComparisonOp::Eq
+    } else if ctx.check_token(TokenKind::Ne) {
+        ctx.consume_token("!=")?;
+        crate::query::parser::ast::vector::ComparisonOp::Ne
+    } else if ctx.check_token(TokenKind::Lt) {
+        ctx.consume_token("<")?;
+        crate::query::parser::ast::vector::ComparisonOp::Lt
+    } else if ctx.check_token(TokenKind::Le) {
+        ctx.consume_token("<=")?;
+        crate::query::parser::ast::vector::ComparisonOp::Le
+    } else if ctx.check_token(TokenKind::Gt) {
+        ctx.consume_token(">")?;
+        crate::query::parser::ast::vector::ComparisonOp::Gt
+    } else if ctx.check_token(TokenKind::Ge) {
+        ctx.consume_token(">=")?;
+        crate::query::parser::ast::vector::ComparisonOp::Ge
     } else {
-        None
-    }
+        return Err(crate::query::parser::ParseError::new(
+            crate::query::parser::core::error::ParseErrorKind::SyntaxError,
+            "Expected comparison operator".to_string(),
+            ctx.current_position(),
+        ));
+    };
+    
+    // Parse right side value
+    let right = ctx.consume_value()?;
+    
+    let condition = WhereCondition::Comparison(left, op, right);
+    Ok(WhereClause { condition })
 }
 
 /// Parse ORDER BY clause
@@ -363,7 +361,7 @@ fn parse_order_clause(ctx: &mut ParseContext) -> Result<OrderClause, crate::quer
             ctx.consume_keyword("DESC")?;
             VectorOrderDirection::Desc
         } else {
-            ctx.consume_optional_keyword("ASC");
+            let _ = ctx.consume_keyword("ASC");
             VectorOrderDirection::Asc
         };
 
@@ -417,7 +415,6 @@ pub fn parse_lookup_vector(
 
     let mut yield_clause = None;
     if ctx.check_keyword("YIELD") || ctx.check_keyword("RETURN") {
-        ctx.consume_optional_keyword("RETURN");
         ctx.consume_keyword("YIELD")?;
         yield_clause = Some(parse_vector_yield_clause(ctx)?);
     }
@@ -469,7 +466,6 @@ pub fn parse_match_vector(
 
     let mut yield_clause = None;
     if ctx.check_keyword("YIELD") || ctx.check_keyword("RETURN") {
-        ctx.consume_optional_keyword("RETURN");
         ctx.consume_keyword("YIELD")?;
         yield_clause = Some(parse_vector_yield_clause(ctx)?);
     }
