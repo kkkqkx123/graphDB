@@ -142,7 +142,10 @@ fn test_rewrite_rule_names() {
         "PushFilterDownAggregateRule",
     ];
 
-    let mut actual_names: Vec<&str> = registry.iter().map(|rule: &RewriteRuleEnum| rule.name()).collect();
+    let mut actual_names: Vec<&str> = registry
+        .iter()
+        .map(|rule: &RewriteRuleEnum| rule.name())
+        .collect();
 
     actual_names.sort();
     let mut expected_sorted = expected_names.clone();
@@ -382,7 +385,10 @@ fn test_aggregate_rules_count() {
 fn test_rule_names_unique() {
     let registry = RuleRegistry::default();
 
-    let mut names: Vec<&str> = registry.iter().map(|rule: &RewriteRuleEnum| rule.name()).collect();
+    let mut names: Vec<&str> = registry
+        .iter()
+        .map(|rule: &RewriteRuleEnum| rule.name())
+        .collect();
 
     names.sort();
     names.dedup();

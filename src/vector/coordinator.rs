@@ -410,6 +410,28 @@ impl VectorCoordinator {
         Ok(results)
     }
 
+    pub async fn search_with_threshold_and_filter(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+        query_vector: Vec<f32>,
+        limit: usize,
+        threshold: f32,
+        filter: VectorFilter,
+    ) -> VectorCoordinatorResult<Vec<SearchResult>> {
+        let query = SearchQuery::new(query_vector, limit)
+            .with_score_threshold(threshold)
+            .with_filter(filter);
+
+        let results = self
+            .manager
+            .search(space_id, tag_name, field_name, query)
+            .await?;
+
+        Ok(results)
+    }
+
     pub fn get_engine(&self) -> &Arc<dyn vector_client::VectorEngine> {
         self.manager.get_engine()
     }

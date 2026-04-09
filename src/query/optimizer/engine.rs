@@ -35,12 +35,12 @@
 
 use std::sync::Arc;
 
+use crate::query::optimizer::heuristic::PlanRewriter;
 use crate::query::optimizer::{
     AggregateStrategySelector, BatchPlanAnalyzer, CostCalculator, CostModelConfig, CteCacheManager,
     MaterializationOptimizer, SelectivityEstimator, SelectivityFeedbackManager,
     SortEliminationOptimizer, StatisticsManager, SubqueryUnnestingOptimizer,
 };
-use crate::query::optimizer::heuristic::PlanRewriter;
 use crate::query::planning::plan::ExecutionPlan;
 use crate::query::validator::context::ExpressionAnalysisContext;
 
@@ -339,9 +339,9 @@ impl OptimizerEngine {
 
     /// Apply cost-based optimization strategies
     fn apply_cost_based(&self, plan: ExecutionPlan) -> OptimizeResult<ExecutionPlan> {
-        use crate::query::optimizer::cost_based::MaterializationOptimizer;
         use crate::query::optimizer::context::OptimizationContext;
         use crate::query::optimizer::cost_based::trait_def::StrategyChain;
+        use crate::query::optimizer::cost_based::MaterializationOptimizer;
 
         // Create optimization context
         let mut ctx = OptimizationContext::from(self);
@@ -354,7 +354,8 @@ impl OptimizerEngine {
             ctx.set_batch_plan_analysis(batch_analysis);
 
             // Create materialization optimizer
-            let materialization_optimizer = MaterializationOptimizer::new(self.stats_manager.as_ref());
+            let materialization_optimizer =
+                MaterializationOptimizer::new(self.stats_manager.as_ref());
 
             // Create strategy chain and add materialization strategy
             let chain = StrategyChain::new().add_strategy(Box::new(materialization_optimizer));
@@ -416,18 +417,18 @@ mod tests {
     #[test]
     fn test_optimizer_engine_configuration() {
         let mut engine = OptimizerEngine::default();
-        
+
         // Test enable/disable heuristic
         engine.set_enable_heuristic(false);
         assert!(!engine.enable_heuristic);
-        
+
         // Test enable/disable cost-based
         engine.set_enable_cost_based(false);
         assert!(!engine.enable_cost_based);
-        
+
         // Test full optimization check
         assert!(!engine.is_full_optimization());
-        
+
         engine.set_enable_heuristic(true);
         engine.set_enable_cost_based(true);
         assert!(engine.is_full_optimization());
@@ -436,7 +437,7 @@ mod tests {
     #[test]
     fn test_optimizer_engine_max_iterations() {
         let mut engine = OptimizerEngine::default();
-        
+
         engine.set_max_heuristic_iterations(50);
         assert_eq!(engine.max_heuristic_iterations, 50);
     }

@@ -67,8 +67,8 @@ impl Planner for DeletePlanner {
                 let info = VertexDeleteInfo {
                     space_name,
                     vertex_ids: vertex_ids.clone(),
-                    with_edge: false, // TODO: support WITH EDGE option
-                    condition: None,  // TODO: support WHERE clause
+                    with_edge: delete_stmt.with_edge,
+                    condition: delete_stmt.where_clause.clone(),
                 };
                 let node = DeleteVerticesNode::new(next_node_id(), info);
                 PlanNodeEnum::DeleteVertices(node)
@@ -81,21 +81,23 @@ impl Planner for DeletePlanner {
                         .iter()
                         .map(|(src, dst, rank)| (src.clone(), dst.clone(), rank.clone()))
                         .collect(),
-                    condition: None, // TODO: support WHERE clause
+                    condition: delete_stmt.where_clause.clone(),
                 };
                 let node = DeleteEdgesNode::new(next_node_id(), info);
                 PlanNodeEnum::DeleteEdges(node)
             }
             DeleteTarget::Tags { .. } => {
-                // TODO: Implement DELETE TAG
+                // DELETE TAG requires tag-level operations which need additional implementation
                 return Err(PlannerError::PlanGenerationFailed(
-                    "DELETE TAG not yet implemented".to_string(),
+                    "DELETE TAG requires tag-level metadata operations (not yet implemented)"
+                        .to_string(),
                 ));
             }
             DeleteTarget::Index(..) => {
-                // TODO: Implement DELETE INDEX
+                // DELETE INDEX requires index metadata operations which need additional implementation
                 return Err(PlannerError::PlanGenerationFailed(
-                    "DELETE INDEX not yet implemented".to_string(),
+                    "DELETE INDEX requires index metadata operations (not yet implemented)"
+                        .to_string(),
                 ));
             }
         };

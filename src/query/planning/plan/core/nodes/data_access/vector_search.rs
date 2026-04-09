@@ -1,11 +1,11 @@
 //! Vector Search Plan Nodes
 
-use crate::core::types::expr::contextual::ContextualExpression;
 use crate::query::parser::ast::vector::{VectorDistance, VectorQueryExpr};
 use crate::query::planning::plan::core::node_id_generator::next_node_id;
 use crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{PlanNode, ZeroInputNode};
 use serde::{Deserialize, Serialize};
+use vector_client::types::VectorFilter;
 
 /// Output field definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,7 +24,8 @@ pub struct VectorSearchNode {
     pub field_name: String,
     pub query: VectorQueryExpr,
     pub threshold: Option<f32>,
-    pub filter: Option<ContextualExpression>,
+    /// Vector filter for payload filtering (e.g., WHERE clause conditions)
+    pub filter: Option<VectorFilter>,
     pub limit: usize,
     pub offset: usize,
     pub output_fields: Vec<OutputField>,
@@ -39,7 +40,7 @@ impl VectorSearchNode {
         field_name: String,
         query: VectorQueryExpr,
         threshold: Option<f32>,
-        filter: Option<ContextualExpression>,
+        filter: Option<VectorFilter>,
         limit: usize,
         offset: usize,
         output_fields: Vec<OutputField>,
@@ -112,7 +113,6 @@ pub struct CreateVectorIndexNode {
 }
 
 impl CreateVectorIndexNode {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         index_name: String,
         space_name: String,
