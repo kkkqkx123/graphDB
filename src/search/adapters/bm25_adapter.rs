@@ -91,7 +91,7 @@ impl SearchEngine for Bm25SearchEngine {
     async fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>, SearchError> {
         let results = self
             .index
-            .search(query, limit)
+            .search_with_highlights(query, limit)
             .map_err(|e| SearchError::Bm25Error(e.to_string()))?;
 
         Ok(results
@@ -99,7 +99,7 @@ impl SearchEngine for Bm25SearchEngine {
             .map(|r| SearchResult {
                 doc_id: Value::String(r.document_id),
                 score: r.score,
-                highlights: None,
+                highlights: r.highlights,
                 matched_fields: vec!["content".to_string()],
             })
             .collect())

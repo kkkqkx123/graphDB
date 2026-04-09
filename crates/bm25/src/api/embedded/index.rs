@@ -9,6 +9,16 @@ pub struct SearchResult {
     pub title: Option<String>,
     pub content: Option<String>,
     pub score: f32,
+    pub highlights: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SearchResultWithHighlights {
+    pub document_id: String,
+    pub title: Option<String>,
+    pub content: Option<String>,
+    pub score: f32,
+    pub highlights: Option<Vec<String>>,
 }
 
 pub struct Bm25Index {
@@ -146,9 +156,89 @@ impl Bm25Index {
                     title,
                     content,
                     score,
+                    highlights: None,
                 })
             })
             .collect();
+
+        Ok(results)
+    }
+
+    pub fn search_with_highlights(&self, query: &str, limit: usize) -> Result<Vec<SearchResultWithHighlights>> {
+        use tantivy::query::QueryParser;
+        use tantivy::collector::TopDocs;
+        use tantivy::snippet::SnippetGenerator;
+
+        let reader = self.manager.reader()?;
+        let searcher = reader.searcher();
+        
+        let query_parser = QueryParser::for_index(
+            self.manager.index(),
+            vec![self.schema.title, self.schema.content],
+        );
+        let query = query_parser.parse_query(query).map_err(|e| {
+            crate::error::Bm25Error::InvalidQuery(e.to_string())
+        })?;
+        
+        let top_docs = searcher.search(&query, &TopDocs::with_limit(limit))?;
+        
+        let mut results = Vec::new();
+        
+        for (score, doc_address) in top_docs {
+            let doc = searcher.doc::<tantivy::TantivyDocument>(doc_address).ok();
+            if let Some(doc) = doc {
+                let mut document_id: Option<String> = None;
+                let mut title: Option<String> = None;
+                let mut content: Option<String> = None;
+
+                let schema = self.schema.schema();
+                for (field, value) in doc.field_values() {
+                    let field_name = schema.get_field_name(field);
+                    match field_name {
+                        "document_id" => {
+                            if let Some(id) = value.as_str() {
+                                document_id = Some(id.to_string());
+                            }
+                        }
+                        "title" => {
+                            if let Some(t) = value.as_str() {
+                                title = Some(t.to_string());
+                            }
+                        }
+                        "content" => {
+                            if let Some(c) = value.as_str() {
+                                content = Some(c.to_string());
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+
+                if let Some(id) = document_id {
+                    let mut highlights = Vec::new();
+                    
+                    if content.is_some() {
+                        let mut snippet_gen = SnippetGenerator::create(&searcher, &*query, self.schema.content)
+                            .map_err(|e| crate::error::Bm25Error::TantivyError(e.into()))?;
+                        snippet_gen.set_max_num_chars(100);
+                        
+                        let snippet = snippet_gen.snippet_from_doc(&doc);
+                        let highlighted = snippet.to_html();
+                        if !highlighted.is_empty() {
+                            highlights.push(highlighted);
+                        }
+                    }
+                    
+                    results.push(SearchResultWithHighlights {
+                        document_id: id,
+                        title,
+                        content,
+                        score,
+                        highlights: if highlights.is_empty() { None } else { Some(highlights) },
+                    });
+                }
+            }
+        }
 
         Ok(results)
     }

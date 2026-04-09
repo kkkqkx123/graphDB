@@ -3,6 +3,8 @@ use inversearch_service::api::embedded::EmbeddedIndex;
 use inversearch_service::config::EmbeddedConfig;
 use parking_lot::Mutex;
 use std::path::Path;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 use crate::core::Value;
 use crate::search::engine::SearchEngine;
@@ -11,6 +13,7 @@ use crate::search::result::{IndexStats, SearchResult};
 
 pub struct InversearchEngine {
     index: Mutex<EmbeddedIndex>,
+    id_mapping: Mutex<std::collections::HashMap<String, u64>>,
 }
 
 impl std::fmt::Debug for InversearchEngine {
@@ -25,6 +28,7 @@ impl InversearchEngine {
             .map_err(|e| SearchError::InversearchError(e.to_string()))?;
         Ok(Self {
             index: Mutex::new(index),
+            id_mapping: Mutex::new(std::collections::HashMap::new()),
         })
     }
 
@@ -42,7 +46,14 @@ impl InversearchEngine {
 
         Ok(Self {
             index: Mutex::new(index),
+            id_mapping: Mutex::new(std::collections::HashMap::new()),
         })
+    }
+
+    fn string_to_u64(s: &str) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        s.hash(&mut hasher);
+        hasher.finish()
     }
 }
 
@@ -57,9 +68,12 @@ impl SearchEngine for InversearchEngine {
     }
 
     async fn index(&self, doc_id: &str, content: &str) -> Result<(), SearchError> {
-        let doc_id_u64 = doc_id
-            .parse::<u64>()
-            .map_err(|_| SearchError::InvalidDocId(doc_id.to_string()))?;
+        let doc_id_u64 = Self::string_to_u64(doc_id);
+        
+        let mut id_mapping = self.id_mapping.lock();
+        id_mapping.insert(doc_id.to_string(), doc_id_u64);
+        drop(id_mapping);
+        
         let mut index = self.index.lock();
         index
             .add(doc_id_u64, content)
@@ -68,11 +82,12 @@ impl SearchEngine for InversearchEngine {
     }
 
     async fn index_batch(&self, documents: Vec<(String, String)>) -> Result<(), SearchError> {
+        let mut id_mapping = self.id_mapping.lock();
         let mut index = self.index.lock();
+        
         for (doc_id, content) in documents {
-            let doc_id_u64 = doc_id
-                .parse::<u64>()
-                .map_err(|_| SearchError::InvalidDocId(doc_id.clone()))?;
+            let doc_id_u64 = Self::string_to_u64(&doc_id);
+            id_mapping.insert(doc_id, doc_id_u64);
             index
                 .add(doc_id_u64, &content)
                 .map_err(|e| SearchError::InversearchError(e.to_string()))?;
@@ -100,9 +115,7 @@ impl SearchEngine for InversearchEngine {
     }
 
     async fn delete(&self, doc_id: &str) -> Result<(), SearchError> {
-        let doc_id_u64 = doc_id
-            .parse::<u64>()
-            .map_err(|_| SearchError::InvalidDocId(doc_id.to_string()))?;
+        let doc_id_u64 = Self::string_to_u64(doc_id);
         let mut index = self.index.lock();
         index
             .remove(doc_id_u64)
