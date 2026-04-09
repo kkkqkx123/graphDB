@@ -29,6 +29,8 @@ pub struct VectorSearchNode {
     pub limit: usize,
     pub offset: usize,
     pub output_fields: Vec<OutputField>,
+    /// Metadata version for validation (0 if not tracked)
+    pub metadata_version: u64,
 }
 
 impl VectorSearchNode {
@@ -57,6 +59,37 @@ impl VectorSearchNode {
             limit,
             offset,
             output_fields,
+            metadata_version: 0,
+        }
+    }
+
+    /// Create a new vector search node with metadata version
+    pub fn with_metadata_version(
+        index_name: String,
+        space_id: u64,
+        tag_name: String,
+        field_name: String,
+        query: VectorQueryExpr,
+        threshold: Option<f32>,
+        filter: Option<VectorFilter>,
+        limit: usize,
+        offset: usize,
+        output_fields: Vec<OutputField>,
+        metadata_version: u64,
+    ) -> Self {
+        Self {
+            id: next_node_id(),
+            index_name,
+            space_id,
+            tag_name,
+            field_name,
+            query,
+            threshold,
+            filter,
+            limit,
+            offset,
+            output_fields,
+            metadata_version,
         }
     }
 }

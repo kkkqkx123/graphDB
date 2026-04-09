@@ -100,6 +100,22 @@ pub trait Planner: std::fmt::Debug {
         Ok(plan)
     }
 
+    /// Transform with pre-resolved metadata context
+    ///
+    /// This method allows planners to use pre-resolved metadata during planning phase,
+    /// enabling early error detection and better query optimization.
+    /// Default implementation falls back to regular transform if metadata context is not needed.
+    fn transform_with_metadata(
+        &mut self,
+        validated: &ValidatedStatement,
+        qctx: Arc<QueryContext>,
+        _metadata_context: &crate::query::metadata::MetadataContext,
+    ) -> Result<SubPlan, PlannerError> {
+        // Default implementation ignores metadata context
+        // Specific planners (like VectorSearchPlanner) can override this
+        self.transform(validated, qctx)
+    }
+
     fn name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
@@ -433,6 +449,40 @@ impl PlannerEnum {
             PlannerEnum::VectorSearch(planner) => planner.match_planner(stmt),
         }
     }
+
+    /// Transform with pre-resolved metadata context
+    pub fn transform_with_metadata(
+        &mut self,
+        validated: &ValidatedStatement,
+        qctx: Arc<QueryContext>,
+        metadata_context: &crate::query::metadata::MetadataContext,
+    ) -> Result<SubPlan, PlannerError> {
+        match self {
+            PlannerEnum::Match(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::Go(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::Lookup(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::Path(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::Subgraph(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::FetchVertices(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::FetchEdges(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::Maintain(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::UserManagement(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::Insert(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::Delete(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::Update(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::Remove(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::Set(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::Merge(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::GroupBy(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::SetOperation(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::Use(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::With(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::Return(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::Yield(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::FulltextSearch(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::VectorSearch(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+        }
+    }
 }
 
 /// Error handling macros
@@ -483,6 +533,21 @@ pub enum PlannerError {
 
     #[error("Invalid operation: {0}")]
     InvalidOperation(String),
+
+    #[error("Index not found: {0}")]
+    IndexNotFound(String),
+
+    #[error("Tag not found: {0}")]
+    TagNotFound(String),
+
+    #[error("Edge type not found: {0}")]
+    EdgeTypeNotFound(String),
+
+    #[error("Metadata version mismatch: expected {expected}, got {actual}")]
+    MetadataVersionMismatch { expected: u64, actual: u64 },
+
+    #[error("Invalid metadata: {0}")]
+    InvalidMetadata(String),
 }
 
 // Implement the From conversion for the DBError class.

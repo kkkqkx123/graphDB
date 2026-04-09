@@ -133,52 +133,20 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
         // Parse query vector
         let query_vector = self.parse_query_vector(&self.node.query)?;
 
-        // Resolve tag_name and field_name from index metadata if not provided by planner
-        // This allows the planner to be decoupled from the vector index manager
-        let coordinator = self.coordinator.clone();
-        let space_id = self.node.space_id;
-        let index_name = &self.node.index_name;
-
-        // If tag_name and field_name are empty, resolve them from index metadata
-        let (tag_name, field_name) =
-            if self.node.tag_name.is_empty() || self.node.field_name.is_empty() {
-                // Search for index metadata by collection name (index_name)
-                let indexes = coordinator.list_indexes();
-                let index_metadata = indexes.iter().find(|idx| {
-                    // Match by collection name or index name pattern
-                    let expected_collection =
-                        format!("space_{}_{}_{}", space_id, idx.tag_name, idx.field_name);
-                    expected_collection == *index_name || idx.collection_name == *index_name
-                });
-
-                if let Some(metadata) = index_metadata {
-                    (metadata.tag_name.clone(), metadata.field_name.clone())
-                } else {
-                    // Fallback: try to parse index_name format "space_{space_id}_{tag}_{field}" or "{tag}_{field}"
-                    // Simple heuristic: split by underscore and extract components
-                    let parts: Vec<&str> = index_name.split('_').collect();
-                    if parts.len() >= 2 {
-                        // Assume format: {tag}_{field} or space_{id}_{tag}_{field}
-                        let (tag, field) = if parts.len() >= 4 && parts[0] == "space" {
-                            (parts[2].to_string(), parts[3].to_string())
-                        } else {
-                            (parts[0].to_string(), parts[1].to_string())
-                        };
-                        (tag, field)
-                    } else {
-                        return Err(DBError::Validation(format!(
-                            "Cannot resolve tag_name and field_name from index_name: {}",
-                            index_name
-                        )));
-                    }
-                }
-            } else {
-                (self.node.tag_name.clone(), self.node.field_name.clone())
-            };
+        // Use pre-resolved tag_name and field_name from planner
+        // If they are empty, fallback to runtime resolution (backward compatibility)
+        let (tag_name, field_name) = if !self.node.tag_name.is_empty() && !self.node.field_name.is_empty() {
+            // Use pre-resolved metadata from planner
+            (self.node.tag_name.clone(), self.node.field_name.clone())
+        } else {
+            // Fallback: resolve at runtime (backward compatibility)
+            self.resolve_metadata_at_runtime()?
+        };
 
         let limit = self.node.limit;
         let threshold = self.node.threshold;
         let filter = self.node.filter.clone();
+        let space_id = self.node.space_id;
 
         // Use tokio runtime to execute async operation
         let result = tokio::runtime::Handle::current()
@@ -187,7 +155,7 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
                 match (threshold, filter) {
                     (Some(threshold), Some(filter)) => {
                         // Search with both threshold and filter
-                        coordinator
+                        self.coordinator
                             .search_with_threshold_and_filter(
                                 space_id,
                                 &tag_name,
@@ -201,7 +169,7 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
                     }
                     (Some(threshold), None) => {
                         // Search with threshold only
-                        coordinator
+                        self.coordinator
                             .search_with_threshold(
                                 space_id,
                                 &tag_name,
@@ -214,7 +182,7 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
                     }
                     (None, Some(filter)) => {
                         // Search with filter only
-                        coordinator
+                        self.coordinator
                             .search_with_filter(
                                 space_id,
                                 &tag_name,
@@ -227,7 +195,7 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
                     }
                     (None, None) => {
                         // Basic search without threshold or filter
-                        coordinator
+                        self.coordinator
                             .search(space_id, &tag_name, &field_name, query_vector, limit)
                             .await
                     }
@@ -236,6 +204,43 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
             .map_err(|e| DBError::Internal(format!("Vector search failed: {}", e)))?;
 
         Ok(result)
+    }
+
+    /// Resolve tag_name and field_name at runtime (fallback for backward compatibility)
+    fn resolve_metadata_at_runtime(&self) -> DBResult<(String, String)> {
+        let space_id = self.node.space_id;
+        let index_name = &self.node.index_name;
+
+        // Search for index metadata by collection name (index_name)
+        let indexes = self.coordinator.list_indexes();
+        let index_metadata = indexes.iter().find(|idx| {
+            // Match by collection name or index name pattern
+            let expected_collection =
+                format!("space_{}_{}_{}", space_id, idx.tag_name, idx.field_name);
+            expected_collection == *index_name || idx.collection_name == *index_name
+        });
+
+        if let Some(metadata) = index_metadata {
+            Ok((metadata.tag_name.clone(), metadata.field_name.clone()))
+        } else {
+            // Fallback: try to parse index_name format "space_{space_id}_{tag}_{field}" or "{tag}_{field}"
+            // Simple heuristic: split by underscore and extract components
+            let parts: Vec<&str> = index_name.split('_').collect();
+            if parts.len() >= 2 {
+                // Assume format: {tag}_{field} or space_{id}_{tag}_{field}
+                let (tag, field) = if parts.len() >= 4 && parts[0] == "space" {
+                    (parts[2].to_string(), parts[3].to_string())
+                } else {
+                    (parts[0].to_string(), parts[1].to_string())
+                };
+                Ok((tag, field))
+            } else {
+                Err(DBError::Validation(format!(
+                    "Cannot resolve tag_name and field_name from index_name: {}",
+                    index_name
+                )))
+            }
+        }
     }
 
     /// Build result dataset from search results

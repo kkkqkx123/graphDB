@@ -4,8 +4,10 @@
 
 use crate::api::core::{CoreError, CoreResult, ExecutionMetadata, QueryRequest, QueryResult, Row};
 use crate::core::StatsManager;
+use crate::query::metadata::{CachedMetadataProvider, MetadataProvider, VectorIndexMetadataProvider};
 use crate::query::{OptimizerEngine, QueryPipelineManager};
 use crate::storage::StorageClient;
+use crate::vector::{VectorConfig, VectorCoordinator, VectorIndexManager};
 use parking_lot::Mutex;
 use std::sync::Arc;
 use std::time::Instant;
@@ -13,6 +15,7 @@ use std::time::Instant;
 /// Universal Query API – Core Layer
 pub struct QueryApi<S: StorageClient + 'static> {
     pipeline_manager: QueryPipelineManager<S>,
+    vector_coordinator: Option<Arc<VectorCoordinator>>,
 }
 
 impl<S: StorageClient + Clone + 'static> QueryApi<S> {
@@ -26,7 +29,47 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
                 stats_manager,
                 optimizer_engine,
             ),
+            vector_coordinator: None,
         }
+    }
+
+    /// Create a new QueryApi instance with vector search support
+    pub async fn with_vector_search(
+        storage: Arc<Mutex<S>>,
+        vector_config: VectorConfig,
+    ) -> Result<Self, String> {
+        let stats_manager = Arc::new(StatsManager::new());
+        let optimizer_engine = Arc::new(OptimizerEngine::default());
+
+        // Create vector index manager
+        let vector_manager = Arc::new(
+            VectorIndexManager::new(vector_config)
+                .await
+                .map_err(|e| format!("Failed to create vector index manager: {}", e))?,
+        );
+
+        // Create vector coordinator
+        let vector_coordinator = Arc::new(VectorCoordinator::new(vector_manager));
+
+        // Create metadata provider
+        let metadata_provider: Arc<dyn MetadataProvider> =
+            Arc::new(VectorIndexMetadataProvider::new(vector_coordinator.clone()));
+
+        // Create cached metadata provider
+        let cached_provider = Arc::new(CachedMetadataProvider::new(metadata_provider));
+
+        // Create pipeline manager with metadata provider
+        let pipeline_manager = QueryPipelineManager::with_optimizer(
+            storage,
+            stats_manager,
+            optimizer_engine,
+        )
+        .with_metadata_provider(cached_provider);
+
+        Ok(Self {
+            pipeline_manager,
+            vector_coordinator: Some(vector_coordinator),
+        })
     }
 
     /// Please provide the text you would like to have translated.

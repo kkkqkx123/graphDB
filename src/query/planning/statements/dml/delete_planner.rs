@@ -2,6 +2,7 @@
 //!
 //! Query planning for handling DELETE VERTEX/EDGE/TAG statements
 
+use crate::query::metadata::MetadataContext;
 use crate::query::parser::ast::{DeleteStmt, DeleteTarget, Stmt};
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
@@ -110,6 +111,47 @@ impl Planner for DeletePlanner {
 
     fn match_planner(&self, stmt: &Stmt) -> bool {
         matches!(stmt, Stmt::Delete(_))
+    }
+
+    fn transform_with_metadata(
+        &mut self,
+        validated: &ValidatedStatement,
+        qctx: Arc<QueryContext>,
+        metadata_context: &MetadataContext,
+    ) -> Result<SubPlan, PlannerError> {
+        // DELETE 操作主要使用标签和边类型元数据
+        // 目前 DELETE 主要验证空间名称和顶点/边 ID
+        // 元数据上下文可用于验证标签和边类型是否存在
+        
+        let validation_info = &validated.validation_info;
+        let referenced_tags = &validation_info.semantic_info.referenced_tags;
+        let referenced_edges = &validation_info.semantic_info.referenced_edges;
+
+        // 验证引用的标签是否存在
+        for tag_name in referenced_tags {
+            let _space_id = qctx.space_id().unwrap_or(0);
+            if metadata_context.get_tag_metadata(tag_name).is_none() {
+                // 如果元数据上下文中没有，尝试从 provider 获取
+                // 这里暂时只记录日志，实际验证在 Executor 层进行
+                log::debug!(
+                    "Tag '{}' referenced in DELETE not found in metadata context",
+                    tag_name
+                );
+            }
+        }
+
+        // 验证引用的边类型是否存在
+        for edge_type in referenced_edges {
+            if metadata_context.get_edge_type_metadata(edge_type).is_none() {
+                log::debug!(
+                    "Edge type '{}' referenced in DELETE not found in metadata context",
+                    edge_type
+                );
+            }
+        }
+
+        // 使用标准的 transform 方法
+        self.transform(validated, qctx)
     }
 }
 

@@ -4,6 +4,7 @@
 
 use std::sync::Arc;
 
+use crate::query::metadata::MetadataContext;
 use crate::query::parser::ast::vector::{
     ComparisonOp, CreateVectorIndex, DropVectorIndex, LookupVector, MatchVector,
     SearchVectorStatement, WhereClause, WhereCondition,
@@ -20,11 +21,23 @@ use vector_client::types::{ConditionType, FilterCondition, RangeCondition, Vecto
 
 /// Vector search planner
 #[derive(Debug, Clone, Default)]
-pub struct VectorSearchPlanner;
+pub struct VectorSearchPlanner {
+    /// Metadata context for pre-resolved metadata (optional for backward compatibility)
+    metadata_context: Option<Arc<MetadataContext>>,
+}
 
 impl VectorSearchPlanner {
     pub fn new() -> Self {
-        Self
+        Self {
+            metadata_context: None,
+        }
+    }
+
+    /// Create a new vector search planner with metadata context
+    pub fn with_metadata_context(metadata_context: Arc<MetadataContext>) -> Self {
+        Self {
+            metadata_context: Some(metadata_context),
+        }
     }
 }
 
@@ -63,6 +76,36 @@ impl Planner for VectorSearchPlanner {
                 | Stmt::LookupVector(_)
                 | Stmt::MatchVector(_)
         )
+    }
+
+    fn transform_with_metadata(
+        &mut self,
+        validated: &ValidatedStatement,
+        qctx: Arc<QueryContext>,
+        metadata_context: &MetadataContext,
+    ) -> Result<SubPlan, PlannerError> {
+        let stmt = validated.stmt();
+        let space_name = qctx.space_name().unwrap_or_else(|| "default".to_string());
+        let space_id = qctx.space_id().unwrap_or(0);
+
+        match stmt {
+            Stmt::CreateVectorIndex(create) => {
+                self.transform_create_vector_index(create, &space_name)
+            }
+            Stmt::DropVectorIndex(drop) => self.transform_drop_vector_index(drop, &space_name),
+            Stmt::SearchVector(search) => {
+                self.transform_search_vector_with_metadata(search, space_id, metadata_context)
+            }
+            Stmt::LookupVector(lookup) => {
+                self.transform_lookup_vector_with_metadata(lookup, space_id, &space_name, metadata_context)
+            }
+            Stmt::MatchVector(match_stmt) => {
+                self.transform_match_vector_with_metadata(match_stmt, space_id, metadata_context)
+            }
+            _ => Err(PlannerError::PlanGenerationFailed(
+                "Not a vector search statement".to_string(),
+            )),
+        }
     }
 }
 
@@ -110,10 +153,9 @@ impl VectorSearchPlanner {
     /// Transform SEARCH VECTOR statement into execution plan
     ///
     /// # Architecture Note
-    /// This method intentionally does not access VectorCoordinator or index metadata.
-    /// The Planner layer is kept decoupled from the vector index manager to maintain
-    /// clean separation of concerns. Index metadata (tag_name, field_name) is resolved
-    /// at execution time by the VectorSearchExecutor.
+    /// This method now pre-resolves index metadata during the planning phase.
+    /// The metadata_context is used to look up tag_name and field_name from the index_name.
+    /// This allows for early error detection and better query optimization.
     fn transform_search_vector(
         &self,
         search: &SearchVectorStatement,
@@ -139,10 +181,19 @@ impl VectorSearchPlanner {
             .as_ref()
             .and_then(|where_clause| self.convert_where_clause_to_filter(where_clause));
 
-        // Note: tag_name and field_name are resolved at execution time from index metadata
-        // The index_name is used to look up the metadata in the executor
-        let tag_name = String::new();
-        let field_name = String::new();
+        // Pre-resolve tag_name and field_name from metadata context if available
+        let (tag_name, field_name) = if let Some(ref metadata_context) = self.metadata_context {
+            // Try to get index metadata from context
+            if let Some(index_metadata) = metadata_context.get_index_metadata(&search.index_name) {
+                (index_metadata.tag_name.clone(), index_metadata.field_name.clone())
+            } else {
+                // Metadata not pre-resolved, use empty strings (executor will resolve)
+                (String::new(), String::new())
+            }
+        } else {
+            // No metadata context, use empty strings (backward compatibility)
+            (String::new(), String::new())
+        };
 
         let node = VectorSearchNode::new(
             search.index_name.clone(),
@@ -400,5 +451,126 @@ impl VectorSearchPlanner {
         }
 
         result
+    }
+
+    /// Transform SEARCH VECTOR with pre-resolved metadata
+    fn transform_search_vector_with_metadata(
+        &self,
+        search: &SearchVectorStatement,
+        space_id: u64,
+        metadata_context: &MetadataContext,
+    ) -> Result<SubPlan, PlannerError> {
+        // Parse output fields from yield clause
+        let output_fields = if let Some(yield_clause) = &search.yield_clause {
+            yield_clause
+                .items
+                .iter()
+                .map(|item| crate::query::planning::plan::core::nodes::data_access::vector_search::OutputField {
+                    name: item.expr.clone(),
+                    alias: item.alias.clone(),
+                })
+                .collect()
+        } else {
+            vec![]
+        };
+
+        // Convert WHERE clause to VectorFilter
+        let filter = search
+            .where_clause
+            .as_ref()
+            .and_then(|where_clause| self.convert_where_clause_to_filter(where_clause));
+
+        // Pre-resolve tag_name and field_name from metadata context
+        let (tag_name, field_name) = match metadata_context.get_index_metadata(&search.index_name) {
+            Some(index_metadata) => {
+                (index_metadata.tag_name.clone(), index_metadata.field_name.clone())
+            }
+            None => {
+                return Err(PlannerError::IndexNotFound(search.index_name.clone()));
+            }
+        };
+
+        let node = VectorSearchNode::new(
+            search.index_name.clone(),
+            space_id,
+            tag_name,
+            field_name,
+            search.query.clone(),
+            search.threshold,
+            filter,
+            search.limit.unwrap_or(10),
+            search.offset.unwrap_or(0),
+            output_fields,
+        );
+
+        Ok(SubPlan::new(Some(node.into_enum()), None))
+    }
+
+    /// Transform LOOKUP VECTOR with pre-resolved metadata
+    fn transform_lookup_vector_with_metadata(
+        &self,
+        lookup: &LookupVector,
+        _space_id: u64,
+        space_name: &str,
+        _metadata_context: &MetadataContext,
+    ) -> Result<SubPlan, PlannerError> {
+        let schema_name = if lookup.schema_name.is_empty() {
+            space_name.to_string()
+        } else {
+            lookup.schema_name.clone()
+        };
+
+        let yield_fields = lookup.yield_clause.as_ref().map_or_else(Vec::new, |yield_clause| {
+            yield_clause
+                .items
+                .iter()
+                .map(|item| crate::query::planning::plan::core::nodes::data_access::vector_search::OutputField {
+                    name: item.expr.clone(),
+                    alias: item.alias.clone(),
+                })
+                .collect()
+        });
+
+        let limit = lookup.limit.unwrap_or(10);
+
+        let node = VectorLookupNode::new(
+            schema_name,
+            lookup.index_name.clone(),
+            lookup.query.clone(),
+            yield_fields,
+            limit,
+        );
+
+        Ok(SubPlan::new(Some(node.into_enum()), None))
+    }
+
+    /// Transform MATCH VECTOR with pre-resolved metadata
+    fn transform_match_vector_with_metadata(
+        &self,
+        match_stmt: &MatchVector,
+        _space_id: u64,
+        _metadata_context: &MetadataContext,
+    ) -> Result<SubPlan, PlannerError> {
+        // Parse yield fields
+        let yield_fields = match_stmt.yield_clause.as_ref().map_or_else(Vec::new, |yield_clause| {
+            yield_clause
+                .items
+                .iter()
+                .map(|item| crate::query::planning::plan::core::nodes::data_access::vector_search::OutputField {
+                    name: item.expr.clone(),
+                    alias: item.alias.clone(),
+                })
+                .collect()
+        });
+
+        let node = VectorMatchNode::new(
+            match_stmt.pattern.clone(),
+            match_stmt.vector_condition.field.clone(),
+            match_stmt.vector_condition.query.clone(),
+            match_stmt.vector_condition.threshold,
+            yield_fields,
+        );
+
+        Ok(SubPlan::new(Some(node.into_enum()), None))
     }
 }

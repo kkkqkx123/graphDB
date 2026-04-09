@@ -27,6 +27,7 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor};
 use crate::query::executor::explain::{ExplainExecutor, ExplainMode, ProfileExecutor};
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::object_pool::{ObjectPoolConfig, ThreadSafeExecutorPool};
+use crate::query::metadata::{CachedMetadataProvider, MetadataContext, MetadataProvider};
 use crate::query::optimizer::OptimizerEngine;
 use crate::query::parser::ast::stmt::{ExplainStmt, ProfileStmt};
 use crate::query::parser::Parser;
@@ -56,6 +57,8 @@ pub struct QueryPipelineManager<S: StorageClient + 'static> {
     param_handler: ParameterizedQueryHandler,
     /// Schema manager for validation
     schema_manager: Option<Arc<RedbSchemaManager>>,
+    /// Metadata provider for pre-resolving metadata during planning
+    metadata_provider: Option<Arc<dyn MetadataProvider>>,
 }
 
 impl<S: StorageClient + 'static> QueryPipelineManager<S> {
@@ -87,6 +90,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             plan_cache,
             param_handler,
             schema_manager: None,
+            metadata_provider: None,
         }
     }
 
@@ -120,6 +124,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             plan_cache,
             param_handler,
             schema_manager: None,
+            metadata_provider: None,
         }
     }
 
@@ -131,6 +136,23 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     /// Set schema manager for validation
     pub fn with_schema_manager(mut self, schema_manager: Arc<RedbSchemaManager>) -> Self {
         self.schema_manager = Some(schema_manager);
+        self
+    }
+
+    /// Set metadata provider for pre-resolving metadata during planning
+    pub fn with_metadata_provider(mut self, metadata_provider: Arc<dyn MetadataProvider>) -> Self {
+        self.metadata_provider = Some(metadata_provider);
+        self
+    }
+
+    /// Create and set a cached metadata provider with the specified cache size
+    pub fn with_cached_metadata_provider(
+        mut self,
+        inner_provider: Arc<dyn MetadataProvider>,
+        _cache_size: usize,
+    ) -> Self {
+        let cached_provider = Arc::new(CachedMetadataProvider::new(inner_provider));
+        self.metadata_provider = Some(cached_provider);
         self
     }
 
@@ -516,9 +538,24 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let plan = if let Some(mut planner_enum) =
             crate::query::planning::planner::PlannerEnum::from_ast(&validated.ast)
         {
-            let sub_plan = planner_enum
-                .transform(validated, query_context)
-                .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?;
+            // Build metadata context if metadata provider is available
+            let metadata_context = if let Some(ref metadata_provider) = self.metadata_provider {
+                Some(self.build_metadata_context(validated, query_context.clone(), metadata_provider)?)
+            } else {
+                None
+            };
+
+            // Transform with metadata context if available
+            let sub_plan = if let Some(ref ctx) = metadata_context {
+                planner_enum
+                    .transform_with_metadata(validated, query_context, ctx)
+                    .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?
+            } else {
+                planner_enum
+                    .transform(validated, query_context)
+                    .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?
+            };
+
             let root = sub_plan.root().clone();
             crate::query::planning::plan::ExecutionPlan::new(root)
         } else {
@@ -530,6 +567,81 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         };
 
         Ok(plan)
+    }
+
+    /// Build metadata context for the given statement
+    ///
+    /// This method pre-resolves metadata (indexes, tags, edge types) during the planning phase,
+    /// similar to PostgreSQL's FDW fdw_private mechanism.
+    fn build_metadata_context(
+        &self,
+        validated: &ValidatedStatement,
+        qctx: Arc<QueryContext>,
+        metadata_provider: &Arc<dyn MetadataProvider>,
+    ) -> DBResult<MetadataContext> {
+        use crate::query::parser::ast::Stmt;
+        use crate::query::metadata::provider::MetadataProviderError;
+
+        let space_id = qctx.space_id().unwrap_or(0);
+        let mut context = MetadataContext::new();
+        let stmt = validated.stmt();
+
+        // Pre-resolve metadata based on statement type
+        match stmt {
+            Stmt::SearchVector(search) => {
+                // Pre-resolve vector index metadata
+                match metadata_provider.get_index_metadata(space_id, &search.index_name) {
+                    Ok(index_metadata) => {
+                        context.set_index_metadata(search.index_name.clone(), index_metadata);
+                    }
+                    Err(MetadataProviderError::NotFound(msg)) => {
+                        return Err(DBError::from(QueryError::InvalidQuery(format!(
+                            "Vector index not found: {}",
+                            msg
+                        ))));
+                    }
+                    Err(e) => {
+                        return Err(DBError::from(QueryError::InvalidQuery(format!(
+                            "Failed to get index metadata: {}",
+                            e
+                        ))));
+                    }
+                }
+            }
+            Stmt::LookupVector(lookup) => {
+                // Pre-resolve index metadata for lookup
+                let index_name = &lookup.index_name;
+                match metadata_provider.get_index_metadata(space_id, index_name) {
+                    Ok(index_metadata) => {
+                        context.set_index_metadata(index_name.clone(), index_metadata);
+                    }
+                    Err(MetadataProviderError::NotFound(msg)) => {
+                        return Err(DBError::from(QueryError::InvalidQuery(format!(
+                            "Vector index not found: {}",
+                            msg
+                        ))));
+                    }
+                    Err(e) => {
+                        return Err(DBError::from(QueryError::InvalidQuery(format!(
+                            "Failed to get index metadata: {}",
+                            e
+                        ))));
+                    }
+                }
+            }
+            Stmt::MatchVector(_match_stmt) => {
+                // MatchVector doesn't have a direct index_name, it uses pattern matching
+                // Metadata resolution happens at executor time for now
+                log::debug!("MatchVector metadata resolution deferred to executor");
+            }
+            // For other statement types, we can extend metadata resolution as needed
+            _ => {
+                // No specific metadata resolution for other statement types yet
+                log::debug!("No metadata resolution for statement type: {:?}", stmt);
+            }
+        }
+
+        Ok(context)
     }
 
     fn optimize_execution_plan(

@@ -11,6 +11,7 @@ pub mod cache;
 pub mod context;
 pub mod core;
 pub mod executor;
+pub mod metadata;
 pub mod optimizer;
 pub mod parser;
 pub mod planning;

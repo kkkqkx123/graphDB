@@ -68,9 +68,27 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         }
 
         // Use core layer QueryApi instead of directly using QueryPipelineManager
-        let query_api = Arc::new(Mutex::new(QueryApi::new(Arc::new(Mutex::new(
-            (*storage).clone(),
-        )))));
+        // Support vector search with metadata provider if enabled
+        let query_api = if config.vector.enabled {
+            match QueryApi::with_vector_search(
+                Arc::new(Mutex::new((*storage).clone())),
+                config.vector.clone(),
+            )
+            .await
+            {
+                Ok(api) => Arc::new(Mutex::new(api)),
+                Err(e) => {
+                    warn!("Failed to initialize vector search, falling back to basic QueryApi: {}", e);
+                    Arc::new(Mutex::new(QueryApi::new(Arc::new(Mutex::new(
+                        (*storage).clone(),
+                    )))))
+                }
+            }
+        } else {
+            Arc::new(Mutex::new(QueryApi::new(Arc::new(Mutex::new(
+                (*storage).clone(),
+            )))))
+        };
 
         let authenticator = AuthenticatorFactory::create_default(&config.auth);
         let permission_manager = Arc::new(PermissionManager::new());
