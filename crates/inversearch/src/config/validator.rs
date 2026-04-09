@@ -43,7 +43,6 @@ pub trait ConfigValidator {
     /// Validate the configuration
     ///
     /// # Returns
-    ///
     /// * `Ok(())` if validation passes
     /// * `Err(ValidationError)` if validation fails
     ///

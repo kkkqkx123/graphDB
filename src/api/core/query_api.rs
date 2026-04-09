@@ -2,7 +2,6 @@
 //!
 //! Provides transport layer independent query execution
 
-use crate::api::core::{CoreError, CoreResult, ExecutionMetadata, QueryRequest, QueryResult, Row};
 use crate::core::StatsManager;
 use crate::query::metadata::{CachedMetadataProvider, MetadataProvider, VectorIndexMetadataProvider};
 use crate::query::{OptimizerEngine, QueryPipelineManager};

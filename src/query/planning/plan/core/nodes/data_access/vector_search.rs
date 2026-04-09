@@ -34,7 +34,6 @@ pub struct VectorSearchNode {
 }
 
 impl VectorSearchNode {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         index_name: String,
         space_id: u64,
@@ -47,6 +46,18 @@ impl VectorSearchNode {
         offset: usize,
         output_fields: Vec<OutputField>,
     ) -> Self {
+        Self::with_metadata_version(VectorSearchParams::new(
+            index_name,
+            space_id,
+            tag_name,
+            field_name,
+            query,
+            threshold,
+            filter,
+            limit,
+            offset,
+            output_fields,
+        ))
         Self {
             id: next_node_id(),
             index_name,
@@ -63,33 +74,68 @@ impl VectorSearchNode {
         }
     }
 
+    /// Parameters for creating a vector search node
+    #[derive(Debug, Clone)]
+    pub struct VectorSearchParams {
+        pub index_name: String,
+        pub space_id: u64,
+        pub tag_name: String,
+        pub field_name: String,
+        pub query: VectorQueryExpr,
+        pub threshold: Option<f32>,
+        pub filter: Option<VectorFilter>,
+        pub limit: usize,
+        pub offset: usize,
+        pub output_fields: Vec<OutputField>,
+        pub metadata_version: u64,
+    }
+
+    impl VectorSearchParams {
+        pub fn new(
+            index_name: String,
+            space_id: u64,
+            tag_name: String,
+            field_name: String,
+            query: VectorQueryExpr,
+            threshold: Option<f32>,
+            filter: Option<VectorFilter>,
+            limit: usize,
+            offset: usize,
+            output_fields: Vec<OutputField>,
+        ) -> Self {
+            Self {
+                index_name,
+                space_id,
+                tag_name,
+                field_name,
+                query,
+                threshold,
+                filter,
+                limit,
+                offset,
+                output_fields,
+                metadata_version: 0,
+            }
+        }
+    }
+
     /// Create a new vector search node with metadata version
     pub fn with_metadata_version(
-        index_name: String,
-        space_id: u64,
-        tag_name: String,
-        field_name: String,
-        query: VectorQueryExpr,
-        threshold: Option<f32>,
-        filter: Option<VectorFilter>,
-        limit: usize,
-        offset: usize,
-        output_fields: Vec<OutputField>,
-        metadata_version: u64,
+        params: VectorSearchParams,
     ) -> Self {
         Self {
             id: next_node_id(),
-            index_name,
-            space_id,
-            tag_name,
-            field_name,
-            query,
-            threshold,
-            filter,
-            limit,
-            offset,
-            output_fields,
-            metadata_version,
+            index_name: params.index_name,
+            space_id: params.space_id,
+            tag_name: params.tag_name,
+            field_name: params.field_name,
+            query: params.query,
+            threshold: params.threshold,
+            filter: params.filter,
+            limit: params.limit,
+            offset: params.offset,
+            output_fields: params.output_fields,
+            metadata_version: params.metadata_version,
         }
     }
 }
