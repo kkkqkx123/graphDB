@@ -536,52 +536,10 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         &mut self,
         plan: crate::query::planning::plan::ExecutionPlan,
     ) -> DBResult<crate::query::planning::plan::ExecutionPlan> {
-        use crate::query::optimizer::cost_based::{MaterializationOptimizer, StrategyChain};
-        use crate::query::optimizer::heuristic::rewrite_plan;
-        use crate::query::optimizer::OptimizationContext;
-
-        // Create optimization context from OptimizerEngine
-        let mut ctx = OptimizationContext::from(&self.optimizer_engine);
-
-        // Optimize using the planner rewrite rule.
-        let rewritten_plan = rewrite_plan(plan)
-            .map_err(|e| DBError::from(QueryError::pipeline_optimization_error(e)))?;
-
-        // Apply optimization strategies using StrategyChain
-        if let Some(root) = rewritten_plan.root {
-            // Perform batch plan analysis
-            let batch_analyzer = self.optimizer_engine.batch_plan_analyzer();
-            let batch_analysis = batch_analyzer.analyze(&root);
-            ctx.set_batch_plan_analysis(batch_analysis);
-
-            // Create materialization optimizer
-            let stats_manager = ctx.stats_manager();
-            let materialization_optimizer = MaterializationOptimizer::new(stats_manager.as_ref());
-
-            // Create strategy chain with materialization optimizer
-            let chain = StrategyChain::new().add_strategy(Box::new(materialization_optimizer));
-
-            // Apply strategies to the plan root
-            let optimized_root = chain
-                .apply(root, &ctx)
-                .map_err(|e| DBError::from(QueryError::pipeline_optimization_error(e)))?;
-
-            // Check for repeated subplans
-            if let Some(analysis) = ctx.batch_plan_analysis() {
-                if analysis.reference_count.repeated_count() > 0 {
-                    log::debug!(
-                        "Found {} subplans referenced multiple times",
-                        analysis.reference_count.repeated_count()
-                    );
-                }
-            }
-
-            Ok(crate::query::planning::plan::ExecutionPlan::new(Some(
-                optimized_root,
-            )))
-        } else {
-            Ok(rewritten_plan)
-        }
+        // Use the unified optimization interface from OptimizerEngine
+        self.optimizer_engine
+            .optimize(plan)
+            .map_err(|e| DBError::from(QueryError::pipeline_optimization_error(e)))
     }
 
     fn execute_plan(

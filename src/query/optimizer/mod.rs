@@ -23,12 +23,11 @@
 //! - Materialization Decision
 //!
 //! ### Supporting Modules
-//! - `engine` – The globally unique optimizer engine instance
+//! - `engine` – The globally unique optimizer engine instance with unified optimization interface
 //! - `stats` – Statistical information management
 //! - `cost` – Cost calculation and estimation
 //! - `analysis` – Plan analysis utilities
 //! - `decision` – Optimization decision types
-//! - `pipeline` – Optimization pipeline coordination
 //!
 //! ## Usage Examples
 //!
@@ -38,8 +37,8 @@
 //! // Create the optimizer engine (global instance)
 //! let optimizer = OptimizerEngine::default();
 //!
-//! // Calculate the optimization decision
-//! let decision = optimizer.compute_decision(&stmt, sentence_kind);
+//! // Optimize an execution plan through all enabled phases
+//! let optimized_plan = optimizer.optimize(plan)?;
 //! ```
 
 // Core modules
@@ -55,12 +54,9 @@ pub mod stats;
 pub mod cost_based; // Cost-based optimization strategies
 pub mod heuristic; // Heuristic rewrite rules
 
-// Pipeline coordination
-pub mod pipeline;
-
 // Re-export the main types
 pub use builder::OptimizerEngineBuilder;
-pub use engine::OptimizerEngine;
+pub use engine::{OptimizeError, OptimizeResult, OptimizerEngine};
 
 pub use stats::{
     EdgeTypeStatistics, ExecutionFeedbackCollector, FeedbackDrivenSelectivity, OperatorFeedback,
@@ -100,9 +96,6 @@ pub use heuristic::{
     MatchedResult, MergeRule, PlanRewriter, PushDownRule, RewriteContext, RewriteError,
     RewriteRule, RuleWrapper, TransformResult,
 };
-
-// Re-export pipeline types
-pub use pipeline::{OptimizationPhase, OptimizationPipeline, PipelineConfig};
 
 pub use decision::{
     AccessPath, EntityIndexChoice, EntityType, IndexChoice, IndexSelectionDecision, JoinAlgorithm,

@@ -40,6 +40,8 @@ use crate::query::optimizer::{
     MaterializationOptimizer, SelectivityEstimator, SelectivityFeedbackManager,
     SortEliminationOptimizer, StatisticsManager, SubqueryUnnestingOptimizer,
 };
+use crate::query::optimizer::heuristic::PlanRewriter;
+use crate::query::planning::plan::ExecutionPlan;
 use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// Optimizer engine
@@ -72,6 +74,14 @@ pub struct OptimizerEngine {
     materialization_optimizer: MaterializationOptimizer,
     /// Cost model configuration
     cost_config: CostModelConfig,
+    /// Heuristic plan rewriter
+    heuristic_rewriter: PlanRewriter,
+    /// Enable heuristic optimization phase
+    enable_heuristic: bool,
+    /// Enable cost-based optimization phase
+    enable_cost_based: bool,
+    /// Maximum iterations for heuristic rules
+    max_heuristic_iterations: usize,
 }
 
 impl OptimizerEngine {
@@ -147,6 +157,9 @@ impl OptimizerEngine {
             &cost_config.strategy_thresholds,
         );
 
+        // Create a heuristic plan rewriter
+        let heuristic_rewriter = PlanRewriter::default();
+
         Self {
             expression_context,
             stats_manager,
@@ -160,6 +173,10 @@ impl OptimizerEngine {
             subquery_unnesting_optimizer,
             materialization_optimizer,
             cost_config,
+            heuristic_rewriter,
+            enable_heuristic: true,
+            enable_cost_based: true,
+            max_heuristic_iterations: 100,
         }
     }
 
@@ -257,8 +274,122 @@ impl OptimizerEngine {
             &self.stats_manager,
             &self.cost_config.strategy_thresholds,
         );
-        log::info!("优化器代价模型配置已更新: {:?}", self.cost_config);
+        log::info!("优化器代价模型配置已更新：{:?}", self.cost_config);
     }
+
+    /// Set whether to enable heuristic optimization
+    pub fn set_enable_heuristic(&mut self, enable: bool) {
+        self.enable_heuristic = enable;
+        log::info!("启发式优化已{}", if enable { "启用" } else { "禁用" });
+    }
+
+    /// Set whether to enable cost-based optimization
+    pub fn set_enable_cost_based(&mut self, enable: bool) {
+        self.enable_cost_based = enable;
+        log::info!("基于代价的优化已{}", if enable { "启用" } else { "禁用" });
+    }
+
+    /// Set the maximum number of heuristic iterations
+    pub fn set_max_heuristic_iterations(&mut self, max: usize) {
+        self.max_heuristic_iterations = max;
+        log::info!("最大启发式迭代次数已设置为：{}", max);
+    }
+
+    /// Check if full optimization is enabled (both heuristic and cost-based)
+    pub fn is_full_optimization(&self) -> bool {
+        self.enable_heuristic && self.enable_cost_based
+    }
+
+    /// Optimize an execution plan through all enabled phases
+    ///
+    /// This is the main entry point for query optimization, coordinating both
+    /// heuristic and cost-based optimization phases.
+    ///
+    /// # Parameters
+    /// `plan`: The execution plan to optimize
+    ///
+    /// # Returns
+    /// The optimized execution plan
+    pub fn optimize(&self, plan: ExecutionPlan) -> OptimizeResult<ExecutionPlan> {
+        let mut current_plan = plan;
+
+        // Phase 1: Heuristic Optimization (Always Executed)
+        if self.enable_heuristic {
+            log::debug!("Starting Phase 1: Heuristic Optimization");
+            current_plan = self.apply_heuristic(current_plan)?;
+            log::debug!("Phase 1 completed successfully");
+        }
+
+        // Phase 2: Cost-Based Optimization (Optional)
+        if self.enable_cost_based {
+            log::debug!("Starting Phase 2: Cost-Based Optimization");
+            current_plan = self.apply_cost_based(current_plan)?;
+            log::debug!("Phase 2 completed successfully");
+        }
+
+        Ok(current_plan)
+    }
+
+    /// Apply heuristic optimization rules
+    fn apply_heuristic(&self, plan: ExecutionPlan) -> OptimizeResult<ExecutionPlan> {
+        self.heuristic_rewriter
+            .rewrite(plan)
+            .map_err(|e| OptimizeError::HeuristicFailed(e.to_string()))
+    }
+
+    /// Apply cost-based optimization strategies
+    fn apply_cost_based(&self, plan: ExecutionPlan) -> OptimizeResult<ExecutionPlan> {
+        use crate::query::optimizer::cost_based::MaterializationOptimizer;
+        use crate::query::optimizer::context::OptimizationContext;
+        use crate::query::optimizer::cost_based::trait_def::StrategyChain;
+
+        // Create optimization context
+        let mut ctx = OptimizationContext::from(self);
+
+        // Perform batch plan analysis if we have a root
+        let mut current_plan = plan;
+        if let Some(ref root) = current_plan.root {
+            let batch_analyzer = self.batch_plan_analyzer();
+            let batch_analysis = batch_analyzer.analyze(root);
+            ctx.set_batch_plan_analysis(batch_analysis);
+
+            // Create materialization optimizer
+            let materialization_optimizer = MaterializationOptimizer::new(self.stats_manager.as_ref());
+
+            // Create strategy chain and add materialization strategy
+            let chain = StrategyChain::new().add_strategy(Box::new(materialization_optimizer));
+
+            // Apply strategies to the plan root
+            let optimized_root = chain
+                .apply(root.clone(), &ctx)
+                .map_err(|e| OptimizeError::CostBasedFailed(e.to_string()))?;
+
+            current_plan.set_root(optimized_root);
+        }
+
+        Ok(current_plan)
+    }
+
+    /// Get the heuristic rewriter
+    pub fn heuristic_rewriter(&self) -> &PlanRewriter {
+        &self.heuristic_rewriter
+    }
+}
+
+/// Optimization result type
+pub type OptimizeResult<T> = Result<T, OptimizeError>;
+
+/// Optimization error type
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum OptimizeError {
+    #[error("Heuristic optimization failed: {0}")]
+    HeuristicFailed(String),
+
+    #[error("Cost-based optimization failed: {0}")]
+    CostBasedFailed(String),
+
+    #[error("Pipeline configuration error: {0}")]
+    ConfigurationError(String),
 }
 
 impl Default for OptimizerEngine {
@@ -280,5 +411,33 @@ mod tests {
     fn test_optimizer_engine_with_config() {
         let config = CostModelConfig::for_ssd();
         let _engine = OptimizerEngine::new(config);
+    }
+
+    #[test]
+    fn test_optimizer_engine_configuration() {
+        let mut engine = OptimizerEngine::default();
+        
+        // Test enable/disable heuristic
+        engine.set_enable_heuristic(false);
+        assert!(!engine.enable_heuristic);
+        
+        // Test enable/disable cost-based
+        engine.set_enable_cost_based(false);
+        assert!(!engine.enable_cost_based);
+        
+        // Test full optimization check
+        assert!(!engine.is_full_optimization());
+        
+        engine.set_enable_heuristic(true);
+        engine.set_enable_cost_based(true);
+        assert!(engine.is_full_optimization());
+    }
+
+    #[test]
+    fn test_optimizer_engine_max_iterations() {
+        let mut engine = OptimizerEngine::default();
+        
+        engine.set_max_heuristic_iterations(50);
+        assert_eq!(engine.max_heuristic_iterations, 50);
     }
 }
