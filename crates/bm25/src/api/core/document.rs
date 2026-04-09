@@ -86,15 +86,15 @@ pub async fn update_document_with_storage(
     fields: &HashMap<String, String>,
     avg_doc_length: f32,
 ) -> Result<()> {
-    // 1. 提取新文档的 TF/DF 统计
+    // 1. 从存储层删除旧文档的统计信息
+    storage.delete_doc_stats(document_id).await?;
+
+    // 2. 提取新文档的 TF/DF 统计
     let new_stats = extract_tf_df_stats(
         fields,
         0, // total_docs 从存储层获取，暂时设为 0
         avg_doc_length,
     );
-
-    // 2. 获取旧文档的统计（用于删除）
-    // TODO: 实现从存储层获取旧文档统计并删除
 
     // 3. 提交新统计到存储层
     storage.commit_batch(&new_stats).await?;

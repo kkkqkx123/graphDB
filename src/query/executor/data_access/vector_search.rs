@@ -133,11 +133,49 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
         // Parse query vector
         let query_vector = self.parse_query_vector(&self.node.query)?;
 
-        // Execute search using tokio blocking runtime
+        // Resolve tag_name and field_name from index metadata if not provided by planner
+        // This allows the planner to be decoupled from the vector index manager
         let coordinator = self.coordinator.clone();
         let space_id = self.node.space_id;
-        let tag_name = self.node.tag_name.clone();
-        let field_name = self.node.field_name.clone();
+        let index_name = &self.node.index_name;
+        
+        // If tag_name and field_name are empty, resolve them from index metadata
+        let (tag_name, field_name) = if self.node.tag_name.is_empty() || self.node.field_name.is_empty() {
+            // Search for index metadata by collection name (index_name)
+            let indexes = coordinator.list_indexes();
+            let index_metadata = indexes
+                .iter()
+                .find(|idx| {
+                    // Match by collection name or index name pattern
+                    let expected_collection = format!("space_{}_{}_{}", space_id, idx.tag_name, idx.field_name);
+                    expected_collection == *index_name || idx.collection_name == *index_name
+                });
+            
+            if let Some(metadata) = index_metadata {
+                (metadata.tag_name.clone(), metadata.field_name.clone())
+            } else {
+                // Fallback: try to parse index_name format "space_{space_id}_{tag}_{field}" or "{tag}_{field}"
+                // Simple heuristic: split by underscore and extract components
+                let parts: Vec<&str> = index_name.split('_').collect();
+                if parts.len() >= 2 {
+                    // Assume format: {tag}_{field} or space_{id}_{tag}_{field}
+                    let (tag, field) = if parts.len() >= 4 && parts[0] == "space" {
+                        (parts[2].to_string(), parts[3].to_string())
+                    } else {
+                        (parts[0].to_string(), parts[1].to_string())
+                    };
+                    (tag, field)
+                } else {
+                    return Err(DBError::Validation(format!(
+                        "Cannot resolve tag_name and field_name from index_name: {}",
+                        index_name
+                    )));
+                }
+            }
+        } else {
+            (self.node.tag_name.clone(), self.node.field_name.clone())
+        };
+
         let limit = self.node.limit;
         let threshold = self.node.threshold;
 

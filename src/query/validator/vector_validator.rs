@@ -154,14 +154,56 @@ impl VectorValidator {
         match query.query_type {
             VectorQueryType::Vector => {
                 // Validate vector format
-                // TODO: Parse and validate vector dimensions
+                // Parse vector string and validate dimensions
+                let vector_str = &query.query_data;
+                if !vector_str.starts_with('[') || !vector_str.ends_with(']') {
+                    return Err(ValidationError::new(
+                        "Vector must be in format [x1, x2, ...]",
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+
+                // Extract numbers from vector string
+                let inner = &vector_str[1..vector_str.len() - 1];
+                if inner.trim().is_empty() {
+                    return Err(ValidationError::new(
+                        "Vector cannot be empty",
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+
+                // Validate each element is a valid number
+                for part in inner.split(',') {
+                    let trimmed = part.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+                    if trimmed.parse::<f64>().is_err() {
+                        return Err(ValidationError::new(
+                            format!("Invalid vector element: {}", trimmed),
+                            ValidationErrorType::SemanticError,
+                        ));
+                    }
+                }
             }
             VectorQueryType::Text => {
                 // Text query requires embedding service
                 // This will be handled at execution time
+                if query.query_data.is_empty() {
+                    return Err(ValidationError::new(
+                        "Text query cannot be empty",
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
             }
             VectorQueryType::Parameter => {
                 // Parameter query, validate at execution time
+                if !query.query_data.starts_with('$') {
+                    return Err(ValidationError::new(
+                        "Parameter must start with $",
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
             }
         }
 
