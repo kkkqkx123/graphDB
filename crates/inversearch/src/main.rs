@@ -42,7 +42,7 @@ fn run() -> anyhow::Result<()> {
         ServiceConfig::from_file_with_env_override(&config_path)?
     } else {
         tracing::warn!("Config file not found, using default configuration");
-        ServiceConfig::from_env()?
+        ServiceConfig::from_env().map_err(|e| anyhow::anyhow!("Failed to load configuration: {}", e))?
     };
     
     // 使用 tokio 运行时

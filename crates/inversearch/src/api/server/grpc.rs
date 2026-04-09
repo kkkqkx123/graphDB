@@ -3,6 +3,7 @@
 
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::RwLock;
 use tonic::{transport::Server, Request, Response, Status};
 
@@ -59,6 +60,7 @@ pub struct InversearchService {
     #[allow(dead_code)]
     storage: Arc<dyn StorageInterface + Send + Sync>,
     config: Config,
+    start_time: Instant,
 }
 
 impl Default for InversearchService {
@@ -84,6 +86,7 @@ impl InversearchService {
             index,
             storage,
             config,
+            start_time: Instant::now(),
         }
     }
 
@@ -108,6 +111,7 @@ impl InversearchService {
             index,
             storage,
             config,
+            start_time: Instant::now(),
         }
     }
 
@@ -121,6 +125,7 @@ impl InversearchService {
             index,
             storage,
             config: Config::default(),
+            start_time: Instant::now(),
         }
     }
 
@@ -137,6 +142,7 @@ impl InversearchService {
             index,
             storage,
             config,
+            start_time: Instant::now(),
         }
     }
 
@@ -376,13 +382,18 @@ impl InversearchServiceTrait for InversearchService {
         _request: Request<GetStatsRequest>,
     ) -> Result<Response<GetStatsResponse>, Status> {
         let index = self.index.read().await;
-        // Use document_count() to get the actual document count
         let document_count = index.document_count();
+        
+        // 计算索引大小（主索引 + 上下文索引的条目数）
+        let index_size = index.map.index.len() + index.ctx.index.len();
+        
+        // 缓存大小（如果有缓存）
+        let cache_size = index.cache.as_ref().map(|c| c.len()).unwrap_or(0);
 
         Ok(Response::new(GetStatsResponse {
             document_count: document_count as u64,
-            index_size: 0, // TODO: implement actual index size calculation
-            cache_size: 0, // TODO: implement cache size tracking
+            index_size: index_size as u64,
+            cache_size: cache_size as u64,
             error: String::new(),
         }))
     }
@@ -392,13 +403,19 @@ impl InversearchServiceTrait for InversearchService {
         _request: Request<HealthCheckRequest>,
     ) -> Result<Response<HealthCheckResponse>, Status> {
         let index = self.index.read().await;
-        let is_healthy = true; // TODO: implement actual health check
         let document_count = index.document_count();
+        
+        // 多维度健康检查
+        let is_healthy = !index.map.index.is_empty() || !index.ctx.index.is_empty()
+            && document_count < u32::MAX as usize;
+        
+        // 计算运行时间
+        let uptime = self.start_time.elapsed().as_secs();
 
         Ok(Response::new(HealthCheckResponse {
             healthy: is_healthy,
             document_count: document_count as u64,
-            uptime_seconds: 0, // TODO: track actual uptime
+            uptime_seconds: uptime,
             version: env!("CARGO_PKG_VERSION").to_string(),
         }))
     }

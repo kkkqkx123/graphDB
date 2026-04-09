@@ -13,6 +13,7 @@
 //! ```
 
 use thiserror::Error;
+use std::fmt;
 
 /// Validation result type
 pub type ValidationResult<T> = Result<T, ValidationError>;

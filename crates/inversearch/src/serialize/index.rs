@@ -295,7 +295,8 @@ impl Index {
     }
 
     /// 应用导入的配置
-    fn apply_config(&mut self, config: &IndexConfigExport) -> Result<()> {
+    /// 应用配置到索引
+    pub fn apply_config(&mut self, config: &IndexConfigExport) -> Result<()> {
         self.resolution = config.index_options.resolution.unwrap_or(9);
         self.resolution_ctx = config
             .index_options

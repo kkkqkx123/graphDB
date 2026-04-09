@@ -309,8 +309,22 @@ impl IndexExportData {
     }
 
     /// 将导出数据应用到索引
-    pub fn apply_to_index(&self, _index: &mut crate::Index) -> crate::error::Result<()> {
-        // TODO: 实现数据恢复逻辑
+    pub fn apply_to_index(&self, index: &mut crate::Index) -> crate::error::Result<()> {
+        // 应用配置
+        index.apply_config(&self.config)?;
+        
+        // 清空当前索引
+        index.clear();
+        
+        // 恢复主索引
+        index.import_main_index(&self.data.main_index)?;
+        
+        // 恢复上下文索引
+        index.import_context_index(&self.data.context_index)?;
+        
+        // 恢复注册表
+        index.import_registry(&self.data.registry)?;
+        
         Ok(())
     }
 }
