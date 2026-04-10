@@ -1,5 +1,4 @@
 /// Core data structures associated with two-phase submission
-
 use crate::search::ChangeType;
 use crate::transaction::types::TransactionId;
 use crossbeam::atomic::AtomicCell;
@@ -190,18 +189,13 @@ mod tests {
     #[test]
     fn test_sync_handle_state_transitions() {
         let (tx, rx) = oneshot::channel();
-        let handle = SyncHandle::new(
-            TransactionId::from(1u64),
-            vec![],
-            tx,
-            rx,
-        );
+        let handle = SyncHandle::new(TransactionId::from(1u64), vec![], tx, rx);
 
         assert_eq!(handle.state(), SyncHandleState::Created);
-        
+
         handle.set_state(SyncHandleState::Syncing);
         assert_eq!(handle.state(), SyncHandleState::Syncing);
-        
+
         handle.set_state(SyncHandleState::Synced);
         assert_eq!(handle.state(), SyncHandleState::Synced);
     }

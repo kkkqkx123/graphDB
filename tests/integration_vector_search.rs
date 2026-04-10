@@ -19,8 +19,10 @@ use std::time::Duration;
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Value, Vertex};
 use graphdb::vector::VectorSyncCoordinator;
+use vector_client::types::{
+    CollectionConfig, FilterCondition, SearchQuery, VectorFilter, VectorPoint,
+};
 use vector_client::{DistanceMetric, VectorClientConfig, VectorManager};
-use vector_client::types::{CollectionConfig, FilterCondition, SearchQuery, VectorFilter, VectorPoint};
 
 // ==================== Test Fixtures ====================
 
@@ -41,7 +43,7 @@ impl VectorTestContext {
                 .expect("Failed to create manager"),
         );
         let coordinator = Arc::new(VectorSyncCoordinator::new(manager.clone(), None));
-        
+
         // Use test name as collection prefix for isolation
         let collection_prefix = format!("test_{}", test_name);
 
@@ -51,7 +53,7 @@ impl VectorTestContext {
             collection_prefix,
         }
     }
-    
+
     fn collection_name(&self, name: &str) -> String {
         format!("{}_{}", self.collection_prefix, name)
     }
@@ -88,7 +90,10 @@ async fn test_vector_manager_create_index() {
     let ctx = VectorTestContext::with_qdrant_engine("create_index").await;
 
     let config = CollectionConfig::new(3, DistanceMetric::Cosine);
-    let result = ctx.manager.create_index(&ctx.collection_name("test"), config).await;
+    let result = ctx
+        .manager
+        .create_index(&ctx.collection_name("test"), config)
+        .await;
 
     assert!(result.is_ok(), "Creating index should succeed");
 }
@@ -175,7 +180,10 @@ async fn test_vector_coordinator_drop_index() {
         .drop_vector_index(1, "Document", "embedding")
         .await;
 
-    assert!(result.is_ok(), "Dropping index via coordinator should succeed");
+    assert!(
+        result.is_ok(),
+        "Dropping index via coordinator should succeed"
+    );
 }
 
 // ==================== Vector Search Tests ====================

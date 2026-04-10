@@ -961,7 +961,8 @@ mod vector_sync_tests {
                     .await
                     .expect("Failed to create vector manager"),
             );
-            let vector_coordinator = Arc::new(VectorSyncCoordinator::new(vector_manager.clone(), None));
+            let vector_coordinator =
+                Arc::new(VectorSyncCoordinator::new(vector_manager.clone(), None));
 
             // Setup sync manager with both coordinators
             let sync_manager =

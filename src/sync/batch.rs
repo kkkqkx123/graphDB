@@ -397,10 +397,7 @@ impl TaskBuffer {
         update: crate::transaction::PendingIndexUpdate,
     ) -> Result<(), BufferError> {
         let mut pending = self.pending_updates.lock().await;
-        pending
-            .entry(txn_id)
-            .or_insert_with(Vec::new)
-            .push(update);
+        pending.entry(txn_id).or_insert_with(Vec::new).push(update);
         Ok(())
     }
 
@@ -410,9 +407,7 @@ impl TaskBuffer {
         txn_id: TransactionId,
     ) -> Vec<crate::transaction::PendingIndexUpdate> {
         let mut pending = self.pending_updates.lock().await;
-        pending
-            .remove(&txn_id)
-            .unwrap_or_default()
+        pending.remove(&txn_id).unwrap_or_default()
     }
 
     /// Get pending updates (not deleted)
@@ -421,10 +416,7 @@ impl TaskBuffer {
         txn_id: TransactionId,
     ) -> Vec<crate::transaction::PendingIndexUpdate> {
         let pending = self.pending_updates.lock().await;
-        pending
-            .get(&txn_id)
-            .cloned()
-            .unwrap_or_default()
+        pending.get(&txn_id).cloned().unwrap_or_default()
     }
 
     /// 清理指定事务的待处理更新

@@ -18,8 +18,8 @@ use graphdb::api::server::session::{
 };
 use graphdb::config::Config;
 use graphdb::core::{MetricType, QueryMetrics, RoleType, StatsManager};
-use graphdb::search::FulltextConfig;
 use graphdb::query::{QueryManager, QueryStatus};
+use graphdb::search::FulltextConfig;
 use graphdb::storage::DefaultStorage;
 use vector_client::config::VectorClientConfig;
 

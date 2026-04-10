@@ -10,13 +10,13 @@ use crate::coordinator::FulltextCoordinator;
 use crate::core::Value;
 use crate::search::{FulltextConfig, FulltextIndexManager};
 use crate::storage::{RedbStorage, StorageClient};
-use crate::sync::{SyncManager, SyncConfig};
+use crate::sync::{SyncConfig, SyncManager};
 use crate::transaction::{TransactionManager, TransactionManagerConfig};
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
-use vector_client::{VectorManager, VectorClientConfig};
+use vector_client::{VectorClientConfig, VectorManager};
 
 #[cfg(test)]
 use crate::storage::test_mock::MockStorage;
@@ -107,59 +107,53 @@ impl GraphDatabase<RedbStorage> {
 
         let fulltext_config = FulltextConfig::default();
         let vector_config = VectorClientConfig::default();
-        
+
         let (fulltext_manager, fulltext_coordinator, sync_manager) = if fulltext_config.enabled {
             let manager: Arc<FulltextIndexManager> = Arc::new(
                 FulltextIndexManager::new(fulltext_config.clone())
                     .map_err(|e| CoreError::Internal(e.to_string()))?,
             );
             let coordinator = Arc::new(FulltextCoordinator::new(manager.clone()));
-            
+
             let sync_config = SyncConfig {
                 mode: fulltext_config.sync.mode,
                 queue_size: fulltext_config.sync.queue_size,
                 commit_interval_ms: fulltext_config.sync.commit_interval_ms,
                 batch_size: fulltext_config.sync.batch_size,
             };
-            
+
             let mut sync = SyncManager::with_sync_config(coordinator.clone(), sync_config);
-            
+
             if vector_config.enabled {
-                let vector_manager = Arc::new(
-                    VectorManager::new(vector_config.clone())
-                        .map_err(|e| CoreError::Internal(format!("Failed to initialize vector manager: {}", e)))?,
-                );
+                let vector_manager =
+                    Arc::new(VectorManager::new(vector_config.clone()).map_err(|e| {
+                        CoreError::Internal(format!("Failed to initialize vector manager: {}", e))
+                    })?);
                 let vector_coordinator = Arc::new(
-                    crate::sync::vector_sync::VectorSyncCoordinator::new(
-                        vector_manager,
-                        None,
-                    )
+                    crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
                 );
                 sync = sync.with_vector_coordinator(vector_coordinator);
             }
-            
+
             let sync = Arc::new(sync);
             (Some(manager), Some(coordinator), Some(sync))
         } else if vector_config.enabled {
-            let vector_manager = Arc::new(
-                VectorManager::new(vector_config.clone())
-                    .map_err(|e| CoreError::Internal(format!("Failed to initialize vector manager: {}", e)))?,
-            );
+            let vector_manager =
+                Arc::new(VectorManager::new(vector_config.clone()).map_err(|e| {
+                    CoreError::Internal(format!("Failed to initialize vector manager: {}", e))
+                })?);
             let vector_coordinator = Arc::new(
-                crate::sync::vector_sync::VectorSyncCoordinator::new(
-                    vector_manager,
-                    None,
-                )
+                crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
             );
-            
+
             let sync_config = SyncConfig::default();
-            let coordinator = Arc::new(FulltextCoordinator::new(
-                Arc::new(FulltextIndexManager::new(FulltextConfig::default()).unwrap())
-            ));
+            let coordinator = Arc::new(FulltextCoordinator::new(Arc::new(
+                FulltextIndexManager::new(FulltextConfig::default()).unwrap(),
+            )));
             let mut sync = SyncManager::with_sync_config(coordinator, sync_config);
             sync = sync.with_vector_coordinator(vector_coordinator);
             let sync = Arc::new(sync);
-            
+
             (None, None, Some(sync))
         } else {
             (None, None, None)

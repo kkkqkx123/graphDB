@@ -200,10 +200,8 @@ impl TransactionManager {
         if context.is_two_phase_enabled() {
             if let Some(ref sync_manager) = self.sync_manager {
                 // 1. Prepare index sync (async, block on sync method)
-                let sync_handle = futures::executor::block_on(
-                    sync_manager.prepare_commit(txn_id)
-                )
-                .map_err(|e| TransactionError::SyncFailed(e.to_string()))?;
+                let sync_handle = futures::executor::block_on(sync_manager.prepare_commit(txn_id))
+                    .map_err(|e| TransactionError::SyncFailed(e.to_string()))?;
 
                 context.set_sync_handle(sync_handle.clone());
 
@@ -211,20 +209,30 @@ impl TransactionManager {
                 match sync_handle.wait_for_completion() {
                     Ok(()) => {
                         // Sync successful, proceed to commit
-                        log::debug!("Index sync prepared successfully for transaction {:?}", txn_id);
+                        log::debug!(
+                            "Index sync prepared successfully for transaction {:?}",
+                            txn_id
+                        );
                     }
                     Err(e) => {
                         // Sync failed, handle based on policy
                         match sync_manager.buffer().config().failure_policy {
                             crate::search::SyncFailurePolicy::FailClosed => {
                                 // Fail closed: abort transaction before redb commit
-                                log::error!("Index sync failed, aborting transaction {:?}: {}", txn_id, e);
+                                log::error!(
+                                    "Index sync failed, aborting transaction {:?}: {}",
+                                    txn_id,
+                                    e
+                                );
                                 self.abort_transaction_internal(context.clone())?;
                                 return Err(TransactionError::SyncFailed(e.to_string()));
                             }
                             crate::search::SyncFailurePolicy::FailOpen => {
                                 // Fail open: proceed with commit
-                                log::warn!("Index sync failed but proceeding with fail_open: {}", e);
+                                log::warn!(
+                                    "Index sync failed but proceeding with fail_open: {}",
+                                    e
+                                );
                             }
                         }
                     }
@@ -254,7 +262,11 @@ impl TransactionManager {
             if let Some(ref sync_manager) = self.sync_manager {
                 if let Some(handle) = context.clear_sync_handle() {
                     if let Err(e) = sync_manager.commit_sync(handle) {
-                        log::error!("Failed to confirm index sync for transaction {:?}: {}", txn_id, e);
+                        log::error!(
+                            "Failed to confirm index sync for transaction {:?}: {}",
+                            txn_id,
+                            e
+                        );
                         // Note: redb already committed, can only log error
                     }
                 }
@@ -268,17 +280,15 @@ impl TransactionManager {
                     Ok(()) => {
                         log::debug!("Index sync completed successfully after transaction commit");
                     }
-                    Err(e) => {
-                        match failure_policy {
-                            crate::search::SyncFailurePolicy::FailClosed => {
-                                log::error!("Index sync failed: {}", e);
-                                return Err(TransactionError::SyncFailed(e.to_string()));
-                            }
-                            crate::search::SyncFailurePolicy::FailOpen => {
-                                log::warn!("Index sync failed but transaction committed (fail_open policy): {}", e);
-                            }
+                    Err(e) => match failure_policy {
+                        crate::search::SyncFailurePolicy::FailClosed => {
+                            log::error!("Index sync failed: {}", e);
+                            return Err(TransactionError::SyncFailed(e.to_string()));
                         }
-                    }
+                        crate::search::SyncFailurePolicy::FailOpen => {
+                            log::warn!("Index sync failed but transaction committed (fail_open policy): {}", e);
+                        }
+                    },
                 }
             }
         }

@@ -335,7 +335,8 @@ impl SyncManager {
 
                 // Processing Vector Batch Tasks
                 if let Some(ref vc) = vector_coord {
-                    if let Err(e) = Self::process_vector_batch_tasks(vc, &buffer, batch_size).await {
+                    if let Err(e) = Self::process_vector_batch_tasks(vc, &buffer, batch_size).await
+                    {
                         log::error!("Vector batch processing failed: {:?}", e);
                     }
                 }
@@ -356,7 +357,8 @@ impl SyncManager {
 
         if !vector_tasks.is_empty() {
             // cluster
-            let mut upsert_by_collection: HashMap<String, Vec<crate::sync::task::VectorPointData>> = HashMap::new();
+            let mut upsert_by_collection: HashMap<String, Vec<crate::sync::task::VectorPointData>> =
+                HashMap::new();
             let mut delete_by_collection: HashMap<String, Vec<String>> = HashMap::new();
 
             for task in vector_tasks {
@@ -369,8 +371,11 @@ impl SyncManager {
                         ..
                     } => {
                         let collection_name = crate::sync::vector_sync::VectorIndexLocation::new(
-                            space_id, &tag_name, &field_name
-                        ).to_collection_name();
+                            space_id,
+                            &tag_name,
+                            &field_name,
+                        )
+                        .to_collection_name();
 
                         upsert_by_collection
                             .entry(collection_name)
@@ -385,8 +390,11 @@ impl SyncManager {
                         ..
                     } => {
                         let collection_name = crate::sync::vector_sync::VectorIndexLocation::new(
-                            space_id, &tag_name, &field_name
-                        ).to_collection_name();
+                            space_id,
+                            &tag_name,
+                            &field_name,
+                        )
+                        .to_collection_name();
 
                         delete_by_collection
                             .entry(collection_name)
@@ -413,10 +421,21 @@ impl SyncManager {
                         })
                         .collect();
 
-                    if let Err(e) = vector_coord.upsert_batch(&collection_name, vector_points).await {
-                        log::error!("Vector batch upsert failed for {}: {:?}", collection_name, e);
+                    if let Err(e) = vector_coord
+                        .upsert_batch(&collection_name, vector_points)
+                        .await
+                    {
+                        log::error!(
+                            "Vector batch upsert failed for {}: {:?}",
+                            collection_name,
+                            e
+                        );
                     } else {
-                        log::debug!("Batch upserted {} vectors to {}", points.len(), collection_name);
+                        log::debug!(
+                            "Batch upserted {} vectors to {}",
+                            points.len(),
+                            collection_name
+                        );
                     }
                 }
             }
@@ -426,9 +445,17 @@ impl SyncManager {
                 if !point_ids.is_empty() {
                     let refs: Vec<&str> = point_ids.iter().map(|s| s.as_str()).collect();
                     if let Err(e) = vector_coord.delete_batch(&collection_name, refs).await {
-                        log::error!("Vector batch delete failed for {}: {:?}", collection_name, e);
+                        log::error!(
+                            "Vector batch delete failed for {}: {:?}",
+                            collection_name,
+                            e
+                        );
                     } else {
-                        log::debug!("Batch deleted {} vectors from {}", point_ids.len(), collection_name);
+                        log::debug!(
+                            "Batch deleted {} vectors from {}",
+                            point_ids.len(),
+                            collection_name
+                        );
                     }
                 }
             }
@@ -511,15 +538,19 @@ impl SyncManager {
             handle_clone.set_state(crate::transaction::sync_handle::SyncHandleState::Syncing);
 
             // Perform the actual index synchronization
-            let result = sync_manager.execute_pending_updates(&handle_clone.pending_updates).await;
+            let result = sync_manager
+                .execute_pending_updates(&handle_clone.pending_updates)
+                .await;
 
             match result {
                 Ok(()) => {
-                    handle_clone.set_state(crate::transaction::sync_handle::SyncHandleState::Synced);
+                    handle_clone
+                        .set_state(crate::transaction::sync_handle::SyncHandleState::Synced);
                     let _ = handle_clone.completion_tx.send(Ok(()));
                 }
                 Err(e) => {
-                    handle_clone.set_state(crate::transaction::sync_handle::SyncHandleState::SyncFailed);
+                    handle_clone
+                        .set_state(crate::transaction::sync_handle::SyncHandleState::SyncFailed);
                     let _ = handle_clone.completion_tx.send(Err(e));
                 }
             }
@@ -550,19 +581,34 @@ impl SyncManager {
 
                     // Vector index (if any)
                     if let Some(ref vector_coord) = self.vector_coordinator {
-                        if vector_coord.index_exists(update.space_id, &update.tag_name, &update.field_name) {
+                        if vector_coord.index_exists(
+                            update.space_id,
+                            &update.tag_name,
+                            &update.field_name,
+                        ) {
                             // Extract vector data from update
                             if let Some(ref vector) = update.vector_data {
-                                let collection_name = crate::sync::vector_sync::VectorIndexLocation::new(
-                                    update.space_id,
-                                    &update.tag_name,
-                                    &update.field_name,
-                                ).to_collection_name();
+                                let collection_name =
+                                    crate::sync::vector_sync::VectorIndexLocation::new(
+                                        update.space_id,
+                                        &update.tag_name,
+                                        &update.field_name,
+                                    )
+                                    .to_collection_name();
 
                                 let mut payload = HashMap::new();
-                                payload.insert("doc_id".to_string(), Value::String(update.doc_id.clone()));
-                                payload.insert("tag_name".to_string(), Value::String(update.tag_name.clone()));
-                                payload.insert("field_name".to_string(), Value::String(update.field_name.clone()));
+                                payload.insert(
+                                    "doc_id".to_string(),
+                                    Value::String(update.doc_id.clone()),
+                                );
+                                payload.insert(
+                                    "tag_name".to_string(),
+                                    Value::String(update.tag_name.clone()),
+                                );
+                                payload.insert(
+                                    "field_name".to_string(),
+                                    Value::String(update.field_name.clone()),
+                                );
 
                                 let point_data = crate::sync::task::VectorPointData {
                                     id: update.doc_id.clone(),
@@ -582,7 +628,11 @@ impl SyncManager {
                     fulltext_deletes.push(update.doc_id.clone());
 
                     if let Some(ref vector_coord) = self.vector_coordinator {
-                        if vector_coord.index_exists(update.space_id, &update.tag_name, &update.field_name) {
+                        if vector_coord.index_exists(
+                            update.space_id,
+                            &update.tag_name,
+                            &update.field_name,
+                        ) {
                             let collection_name =
                                 crate::sync::vector_sync::VectorIndexLocation::new(
                                     update.space_id,
@@ -630,7 +680,10 @@ impl SyncManager {
     }
 
     /// Phase 2: Confirm submission
-    pub fn commit_sync(&self, handle: Arc<crate::transaction::SyncHandle>) -> Result<(), SyncError> {
+    pub fn commit_sync(
+        &self,
+        handle: Arc<crate::transaction::SyncHandle>,
+    ) -> Result<(), SyncError> {
         // Verification Status
         if handle.state() != crate::transaction::sync_handle::SyncHandleState::Synced {
             return Err(SyncError::InvalidState);
@@ -644,13 +697,17 @@ impl SyncManager {
     }
 
     /// Phase 2: Cancel submission
-    pub async fn abort_sync(&self, handle: Arc<crate::transaction::SyncHandle>) -> Result<(), SyncError> {
+    pub async fn abort_sync(
+        &self,
+        handle: Arc<crate::transaction::SyncHandle>,
+    ) -> Result<(), SyncError> {
         // Marked as canceled
         handle.set_state(crate::transaction::sync_handle::SyncHandleState::Cancelled);
 
         // In FailClosed mode, you need to roll back synchronized indexes
         if self.buffer.config().failure_policy == crate::search::SyncFailurePolicy::FailClosed {
-            self.rollback_pending_updates(&handle.pending_updates).await?;
+            self.rollback_pending_updates(&handle.pending_updates)
+                .await?;
         }
 
         Ok(())
@@ -672,10 +729,11 @@ impl SyncManager {
                             &update.tag_name,
                             &update.field_name,
                         ) {
-                            engine
-                                .delete(&update.doc_id)
-                                .await
-                                .map_err(|e| SyncError::CoordinatorError(CoordinatorError::FulltextError(e.into())))?;
+                            engine.delete(&update.doc_id).await.map_err(|e| {
+                                SyncError::CoordinatorError(CoordinatorError::FulltextError(
+                                    e.into(),
+                                ))
+                            })?;
                         }
                     }
                 }
@@ -690,7 +748,11 @@ impl SyncManager {
                             engine
                                 .index(&update.doc_id, old_content)
                                 .await
-                                .map_err(|e| SyncError::CoordinatorError(CoordinatorError::FulltextError(e.into())))?;
+                                .map_err(|e| {
+                                    SyncError::CoordinatorError(CoordinatorError::FulltextError(
+                                        e.into(),
+                                    ))
+                                })?;
                         }
                     }
                 }
@@ -705,7 +767,11 @@ impl SyncManager {
                             engine
                                 .index(&update.doc_id, old_content)
                                 .await
-                                .map_err(|e| SyncError::CoordinatorError(CoordinatorError::FulltextError(e.into())))?;
+                                .map_err(|e| {
+                                    SyncError::CoordinatorError(CoordinatorError::FulltextError(
+                                        e.into(),
+                                    ))
+                                })?;
                         }
                     }
                 }
@@ -720,7 +786,9 @@ impl SyncManager {
         txn_id: crate::transaction::types::TransactionId,
         update: crate::transaction::PendingIndexUpdate,
     ) -> Result<(), SyncError> {
-        self.buffer.add_pending_update(txn_id, update).await
+        self.buffer
+            .add_pending_update(txn_id, update)
+            .await
             .map_err(|e| SyncError::BufferError(e))
     }
 

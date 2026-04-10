@@ -1,5 +1,4 @@
 /// Index update buffer management
-
 use crate::sync::pending_update::PendingIndexUpdate;
 use crate::sync::sync_handle::{IndexBufferConfig, SyncHandle, SyncHandleState};
 use crate::sync::SyncError;
@@ -33,18 +32,23 @@ impl IndexUpdateBuffer {
     }
 
     /// Add Pending Updates
-    pub fn add_update(&self, txn_id: TransactionId, update: PendingIndexUpdate) -> Result<(), SyncError> {
+    pub fn add_update(
+        &self,
+        txn_id: TransactionId,
+        update: PendingIndexUpdate,
+    ) -> Result<(), SyncError> {
         let mut buffer = self.buffers.entry(txn_id).or_insert_with(Vec::new);
-        
+
         // Check buffer size
         if buffer.len() >= self.config.max_buffer_size {
             return Err(SyncError::BufferError(
-                crate::sync::batch::BufferError::BufferFull(
-                    format!("Buffer full for transaction {:?}", txn_id)
-                )
+                crate::sync::batch::BufferError::BufferFull(format!(
+                    "Buffer full for transaction {:?}",
+                    txn_id
+                )),
             ));
         }
-        
+
         buffer.push(update);
         Ok(())
     }
@@ -77,7 +81,9 @@ impl IndexUpdateBuffer {
 
     /// Remove Synchronization Handle
     pub fn remove_sync_handle(&self, txn_id: TransactionId) -> Option<Arc<SyncHandle>> {
-        self.syncing_handles.remove(&txn_id).map(|(_, handle)| handle)
+        self.syncing_handles
+            .remove(&txn_id)
+            .map(|(_, handle)| handle)
     }
 
     /// Get all pending transaction IDs
@@ -157,8 +163,12 @@ mod tests {
         let txn_id = TransactionId::from(1u64);
 
         // add update
-        buffer.add_update(txn_id, create_test_update(txn_id)).unwrap();
-        buffer.add_update(txn_id, create_test_update(txn_id)).unwrap();
+        buffer
+            .add_update(txn_id, create_test_update(txn_id))
+            .unwrap();
+        buffer
+            .add_update(txn_id, create_test_update(txn_id))
+            .unwrap();
 
         // Inspection pending processing update
         assert!(buffer.has_pending_updates(txn_id));
@@ -177,8 +187,12 @@ mod tests {
         let txn_id = TransactionId::from(1u64);
 
         // Add 2 updates (limit reached)
-        buffer.add_update(txn_id, create_test_update(txn_id)).unwrap();
-        buffer.add_update(txn_id, create_test_update(txn_id)).unwrap();
+        buffer
+            .add_update(txn_id, create_test_update(txn_id))
+            .unwrap();
+        buffer
+            .add_update(txn_id, create_test_update(txn_id))
+            .unwrap();
 
         // The third update should fail
         let result = buffer.add_update(txn_id, create_test_update(txn_id));
@@ -220,9 +234,15 @@ mod tests {
         assert_eq!(stats.total_pending_updates, 0);
 
         // add update
-        buffer.add_update(txn_id1, create_test_update(txn_id1)).unwrap();
-        buffer.add_update(txn_id1, create_test_update(txn_id1)).unwrap();
-        buffer.add_update(txn_id2, create_test_update(txn_id2)).unwrap();
+        buffer
+            .add_update(txn_id1, create_test_update(txn_id1))
+            .unwrap();
+        buffer
+            .add_update(txn_id1, create_test_update(txn_id1))
+            .unwrap();
+        buffer
+            .add_update(txn_id2, create_test_update(txn_id2))
+            .unwrap();
 
         // Update Statistics
         let stats = buffer.stats();

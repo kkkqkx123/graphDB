@@ -163,8 +163,8 @@ impl InsertVerticesValidator {
         row_idx: usize,
         tag_idx: usize,
     ) -> Result<(), ValidationError> {
-        use crate::core::DataType;
         use crate::core::types::expr::Expression;
+        use crate::core::DataType;
         use crate::core::Value;
         use crate::storage::metadata::schema_manager::SchemaManager;
 
@@ -206,7 +206,7 @@ impl InsertVerticesValidator {
                     if let Some(expr) = value_expr.get_expression() {
                         if let Expression::Literal(Value::Vector(vector_val)) = &expr {
                             let actual_dim = vector_val.dimension();
-                            
+
                             if actual_dim != expected_dim {
                                 return Err(ValidationError::new(
                                     format!(

@@ -7,9 +7,11 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use vector_client::types::{CollectionConfig, DistanceMetric, FilterCondition, SearchQuery, VectorFilter, VectorPoint};
-use vector_client::{VectorClientConfig, VectorEngine};
 use vector_client::engine::QdrantEngine;
+use vector_client::types::{
+    CollectionConfig, DistanceMetric, FilterCondition, SearchQuery, VectorFilter, VectorPoint,
+};
+use vector_client::{VectorClientConfig, VectorEngine};
 
 fn create_test_vector(size: usize, offset: f32) -> Vec<f32> {
     (0..size)
@@ -17,15 +19,10 @@ fn create_test_vector(size: usize, offset: f32) -> Vec<f32> {
         .collect()
 }
 
-async fn setup_collection(
-    engine: &Arc<QdrantEngine>,
-    name: &str,
-    dim: usize,
-    count: usize,
-) {
+async fn setup_collection(engine: &Arc<QdrantEngine>, name: &str, dim: usize, count: usize) {
     // 先尝试删除已存在的 collection（如果存在）
     let _ = engine.delete_collection(name).await;
-    
+
     let config = CollectionConfig::new(dim, DistanceMetric::Cosine);
     engine.create_collection(name, config).await.unwrap();
 
@@ -46,7 +43,7 @@ fn create_engine() -> (tokio::runtime::Runtime, Arc<QdrantEngine>) {
     let config = VectorClientConfig::qdrant_local("localhost", 6334, 6333);
     let engine = Arc::new(
         rt.block_on(QdrantEngine::new(config))
-            .expect("Failed to create QdrantEngine")
+            .expect("Failed to create QdrantEngine"),
     );
     (rt, engine)
 }
@@ -64,7 +61,7 @@ fn bench_search_100_vectors(c: &mut Criterion) {
 
     rt.block_on(async {
         setup_collection(&engine, collection_name, 128, 100).await;
-        
+
         for _ in 0..3 {
             let query_vector = create_test_vector(128, 0.5);
             let query = SearchQuery::new(query_vector, 10);
@@ -97,7 +94,7 @@ fn bench_search_1000_vectors(c: &mut Criterion) {
 
     rt.block_on(async {
         setup_collection(&engine, collection_name, 128, 1000).await;
-        
+
         for _ in 0..3 {
             let query_vector = create_test_vector(128, 0.5);
             let query = SearchQuery::new(query_vector, 10);
@@ -130,10 +127,10 @@ fn bench_search_different_dimensions(c: &mut Criterion) {
 
     for dim in [128, 256, 512] {
         let collection_name = format!("bench_dim_{}", dim);
-        
+
         rt.block_on(async {
             setup_collection(&engine, &collection_name, dim, 1000).await;
-            
+
             for _ in 0..3 {
                 let query_vector = create_test_vector(dim, 0.5);
                 let query = SearchQuery::new(query_vector, 10);
@@ -142,18 +139,14 @@ fn bench_search_different_dimensions(c: &mut Criterion) {
             }
         });
 
-        group.bench_with_input(
-            BenchmarkId::from_parameter(dim),
-            &dim,
-            |b, &dim| {
-                b.to_async(&rt).iter(|| async {
-                    let query_vector = create_test_vector(dim, 0.5);
-                    let query = SearchQuery::new(query_vector, 10);
-                    let results = engine.search(&collection_name, query).await.unwrap();
-                    black_box(results)
-                })
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(dim), &dim, |b, &dim| {
+            b.to_async(&rt).iter(|| async {
+                let query_vector = create_test_vector(dim, 0.5);
+                let query = SearchQuery::new(query_vector, 10);
+                let results = engine.search(&collection_name, query).await.unwrap();
+                black_box(results)
+            })
+        });
 
         rt.block_on(cleanup_collection(&engine, &collection_name));
     }
@@ -170,20 +163,27 @@ fn bench_search_different_distance_metrics(c: &mut Criterion) {
 
     let (rt, engine) = create_engine();
 
-    for metric in [DistanceMetric::Cosine, DistanceMetric::Euclid, DistanceMetric::Dot] {
+    for metric in [
+        DistanceMetric::Cosine,
+        DistanceMetric::Euclid,
+        DistanceMetric::Dot,
+    ] {
         let collection_name = format!("bench_metric_{:?}", metric).to_lowercase();
-        
+
         rt.block_on(async {
             let config = CollectionConfig::new(128, metric);
-            engine.create_collection(&collection_name, config).await.unwrap();
-            
+            engine
+                .create_collection(&collection_name, config)
+                .await
+                .unwrap();
+
             for i in 0..1000 {
                 let vector = create_test_vector(128, i as f32);
                 // 使用数字 ID
                 let point = VectorPoint::new(i.to_string(), vector);
                 engine.upsert(&collection_name, point).await.unwrap();
             }
-            
+
             for _ in 0..3 {
                 let query_vector = create_test_vector(128, 0.5);
                 let query = SearchQuery::new(query_vector, 10);
@@ -223,7 +223,10 @@ fn bench_batch_upsert(c: &mut Criterion) {
 
     rt.block_on(async {
         let config = CollectionConfig::new(128, DistanceMetric::Cosine);
-        engine.create_collection(collection_name, config).await.unwrap();
+        engine
+            .create_collection(collection_name, config)
+            .await
+            .unwrap();
     });
 
     for batch_size in [10, 100, 1000] {
@@ -239,7 +242,7 @@ fn bench_batch_upsert(c: &mut Criterion) {
                             VectorPoint::new(i.to_string(), vector)
                         })
                         .collect();
-                    
+
                     let result = engine.upsert_batch(collection_name, points).await.unwrap();
                     black_box(result)
                 })
@@ -264,8 +267,11 @@ fn bench_filter_search(c: &mut Criterion) {
 
     rt.block_on(async {
         let config = CollectionConfig::new(128, DistanceMetric::Cosine);
-        engine.create_collection(collection_name, config).await.unwrap();
-        
+        engine
+            .create_collection(collection_name, config)
+            .await
+            .unwrap();
+
         for i in 0..1000 {
             let vector = create_test_vector(128, i as f32);
             let mut payload = HashMap::new();
@@ -277,7 +283,7 @@ fn bench_filter_search(c: &mut Criterion) {
             let point = VectorPoint::new(i.to_string(), vector).with_payload(payload);
             engine.upsert(collection_name, point).await.unwrap();
         }
-        
+
         for _ in 0..3 {
             let query_vector = create_test_vector(128, 0.5);
             let filter = VectorFilter::new().must(FilterCondition::match_value("category", "A"));
@@ -323,20 +329,20 @@ fn bench_concurrent_operations(c: &mut Criterion) {
                 let engine = Arc::clone(&engine);
                 b.to_async(&rt).iter(|| async {
                     let mut handles = Vec::new();
-                    
+
                     for _ in 0..concurrency {
                         let query_vector = create_test_vector(128, 0.5);
                         let query = SearchQuery::new(query_vector, 10);
                         let engine = Arc::clone(&engine);
-                        
+
                         let handle = tokio::spawn(async move {
                             let results = engine.search(collection_name, query).await.unwrap();
                             black_box(results)
                         });
-                        
+
                         handles.push(handle);
                     }
-                    
+
                     let results = futures::future::join_all(handles).await;
                     black_box(results)
                 })
