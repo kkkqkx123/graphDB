@@ -344,6 +344,7 @@ impl OrderByValidator {
             },
             Expression::List(_) => Ok(ValueType::List),
             Expression::Map(_) => Ok(ValueType::Map),
+            Expression::Vector(_) => Ok(ValueType::List), // Vector types are treated as List for type inference
             Expression::Case { .. } => Ok(ValueType::Unknown), // The result type of a CASE expression depends on the branch that is executed.
             Expression::TypeCast { target_type, .. } => {
                 // Please provide the text you would like to have translated, as well as the target language you need the translation to. I will then perform the translation for you.
@@ -528,6 +529,7 @@ impl OrderByValidator {
                 }
             }
             Expression::Parameter(_) => {}
+            Expression::Vector(_) => {}
         }
     }
 }

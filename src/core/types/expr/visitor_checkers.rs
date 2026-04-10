@@ -752,6 +752,7 @@ impl WildcardReplacer {
                     .collect(),
             ),
             Expression::Parameter(name) => Expression::Parameter(name.clone()),
+            Expression::Vector(data) => Expression::Vector(data.clone()),
         }
     }
 }

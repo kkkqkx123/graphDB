@@ -160,6 +160,11 @@ impl ExpressionEvaluator {
                 element_values.map(|vals| Value::List(List::from(vals)))
             }
 
+            // Vector literal – Direct evaluation
+            Expression::Vector(data) => {
+                Ok(Value::vector(data.clone()))
+            }
+
             // Mapping – Batch evaluation
             Expression::Map(entries) => {
                 let mut map_values = std::collections::HashMap::new();

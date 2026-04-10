@@ -25,6 +25,9 @@ pub mod signature;
 pub mod fulltext;
 pub use fulltext::{FulltextExecutionContext, FulltextFunction};
 
+// Vector functions (re-export from builtin)
+pub use builtin::vector::VectorFunction;
+
 pub use registry::{global_registry, global_registry_ref, FunctionRegistry};
 pub use signature::ValueType;
 
@@ -92,15 +95,15 @@ impl OwnedFunctionRef {
         }
     }
 
-    /// Execute a function (with caching)
-    ///
-    /// The caching function has been removed; the `execute` method is called directly.
     pub fn execute_with_cache(
         &self,
         args: &[Value],
         _cache: &mut (),
     ) -> Result<Value, ExpressionError> {
-        self.execute(args)
+        match self {
+            OwnedFunctionRef::Builtin(f) => f.execute_with_cache(args, _cache),
+            OwnedFunctionRef::Custom(f) => f.execute(args), // Custom functions don't have cache
+        }
     }
 }
 
@@ -149,6 +152,8 @@ pub enum BuiltinFunction {
     Path(PathFunction),
     /// Full-text search functions
     Fulltext(FulltextFunction),
+    /// Vector functions
+    Vector(VectorFunction),
 }
 
 impl BuiltinFunction {
@@ -167,6 +172,7 @@ impl BuiltinFunction {
             BuiltinFunction::Container(f) => f.name(),
             BuiltinFunction::Path(f) => f.name(),
             BuiltinFunction::Fulltext(f) => f.name(),
+            BuiltinFunction::Vector(f) => f.name(),
         }
     }
 
@@ -185,6 +191,7 @@ impl BuiltinFunction {
             BuiltinFunction::Container(f) => f.arity(),
             BuiltinFunction::Path(f) => f.arity(),
             BuiltinFunction::Fulltext(_) => 0,
+            BuiltinFunction::Vector(f) => f.arity(),
         }
     }
 
@@ -203,6 +210,7 @@ impl BuiltinFunction {
             BuiltinFunction::Container(f) => f.is_variadic(),
             BuiltinFunction::Path(f) => f.is_variadic(),
             BuiltinFunction::Fulltext(f) => f.is_variadic(),
+            BuiltinFunction::Vector(f) => f.is_variadic(),
         }
     }
 
@@ -221,6 +229,7 @@ impl BuiltinFunction {
             BuiltinFunction::Container(f) => f.description(),
             BuiltinFunction::Path(f) => f.description(),
             BuiltinFunction::Fulltext(f) => f.description(),
+            BuiltinFunction::Vector(f) => f.description(),
         }
     }
 
@@ -250,6 +259,7 @@ impl BuiltinFunction {
                     "The full-text search function needs to be executed within the context of full-text search".to_string(),
                 ))
             }
+            BuiltinFunction::Vector(f) => f.execute(args),
         }
     }
 

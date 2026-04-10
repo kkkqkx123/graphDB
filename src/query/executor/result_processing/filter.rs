@@ -131,7 +131,8 @@ fn extract_variable_names(expr: &Expression) -> Vec<String> {
             | Expression::Label(_)
             | Expression::TagProperty { .. }
             | Expression::EdgeProperty { .. }
-            | Expression::Parameter(_) => {}
+            | Expression::Parameter(_)
+            | Expression::Vector(_) => {}
         }
     }
     collect(expr, &mut names);

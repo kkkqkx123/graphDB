@@ -105,6 +105,22 @@ impl AggregateFunction {
                 })?;
                 Ok(AggregateFunction::Percentile(args[0].clone(), percentile))
             }
+            "VEC_SUM" => {
+                if args.is_empty() {
+                    return Err(ExpressionError::function_error(
+                        "VEC_SUM function requires a field name".to_string(),
+                    ));
+                }
+                Ok(AggregateFunction::VecSum(args[0].clone()))
+            }
+            "VEC_AVG" => {
+                if args.is_empty() {
+                    return Err(ExpressionError::function_error(
+                        "VEC_AVG function requires a field name".to_string(),
+                    ));
+                }
+                Ok(AggregateFunction::VecAvg(args[0].clone()))
+            }
             _ => Err(ExpressionError::function_error(format!(
                 "Unknown aggregate function: {}",
                 func_name
@@ -189,6 +205,14 @@ impl AggregateExpression {
             AggregateFunction::BitAnd(_) => state.calculate_bit_and(),
             AggregateFunction::BitOr(_) => state.calculate_bit_or(),
             AggregateFunction::GroupConcat(_, _) => state.calculate_group_concat(),
+            AggregateFunction::VecSum(_) => Ok(state.vec_sum.clone()),
+            AggregateFunction::VecAvg(_) => {
+                if state.count > 0 {
+                    Ok(state.vec_avg.clone())
+                } else {
+                    Ok(Value::Null(crate::core::value::NullType::NaN))
+                }
+            }
         }
     }
 }
@@ -207,6 +231,10 @@ pub struct AggregateState {
     pub bit_and_value: Option<i64>,
     pub bit_or_value: Option<i64>,
     pub group_concat_values: Vec<Value>,
+    /// Vector sum for VEC_SUM
+    pub vec_sum: Value,
+    /// Vector average for VEC_AVG
+    pub vec_avg: Value,
 }
 
 impl Default for AggregateState {
@@ -229,6 +257,8 @@ impl AggregateState {
             bit_and_value: None,
             bit_or_value: None,
             group_concat_values: Vec::new(),
+            vec_sum: Value::Null(crate::core::value::NullType::NaN),
+            vec_avg: Value::Null(crate::core::value::NullType::NaN),
         }
     }
 
@@ -244,6 +274,8 @@ impl AggregateState {
         self.bit_and_value = None;
         self.bit_or_value = None;
         self.group_concat_values.clear();
+        self.vec_sum = Value::Null(crate::core::value::NullType::NaN);
+        self.vec_avg = Value::Null(crate::core::value::NullType::NaN);
     }
 
     /// Update the aggregation status.
@@ -304,6 +336,50 @@ impl AggregateState {
             AggregateFunction::GroupConcat(_, _) => {
                 // Special handling of the GROUP_CONCAT function
                 self.group_concat_values.push(value.clone());
+            }
+            AggregateFunction::VecSum(_) => {
+                // Special handling for VEC_SUM function
+                if matches!(value, Value::Vector(_)) {
+                    if self.vec_sum.is_null() {
+                        self.vec_sum = value.clone();
+                    } else if let (Value::Vector(sum_vec), Value::Vector(input_vec)) = (&mut self.vec_sum, value) {
+                        let sum_data = sum_vec.to_dense();
+                        let input_data = input_vec.to_dense();
+                        
+                        if sum_data.len() == input_data.len() {
+                            let new_data: Vec<f32> = sum_data
+                                .iter()
+                                .zip(input_data.iter())
+                                .map(|(&a, &b)| a + b)
+                                .collect();
+                            self.vec_sum = Value::vector(new_data);
+                        }
+                    }
+                }
+            }
+            AggregateFunction::VecAvg(_) => {
+                // Special handling for VEC_AVG function
+                if matches!(value, Value::Vector(_)) {
+                    if self.vec_avg.is_null() {
+                        self.vec_avg = value.clone();
+                    } else if let (Value::Vector(avg_vec), Value::Vector(input_vec)) = (&mut self.vec_avg, value) {
+                        let avg_data = avg_vec.to_dense();
+                        let input_data = input_vec.to_dense();
+                        
+                        if avg_data.len() == input_data.len() {
+                            // Incremental average calculation
+                            let new_avg: Vec<f32> = avg_data
+                                .iter()
+                                .zip(input_data.iter())
+                                .enumerate()
+                                .map(|(i, (&avg, &input))| {
+                                    avg + (input - avg) / self.count as f32
+                                })
+                                .collect();
+                            self.vec_avg = Value::vector(new_avg);
+                        }
+                    }
+                }
             }
             _ => {
                 // General handling of other aggregate functions

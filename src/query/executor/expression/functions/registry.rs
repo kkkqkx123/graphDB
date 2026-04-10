@@ -221,6 +221,9 @@ impl FunctionRegistry {
 
         // Register full-text search functions
         super::fulltext::register_fulltext_functions(self);
+
+        // Register vector functions
+        super::builtin::vector::register_vector_functions(self);
     }
 }
 

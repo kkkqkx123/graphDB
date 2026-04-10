@@ -325,6 +325,48 @@ impl<'a> ExprParser<'a> {
                     expr: Expression::property(expression.expr, property),
                     span,
                 };
+            } else if ctx.match_token(TokenKind::DoubleColon) {
+                // Type cast syntax: expr::TYPE
+                let type_name = ctx.expect_identifier()?;
+                let span = ctx.merge_span(expression.span.start, ctx.current_position());
+                
+                // Check if casting to VECTOR
+                if type_name.to_uppercase() == "VECTOR" {
+                    // Convert list expression to vector
+                    if let Expression::List(elements) = expression.expr.clone() {
+                        let mut vector_data = Vec::with_capacity(elements.len());
+                        for elem in elements {
+                            if let Expression::Literal(Value::Float(f)) = elem {
+                                vector_data.push(f as f32);
+                            } else if let Expression::Literal(Value::Int(i)) = elem {
+                                vector_data.push(i as f32);
+                            } else {
+                                return Err(ParseError::new(
+                                    ParseErrorKind::SemanticError,
+                                    "Vector elements must be numeric literals".to_string(),
+                                    span.start,
+                                ));
+                            }
+                        }
+                        expression = ParseResult {
+                            expr: Expression::vector(vector_data),
+                            span,
+                        };
+                    } else {
+                        return Err(ParseError::new(
+                            ParseErrorKind::SemanticError,
+                            "Can only cast list literals to VECTOR".to_string(),
+                            span.start,
+                        ));
+                    }
+                } else {
+                    // Other type casts can be added here
+                    return Err(ParseError::new(
+                        ParseErrorKind::SyntaxError,
+                        format!("Unknown type cast target: {}", type_name),
+                        span.start,
+                    ));
+                }
             } else {
                 break;
             }
@@ -533,6 +575,14 @@ impl<'a> ExprParser<'a> {
                 }
 
                 Ok(ParseResult { expr, span })
+            }
+            TokenKind::VectorLiteral(data) => {
+                ctx.next_token();
+                let span = ctx.merge_span(start_pos, ctx.current_position());
+                Ok(ParseResult {
+                    expr: Expression::vector(data),
+                    span,
+                })
             }
             _ => Err(ParseError::new(
                 ParseErrorKind::UnexpectedToken,

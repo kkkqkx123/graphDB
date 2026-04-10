@@ -499,6 +499,8 @@ impl TypeValidator {
             crate::core::AggregateFunction::BitAnd(_)
             | crate::core::AggregateFunction::BitOr(_) => DataType::Int,
             crate::core::AggregateFunction::GroupConcat(_, _) => DataType::String,
+            crate::core::AggregateFunction::VecSum(_) => DataType::Vector,
+            crate::core::AggregateFunction::VecAvg(_) => DataType::Vector,
         }
     }
 
@@ -522,6 +524,8 @@ impl TypeValidator {
             crate::core::AggregateFunction::BitAnd(_)
             | crate::core::AggregateFunction::BitOr(_) => DataType::Int,
             crate::core::AggregateFunction::GroupConcat(_, _) => DataType::String,
+            crate::core::AggregateFunction::VecSum(_) => DataType::Vector,
+            crate::core::AggregateFunction::VecAvg(_) => DataType::Vector,
         }
     }
 

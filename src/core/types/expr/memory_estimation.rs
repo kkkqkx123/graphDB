@@ -132,6 +132,9 @@ impl MemoryEstimatable for Expression {
                     + source.estimate_memory()
                     + mapping.estimate_memory()
             }
+            Expression::Vector(data) => {
+                base_size + data.len() * std::mem::size_of::<f32>()
+            }
         }
     }
 }
@@ -331,6 +334,9 @@ impl Expression {
                     stack.push(initial);
                     stack.push(source);
                     stack.push(mapping);
+                }
+                Expression::Vector(_) => {
+                    // Vector leaf node, base already counted
                 }
             }
         }

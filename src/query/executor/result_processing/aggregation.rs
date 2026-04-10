@@ -463,6 +463,32 @@ impl<S: StorageClient> AggregateExecutor<S> {
                     Value::Null(NullType::Null)
                 }
             }
+            AggregateFunction::VecSum(field) => {
+                if let Some(val) = context.get_variable(field) {
+                    val.clone()
+                } else if let Some(col_index) = col_names.iter().position(|name| name == field) {
+                    if col_index < row.len() {
+                        row[col_index].clone()
+                    } else {
+                        Value::Null(NullType::Null)
+                    }
+                } else {
+                    Value::Null(NullType::Null)
+                }
+            }
+            AggregateFunction::VecAvg(field) => {
+                if let Some(val) = context.get_variable(field) {
+                    val.clone()
+                } else if let Some(col_index) = col_names.iter().position(|name| name == field) {
+                    if col_index < row.len() {
+                        row[col_index].clone()
+                    } else {
+                        Value::Null(NullType::Null)
+                    }
+                } else {
+                    Value::Null(NullType::Null)
+                }
+            }
         }
     }
 
@@ -678,6 +704,20 @@ impl<S: StorageClient> AggregateExecutor<S> {
                         format!("group_concat_{}", field)
                     } else {
                         "group_concat".to_string()
+                    }
+                }
+                AggregateFunction::VecSum(_) => {
+                    if let Some(ref field) = agg_func.field {
+                        format!("vecsum_{}", field)
+                    } else {
+                        "vecsum".to_string()
+                    }
+                }
+                AggregateFunction::VecAvg(_) => {
+                    if let Some(ref field) = agg_func.field {
+                        format!("vecavg_{}", field)
+                    } else {
+                        "vecavg".to_string()
                     }
                 }
             };

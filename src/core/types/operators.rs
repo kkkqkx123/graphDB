@@ -207,6 +207,10 @@ pub enum AggregateFunction {
     BitAnd(String),
     BitOr(String),
     GroupConcat(String, String),
+    /// Vector sum - element-wise sum of vectors
+    VecSum(String),
+    /// Vector average - element-wise average of vectors
+    VecAvg(String),
 }
 
 impl AggregateFunction {
@@ -225,6 +229,8 @@ impl AggregateFunction {
             AggregateFunction::BitAnd(_) => "BIT_AND",
             AggregateFunction::BitOr(_) => "BIT_OR",
             AggregateFunction::GroupConcat(_, _) => "GROUP_CONCAT",
+            AggregateFunction::VecSum(_) => "VEC_SUM",
+            AggregateFunction::VecAvg(_) => "VEC_AVG",
         }
     }
 
@@ -249,7 +255,9 @@ impl AggregateFunction {
             | AggregateFunction::Distinct(_)
             | AggregateFunction::Std(_)
             | AggregateFunction::BitAnd(_)
-            | AggregateFunction::BitOr(_) => 1,
+            | AggregateFunction::BitOr(_)
+            | AggregateFunction::VecSum(_)
+            | AggregateFunction::VecAvg(_) => 1,
             AggregateFunction::Percentile(_, _) => 2,
             AggregateFunction::GroupConcat(_, _) => {
                 if self.separator().is_empty() {
@@ -270,6 +278,8 @@ impl AggregateFunction {
                 | AggregateFunction::Max(_)
                 | AggregateFunction::Percentile(_, _)
                 | AggregateFunction::Std(_)
+                | AggregateFunction::VecSum(_)
+                | AggregateFunction::VecAvg(_)
         )
     }
 
@@ -306,6 +316,8 @@ impl AggregateFunction {
             AggregateFunction::BitAnd(field) => Some(field),
             AggregateFunction::BitOr(field) => Some(field),
             AggregateFunction::GroupConcat(field, _) => Some(field),
+            AggregateFunction::VecSum(field) => Some(field),
+            AggregateFunction::VecAvg(field) => Some(field),
         }
     }
 
@@ -328,6 +340,8 @@ impl AggregateFunction {
             AggregateFunction::BitAnd(_) => "按位与",
             AggregateFunction::BitOr(_) => "按位或",
             AggregateFunction::GroupConcat(_, _) => "分组连接",
+            AggregateFunction::VecSum(_) => "计算向量逐元素总和",
+            AggregateFunction::VecAvg(_) => "计算向量逐元素平均值",
         }
     }
 }

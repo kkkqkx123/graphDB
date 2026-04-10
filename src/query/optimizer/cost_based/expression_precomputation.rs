@@ -247,6 +247,7 @@ impl ExpressionPrecomputationOptimizer {
             Expression::Variable(_) => true,
             Expression::Parameter(_) => true, // Parameters are deterministic within a query
             Expression::Label(_) => true,
+            Expression::Vector(_) => true, // Vector literals are deterministic
             Expression::Unary { operand, .. } => self.check_expression_deterministic(operand),
             Expression::Binary { left, right, .. } => {
                 self.check_expression_deterministic(left)

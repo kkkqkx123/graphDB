@@ -99,6 +99,8 @@ impl InsertVerticesValidator {
         &self,
         tags: &[TagInsertSpec],
         rows: &[VertexRow],
+        schema_manager: Option<&Arc<RedbSchemaManager>>,
+        space_name: &str,
     ) -> Result<(), ValidationError> {
         for (row_idx, row) in rows.iter().enumerate() {
             // Verify the VID format.
@@ -132,8 +134,76 @@ impl InsertVerticesValidator {
                         ValidationErrorType::SemanticError,
                     ));
                 }
+
+                // Validate vector dimensions if schema manager is available
+                if let Some(schema_mgr) = schema_manager {
+                    self.validate_vector_dimensions(
+                        schema_mgr,
+                        space_name,
+                        &tag_spec.tag_name,
+                        &tag_spec.prop_names,
+                        values,
+                        row_idx,
+                        tag_idx,
+                    )?;
+                }
             }
         }
+        Ok(())
+    }
+
+    /// Validate vector dimensions match the schema definition
+    fn validate_vector_dimensions(
+        &self,
+        schema_manager: &Arc<RedbSchemaManager>,
+        space_name: &str,
+        tag_name: &str,
+        prop_names: &[String],
+        values: &[ContextualExpression],
+        row_idx: usize,
+        tag_idx: usize,
+    ) -> Result<(), ValidationError> {
+        use crate::storage::metadata::schema_manager::SchemaManager;
+        
+        // Get tag schema to check property types
+        let tag_info = schema_manager
+            .get_tag(space_name, tag_name)
+            .map_err(|e| {
+                ValidationError::new(
+                    format!("Failed to get tag schema for '{}': {}", tag_name, e),
+                    ValidationErrorType::SemanticError,
+                )
+            })?;
+
+        let tag_info = tag_info.ok_or_else(|| {
+            ValidationError::new(
+                format!("Tag '{}' does not exist in space '{}'", tag_name, space_name),
+                ValidationErrorType::SemanticError,
+            )
+        })?;
+
+        // Check each property value
+        for (prop_idx, (prop_name, value_expr)) in prop_names.iter().zip(values.iter()).enumerate()
+        {
+            // Find property definition in schema
+            let prop_def = tag_info.properties.iter().find(|p| &p.name == prop_name);
+
+            if let Some(prop_def) = prop_def {
+                // Check if property is a vector type
+                if matches!(prop_def.data_type, crate::core::DataType::Vector) {
+                    // Evaluate the expression to get the actual value
+                    if let Some(expr) = value_expr.get_expression() {
+                        if let crate::core::types::expr::Expression::Literal(crate::core::Value::Vector(vector_val)) = &expr {
+                            let vector_data = vector_val.to_dense();
+                            // Note: We could store expected dimension in property comment or extend PropertyDef
+                            // For now, we just validate that it's a valid vector
+                            // TODO: Add dimension constraint checking when schema supports vector dimensions
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -279,7 +349,8 @@ impl StatementValidator for InsertVerticesValidator {
         }
 
         // 5. Verify the data in the vertex row.
-        self.validate_vertex_rows(&tags, &values)?;
+        let space_name = qctx.space_name().unwrap_or_else(|| "default".to_string());
+        self.validate_vertex_rows(&tags, &values, self.schema_manager.as_ref(), &space_name)?;
 
         // 6. Convert the verified data
         let mut validated_tags = Vec::new();

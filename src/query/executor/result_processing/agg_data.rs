@@ -22,6 +22,10 @@ pub struct AggData {
     result: Value,
     /// Unique set (used for COLLECT_SET, COUNT DISTINCT, etc.)
     uniques: Option<HashSet<Value>>,
+    /// Vector sum (used for VEC_SUM)
+    vec_sum: Value,
+    /// Vector average (used for VEC_AVG)
+    vec_avg: Value,
 }
 
 impl AggData {
@@ -34,6 +38,8 @@ impl AggData {
             deviation: Value::Null(NullType::NaN),
             result: Value::Null(NullType::NaN),
             uniques: None,
+            vec_sum: Value::Null(NullType::NaN),
+            vec_avg: Value::Null(NullType::NaN),
         }
     }
 
@@ -46,6 +52,8 @@ impl AggData {
             deviation: Value::Null(NullType::NaN),
             result: Value::Null(NullType::NaN),
             uniques: Some(HashSet::new()),
+            vec_sum: Value::Null(NullType::NaN),
+            vec_avg: Value::Null(NullType::NaN),
         }
     }
 
@@ -139,6 +147,36 @@ impl AggData {
         self.uniques = Some(uniques);
     }
 
+    /// Obtain the vector sum.
+    pub fn vec_sum(&self) -> &Value {
+        &self.vec_sum
+    }
+
+    /// Obtain the variable vector sum.
+    pub fn vec_sum_mut(&mut self) -> &mut Value {
+        &mut self.vec_sum
+    }
+
+    /// Set the vector sum.
+    pub fn set_vec_sum(&mut self, vec_sum: Value) {
+        self.vec_sum = vec_sum;
+    }
+
+    /// Obtain the vector average.
+    pub fn vec_avg(&self) -> &Value {
+        &self.vec_avg
+    }
+
+    /// Obtain the variable vector average.
+    pub fn vec_avg_mut(&mut self) -> &mut Value {
+        &mut self.vec_avg
+    }
+
+    /// Set the vector average.
+    pub fn set_vec_avg(&mut self, vec_avg: Value) {
+        self.vec_avg = vec_avg;
+    }
+
     /// Check whether it is BadNull.
     pub fn is_bad_null(&self) -> bool {
         self.result.is_bad_null()
@@ -154,6 +192,8 @@ impl AggData {
         if let Some(ref mut uniques) = self.uniques {
             uniques.clear();
         }
+        self.vec_sum = Value::Null(NullType::NaN);
+        self.vec_avg = Value::Null(NullType::NaN);
     }
 
     /// Obtain variable references to all fields (for use inside aggregate functions)

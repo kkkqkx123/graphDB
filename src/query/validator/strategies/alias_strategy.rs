@@ -146,6 +146,7 @@ impl AliasValidationStrategy {
             crate::core::types::expr::Expression::Literal(_)
             | crate::core::types::expr::Expression::List(_)
             | crate::core::types::expr::Expression::Map(_)
+            | crate::core::types::expr::Expression::Vector(_)
             | crate::core::types::expr::Expression::Predicate { .. } => None,
         }
     }
@@ -214,7 +215,8 @@ impl AliasValidationStrategy {
             | crate::core::types::expr::Expression::Predicate { .. }
             | crate::core::types::expr::Expression::Reduce { .. }
             | crate::core::types::expr::Expression::PathBuild(_)
-            | crate::core::types::expr::Expression::Parameter(_) => Ok(()),
+            | crate::core::types::expr::Expression::Parameter(_)
+            | crate::core::types::expr::Expression::Vector(_) => Ok(()),
             crate::core::types::expr::Expression::TypeCast { expression, .. } => {
                 // Type conversion expressions require that their subexpressions be validated.
                 self.validate_expression_aliases_internal(expression, aliases)

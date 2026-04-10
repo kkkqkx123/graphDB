@@ -194,6 +194,9 @@ impl Expression {
                 format!("PATH({})", items_str)
             }
             Expression::Parameter(name) => format!("${}", name),
+            Expression::Vector(data) => {
+                format!("VECTOR[{}]", data.iter().map(|f| f.to_string()).collect::<Vec<_>>().join(", "))
+            }
         }
     }
 }

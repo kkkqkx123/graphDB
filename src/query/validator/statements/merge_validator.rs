@@ -404,6 +404,7 @@ impl MergeValidator {
                 Ok(())
             }
             Expression::Parameter(_) => Ok(()),
+            Expression::Vector(_) => Ok(()),
         }
     }
 

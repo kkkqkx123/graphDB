@@ -679,7 +679,12 @@ impl<'a> Lexer<'a> {
             }
             Some(&':') => {
                 self.read_char();
-                Token::new(Tk::Colon, ":".to_string(), self.line, self.column)
+                if let Some(&':') = self.peek_char() {
+                    self.read_char();
+                    Token::new(Tk::DoubleColon, "::".to_string(), self.line, self.column)
+                } else {
+                    Token::new(Tk::Colon, ":".to_string(), self.line, self.column)
+                }
             }
             Some(&';') => {
                 self.read_char();
@@ -779,6 +784,23 @@ impl<'a> Lexer<'a> {
                     _ => {
                         let token_kind = self.lookup_keyword(&literal);
                         match token_kind {
+                            Tk::KeywordVector => {
+                                // Check if followed by '[' for VECTOR[...] syntax
+                                self.skip_whitespace();
+                                if let Some(&'[') = self.peek_char() {
+                                    // This is VECTOR[...] syntax, parse the vector
+                                    self.read_char(); // consume '['
+                                    let vector_data = self.parse_vector_elements();
+                                    return Token::new(
+                                        Tk::VectorLiteral(vector_data.clone()),
+                                        format!("VECTOR[{}]", vector_data.iter().map(|f| f.to_string()).collect::<Vec<_>>().join(", ")),
+                                        start_line,
+                                        start_col,
+                                    );
+                                } else {
+                                    Token::new(token_kind, literal, start_line, start_col)
+                                }
+                            }
                             Tk::Not => {
                                 if self.peek_word() == "IN" {
                                     self.skip_word();
@@ -881,6 +903,41 @@ impl<'a> Lexer<'a> {
             }
             self.read_char();
         }
+    }
+
+    /// Parse vector elements after '[' in VECTOR[...] syntax
+    fn parse_vector_elements(&mut self) -> Vec<f32> {
+        let mut elements = Vec::new();
+        
+        loop {
+            self.skip_whitespace();
+            
+            // Parse number
+            if let Some(&ch) = self.peek_char() {
+                if ch.is_ascii_digit() || ch == '-' || ch == '.' {
+                    let number_str = self.read_number();
+                    if let Ok(num) = number_str.parse::<f32>() {
+                        elements.push(num);
+                    }
+                }
+            }
+            
+            self.skip_whitespace();
+            
+            // Check for comma or end
+            if let Some(&',') = self.peek_char() {
+                self.read_char(); // consume comma
+            } else {
+                break;
+            }
+        }
+        
+        // consume ']'
+        if let Some(&']') = self.peek_char() {
+            self.read_char();
+        }
+        
+        elements
     }
 
     pub fn current_position(&self) -> Position {

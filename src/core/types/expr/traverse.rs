@@ -84,6 +84,7 @@ impl Expression {
             } => vec![initial.as_ref(), source.as_ref(), mapping.as_ref()],
             Expression::PathBuild(items) => items.iter().collect(),
             Expression::Parameter(_) => vec![],
+            Expression::Vector(_) => vec![],
         }
     }
 
@@ -166,6 +167,7 @@ impl Expression {
             } => vec![initial.as_mut(), source.as_mut(), mapping.as_mut()],
             Expression::PathBuild(items) => items.iter_mut().collect(),
             Expression::Parameter(_) => vec![],
+            Expression::Vector(_) => vec![],
         }
     }
 
@@ -364,6 +366,7 @@ impl Expression {
                     .collect(),
             ),
             Expression::Parameter(_) => self.clone(),
+            Expression::Vector(_) => self.clone(),
         }
     }
 }

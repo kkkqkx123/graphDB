@@ -147,6 +147,9 @@ pub trait ExpressionVisitor {
             Expression::Parameter(name) => {
                 self.visit_parameter(name);
             }
+            Expression::Vector(data) => {
+                self.visit_vector(data);
+            }
         }
     }
 
@@ -288,6 +291,9 @@ pub trait ExpressionVisitor {
             self.visit(arg);
         }
     }
+
+    /// Accessing vector expressions
+    fn visit_vector(&mut self, _data: &[f32]) {}
 
     /// Accessing Reduce Expressions
     fn visit_reduce(

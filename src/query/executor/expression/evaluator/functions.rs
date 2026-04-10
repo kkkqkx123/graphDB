@@ -5,6 +5,7 @@
 use crate::core::error::{ExpressionError, ExpressionErrorType};
 use crate::core::types::operators::AggregateFunction;
 use crate::core::value::list::List;
+use crate::core::value::NullType;
 use crate::core::Value;
 
 /// Function evaluator
@@ -251,6 +252,92 @@ impl FunctionEvaluator {
 
                 let result: Vec<String> = values.iter().map(|v| format!("{}", v)).collect();
                 Ok(Value::String(result.join(separator)))
+            }
+            AggregateFunction::VecSum(_) => {
+                if args.is_empty() {
+                    return Err(ExpressionError::argument_count_error(1, args.len()));
+                }
+                
+                // Sum all vectors in the list
+                let values = match &args[0] {
+                    Value::List(list) => list,
+                    _ => return Err(ExpressionError::type_error("First argument must be a list of vectors")),
+                };
+                
+                if values.is_empty() {
+                    return Ok(Value::Null(NullType::NaN));
+                }
+                
+                let mut sum_vec: Option<Vec<f32>> = None;
+                for val in values.iter() {
+                    if let Value::Vector(v) = val {
+                        let data = v.to_dense();
+                        match &mut sum_vec {
+                            Some(sum) => {
+                                if sum.len() != data.len() {
+                                    return Err(ExpressionError::type_error("Vector dimensions must match"));
+                                }
+                                for (i, &val) in data.iter().enumerate() {
+                                    sum[i] += val;
+                                }
+                            }
+                            None => sum_vec = Some(data.clone()),
+                        }
+                    } else {
+                        return Err(ExpressionError::type_error("All elements must be vectors"));
+                    }
+                }
+                
+                match sum_vec {
+                    Some(data) => Ok(Value::vector(data)),
+                    None => Ok(Value::Null(NullType::NaN)),
+                }
+            }
+            AggregateFunction::VecAvg(_) => {
+                if args.is_empty() {
+                    return Err(ExpressionError::argument_count_error(1, args.len()));
+                }
+                
+                // Average all vectors in the list
+                let values = match &args[0] {
+                    Value::List(list) => list,
+                    _ => return Err(ExpressionError::type_error("First argument must be a list of vectors")),
+                };
+                
+                if values.is_empty() {
+                    return Ok(Value::Null(NullType::NaN));
+                }
+                
+                let count = values.len() as f32;
+                let mut sum_vec: Option<Vec<f32>> = None;
+                for val in values.iter() {
+                    if let Value::Vector(v) = val {
+                        let data = v.to_dense();
+                        match &mut sum_vec {
+                            Some(sum) => {
+                                if sum.len() != data.len() {
+                                    return Err(ExpressionError::type_error("Vector dimensions must match"));
+                                }
+                                for (i, &val) in data.iter().enumerate() {
+                                    sum[i] += val;
+                                }
+                            }
+                            None => sum_vec = Some(data.clone()),
+                        }
+                    } else {
+                        return Err(ExpressionError::type_error("All elements must be vectors"));
+                    }
+                }
+                
+                match sum_vec {
+                    Some(mut data) => {
+                        for val in data.iter_mut() {
+                            *val /= count;
+                        }
+                        Ok(Value::vector(data))
+                    }
+                    None => Ok(Value::Null(NullType::NaN)),
+                }
             }
         }
     }

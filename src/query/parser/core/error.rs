@@ -25,6 +25,7 @@ pub enum ParseErrorKind {
     UnknownKeyword,
     RecursionLimitExceeded,
     UnsupportedFeature,
+    SemanticError,
 }
 
 #[derive(Debug)]

@@ -196,6 +196,11 @@ impl Expression {
         Expression::Parameter(name.into())
     }
 
+    /// Create a vector literal expression
+    pub fn vector(data: Vec<f32>) -> Self {
+        Expression::Vector(data)
+    }
+
     /// Creating a boolean literal
     pub fn bool(value: bool) -> Self {
         Expression::Literal(Value::Bool(value))

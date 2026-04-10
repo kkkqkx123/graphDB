@@ -133,11 +133,16 @@ pub enum Expression {
 
     /// path construction expression
     ///
-    /// 用于构建路径，如 `path(v1, e1, v2)`
+    /// Used for building paths, such as `path(v1, e1, v2)`
     PathBuild(Vec<Expression>),
 
     /// Query parameter expression
     ///
     /// Used to represent query parameters, e.g. `$param`.
     Parameter(String),
+
+    /// Vector literal expression
+    ///
+    /// Represents vector literals like VECTOR[0.1, 0.2, 0.3] or [0.1, 0.2]::VECTOR
+    Vector(Vec<f32>),
 }

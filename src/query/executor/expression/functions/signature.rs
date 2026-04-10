@@ -38,6 +38,7 @@ pub enum ValueType {
     DataSet,
     Vector,
     Empty,
+    Any,
 }
 
 impl ValueType {
@@ -139,6 +140,7 @@ impl fmt::Display for ValueType {
             ValueType::DataSet => write!(f, "DATASET"),
             ValueType::Vector => write!(f, "VECTOR"),
             ValueType::Empty => write!(f, "EMPTY"),
+            ValueType::Any => write!(f, "ANY"),
         }
     }
 }

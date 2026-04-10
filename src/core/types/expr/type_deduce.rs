@@ -41,6 +41,7 @@ impl Expression {
             Expression::Reduce { .. } => DataType::Empty,
             Expression::PathBuild(_) => DataType::Path,
             Expression::Parameter(_) => DataType::Empty,
+            Expression::Vector(_) => DataType::Vector,
         }
     }
 
@@ -191,6 +192,8 @@ impl Expression {
             AggregateFunction::BitAnd(_) => DataType::Int,
             AggregateFunction::BitOr(_) => DataType::Int,
             AggregateFunction::GroupConcat(_, _) => DataType::String,
+            AggregateFunction::VecSum(_) => DataType::Vector,
+            AggregateFunction::VecAvg(_) => DataType::Vector,
         }
     }
 

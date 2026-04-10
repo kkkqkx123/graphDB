@@ -364,6 +364,116 @@ impl AggFunctionManager {
                 Ok(())
             }),
         );
+
+        // VEC_SUM function - element-wise sum of vectors
+        self.functions.insert(
+            "VEC_SUM".to_string(),
+            Arc::new(|agg_data: &mut AggData, val: &Value| {
+                // Skip null or empty values
+                if val.is_null() || val.is_empty() {
+                    return Ok(());
+                }
+                // Check if value is a vector
+                if !matches!(val, Value::Vector(_)) {
+                    *agg_data.vec_sum_mut() = Value::Null(NullType::BadType);
+                    return Ok(());
+                }
+                
+                // Initialize with first vector
+                if agg_data.vec_sum().is_null() {
+                    *agg_data.vec_sum_mut() = val.clone();
+                } else {
+                    // Element-wise addition of vectors
+                    let sum_data = agg_data.vec_sum().clone();
+                    if let (Value::Vector(sum_vec), Value::Vector(input_vec)) = (sum_data, val.clone()) {
+                        let sum_data_vec = sum_vec.to_dense();
+                        let input_data_vec = input_vec.to_dense();
+                        
+                        // Check dimension match
+                        if sum_data_vec.len() != input_data_vec.len() {
+                            *agg_data.vec_sum_mut() = Value::Null(NullType::BadType);
+                            return Ok(());
+                        }
+                        
+                        // Element-wise addition
+                        let new_data: Vec<f32> = sum_data_vec
+                            .iter()
+                            .zip(input_data_vec.iter())
+                            .map(|(&a, &b)| a + b)
+                            .collect();
+                        *agg_data.vec_sum_mut() = Value::vector(new_data);
+                    } else {
+                        *agg_data.vec_sum_mut() = Value::Null(NullType::BadType);
+                    }
+                }
+                Ok(())
+            }),
+        );
+
+        // VEC_AVG function - element-wise average of vectors
+        self.functions.insert(
+            "VEC_AVG".to_string(),
+            Arc::new(|agg_data: &mut AggData, val: &Value| {
+                // Check BadNull
+                if agg_data.vec_avg().is_bad_null() {
+                    return Ok(());
+                }
+                // Skip null or empty values
+                if val.is_null() || val.is_empty() {
+                    return Ok(());
+                }
+                // Check if value is a vector
+                if !matches!(val, Value::Vector(_)) {
+                    *agg_data.vec_avg_mut() = Value::Null(NullType::BadType);
+                    return Ok(());
+                }
+
+                // Get input vector data
+                let input_data = if let Value::Vector(v) = val {
+                    v.to_dense()
+                } else {
+                    return Ok(());
+                };
+
+                // Initialize
+                if agg_data.vec_avg().is_null() {
+                    *agg_data.vec_avg_mut() = val.clone();
+                    *agg_data.cnt_mut() = Value::Int(1);
+                } else {
+                    // Update count
+                    let cnt = if let Value::Int(c) = agg_data.cnt() {
+                        c + 1
+                    } else {
+                        1
+                    };
+                    *agg_data.cnt_mut() = Value::Int(cnt);
+
+                    // Element-wise average using Welford-like algorithm
+                    let current_avg = agg_data.vec_avg_mut();
+                    if let Value::Vector(avg_vec) = current_avg {
+                        let avg_data = avg_vec.to_dense();
+                        
+                        // Check dimension match
+                        if avg_data.len() != input_data.len() {
+                            *agg_data.vec_avg_mut() = Value::Null(NullType::BadType);
+                            return Ok(());
+                        }
+                        
+                        // Update average incrementally
+                        let new_avg: Vec<f32> = avg_data
+                            .iter()
+                            .zip(input_data.iter())
+                            .enumerate()
+                            .map(|(i, (&avg, &input))| {
+                                avg + (input - avg) / cnt as f32
+                            })
+                            .collect();
+                        *agg_data.vec_avg_mut() = Value::vector(new_avg);
+                    }
+                }
+                Ok(())
+            }),
+        );
     }
 
     /// Obtaining aggregate functions
