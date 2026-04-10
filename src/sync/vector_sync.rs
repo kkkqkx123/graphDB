@@ -65,6 +65,13 @@ pub enum VectorChangeType {
     Delete,
 }
 
+/// Insert mode for batch operations
+#[derive(Debug, Clone, Copy)]
+enum InsertMode {
+    Insert,
+    Update,
+}
+
 impl From<crate::coordinator::ChangeType> for VectorChangeType {
     fn from(ct: crate::coordinator::ChangeType) -> Self {
         match ct {
@@ -129,6 +136,8 @@ impl VectorChangeContext {
 pub struct VectorSyncCoordinator {
     vector_manager: Arc<VectorManager>,
     embedding_service: Option<Arc<EmbeddingService>>,
+    batch_size: usize,
+    batch_timeout_ms: u64,
 }
 
 impl std::fmt::Debug for VectorSyncCoordinator {
@@ -149,6 +158,23 @@ impl VectorSyncCoordinator {
         Self {
             vector_manager,
             embedding_service,
+            batch_size: 256,
+            batch_timeout_ms: 1000,
+        }
+    }
+
+    /// Create a new vector sync coordinator with batch config
+    pub fn with_batch_config(
+        vector_manager: Arc<VectorManager>,
+        embedding_service: Option<Arc<EmbeddingService>>,
+        batch_size: usize,
+        batch_timeout_ms: u64,
+    ) -> Self {
+        Self {
+            vector_manager,
+            embedding_service,
+            batch_size,
+            batch_timeout_ms,
         }
     }
 
@@ -218,6 +244,18 @@ impl VectorSyncCoordinator {
         space_id: u64,
         vertex: &Vertex,
     ) -> VectorCoordinatorResult<()> {
+        self.batch_upsert_vectors(space_id, vertex, InsertMode::Insert).await
+    }
+
+    /// Batch upsert vectors for a vertex
+    async fn batch_upsert_vectors(
+        &self,
+        space_id: u64,
+        vertex: &Vertex,
+        mode: InsertMode,
+    ) -> VectorCoordinatorResult<()> {
+        let mut points_by_collection: HashMap<String, Vec<VectorPoint>> = HashMap::new();
+
         for tag in &vertex.tags {
             for (field_name, value) in &tag.properties {
                 let collection_name =
@@ -232,18 +270,32 @@ impl VectorSyncCoordinator {
                             serde_json::to_value(&vertex.vid).unwrap_or(serde_json::Value::Null),
                         );
 
-                        let point = VectorPoint::new(point_id, vector).with_payload(payload);
+                        let point = VectorPoint::new(point_id.clone(), vector.clone())
+                            .with_payload(payload);
 
-                        self.vector_manager.upsert(&collection_name, point).await?;
-
-                        debug!(
-                            "Upserted vector for vertex {} in collection {}",
-                            vertex.vid, collection_name
-                        );
+                        points_by_collection
+                            .entry(collection_name)
+                            .or_insert_with(Vec::new)
+                            .push(point);
                     }
                 }
             }
         }
+
+        for (collection_name, points) in points_by_collection {
+            if points.len() == 1 {
+                self.vector_manager.upsert(&collection_name, points.into_iter().next().unwrap()).await?;
+            } else if !points.is_empty() {
+                self.vector_manager.upsert_batch(&collection_name, points).await?;
+                debug!(
+                    "Batch upserted {} vectors for vertex {} in collection {}",
+                    points.len(),
+                    vertex.vid,
+                    collection_name
+                );
+            }
+        }
+
         Ok(())
     }
 
@@ -254,6 +306,9 @@ impl VectorSyncCoordinator {
         vertex: &Vertex,
         changed_fields: &[String],
     ) -> VectorCoordinatorResult<()> {
+        let mut points_to_upsert: HashMap<String, Vec<VectorPoint>> = HashMap::new();
+        let mut points_to_delete: HashMap<String, Vec<String>> = HashMap::new();
+
         for tag in &vertex.tags {
             for field_name in changed_fields {
                 if let Some(value) = tag.properties.get(field_name) {
@@ -271,28 +326,57 @@ impl VectorSyncCoordinator {
                                     .unwrap_or(serde_json::Value::Null),
                             );
 
-                            let point = VectorPoint::new(point_id, vector).with_payload(payload);
+                            let point = VectorPoint::new(point_id.clone(), vector.clone())
+                                .with_payload(payload);
 
-                            self.vector_manager.upsert(&collection_name, point).await?;
-
-                            debug!(
-                                "Updated vector for vertex {} in collection {}",
-                                vertex.vid, collection_name
-                            );
+                            points_to_upsert
+                                .entry(collection_name)
+                                .or_insert_with(Vec::new)
+                                .push(point);
                         } else {
-                            self.vector_manager
-                                .delete(&collection_name, &point_id)
-                                .await?;
-
-                            debug!(
-                                "Deleted vector for vertex {} in collection {}",
-                                vertex.vid, collection_name
-                            );
+                            points_to_delete
+                                .entry(collection_name)
+                                .or_insert_with(Vec::new)
+                                .push(point_id);
                         }
                     }
                 }
             }
         }
+
+        for (collection_name, points) in points_to_upsert {
+            if points.len() == 1 {
+                self.vector_manager.upsert(&collection_name, points.into_iter().next().unwrap()).await?;
+            } else if !points.is_empty() {
+                self.vector_manager.upsert_batch(&collection_name, points).await?;
+                debug!(
+                    "Batch updated {} vectors for vertex {} in collection {}",
+                    points.len(),
+                    vertex.vid,
+                    collection_name
+                );
+            }
+        }
+
+        for (collection_name, point_ids) in points_to_delete {
+            if point_ids.len() == 1 {
+                self.vector_manager
+                    .delete(&collection_name, &point_ids[0])
+                    .await?;
+            } else if !point_ids.is_empty() {
+                let refs: Vec<&str> = point_ids.iter().map(|s| s.as_str()).collect();
+                self.vector_manager
+                    .delete_batch(&collection_name, refs)
+                    .await?;
+                debug!(
+                    "Batch deleted {} vectors for vertex {} from collection {}",
+                    point_ids.len(),
+                    vertex.vid,
+                    collection_name
+                );
+            }
+        }
+
         Ok(())
     }
 
@@ -305,22 +389,26 @@ impl VectorSyncCoordinator {
     ) -> VectorCoordinatorResult<()> {
         let point_id = format!("{}", vertex_id);
 
-        // Find all indexes for this space and tag
-        let indexes = self.vector_manager.list_indexes();
-        for metadata in indexes {
-            if metadata
-                .name
-                .starts_with(&format!("space_{}_{}_", space_id, tag_name))
-            {
-                self.vector_manager
-                    .delete(&metadata.name, &point_id)
-                    .await?;
+        let collections_to_delete_from: Vec<String> = self.vector_manager
+            .list_indexes()
+            .iter()
+            .filter(|metadata| {
+                metadata
+                    .name
+                    .starts_with(&format!("space_{}_{}_", space_id, tag_name))
+            })
+            .map(|m| m.name.clone())
+            .collect();
 
-                debug!(
-                    "Deleted vector for vertex {} from collection {}",
-                    vertex_id, metadata.name
-                );
-            }
+        for collection_name in collections_to_delete_from {
+            self.vector_manager
+                .delete(&collection_name, &point_id)
+                .await?;
+
+            debug!(
+                "Deleted vector for vertex {} from collection {}",
+                vertex_id, collection_name
+            );
         }
         Ok(())
     }
@@ -348,6 +436,74 @@ impl VectorSyncCoordinator {
                 self.vector_manager
                     .delete(&collection_name, &point_id)
                     .await?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Handle batch vector changes
+    pub async fn on_vector_change_batch(
+        &self,
+        contexts: Vec<VectorChangeContext>,
+    ) -> VectorCoordinatorResult<()> {
+        let mut upsert_by_collection: HashMap<String, Vec<VectorPoint>> = HashMap::new();
+        let mut delete_by_collection: HashMap<String, Vec<String>> = HashMap::new();
+
+        for ctx in contexts {
+            let collection_name = ctx.location.to_collection_name();
+            let point_id = format!("{}", ctx.data.id);
+
+            match ctx.change_type {
+                VectorChangeType::Insert | VectorChangeType::Update => {
+                    let vector = ctx.data.vector;
+                    let json_payload: HashMap<String, serde_json::Value> = ctx
+                        .data
+                        .payload
+                        .into_iter()
+                        .filter_map(|(k, v)| serde_json::to_value(&v).ok().map(|json| (k, json)))
+                        .collect();
+
+                    let point = VectorPoint::new(point_id, vector).with_payload(json_payload);
+
+                    upsert_by_collection
+                        .entry(collection_name)
+                        .or_insert_with(Vec::new)
+                        .push(point);
+                }
+                VectorChangeType::Delete => {
+                    delete_by_collection
+                        .entry(collection_name)
+                        .or_insert_with(Vec::new)
+                        .push(point_id);
+                }
+            }
+        }
+
+        for (collection_name, points) in upsert_by_collection {
+            if points.len() == 1 {
+                self.vector_manager
+                    .upsert(&collection_name, points.into_iter().next().unwrap())
+                    .await?;
+            } else if !points.is_empty() {
+                self.vector_manager
+                    .upsert_batch(&collection_name, points)
+                    .await?;
+                debug!("Batch upserted {} vectors to collection {}", points.len(), collection_name);
+            }
+        }
+
+        for (collection_name, point_ids) in delete_by_collection {
+            if point_ids.len() == 1 {
+                self.vector_manager
+                    .delete(&collection_name, &point_ids[0])
+                    .await?;
+            } else if !point_ids.is_empty() {
+                let refs: Vec<&str> = point_ids.iter().map(|s| s.as_str()).collect();
+                self.vector_manager
+                    .delete_batch(&collection_name, refs)
+                    .await?;
+                debug!("Batch deleted {} vectors from collection {}", point_ids.len(), collection_name);
             }
         }
 

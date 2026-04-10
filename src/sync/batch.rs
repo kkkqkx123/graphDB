@@ -309,6 +309,25 @@ impl TaskBuffer {
         Ok(())
     }
 
+    pub async fn drain_vector_tasks(&self, batch_size: usize) -> Vec<SyncTask> {
+        // 从队列中批量获取向量任务
+        let mut tasks = Vec::new();
+
+        while tasks.len() < batch_size {
+            match self.queue.try_take() {
+                Ok(Some(task)) => {
+                    if task.is_vector_task() {
+                        tasks.push(task);
+                    }
+                }
+                Ok(None) => break,
+                Err(_) => break,
+            }
+        }
+
+        tasks
+    }
+
     pub async fn commit_all(&self) -> Vec<(IndexKey, Result<(), BufferError>)> {
         let doc_keys: Vec<_> = {
             let buffers = self.handler.doc_buffers.lock().await;

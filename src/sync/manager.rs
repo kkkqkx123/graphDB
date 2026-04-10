@@ -9,7 +9,7 @@ use crate::search::SyncConfig;
 use crate::sync::batch::{BatchConfig, BufferError, TaskBuffer};
 use crate::sync::recovery::RecoveryManager;
 use crate::sync::task::SyncTask;
-use crate::sync::vector_sync::VectorSyncCoordinator;
+use crate::sync::vector_sync::{VectorPoint, VectorSyncCoordinator};
 use crate::vector::VectorChangeType;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -305,8 +305,10 @@ impl SyncManager {
 
     pub async fn start(&self) {
         let buffer = self.buffer.clone();
+        let vector_coord = self.vector_coordinator.clone();
         let running = self.running.clone();
         let commit_interval = self.buffer.config().commit_interval;
+        let batch_size = self.buffer.config().batch_size;
 
         running.store(true, std::sync::atomic::Ordering::SeqCst);
 
@@ -316,7 +318,7 @@ impl SyncManager {
             while running.load(std::sync::atomic::Ordering::SeqCst) {
                 ticker.tick().await;
 
-                // 处理索引缓冲区的批量提交
+                // 处理全文索引缓冲区的批量提交
                 let keys = buffer.get_buffer_keys().await;
                 for key in keys {
                     if buffer.should_commit(&key).await {
@@ -328,11 +330,109 @@ impl SyncManager {
                         }
                     }
                 }
+
+                // 处理向量批量任务
+                if let Some(ref vc) = vector_coord {
+                    if let Err(e) = Self::process_vector_batch_tasks(vc, &buffer, batch_size).await {
+                        log::error!("Vector batch processing failed: {:?}", e);
+                    }
+                }
             }
         });
 
         let mut h = self.handle.lock().await;
         *h = Some(handle);
+    }
+
+    async fn process_vector_batch_tasks(
+        vector_coord: &Arc<VectorSyncCoordinator>,
+        buffer: &Arc<TaskBuffer>,
+        batch_size: usize,
+    ) -> Result<(), SyncError> {
+        // 从队列中收集向量批量任务
+        let vector_tasks = buffer.drain_vector_tasks(batch_size).await;
+
+        if !vector_tasks.is_empty() {
+            // 按集合分组
+            let mut upsert_by_collection: HashMap<String, Vec<crate::sync::task::VectorPointData>> = HashMap::new();
+            let mut delete_by_collection: HashMap<String, Vec<String>> = HashMap::new();
+
+            for task in vector_tasks {
+                match task {
+                    SyncTask::VectorBatchUpsert {
+                        space_id,
+                        tag_name,
+                        field_name,
+                        points,
+                        ..
+                    } => {
+                        let collection_name = crate::sync::vector_sync::VectorIndexLocation::new(
+                            space_id, &tag_name, &field_name
+                        ).to_collection_name();
+
+                        upsert_by_collection
+                            .entry(collection_name)
+                            .or_insert_with(Vec::new)
+                            .extend(points);
+                    }
+                    SyncTask::VectorBatchDelete {
+                        space_id,
+                        tag_name,
+                        field_name,
+                        point_ids,
+                        ..
+                    } => {
+                        let collection_name = crate::sync::vector_sync::VectorIndexLocation::new(
+                            space_id, &tag_name, &field_name
+                        ).to_collection_name();
+
+                        delete_by_collection
+                            .entry(collection_name)
+                            .or_insert_with(Vec::new)
+                            .extend(point_ids);
+                    }
+                    _ => continue,
+                }
+            }
+
+            // 批量 upsert
+            for (collection_name, points) in upsert_by_collection {
+                if !points.is_empty() {
+                    let vector_points: Vec<VectorPoint> = points
+                        .into_iter()
+                        .map(|p| {
+                            let mut payload = HashMap::new();
+                            for (k, v) in p.payload {
+                                if let Ok(json) = serde_json::to_value(&v) {
+                                    payload.insert(k, json);
+                                }
+                            }
+                            VectorPoint::new(p.id, p.vector).with_payload(payload)
+                        })
+                        .collect();
+
+                    if let Err(e) = vector_coord.upsert_batch(&collection_name, vector_points).await {
+                        log::error!("Vector batch upsert failed for {}: {:?}", collection_name, e);
+                    } else {
+                        log::debug!("Batch upserted {} vectors to {}", points.len(), collection_name);
+                    }
+                }
+            }
+
+            // 批量 delete
+            for (collection_name, point_ids) in delete_by_collection {
+                if !point_ids.is_empty() {
+                    let refs: Vec<&str> = point_ids.iter().map(|s| s.as_str()).collect();
+                    if let Err(e) = vector_coord.delete_batch(&collection_name, refs).await {
+                        log::error!("Vector batch delete failed for {}: {:?}", collection_name, e);
+                    } else {
+                        log::debug!("Batch deleted {} vectors from {}", point_ids.len(), collection_name);
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     pub async fn stop(&self) {
