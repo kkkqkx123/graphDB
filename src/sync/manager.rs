@@ -96,6 +96,7 @@ impl SyncManager {
             commit_interval: Duration::from_millis(sync_config.commit_interval_ms),
             max_wait_time: Duration::from_secs(5),
             queue_capacity: sync_config.queue_size,
+            failure_policy: sync_config.failure_policy,
         };
         let buffer = Arc::new(TaskBuffer::new(fulltext_coordinator.clone(), batch_config));
 
@@ -159,6 +160,7 @@ impl SyncManager {
             commit_interval: Duration::from_millis(sync_config.commit_interval_ms),
             max_wait_time: Duration::from_secs(5),
             queue_capacity: sync_config.queue_size,
+            failure_policy: sync_config.failure_policy,
         };
         let buffer = Arc::new(TaskBuffer::new(fulltext_coordinator.clone(), batch_config));
         let recovery = Arc::new(RecoveryManager::new(buffer.clone(), data_dir));

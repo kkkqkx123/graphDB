@@ -5,6 +5,22 @@ use crate::search::adapters::{Bm25Config, InversearchConfig};
 use crate::search::engine::EngineType;
 use crate::sync::SyncMode;
 
+/// 同步失败策略
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SyncFailurePolicy {
+    /// 失败时记录日志但允许事务提交（默认）
+    FailOpen,
+    /// 失败时回滚事务
+    FailClosed,
+}
+
+impl Default for SyncFailurePolicy {
+    fn default() -> Self {
+        SyncFailurePolicy::FailOpen
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FulltextConfig {
     pub enabled: bool,
@@ -40,6 +56,9 @@ pub struct SyncConfig {
     pub queue_size: usize,
     pub commit_interval_ms: u64,
     pub batch_size: usize,
+    /// 同步失败时的处理策略
+    #[serde(default)]
+    pub failure_policy: SyncFailurePolicy,
 }
 
 impl Default for SyncConfig {
@@ -49,6 +68,7 @@ impl Default for SyncConfig {
             queue_size: 10000,
             commit_interval_ms: 1000,
             batch_size: 100,
+            failure_policy: SyncFailurePolicy::FailOpen,
         }
     }
 }

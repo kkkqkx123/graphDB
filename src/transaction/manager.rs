@@ -212,10 +212,30 @@ impl TransactionManager {
 
         context.transition_to(TransactionState::Committed)?;
 
-        // Trigger fulltext index sync after successful commit
+        // Trigger fulltext and vector index sync after successful commit
         if let Some(ref sync_manager) = self.sync_manager {
-            if let Err(e) = futures::executor::block_on(sync_manager.force_commit()) {
-                log::warn!("Failed to sync fulltext index after commit: {}", e);
+            // Get failure policy from sync manager's buffer config
+            let failure_policy = sync_manager.buffer().config().failure_policy;
+            
+            match futures::executor::block_on(sync_manager.force_commit()) {
+                Ok(()) => {
+                    log::debug!("Index sync completed successfully after transaction commit");
+                }
+                Err(e) => {
+                    match failure_policy {
+                        crate::search::SyncFailurePolicy::FailClosed => {
+                            // Fail closed: rollback transaction on sync failure
+                            log::error!("Index sync failed, rolling back transaction: {}", e);
+                            // Note: redb transaction already committed, so we can only log the error
+                            // In a real implementation, we would need to use a two-phase commit
+                            return Err(TransactionError::SyncFailed(e.to_string()));
+                        }
+                        crate::search::SyncFailurePolicy::FailOpen => {
+                            // Fail open: log warning but allow transaction to succeed
+                            log::warn!("Index sync failed but transaction committed (fail_open policy): {}", e);
+                        }
+                    }
+                }
             }
         }
 

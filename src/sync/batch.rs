@@ -19,6 +19,7 @@ pub struct BatchConfig {
     pub commit_interval: Duration,
     pub max_wait_time: Duration,
     pub queue_capacity: usize,
+    pub failure_policy: crate::search::SyncFailurePolicy,
 }
 
 impl Default for BatchConfig {
@@ -28,6 +29,7 @@ impl Default for BatchConfig {
             commit_interval: Duration::from_secs(1),
             max_wait_time: Duration::from_secs(5),
             queue_capacity: 10000,
+            failure_policy: crate::search::SyncFailurePolicy::FailOpen,
         }
     }
 }
@@ -178,6 +180,10 @@ impl TaskBuffer {
 
     pub fn capacity(&self) -> usize {
         self.config.queue_capacity
+    }
+
+    pub fn config(&self) -> &BatchConfig {
+        &self.config
     }
 
     pub async fn add_document(

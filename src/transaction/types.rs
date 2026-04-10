@@ -267,6 +267,9 @@ pub enum TransactionError {
     #[error("Serialization failed: {0}")]
     SerializationFailed(String),
 
+    #[error("Index sync failed: {0}")]
+    SyncFailed(String),
+
     #[error("Internal error: {0}")]
     Internal(String),
 }
