@@ -36,6 +36,7 @@ pub enum ValueType {
     Geography,
     Duration,
     DataSet,
+    Vector,
     Empty,
 }
 
@@ -70,6 +71,7 @@ impl ValueType {
             Value::Geography(_) => ValueType::Geography,
             Value::Duration(_) => ValueType::Duration,
             Value::DataSet(_) => ValueType::DataSet,
+            Value::Vector(_) => ValueType::Vector,
             Value::Empty => ValueType::Empty,
         }
     }
@@ -135,6 +137,7 @@ impl fmt::Display for ValueType {
             ValueType::Geography => write!(f, "GEOGRAPHY"),
             ValueType::Duration => write!(f, "DURATION"),
             ValueType::DataSet => write!(f, "DATASET"),
+            ValueType::Vector => write!(f, "VECTOR"),
             ValueType::Empty => write!(f, "EMPTY"),
         }
     }

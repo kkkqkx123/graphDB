@@ -43,6 +43,7 @@ pub enum Value {
     Geography(super::geography::GeographyValue),
     Duration(super::date_time::DurationValue),
     DataSet(super::dataset::DataSet),
+    Vector(super::vector::VectorValue),
 }
 
 impl Value {
@@ -78,6 +79,7 @@ impl Value {
             Value::Geography(_) => DataType::Geography,
             Value::Duration(_) => DataType::Duration,
             Value::DataSet(_) => DataType::DataSet,
+            Value::Vector(_) => DataType::Vector,
         }
     }
 
@@ -135,9 +137,10 @@ impl Value {
         }
     }
 
-    /// Get vector value as Vec<f32> from List of Float values
+    /// Get vector value as Vec<f32> from List of Float values or Vector type
     pub fn as_vector(&self) -> Option<Vec<f32>> {
         match self {
+            Value::Vector(vec) => Some(vec.to_dense()),
             Value::List(list) => {
                 let vector: Option<Vec<f32>> = list
                     .iter()
@@ -166,6 +169,24 @@ impl Value {
             }
             _ => None,
         }
+    }
+
+    /// Get reference to vector data (more efficient than as_vector)
+    pub fn as_vector_ref(&self) -> Option<&[f32]> {
+        match self {
+            Value::Vector(vec) => vec.as_dense(),
+            _ => None,
+        }
+    }
+
+    /// Create a new vector value
+    pub fn vector(data: Vec<f32>) -> Self {
+        Value::Vector(super::vector::VectorValue::dense(data))
+    }
+
+    /// Create a new sparse vector value
+    pub fn sparse_vector(indices: Vec<u32>, values: Vec<f32>) -> Self {
+        Value::Vector(super::vector::VectorValue::sparse(indices, values))
     }
 
     /// Create fixed-length string value
@@ -246,6 +267,7 @@ impl Value {
             Value::Geography(g) => std::mem::size_of::<Self>() + g.estimated_size(),
             Value::Duration(d) => std::mem::size_of::<Self>() + d.estimated_size(),
             Value::DataSet(d) => std::mem::size_of::<Self>() + d.estimated_size(),
+            Value::Vector(v) => std::mem::size_of::<Self>() + v.estimated_size(),
         }
     }
 }
@@ -319,6 +341,7 @@ impl std::fmt::Display for Value {
             }
             Value::Duration(d) => write!(f, "Duration({:?})", d),
             Value::DataSet(ds) => write!(f, "DataSet({:?})", ds),
+            Value::Vector(v) => write!(f, "{}", v),
         }
     }
 }

@@ -69,6 +69,9 @@ impl TypeUtils {
             DataType::Geography => 150,
             DataType::Duration => 160,
             DataType::DataSet => 170,
+            DataType::Vector => 180,
+            DataType::VectorDense(_) => 181,
+            DataType::VectorSparse(_) => 182,
         }
     }
 
@@ -353,6 +356,9 @@ impl TypeUtils {
             DataType::Geography => "geography".to_string(),
             DataType::Duration => "duration".to_string(),
             DataType::DataSet => "dataset".to_string(),
+            DataType::Vector => "vector".to_string(),
+            DataType::VectorDense(dim) => format!("vector_dense({})", dim),
+            DataType::VectorSparse(dim) => format!("vector_sparse({})", dim),
         }
     }
 

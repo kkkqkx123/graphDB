@@ -713,6 +713,9 @@ impl CostCalculator {
 
             // DataSet
             Value::DataSet(_) => self.config.complex_type_cost_factor * 1.25,
+
+            // Vector type
+            Value::Vector(_) => self.config.complex_type_cost_factor * 1.3,
         }
     }
 

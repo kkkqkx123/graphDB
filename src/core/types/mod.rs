@@ -56,6 +56,9 @@ pub enum DataType {
     VID,
     Blob,
     Timestamp,
+    Vector,
+    VectorDense(usize),
+    VectorSparse(usize),
 }
 
 impl std::fmt::Display for DataType {
@@ -93,6 +96,9 @@ impl std::fmt::Display for DataType {
             DataType::VID => write!(f, "VID"),
             DataType::Blob => write!(f, "BLOB"),
             DataType::Timestamp => write!(f, "TIMESTAMP"),
+            DataType::Vector => write!(f, "VECTOR"),
+            DataType::VectorDense(n) => write!(f, "VECTOR_DENSE({})", n),
+            DataType::VectorSparse(n) => write!(f, "VECTOR_SPARSE({})", n),
         }
     }
 }

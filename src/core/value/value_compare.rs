@@ -271,6 +271,10 @@ impl Hash for Value {
                 18u8.hash(state);
                 ds.hash(state);
             }
+            Value::Vector(v) => {
+                21u8.hash(state);
+                v.hash(state);
+            }
         }
     }
 }
@@ -527,6 +531,7 @@ impl Value {
             DataType::Blob => 18,
             DataType::Geography => 19,
             DataType::DataSet => 20,
+            DataType::Vector | DataType::VectorDense(_) | DataType::VectorSparse(_) => 21,
         }
     }
 

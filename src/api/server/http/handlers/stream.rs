@@ -241,5 +241,13 @@ fn value_to_json(value: crate::core::Value) -> serde_json::Value {
         crate::core::Value::Geography(g) => serde_json::json!(g),
         crate::core::Value::Duration(d) => serde_json::Value::String(d.to_string()),
         crate::core::Value::DataSet(ds) => serde_json::json!(ds),
+        crate::core::Value::Vector(v) => {
+            // Convert vector to JSON array of f64 values
+            let arr = v.to_dense().iter().map(|&f| {
+                serde_json::Number::from_f64(f as f64)
+                    .unwrap_or(serde_json::Number::from(0))
+            }).collect::<Vec<_>>();
+            serde_json::Value::Array(arr.into_iter().map(serde_json::Value::Number).collect())
+        }
     }
 }

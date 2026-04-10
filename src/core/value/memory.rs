@@ -62,6 +62,9 @@ impl MemoryEstimatable for Value {
 
             // DataSet type
             Value::DataSet(d) => base_size + std::mem::size_of_val(d),
+
+            // Vector type
+            Value::Vector(v) => base_size + v.estimated_size(),
         }
     }
 }

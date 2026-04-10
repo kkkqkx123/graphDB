@@ -28,6 +28,7 @@ pub mod value_arithmetic;
 pub mod value_compare;
 pub mod value_convert;
 pub mod value_def;
+pub mod vector;
 
 // Re-export all public types
 pub use dataset::DataSet;
@@ -37,3 +38,4 @@ pub use geography::GeographyValue;
 pub use list::List;
 pub use null::NullType;
 pub use value_def::Value;
+pub use vector::VectorValue;
