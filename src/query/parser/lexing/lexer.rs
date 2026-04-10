@@ -793,7 +793,14 @@ impl<'a> Lexer<'a> {
                                     let vector_data = self.parse_vector_elements();
                                     return Token::new(
                                         Tk::VectorLiteral(vector_data.clone()),
-                                        format!("VECTOR[{}]", vector_data.iter().map(|f| f.to_string()).collect::<Vec<_>>().join(", ")),
+                                        format!(
+                                            "VECTOR[{}]",
+                                            vector_data
+                                                .iter()
+                                                .map(|f| f.to_string())
+                                                .collect::<Vec<_>>()
+                                                .join(", ")
+                                        ),
                                         start_line,
                                         start_col,
                                     );
@@ -908,10 +915,10 @@ impl<'a> Lexer<'a> {
     /// Parse vector elements after '[' in VECTOR[...] syntax
     fn parse_vector_elements(&mut self) -> Vec<f32> {
         let mut elements = Vec::new();
-        
+
         loop {
             self.skip_whitespace();
-            
+
             // Parse number
             if let Some(&ch) = self.peek_char() {
                 if ch.is_ascii_digit() || ch == '-' || ch == '.' {
@@ -921,9 +928,9 @@ impl<'a> Lexer<'a> {
                     }
                 }
             }
-            
+
             self.skip_whitespace();
-            
+
             // Check for comma or end
             if let Some(&',') = self.peek_char() {
                 self.read_char(); // consume comma
@@ -931,12 +938,12 @@ impl<'a> Lexer<'a> {
                 break;
             }
         }
-        
+
         // consume ']'
         if let Some(&']') = self.peek_char() {
             self.read_char();
         }
-        
+
         elements
     }
 

@@ -10,15 +10,16 @@ use crate::query::metadata::{
 };
 use crate::query::{OptimizerEngine, QueryPipelineManager};
 use crate::storage::StorageClient;
-use crate::vector::{VectorConfig, VectorCoordinator, VectorIndexManager};
+use crate::sync::vector_sync::VectorSyncCoordinator;
 use parking_lot::Mutex;
 use std::sync::Arc;
 use std::time::Instant;
+use vector_client::{VectorClientConfig, VectorManager};
 
 /// Universal Query API – Core Layer
 pub struct QueryApi<S: StorageClient + 'static> {
     pipeline_manager: QueryPipelineManager<S>,
-    vector_coordinator: Option<Arc<VectorCoordinator>>,
+    vector_coordinator: Option<Arc<crate::sync::vector_sync::VectorSyncCoordinator>>,
 }
 
 impl<S: StorageClient + Clone + 'static> QueryApi<S> {
@@ -39,20 +40,20 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     /// Create a new QueryApi instance with vector search support
     pub async fn with_vector_search(
         storage: Arc<Mutex<S>>,
-        vector_config: VectorConfig,
+        vector_config: VectorClientConfig,
     ) -> Result<Self, String> {
         let stats_manager = Arc::new(StatsManager::new());
         let optimizer_engine = Arc::new(OptimizerEngine::default());
 
-        // Create vector index manager
+        // Create vector manager
         let vector_manager = Arc::new(
-            VectorIndexManager::new(vector_config)
+            VectorManager::new(vector_config)
                 .await
-                .map_err(|e| format!("Failed to create vector index manager: {}", e))?,
+                .map_err(|e| format!("Failed to create vector manager: {}", e))?,
         );
 
-        // Create vector coordinator
-        let vector_coordinator = Arc::new(VectorCoordinator::new(vector_manager));
+        // Create vector coordinator (embedding service is optional)
+        let vector_coordinator = Arc::new(VectorSyncCoordinator::new(vector_manager, None));
 
         // Create metadata provider
         let metadata_provider: Arc<dyn MetadataProvider> =
@@ -80,7 +81,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     ///
     /// # Return
     /// Structured Search Results
-    pub fn execute(&mut self, query: &str, ctx: QueryRequest) -> CoreResult<QueryResult> {
+    pub fn execute(&mut self, query: &str, _ctx: QueryRequest) -> CoreResult<QueryResult> {
         let start_time = Instant::now();
 
         // Constructing a QueryRequestContext

@@ -6,14 +6,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 use crate::core::error::{VectorCoordinatorError, VectorCoordinatorResult};
 use crate::core::{Value, Vertex};
-use crate::sync::task::VectorPointData;
+pub use crate::sync::task::VectorPointData;
 
 use vector_client::{
-    EmbeddingService, SearchQuery, SearchResult, VectorFilter, VectorPoint, VectorManager,
+    EmbeddingService, SearchQuery, SearchResult, VectorFilter, VectorManager, VectorPoint,
 };
 
 /// Search options for vector search
@@ -142,7 +142,10 @@ impl std::fmt::Debug for VectorSyncCoordinator {
 
 impl VectorSyncCoordinator {
     /// Create a new vector sync coordinator
-    pub fn new(vector_manager: Arc<VectorManager>, embedding_service: Option<Arc<EmbeddingService>>) -> Self {
+    pub fn new(
+        vector_manager: Arc<VectorManager>,
+        embedding_service: Option<Arc<EmbeddingService>>,
+    ) -> Self {
         Self {
             vector_manager,
             embedding_service,
@@ -168,8 +171,8 @@ impl VectorSyncCoordinator {
         vector_size: usize,
         distance: vector_client::DistanceMetric,
     ) -> VectorCoordinatorResult<String> {
-        let collection_name = VectorIndexLocation::new(space_id, tag_name, field_name)
-            .to_collection_name();
+        let collection_name =
+            VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
 
         let config = vector_client::CollectionConfig::new(vector_size, distance);
 
@@ -193,8 +196,8 @@ impl VectorSyncCoordinator {
         tag_name: &str,
         field_name: &str,
     ) -> VectorCoordinatorResult<()> {
-        let collection_name = VectorIndexLocation::new(space_id, tag_name, field_name)
-            .to_collection_name();
+        let collection_name =
+            VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
 
         self.vector_manager
             .drop_index(&collection_name)
@@ -217,12 +220,12 @@ impl VectorSyncCoordinator {
     ) -> VectorCoordinatorResult<()> {
         for tag in &vertex.tags {
             for (field_name, value) in &tag.properties {
-                let collection_name = VectorIndexLocation::new(space_id, &tag.name, field_name)
-                    .to_collection_name();
+                let collection_name =
+                    VectorIndexLocation::new(space_id, &tag.name, field_name).to_collection_name();
 
                 if self.vector_manager.index_exists(&collection_name) {
                     if let Some(vector) = value.as_vector() {
-                        let point_id = format!("{}", vertex.vid);
+                        let point_id = vertex.vid.to_string();
                         let mut payload = HashMap::new();
                         payload.insert(
                             "vertex_id".to_string(),
@@ -231,9 +234,7 @@ impl VectorSyncCoordinator {
 
                         let point = VectorPoint::new(point_id, vector).with_payload(payload);
 
-                        self.vector_manager
-                            .upsert(&collection_name, point)
-                            .await?;
+                        self.vector_manager.upsert(&collection_name, point).await?;
 
                         debug!(
                             "Upserted vector for vertex {} in collection {}",
@@ -260,7 +261,7 @@ impl VectorSyncCoordinator {
                         .to_collection_name();
 
                     if self.vector_manager.index_exists(&collection_name) {
-                        let point_id = format!("{}", vertex.vid);
+                        let point_id = vertex.vid.to_string();
 
                         if let Some(vector) = value.as_vector() {
                             let mut payload = HashMap::new();
@@ -272,9 +273,7 @@ impl VectorSyncCoordinator {
 
                             let point = VectorPoint::new(point_id, vector).with_payload(payload);
 
-                            self.vector_manager
-                                .upsert(&collection_name, point)
-                                .await?;
+                            self.vector_manager.upsert(&collection_name, point).await?;
 
                             debug!(
                                 "Updated vector for vertex {} in collection {}",
@@ -309,7 +308,10 @@ impl VectorSyncCoordinator {
         // Find all indexes for this space and tag
         let indexes = self.vector_manager.list_indexes();
         for metadata in indexes {
-            if metadata.name.starts_with(&format!("space_{}_{}_", space_id, tag_name)) {
+            if metadata
+                .name
+                .starts_with(&format!("space_{}_{}_", space_id, tag_name))
+            {
                 self.vector_manager
                     .delete(&metadata.name, &point_id)
                     .await?;
@@ -340,9 +342,7 @@ impl VectorSyncCoordinator {
 
                 let point = VectorPoint::new(point_id, vector).with_payload(json_payload);
 
-                self.vector_manager
-                    .upsert(&collection_name, point)
-                    .await?;
+                self.vector_manager.upsert(&collection_name, point).await?;
             }
             VectorChangeType::Delete => {
                 self.vector_manager
@@ -369,12 +369,9 @@ impl VectorSyncCoordinator {
         &self,
         options: SearchOptions,
     ) -> VectorCoordinatorResult<Vec<SearchResult>> {
-        let collection_name = VectorIndexLocation::new(
-            options.space_id,
-            &options.tag_name,
-            &options.field_name,
-        )
-        .to_collection_name();
+        let collection_name =
+            VectorIndexLocation::new(options.space_id, &options.tag_name, &options.field_name)
+                .to_collection_name();
 
         let mut query = SearchQuery::new(options.query_vector, options.limit);
 
@@ -402,6 +399,146 @@ impl VectorSyncCoordinator {
             Err(VectorCoordinatorError::EmbeddingError(
                 "Embedding service not available".to_string(),
             ))
+        }
+    }
+
+    /// Check if index exists
+    pub fn index_exists(&self, space_id: u64, tag_name: &str, field_name: &str) -> bool {
+        let collection_name =
+            VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
+        self.vector_manager.index_exists(&collection_name)
+    }
+
+    /// List all indexes
+    pub fn list_indexes(&self) -> Vec<crate::sync::vector_sync::IndexMetadataWrapper> {
+        self.vector_manager
+            .list_indexes()
+            .into_iter()
+            .map(crate::sync::vector_sync::IndexMetadataWrapper::from)
+            .collect()
+    }
+
+    /// Create vector index with config
+    pub async fn create_index_with_config(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+        config: vector_client::CollectionConfig,
+    ) -> VectorCoordinatorResult<String> {
+        let collection_name =
+            VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
+
+        self.vector_manager
+            .create_index(&collection_name, config)
+            .await
+            .map_err(|e| VectorCoordinatorError::IndexCreationFailed {
+                tag_name: tag_name.to_string(),
+                field_name: field_name.to_string(),
+                reason: e.to_string(),
+            })?;
+
+        info!("Vector index created: {}", collection_name);
+        Ok(collection_name)
+    }
+
+    /// Search with space_id and tag/field names
+    pub async fn search_by_location(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+        query_vector: Vec<f32>,
+        limit: usize,
+    ) -> VectorCoordinatorResult<Vec<SearchResult>> {
+        let collection_name =
+            VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
+
+        let query = SearchQuery::new(query_vector, limit);
+        self.search(&collection_name, query).await
+    }
+
+    /// Search with threshold
+    pub async fn search_with_threshold(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+        query_vector: Vec<f32>,
+        limit: usize,
+        threshold: f32,
+    ) -> VectorCoordinatorResult<Vec<SearchResult>> {
+        let collection_name =
+            VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
+
+        let query = SearchQuery::new(query_vector, limit).with_score_threshold(threshold);
+        self.search(&collection_name, query).await
+    }
+
+    /// Search with filter
+    pub async fn search_with_filter(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+        query_vector: Vec<f32>,
+        limit: usize,
+        filter: VectorFilter,
+    ) -> VectorCoordinatorResult<Vec<SearchResult>> {
+        let collection_name =
+            VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
+
+        let query = SearchQuery::new(query_vector, limit).with_filter(filter);
+        self.search(&collection_name, query).await
+    }
+
+    /// Search with threshold and filter
+    pub async fn search_with_threshold_and_filter(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+        query_vector: Vec<f32>,
+        limit: usize,
+        threshold: f32,
+        filter: VectorFilter,
+    ) -> VectorCoordinatorResult<Vec<SearchResult>> {
+        let collection_name =
+            VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
+
+        let query = SearchQuery::new(query_vector, limit)
+            .with_score_threshold(threshold)
+            .with_filter(filter);
+        self.search(&collection_name, query).await
+    }
+}
+
+/// Index metadata wrapper for backward compatibility
+#[derive(Debug, Clone)]
+pub struct IndexMetadataWrapper {
+    pub collection_name: String,
+    pub space_id: u64,
+    pub tag_name: String,
+    pub field_name: String,
+}
+
+impl From<vector_client::manager::IndexMetadata> for IndexMetadataWrapper {
+    fn from(metadata: vector_client::manager::IndexMetadata) -> Self {
+        // Parse collection name to extract space_id, tag_name, field_name
+        // Format: "space_{space_id}_{tag}_{field}"
+        let parts: Vec<&str> = metadata.name.split('_').collect();
+        let (space_id, tag_name, field_name) = if parts.len() >= 4 && parts[0] == "space" {
+            let sid: u64 = parts[1].parse().unwrap_or(0);
+            (sid, parts[2].to_string(), parts[3].to_string())
+        } else {
+            (0, String::new(), String::new())
+        };
+
+        Self {
+            collection_name: metadata.name,
+            space_id,
+            tag_name,
+            field_name,
         }
     }
 }

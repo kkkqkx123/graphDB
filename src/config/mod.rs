@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::search::config::FulltextConfig;
-use crate::vector::config::VectorConfig;
+use vector_client::VectorClientConfig;
 
 /// Database configuration
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -219,7 +219,7 @@ pub struct Config {
     pub monitoring: MonitoringConfig,
     /// Vector search configuration
     #[serde(default)]
-    pub vector: VectorConfig,
+    pub vector: VectorClientConfig,
     /// Fulltext search configuration
     #[serde(default)]
     pub fulltext: FulltextConfig,

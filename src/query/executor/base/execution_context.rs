@@ -13,7 +13,7 @@ use crate::query::executor::expression::functions::global_registry_ref;
 use crate::query::executor::expression::functions::OwnedFunctionRef;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::search::SearchEngine;
-use crate::vector::VectorCoordinator;
+use crate::sync::vector_sync::VectorSyncCoordinator;
 
 /// Execution Context
 ///
@@ -31,7 +31,7 @@ pub struct ExecutionContext {
     /// Fulltext coordinator
     pub fulltext_coordinator: Option<Arc<FulltextCoordinator>>,
     /// Vector coordinator for vector search operations
-    pub vector_coordinator: Option<Arc<VectorCoordinator>>,
+    pub vector_coordinator: Option<Arc<VectorSyncCoordinator>>,
     /// Query parameters
     pub parameters: Arc<HashMap<String, crate::core::Value>>,
 }
@@ -103,7 +103,7 @@ impl ExecutionContext {
     pub fn with_vector_coordinator(
         expression_context: Arc<ExpressionAnalysisContext>,
         search_engine: Arc<dyn SearchEngine>,
-        coordinator: Arc<VectorCoordinator>,
+        coordinator: Arc<VectorSyncCoordinator>,
     ) -> Self {
         Self {
             results: Arc::new(Mutex::new(HashMap::new())),
@@ -152,7 +152,7 @@ impl ExecutionContext {
     }
 
     /// Obtain the vector coordinator.
-    pub fn vector_coordinator(&self) -> Option<&Arc<VectorCoordinator>> {
+    pub fn vector_coordinator(&self) -> Option<&Arc<VectorSyncCoordinator>> {
         self.vector_coordinator.as_ref()
     }
 

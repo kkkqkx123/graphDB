@@ -911,12 +911,11 @@ fn test_sync_config_serde_roundtrip() {
 
 mod vector_sync_tests {
     use super::*;
-    use graphdb::vector::config::{VectorConfig, VectorDistance};
-    use graphdb::vector::coordinator::VectorCoordinator;
-    use graphdb::vector::manager::VectorIndexManager;
+    use graphdb::vector::{VectorConfig, VectorSyncCoordinator};
+    use vector_client::DistanceMetric;
 
     struct VectorSyncTestContext {
-        vector_coordinator: Arc<VectorCoordinator>,
+        vector_coordinator: Arc<VectorSyncCoordinator>,
         sync_manager: Arc<SyncManager>,
         fulltext_coordinator: Arc<FulltextCoordinator>,
         _temp_dir: TempDir,
@@ -955,17 +954,14 @@ mod vector_sync_tests {
             let fulltext_coordinator = Arc::new(FulltextCoordinator::new(fulltext_manager));
 
             // Setup vector coordinator
-            let vector_config = VectorConfig {
-                enabled: false, // Use mock engine
-                ..Default::default()
-            };
+            let vector_config = VectorConfig::disabled();
 
             let vector_manager = Arc::new(
-                VectorIndexManager::new(vector_config.clone())
+                VectorIndexManager::new(vector_config)
                     .await
                     .expect("Failed to create vector manager"),
             );
-            let vector_coordinator = Arc::new(VectorCoordinator::new(vector_manager.clone()));
+            let vector_coordinator = Arc::new(VectorSyncCoordinator::new(vector_manager.clone(), None));
 
             // Setup sync manager with both coordinators
             let sync_manager =
@@ -1011,7 +1007,7 @@ mod vector_sync_tests {
         let ctx = VectorSyncTestContext::with_sync_mode(SyncMode::Sync).await;
 
         ctx.vector_coordinator
-            .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+            .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
             .await
             .expect("Failed to create vector index");
 
@@ -1060,7 +1056,7 @@ mod vector_sync_tests {
         let ctx = VectorSyncTestContext::with_sync_mode(SyncMode::Async).await;
 
         ctx.vector_coordinator
-            .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+            .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
             .await
             .expect("Failed to create vector index");
 
@@ -1108,7 +1104,7 @@ mod vector_sync_tests {
         let ctx = VectorSyncTestContext::with_sync_mode(SyncMode::Off).await;
 
         ctx.vector_coordinator
-            .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+            .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
             .await
             .expect("Failed to create vector index");
 
@@ -1152,7 +1148,7 @@ mod vector_sync_tests {
         let ctx = VectorSyncTestContext::with_sync_mode(SyncMode::Sync).await;
 
         ctx.vector_coordinator
-            .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+            .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
             .await
             .expect("Failed to create vector index");
 
@@ -1235,7 +1231,7 @@ mod vector_sync_tests {
         let ctx = VectorSyncTestContext::with_sync_mode(SyncMode::Sync).await;
 
         ctx.vector_coordinator
-            .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+            .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
             .await
             .expect("Failed to create vector index");
 
@@ -1308,7 +1304,7 @@ mod vector_sync_tests {
 
         // Create both indexes
         ctx.vector_coordinator
-            .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+            .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
             .await
             .expect("Failed to create vector index");
 
@@ -1386,7 +1382,7 @@ mod vector_sync_tests {
         let ctx = VectorSyncTestContext::with_sync_mode(SyncMode::Async).await;
 
         ctx.vector_coordinator
-            .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+            .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
             .await
             .expect("Failed to create vector index");
 
@@ -1439,7 +1435,7 @@ mod vector_sync_tests {
         let ctx = VectorSyncTestContext::new().await;
 
         ctx.vector_coordinator
-            .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+            .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
             .await
             .expect("Failed to create vector index");
 

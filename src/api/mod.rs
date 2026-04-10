@@ -81,10 +81,7 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
         println!("SyncManager initialized");
 
         // 包装存储层并绑定 SyncManager
-        let sync_storage = SyncStorage::with_sync_manager(
-            (*inner_storage).clone(),
-            sync_manager,
-        );
+        let sync_storage = SyncStorage::with_sync_manager((*inner_storage).clone(), sync_manager);
         println!("Sync enabled for fulltext index");
 
         Arc::new(sync_storage)

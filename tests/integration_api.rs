@@ -20,6 +20,7 @@ use graphdb::config::Config;
 use graphdb::core::{MetricType, QueryMetrics, RoleType, StatsManager};
 use graphdb::query::{QueryManager, QueryStatus};
 use graphdb::storage::DefaultStorage;
+use vector_client::config::VectorClientConfig;
 
 // ==================== Session Management Test ====================
 
@@ -701,7 +702,8 @@ fn create_test_config() -> Config {
         bootstrap: graphdb::config::BootstrapConfig::default(),
         optimizer: graphdb::config::OptimizerConfig::default(),
         monitoring: graphdb::config::MonitoringConfig::default(),
-        vector: graphdb::vector::config::VectorConfig::default(),
+        fulltext: graphdb::config::FulltextConfig::default(),
+        vector: vector_client::config::VectorClientConfig::default(),
     }
 }
 

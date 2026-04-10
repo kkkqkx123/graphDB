@@ -3,14 +3,14 @@
 //! Unified synchronization manager with timer-based batch commit.
 
 use crate::coordinator::{ChangeType, FulltextCoordinator};
-use crate::core::error::{CoordinatorError, VectorCoordinatorError};
+use crate::core::error::CoordinatorError;
 use crate::core::Value;
 use crate::search::SyncConfig;
 use crate::sync::batch::{BatchConfig, BufferError, TaskBuffer};
 use crate::sync::recovery::RecoveryManager;
 use crate::sync::task::SyncTask;
-use crate::sync::vector_sync::VectorPointData;
-use crate::vector::{VectorChangeType, VectorCoordinator};
+use crate::sync::vector_sync::VectorSyncCoordinator;
+use crate::vector::VectorChangeType;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -28,7 +28,7 @@ pub enum SyncMode {
 
 pub struct SyncManager {
     fulltext_coordinator: Arc<FulltextCoordinator>,
-    vector_coordinator: Option<Arc<VectorCoordinator>>,
+    vector_coordinator: Option<Arc<VectorSyncCoordinator>>,
     buffer: Arc<TaskBuffer>,
     mode: Arc<RwLock<SyncMode>>,
     running: Arc<std::sync::atomic::AtomicBool>,
@@ -79,7 +79,10 @@ impl SyncManager {
         }
     }
 
-    pub fn with_vector_coordinator(mut self, vector_coordinator: Arc<VectorCoordinator>) -> Self {
+    pub fn with_vector_coordinator(
+        mut self,
+        vector_coordinator: Arc<VectorSyncCoordinator>,
+    ) -> Self {
         self.vector_coordinator = Some(vector_coordinator);
         self
     }
@@ -224,7 +227,7 @@ impl SyncManager {
         vertex_id: &Value,
         properties: &[(String, Value)],
         change_type: ChangeType,
-        vector_coord: &Arc<VectorCoordinator>,
+        vector_coord: &Arc<VectorSyncCoordinator>,
     ) -> Result<(), SyncError> {
         for (field_name, value) in properties {
             if vector_coord.index_exists(space_id, tag_name, field_name) {
@@ -237,7 +240,7 @@ impl SyncManager {
                     tag_name,
                     field_name,
                     VectorChangeType::from(change_type),
-                    VectorPointData {
+                    crate::sync::vector_sync::VectorPointData {
                         id: format!("{}", vertex_id),
                         vector,
                         payload,
@@ -372,7 +375,7 @@ impl SyncManager {
         &self.fulltext_coordinator
     }
 
-    pub fn vector_coordinator(&self) -> Option<&Arc<VectorCoordinator>> {
+    pub fn vector_coordinator(&self) -> Option<&Arc<VectorSyncCoordinator>> {
         self.vector_coordinator.as_ref()
     }
 
@@ -397,12 +400,6 @@ pub enum SyncError {
     VectorError(String),
     #[error("Internal error: {0}")]
     Internal(String),
-}
-
-impl From<VectorCoordinatorError> for SyncError {
-    fn from(err: VectorCoordinatorError) -> Self {
-        SyncError::VectorError(err.to_string())
-    }
 }
 
 #[cfg(test)]

@@ -16,4 +16,7 @@ pub use persistence::{FailedTask, PersistenceError, SyncPersistence, SyncState};
 pub use queue::{AsyncQueue, DeadLetterItem, QueueConfig, QueueError, QueueHandler, QueueResult};
 pub use recovery::{RecoveryConfig, RecoveryError, RecoveryManager, RecoveryResult};
 pub use task::{SyncTask, TaskResult, VectorPointData};
-pub use vector_sync::{VectorChangeContext, VectorChangeType, VectorSyncCoordinator, VectorIndexLocation, SearchOptions};
+pub use vector_sync::{
+    SearchOptions, VectorChangeContext, VectorChangeType, VectorIndexLocation,
+    VectorSyncCoordinator,
+};

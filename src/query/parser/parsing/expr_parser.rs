@@ -329,7 +329,7 @@ impl<'a> ExprParser<'a> {
                 // Type cast syntax: expr::TYPE
                 let type_name = ctx.expect_identifier()?;
                 let span = ctx.merge_span(expression.span.start, ctx.current_position());
-                
+
                 // Check if casting to VECTOR
                 if type_name.to_uppercase() == "VECTOR" {
                     // Convert list expression to vector

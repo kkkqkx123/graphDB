@@ -70,16 +70,12 @@ impl QueueHandler<SyncTask> for SyncTaskHandler {
                     documents,
                     ..
                 } => {
-                    if let Some(engine) = self
-                        .coordinator
-                        .get_engine(*space_id, tag_name, field_name)
+                    if let Some(engine) =
+                        self.coordinator.get_engine(*space_id, tag_name, field_name)
                     {
                         futures::executor::block_on(engine.index_batch(documents.clone()))
                             .map_err(|e| {
-                                QueueError::HandlerError(format!(
-                                    "Index batch error: {:?}",
-                                    e
-                                ))
+                                QueueError::HandlerError(format!("Index batch error: {:?}", e))
                             })?;
                     }
                 }
@@ -90,9 +86,8 @@ impl QueueHandler<SyncTask> for SyncTaskHandler {
                     doc_ids,
                     ..
                 } => {
-                    if let Some(engine) = self
-                        .coordinator
-                        .get_engine(*space_id, tag_name, field_name)
+                    if let Some(engine) =
+                        self.coordinator.get_engine(*space_id, tag_name, field_name)
                     {
                         for doc_id in doc_ids {
                             futures::executor::block_on(engine.delete(doc_id)).map_err(|e| {
@@ -110,9 +105,8 @@ impl QueueHandler<SyncTask> for SyncTaskHandler {
                     field_name,
                     ..
                 } => {
-                    if let Some(engine) = self
-                        .coordinator
-                        .get_engine(*space_id, tag_name, field_name)
+                    if let Some(engine) =
+                        self.coordinator.get_engine(*space_id, tag_name, field_name)
                     {
                         futures::executor::block_on(engine.commit()).map_err(|e| {
                             QueueError::HandlerError(format!("Commit error: {:?}", e))
@@ -155,10 +149,7 @@ impl TaskBuffer {
             dead_letter_queue_size: 1000,
         };
 
-        let handler = Arc::new(SyncTaskHandler::new(
-            coordinator.clone(),
-            config.batch_size,
-        ));
+        let handler = Arc::new(SyncTaskHandler::new(coordinator.clone(), config.batch_size));
 
         let mut queue = AsyncQueue::new(queue_config);
         queue.set_handler(handler.clone());

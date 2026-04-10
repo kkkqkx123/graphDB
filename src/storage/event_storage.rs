@@ -128,28 +128,31 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
             if let Some(ref sync_manager) = self.sync_manager {
                 let space_id = self.inner.get_space_id(space)?;
                 // 提取属性
-                let props: Vec<_> = vertex.tags.iter()
-                    .flat_map(|tag| tag.properties.iter()
-                        .map(|(k, v)| (k.clone(), v.clone())))
+                let props: Vec<_> = vertex
+                    .tags
+                    .iter()
+                    .flat_map(|tag| tag.properties.iter().map(|(k, v)| (k.clone(), v.clone())))
                     .collect();
-                
+
                 // 获取第一个 tag 名称（如果有）
                 if let Some(first_tag) = vertex.tags.first() {
                     let tag_name = &first_tag.name;
-                    
+
                     // 异步调用 SyncManager
                     let sync_manager = sync_manager.clone();
                     let vertex_id = vertex.vid.clone();
                     let tag_name = tag_name.clone();
-                    
+
                     tokio::spawn(async move {
-                        let _ = sync_manager.on_vertex_change(
-                            space_id,
-                            &tag_name,
-                            &*vertex_id,
-                            &props,
-                            ChangeType::Insert,
-                        ).await;
+                        let _ = sync_manager
+                            .on_vertex_change(
+                                space_id,
+                                &tag_name,
+                                &*vertex_id,
+                                &props,
+                                ChangeType::Insert,
+                            )
+                            .await;
                     });
                 }
             }
@@ -169,27 +172,30 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
         if self.enabled {
             if let Some(ref sync_manager) = self.sync_manager {
                 let space_id = self.inner.get_space_id(space)?;
-                
+
                 // 提取所有属性（简化处理，不计算变更字段）
-                let props: Vec<_> = vertex.tags.iter()
-                    .flat_map(|tag| tag.properties.iter()
-                        .map(|(k, v)| (k.clone(), v.clone())))
+                let props: Vec<_> = vertex
+                    .tags
+                    .iter()
+                    .flat_map(|tag| tag.properties.iter().map(|(k, v)| (k.clone(), v.clone())))
                     .collect();
-                
+
                 if let Some(first_tag) = vertex.tags.first() {
                     let tag_name = &first_tag.name;
                     let sync_manager = sync_manager.clone();
                     let vertex_id = vertex.vid.clone();
                     let tag_name = tag_name.clone();
-                    
+
                     tokio::spawn(async move {
-                        let _ = sync_manager.on_vertex_change(
-                            space_id,
-                            &tag_name,
-                            &*vertex_id,
-                            &props,
-                            ChangeType::Update,
-                        ).await;
+                        let _ = sync_manager
+                            .on_vertex_change(
+                                space_id,
+                                &tag_name,
+                                &*vertex_id,
+                                &props,
+                                ChangeType::Update,
+                            )
+                            .await;
                     });
                 }
             }
@@ -209,21 +215,23 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
         if self.enabled {
             if let Some(ref sync_manager) = self.sync_manager {
                 let space_id = self.inner.get_space_id(space)?;
-                
+
                 // 为每个 tag 调用 SyncManager
                 for tag in &vertex.tags {
                     let sync_manager = sync_manager.clone();
                     let tag_name = tag.name.clone();
                     let vertex_id = id.clone();
-                    
+
                     tokio::spawn(async move {
-                        let _ = sync_manager.on_vertex_change(
-                            space_id,
-                            &tag_name,
-                            &vertex_id,
-                            &[],
-                            ChangeType::Delete,
-                        ).await;
+                        let _ = sync_manager
+                            .on_vertex_change(
+                                space_id,
+                                &tag_name,
+                                &vertex_id,
+                                &[],
+                                ChangeType::Delete,
+                            )
+                            .await;
                     });
                 }
             }
@@ -243,21 +251,23 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
         if self.enabled {
             if let Some(ref sync_manager) = self.sync_manager {
                 let space_id = self.inner.get_space_id(space)?;
-                
+
                 // 为每个 tag 调用 SyncManager
                 for tag in &vertex.tags {
                     let sync_manager = sync_manager.clone();
                     let tag_name = tag.name.clone();
                     let vertex_id = id.clone();
-                    
+
                     tokio::spawn(async move {
-                        let _ = sync_manager.on_vertex_change(
-                            space_id,
-                            &tag_name,
-                            &vertex_id,
-                            &[],
-                            ChangeType::Delete,
-                        ).await;
+                        let _ = sync_manager
+                            .on_vertex_change(
+                                space_id,
+                                &tag_name,
+                                &vertex_id,
+                                &[],
+                                ChangeType::Delete,
+                            )
+                            .await;
                     });
                 }
             }
@@ -276,26 +286,29 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
         if self.enabled {
             if let Some(ref sync_manager) = self.sync_manager {
                 let space_id = self.inner.get_space_id(space)?;
-                
+
                 for vertex in vertices {
-                    let props: Vec<_> = vertex.tags.iter()
-                        .flat_map(|tag| tag.properties.iter()
-                            .map(|(k, v)| (k.clone(), v.clone())))
+                    let props: Vec<_> = vertex
+                        .tags
+                        .iter()
+                        .flat_map(|tag| tag.properties.iter().map(|(k, v)| (k.clone(), v.clone())))
                         .collect();
-                    
+
                     if let Some(first_tag) = vertex.tags.first() {
                         let sync_manager = sync_manager.clone();
                         let tag_name = first_tag.name.clone();
                         let vertex_id = vertex.vid.clone();
-                        
+
                         tokio::spawn(async move {
-                            let _ = sync_manager.on_vertex_change(
-                                space_id,
-                                &tag_name,
-                                &*vertex_id,
-                                &props,
-                                ChangeType::Insert,
-                            ).await;
+                            let _ = sync_manager
+                                .on_vertex_change(
+                                    space_id,
+                                    &tag_name,
+                                    &*vertex_id,
+                                    &props,
+                                    ChangeType::Insert,
+                                )
+                                .await;
                         });
                     }
                 }

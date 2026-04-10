@@ -195,7 +195,13 @@ impl Expression {
             }
             Expression::Parameter(name) => format!("${}", name),
             Expression::Vector(data) => {
-                format!("VECTOR[{}]", data.iter().map(|f| f.to_string()).collect::<Vec<_>>().join(", "))
+                format!(
+                    "VECTOR[{}]",
+                    data.iter()
+                        .map(|f| f.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
             }
         }
     }

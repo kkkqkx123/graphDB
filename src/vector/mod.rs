@@ -5,18 +5,17 @@
 
 // Re-export from vector_client for backward compatibility
 pub use vector_client::{
-    EmbeddingConfig, EmbeddingError, EmbeddingProvider, EmbeddingService,
-    VectorEngine, VectorManager,
-    SearchQuery, SearchResult, VectorFilter, VectorPoint,
-    DistanceMetric, CollectionConfig,
+    CollectionConfig, DistanceMetric, EmbeddingConfig, EmbeddingError, EmbeddingProvider,
+    EmbeddingService, SearchQuery, SearchResult, VectorClientConfig as VectorConfig, VectorEngine,
+    VectorFilter, VectorManager as VectorIndexManager, VectorPoint,
 };
 
 // Re-export from sync for backward compatibility
 pub use crate::sync::vector_sync::{
-    VectorSyncCoordinator, VectorChangeContext, VectorChangeType,
-    VectorIndexLocation, SearchOptions, VectorPointData,
+    SearchOptions, VectorChangeContext, VectorChangeType, VectorIndexLocation, VectorPointData,
+    VectorSyncCoordinator,
 };
 
-// Deprecated: Keep old exports for backward compatibility only
-// These will be removed in future versions
-
+// Backward compatibility aliases
+/// @deprecated Use VectorSyncCoordinator instead
+pub type VectorCoordinator = VectorSyncCoordinator;

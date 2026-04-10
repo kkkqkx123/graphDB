@@ -1,5 +1,3 @@
-use crate::api::core::error::CoreError;
-use crate::api::core::types::QueryRequest;
 use crate::api::core::QueryApi;
 use crate::api::server::auth::{Authenticator, AuthenticatorFactory, PasswordAuthenticator};
 use crate::api::server::permission::PermissionManager;

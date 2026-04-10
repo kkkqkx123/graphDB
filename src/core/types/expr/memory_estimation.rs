@@ -132,9 +132,7 @@ impl MemoryEstimatable for Expression {
                     + source.estimate_memory()
                     + mapping.estimate_memory()
             }
-            Expression::Vector(data) => {
-                base_size + data.len() * std::mem::size_of::<f32>()
-            }
+            Expression::Vector(data) => base_size + data.len() * std::mem::size_of::<f32>(),
         }
     }
 }

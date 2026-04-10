@@ -84,12 +84,9 @@ impl VectorFunction {
                 Some(ValueType::Float),
                 false,
             ),
-            VectorFunction::Nnz => FunctionSignature::new(
-                "nnz",
-                vec![ValueType::Any],
-                Some(ValueType::Int),
-                false,
-            ),
+            VectorFunction::Nnz => {
+                FunctionSignature::new("nnz", vec![ValueType::Any], Some(ValueType::Int), false)
+            }
             VectorFunction::Normalize => FunctionSignature::new(
                 "normalize",
                 vec![ValueType::Any],
@@ -151,7 +148,10 @@ impl VectorFunction {
         if args.len() != 2 {
             return Err(ExpressionError::new(
                 ExpressionErrorType::InvalidArgumentCount,
-                format!("cosine_similarity() expects 2 arguments, got {}", args.len()),
+                format!(
+                    "cosine_similarity() expects 2 arguments, got {}",
+                    args.len()
+                ),
             ));
         }
 
@@ -183,7 +183,10 @@ impl VectorFunction {
         if args.len() != 2 {
             return Err(ExpressionError::new(
                 ExpressionErrorType::InvalidArgumentCount,
-                format!("euclidean_distance() expects 2 arguments, got {}", args.len()),
+                format!(
+                    "euclidean_distance() expects 2 arguments, got {}",
+                    args.len()
+                ),
             ));
         }
 
@@ -199,7 +202,10 @@ impl VectorFunction {
         if args.len() != 2 {
             return Err(ExpressionError::new(
                 ExpressionErrorType::InvalidArgumentCount,
-                format!("manhattan_distance() expects 2 arguments, got {}", args.len()),
+                format!(
+                    "manhattan_distance() expects 2 arguments, got {}",
+                    args.len()
+                ),
             ));
         }
 
@@ -299,7 +305,10 @@ fn extract_vector(value: &Value) -> Result<Vec<f32>, ExpressionError> {
         }
         _ => Err(ExpressionError::new(
             ExpressionErrorType::TypeError,
-            format!("Expected vector or list of numbers, got {:?}", value.get_type()),
+            format!(
+                "Expected vector or list of numbers, got {:?}",
+                value.get_type()
+            ),
         )),
     }
 }
@@ -431,9 +440,7 @@ pub fn register_vector_functions(
     );
 
     registry.register_builtin(
-        crate::query::executor::expression::functions::BuiltinFunction::Vector(
-            VectorFunction::Nnz,
-        ),
+        crate::query::executor::expression::functions::BuiltinFunction::Vector(VectorFunction::Nnz),
     );
 
     registry.register_builtin(
@@ -451,11 +458,11 @@ mod tests {
     fn test_cosine_similarity() {
         let vec1 = Value::vector(vec![1.0, 0.0, 0.0]);
         let vec2 = Value::vector(vec![0.0, 1.0, 0.0]);
-        
+
         let result = VectorFunction::CosineSimilarity
             .execute(&[vec1, vec2])
             .unwrap();
-        
+
         assert!(matches!(result, Value::Float(_)));
         if let Value::Float(score) = result {
             assert!((score - 0.0).abs() < 1e-6);
@@ -466,11 +473,9 @@ mod tests {
     fn test_dot_product() {
         let vec1 = Value::vector(vec![1.0, 2.0, 3.0]);
         let vec2 = Value::vector(vec![4.0, 5.0, 6.0]);
-        
-        let result = VectorFunction::DotProduct
-            .execute(&[vec1, vec2])
-            .unwrap();
-        
+
+        let result = VectorFunction::DotProduct.execute(&[vec1, vec2]).unwrap();
+
         assert!(matches!(result, Value::Float(_)));
         if let Value::Float(dot) = result {
             assert!((dot - 32.0).abs() < 1e-6); // 1*4 + 2*5 + 3*6 = 32
@@ -481,11 +486,11 @@ mod tests {
     fn test_euclidean_distance() {
         let vec1 = Value::vector(vec![0.0, 0.0]);
         let vec2 = Value::vector(vec![3.0, 4.0]);
-        
+
         let result = VectorFunction::EuclideanDistance
             .execute(&[vec1, vec2])
             .unwrap();
-        
+
         assert!(matches!(result, Value::Float(_)));
         if let Value::Float(dist) = result {
             assert!((dist - 5.0).abs() < 1e-6); // sqrt(3^2 + 4^2) = 5
@@ -496,11 +501,11 @@ mod tests {
     fn test_manhattan_distance() {
         let vec1 = Value::vector(vec![0.0, 0.0]);
         let vec2 = Value::vector(vec![3.0, 4.0]);
-        
+
         let result = VectorFunction::ManhattanDistance
             .execute(&[vec1, vec2])
             .unwrap();
-        
+
         assert!(matches!(result, Value::Float(_)));
         if let Value::Float(dist) = result {
             assert!((dist - 7.0).abs() < 1e-6); // |3-0| + |4-0| = 7
@@ -510,9 +515,9 @@ mod tests {
     #[test]
     fn test_dimension() {
         let vec = Value::vector(vec![0.1; 1536]);
-        
+
         let result = VectorFunction::Dimension.execute(&[vec]).unwrap();
-        
+
         assert!(matches!(result, Value::Int(_)));
         if let Value::Int(dim) = result {
             assert_eq!(dim, 1536);
@@ -522,9 +527,9 @@ mod tests {
     #[test]
     fn test_l2_norm() {
         let vec = Value::vector(vec![3.0, 4.0]);
-        
+
         let result = VectorFunction::L2Norm.execute(&[vec]).unwrap();
-        
+
         assert!(matches!(result, Value::Float(_)));
         if let Value::Float(norm) = result {
             assert!((norm - 5.0).abs() < 1e-6); // sqrt(3^2 + 4^2) = 5
@@ -534,9 +539,9 @@ mod tests {
     #[test]
     fn test_nnz() {
         let vec = Value::vector(vec![1.0, 0.0, 2.0, 0.0, 3.0]);
-        
+
         let result = VectorFunction::Nnz.execute(&[vec]).unwrap();
-        
+
         assert!(matches!(result, Value::Int(_)));
         if let Value::Int(n) = result {
             assert_eq!(n, 3); // Three non-zero elements
@@ -546,9 +551,9 @@ mod tests {
     #[test]
     fn test_normalize() {
         let vec = Value::vector(vec![3.0, 4.0]);
-        
+
         let result = VectorFunction::Normalize.execute(&[vec]).unwrap();
-        
+
         assert!(matches!(result, Value::Vector(_)));
         if let Value::Vector(normalized) = result {
             let data = normalized.to_dense();
@@ -561,7 +566,7 @@ mod tests {
     fn test_dimension_mismatch() {
         let vec1 = Value::vector(vec![1.0, 2.0]);
         let vec2 = Value::vector(vec![1.0, 2.0, 3.0]);
-        
+
         let result = VectorFunction::CosineSimilarity.execute(&[vec1, vec2]);
         assert!(result.is_err());
     }

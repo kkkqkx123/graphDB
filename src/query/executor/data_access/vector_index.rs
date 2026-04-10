@@ -12,21 +12,21 @@ use crate::query::planning::plan::core::nodes::data_access::vector_search::{
     CreateVectorIndexNode, DropVectorIndexNode,
 };
 use crate::storage::StorageClient;
-use crate::vector::VectorCoordinator;
+use crate::sync::vector_sync::VectorSyncCoordinator;
 use parking_lot::Mutex;
 
 fn convert_distance(
     dist: crate::query::parser::ast::vector::VectorDistance,
-) -> crate::vector::config::VectorDistance {
+) -> vector_client::DistanceMetric {
     match dist {
         crate::query::parser::ast::vector::VectorDistance::Cosine => {
-            crate::vector::config::VectorDistance::Cosine
+            vector_client::DistanceMetric::Cosine
         }
         crate::query::parser::ast::vector::VectorDistance::Euclidean => {
-            crate::vector::config::VectorDistance::Euclid
+            vector_client::DistanceMetric::Euclid
         }
         crate::query::parser::ast::vector::VectorDistance::Dot => {
-            crate::vector::config::VectorDistance::Dot
+            vector_client::DistanceMetric::Dot
         }
     }
 }
@@ -35,7 +35,7 @@ fn convert_distance(
 pub struct CreateVectorIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     node: CreateVectorIndexNode,
-    coordinator: Arc<VectorCoordinator>,
+    coordinator: Arc<VectorSyncCoordinator>,
     _phantom: std::marker::PhantomData<S>,
 }
 
@@ -46,7 +46,7 @@ impl<S: StorageClient> CreateVectorIndexExecutor<S> {
         node: CreateVectorIndexNode,
         storage: Arc<Mutex<S>>,
         expr_context: Arc<crate::query::validator::context::ExpressionAnalysisContext>,
-        coordinator: Arc<VectorCoordinator>,
+        coordinator: Arc<VectorSyncCoordinator>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(
@@ -83,16 +83,22 @@ impl<S: StorageClient> Executor<S> for CreateVectorIndexExecutor<S> {
         }
 
         // Build vector index config
-        let config = crate::vector::config::VectorIndexConfig {
+        let config = vector_client::CollectionConfig {
             vector_size: self.node.vector_size,
             distance: convert_distance(self.node.distance),
-            hnsw: Some(crate::vector::config::HnswConfigOptions {
+            hnsw_config: Some(vector_client::HnswConfig {
                 m: self.node.hnsw_m.unwrap_or(16),
                 ef_construct: self.node.hnsw_ef_construct.unwrap_or(100),
                 full_scan_threshold: None,
+                max_indexing_threads: None,
                 on_disk: None,
+                payload_m: None,
             }),
-            quantization: None,
+            quantization_config: None,
+            replication_factor: None,
+            write_consistency_factor: None,
+            on_disk_payload: None,
+            shard_number: None,
         };
 
         // Create vector index using tokio runtime
@@ -103,7 +109,7 @@ impl<S: StorageClient> Executor<S> for CreateVectorIndexExecutor<S> {
         tokio::runtime::Handle::current()
             .block_on(async move {
                 coordinator
-                    .create_vector_index_with_config(space_id, &tag_name, &field_name, config)
+                    .create_index_with_config(space_id, &tag_name, &field_name, config)
                     .await
             })
             .map_err(|e| DBError::Internal(format!("Failed to create vector index: {}", e)))?;
@@ -157,7 +163,7 @@ impl<S: StorageClient> HasStorage<S> for CreateVectorIndexExecutor<S> {
 pub struct DropVectorIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     node: DropVectorIndexNode,
-    coordinator: Arc<VectorCoordinator>,
+    coordinator: Arc<VectorSyncCoordinator>,
     _phantom: std::marker::PhantomData<S>,
 }
 
@@ -168,7 +174,7 @@ impl<S: StorageClient> DropVectorIndexExecutor<S> {
         node: DropVectorIndexNode,
         storage: Arc<Mutex<S>>,
         expr_context: Arc<crate::query::validator::context::ExpressionAnalysisContext>,
-        coordinator: Arc<VectorCoordinator>,
+        coordinator: Arc<VectorSyncCoordinator>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(

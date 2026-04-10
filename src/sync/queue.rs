@@ -144,9 +144,7 @@ where
     /// 创建新的异步队列
     pub fn new(config: QueueConfig) -> Self {
         let (shutdown_tx, _) = mpsc::channel(1);
-        let pending_queue = Arc::new(Mutex::new(VecDeque::with_capacity(
-            config.max_queue_size,
-        )));
+        let pending_queue = Arc::new(Mutex::new(VecDeque::with_capacity(config.max_queue_size)));
         let dead_letter_queue = Arc::new(RwLock::new(VecDeque::with_capacity(
             config.dead_letter_queue_size,
         )));
@@ -314,7 +312,10 @@ mod tests {
         let queue = AsyncQueue::new(config);
 
         // 提交测试项
-        queue.submit("test".to_string()).await.expect("Submit should succeed");
+        queue
+            .submit("test".to_string())
+            .await
+            .expect("Submit should succeed");
         assert_eq!(queue.pending_count().await, 1);
     }
 

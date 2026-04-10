@@ -161,9 +161,7 @@ impl ExpressionEvaluator {
             }
 
             // Vector literal – Direct evaluation
-            Expression::Vector(data) => {
-                Ok(Value::vector(data.clone()))
-            }
+            Expression::Vector(data) => Ok(Value::vector(data.clone())),
 
             // Mapping – Batch evaluation
             Expression::Map(entries) => {

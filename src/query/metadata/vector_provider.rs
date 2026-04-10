@@ -9,16 +9,16 @@ use crate::query::metadata::provider::MetadataProviderError;
 use crate::query::metadata::{
     EdgeTypeMetadata, IndexMetadata, IndexType, MetadataProvider, TagMetadata,
 };
-use crate::vector::VectorCoordinator;
+use crate::sync::vector_sync::VectorSyncCoordinator;
 
 /// Vector index metadata provider
 pub struct VectorIndexMetadataProvider {
-    coordinator: Arc<VectorCoordinator>,
+    coordinator: Arc<VectorSyncCoordinator>,
 }
 
 impl VectorIndexMetadataProvider {
     /// Create a new vector index metadata provider
-    pub fn new(coordinator: Arc<VectorCoordinator>) -> Self {
+    pub fn new(coordinator: Arc<VectorSyncCoordinator>) -> Self {
         Self { coordinator }
     }
 

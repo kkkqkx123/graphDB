@@ -257,17 +257,21 @@ impl FunctionEvaluator {
                 if args.is_empty() {
                     return Err(ExpressionError::argument_count_error(1, args.len()));
                 }
-                
+
                 // Sum all vectors in the list
                 let values = match &args[0] {
                     Value::List(list) => list,
-                    _ => return Err(ExpressionError::type_error("First argument must be a list of vectors")),
+                    _ => {
+                        return Err(ExpressionError::type_error(
+                            "First argument must be a list of vectors",
+                        ))
+                    }
                 };
-                
+
                 if values.is_empty() {
                     return Ok(Value::Null(NullType::NaN));
                 }
-                
+
                 let mut sum_vec: Option<Vec<f32>> = None;
                 for val in values.iter() {
                     if let Value::Vector(v) = val {
@@ -275,7 +279,9 @@ impl FunctionEvaluator {
                         match &mut sum_vec {
                             Some(sum) => {
                                 if sum.len() != data.len() {
-                                    return Err(ExpressionError::type_error("Vector dimensions must match"));
+                                    return Err(ExpressionError::type_error(
+                                        "Vector dimensions must match",
+                                    ));
                                 }
                                 for (i, &val) in data.iter().enumerate() {
                                     sum[i] += val;
@@ -287,7 +293,7 @@ impl FunctionEvaluator {
                         return Err(ExpressionError::type_error("All elements must be vectors"));
                     }
                 }
-                
+
                 match sum_vec {
                     Some(data) => Ok(Value::vector(data)),
                     None => Ok(Value::Null(NullType::NaN)),
@@ -297,17 +303,21 @@ impl FunctionEvaluator {
                 if args.is_empty() {
                     return Err(ExpressionError::argument_count_error(1, args.len()));
                 }
-                
+
                 // Average all vectors in the list
                 let values = match &args[0] {
                     Value::List(list) => list,
-                    _ => return Err(ExpressionError::type_error("First argument must be a list of vectors")),
+                    _ => {
+                        return Err(ExpressionError::type_error(
+                            "First argument must be a list of vectors",
+                        ))
+                    }
                 };
-                
+
                 if values.is_empty() {
                     return Ok(Value::Null(NullType::NaN));
                 }
-                
+
                 let count = values.len() as f32;
                 let mut sum_vec: Option<Vec<f32>> = None;
                 for val in values.iter() {
@@ -316,7 +326,9 @@ impl FunctionEvaluator {
                         match &mut sum_vec {
                             Some(sum) => {
                                 if sum.len() != data.len() {
-                                    return Err(ExpressionError::type_error("Vector dimensions must match"));
+                                    return Err(ExpressionError::type_error(
+                                        "Vector dimensions must match",
+                                    ));
                                 }
                                 for (i, &val) in data.iter().enumerate() {
                                     sum[i] += val;
@@ -328,7 +340,7 @@ impl FunctionEvaluator {
                         return Err(ExpressionError::type_error("All elements must be vectors"));
                     }
                 }
-                
+
                 match sum_vec {
                     Some(mut data) => {
                         for val in data.iter_mut() {

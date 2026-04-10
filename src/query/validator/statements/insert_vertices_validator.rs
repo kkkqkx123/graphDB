@@ -164,20 +164,21 @@ impl InsertVerticesValidator {
         tag_idx: usize,
     ) -> Result<(), ValidationError> {
         use crate::storage::metadata::schema_manager::SchemaManager;
-        
+
         // Get tag schema to check property types
-        let tag_info = schema_manager
-            .get_tag(space_name, tag_name)
-            .map_err(|e| {
-                ValidationError::new(
-                    format!("Failed to get tag schema for '{}': {}", tag_name, e),
-                    ValidationErrorType::SemanticError,
-                )
-            })?;
+        let tag_info = schema_manager.get_tag(space_name, tag_name).map_err(|e| {
+            ValidationError::new(
+                format!("Failed to get tag schema for '{}': {}", tag_name, e),
+                ValidationErrorType::SemanticError,
+            )
+        })?;
 
         let tag_info = tag_info.ok_or_else(|| {
             ValidationError::new(
-                format!("Tag '{}' does not exist in space '{}'", tag_name, space_name),
+                format!(
+                    "Tag '{}' does not exist in space '{}'",
+                    tag_name, space_name
+                ),
                 ValidationErrorType::SemanticError,
             )
         })?;
@@ -193,7 +194,10 @@ impl InsertVerticesValidator {
                 if matches!(prop_def.data_type, crate::core::DataType::Vector) {
                     // Evaluate the expression to get the actual value
                     if let Some(expr) = value_expr.get_expression() {
-                        if let crate::core::types::expr::Expression::Literal(crate::core::Value::Vector(vector_val)) = &expr {
+                        if let crate::core::types::expr::Expression::Literal(
+                            crate::core::Value::Vector(vector_val),
+                        ) = &expr
+                        {
                             let vector_data = vector_val.to_dense();
                             // Note: We could store expected dimension in property comment or extend PropertyDef
                             // For now, we just validate that it's a valid vector

@@ -18,7 +18,7 @@ use crate::query::planning::plan::core::nodes::data_access::vector_search::{
     OutputField, VectorSearchNode,
 };
 use crate::storage::StorageClient;
-use crate::vector::VectorCoordinator;
+use crate::sync::vector_sync::VectorSyncCoordinator;
 use parking_lot::Mutex;
 use vector_client::types::SearchResult;
 
@@ -26,7 +26,7 @@ use vector_client::types::SearchResult;
 pub struct VectorSearchExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     node: VectorSearchNode,
-    coordinator: Arc<VectorCoordinator>,
+    coordinator: Arc<VectorSyncCoordinator>,
     _phantom: std::marker::PhantomData<S>,
 }
 
@@ -37,7 +37,7 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
         node: VectorSearchNode,
         storage: Arc<Mutex<S>>,
         expr_context: Arc<crate::query::validator::context::ExpressionAnalysisContext>,
-        coordinator: Arc<VectorCoordinator>,
+        coordinator: Arc<VectorSyncCoordinator>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(
@@ -197,7 +197,13 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
                     (None, None) => {
                         // Basic search without threshold or filter
                         self.coordinator
-                            .search(space_id, &tag_name, &field_name, query_vector, limit)
+                            .search_by_location(
+                                space_id,
+                                &tag_name,
+                                &field_name,
+                                query_vector,
+                                limit,
+                            )
                             .await
                     }
                 }
@@ -375,7 +381,7 @@ impl<S: StorageClient> HasStorage<S> for VectorSearchExecutor<S> {
 pub struct VectorLookupExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     node: VectorLookupNode,
-    coordinator: Arc<VectorCoordinator>,
+    coordinator: Arc<VectorSyncCoordinator>,
     _phantom: std::marker::PhantomData<S>,
 }
 
@@ -386,7 +392,7 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
         node: VectorLookupNode,
         storage: Arc<Mutex<S>>,
         expr_context: Arc<crate::query::validator::context::ExpressionAnalysisContext>,
-        coordinator: Arc<VectorCoordinator>,
+        coordinator: Arc<VectorSyncCoordinator>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(
@@ -484,7 +490,7 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
         tokio::runtime::Handle::current()
             .block_on(async move {
                 coordinator
-                    .search(space_id, &tag_name, &field_name, query_vector, limit)
+                    .search_by_location(space_id, &tag_name, &field_name, query_vector, limit)
                     .await
             })
             .map_err(|e| DBError::Internal(format!("Vector lookup failed: {}", e)))
@@ -607,7 +613,7 @@ use crate::query::planning::plan::core::nodes::data_access::vector_search::Vecto
 pub struct VectorMatchExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     node: VectorMatchNode,
-    coordinator: Arc<VectorCoordinator>,
+    coordinator: Arc<crate::sync::vector_sync::VectorSyncCoordinator>,
     _phantom: std::marker::PhantomData<S>,
 }
 
@@ -618,7 +624,7 @@ impl<S: StorageClient> VectorMatchExecutor<S> {
         node: VectorMatchNode,
         storage: Arc<Mutex<S>>,
         expr_context: Arc<crate::query::validator::context::ExpressionAnalysisContext>,
-        coordinator: Arc<VectorCoordinator>,
+        coordinator: Arc<crate::sync::vector_sync::VectorSyncCoordinator>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "VectorMatchExecutor".to_string(), storage, expr_context),
@@ -714,7 +720,7 @@ impl<S: StorageClient> VectorMatchExecutor<S> {
                         .await
                 } else {
                     coordinator
-                        .search(space_id, &tag_name, &field_name, query_vector, limit)
+                        .search_by_location(space_id, &tag_name, &field_name, query_vector, limit)
                         .await
                 }
             })

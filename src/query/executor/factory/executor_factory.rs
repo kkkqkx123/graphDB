@@ -17,7 +17,7 @@ use crate::query::executor::factory::validators::RecursionDetector;
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::storage::StorageClient;
-use crate::vector::VectorCoordinator;
+use crate::sync::vector_sync::VectorSyncCoordinator;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
@@ -32,7 +32,7 @@ pub struct ExecutorFactory<S: StorageClient + Send + 'static> {
     pub(crate) config: ExecutorSafetyConfig,
     pub(crate) recursion_detector: RecursionDetector,
     pub(crate) fulltext_coordinator: Option<Arc<FulltextCoordinator>>,
-    pub(crate) vector_coordinator: Option<Arc<VectorCoordinator>>,
+    pub(crate) vector_coordinator: Option<Arc<VectorSyncCoordinator>>,
 }
 
 impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
@@ -65,7 +65,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     }
 
     /// Setting the vector coordinator
-    pub fn with_vector_coordinator(coordinator: Arc<VectorCoordinator>) -> Self {
+    pub fn with_vector_coordinator(coordinator: Arc<VectorSyncCoordinator>) -> Self {
         let mut factory = Self::new();
         factory.vector_coordinator = Some(coordinator);
         factory

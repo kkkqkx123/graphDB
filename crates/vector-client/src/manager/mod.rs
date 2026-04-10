@@ -4,6 +4,8 @@
 
 mod index;
 
+pub use index::IndexMetadata;
+
 use std::sync::Arc;
 
 use dashmap::DashMap;
@@ -13,7 +15,6 @@ use crate::config::VectorClientConfig;
 use crate::engine::{VectorEngine, QdrantEngine, MockEngine};
 use crate::error::{Result, VectorClientError};
 use crate::types::{CollectionConfig, SearchQuery, SearchResult, VectorPoint};
-use index::IndexMetadata;
 
 /// Vector manager for index lifecycle management
 pub struct VectorManager {

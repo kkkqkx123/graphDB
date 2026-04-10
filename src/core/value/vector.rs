@@ -13,10 +13,7 @@ pub enum VectorValue {
     /// Dense vector - most common, stores all values
     Dense(Vec<f32>),
     /// Sparse vector - stores only non-zero values with indices
-    Sparse {
-        indices: Vec<u32>,
-        values: Vec<f32>,
-    },
+    Sparse { indices: Vec<u32>, values: Vec<f32> },
 }
 
 impl VectorValue {
@@ -129,7 +126,16 @@ impl VectorValue {
             (VectorValue::Dense(a), VectorValue::Dense(b)) => {
                 Ok(a.iter().zip(b.iter()).map(|(&x, &y)| x * y).sum())
             }
-            (VectorValue::Sparse { indices: idx_a, values: val_a }, VectorValue::Sparse { indices: idx_b, values: val_b }) => {
+            (
+                VectorValue::Sparse {
+                    indices: idx_a,
+                    values: val_a,
+                },
+                VectorValue::Sparse {
+                    indices: idx_b,
+                    values: val_b,
+                },
+            ) => {
                 // Sparse dot product - only multiply non-zero elements
                 let mut result = 0.0f32;
                 let mut i = 0;
@@ -149,7 +155,12 @@ impl VectorValue {
             }
             _ => {
                 // Mixed sparse/dense - convert sparse to dense
-                Ok(self.to_dense().iter().zip(other.to_dense().iter()).map(|(&x, &y)| x * y).sum())
+                Ok(self
+                    .to_dense()
+                    .iter()
+                    .zip(other.to_dense().iter())
+                    .map(|(&x, &y)| x * y)
+                    .sum())
             }
         }
     }
@@ -157,12 +168,8 @@ impl VectorValue {
     /// Compute L2 norm (Euclidean norm)
     pub fn l2_norm(&self) -> f32 {
         match self {
-            VectorValue::Dense(data) => {
-                data.iter().map(|&x| x * x).sum::<f32>().sqrt()
-            }
-            VectorValue::Sparse { values, .. } => {
-                values.iter().map(|&x| x * x).sum::<f32>().sqrt()
-            }
+            VectorValue::Dense(data) => data.iter().map(|&x| x * x).sum::<f32>().sqrt(),
+            VectorValue::Sparse { values, .. } => values.iter().map(|&x| x * x).sum::<f32>().sqrt(),
         }
     }
 
@@ -171,11 +178,11 @@ impl VectorValue {
         let dot = self.dot(other)?;
         let norm_self = self.l2_norm();
         let norm_other = other.l2_norm();
-        
+
         if norm_self == 0.0 || norm_other == 0.0 {
             return Ok(0.0);
         }
-        
+
         Ok(dot / (norm_self * norm_other))
     }
 }
@@ -184,9 +191,16 @@ impl PartialEq for VectorValue {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (VectorValue::Dense(a), VectorValue::Dense(b)) => a == b,
-            (VectorValue::Sparse { indices: idx_a, values: val_a }, VectorValue::Sparse { indices: idx_b, values: val_b }) => {
-                idx_a == idx_b && val_a == val_b
-            }
+            (
+                VectorValue::Sparse {
+                    indices: idx_a,
+                    values: val_a,
+                },
+                VectorValue::Sparse {
+                    indices: idx_b,
+                    values: val_b,
+                },
+            ) => idx_a == idx_b && val_a == val_b,
             _ => {
                 // Compare dense representations for mixed types
                 self.to_dense() == other.to_dense()
@@ -259,13 +273,21 @@ impl std::fmt::Display for VectorError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             VectorError::DimensionMismatch { expected, actual } => {
-                write!(f, "Dimension mismatch: expected {}, got {}", expected, actual)
+                write!(
+                    f,
+                    "Dimension mismatch: expected {}, got {}",
+                    expected, actual
+                )
             }
             VectorError::InvalidSparseIndices => {
                 write!(f, "Invalid sparse vector indices")
             }
             VectorError::OutOfBounds { index, dimension } => {
-                write!(f, "Index {} out of bounds for dimension {}", index, dimension)
+                write!(
+                    f,
+                    "Index {} out of bounds for dimension {}",
+                    index, dimension
+                )
             }
             VectorError::InvalidOperation(op) => {
                 write!(f, "Invalid vector operation: {}", op)

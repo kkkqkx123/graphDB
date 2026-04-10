@@ -14,33 +14,29 @@ use std::sync::Arc;
 
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Value, Vertex};
-use graphdb::vector::config::{VectorConfig, VectorDistance, VectorIndexConfig};
-use graphdb::vector::coordinator::VectorCoordinator;
-use graphdb::vector::manager::VectorIndexManager;
+use graphdb::vector::{VectorConfig, VectorIndexManager, VectorSyncCoordinator};
+use vector_client::DistanceMetric;
 
 use vector_client::types::{FilterCondition, VectorFilter, VectorPoint};
 
 // ==================== Test Fixtures ====================
 
 struct VectorTestContext {
-    coordinator: Arc<VectorCoordinator>,
+    coordinator: Arc<VectorSyncCoordinator>,
     manager: Arc<VectorIndexManager>,
 }
 
 impl VectorTestContext {
     async fn with_mock_engine() -> Self {
         // Create manager with disabled vector search (uses MockEngine)
-        let vector_config = VectorConfig {
-            enabled: false, // Disabled = uses MockEngine
-            ..Default::default()
-        };
+        let vector_config = VectorConfig::disabled();
 
         let manager = Arc::new(
-            VectorIndexManager::new(vector_config.clone())
+            VectorIndexManager::new(vector_config)
                 .await
                 .expect("Failed to create manager"),
         );
-        let coordinator = Arc::new(VectorCoordinator::new(manager.clone()));
+        let coordinator = Arc::new(VectorSyncCoordinator::new(manager.clone(), None));
 
         Self {
             coordinator,
@@ -52,7 +48,7 @@ impl VectorTestContext {
 fn create_test_vector(size: usize, offset: f32) -> Vec<f32> {
     (0..size)
         .map(|i| (i as f32 + offset) / size as f32)
-        .collect()
+        .collect::<Vec<f32>>()
 }
 
 fn create_test_vertex_with_vector(
@@ -87,7 +83,7 @@ async fn test_vector_index_manager_create_index() {
             "embedding",
             Some(VectorIndexConfig {
                 vector_size: 3,
-                distance: VectorDistance::Cosine,
+                distance: DistanceMetric::Cosine,
                 hnsw: None,
                 quantization: None,
             }),
@@ -110,7 +106,7 @@ async fn test_vector_index_manager_create_duplicate_index() {
             "embedding",
             Some(VectorIndexConfig {
                 vector_size: 3,
-                distance: VectorDistance::Cosine,
+                distance: DistanceMetric::Cosine,
                 hnsw: None,
                 quantization: None,
             }),
@@ -126,7 +122,7 @@ async fn test_vector_index_manager_create_duplicate_index() {
             "embedding",
             Some(VectorIndexConfig {
                 vector_size: 3,
-                distance: VectorDistance::Cosine,
+                distance: DistanceMetric::Cosine,
                 hnsw: None,
                 quantization: None,
             }),
@@ -147,7 +143,7 @@ async fn test_vector_index_manager_drop_index() {
             "embedding",
             Some(VectorIndexConfig {
                 vector_size: 3,
-                distance: VectorDistance::Cosine,
+                distance: DistanceMetric::Cosine,
                 hnsw: None,
                 quantization: None,
             }),
@@ -170,7 +166,7 @@ async fn test_vector_index_manager_metadata() {
             "embedding",
             Some(VectorIndexConfig {
                 vector_size: 3,
-                distance: VectorDistance::Cosine,
+                distance: DistanceMetric::Cosine,
                 hnsw: None,
                 quantization: None,
             }),
@@ -196,7 +192,7 @@ async fn test_vector_coordinator_create_index() {
 
     let result = ctx
         .coordinator
-        .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+        .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
         .await;
 
     assert!(
@@ -212,7 +208,7 @@ async fn test_vector_coordinator_drop_index() {
     let ctx = VectorTestContext::with_mock_engine().await;
 
     ctx.coordinator
-        .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+        .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
         .await
         .expect("Creating index should succeed");
 
@@ -232,12 +228,12 @@ async fn test_vector_coordinator_list_indexes() {
     let ctx = VectorTestContext::with_mock_engine().await;
 
     ctx.coordinator
-        .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+        .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
         .await
         .expect("Creating first index should succeed");
 
     ctx.coordinator
-        .create_vector_index(1, "Article", "content_vector", 3, VectorDistance::Cosine)
+        .create_vector_index(1, "Article", "content_vector", 3, DistanceMetric::Cosine)
         .await
         .expect("Creating second index should succeed");
 
@@ -252,7 +248,7 @@ async fn test_vector_search_basic() {
     let ctx = VectorTestContext::with_mock_engine().await;
 
     ctx.coordinator
-        .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+        .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
         .await
         .expect("Creating index should succeed");
 
@@ -293,7 +289,7 @@ async fn test_vector_search_with_threshold() {
     let ctx = VectorTestContext::with_mock_engine().await;
 
     ctx.coordinator
-        .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+        .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
         .await
         .expect("Creating index should succeed");
 
@@ -329,7 +325,7 @@ async fn test_vector_search_with_filter() {
     let ctx = VectorTestContext::with_mock_engine().await;
 
     ctx.coordinator
-        .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+        .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
         .await
         .expect("Creating index should succeed");
 
@@ -372,7 +368,7 @@ async fn test_coordinator_on_vertex_inserted() {
     let ctx = VectorTestContext::with_mock_engine().await;
 
     ctx.coordinator
-        .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+        .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
         .await
         .expect("Creating index should succeed");
 
@@ -399,7 +395,7 @@ async fn test_coordinator_on_vertex_updated() {
     let ctx = VectorTestContext::with_mock_engine().await;
 
     ctx.coordinator
-        .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+        .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
         .await
         .expect("Creating index should succeed");
 
@@ -439,7 +435,7 @@ async fn test_coordinator_on_vertex_deleted() {
     let ctx = VectorTestContext::with_mock_engine().await;
 
     ctx.coordinator
-        .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+        .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
         .await
         .expect("Creating index should succeed");
 
@@ -477,7 +473,7 @@ async fn test_vector_batch_upsert() {
     let ctx = VectorTestContext::with_mock_engine().await;
 
     ctx.coordinator
-        .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+        .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
         .await
         .expect("Creating index should succeed");
 
@@ -501,7 +497,7 @@ async fn test_vector_batch_delete() {
     let ctx = VectorTestContext::with_mock_engine().await;
 
     ctx.coordinator
-        .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+        .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
         .await
         .expect("Creating index should succeed");
 
@@ -555,12 +551,12 @@ async fn test_multiple_indexes_independent() {
     let ctx = VectorTestContext::with_mock_engine().await;
 
     ctx.coordinator
-        .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+        .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
         .await
         .expect("Creating first index should succeed");
 
     ctx.coordinator
-        .create_vector_index(1, "Article", "content_vector", 3, VectorDistance::Euclid)
+        .create_vector_index(1, "Article", "content_vector", 3, DistanceMetric::Euclid)
         .await
         .expect("Creating second index should succeed");
 
@@ -609,7 +605,7 @@ async fn test_distance_metrics_cosine() {
     let ctx = VectorTestContext::with_mock_engine().await;
 
     ctx.coordinator
-        .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+        .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
         .await
         .expect("Creating index should succeed");
 
@@ -646,7 +642,7 @@ async fn test_distance_metrics_euclidean() {
     let ctx = VectorTestContext::with_mock_engine().await;
 
     ctx.coordinator
-        .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Euclid)
+        .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Euclid)
         .await
         .expect("Creating index should succeed");
 
@@ -678,7 +674,7 @@ async fn test_search_empty_index() {
     let ctx = VectorTestContext::with_mock_engine().await;
 
     ctx.coordinator
-        .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+        .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
         .await
         .expect("Creating index should succeed");
 
@@ -726,7 +722,7 @@ async fn test_vector_dimension_mismatch() {
     let ctx = VectorTestContext::with_mock_engine().await;
 
     ctx.coordinator
-        .create_vector_index(1, "Document", "embedding", 3, VectorDistance::Cosine)
+        .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
         .await
         .expect("Creating index should succeed");
 

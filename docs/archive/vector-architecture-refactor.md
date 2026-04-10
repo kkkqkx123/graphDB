@@ -161,9 +161,9 @@ pub enum VectorDistance {
 impl From<VectorDistance> for DistanceMetric {
     fn from(dist: VectorDistance) -> Self {
         match dist {
-            VectorDistance::Cosine => DistanceMetric::Cosine,
-            VectorDistance::Euclid => DistanceMetric::Euclid,
-            VectorDistance::Dot => DistanceMetric::Dot,
+            DistanceMetric::Cosine => DistanceMetric::Cosine,
+            DistanceMetric::Euclid => DistanceMetric::Euclid,
+            DistanceMetric::Dot => DistanceMetric::Dot,
         }
     }
 }

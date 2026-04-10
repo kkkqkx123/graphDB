@@ -342,10 +342,12 @@ impl AggregateState {
                 if matches!(value, Value::Vector(_)) {
                     if self.vec_sum.is_null() {
                         self.vec_sum = value.clone();
-                    } else if let (Value::Vector(sum_vec), Value::Vector(input_vec)) = (&mut self.vec_sum, value) {
+                    } else if let (Value::Vector(sum_vec), Value::Vector(input_vec)) =
+                        (&mut self.vec_sum, value)
+                    {
                         let sum_data = sum_vec.to_dense();
                         let input_data = input_vec.to_dense();
-                        
+
                         if sum_data.len() == input_data.len() {
                             let new_data: Vec<f32> = sum_data
                                 .iter()
@@ -362,19 +364,19 @@ impl AggregateState {
                 if matches!(value, Value::Vector(_)) {
                     if self.vec_avg.is_null() {
                         self.vec_avg = value.clone();
-                    } else if let (Value::Vector(avg_vec), Value::Vector(input_vec)) = (&mut self.vec_avg, value) {
+                    } else if let (Value::Vector(avg_vec), Value::Vector(input_vec)) =
+                        (&mut self.vec_avg, value)
+                    {
                         let avg_data = avg_vec.to_dense();
                         let input_data = input_vec.to_dense();
-                        
+
                         if avg_data.len() == input_data.len() {
                             // Incremental average calculation
                             let new_avg: Vec<f32> = avg_data
                                 .iter()
                                 .zip(input_data.iter())
                                 .enumerate()
-                                .map(|(i, (&avg, &input))| {
-                                    avg + (input - avg) / self.count as f32
-                                })
+                                .map(|(i, (&avg, &input))| avg + (input - avg) / self.count as f32)
                                 .collect();
                             self.vec_avg = Value::vector(new_avg);
                         }
