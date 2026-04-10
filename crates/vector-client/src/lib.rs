@@ -14,9 +14,6 @@ pub use engine::VectorEngine;
 #[cfg(feature = "qdrant")]
 pub use engine::QdrantEngine;
 
-#[cfg(feature = "mock")]
-pub use engine::MockEngine;
-
 pub use api::VectorClient;
 pub use api::{CollectionApi, PointApi, SearchApi};
 pub use embedding::{EmbeddingConfig, EmbeddingError, EmbeddingService, EmbeddingProvider};

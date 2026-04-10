@@ -13,6 +13,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use graphdb::config::Config;
+use graphdb::search::FulltextConfig;
 
 /// Test Log Configuration Defaults
 #[test]
@@ -52,7 +53,7 @@ fn test_log_config_serialization() {
         optimizer: graphdb::config::OptimizerConfig::default(),
         monitoring: graphdb::config::MonitoringConfig::default(),
         vector: graphdb::vector::VectorConfig::default(),
-        fulltext: graphdb::config::FulltextConfig::default(),
+        fulltext: FulltextConfig::default(),
     };
 
     // Serialization to TOML
@@ -262,7 +263,7 @@ fn test_flexi_logger_integration() {
             optimizer: graphdb::config::OptimizerConfig::default(),
             monitoring: graphdb::config::MonitoringConfig::default(),
             vector: graphdb::vector::VectorConfig::default(),
-            fulltext: graphdb::config::FulltextConfig::default(),
+            fulltext: FulltextConfig::default(),
         };
 
         // Verify that the configuration is correct
@@ -290,7 +291,7 @@ fn test_flexi_logger_integration() {
             optimizer: graphdb::config::OptimizerConfig::default(),
             monitoring: graphdb::config::MonitoringConfig::default(),
             vector: graphdb::vector::VectorConfig::default(),
-            fulltext: graphdb::config::FulltextConfig::default(),
+            fulltext: FulltextConfig::default(),
         };
 
         // Verifying Rotation Configuration
@@ -332,7 +333,7 @@ fn test_flexi_logger_integration() {
             optimizer: graphdb::config::OptimizerConfig::default(),
             monitoring: graphdb::config::MonitoringConfig::default(),
             vector: graphdb::vector::VectorConfig::default(),
-            fulltext: graphdb::config::FulltextConfig::default(),
+            fulltext: FulltextConfig::default(),
         };
 
         // Verify that the asynchronous configuration can be built correctly
@@ -368,7 +369,7 @@ fn test_flexi_logger_integration() {
             optimizer: graphdb::config::OptimizerConfig::default(),
             monitoring: graphdb::config::MonitoringConfig::default(),
             vector: graphdb::vector::VectorConfig::default(),
-            fulltext: graphdb::config::FulltextConfig::default(),
+            fulltext: FulltextConfig::default(),
         };
 
         // Verify Cleanup Configuration
@@ -417,7 +418,7 @@ fn test_log_file_path_resolution() {
         optimizer: graphdb::config::OptimizerConfig::default(),
         monitoring: graphdb::config::MonitoringConfig::default(),
         vector: graphdb::vector::VectorConfig::default(),
-        fulltext: graphdb::config::FulltextConfig::default(),
+        fulltext: FulltextConfig::default(),
     };
 
     let custom_path = format!("{}/{}.log", custom_config.log.dir, custom_config.log.file);
@@ -444,7 +445,7 @@ fn test_log_file_size_config() {
         optimizer: graphdb::config::OptimizerConfig::default(),
         monitoring: graphdb::config::MonitoringConfig::default(),
         vector: graphdb::vector::VectorConfig::default(),
-        fulltext: graphdb::config::FulltextConfig::default(),
+        fulltext: FulltextConfig::default(),
     };
     assert_eq!(custom_config.log.max_file_size, 500 * 1024 * 1024);
 
@@ -461,7 +462,7 @@ fn test_log_file_size_config() {
         optimizer: graphdb::config::OptimizerConfig::default(),
         monitoring: graphdb::config::MonitoringConfig::default(),
         vector: graphdb::vector::VectorConfig::default(),
-        fulltext: graphdb::config::FulltextConfig::default(),
+        fulltext: FulltextConfig::default(),
     };
     assert_eq!(small_config.log.max_file_size, 1024);
 }
@@ -484,7 +485,7 @@ fn test_log_level_validation() {
             optimizer: graphdb::config::OptimizerConfig::default(),
             monitoring: graphdb::config::MonitoringConfig::default(),
             vector: graphdb::vector::VectorConfig::default(),
-            fulltext: graphdb::config::FulltextConfig::default(),
+            fulltext: FulltextConfig::default(),
         };
         assert_eq!(config.log.level, level);
     }

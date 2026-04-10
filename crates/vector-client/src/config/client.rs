@@ -4,7 +4,6 @@ use std::time::Duration;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EngineType {
     Qdrant,
-    Mock,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,14 +30,27 @@ impl VectorClientConfig {
         Self::new(EngineType::Qdrant)
     }
 
-    pub fn mock() -> Self {
-        Self::new(EngineType::Mock)
+    pub fn qdrant_local(host: &str, grpc_port: u16, http_port: u16) -> Self {
+        Self {
+            enabled: true,
+            engine: EngineType::Qdrant,
+            connection: ConnectionConfig {
+                host: host.to_string(),
+                port: grpc_port,
+                use_tls: false,
+                api_key: None,
+                connect_timeout_secs: 5,
+                http_port: Some(http_port),
+            },
+            timeout: TimeoutConfig::default(),
+            retry: RetryConfig::default(),
+        }
     }
 
     pub fn disabled() -> Self {
         Self {
             enabled: false,
-            engine: EngineType::Mock,
+            engine: EngineType::Qdrant,
             connection: ConnectionConfig::default(),
             timeout: TimeoutConfig::default(),
             retry: RetryConfig::default(),
@@ -84,6 +96,7 @@ pub struct ConnectionConfig {
     pub use_tls: bool,
     pub api_key: Option<String>,
     pub connect_timeout_secs: u64,
+    pub http_port: Option<u16>,
 }
 
 impl ConnectionConfig {
@@ -94,11 +107,23 @@ impl ConnectionConfig {
             use_tls: false,
             api_key: None,
             connect_timeout_secs: 5,
+            http_port: None,
         }
     }
 
     pub fn localhost(port: u16) -> Self {
         Self::new("localhost", port)
+    }
+
+    pub fn qdrant_local(grpc_port: u16, http_port: u16) -> Self {
+        Self {
+            host: "localhost".to_string(),
+            port: grpc_port,
+            use_tls: false,
+            api_key: None,
+            connect_timeout_secs: 5,
+            http_port: Some(http_port),
+        }
     }
 
     pub fn with_tls(mut self) -> Self {
@@ -117,7 +142,7 @@ impl ConnectionConfig {
     }
 
     pub fn to_grpc_url(&self) -> String {
-        format!("http://{}:{}", self.host, self.port + 1)
+        format!("http://{}:{}", self.host, self.port)
     }
 }
 

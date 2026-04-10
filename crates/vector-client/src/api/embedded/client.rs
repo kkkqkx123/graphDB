@@ -3,13 +3,10 @@ use std::sync::Arc;
 use crate::config::{EngineType, VectorClientConfig};
 use crate::engine::VectorEngine;
 use crate::error::Result;
-use crate::types::{CollectionConfig, HealthStatus};
+use crate::types::HealthStatus;
 
 #[cfg(feature = "qdrant")]
 use crate::engine::QdrantEngine;
-
-#[cfg(feature = "mock")]
-use crate::engine::MockEngine;
 
 use super::core::{CollectionApi, PointApi, SearchApi};
 
@@ -29,39 +26,13 @@ impl VectorClient {
         })
     }
 
-    #[cfg(feature = "mock")]
-    pub fn mock() -> Self {
-        let config = VectorClientConfig::mock();
-        let engine = MockEngine::new();
-        Self {
-            engine: Arc::new(engine),
-            config,
-        }
-    }
-
-    #[cfg(feature = "mock")]
-    pub fn mock_with_collections(collections: std::collections::HashMap<String, CollectionConfig>) -> Self {
-        let config = VectorClientConfig::mock();
-        let engine = MockEngine::with_collections(collections);
-        Self {
-            engine: Arc::new(engine),
-            config,
-        }
-    }
-
     pub async fn new(config: VectorClientConfig) -> Result<Self> {
         match config.engine {
             #[cfg(feature = "qdrant")]
             EngineType::Qdrant => Self::qdrant(config).await,
 
-            #[cfg(feature = "mock")]
-            EngineType::Mock => Ok(Self::mock()),
-
             #[cfg(not(feature = "qdrant"))]
             EngineType::Qdrant => Err(VectorClientError::EngineNotAvailable("qdrant".to_string())),
-
-            #[cfg(not(feature = "mock"))]
-            EngineType::Mock => Err(VectorClientError::EngineNotAvailable("mock".to_string())),
         }
     }
 

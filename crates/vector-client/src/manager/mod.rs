@@ -12,7 +12,7 @@ use dashmap::DashMap;
 use tracing::{debug, info, warn};
 
 use crate::config::VectorClientConfig;
-use crate::engine::{VectorEngine, QdrantEngine, MockEngine};
+use crate::engine::{VectorEngine, QdrantEngine};
 use crate::error::{Result, VectorClientError};
 use crate::types::{CollectionConfig, SearchQuery, SearchResult, VectorPoint};
 
@@ -44,13 +44,14 @@ impl VectorManager {
                         .map_err(|e| VectorClientError::ConnectionFailed(e.to_string()))?;
                     Arc::new(qdrant_engine) as Arc<dyn VectorEngine>
                 }
-                crate::config::EngineType::Mock => {
-                    Arc::new(MockEngine::new()) as Arc<dyn VectorEngine>
-                }
             }
         } else {
-            info!("Vector search is disabled, using mock engine");
-            Arc::new(MockEngine::new()) as Arc<dyn VectorEngine>
+            info!("Vector search is disabled, using default Qdrant engine");
+            let qdrant_config = VectorClientConfig::default();
+            let qdrant_engine = QdrantEngine::new(qdrant_config)
+                .await
+                .map_err(|e| VectorClientError::ConnectionFailed(e.to_string()))?;
+            Arc::new(qdrant_engine) as Arc<dyn VectorEngine>
         };
 
         // Health check

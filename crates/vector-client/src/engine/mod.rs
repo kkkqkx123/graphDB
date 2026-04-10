@@ -6,14 +6,8 @@ use crate::types::*;
 #[cfg(feature = "qdrant")]
 mod qdrant;
 
-#[cfg(feature = "mock")]
-mod mock;
-
 #[cfg(feature = "qdrant")]
 pub use qdrant::QdrantEngine;
-
-#[cfg(feature = "mock")]
-pub use mock::MockEngine;
 
 #[async_trait]
 pub trait VectorEngine: Send + Sync + std::fmt::Debug {

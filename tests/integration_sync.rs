@@ -911,7 +911,7 @@ fn test_sync_config_serde_roundtrip() {
 
 mod vector_sync_tests {
     use super::*;
-    use graphdb::vector::{VectorConfig, VectorSyncCoordinator};
+    use graphdb::vector::{VectorConfig, VectorIndexManager, VectorSyncCoordinator};
     use vector_client::DistanceMetric;
 
     struct VectorSyncTestContext {
