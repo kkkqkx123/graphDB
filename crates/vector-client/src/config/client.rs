@@ -1,8 +1,15 @@
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EngineType {
+    Qdrant,
+    Mock,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VectorClientConfig {
+    pub enabled: bool,
     pub engine: EngineType,
     pub connection: ConnectionConfig,
     pub timeout: TimeoutConfig,
@@ -12,6 +19,7 @@ pub struct VectorClientConfig {
 impl VectorClientConfig {
     pub fn new(engine: EngineType) -> Self {
         Self {
+            enabled: true,
             engine,
             connection: ConnectionConfig::default(),
             timeout: TimeoutConfig::default(),
@@ -25,6 +33,16 @@ impl VectorClientConfig {
 
     pub fn mock() -> Self {
         Self::new(EngineType::Mock)
+    }
+
+    pub fn disabled() -> Self {
+        Self {
+            enabled: false,
+            engine: EngineType::Mock,
+            connection: ConnectionConfig::default(),
+            timeout: TimeoutConfig::default(),
+            retry: RetryConfig::default(),
+        }
     }
 
     pub fn with_connection(mut self, connection: ConnectionConfig) -> Self {
@@ -41,18 +59,22 @@ impl VectorClientConfig {
         self.retry = retry;
         self
     }
+
+    pub fn to_qdrant_config(&self) -> VectorClientConfig {
+        VectorClientConfig {
+            enabled: self.enabled,
+            engine: EngineType::Qdrant,
+            connection: self.connection.clone(),
+            timeout: self.timeout.clone(),
+            retry: self.retry.clone(),
+        }
+    }
 }
 
 impl Default for VectorClientConfig {
     fn default() -> Self {
         Self::qdrant()
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum EngineType {
-    Qdrant,
-    Mock,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

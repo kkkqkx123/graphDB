@@ -10,6 +10,9 @@ pub enum VectorClientError {
     #[error("Collection '{0}' already exists")]
     CollectionAlreadyExists(String),
 
+    #[error("Index '{0}' already exists")]
+    IndexAlreadyExists(String),
+
     #[error("Point '{0}' not found in collection '{1}'")]
     PointNotFound(String, String),
 

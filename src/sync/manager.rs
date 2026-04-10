@@ -9,6 +9,7 @@ use crate::search::SyncConfig;
 use crate::sync::batch::{BatchConfig, BufferError, TaskBuffer};
 use crate::sync::recovery::RecoveryManager;
 use crate::sync::task::SyncTask;
+use crate::sync::vector_sync::VectorPointData;
 use crate::vector::{VectorChangeType, VectorCoordinator};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -227,22 +228,24 @@ impl SyncManager {
     ) -> Result<(), SyncError> {
         for (field_name, value) in properties {
             if vector_coord.index_exists(space_id, tag_name, field_name) {
-                let vector = value.as_vector();
+                let vector = value.as_vector().unwrap_or_default();
                 let mut payload = HashMap::new();
                 payload.insert("vertex_id".to_string(), vertex_id.clone());
 
-                let ctx = crate::vector::coordinator::VectorChangeContext::new(
+                let ctx = crate::sync::vector_sync::VectorChangeContext::new(
                     space_id,
                     tag_name,
                     field_name,
-                    vertex_id.clone(),
-                    vector,
-                    payload,
                     VectorChangeType::from(change_type),
+                    VectorPointData {
+                        id: format!("{}", vertex_id),
+                        vector,
+                        payload,
+                    },
                 );
 
                 vector_coord
-                    .on_vector_change(ctx.clone())
+                    .on_vector_change(ctx)
                     .await
                     .map_err(|e| SyncError::VectorError(e.to_string()))?;
             }
@@ -252,7 +255,7 @@ impl SyncManager {
 
     pub async fn on_vector_change_with_context(
         &self,
-        ctx: crate::vector::coordinator::VectorChangeContext,
+        ctx: crate::sync::vector_sync::VectorChangeContext,
     ) -> Result<(), SyncError> {
         if self.vector_coordinator.is_none() {
             return Ok(());
@@ -272,12 +275,12 @@ impl SyncManager {
             SyncMode::Async => {
                 let task = SyncTask::VectorChange {
                     task_id: uuid::Uuid::new_v4().to_string(),
-                    space_id: ctx.space_id(),
-                    tag_name: ctx.tag_name().to_string(),
-                    field_name: ctx.field_name().to_string(),
-                    vertex_id: ctx.vertex_id().clone(),
-                    vector: ctx.vector().cloned(),
-                    payload: ctx.payload().clone(),
+                    space_id: ctx.location.space_id,
+                    tag_name: ctx.location.tag_name.clone(),
+                    field_name: ctx.location.field_name.clone(),
+                    vertex_id: Value::String(ctx.data.id.clone()),
+                    vector: Some(ctx.data.vector.clone()),
+                    payload: ctx.data.payload.clone(),
                     change_type: ctx.change_type,
                     created_at: chrono::Utc::now(),
                 };
@@ -292,7 +295,7 @@ impl SyncManager {
 
     pub async fn on_vector_change(
         &self,
-        ctx: crate::vector::coordinator::VectorChangeContext,
+        ctx: crate::sync::vector_sync::VectorChangeContext,
     ) -> Result<(), SyncError> {
         self.on_vector_change_with_context(ctx).await
     }

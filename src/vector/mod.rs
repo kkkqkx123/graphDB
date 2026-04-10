@@ -1,18 +1,22 @@
-//! Vector Search Module
+//! Vector Search Module - Simplified
 //!
-//! Provides vector search capabilities for GraphDB using Qdrant as the backend.
+//! Provides coordination between graph data and vector search.
+//! Most vector functionality has been moved to vector_client crate and sync module.
 
-pub mod config;
-pub mod coordinator;
-pub mod embedding;
-pub mod manager;
-
-pub use config::*;
-pub use coordinator::{VectorChangeType, VectorCoordinator};
-pub use embedding::{
-    EmbeddingService, EmbeddingServiceHandle, MockEmbeddingService, QdrantEmbeddingConfig,
-    QdrantEmbeddingService,
+// Re-export from vector_client for backward compatibility
+pub use vector_client::{
+    EmbeddingConfig, EmbeddingError, EmbeddingProvider, EmbeddingService,
+    VectorEngine, VectorManager,
+    SearchQuery, SearchResult, VectorFilter, VectorPoint,
+    DistanceMetric, CollectionConfig,
 };
-pub use manager::VectorIndexManager;
 
-pub use vector_client::types::{SearchQuery, SearchResult, VectorFilter, VectorPoint};
+// Re-export from sync for backward compatibility
+pub use crate::sync::vector_sync::{
+    VectorSyncCoordinator, VectorChangeContext, VectorChangeType,
+    VectorIndexLocation, SearchOptions, VectorPointData,
+};
+
+// Deprecated: Keep old exports for backward compatibility only
+// These will be removed in future versions
+

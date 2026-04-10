@@ -1,0 +1,407 @@
+//! Vector Synchronization Coordinator
+//!
+//! Coordinates vector index updates with graph data changes.
+
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use serde::{Deserialize, Serialize};
+use tracing::{debug, info, warn};
+
+use crate::core::error::{VectorCoordinatorError, VectorCoordinatorResult};
+use crate::core::{Value, Vertex};
+use crate::sync::task::VectorPointData;
+
+use vector_client::{
+    EmbeddingService, SearchQuery, SearchResult, VectorFilter, VectorPoint, VectorManager,
+};
+
+/// Search options for vector search
+#[derive(Debug, Clone)]
+pub struct SearchOptions {
+    pub space_id: u64,
+    pub tag_name: String,
+    pub field_name: String,
+    pub query_vector: Vec<f32>,
+    pub limit: usize,
+    pub threshold: Option<f32>,
+    pub filter: Option<VectorFilter>,
+}
+
+impl SearchOptions {
+    pub fn new(
+        space_id: u64,
+        tag_name: impl Into<String>,
+        field_name: impl Into<String>,
+        query_vector: Vec<f32>,
+        limit: usize,
+    ) -> Self {
+        Self {
+            space_id,
+            tag_name: tag_name.into(),
+            field_name: field_name.into(),
+            query_vector,
+            limit,
+            threshold: None,
+            filter: None,
+        }
+    }
+
+    pub fn with_threshold(mut self, threshold: f32) -> Self {
+        self.threshold = Some(threshold);
+        self
+    }
+
+    pub fn with_filter(mut self, filter: VectorFilter) -> Self {
+        self.filter = Some(filter);
+        self
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum VectorChangeType {
+    Insert,
+    Update,
+    Delete,
+}
+
+impl From<crate::coordinator::ChangeType> for VectorChangeType {
+    fn from(ct: crate::coordinator::ChangeType) -> Self {
+        match ct {
+            crate::coordinator::ChangeType::Insert => VectorChangeType::Insert,
+            crate::coordinator::ChangeType::Update => VectorChangeType::Update,
+            crate::coordinator::ChangeType::Delete => VectorChangeType::Delete,
+        }
+    }
+}
+
+/// Vector index location identifier
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct VectorIndexLocation {
+    pub space_id: u64,
+    pub tag_name: String,
+    pub field_name: String,
+}
+
+impl VectorIndexLocation {
+    pub fn new(space_id: u64, tag_name: impl Into<String>, field_name: impl Into<String>) -> Self {
+        Self {
+            space_id,
+            tag_name: tag_name.into(),
+            field_name: field_name.into(),
+        }
+    }
+
+    /// Generate collection name (for Qdrant etc.)
+    pub fn to_collection_name(&self) -> String {
+        format!(
+            "space_{}_{}_{}",
+            self.space_id, self.tag_name, self.field_name
+        )
+    }
+}
+
+/// Vector change context
+#[derive(Debug, Clone)]
+pub struct VectorChangeContext {
+    pub location: VectorIndexLocation,
+    pub change_type: VectorChangeType,
+    pub data: VectorPointData,
+}
+
+impl VectorChangeContext {
+    pub fn new(
+        space_id: u64,
+        tag_name: impl Into<String>,
+        field_name: impl Into<String>,
+        change_type: VectorChangeType,
+        data: VectorPointData,
+    ) -> Self {
+        Self {
+            location: VectorIndexLocation::new(space_id, tag_name, field_name),
+            change_type,
+            data,
+        }
+    }
+}
+
+/// Vector synchronization coordinator
+pub struct VectorSyncCoordinator {
+    vector_manager: Arc<VectorManager>,
+    embedding_service: Option<Arc<EmbeddingService>>,
+}
+
+impl std::fmt::Debug for VectorSyncCoordinator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("VectorSyncCoordinator")
+            .field("vector_manager", &self.vector_manager)
+            .field("embedding_service", &self.embedding_service.is_some())
+            .finish()
+    }
+}
+
+impl VectorSyncCoordinator {
+    /// Create a new vector sync coordinator
+    pub fn new(vector_manager: Arc<VectorManager>, embedding_service: Option<Arc<EmbeddingService>>) -> Self {
+        Self {
+            vector_manager,
+            embedding_service,
+        }
+    }
+
+    /// Get the vector manager
+    pub fn vector_manager(&self) -> &Arc<VectorManager> {
+        &self.vector_manager
+    }
+
+    /// Get the embedding service
+    pub fn embedding_service(&self) -> Option<&Arc<EmbeddingService>> {
+        self.embedding_service.as_ref()
+    }
+
+    /// Create a vector index
+    pub async fn create_vector_index(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+        vector_size: usize,
+        distance: vector_client::DistanceMetric,
+    ) -> VectorCoordinatorResult<String> {
+        let collection_name = VectorIndexLocation::new(space_id, tag_name, field_name)
+            .to_collection_name();
+
+        let config = vector_client::CollectionConfig::new(vector_size, distance);
+
+        self.vector_manager
+            .create_index(&collection_name, config)
+            .await
+            .map_err(|e| VectorCoordinatorError::IndexCreationFailed {
+                tag_name: tag_name.to_string(),
+                field_name: field_name.to_string(),
+                reason: e.to_string(),
+            })?;
+
+        info!("Vector index created: {}", collection_name);
+        Ok(collection_name)
+    }
+
+    /// Drop a vector index
+    pub async fn drop_vector_index(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+    ) -> VectorCoordinatorResult<()> {
+        let collection_name = VectorIndexLocation::new(space_id, tag_name, field_name)
+            .to_collection_name();
+
+        self.vector_manager
+            .drop_index(&collection_name)
+            .await
+            .map_err(|e| VectorCoordinatorError::IndexDropFailed {
+                tag_name: tag_name.to_string(),
+                field_name: field_name.to_string(),
+                reason: e.to_string(),
+            })?;
+
+        info!("Vector index dropped: {}", collection_name);
+        Ok(())
+    }
+
+    /// Handle vertex insertion
+    pub async fn on_vertex_inserted(
+        &self,
+        space_id: u64,
+        vertex: &Vertex,
+    ) -> VectorCoordinatorResult<()> {
+        for tag in &vertex.tags {
+            for (field_name, value) in &tag.properties {
+                let collection_name = VectorIndexLocation::new(space_id, &tag.name, field_name)
+                    .to_collection_name();
+
+                if self.vector_manager.index_exists(&collection_name) {
+                    if let Some(vector) = value.as_vector() {
+                        let point_id = format!("{}", vertex.vid);
+                        let mut payload = HashMap::new();
+                        payload.insert(
+                            "vertex_id".to_string(),
+                            serde_json::to_value(&vertex.vid).unwrap_or(serde_json::Value::Null),
+                        );
+
+                        let point = VectorPoint::new(point_id, vector).with_payload(payload);
+
+                        self.vector_manager
+                            .upsert(&collection_name, point)
+                            .await?;
+
+                        debug!(
+                            "Upserted vector for vertex {} in collection {}",
+                            vertex.vid, collection_name
+                        );
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Handle vertex update
+    pub async fn on_vertex_updated(
+        &self,
+        space_id: u64,
+        vertex: &Vertex,
+        changed_fields: &[String],
+    ) -> VectorCoordinatorResult<()> {
+        for tag in &vertex.tags {
+            for field_name in changed_fields {
+                if let Some(value) = tag.properties.get(field_name) {
+                    let collection_name = VectorIndexLocation::new(space_id, &tag.name, field_name)
+                        .to_collection_name();
+
+                    if self.vector_manager.index_exists(&collection_name) {
+                        let point_id = format!("{}", vertex.vid);
+
+                        if let Some(vector) = value.as_vector() {
+                            let mut payload = HashMap::new();
+                            payload.insert(
+                                "vertex_id".to_string(),
+                                serde_json::to_value(&vertex.vid)
+                                    .unwrap_or(serde_json::Value::Null),
+                            );
+
+                            let point = VectorPoint::new(point_id, vector).with_payload(payload);
+
+                            self.vector_manager
+                                .upsert(&collection_name, point)
+                                .await?;
+
+                            debug!(
+                                "Updated vector for vertex {} in collection {}",
+                                vertex.vid, collection_name
+                            );
+                        } else {
+                            self.vector_manager
+                                .delete(&collection_name, &point_id)
+                                .await?;
+
+                            debug!(
+                                "Deleted vector for vertex {} in collection {}",
+                                vertex.vid, collection_name
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Handle vertex deletion
+    pub async fn on_vertex_deleted(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        vertex_id: &Value,
+    ) -> VectorCoordinatorResult<()> {
+        let point_id = format!("{}", vertex_id);
+
+        // Find all indexes for this space and tag
+        let indexes = self.vector_manager.list_indexes();
+        for metadata in indexes {
+            if metadata.name.starts_with(&format!("space_{}_{}_", space_id, tag_name)) {
+                self.vector_manager
+                    .delete(&metadata.name, &point_id)
+                    .await?;
+
+                debug!(
+                    "Deleted vector for vertex {} from collection {}",
+                    vertex_id, metadata.name
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// Handle vector change
+    pub async fn on_vector_change(&self, ctx: VectorChangeContext) -> VectorCoordinatorResult<()> {
+        let collection_name = ctx.location.to_collection_name();
+        let point_id = format!("{}", ctx.data.id);
+
+        match ctx.change_type {
+            VectorChangeType::Insert | VectorChangeType::Update => {
+                let vector = ctx.data.vector;
+                let json_payload: HashMap<String, serde_json::Value> = ctx
+                    .data
+                    .payload
+                    .into_iter()
+                    .filter_map(|(k, v)| serde_json::to_value(&v).ok().map(|json| (k, json)))
+                    .collect();
+
+                let point = VectorPoint::new(point_id, vector).with_payload(json_payload);
+
+                self.vector_manager
+                    .upsert(&collection_name, point)
+                    .await?;
+            }
+            VectorChangeType::Delete => {
+                self.vector_manager
+                    .delete(&collection_name, &point_id)
+                    .await?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Search for similar vectors
+    pub async fn search(
+        &self,
+        collection: &str,
+        query: SearchQuery,
+    ) -> VectorCoordinatorResult<Vec<SearchResult>> {
+        let results = self.vector_manager.search(collection, query).await?;
+        Ok(results)
+    }
+
+    /// Search with options
+    pub async fn search_with_options(
+        &self,
+        options: SearchOptions,
+    ) -> VectorCoordinatorResult<Vec<SearchResult>> {
+        let collection_name = VectorIndexLocation::new(
+            options.space_id,
+            &options.tag_name,
+            &options.field_name,
+        )
+        .to_collection_name();
+
+        let mut query = SearchQuery::new(options.query_vector, options.limit);
+
+        if let Some(threshold) = options.threshold {
+            query = query.with_score_threshold(threshold);
+        }
+
+        if let Some(filter) = options.filter {
+            query = query.with_filter(filter);
+        }
+
+        let results = self.search(&collection_name, query).await?;
+        Ok(results)
+    }
+
+    /// Embed text to vector
+    pub async fn embed_text(&self, text: &str) -> VectorCoordinatorResult<Vec<f32>> {
+        if let Some(embedding) = &self.embedding_service {
+            let vector = embedding
+                .embed(text)
+                .await
+                .map_err(|e| VectorCoordinatorError::EmbeddingError(e.to_string()))?;
+            Ok(vector)
+        } else {
+            Err(VectorCoordinatorError::EmbeddingError(
+                "Embedding service not available".to_string(),
+            ))
+        }
+    }
+}

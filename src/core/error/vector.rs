@@ -114,6 +114,9 @@ pub enum VectorCoordinatorError {
     #[error("Embedding service not available")]
     EmbeddingServiceNotAvailable,
 
+    #[error("Embedding error: {0}")]
+    EmbeddingError(String),
+
     #[error("Internal error: {0}")]
     Internal(String),
 }
@@ -158,6 +161,9 @@ impl From<vector_client::VectorClientError> for VectorError {
             }
             vector_client::VectorClientError::EngineNotAvailable(name) => {
                 VectorError::EngineUnavailable(format!("Engine {} not available", name))
+            }
+            vector_client::VectorClientError::IndexAlreadyExists(name) => {
+                VectorError::IndexAlreadyExists(name)
             }
             vector_client::VectorClientError::IoError(e) => VectorError::Internal(e.to_string()),
             vector_client::VectorClientError::SerializationError(e) => {
