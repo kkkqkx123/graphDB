@@ -13,3 +13,6 @@ pub use manager::{SyncError, SyncManager, SyncMode};
 pub use persistence::{FailedTask, PersistenceError, SyncPersistence, SyncState};
 pub use recovery::{RecoveryConfig, RecoveryError, RecoveryManager, RecoveryResult};
 pub use task::{SyncTask, TaskResult, VectorPointData};
+
+// Re-export event queue types for convenience
+pub use crate::event::async_queue::{AsyncQueue, QueueConfig, QueueHandler};

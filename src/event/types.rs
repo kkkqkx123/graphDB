@@ -100,53 +100,6 @@ impl fmt::Display for SubscriptionId {
     }
 }
 
-/// 同步模式
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SyncMode {
-    /// 同步模式：事件发布后立即执行 handler
-    Synchronous,
-    /// 异步模式：事件发布到队列，后台批量处理
-    Asynchronous {
-        /// 批量大小
-        batch_size: usize,
-        /// 刷新间隔
-        flush_interval_ms: u64,
-    },
-}
-
-impl Default for SyncMode {
-    fn default() -> Self {
-        SyncMode::Synchronous
-    }
-}
-
-/// 同步配置
-#[derive(Debug, Clone)]
-pub struct SyncConfig {
-    /// 同步模式
-    pub mode: SyncMode,
-    /// 是否启用事件
-    pub enabled: bool,
-    /// 是否在事务内同步
-    pub sync_in_transaction: bool,
-    /// 失败重试次数
-    pub max_retries: u32,
-    /// 重试间隔（毫秒）
-    pub retry_interval_ms: u64,
-}
-
-impl Default for SyncConfig {
-    fn default() -> Self {
-        Self {
-            mode: SyncMode::Synchronous,
-            enabled: true,
-            sync_in_transaction: true,
-            max_retries: 3,
-            retry_interval_ms: 1000,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

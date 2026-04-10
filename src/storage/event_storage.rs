@@ -1,102 +1,37 @@
 //! 存储层事件包装器
 //!
-//! 包装 StorageClient，在存储操作时自动发布事件
+//! 包装 StorageClient，在存储操作时自动同步到索引
 
-use std::collections::HashMap;
-use std::fmt::Debug;
-
-use crate::core::{Edge, StorageError, Tag, Value, Vertex};
-use crate::event::{EventHub, StorageEvent};
+use crate::coordinator::ChangeType;
+use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::storage::StorageClient;
+use std::fmt::Debug;
 use std::sync::Arc;
-
-/// 获取当前时间戳（秒）
-fn get_timestamp() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
-}
-
-/// 计算两个顶点之间的变更字段
-fn compute_changed_fields(old: &Vertex, new: &Vertex) -> Vec<String> {
-    let mut changed = Vec::new();
-
-    // 比较 vid 是否变化
-    if *old.vid != *new.vid {
-        changed.push("vid".to_string());
-    }
-
-    // 构建旧属性的 HashMap 以便快速查找
-    let old_props: HashMap<&String, &Value> =
-        old.tags.iter().flat_map(|tag| &tag.properties).collect();
-
-    // 比较新属性
-    for tag in &new.tags {
-        for (field_name, new_value) in &tag.properties {
-            if let Some(old_value) = old_props.get(field_name) {
-                // old_value 是 &&Value，需要解引用一次
-                if **old_value != *new_value {
-                    changed.push(field_name.clone());
-                }
-            } else {
-                // 新添加的字段
-                changed.push(field_name.clone());
-            }
-        }
-    }
-
-    changed
-}
-
-/// 计算两条边之间的变更字段
-fn compute_edge_changed_fields(old: &Edge, new: &Edge) -> Vec<String> {
-    let mut changed = Vec::new();
-
-    // 比较 src, dst, edge_type, ranking 是否变化
-    if *old.src != *new.src {
-        changed.push("src".to_string());
-    }
-    if *old.dst != *new.dst {
-        changed.push("dst".to_string());
-    }
-    if old.edge_type != new.edge_type {
-        changed.push("edge_type".to_string());
-    }
-    if old.ranking != new.ranking {
-        changed.push("ranking".to_string());
-    }
-
-    // 比较属性
-    for (field_name, new_value) in &new.props {
-        if let Some(old_value) = old.props.get(field_name) {
-            if old_value != new_value {
-                changed.push(field_name.clone());
-            }
-        } else {
-            // 新添加的字段
-            changed.push(field_name.clone());
-        }
-    }
-
-    changed
-}
 
 /// 事件发射存储包装器
 #[derive(Clone, Debug)]
 pub struct EventEmittingStorage<S: StorageClient + Debug> {
     inner: S,
-    event_hub: Arc<crate::event::MemoryEventHub>,
+    sync_manager: Option<Arc<crate::sync::SyncManager>>,
     enabled: bool,
 }
 
 impl<S: StorageClient> EventEmittingStorage<S> {
-    /// 创建新的事件包装存储
-    pub fn new(storage: S, event_hub: Arc<crate::event::MemoryEventHub>) -> Self {
+    /// 创建新的事件包装存储（不带 SyncManager）
+    pub fn new(storage: S) -> Self {
         Self {
             inner: storage,
-            event_hub,
+            sync_manager: None,
             enabled: false,
+        }
+    }
+
+    /// 创建新的存储并绑定 SyncManager
+    pub fn with_sync_manager(storage: S, sync_manager: Arc<crate::sync::SyncManager>) -> Self {
+        Self {
+            inner: storage,
+            sync_manager: Some(sync_manager),
+            enabled: true,
         }
     }
 
@@ -118,16 +53,6 @@ impl<S: StorageClient> EventEmittingStorage<S> {
     /// 获取内部存储的可变引用
     pub fn inner_mut(&mut self) -> &mut S {
         &mut self.inner
-    }
-
-    /// 发布事件（如果启用）
-    fn publish_event(&self, event: StorageEvent) -> Result<(), StorageError> {
-        if self.enabled {
-            self.event_hub
-                .publish(event)
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        Ok(())
     }
 }
 
@@ -200,13 +125,34 @@ impl<S: StorageClient> StorageClient for EventEmittingStorage<S> {
         let result = self.inner.insert_vertex(space, vertex.clone())?;
 
         if self.enabled {
-            let space_id = self.inner.get_space_id(space)?;
-            let event = StorageEvent::VertexInserted {
-                space_id,
-                vertex,
-                timestamp: get_timestamp(),
-            };
-            self.publish_event(event)?;
+            if let Some(ref sync_manager) = self.sync_manager {
+                let space_id = self.inner.get_space_id(space)?;
+                // 提取属性
+                let props: Vec<_> = vertex.tags.iter()
+                    .flat_map(|tag| tag.properties.iter()
+                        .map(|(k, v)| (k.clone(), v.clone())))
+                    .collect();
+                
+                // 获取第一个 tag 名称（如果有）
+                if let Some(first_tag) = vertex.tags.first() {
+                    let tag_name = &first_tag.name;
+                    
+                    // 异步调用 SyncManager
+                    let sync_manager = sync_manager.clone();
+                    let vertex_id = vertex.vid.clone();
+                    let tag_name = tag_name.clone();
+                    
+                    tokio::spawn(async move {
+                        let _ = sync_manager.on_vertex_change(
+                            space_id,
+                            &tag_name,
+                            &*vertex_id,
+                            &props,
+                            ChangeType::Insert,
+                        ).await;
+                    });
+                }
+            }
         }
 
         Ok(result)
@@ -218,20 +164,35 @@ impl<S: StorageClient> StorageClient for EventEmittingStorage<S> {
             .get_vertex(space, &vertex.vid)?
             .ok_or_else(|| StorageError::NodeNotFound(*vertex.vid.clone()))?;
 
-        let changed_fields = compute_changed_fields(&old_vertex, &vertex);
-
         self.inner.update_vertex(space, vertex.clone())?;
 
         if self.enabled {
-            let space_id = self.inner.get_space_id(space)?;
-            let event = StorageEvent::VertexUpdated {
-                space_id,
-                old_vertex,
-                new_vertex: vertex,
-                changed_fields,
-                timestamp: get_timestamp(),
-            };
-            self.publish_event(event)?;
+            if let Some(ref sync_manager) = self.sync_manager {
+                let space_id = self.inner.get_space_id(space)?;
+                
+                // 提取所有属性（简化处理，不计算变更字段）
+                let props: Vec<_> = vertex.tags.iter()
+                    .flat_map(|tag| tag.properties.iter()
+                        .map(|(k, v)| (k.clone(), v.clone())))
+                    .collect();
+                
+                if let Some(first_tag) = vertex.tags.first() {
+                    let tag_name = &first_tag.name;
+                    let sync_manager = sync_manager.clone();
+                    let vertex_id = vertex.vid.clone();
+                    let tag_name = tag_name.clone();
+                    
+                    tokio::spawn(async move {
+                        let _ = sync_manager.on_vertex_change(
+                            space_id,
+                            &tag_name,
+                            &*vertex_id,
+                            &props,
+                            ChangeType::Update,
+                        ).await;
+                    });
+                }
+            }
         }
 
         Ok(())
@@ -246,15 +207,25 @@ impl<S: StorageClient> StorageClient for EventEmittingStorage<S> {
         self.inner.delete_vertex(space, id)?;
 
         if self.enabled {
-            let space_id = self.inner.get_space_id(space)?;
-            for tag in &vertex.tags {
-                let event = StorageEvent::VertexDeleted {
-                    space_id,
-                    vertex_id: id.clone(),
-                    tag_name: tag.name.clone(),
-                    timestamp: get_timestamp(),
-                };
-                self.publish_event(event)?;
+            if let Some(ref sync_manager) = self.sync_manager {
+                let space_id = self.inner.get_space_id(space)?;
+                
+                // 为每个 tag 调用 SyncManager
+                for tag in &vertex.tags {
+                    let sync_manager = sync_manager.clone();
+                    let tag_name = tag.name.clone();
+                    let vertex_id = id.clone();
+                    
+                    tokio::spawn(async move {
+                        let _ = sync_manager.on_vertex_change(
+                            space_id,
+                            &tag_name,
+                            &vertex_id,
+                            &[],
+                            ChangeType::Delete,
+                        ).await;
+                    });
+                }
             }
         }
 
@@ -270,15 +241,25 @@ impl<S: StorageClient> StorageClient for EventEmittingStorage<S> {
         self.inner.delete_vertex_with_edges(space, id)?;
 
         if self.enabled {
-            let space_id = self.inner.get_space_id(space)?;
-            for tag in &vertex.tags {
-                let event = StorageEvent::VertexDeleted {
-                    space_id,
-                    vertex_id: id.clone(),
-                    tag_name: tag.name.clone(),
-                    timestamp: get_timestamp(),
-                };
-                self.publish_event(event)?;
+            if let Some(ref sync_manager) = self.sync_manager {
+                let space_id = self.inner.get_space_id(space)?;
+                
+                // 为每个 tag 调用 SyncManager
+                for tag in &vertex.tags {
+                    let sync_manager = sync_manager.clone();
+                    let tag_name = tag.name.clone();
+                    let vertex_id = id.clone();
+                    
+                    tokio::spawn(async move {
+                        let _ = sync_manager.on_vertex_change(
+                            space_id,
+                            &tag_name,
+                            &vertex_id,
+                            &[],
+                            ChangeType::Delete,
+                        ).await;
+                    });
+                }
             }
         }
 
@@ -293,14 +274,31 @@ impl<S: StorageClient> StorageClient for EventEmittingStorage<S> {
         let results = self.inner.batch_insert_vertices(space, vertices.clone())?;
 
         if self.enabled {
-            let space_id = self.inner.get_space_id(space)?;
-            for vertex in vertices {
-                let event = StorageEvent::VertexInserted {
-                    space_id,
-                    vertex,
-                    timestamp: get_timestamp(),
-                };
-                self.publish_event(event)?;
+            if let Some(ref sync_manager) = self.sync_manager {
+                let space_id = self.inner.get_space_id(space)?;
+                
+                for vertex in vertices {
+                    let props: Vec<_> = vertex.tags.iter()
+                        .flat_map(|tag| tag.properties.iter()
+                            .map(|(k, v)| (k.clone(), v.clone())))
+                        .collect();
+                    
+                    if let Some(first_tag) = vertex.tags.first() {
+                        let sync_manager = sync_manager.clone();
+                        let tag_name = first_tag.name.clone();
+                        let vertex_id = vertex.vid.clone();
+                        
+                        tokio::spawn(async move {
+                            let _ = sync_manager.on_vertex_change(
+                                space_id,
+                                &tag_name,
+                                &*vertex_id,
+                                &props,
+                                ChangeType::Insert,
+                            ).await;
+                        });
+                    }
+                }
             }
         }
 
@@ -317,19 +315,7 @@ impl<S: StorageClient> StorageClient for EventEmittingStorage<S> {
     }
 
     fn insert_edge(&mut self, space: &str, edge: Edge) -> Result<(), StorageError> {
-        self.inner.insert_edge(space, edge.clone())?;
-
-        if self.enabled {
-            let space_id = self.inner.get_space_id(space)?;
-            let event = StorageEvent::EdgeInserted {
-                space_id,
-                edge,
-                timestamp: get_timestamp(),
-            };
-            self.publish_event(event)?;
-        }
-
-        Ok(())
+        self.inner.insert_edge(space, edge)
     }
 
     fn delete_edge(
@@ -340,40 +326,11 @@ impl<S: StorageClient> StorageClient for EventEmittingStorage<S> {
         edge_type: &str,
         rank: i64,
     ) -> Result<(), StorageError> {
-        self.inner.delete_edge(space, src, dst, edge_type, rank)?;
-
-        if self.enabled {
-            let space_id = self.inner.get_space_id(space)?;
-            let event = StorageEvent::EdgeDeleted {
-                space_id,
-                src: src.clone(),
-                dst: dst.clone(),
-                edge_type: edge_type.to_string(),
-                rank,
-                timestamp: get_timestamp(),
-            };
-            self.publish_event(event)?;
-        }
-
-        Ok(())
+        self.inner.delete_edge(space, src, dst, edge_type, rank)
     }
 
     fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
-        self.inner.batch_insert_edges(space, edges.clone())?;
-
-        if self.enabled {
-            let space_id = self.inner.get_space_id(space)?;
-            for edge in edges {
-                let event = StorageEvent::EdgeInserted {
-                    space_id,
-                    edge,
-                    timestamp: get_timestamp(),
-                };
-                self.publish_event(event)?;
-            }
-        }
-
-        Ok(())
+        self.inner.batch_insert_edges(space, edges)
     }
 
     fn create_space(
@@ -707,165 +664,5 @@ impl<S: StorageClient> StorageClient for EventEmittingStorage<S> {
 
     fn get_db_path(&self) -> &str {
         self.inner.get_db_path()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::storage::test_mock::MockStorage;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-
-    #[test]
-    fn test_event_emitting_storage_insert() {
-        let inner = MockStorage::new().expect("Failed to create MockStorage");
-        let event_hub = Arc::new(crate::event::MemoryEventHub::new());
-        let mut storage = EventEmittingStorage::new(inner, event_hub.clone());
-        storage.enable_events(true);
-
-        let counter = Arc::new(AtomicUsize::new(0));
-        let c = counter.clone();
-
-        event_hub
-            .subscribe(crate::event::EventType::VertexEvent, move |_| {
-                c.fetch_add(1, Ordering::SeqCst);
-                Ok(())
-            })
-            .unwrap();
-
-        let vertex = create_test_vertex();
-        storage
-            .insert_vertex("test_space", vertex)
-            .expect("insert should succeed");
-
-        assert_eq!(counter.load(Ordering::SeqCst), 1);
-    }
-
-    fn create_test_vertex() -> Vertex {
-        Vertex {
-            vid: Box::new(Value::Int64(1)),
-            id: 1,
-            tags: vec![],
-            properties: HashMap::new(),
-        }
-    }
-
-    #[test]
-    fn test_compute_changed_fields_no_changes() {
-        let old = Vertex {
-            vid: Box::new(Value::Int64(1)),
-            id: 1,
-            tags: vec![crate::core::Tag {
-                name: "test".to_string(),
-                properties: vec![("field1".to_string(), Value::Int(10))]
-                    .into_iter()
-                    .collect(),
-            }],
-            properties: HashMap::new(),
-        };
-
-        let new = old.clone();
-        let changed = compute_changed_fields(&old, &new);
-        assert!(changed.is_empty(), "No fields should be changed");
-    }
-
-    #[test]
-    fn test_compute_changed_fields_value_change() {
-        let old = Vertex {
-            vid: Box::new(Value::Int64(1)),
-            id: 1,
-            tags: vec![crate::core::Tag {
-                name: "test".to_string(),
-                properties: vec![
-                    ("field1".to_string(), Value::Int(10)),
-                    ("field2".to_string(), Value::Int(20)),
-                ]
-                .into_iter()
-                .collect(),
-            }],
-            properties: HashMap::new(),
-        };
-
-        let new = Vertex {
-            vid: Box::new(Value::Int64(1)),
-            id: 1,
-            tags: vec![crate::core::Tag {
-                name: "test".to_string(),
-                properties: vec![
-                    ("field1".to_string(), Value::Int(15)), // Changed
-                    ("field2".to_string(), Value::Int(20)), // Unchanged
-                ]
-                .into_iter()
-                .collect(),
-            }],
-            properties: HashMap::new(),
-        };
-
-        let changed = compute_changed_fields(&old, &new);
-        assert_eq!(changed.len(), 1);
-        assert!(changed.contains(&"field1".to_string()));
-    }
-
-    #[test]
-    fn test_compute_changed_fields_new_field() {
-        let old = Vertex {
-            vid: Box::new(Value::Int64(1)),
-            id: 1,
-            tags: vec![crate::core::Tag {
-                name: "test".to_string(),
-                properties: vec![("field1".to_string(), Value::Int(10))]
-                    .into_iter()
-                    .collect(),
-            }],
-            properties: HashMap::new(),
-        };
-
-        let new = Vertex {
-            vid: Box::new(Value::Int64(1)),
-            id: 1,
-            tags: vec![crate::core::Tag {
-                name: "test".to_string(),
-                properties: vec![
-                    ("field1".to_string(), Value::Int(10)),
-                    ("field2".to_string(), Value::Int(20)), // New field
-                ]
-                .into_iter()
-                .collect(),
-            }],
-            properties: HashMap::new(),
-        };
-
-        let changed = compute_changed_fields(&old, &new);
-        assert_eq!(changed.len(), 1);
-        assert!(changed.contains(&"field2".to_string()));
-    }
-
-    #[test]
-    fn test_compute_edge_changed_fields() {
-        let old = Edge {
-            src: Box::new(Value::Int64(1)),
-            dst: Box::new(Value::Int64(2)),
-            edge_type: "follow".to_string(),
-            ranking: 0,
-            id: 1,
-            props: vec![("weight".to_string(), Value::Float(1.5))]
-                .into_iter()
-                .collect(),
-        };
-
-        let new = Edge {
-            src: Box::new(Value::Int64(1)),
-            dst: Box::new(Value::Int64(2)),
-            edge_type: "follow".to_string(),
-            ranking: 0,
-            id: 1,
-            props: vec![("weight".to_string(), Value::Float(2.0))] // Changed
-                .into_iter()
-                .collect(),
-        };
-
-        let changed = compute_edge_changed_fields(&old, &new);
-        assert_eq!(changed.len(), 1);
-        assert!(changed.contains(&"weight".to_string()));
     }
 }

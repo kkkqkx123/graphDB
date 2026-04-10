@@ -1,23 +1,41 @@
-//! 异步事件队列
+//! Asynchronous Event Queue
 //!
-//! 提供异步批量事件处理能力，支持：
-//! - 异步事件队列
-//! - 批量处理定时器
-//! - 错误重试机制
-//! - 死信队列
+//! Provide asynchronous batch event processing capability, supporting:
+//! - Asynchronous event queue
+//! - Batch processing timer
+//! - Error retry mechanism
+//! - Dead letter queue
+//!
+//! # Generic Usage Example
+//!
+//! ```rust
+//! use crate::event::async_queue::{AsyncQueue, QueueConfig, QueueHandler};
+//!
+//! // Used for any clonable type T
+//! struct MyHandler;
+//! impl QueueHandler<String> for MyHandler {
+//!     fn handle_item(&self, item: &String) -> Result<(), crate::event::EventError> {
+//!         println!("Processing: {}", item);
+//!         Ok(())
+//!     }
+//! }
+//!
+//! let config = QueueConfig::default();
+//! let queue = AsyncQueue::new(config);
+//! ```
 
-use crate::event::{EventError, StorageEvent};
+use crate::event::EventError;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex, RwLock};
-use tokio::time::{Duration, Interval};
+use tokio::time::Duration;
 
-/// 事件队列配置
+/// 队列配置
 #[derive(Debug, Clone)]
-pub struct AsyncQueueConfig {
+pub struct QueueConfig {
     /// 队列最大容量
     pub max_queue_size: usize,
-    /// 批量处理的最大事件数
+    /// 批量处理的最大项数
     pub batch_size: usize,
     /// 批量处理的时间间隔（毫秒）
     pub batch_interval_ms: u64,
@@ -27,7 +45,7 @@ pub struct AsyncQueueConfig {
     pub dead_letter_queue_size: usize,
 }
 
-impl Default for AsyncQueueConfig {
+impl Default for QueueConfig {
     fn default() -> Self {
         Self {
             max_queue_size: 10000,
@@ -39,46 +57,64 @@ impl Default for AsyncQueueConfig {
     }
 }
 
-/// 待处理事件
+/// 待处理项
 #[derive(Debug, Clone)]
-struct PendingEvent {
-    event: StorageEvent,
+struct PendingItem<T> {
+    item: T,
     retry_count: u32,
 }
 
-/// 死信队列中的事件
+/// 死信队列中的项
 #[derive(Debug, Clone)]
-pub struct DeadLetterEvent {
-    pub event: StorageEvent,
+pub struct DeadLetterItem<T> {
+    pub item: T,
     pub error: String,
     pub retry_count: u32,
     pub timestamp: std::time::SystemTime,
 }
 
-/// 事件处理器 trait
-pub trait EventHandler: Send + Sync {
-    fn handle_event(&self, event: &StorageEvent) -> Result<(), EventError>;
-    fn handle_batch(&self, events: &[StorageEvent]) -> Result<(), EventError> {
+/// 队列处理器 trait（泛型版本）
+pub trait QueueHandler<T>: Send + Sync {
+    fn handle_item(&self, item: &T) -> Result<(), EventError>;
+    
+    fn handle_batch(&self, items: &[T]) -> Result<(), EventError> {
         // 默认逐个处理
-        for event in events {
-            self.handle_event(event)?;
+        for item in items {
+            self.handle_item(item)?;
         }
         Ok(())
     }
 }
 
-/// 异步事件队列
-pub struct AsyncEventQueue {
-    config: AsyncQueueConfig,
-    pending_queue: Arc<Mutex<VecDeque<PendingEvent>>>,
-    dead_letter_queue: Arc<RwLock<VecDeque<DeadLetterEvent>>>,
-    handler: Option<Arc<dyn EventHandler>>,
+/// 异步队列（泛型版本）
+pub struct AsyncQueue<T> 
+where
+    T: Clone + Send + Sync + 'static,
+{
+    config: QueueConfig,
+    pending_queue: Arc<Mutex<VecDeque<PendingItem<T>>>>,
+    dead_letter_queue: Arc<RwLock<VecDeque<DeadLetterItem<T>>>>,
+    handler: Option<Arc<dyn QueueHandler<T>>>,
     shutdown_tx: mpsc::Sender<()>,
 }
 
-impl AsyncEventQueue {
-    /// 创建新的异步事件队列
-    pub fn new(config: AsyncQueueConfig) -> Self {
+impl<T> std::fmt::Debug for AsyncQueue<T>
+where
+    T: Clone + Send + Sync + 'static,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AsyncQueue")
+            .field("config", &self.config)
+            .finish_non_exhaustive()
+    }
+}
+
+impl<T> AsyncQueue<T>
+where
+    T: Clone + Send + Sync + 'static,
+{
+    /// 创建新的异步队列
+    pub fn new(config: QueueConfig) -> Self {
         let (shutdown_tx, _) = mpsc::channel(1);
         let pending_queue = Arc::new(Mutex::new(VecDeque::with_capacity(config.max_queue_size)));
         let dead_letter_queue = Arc::new(RwLock::new(VecDeque::with_capacity(
@@ -94,8 +130,8 @@ impl AsyncEventQueue {
         }
     }
 
-    /// 设置事件处理器
-    pub fn set_handler(&mut self, handler: Arc<dyn EventHandler>) {
+    /// 设置处理器
+    pub fn set_handler(&mut self, handler: Arc<dyn QueueHandler<T>>) {
         self.handler = Some(handler);
     }
 
@@ -109,23 +145,23 @@ impl AsyncEventQueue {
         self.dead_letter_queue.read().await.len()
     }
 
-    /// 提交事件到队列
-    pub async fn submit(&self, event: StorageEvent) -> Result<(), EventError> {
+    /// 提交项到队列
+    pub async fn submit(&self, item: T) -> Result<(), EventError> {
         let mut queue = self.pending_queue.lock().await;
 
         if queue.len() >= self.config.max_queue_size {
             return Err(EventError::QueueFull);
         }
 
-        queue.push_back(PendingEvent {
-            event,
+        queue.push_back(PendingItem {
+            item,
             retry_count: 0,
         });
 
         Ok(())
     }
 
-    /// 批量处理事件
+    /// 批量处理
     async fn process_batch(&self) -> Result<usize, EventError> {
         let handler = match &self.handler {
             Some(h) => h.clone(),
@@ -141,14 +177,14 @@ impl AsyncEventQueue {
             return Ok(0);
         }
 
-        // 取出一批事件
+        // 取出一批
         let batch_size = std::cmp::min(self.config.batch_size, queue.len());
-        let mut batch: Vec<StorageEvent> = Vec::with_capacity(batch_size);
-        let mut pending_retry: Vec<PendingEvent> = Vec::new();
+        let mut batch: Vec<T> = Vec::with_capacity(batch_size);
+        let mut pending_retry: Vec<PendingItem<T>> = Vec::new();
 
         for _ in 0..batch_size {
-            if let Some(mut pending) = queue.pop_front() {
-                batch.push(pending.event.clone());
+            if let Some(pending) = queue.pop_front() {
+                batch.push(pending.item.clone());
                 pending_retry.push(pending);
             }
         }
@@ -160,13 +196,12 @@ impl AsyncEventQueue {
             Ok(()) => Ok(batch_size),
             Err(e) => {
                 // 处理失败，尝试重试
-                let mut retry_count = 0;
                 for mut pending in pending_retry {
                     pending.retry_count += 1;
                     if pending.retry_count >= self.config.max_retries {
                         // 超过最大重试次数，移入死信队列
                         self.add_to_dead_letter(
-                            pending.event.clone(),
+                            pending.item.clone(),
                             format!("{:?}", e),
                             pending.retry_count,
                         )
@@ -175,7 +210,6 @@ impl AsyncEventQueue {
                         // 重新加入队列尾部
                         let mut queue = self.pending_queue.lock().await;
                         queue.push_front(pending);
-                        retry_count += 1;
                     }
                 }
                 Err(EventError::HandlerError(format!(
@@ -187,24 +221,24 @@ impl AsyncEventQueue {
     }
 
     /// 添加到死信队列
-    async fn add_to_dead_letter(&self, event: StorageEvent, error: String, retry_count: u32) {
+    async fn add_to_dead_letter(&self, item: T, error: String, retry_count: u32) {
         let mut dlq = self.dead_letter_queue.write().await;
 
         if dlq.len() >= self.config.dead_letter_queue_size {
-            // 队列已满，移除最旧的事件
+            // 队列已满，移除最旧的项
             dlq.pop_front();
         }
 
-        dlq.push_back(DeadLetterEvent {
-            event,
+        dlq.push_back(DeadLetterItem {
+            item,
             error,
             retry_count,
             timestamp: std::time::SystemTime::now(),
         });
     }
 
-    /// 获取死信队列中的事件
-    pub async fn get_dead_letter_events(&self, limit: usize) -> Vec<DeadLetterEvent> {
+    /// 获取死信队列中的项
+    pub async fn get_dead_letter_items(&self, limit: usize) -> Vec<DeadLetterItem<T>> {
         let dlq = self.dead_letter_queue.read().await;
         dlq.iter().take(limit).cloned().collect()
     }
@@ -223,10 +257,10 @@ impl AsyncEventQueue {
         loop {
             timer.tick().await;
 
-            // 处理一批事件
+            // 处理一批
             match self.process_batch().await {
                 Ok(count) if count > 0 => {
-                    // 成功处理 count 个事件
+                    // 成功处理 count 个
                 }
                 Ok(_) => {
                     // 队列为空，继续等待
@@ -240,6 +274,18 @@ impl AsyncEventQueue {
     }
 }
 
+// 为 StorageEvent 保留类型别名和向后兼容的 API
+use crate::event::StorageEvent;
+
+/// 异步事件队列（向后兼容的类型别名）
+pub type AsyncEventQueue = AsyncQueue<StorageEvent>;
+
+/// 事件处理器（向后兼容的类型别名）
+pub type EventHandler = dyn QueueHandler<StorageEvent>;
+
+/// 死信事件（向后兼容的类型别名）
+pub type DeadLetterEvent = DeadLetterItem<StorageEvent>;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -250,8 +296,8 @@ mod tests {
         count: AtomicUsize,
     }
 
-    impl EventHandler for TestHandler {
-        fn handle_event(&self, _event: &StorageEvent) -> Result<(), EventError> {
+    impl QueueHandler<StorageEvent> for TestHandler {
+        fn handle_item(&self, _event: &StorageEvent) -> Result<(), EventError> {
             self.count.fetch_add(1, Ordering::SeqCst);
             Ok(())
         }
@@ -259,8 +305,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_async_queue_submit() {
-        let config = AsyncQueueConfig::default();
-        let queue = AsyncEventQueue::new(config);
+        let config = QueueConfig::default();
+        let queue = AsyncQueue::new(config);
 
         // 创建测试事件
         let event = StorageEvent::VertexInserted {
@@ -280,11 +326,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_async_queue_batch_processing() {
-        let config = AsyncQueueConfig {
+        let config = QueueConfig {
             batch_size: 5,
             ..Default::default()
         };
-        let mut queue = AsyncEventQueue::new(config);
+        let mut queue = AsyncQueue::new(config);
 
         let handler = Arc::new(TestHandler {
             count: AtomicUsize::new(0),

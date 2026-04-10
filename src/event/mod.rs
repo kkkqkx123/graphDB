@@ -5,20 +5,16 @@
 //! # 架构
 //!
 //! ```text
-//! StorageClient -> EventEmittingStorage -> EventHub -> EventHandler
+//! StorageClient -> EventEmittingStorage -> EventHub -> SyncManager
 //! ```
 //!
 //! # 使用示例
 //!
 //! ```rust
 //! let event_hub = Arc::new(MemoryEventHub::new());
-//! let mut storage = EventEmittingStorage::new(inner_storage, event_hub.clone());
+//! let sync_manager = Arc::new(SyncManager::new(fulltext_coordinator, config));
+//! let mut storage = EventEmittingStorage::new(inner_storage, event_hub.clone(), Some(sync_manager));
 //! storage.enable_events(true);
-//!
-//! event_hub.subscribe(EventType::VertexEvent, |event| {
-//!     // 处理事件
-//!     Ok(())
-//! })?;
 //! ```
 
 pub mod async_queue;
@@ -26,7 +22,7 @@ pub mod error;
 pub mod hub;
 pub mod types;
 
-pub use async_queue::*;
+pub use async_queue::{AsyncQueue, QueueConfig, QueueHandler};
 pub use error::*;
-pub use hub::*;
+pub use hub::{EventHub, MemoryEventHub};
 pub use types::*;

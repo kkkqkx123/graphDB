@@ -29,7 +29,6 @@ pub use embedded::GraphDatabase;
 use crate::api::server::GraphService;
 use crate::config::Config;
 use crate::core::error::DBResult;
-use crate::event::MemoryEventHub;
 use crate::storage::event_storage::EventEmittingStorage;
 use crate::storage::redb_storage::DefaultStorage;
 use crate::transaction::{TransactionManager, TransactionManagerConfig};
@@ -65,43 +64,35 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
     let inner_storage = Arc::new(DefaultStorage::new()?);
     println!("Storage initialized (memory mode)");
 
-    // 初始化事件系统
-    let event_hub = Arc::new(MemoryEventHub::new());
-    println!("Event hub initialized");
-
-    // 包装存储层为事件发射存储
-    let mut event_storage = EventEmittingStorage::new((*inner_storage).clone(), event_hub.clone());
-
-    // 如果配置启用了全文索引，注册同步处理器
-    if config.fulltext.enabled {
+    // 如果配置启用了全文索引，初始化 SyncManager
+    let storage = if config.fulltext.enabled {
         use crate::coordinator::fulltext::FulltextCoordinator;
-        use crate::coordinator::fulltext_sync::register_fulltext_sync;
         use crate::search::manager::FulltextIndexManager;
+        use crate::sync::batch::BatchConfig;
+        use crate::sync::SyncManager;
 
         let manager = Arc::new(
             FulltextIndexManager::new(config.fulltext.clone())
                 .expect("Failed to create FulltextIndexManager"),
         );
         let coordinator = Arc::new(FulltextCoordinator::new(manager));
+        let sync_manager = Arc::new(SyncManager::new(coordinator, BatchConfig::default()));
 
-        match register_fulltext_sync(coordinator, event_hub.clone()) {
-            Ok(subscription_id) => {
-                println!(
-                    "Fulltext sync handler registered (subscription: {})",
-                    subscription_id
-                );
-            }
-            Err(e) => {
-                eprintln!("Failed to register fulltext sync handler: {}", e);
-            }
-        }
+        println!("SyncManager initialized");
 
-        // 启用事件发布
-        event_storage.enable_events(true);
+        // 包装存储层并绑定 SyncManager
+        let event_storage = EventEmittingStorage::with_sync_manager(
+            (*inner_storage).clone(),
+            sync_manager,
+        );
         println!("Event publishing enabled for fulltext sync");
-    }
 
-    let storage = Arc::new(event_storage);
+        Arc::new(event_storage)
+    } else {
+        // 不使用全文索引，直接创建普通存储
+        let event_storage = EventEmittingStorage::new((*inner_storage).clone());
+        Arc::new(event_storage)
+    };
 
     // Create a transaction manager
     let db = storage.inner().get_db().clone();
@@ -159,9 +150,8 @@ pub async fn execute_query(query_str: &str) -> DBResult<()> {
     let config = crate::config::Config::default();
     let inner_storage = Arc::new(DefaultStorage::new()?);
 
-    // 初始化事件系统（简化版本，不启用全文索引）
-    let event_hub = Arc::new(MemoryEventHub::new());
-    let event_storage = EventEmittingStorage::new((*inner_storage).clone(), event_hub);
+    // 初始化存储（简化版本，不启用全文索引）
+    let event_storage = EventEmittingStorage::new((*inner_storage).clone());
     let storage = Arc::new(event_storage);
 
     let graph_service =

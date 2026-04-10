@@ -3,7 +3,7 @@
 //! Unified synchronization manager with timer-based batch commit.
 
 use crate::coordinator::{ChangeType, FulltextCoordinator};
-use crate::core::error::{CoordinatorError, FulltextError, VectorCoordinatorError};
+use crate::core::error::{CoordinatorError, VectorCoordinatorError};
 use crate::core::Value;
 use crate::search::SyncConfig;
 use crate::sync::batch::{BatchConfig, BufferError, TaskBuffer};
@@ -32,7 +32,35 @@ pub struct SyncManager {
     mode: Arc<RwLock<SyncMode>>,
     running: Arc<std::sync::atomic::AtomicBool>,
     recovery: Option<Arc<RecoveryManager>>,
+    #[allow(clippy::type_complexity)]
     handle: Mutex<Option<tokio::task::JoinHandle<()>>>,
+}
+
+impl Clone for SyncManager {
+    fn clone(&self) -> Self {
+        Self {
+            fulltext_coordinator: self.fulltext_coordinator.clone(),
+            vector_coordinator: self.vector_coordinator.clone(),
+            buffer: self.buffer.clone(),
+            mode: self.mode.clone(),
+            running: self.running.clone(),
+            recovery: self.recovery.clone(),
+            handle: Mutex::new(None), // 不克隆 handle
+        }
+    }
+}
+
+impl std::fmt::Debug for SyncManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SyncManager")
+            .field("fulltext_coordinator", &self.fulltext_coordinator)
+            .field("vector_coordinator", &self.vector_coordinator)
+            .field("buffer", &self.buffer)
+            .field("mode", &self.mode)
+            .field("running", &self.running)
+            .field("recovery", &self.recovery)
+            .finish_non_exhaustive()
+    }
 }
 
 impl SyncManager {
@@ -273,8 +301,6 @@ impl SyncManager {
         let buffer = self.buffer.clone();
         let running = self.running.clone();
         let commit_interval = self.buffer.config().commit_interval;
-        let recovery = self.recovery.clone();
-        let vector_coordinator = self.vector_coordinator.clone();
 
         running.store(true, std::sync::atomic::Ordering::SeqCst);
 
@@ -284,16 +310,7 @@ impl SyncManager {
             while running.load(std::sync::atomic::Ordering::SeqCst) {
                 ticker.tick().await;
 
-                if let Some(task) = buffer.try_next_task().await {
-                    Self::execute_task(
-                        &buffer,
-                        &task,
-                        recovery.as_ref(),
-                        vector_coordinator.as_ref(),
-                    )
-                    .await;
-                }
-
+                // 处理索引缓冲区的批量提交
                 let keys = buffer.get_buffer_keys().await;
                 for key in keys {
                     if buffer.should_commit(&key).await {
@@ -321,267 +338,6 @@ impl SyncManager {
         }
     }
 
-    pub async fn process_queue(&self) {
-        loop {
-            if !self.running.load(std::sync::atomic::Ordering::SeqCst) {
-                break;
-            }
-
-            match self.buffer.next_task().await {
-                Some(task) => {
-                    Self::execute_task(
-                        &self.buffer,
-                        &task,
-                        self.recovery.as_ref(),
-                        self.vector_coordinator.as_ref(),
-                    )
-                    .await;
-                }
-                None => {
-                    tokio::time::sleep(Duration::from_millis(100)).await;
-                }
-            }
-        }
-    }
-
-    async fn execute_task(
-        buffer: &TaskBuffer,
-        task: &SyncTask,
-        recovery: Option<&Arc<RecoveryManager>>,
-        vector_coordinator: Option<&Arc<VectorCoordinator>>,
-    ) {
-        let result = Self::process_task(buffer, task, vector_coordinator).await;
-
-        match result {
-            Ok(_) => {
-                log::debug!("Task executed successfully: {}", task.task_id());
-            }
-            Err(e) => {
-                log::error!("Task execution failed [{}]: {}", task.task_id(), e);
-                if let Some(recovery) = recovery {
-                    if let Err(re) = recovery.record_failure(task.clone(), e.to_string()).await {
-                        log::error!("Failed to record task failure: {}", re);
-                    }
-                }
-            }
-        }
-    }
-
-    async fn process_task(
-        buffer: &TaskBuffer,
-        task: &SyncTask,
-        vector_coordinator: Option<&Arc<VectorCoordinator>>,
-    ) -> Result<(), SyncError> {
-        match task {
-            SyncTask::VertexChange {
-                space_id,
-                tag_name,
-                vertex_id,
-                properties,
-                change_type,
-                ..
-            } => {
-                let props: std::collections::HashMap<_, _> = properties.iter().cloned().collect();
-                let coordinator = buffer.coordinator();
-                coordinator
-                    .on_vertex_change(*space_id, tag_name, vertex_id, &props, *change_type)
-                    .await?;
-
-                if let Some(vector_coord) = vector_coordinator {
-                    for (field_name, value) in properties {
-                        if vector_coord.index_exists(*space_id, tag_name, field_name) {
-                            let vector = value.as_vector();
-                            let mut payload = HashMap::new();
-                            payload.insert("vertex_id".to_string(), vertex_id.clone());
-
-                            let ctx = crate::vector::coordinator::VectorChangeContext::new(
-                                *space_id,
-                                tag_name,
-                                field_name,
-                                vertex_id.clone(),
-                                vector,
-                                payload,
-                                VectorChangeType::from(*change_type),
-                            );
-
-                            vector_coord
-                                .on_vector_change(ctx.clone())
-                                .await
-                                .map_err(|e| SyncError::VectorError(e.to_string()))?;
-                        }
-                    }
-                }
-                Ok(())
-            }
-            SyncTask::BatchIndex {
-                space_id,
-                tag_name,
-                field_name,
-                documents,
-                ..
-            } => {
-                if let Some(engine) = buffer
-                    .coordinator()
-                    .get_engine(*space_id, tag_name, field_name)
-                {
-                    engine.index_batch(documents.clone()).await.map_err(|e| {
-                        SyncError::from(CoordinatorError::from(FulltextError::from(e)))
-                    })?;
-                }
-                Ok(())
-            }
-            SyncTask::BatchDelete {
-                space_id,
-                tag_name,
-                field_name,
-                doc_ids,
-                ..
-            } => {
-                if let Some(engine) = buffer
-                    .coordinator()
-                    .get_engine(*space_id, tag_name, field_name)
-                {
-                    let mut last_error = None;
-                    for doc_id in doc_ids {
-                        if let Err(e) = engine.delete(doc_id).await {
-                            last_error = Some(e);
-                        }
-                    }
-                    if let Some(e) = last_error {
-                        return Err(SyncError::from(CoordinatorError::from(
-                            FulltextError::from(e),
-                        )));
-                    } else {
-                        engine.commit().await.map_err(|e| {
-                            SyncError::from(CoordinatorError::from(FulltextError::from(e)))
-                        })?;
-                    }
-                }
-                Ok(())
-            }
-            SyncTask::CommitIndex {
-                space_id,
-                tag_name,
-                field_name,
-                ..
-            } => {
-                if let Some(engine) = buffer
-                    .coordinator()
-                    .get_engine(*space_id, tag_name, field_name)
-                {
-                    engine.commit().await.map_err(|e| {
-                        SyncError::from(CoordinatorError::from(FulltextError::from(e)))
-                    })?;
-                }
-                Ok(())
-            }
-            SyncTask::RebuildIndex {
-                space_id,
-                tag_name,
-                field_name,
-                ..
-            } => {
-                buffer
-                    .coordinator()
-                    .rebuild_index(*space_id, tag_name, field_name)
-                    .await?;
-                Ok(())
-            }
-
-            SyncTask::VectorChange {
-                space_id,
-                tag_name,
-                field_name,
-                vertex_id,
-                vector,
-                payload,
-                change_type,
-                ..
-            } => {
-                if let Some(vector_coord) = vector_coordinator {
-                    let ctx = crate::vector::coordinator::VectorChangeContext::new(
-                        *space_id,
-                        tag_name,
-                        field_name,
-                        vertex_id.clone(),
-                        vector.clone(),
-                        payload.clone(),
-                        *change_type,
-                    );
-                    vector_coord
-                        .on_vector_change(ctx.clone())
-                        .await
-                        .map_err(|e| SyncError::VectorError(e.to_string()))?;
-                }
-                Ok(())
-            }
-            SyncTask::VectorBatchUpsert {
-                space_id,
-                tag_name,
-                field_name,
-                points,
-                ..
-            } => {
-                if let Some(vector_coord) = vector_coordinator {
-                    let vector_points: Vec<vector_client::types::VectorPoint> = points
-                        .iter()
-                        .map(|p| {
-                            let json_payload: HashMap<String, serde_json::Value> = p
-                                .payload
-                                .iter()
-                                .filter_map(|(k, v)| {
-                                    serde_json::to_value(v).ok().map(|json| (k.clone(), json))
-                                })
-                                .collect();
-                            vector_client::types::VectorPoint::new(&p.id, p.vector.clone())
-                                .with_payload(json_payload)
-                        })
-                        .collect();
-
-                    vector_coord
-                        .upsert_batch(*space_id, tag_name, field_name, vector_points)
-                        .await
-                        .map_err(|e| SyncError::VectorError(e.to_string()))?;
-                }
-                Ok(())
-            }
-            SyncTask::VectorBatchDelete {
-                space_id,
-                tag_name,
-                field_name,
-                point_ids,
-                ..
-            } => {
-                if let Some(vector_coord) = vector_coordinator {
-                    vector_coord
-                        .delete_batch(
-                            *space_id,
-                            tag_name,
-                            field_name,
-                            point_ids.iter().map(|s| s.as_str()).collect(),
-                        )
-                        .await
-                        .map_err(|e| SyncError::VectorError(e.to_string()))?;
-                }
-                Ok(())
-            }
-            SyncTask::VectorRebuildIndex {
-                space_id,
-                tag_name,
-                field_name,
-                ..
-            } => {
-                if let Some(vector_coord) = vector_coordinator {
-                    vector_coord
-                        .drop_vector_index(*space_id, tag_name, field_name)
-                        .await
-                        .map_err(|e| SyncError::VectorError(e.to_string()))?;
-                }
-                Ok(())
-            }
-        }
-    }
-
     pub async fn get_mode(&self) -> SyncMode {
         *self.mode.read().await
     }
@@ -592,16 +348,7 @@ impl SyncManager {
     }
 
     pub async fn force_commit(&self) -> Result<(), SyncError> {
-        while let Some(task) = self.buffer.try_next_task().await {
-            Self::execute_task(
-                &self.buffer,
-                &task,
-                self.recovery.as_ref(),
-                self.vector_coordinator.as_ref(),
-            )
-            .await;
-        }
-
+        // 强制提交索引缓冲区
         let results = self.buffer.commit_all().await;
 
         for (key, result) in results {
@@ -633,6 +380,8 @@ impl SyncManager {
 
 #[derive(Debug, thiserror::Error)]
 pub enum SyncError {
+    #[error("Event error: {0}")]
+    Event(#[from] crate::event::EventError),
     #[error("Buffer error: {0}")]
     BufferError(#[from] BufferError),
     #[error("Coordinator error: {0}")]
