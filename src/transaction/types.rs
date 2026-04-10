@@ -383,6 +383,8 @@ pub struct TransactionConfig {
     pub query_timeout: Option<Duration>,
     pub statement_timeout: Option<Duration>,
     pub idle_timeout: Option<Duration>,
+    /// Whether to enable two-phase commit
+    pub two_phase_commit: bool,
 }
 
 impl Default for TransactionConfig {
@@ -394,6 +396,7 @@ impl Default for TransactionConfig {
             query_timeout: None,
             statement_timeout: None,
             idle_timeout: None,
+            two_phase_commit: false,
         }
     }
 }
@@ -430,6 +433,11 @@ impl TransactionConfig {
 
     pub fn with_idle_timeout(mut self, timeout: Option<Duration>) -> Self {
         self.idle_timeout = timeout;
+        self
+    }
+
+    pub fn with_two_phase_commit(mut self, enabled: bool) -> Self {
+        self.two_phase_commit = enabled;
         self
     }
 }

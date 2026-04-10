@@ -126,7 +126,7 @@ fn test_abort_transaction() {
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
-        .expect("开始事务失败");
+        .expect("Failed to start transaction");
 
     assert!(manager.is_transaction_active(txn_id));
 
@@ -221,7 +221,7 @@ fn test_abort_already_aborted_transaction() {
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
-        .expect("开始事务失败");
+        .expect("Failed to start transaction");
 
     manager
         .abort_transaction(txn_id)

@@ -46,7 +46,7 @@ impl Clone for SyncManager {
             mode: self.mode.clone(),
             running: self.running.clone(),
             recovery: self.recovery.clone(),
-            handle: Mutex::new(None), // 不克隆 handle
+            handle: Mutex::new(None), // No cloning handle
         }
     }
 }
@@ -320,7 +320,7 @@ impl SyncManager {
             while running.load(std::sync::atomic::Ordering::SeqCst) {
                 ticker.tick().await;
 
-                // 处理全文索引缓冲区的批量提交
+                // Handle bulk commits of full-text index buffers
                 let keys = buffer.get_buffer_keys().await;
                 for key in keys {
                     if buffer.should_commit(&key).await {
@@ -333,7 +333,7 @@ impl SyncManager {
                     }
                 }
 
-                // 处理向量批量任务
+                // Processing Vector Batch Tasks
                 if let Some(ref vc) = vector_coord {
                     if let Err(e) = Self::process_vector_batch_tasks(vc, &buffer, batch_size).await {
                         log::error!("Vector batch processing failed: {:?}", e);
@@ -351,11 +351,11 @@ impl SyncManager {
         buffer: &Arc<TaskBuffer>,
         batch_size: usize,
     ) -> Result<(), SyncError> {
-        // 从队列中收集向量批量任务
+        // Collect vector batch tasks from queues
         let vector_tasks = buffer.drain_vector_tasks(batch_size).await;
 
         if !vector_tasks.is_empty() {
-            // 按集合分组
+            // cluster
             let mut upsert_by_collection: HashMap<String, Vec<crate::sync::task::VectorPointData>> = HashMap::new();
             let mut delete_by_collection: HashMap<String, Vec<String>> = HashMap::new();
 
@@ -397,7 +397,7 @@ impl SyncManager {
                 }
             }
 
-            // 批量 upsert
+            // batch upsert
             for (collection_name, points) in upsert_by_collection {
                 if !points.is_empty() {
                     let vector_points: Vec<VectorPoint> = points
@@ -421,7 +421,7 @@ impl SyncManager {
                 }
             }
 
-            // 批量 delete
+            // Batch delete
             for (collection_name, point_ids) in delete_by_collection {
                 if !point_ids.is_empty() {
                     let refs: Vec<&str> = point_ids.iter().map(|s| s.as_str()).collect();
@@ -456,7 +456,7 @@ impl SyncManager {
     }
 
     pub async fn force_commit(&self) -> Result<(), SyncError> {
-        // 强制提交索引缓冲区
+        // Force commit index buffer
         let results = self.buffer.commit_all().await;
 
         for (key, result) in results {
@@ -484,6 +484,201 @@ impl SyncManager {
     pub fn recovery(&self) -> Option<&Arc<RecoveryManager>> {
         self.recovery.as_ref()
     }
+
+    // ==================== Two-Phase Commit API ====================
+
+    /// Phase 1: Prepare for submission
+    /// Collects pending updates and performs index synchronization asynchronously
+    pub async fn prepare_commit(
+        &self,
+        txn_id: crate::transaction::types::TransactionId,
+    ) -> Result<Arc<crate::transaction::SyncHandle>, SyncError> {
+        use crate::transaction::sync_handle::SyncHandle;
+        use tokio::sync::oneshot;
+
+        // 1. Get pending updates from buffer (async)
+        let pending_updates = self.buffer.get_pending_updates(txn_id).await;
+
+        // 2. Creating synchronization handles
+        let (tx, rx) = oneshot::channel();
+        let handle = Arc::new(SyncHandle::new(txn_id, pending_updates.clone(), tx, rx));
+
+        // 3. Perform index synchronization asynchronously
+        let handle_clone = handle.clone();
+        let sync_manager = self.clone();
+
+        tokio::spawn(async move {
+            handle_clone.set_state(crate::transaction::sync_handle::SyncHandleState::Syncing);
+
+            // Perform the actual index synchronization
+            let result = sync_manager.execute_pending_updates(&handle_clone.pending_updates).await;
+
+            match result {
+                Ok(()) => {
+                    handle_clone.set_state(crate::transaction::sync_handle::SyncHandleState::Synced);
+                    let _ = handle_clone.completion_tx.send(Ok(()));
+                }
+                Err(e) => {
+                    handle_clone.set_state(crate::transaction::sync_handle::SyncHandleState::SyncFailed);
+                    let _ = handle_clone.completion_tx.send(Err(e));
+                }
+            }
+        });
+
+        Ok(handle)
+    }
+
+    /// Perform pending index updates
+    async fn execute_pending_updates(
+        &self,
+        updates: &[crate::sync::pending_update::PendingIndexUpdate],
+    ) -> Result<(), SyncError> {
+        // Updates grouped by type
+        let mut fulltext_upserts = Vec::new();
+        let mut fulltext_deletes = Vec::new();
+        let mut vector_upserts: HashMap<String, Vec<crate::sync::task::VectorPointData>> =
+            HashMap::new();
+        let mut vector_deletes: HashMap<String, Vec<String>> = HashMap::new();
+
+        for update in updates {
+            match update.change_type {
+                ChangeType::Insert | ChangeType::Update => {
+                    // full-text index
+                    if let Some(ref content) = update.content {
+                        fulltext_upserts.push((update.doc_id.clone(), content.clone()));
+                    }
+
+                    // Vector index (if any)
+                    if let Some(ref vector_coord) = self.vector_coordinator {
+                        if vector_coord.index_exists(update.space_id, &update.tag_name, &update.field_name) {
+                            // TODO: 需要从内容中提取向量，这里简化处理
+                            // Practical implementations require more complex vector extraction logic
+                        }
+                    }
+                }
+                ChangeType::Delete => {
+                    fulltext_deletes.push(update.doc_id.clone());
+
+                    if let Some(ref vector_coord) = self.vector_coordinator {
+                        if vector_coord.index_exists(update.space_id, &update.tag_name, &update.field_name) {
+                            let collection_name =
+                                crate::sync::vector_sync::VectorIndexLocation::new(
+                                    update.space_id,
+                                    &update.tag_name,
+                                    &update.field_name,
+                                )
+                                .to_collection_name();
+                            vector_deletes
+                                .entry(collection_name)
+                                .or_insert_with(Vec::new)
+                                .push(update.doc_id.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        // Batch submission of full-text index
+        if !fulltext_upserts.is_empty() {
+            let ctx = crate::coordinator::FulltextBatchContext::new(
+                fulltext_upserts.into_iter().collect(),
+                fulltext_deletes.into_iter().collect(),
+            );
+            self.fulltext_coordinator.batch_sync(ctx).await?;
+        }
+
+        // Batch commit vector index
+        if let Some(ref vector_coord) = self.vector_coordinator {
+            for (collection_name, points) in vector_upserts {
+                vector_coord
+                    .upsert_points(&collection_name, points)
+                    .await
+                    .map_err(|e| SyncError::VectorError(e.to_string()))?;
+            }
+
+            for (collection_name, ids) in vector_deletes {
+                vector_coord
+                    .delete_points(&collection_name, ids)
+                    .await
+                    .map_err(|e| SyncError::VectorError(e.to_string()))?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Phase 2: Confirm submission
+    pub fn commit_sync(&self, handle: Arc<crate::transaction::SyncHandle>) -> Result<(), SyncError> {
+        // Verification Status
+        if handle.state() != crate::transaction::sync_handle::SyncHandleState::Synced {
+            return Err(SyncError::InvalidState);
+        }
+
+        // Mark as confirmed
+        handle.set_state(crate::transaction::sync_handle::SyncHandleState::Confirmed);
+
+        // Clean up resources (the actual indexing has been synchronized in the prepare phase)
+        Ok(())
+    }
+
+    /// Phase 2: Cancel submission
+    pub fn abort_sync(&self, handle: Arc<crate::transaction::SyncHandle>) -> Result<(), SyncError> {
+        // Marked as canceled
+        handle.set_state(crate::transaction::sync_handle::SyncHandleState::Cancelled);
+
+        // In FailClosed mode, you need to roll back synchronized indexes
+        if self.buffer.config().failure_policy == crate::search::SyncFailurePolicy::FailClosed {
+            self.rollback_pending_updates(&handle.pending_updates)?;
+        }
+
+        Ok(())
+    }
+
+    /// Rolling back pending updates
+    fn rollback_pending_updates(
+        &self,
+        updates: &[crate::sync::pending_update::PendingIndexUpdate],
+    ) -> Result<(), SyncError> {
+        // Perform rollback in reverse order
+        for update in updates.iter().rev() {
+            match update.change_type {
+                ChangeType::Insert => {
+                    // Deleting an Inserted Index
+                    if let Some(ref content) = update.content {
+                        self.fulltext_coordinator
+                            .delete_document(update.space_id, &update.tag_name, &update.doc_id)
+                            .map_err(|e| SyncError::CoordinatorError(e))?;
+                    }
+                }
+                ChangeType::Delete => {
+                    // Recovering deleted indexes
+                    // TODO: 需要保存原始内容以便恢复
+                }
+                ChangeType::Update => {
+                    // TODO: 恢复旧值
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Buffered index updates (within a transaction)
+    pub async fn buffer_update(
+        &self,
+        txn_id: crate::transaction::types::TransactionId,
+        update: crate::transaction::PendingIndexUpdate,
+    ) -> Result<(), SyncError> {
+        self.buffer.add_pending_update(txn_id, update).await
+            .map_err(|e| SyncError::BufferError(e))
+    }
+
+    /// Get pending updates
+    pub async fn get_pending_updates(
+        &self,
+        txn_id: crate::transaction::types::TransactionId,
+    ) -> Vec<crate::transaction::PendingIndexUpdate> {
+        self.buffer.take_pending_updates(txn_id).await
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -502,6 +697,8 @@ pub enum SyncError {
     VectorError(String),
     #[error("Internal error: {0}")]
     Internal(String),
+    #[error("Invalid state")]
+    InvalidState,
 }
 
 #[cfg(test)]

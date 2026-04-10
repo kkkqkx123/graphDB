@@ -196,6 +196,43 @@ impl TransactionManager {
         // Execute commit
         context.transition_to(TransactionState::Committing)?;
 
+        // Phase 1: Prepare (if two-phase commit is enabled)
+        if context.is_two_phase_enabled() {
+            if let Some(ref sync_manager) = self.sync_manager {
+                // 1. Prepare index sync (async, block on sync method)
+                let sync_handle = futures::executor::block_on(
+                    sync_manager.prepare_commit(txn_id)
+                )
+                .map_err(|e| TransactionError::SyncFailed(e.to_string()))?;
+
+                context.set_sync_handle(sync_handle.clone());
+
+                // 2. Wait for sync completion
+                match sync_handle.wait_for_completion() {
+                    Ok(()) => {
+                        // Sync successful, proceed to commit
+                        log::debug!("Index sync prepared successfully for transaction {:?}", txn_id);
+                    }
+                    Err(e) => {
+                        // Sync failed, handle based on policy
+                        match sync_manager.buffer().config().failure_policy {
+                            crate::search::SyncFailurePolicy::FailClosed => {
+                                // Fail closed: abort transaction before redb commit
+                                log::error!("Index sync failed, aborting transaction {:?}: {}", txn_id, e);
+                                self.abort_transaction_internal(context.clone())?;
+                                return Err(TransactionError::SyncFailed(e.to_string()));
+                            }
+                            crate::search::SyncFailurePolicy::FailOpen => {
+                                // Fail open: proceed with commit
+                                log::warn!("Index sync failed but proceeding with fail_open: {}", e);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Phase 2: Commit
         // Commit redb transaction
         if !context.read_only {
             let mut write_txn = context.take_write_txn()?;
@@ -212,27 +249,34 @@ impl TransactionManager {
 
         context.transition_to(TransactionState::Committed)?;
 
-        // Trigger fulltext and vector index sync after successful commit
-        if let Some(ref sync_manager) = self.sync_manager {
-            // Get failure policy from sync manager's buffer config
-            let failure_policy = sync_manager.buffer().config().failure_policy;
-            
-            match futures::executor::block_on(sync_manager.force_commit()) {
-                Ok(()) => {
-                    log::debug!("Index sync completed successfully after transaction commit");
+        // Confirm index commit (if two-phase commit was used)
+        if context.is_two_phase_enabled() {
+            if let Some(ref sync_manager) = self.sync_manager {
+                if let Some(handle) = context.clear_sync_handle() {
+                    if let Err(e) = sync_manager.commit_sync(handle) {
+                        log::error!("Failed to confirm index sync for transaction {:?}: {}", txn_id, e);
+                        // Note: redb already committed, can only log error
+                    }
                 }
-                Err(e) => {
-                    match failure_policy {
-                        crate::search::SyncFailurePolicy::FailClosed => {
-                            // Fail closed: rollback transaction on sync failure
-                            log::error!("Index sync failed, rolling back transaction: {}", e);
-                            // Note: redb transaction already committed, so we can only log the error
-                            // In a real implementation, we would need to use a two-phase commit
-                            return Err(TransactionError::SyncFailed(e.to_string()));
-                        }
-                        crate::search::SyncFailurePolicy::FailOpen => {
-                            // Fail open: log warning but allow transaction to succeed
-                            log::warn!("Index sync failed but transaction committed (fail_open policy): {}", e);
+            }
+        } else {
+            // Old mode: trigger sync after commit
+            if let Some(ref sync_manager) = self.sync_manager {
+                let failure_policy = sync_manager.buffer().config().failure_policy;
+
+                match futures::executor::block_on(sync_manager.force_commit()) {
+                    Ok(()) => {
+                        log::debug!("Index sync completed successfully after transaction commit");
+                    }
+                    Err(e) => {
+                        match failure_policy {
+                            crate::search::SyncFailurePolicy::FailClosed => {
+                                log::error!("Index sync failed: {}", e);
+                                return Err(TransactionError::SyncFailed(e.to_string()));
+                            }
+                            crate::search::SyncFailurePolicy::FailOpen => {
+                                log::warn!("Index sync failed but transaction committed (fail_open policy): {}", e);
+                            }
                         }
                     }
                 }

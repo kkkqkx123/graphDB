@@ -30,22 +30,22 @@ use thiserror::Error;
 use tokio::sync::{mpsc, Mutex, RwLock};
 use tokio::time::Duration;
 
-/// 队列错误类型
+/// Queue Error Type
 #[derive(Debug, Error)]
 pub enum QueueError {
-    /// 处理器错误
+    /// processor error
     #[error("Handler error: {0}")]
     HandlerError(String),
 
-    /// 队列已满
+    /// The queue is full.
     #[error("Queue is full")]
     QueueFull,
 
-    /// 队列已关闭
+    /// Queue closed
     #[error("Queue is closed")]
     QueueClosed,
 
-    /// 内部错误
+    /// internal error
     #[error("Internal error: {0}")]
     InternalError(String),
 }
@@ -58,18 +58,18 @@ impl From<std::io::Error> for QueueError {
 
 pub type QueueResult<T> = Result<T, QueueError>;
 
-/// 队列配置
+/// Queue Configuration
 #[derive(Debug, Clone)]
 pub struct QueueConfig {
-    /// 队列最大容量
+    /// Maximum queue capacity
     pub max_queue_size: usize,
-    /// 批量处理的最大项数
+    /// Maximum number of items for batch processing
     pub batch_size: usize,
-    /// 批量处理的时间间隔（毫秒）
+    /// Time interval for batch processing (milliseconds)
     pub batch_interval_ms: u64,
-    /// 最大重试次数
+    /// Maximum number of retries
     pub max_retries: u32,
-    /// 死信队列最大容量
+    /// Maximum dead letter queue capacity
     pub dead_letter_queue_size: usize,
 }
 
@@ -85,14 +85,14 @@ impl Default for QueueConfig {
     }
 }
 
-/// 待处理项
+/// Pending items
 #[derive(Debug, Clone)]
 struct PendingItem<T> {
     item: T,
     retry_count: u32,
 }
 
-/// 死信队列中的项
+/// Items in the dead letter queue
 #[derive(Debug, Clone)]
 pub struct DeadLetterItem<T> {
     pub item: T,
@@ -101,12 +101,12 @@ pub struct DeadLetterItem<T> {
     pub timestamp: std::time::SystemTime,
 }
 
-/// 队列处理器 trait（泛型版本）
+/// Queue processor trait (generalized version)
 pub trait QueueHandler<T>: Send + Sync {
     fn handle_item(&self, item: &T) -> Result<(), QueueError>;
 
     fn handle_batch(&self, items: &[T]) -> Result<(), QueueError> {
-        // 默认逐个处理
+        // Default processing on a case-by-case basis
         for item in items {
             self.handle_item(item)?;
         }
@@ -114,7 +114,7 @@ pub trait QueueHandler<T>: Send + Sync {
     }
 }
 
-/// 异步队列（泛型版本）
+/// Asynchronous queue (generalized version)
 pub struct AsyncQueue<T>
 where
     T: Clone + Send + Sync + 'static,
@@ -141,7 +141,7 @@ impl<T> AsyncQueue<T>
 where
     T: Clone + Send + Sync + 'static,
 {
-    /// 创建新的异步队列
+    /// Creating a new asynchronous queue
     pub fn new(config: QueueConfig) -> Self {
         let (shutdown_tx, _) = mpsc::channel(1);
         let pending_queue = Arc::new(Mutex::new(VecDeque::with_capacity(config.max_queue_size)));
@@ -158,22 +158,22 @@ where
         }
     }
 
-    /// 设置处理器
+    /// Setting up the processor
     pub fn set_handler(&mut self, handler: Arc<dyn QueueHandler<T>>) {
         self.handler = Some(handler);
     }
 
-    /// 获取待处理队列长度
+    /// Get the length of the pending queue
     pub async fn pending_count(&self) -> usize {
         self.pending_queue.lock().await.len()
     }
 
-    /// 获取死信队列长度
+    /// Get dead letter queue length
     pub async fn dead_letter_count(&self) -> usize {
         self.dead_letter_queue.read().await.len()
     }
 
-    /// 提交项到队列
+    /// Submitting items to the queue
     pub async fn submit(&self, item: T) -> Result<(), QueueError> {
         let mut queue = self.pending_queue.lock().await;
 
@@ -189,7 +189,7 @@ where
         Ok(())
     }
 
-    /// 批量处理
+    /// batch file
     async fn process_batch(&self) -> Result<usize, QueueError> {
         let handler = match &self.handler {
             Some(h) => h.clone(),
@@ -205,7 +205,7 @@ where
             return Ok(0);
         }
 
-        // 取出一批
+        // batch
         let batch_size = std::cmp::min(self.config.batch_size, queue.len());
         let mut batch: Vec<T> = Vec::with_capacity(batch_size);
         let mut pending_retry: Vec<PendingItem<T>> = Vec::new();
@@ -217,17 +217,17 @@ where
             }
         }
 
-        drop(queue); // 释放锁
+        drop(queue); // release a lock
 
-        // 处理批次
+        // Processing batch
         match handler.handle_batch(&batch) {
             Ok(()) => Ok(batch_size),
             Err(e) => {
-                // 处理失败，尝试重试
+                // Processing failed, try retrying
                 for mut pending in pending_retry {
                     pending.retry_count += 1;
                     if pending.retry_count >= self.config.max_retries {
-                        // 超过最大重试次数，移入死信队列
+                        // Maximum number of retries exceeded, moved to dead letter queue
                         self.add_to_dead_letter(
                             pending.item.clone(),
                             format!("{:?}", e),
@@ -235,7 +235,7 @@ where
                         )
                         .await;
                     } else {
-                        // 重新加入队列尾部
+                        // rejoin the tail end of the queue
                         let mut queue = self.pending_queue.lock().await;
                         queue.push_front(pending);
                     }
@@ -248,12 +248,12 @@ where
         }
     }
 
-    /// 添加到死信队列
+    /// Add to dead letter queue
     async fn add_to_dead_letter(&self, item: T, error: String, retry_count: u32) {
         let mut dlq = self.dead_letter_queue.write().await;
 
         if dlq.len() >= self.config.dead_letter_queue_size {
-            // 队列已满，移除最旧的项
+            // Queue is full. Remove oldest item.
             dlq.pop_front();
         }
 
@@ -265,19 +265,19 @@ where
         });
     }
 
-    /// 获取死信队列中的项
+    /// Getting items in the dead letter queue
     pub async fn get_dead_letter_items(&self, limit: usize) -> Vec<DeadLetterItem<T>> {
         let dlq = self.dead_letter_queue.read().await;
         dlq.iter().take(limit).cloned().collect()
     }
 
-    /// 清空死信队列
+    /// Empty the dead letter queue
     pub async fn clear_dead_letter_queue(&self) {
         let mut dlq = self.dead_letter_queue.write().await;
         dlq.clear();
     }
 
-    /// 启动后台处理循环
+    /// Start the background processing loop
     pub async fn start_processing(&self) -> Result<(), QueueError> {
         let interval = Duration::from_millis(self.config.batch_interval_ms);
         let mut timer = tokio::time::interval(interval);
@@ -285,16 +285,16 @@ where
         loop {
             timer.tick().await;
 
-            // 处理一批
+            // batch
             match self.process_batch().await {
                 Ok(count) if count > 0 => {
-                    // 成功处理 count 个
+                    // Successfully processed count
                 }
                 Ok(_) => {
-                    // 队列为空，继续等待
+                    // The queue is empty. Keep waiting.
                 }
                 Err(e) => {
-                    // 记录错误，但不中断处理循环
+                    // Logging errors without interrupting the processing loop
                     eprintln!("Error processing batch: {:?}", e);
                 }
             }
@@ -311,7 +311,7 @@ mod tests {
         let config = QueueConfig::default();
         let queue = AsyncQueue::new(config);
 
-        // 提交测试项
+        // Submitting Test Items
         queue
             .submit("test".to_string())
             .await
@@ -345,7 +345,7 @@ mod tests {
         });
         queue.set_handler(handler.clone());
 
-        // 提交多个项
+        // Submission of multiple items
         for i in 0..10 {
             queue
                 .submit(format!("item_{}", i))
@@ -353,7 +353,7 @@ mod tests {
                 .expect("Submit should succeed");
         }
 
-        // 处理一批
+        // batch
         let processed = queue.process_batch().await.expect("Process should succeed");
         assert_eq!(processed, 5);
         assert_eq!(handler.count.load(Ordering::SeqCst), 5);

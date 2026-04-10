@@ -5,6 +5,7 @@
 use crate::coordinator::FulltextCoordinator;
 use crate::sync::queue::{AsyncQueue, QueueConfig, QueueError, QueueHandler};
 use crate::sync::task::SyncTask;
+use crate::transaction::types::TransactionId;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -130,6 +131,8 @@ pub struct TaskBuffer {
     config: BatchConfig,
     queue: Arc<AsyncQueue<SyncTask>>,
     handler: Arc<SyncTaskHandler>,
+    /// 事务内待处理更新缓冲区（两阶段提交用）
+    pending_updates: Mutex<HashMap<TransactionId, Vec<crate::transaction::PendingIndexUpdate>>>,
 }
 
 impl std::fmt::Debug for TaskBuffer {
@@ -161,6 +164,7 @@ impl TaskBuffer {
             config,
             queue: Arc::new(queue),
             handler,
+            pending_updates: Mutex::new(HashMap::new()),
         }
     }
 
@@ -316,7 +320,7 @@ impl TaskBuffer {
     }
 
     pub async fn drain_vector_tasks(&self, batch_size: usize) -> Vec<SyncTask> {
-        // 从队列中批量获取向量任务
+        // Batch Fetch Vector Tasks from Queue
         let mut tasks = Vec::new();
 
         while tasks.len() < batch_size {
@@ -382,6 +386,69 @@ impl TaskBuffer {
 
     pub async fn pending_count(&self) -> usize {
         self.queue.pending_count().await
+    }
+
+    // ==================== 两阶段提交支持 ====================
+
+    /// Add pending updates (intra-transaction buffering)
+    pub async fn add_pending_update(
+        &self,
+        txn_id: TransactionId,
+        update: crate::transaction::PendingIndexUpdate,
+    ) -> Result<(), BufferError> {
+        let mut pending = self.pending_updates.lock().await;
+        pending
+            .entry(txn_id)
+            .or_insert_with(Vec::new)
+            .push(update);
+        Ok(())
+    }
+
+    /// Getting and clearing pending updates
+    pub async fn take_pending_updates(
+        &self,
+        txn_id: TransactionId,
+    ) -> Vec<crate::transaction::PendingIndexUpdate> {
+        let mut pending = self.pending_updates.lock().await;
+        pending
+            .remove(&txn_id)
+            .unwrap_or_default()
+    }
+
+    /// Get pending updates (not deleted)
+    pub async fn get_pending_updates(
+        &self,
+        txn_id: TransactionId,
+    ) -> Vec<crate::transaction::PendingIndexUpdate> {
+        let pending = self.pending_updates.lock().await;
+        pending
+            .get(&txn_id)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// 清理指定事务的待处理更新
+    pub async fn remove_pending_updates(
+        &self,
+        txn_id: TransactionId,
+    ) -> Option<Vec<crate::transaction::PendingIndexUpdate>> {
+        let mut pending = self.pending_updates.lock().await;
+        pending.remove(&txn_id)
+    }
+
+    /// 获取所有有待处理更新的事务 ID
+    pub async fn get_all_pending_txn_ids(&self) -> Vec<TransactionId> {
+        let pending = self.pending_updates.lock().await;
+        pending.keys().cloned().collect()
+    }
+
+    /// 获取待处理更新数量
+    pub async fn pending_updates_count(&self, txn_id: TransactionId) -> usize {
+        let pending = self.pending_updates.lock().await;
+        pending
+            .get(&txn_id)
+            .map(|updates| updates.len())
+            .unwrap_or(0)
     }
 }
 

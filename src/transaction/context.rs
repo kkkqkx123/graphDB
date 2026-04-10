@@ -13,7 +13,10 @@ use parking_lot::{Mutex, RwLock};
 
 use crate::core::StorageError;
 use crate::storage::redb_types::{ByteKey, EDGES_TABLE, NODES_TABLE};
+use crate::sync::pending_update::PendingIndexUpdate;
+use crate::transaction::sync_handle::SyncHandle;
 use crate::transaction::types::*;
+use std::sync::Arc;
 
 /// Transaction Context
 pub struct TransactionContext {
@@ -55,6 +58,12 @@ pub struct TransactionContext {
     /// Database reference (used to create rollback executor, currently unused)
     #[allow(dead_code)]
     db: Option<Arc<redb::Database>>,
+    /// Pending index updates (intra-transaction buffering)
+    pending_index_updates: RwLock<Vec<PendingIndexUpdate>>,
+    /// synchronization handle
+    sync_handle: Mutex<Option<Arc<SyncHandle>>>,
+    /// Whether to enable two-stage submission
+    two_phase_enabled: bool,
 }
 
 /// Savepoint Manager
@@ -136,6 +145,9 @@ impl TransactionContext {
             modified_tables: Mutex::new(Vec::new()),
             savepoint_manager: RwLock::new(SavepointManager::new()),
             db,
+            pending_index_updates: RwLock::new(Vec::new()),
+            sync_handle: Mutex::new(None),
+            two_phase_enabled: config.two_phase_commit,
         }
     }
 
@@ -270,6 +282,44 @@ impl TransactionContext {
 
         self.state.store(new_state);
         Ok(())
+    }
+
+    /// Add Pending Index Updates
+    pub fn add_pending_index_update(&self, update: PendingIndexUpdate) {
+        if self.two_phase_enabled {
+            self.pending_index_updates.write().push(update);
+        }
+        // Old model: immediate asynchronous synchronization (handled by SyncStorage)
+    }
+
+    /// Get and clear all pending updates
+    pub fn take_pending_updates(&self) -> Vec<PendingIndexUpdate> {
+        std::mem::take(&mut *self.pending_index_updates.write())
+    }
+
+    /// Check for pending updates
+    pub fn has_pending_updates(&self) -> bool {
+        !self.pending_index_updates.read().is_empty()
+    }
+
+    /// Setting the synchronization handle
+    pub fn set_sync_handle(&self, handle: Arc<SyncHandle>) {
+        *self.sync_handle.lock() = Some(handle);
+    }
+
+    /// Get Synchronization Handle
+    pub fn get_sync_handle(&self) -> Option<Arc<SyncHandle>> {
+        self.sync_handle.lock().clone()
+    }
+
+    /// Clear Synchronization Handle
+    pub fn clear_sync_handle(&self) -> Option<Arc<SyncHandle>> {
+        self.sync_handle.lock().take()
+    }
+
+    /// Whether to enable two-stage submission
+    pub fn is_two_phase_enabled(&self) -> bool {
+        self.two_phase_enabled
     }
 
     /// Check if operation can be executed
