@@ -3,6 +3,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::search::config::FulltextConfig;
 use crate::vector::config::VectorConfig;
 
 /// Database configuration
@@ -219,6 +220,9 @@ pub struct Config {
     /// Vector search configuration
     #[serde(default)]
     pub vector: VectorConfig,
+    /// Fulltext search configuration
+    #[serde(default)]
+    pub fulltext: FulltextConfig,
 }
 
 impl Config {

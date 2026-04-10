@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use inversearch_service::api::embedded::EmbeddedIndex;
 use inversearch_service::config::EmbeddedConfig;
 use parking_lot::Mutex;
-use std::path::Path;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::path::Path;
 
 use crate::core::Value;
 use crate::search::engine::SearchEngine;
@@ -69,11 +69,11 @@ impl SearchEngine for InversearchEngine {
 
     async fn index(&self, doc_id: &str, content: &str) -> Result<(), SearchError> {
         let doc_id_u64 = Self::string_to_u64(doc_id);
-        
+
         let mut id_mapping = self.id_mapping.lock();
         id_mapping.insert(doc_id.to_string(), doc_id_u64);
         drop(id_mapping);
-        
+
         let mut index = self.index.lock();
         index
             .add(doc_id_u64, content)
@@ -84,7 +84,7 @@ impl SearchEngine for InversearchEngine {
     async fn index_batch(&self, documents: Vec<(String, String)>) -> Result<(), SearchError> {
         let mut id_mapping = self.id_mapping.lock();
         let mut index = self.index.lock();
-        
+
         for (doc_id, content) in documents {
             let doc_id_u64 = Self::string_to_u64(&doc_id);
             id_mapping.insert(doc_id, doc_id_u64);

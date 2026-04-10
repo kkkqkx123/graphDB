@@ -135,13 +135,14 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
 
         // Use pre-resolved tag_name and field_name from planner
         // If they are empty, fallback to runtime resolution (backward compatibility)
-        let (tag_name, field_name) = if !self.node.tag_name.is_empty() && !self.node.field_name.is_empty() {
-            // Use pre-resolved metadata from planner
-            (self.node.tag_name.clone(), self.node.field_name.clone())
-        } else {
-            // Fallback: resolve at runtime (backward compatibility)
-            self.resolve_metadata_at_runtime()?
-        };
+        let (tag_name, field_name) =
+            if !self.node.tag_name.is_empty() && !self.node.field_name.is_empty() {
+                // Use pre-resolved metadata from planner
+                (self.node.tag_name.clone(), self.node.field_name.clone())
+            } else {
+                // Fallback: resolve at runtime (backward compatibility)
+                self.resolve_metadata_at_runtime()?
+            };
 
         let limit = self.node.limit;
         let threshold = self.node.threshold;

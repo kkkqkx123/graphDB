@@ -57,5 +57,8 @@ pub trait MetadataProvider: Send + Sync {
     fn list_tags(&self, space_id: u64) -> Result<Vec<TagMetadata>, MetadataProviderError>;
 
     /// List all edge types
-    fn list_edge_types(&self, space_id: u64) -> Result<Vec<EdgeTypeMetadata>, MetadataProviderError>;
+    fn list_edge_types(
+        &self,
+        space_id: u64,
+    ) -> Result<Vec<EdgeTypeMetadata>, MetadataProviderError>;
 }

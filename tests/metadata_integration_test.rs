@@ -3,9 +3,9 @@
 //! These tests verify the end-to-end flow of metadata pre-resolution
 //! from planner to executor.
 
-use std::sync::Arc;
-use graphdb::query::metadata::{MetadataContext, MetadataProvider, IndexMetadata, IndexType};
 use graphdb::query::metadata::provider::MetadataProviderError;
+use graphdb::query::metadata::{IndexMetadata, IndexType, MetadataContext, MetadataProvider};
+use std::sync::Arc;
 
 /// Mock metadata provider for testing
 #[derive(Debug, Clone)]
@@ -59,7 +59,10 @@ impl MetadataProvider for MockMetadataProvider {
         _space_id: u64,
         tag_name: &str,
     ) -> Result<graphdb::query::metadata::TagMetadata, MetadataProviderError> {
-        Ok(graphdb::query::metadata::TagMetadata::new(tag_name.to_string(), 1))
+        Ok(graphdb::query::metadata::TagMetadata::new(
+            tag_name.to_string(),
+            1,
+        ))
     }
 
     fn get_edge_type_metadata(
@@ -67,7 +70,10 @@ impl MetadataProvider for MockMetadataProvider {
         _space_id: u64,
         edge_type: &str,
     ) -> Result<graphdb::query::metadata::EdgeTypeMetadata, MetadataProviderError> {
-        Ok(graphdb::query::metadata::EdgeTypeMetadata::new(edge_type.to_string(), 1))
+        Ok(graphdb::query::metadata::EdgeTypeMetadata::new(
+            edge_type.to_string(),
+            1,
+        ))
     }
 
     fn list_indexes(&self, space_id: u64) -> Result<Vec<IndexMetadata>, MetadataProviderError> {
@@ -97,7 +103,7 @@ impl MetadataProvider for MockMetadataProvider {
 #[test]
 fn test_metadata_context_basic_operations() {
     let mut context = MetadataContext::new();
-    
+
     // Add index metadata
     let index = IndexMetadata::new(
         "test_index".to_string(),
@@ -106,14 +112,14 @@ fn test_metadata_context_basic_operations() {
         "embedding".to_string(),
         IndexType::Vector,
     );
-    
+
     context.set_index_metadata("test_index".to_string(), index.clone());
-    
+
     // Retrieve index metadata
     let retrieved = context.get_index_metadata("test_index");
     assert!(retrieved.is_some());
     assert_eq!(retrieved.unwrap().tag_name, "person");
-    
+
     // Check non-existent index
     assert!(context.get_index_metadata("nonexistent").is_none());
 }
@@ -121,18 +127,18 @@ fn test_metadata_context_basic_operations() {
 #[test]
 fn test_metadata_provider_integration() {
     let provider = MockMetadataProvider::new();
-    
+
     // Test get_index_metadata
     let result = provider.get_index_metadata(1, "person_embedding_index");
     assert!(result.is_ok());
     let metadata = result.unwrap();
     assert_eq!(metadata.tag_name, "person");
     assert_eq!(metadata.field_name, "embedding");
-    
+
     // Test non-existent index
     let result = provider.get_index_metadata(1, "nonexistent_index");
     assert!(result.is_err());
-    
+
     // Test list_indexes
     let indexes = provider.list_indexes(1).unwrap();
     assert_eq!(indexes.len(), 2);
@@ -142,11 +148,13 @@ fn test_metadata_provider_integration() {
 fn test_metadata_context_from_provider() {
     let provider = Arc::new(MockMetadataProvider::new());
     let mut context = MetadataContext::new();
-    
+
     // Pre-resolve metadata from provider
-    let index_metadata = provider.get_index_metadata(1, "person_embedding_index").unwrap();
+    let index_metadata = provider
+        .get_index_metadata(1, "person_embedding_index")
+        .unwrap();
     context.set_index_metadata("person_embedding_index".to_string(), index_metadata);
-    
+
     // Verify context contains the metadata
     let retrieved = context.get_index_metadata("person_embedding_index");
     assert!(retrieved.is_some());
@@ -160,7 +168,7 @@ fn test_metadata_context_from_provider() {
 fn test_metadata_context_merge() {
     let mut context1 = MetadataContext::new();
     let mut context2 = MetadataContext::new();
-    
+
     // Add different indexes to each context
     let index1 = IndexMetadata::new(
         "index1".to_string(),
@@ -176,13 +184,13 @@ fn test_metadata_context_merge() {
         "field2".to_string(),
         IndexType::Vector,
     );
-    
+
     context1.set_index_metadata("index1".to_string(), index1);
     context2.set_index_metadata("index2".to_string(), index2);
-    
+
     // Merge contexts
     context1.merge(context2);
-    
+
     // Verify both indexes are present
     assert!(context1.get_index_metadata("index1").is_some());
     assert!(context1.get_index_metadata("index2").is_some());
@@ -191,7 +199,7 @@ fn test_metadata_context_merge() {
 #[test]
 fn test_metadata_context_clear() {
     let mut context = MetadataContext::new();
-    
+
     let index = IndexMetadata::new(
         "test_index".to_string(),
         1,
@@ -199,10 +207,10 @@ fn test_metadata_context_clear() {
         "embedding".to_string(),
         IndexType::Vector,
     );
-    
+
     context.set_index_metadata("test_index".to_string(), index);
     assert!(context.get_index_metadata("test_index").is_some());
-    
+
     context.clear();
     assert!(context.get_index_metadata("test_index").is_none());
 }
@@ -216,7 +224,7 @@ fn test_index_metadata_properties() {
         "my_field".to_string(),
         IndexType::Vector,
     );
-    
+
     assert_eq!(index.index_name, "my_index");
     assert_eq!(index.space_id, 42);
     assert_eq!(index.tag_name, "my_tag");
@@ -227,7 +235,7 @@ fn test_index_metadata_properties() {
 #[test]
 fn test_metadata_provider_error_handling() {
     let provider = MockMetadataProvider::new();
-    
+
     // Test error for non-existent space
     let result = provider.get_index_metadata(999, "person_embedding_index");
     assert!(result.is_err());
@@ -237,7 +245,7 @@ fn test_metadata_provider_error_handling() {
         }
         _ => panic!("Expected NotFound error"),
     }
-    
+
     // Test error for non-existent index
     let result = provider.get_index_metadata(1, "nonexistent");
     assert!(result.is_err());
@@ -246,11 +254,11 @@ fn test_metadata_provider_error_handling() {
 #[test]
 fn test_multiple_spaces() {
     let provider = MockMetadataProvider::new();
-    
+
     // List indexes for space 1
     let indexes_space1 = provider.list_indexes(1).unwrap();
     assert_eq!(indexes_space1.len(), 2);
-    
+
     // List indexes for non-existent space
     let indexes_space2 = provider.list_indexes(2).unwrap();
     assert_eq!(indexes_space2.len(), 0);

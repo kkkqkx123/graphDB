@@ -194,4 +194,49 @@ impl FulltextIndexManager {
             .map(|entry| entry.value().clone())
             .collect()
     }
+
+    /// 为边属性建立索引
+    pub async fn index_edge_property(
+        &self,
+        space_id: u64,
+        edge_type: &str,
+        field_name: &str,
+        doc_id: &str,
+        text: &str,
+    ) -> Result<(), SearchError> {
+        let key = IndexKey::new(space_id, edge_type, field_name);
+
+        if let Some(engine) = self.engines.get(&key) {
+            engine.index(doc_id, text).await?;
+        }
+        // 如果索引不存在，静默忽略（边可能没有配置全文索引）
+        Ok(())
+    }
+
+    /// 删除边的所有全文索引
+    pub async fn delete_edge_index(
+        &self,
+        space_id: u64,
+        edge_type: &str,
+        doc_id: &str,
+    ) -> Result<(), SearchError> {
+        // 获取该边类型的所有字段索引
+        let edge_indexes: Vec<_> = self
+            .metadata
+            .iter()
+            .filter(|entry| {
+                entry.value().space_id == space_id && entry.value().tag_name == edge_type
+            })
+            .map(|entry| entry.key().clone())
+            .collect();
+
+        // 删除每个字段索引中的边文档
+        for key in edge_indexes {
+            if let Some(engine) = self.engines.get(&key) {
+                engine.delete(doc_id).await.ok(); // 忽略删除失败
+            }
+        }
+
+        Ok(())
+    }
 }

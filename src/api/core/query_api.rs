@@ -2,8 +2,12 @@
 //!
 //! Provides transport layer independent query execution
 
+use crate::api::core::error::{CoreError, CoreResult};
+use crate::api::core::types::{ExecutionMetadata, QueryRequest, QueryResult, Row};
 use crate::core::StatsManager;
-use crate::query::metadata::{CachedMetadataProvider, MetadataProvider, VectorIndexMetadataProvider};
+use crate::query::metadata::{
+    CachedMetadataProvider, MetadataProvider, VectorIndexMetadataProvider,
+};
 use crate::query::{OptimizerEngine, QueryPipelineManager};
 use crate::storage::StorageClient;
 use crate::vector::{VectorConfig, VectorCoordinator, VectorIndexManager};
@@ -58,12 +62,9 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         let cached_provider = Arc::new(CachedMetadataProvider::new(metadata_provider));
 
         // Create pipeline manager with metadata provider
-        let pipeline_manager = QueryPipelineManager::with_optimizer(
-            storage,
-            stats_manager,
-            optimizer_engine,
-        )
-        .with_metadata_provider(cached_provider);
+        let pipeline_manager =
+            QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer_engine)
+                .with_metadata_provider(cached_provider);
 
         Ok(Self {
             pipeline_manager,
@@ -71,7 +72,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         })
     }
 
-    /// Please provide the text you would like to have translated.
+    /// Execute a query with the given query request
     ///
     /// # Parameters
     /// `query`: The query statement
@@ -87,21 +88,10 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
             crate::query::query_request_context::QueryRequestContext::new(query.to_string()),
         );
 
-        // Building spatial information
-        let space_info = ctx.space_id.map(|id| crate::core::types::SpaceInfo {
-            space_id: id,
-            space_name: String::new(),
-            vid_type: crate::core::DataType::String,
-            tags: Vec::new(),
-            edge_types: Vec::new(),
-            version: crate::core::types::MetadataVersion::default(),
-            comment: None,
-        });
-
         // Execute the query (using the new execute_query_with_request method).
         let execution_result = self
             .pipeline_manager
-            .execute_query_with_request(query, rctx, space_info)
+            .execute_query_with_request(query, rctx, None)
             .map_err(|e| CoreError::QueryExecutionFailed(e.to_string()))?;
 
         // Conversion to structured results
@@ -118,9 +108,14 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         params: std::collections::HashMap<String, crate::core::Value>,
         ctx: QueryRequest,
     ) -> CoreResult<QueryResult> {
-        let mut ctx = ctx;
-        ctx.parameters = Some(params);
-        self.execute(query, ctx)
+        // 创建新的 QueryRequest，包含参数
+        let new_ctx = QueryRequest {
+            space_id: ctx.space_id,
+            auto_commit: ctx.auto_commit,
+            transaction_id: ctx.transaction_id,
+            parameters: Some(params),
+        };
+        self.execute(query, new_ctx)
     }
 
     /// Convert execution results to structured query results

@@ -1,3 +1,5 @@
+use crate::api::core::error::CoreError;
+use crate::api::core::types::QueryRequest;
 use crate::api::core::QueryApi;
 use crate::api::server::auth::{Authenticator, AuthenticatorFactory, PasswordAuthenticator};
 use crate::api::server::permission::PermissionManager;
@@ -78,7 +80,10 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             {
                 Ok(api) => Arc::new(Mutex::new(api)),
                 Err(e) => {
-                    warn!("Failed to initialize vector search, falling back to basic QueryApi: {}", e);
+                    warn!(
+                        "Failed to initialize vector search, falling back to basic QueryApi: {}",
+                        e
+                    );
                     Arc::new(Mutex::new(QueryApi::new(Arc::new(Mutex::new(
                         (*storage).clone(),
                     )))))

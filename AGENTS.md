@@ -56,18 +56,10 @@ The graphDB project utilises Cargo as its build system. To build the project:
 - rustc: 1.88.0
 - cargo: 1.88.0
 
-2. **Build commands**:
-
-   ```shell
-   cd graphDB
-   cargo build           # Debug build (development)
-   cargo build --release # Release build (optimized for performance)
-   ```
-
-3. **Lint check**
+2. **Compile check**
 
 ```shell
-analyze_cargo --full  # (run clippy check and generate report docs)
+analyze_cargo --full  # (a cli program to run clippy check and generate report docs)
 cargo fmt
 ```
 

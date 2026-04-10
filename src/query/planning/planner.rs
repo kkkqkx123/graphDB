@@ -458,29 +458,75 @@ impl PlannerEnum {
         metadata_context: &crate::query::metadata::MetadataContext,
     ) -> Result<SubPlan, PlannerError> {
         match self {
-            PlannerEnum::Match(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::Go(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::Lookup(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::Path(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::Subgraph(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::FetchVertices(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::FetchEdges(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::Maintain(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::UserManagement(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::Insert(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::Delete(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::Update(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::Remove(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::Set(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::Merge(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::GroupBy(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::SetOperation(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::Use(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::With(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::Return(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::Yield(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::FulltextSearch(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
-            PlannerEnum::VectorSearch(planner) => planner.transform_with_metadata(validated, qctx, metadata_context),
+            PlannerEnum::Match(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::Go(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::Lookup(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::Path(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::Subgraph(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::FetchVertices(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::FetchEdges(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::Maintain(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::UserManagement(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::Insert(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::Delete(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::Update(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::Remove(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::Set(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::Merge(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::GroupBy(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::SetOperation(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::Use(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::With(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::Return(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::Yield(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::FulltextSearch(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::VectorSearch(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
         }
     }
 }

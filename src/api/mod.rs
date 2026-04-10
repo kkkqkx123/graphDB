@@ -71,30 +71,36 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
 
     // 包装存储层为事件发射存储
     let mut event_storage = EventEmittingStorage::new((*inner_storage).clone(), event_hub.clone());
-    
+
     // 如果配置启用了全文索引，注册同步处理器
     if config.fulltext.enabled {
         use crate::coordinator::fulltext::FulltextCoordinator;
         use crate::coordinator::fulltext_sync::register_fulltext_sync;
         use crate::search::manager::FulltextIndexManager;
-        
-        let manager = Arc::new(FulltextIndexManager::new());
+
+        let manager = Arc::new(
+            FulltextIndexManager::new(config.fulltext.clone())
+                .expect("Failed to create FulltextIndexManager"),
+        );
         let coordinator = Arc::new(FulltextCoordinator::new(manager));
-        
+
         match register_fulltext_sync(coordinator, event_hub.clone()) {
             Ok(subscription_id) => {
-                println!("Fulltext sync handler registered (subscription: {})", subscription_id);
+                println!(
+                    "Fulltext sync handler registered (subscription: {})",
+                    subscription_id
+                );
             }
             Err(e) => {
                 eprintln!("Failed to register fulltext sync handler: {}", e);
             }
         }
-        
+
         // 启用事件发布
         event_storage.enable_events(true);
         println!("Event publishing enabled for fulltext sync");
     }
-    
+
     let storage = Arc::new(event_storage);
 
     // Create a transaction manager
@@ -110,12 +116,13 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
     // Create Tokio runtime for async initialization
     let rt = tokio::runtime::Runtime::new()?;
     rt.block_on(async {
-        let graph_service = GraphService::<EventEmittingStorage<DefaultStorage>>::new_with_transaction_manager(
-            config.clone(),
-            storage.clone(),
-            transaction_manager.clone(),
-        )
-        .await;
+        let graph_service =
+            GraphService::<EventEmittingStorage<DefaultStorage>>::new_with_transaction_manager(
+                config.clone(),
+                storage.clone(),
+                transaction_manager.clone(),
+            )
+            .await;
         println!("Graph service initialized with transaction management");
 
         // Create HTTP server
@@ -151,13 +158,14 @@ pub async fn execute_query(query_str: &str) -> DBResult<()> {
 
     let config = crate::config::Config::default();
     let inner_storage = Arc::new(DefaultStorage::new()?);
-    
+
     // 初始化事件系统（简化版本，不启用全文索引）
     let event_hub = Arc::new(MemoryEventHub::new());
     let event_storage = EventEmittingStorage::new((*inner_storage).clone(), event_hub);
     let storage = Arc::new(event_storage);
 
-    let graph_service = GraphService::<EventEmittingStorage<DefaultStorage>>::new_for_test(config, storage).await;
+    let graph_service =
+        GraphService::<EventEmittingStorage<DefaultStorage>>::new_for_test(config, storage).await;
 
     let session = match graph_service
         .get_session_manager()

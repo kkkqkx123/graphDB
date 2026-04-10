@@ -5,10 +5,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::query::metadata::provider::MetadataProviderError;
 use crate::query::metadata::{
     EdgeTypeMetadata, IndexMetadata, IndexType, MetadataProvider, TagMetadata,
 };
-use crate::query::metadata::provider::MetadataProviderError;
 use crate::vector::VectorCoordinator;
 
 /// Vector index metadata provider
@@ -48,14 +48,12 @@ impl MetadataProvider for VectorIndexMetadataProvider {
     ) -> Result<IndexMetadata, MetadataProviderError> {
         // Search for index by collection name or index name
         let indexes = self.coordinator.list_indexes();
-        
+
         for idx in indexes {
             // Match by collection name or index name pattern
-            let expected_collection = format!(
-                "space_{}_{}_{}",
-                space_id, idx.tag_name, idx.field_name
-            );
-            
+            let expected_collection =
+                format!("space_{}_{}_{}", space_id, idx.tag_name, idx.field_name);
+
             if idx.collection_name == index_name || expected_collection == *index_name {
                 return Ok(IndexMetadata::new(
                     idx.collection_name.clone(),
@@ -89,7 +87,7 @@ impl MetadataProvider for VectorIndexMetadataProvider {
         // Create tag metadata (simplified - in production would query schema manager)
         let mut metadata = TagMetadata::new(tag_name.to_string(), space_id);
         metadata.indexes = tag_indexes;
-        
+
         Ok(metadata)
     }
 
@@ -115,7 +113,7 @@ impl MetadataProvider for VectorIndexMetadataProvider {
         // Get unique tags from vector indexes
         let indexes = self.get_all_vector_indexes();
         let mut tag_map: HashMap<String, TagMetadata> = HashMap::new();
-        
+
         for idx in indexes {
             if idx.space_id == space_id {
                 tag_map
@@ -125,7 +123,7 @@ impl MetadataProvider for VectorIndexMetadataProvider {
                     .push(idx.index_name.clone());
             }
         }
-        
+
         Ok(tag_map.into_values().collect())
     }
 
@@ -161,7 +159,7 @@ impl MetadataProvider for CachedMetadataProvider {
         index_name: &str,
     ) -> Result<IndexMetadata, MetadataProviderError> {
         let key = format!("{}_{}", space_id, index_name);
-        
+
         // Check cache first
         {
             let cache = self.cache.read();
@@ -169,16 +167,16 @@ impl MetadataProvider for CachedMetadataProvider {
                 return Ok(metadata.clone());
             }
         }
-        
+
         // Cache miss, query inner provider
         let metadata = self.inner.get_index_metadata(space_id, index_name)?;
-        
+
         // Update cache
         {
             let mut cache = self.cache.write();
             cache.insert(key, metadata.clone());
         }
-        
+
         Ok(metadata)
     }
 

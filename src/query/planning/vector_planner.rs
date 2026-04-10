@@ -96,9 +96,12 @@ impl Planner for VectorSearchPlanner {
             Stmt::SearchVector(search) => {
                 self.transform_search_vector_with_metadata(search, space_id, metadata_context)
             }
-            Stmt::LookupVector(lookup) => {
-                self.transform_lookup_vector_with_metadata(lookup, space_id, &space_name, metadata_context)
-            }
+            Stmt::LookupVector(lookup) => self.transform_lookup_vector_with_metadata(
+                lookup,
+                space_id,
+                &space_name,
+                metadata_context,
+            ),
             Stmt::MatchVector(match_stmt) => {
                 self.transform_match_vector_with_metadata(match_stmt, space_id, metadata_context)
             }
@@ -185,7 +188,10 @@ impl VectorSearchPlanner {
         let (tag_name, field_name) = if let Some(ref metadata_context) = self.metadata_context {
             // Try to get index metadata from context
             if let Some(index_metadata) = metadata_context.get_index_metadata(&search.index_name) {
-                (index_metadata.tag_name.clone(), index_metadata.field_name.clone())
+                (
+                    index_metadata.tag_name.clone(),
+                    index_metadata.field_name.clone(),
+                )
             } else {
                 // Metadata not pre-resolved, use empty strings (executor will resolve)
                 (String::new(), String::new())
@@ -482,9 +488,10 @@ impl VectorSearchPlanner {
 
         // Pre-resolve tag_name and field_name from metadata context
         let (tag_name, field_name) = match metadata_context.get_index_metadata(&search.index_name) {
-            Some(index_metadata) => {
-                (index_metadata.tag_name.clone(), index_metadata.field_name.clone())
-            }
+            Some(index_metadata) => (
+                index_metadata.tag_name.clone(),
+                index_metadata.field_name.clone(),
+            ),
             None => {
                 return Err(PlannerError::IndexNotFound(search.index_name.clone()));
             }

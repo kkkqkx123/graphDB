@@ -108,10 +108,7 @@ impl MetadataContext {
 /// Extension trait for MetadataContext to provide convenient access methods
 pub trait MetadataContextExt {
     /// Get index metadata or return an error
-    fn get_index_metadata_or_err(
-        &self,
-        index_name: &str,
-    ) -> Result<&IndexMetadata, PlannerError>;
+    fn get_index_metadata_or_err(&self, index_name: &str) -> Result<&IndexMetadata, PlannerError>;
 
     /// Get tag metadata or return an error
     fn get_tag_metadata_or_err(&self, tag_name: &str) -> Result<&TagMetadata, PlannerError>;

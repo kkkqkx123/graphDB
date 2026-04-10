@@ -4,15 +4,15 @@
 
 use std::sync::Arc;
 
+use crate::core::types::{EdgeTypeInfo, SpaceInfo, TagInfo};
+use crate::query::metadata::provider::MetadataProviderError;
 use crate::query::metadata::{
     EdgeTypeMetadata, IndexMetadata, IndexType, MetadataProvider, TagMetadata,
 };
-use crate::query::metadata::provider::MetadataProviderError;
 use crate::storage::metadata::schema_manager::SchemaManager;
-use crate::core::types::{SpaceInfo, TagInfo, EdgeTypeInfo};
 
 /// Schema metadata provider
-/// 
+///
 /// Provides metadata for tags, edge types, and native indexes from the schema manager.
 pub struct SchemaMetadataProvider {
     schema_manager: Arc<dyn SchemaManager>,
@@ -29,15 +29,13 @@ impl SchemaMetadataProvider {
         self.schema_manager
             .get_space_by_id(space_id)
             .map_err(|e| MetadataProviderError::QueryFailed(e.to_string()))?
-            .ok_or_else(|| {
-                MetadataProviderError::NotFound(format!("Space {} not found", space_id))
-            })
+            .ok_or_else(|| MetadataProviderError::NotFound(format!("Space {} not found", space_id)))
     }
 
     /// Convert TagInfo to TagMetadata
     fn convert_tag_info(&self, tag_info: &TagInfo, space_id: u64) -> TagMetadata {
         let mut metadata = TagMetadata::new(tag_info.tag_name.clone(), space_id);
-        
+
         // Convert properties
         metadata.properties = tag_info
             .properties
@@ -49,14 +47,14 @@ impl SchemaMetadataProvider {
                 default_value: None, // Simplified
             })
             .collect();
-        
+
         metadata
     }
 
     /// Convert EdgeTypeInfo to EdgeTypeMetadata
     fn convert_edge_type_info(&self, edge_info: &EdgeTypeInfo, space_id: u64) -> EdgeTypeMetadata {
         let mut metadata = EdgeTypeMetadata::new(edge_info.edge_type_name.clone(), space_id);
-        
+
         // Convert properties
         metadata.properties = edge_info
             .properties
@@ -68,7 +66,7 @@ impl SchemaMetadataProvider {
                 default_value: None, // Simplified
             })
             .collect();
-        
+
         metadata
     }
 }
@@ -95,7 +93,11 @@ impl MetadataProvider for SchemaMetadataProvider {
                     index.name,
                     space_id,
                     index.schema_name.clone(),
-                    index.fields.first().map(|f| f.name.clone()).unwrap_or_default(),
+                    index
+                        .fields
+                        .first()
+                        .map(|f| f.name.clone())
+                        .unwrap_or_default(),
                     IndexType::Native,
                 ));
             }
@@ -113,7 +115,11 @@ impl MetadataProvider for SchemaMetadataProvider {
                     index.name,
                     space_id,
                     String::new(), // Edge indexes don't have tag_name
-                    index.fields.first().map(|f| f.name.clone()).unwrap_or_default(),
+                    index
+                        .fields
+                        .first()
+                        .map(|f| f.name.clone())
+                        .unwrap_or_default(),
                     IndexType::Native,
                 ));
             }
@@ -221,7 +227,11 @@ impl MetadataProvider for SchemaMetadataProvider {
                 index.name,
                 space_id,
                 index.schema_name.clone(),
-                index.fields.first().map(|f| f.name.clone()).unwrap_or_default(),
+                index
+                    .fields
+                    .first()
+                    .map(|f| f.name.clone())
+                    .unwrap_or_default(),
                 IndexType::Native,
             ));
         }
@@ -237,7 +247,11 @@ impl MetadataProvider for SchemaMetadataProvider {
                 index.name,
                 space_id,
                 String::new(),
-                index.fields.first().map(|f| f.name.clone()).unwrap_or_default(),
+                index
+                    .fields
+                    .first()
+                    .map(|f| f.name.clone())
+                    .unwrap_or_default(),
                 IndexType::Native,
             ));
         }
@@ -266,7 +280,10 @@ impl MetadataProvider for SchemaMetadataProvider {
         Ok(result)
     }
 
-    fn list_edge_types(&self, space_id: u64) -> Result<Vec<EdgeTypeMetadata>, MetadataProviderError> {
+    fn list_edge_types(
+        &self,
+        space_id: u64,
+    ) -> Result<Vec<EdgeTypeMetadata>, MetadataProviderError> {
         // Get space info
         let space = self.get_space_by_id(space_id)?;
         let space_name = &space.space_name;
@@ -356,15 +373,13 @@ mod tests {
                 Ok(Some(TagInfo {
                     tag_id: 1,
                     tag_name: "person".to_string(),
-                    properties: vec![
-                        crate::core::types::PropertyDef {
-                            name: "name".to_string(),
-                            data_type: DataType::String,
-                            nullable: false,
-                            default: None,
-                            comment: None,
-                        },
-                    ],
+                    properties: vec![crate::core::types::PropertyDef {
+                        name: "name".to_string(),
+                        data_type: DataType::String,
+                        nullable: false,
+                        default: None,
+                        comment: None,
+                    }],
                     comment: None,
                     ttl_duration: None,
                     ttl_col: None,
@@ -422,7 +437,11 @@ mod tests {
             Ok(true)
         }
 
-        fn get_tag_schema(&self, _space: &str, _tag: &str) -> Result<crate::storage::Schema, StorageError> {
+        fn get_tag_schema(
+            &self,
+            _space: &str,
+            _tag: &str,
+        ) -> Result<crate::storage::Schema, StorageError> {
             Ok(crate::storage::Schema::default())
         }
 
@@ -434,11 +453,17 @@ mod tests {
             Ok(crate::storage::Schema::default())
         }
 
-        fn list_tag_indexes(&self, _space: &str) -> Result<Vec<crate::core::types::Index>, StorageError> {
+        fn list_tag_indexes(
+            &self,
+            _space: &str,
+        ) -> Result<Vec<crate::core::types::Index>, StorageError> {
             Ok(vec![])
         }
 
-        fn list_edge_indexes(&self, _space: &str) -> Result<Vec<crate::core::types::Index>, StorageError> {
+        fn list_edge_indexes(
+            &self,
+            _space: &str,
+        ) -> Result<Vec<crate::core::types::Index>, StorageError> {
             Ok(vec![])
         }
     }

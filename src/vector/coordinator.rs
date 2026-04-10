@@ -15,6 +15,48 @@ use crate::vector::manager::VectorIndexManager;
 
 use vector_client::types::{SearchQuery, SearchResult, VectorFilter, VectorPoint};
 
+/// Search options for vector search
+#[derive(Debug, Clone)]
+pub struct SearchOptions {
+    pub space_id: u64,
+    pub tag_name: String,
+    pub field_name: String,
+    pub query_vector: Vec<f32>,
+    pub limit: usize,
+    pub threshold: Option<f32>,
+    pub filter: Option<VectorFilter>,
+}
+
+impl SearchOptions {
+    pub fn new(
+        space_id: u64,
+        tag_name: impl Into<String>,
+        field_name: impl Into<String>,
+        query_vector: Vec<f32>,
+        limit: usize,
+    ) -> Self {
+        Self {
+            space_id,
+            tag_name: tag_name.into(),
+            field_name: field_name.into(),
+            query_vector,
+            limit,
+            threshold: None,
+            filter: None,
+        }
+    }
+
+    pub fn with_threshold(mut self, threshold: f32) -> Self {
+        self.threshold = Some(threshold);
+        self
+    }
+
+    pub fn with_filter(mut self, filter: VectorFilter) -> Self {
+        self.filter = Some(filter);
+        self
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum VectorChangeType {
     Insert,
@@ -410,56 +452,50 @@ impl VectorCoordinator {
         Ok(results)
     }
 
-    /// Search options for vector search
-    #[derive(Debug, Clone)]
-    pub struct SearchOptions {
-        pub space_id: u64,
-        pub tag_name: String,
-        pub field_name: String,
-        pub query_vector: Vec<f32>,
-        pub limit: usize,
-        pub threshold: Option<f32>,
-        pub filter: Option<VectorFilter>,
+    pub async fn search_with_threshold_and_filter(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+        query_vector: Vec<f32>,
+        limit: usize,
+        threshold: f32,
+        filter: VectorFilter,
+    ) -> VectorCoordinatorResult<Vec<SearchResult>> {
+        let query = SearchQuery::new(query_vector, limit)
+            .with_score_threshold(threshold)
+            .with_filter(filter);
+
+        let results = self
+            .manager
+            .search(space_id, tag_name, field_name, query)
+            .await?;
+
+        Ok(results)
     }
 
-    impl SearchOptions {
-        pub fn new(space_id: u64, tag_name: impl Into<String>, field_name: impl Into<String>, query_vector: Vec<f32>, limit: usize) -> Self {
-            Self {
-                space_id,
-                tag_name: tag_name.into(),
-                field_name: field_name.into(),
-                query_vector,
-                limit,
-                threshold: None,
-                filter: None,
-            }
-        }
-
-        pub fn with_threshold(mut self, threshold: f32) -> Self {
-            self.threshold = Some(threshold);
-            self
-        }
-
-        pub fn with_filter(mut self, filter: VectorFilter) -> Self {
-            self.filter = Some(filter);
-            self
-        }
-    }
-
-    pub async fn search_with_options(&self, options: SearchOptions) -> VectorCoordinatorResult<Vec<SearchResult>> {
+    pub async fn search_with_options(
+        &self,
+        options: SearchOptions,
+    ) -> VectorCoordinatorResult<Vec<SearchResult>> {
         let mut query = SearchQuery::new(options.query_vector, options.limit);
-        
+
         if let Some(threshold) = options.threshold {
             query = query.with_score_threshold(threshold);
         }
-        
+
         if let Some(filter) = options.filter {
             query = query.with_filter(filter);
         }
-        
+
         let results = self
             .manager
-            .search(options.space_id, &options.tag_name, &options.field_name, query)
+            .search(
+                options.space_id,
+                &options.tag_name,
+                &options.field_name,
+                query,
+            )
             .await?;
 
         Ok(results)

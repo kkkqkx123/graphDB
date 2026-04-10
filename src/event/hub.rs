@@ -14,11 +14,7 @@ pub trait EventHub: Send + Sync {
     fn publish(&self, event: StorageEvent) -> Result<(), EventError>;
 
     /// 订阅事件
-    fn subscribe<F>(
-        &self,
-        event_type: EventType,
-        handler: F,
-    ) -> Result<SubscriptionId, EventError>
+    fn subscribe<F>(&self, event_type: EventType, handler: F) -> Result<SubscriptionId, EventError>
     where
         F: Fn(&StorageEvent) -> Result<(), EventError> + Send + Sync + 'static;
 
@@ -36,6 +32,15 @@ pub type DynEventHub = dyn EventHub;
 pub struct MemoryEventHub {
     handlers: DashMap<EventType, Vec<(SubscriptionId, EventHandler)>>,
     next_subscription_id: AtomicU64,
+}
+
+impl std::fmt::Debug for MemoryEventHub {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MemoryEventHub")
+            .field("handlers", &self.handlers.len())
+            .field("next_subscription_id", &self.next_subscription_id)
+            .finish()
+    }
 }
 
 impl MemoryEventHub {
@@ -75,11 +80,7 @@ impl EventHub for MemoryEventHub {
         Ok(())
     }
 
-    fn subscribe<F>(
-        &self,
-        event_type: EventType,
-        handler: F,
-    ) -> Result<SubscriptionId, EventError>
+    fn subscribe<F>(&self, event_type: EventType, handler: F) -> Result<SubscriptionId, EventError>
     where
         F: Fn(&StorageEvent) -> Result<(), EventError> + Send + Sync + 'static,
     {
@@ -96,7 +97,9 @@ impl EventHub for MemoryEventHub {
 
         for mut handlers in self.handlers.iter_mut() {
             let before_len = handlers.value().len();
-            handlers.value_mut().retain(|(id, _)| *id != subscription_id);
+            handlers
+                .value_mut()
+                .retain(|(id, _)| *id != subscription_id);
             if handlers.value().len() < before_len {
                 removed = true;
             }
@@ -110,10 +113,7 @@ impl EventHub for MemoryEventHub {
     }
 
     fn subscription_count(&self, event_type: EventType) -> usize {
-        self.handlers
-            .get(&event_type)
-            .map(|h| h.len())
-            .unwrap_or(0)
+        self.handlers.get(&event_type).map(|h| h.len()).unwrap_or(0)
     }
 }
 
@@ -148,9 +148,7 @@ mod tests {
     fn test_unsubscribe() {
         let hub = Arc::new(MemoryEventHub::new());
 
-        let sub_id = hub
-            .subscribe(EventType::VertexEvent, |_| Ok(()))
-            .unwrap();
+        let sub_id = hub.subscribe(EventType::VertexEvent, |_| Ok(())).unwrap();
 
         assert_eq!(hub.subscription_count(EventType::VertexEvent), 1);
 
@@ -190,10 +188,12 @@ mod tests {
     }
 
     fn create_test_vertex() -> crate::core::Vertex {
-        use crate::core::types::Tag;
+        use std::collections::HashMap;
         crate::core::Vertex {
-            vid: crate::core::Value::Int64(1),
+            vid: Box::new(crate::core::Value::Int64(1)),
+            id: 1,
             tags: vec![],
+            properties: HashMap::new(),
         }
     }
 }

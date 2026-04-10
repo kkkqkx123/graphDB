@@ -122,7 +122,7 @@ impl Planner for DeletePlanner {
         // DELETE 操作主要使用标签和边类型元数据
         // 目前 DELETE 主要验证空间名称和顶点/边 ID
         // 元数据上下文可用于验证标签和边类型是否存在
-        
+
         let validation_info = &validated.validation_info;
         let referenced_tags = &validation_info.semantic_info.referenced_tags;
         let referenced_edges = &validation_info.semantic_info.referenced_edges;

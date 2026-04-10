@@ -540,7 +540,11 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         {
             // Build metadata context if metadata provider is available
             let metadata_context = if let Some(ref metadata_provider) = self.metadata_provider {
-                Some(self.build_metadata_context(validated, query_context.clone(), metadata_provider)?)
+                Some(self.build_metadata_context(
+                    validated,
+                    query_context.clone(),
+                    metadata_provider,
+                )?)
             } else {
                 None
             };
@@ -579,8 +583,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         qctx: Arc<QueryContext>,
         metadata_provider: &Arc<dyn MetadataProvider>,
     ) -> DBResult<MetadataContext> {
-        use crate::query::parser::ast::Stmt;
         use crate::query::metadata::provider::MetadataProviderError;
+        use crate::query::parser::ast::Stmt;
 
         let space_id = qctx.space_id().unwrap_or(0);
         let mut context = MetadataContext::new();

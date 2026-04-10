@@ -107,8 +107,7 @@ fn test_vertex_insert_sync_to_fulltext() {
     let manager = Arc::new(FulltextIndexManager::new());
     let coordinator = Arc::new(FulltextCoordinator::new(manager.clone()));
 
-    register_fulltext_sync(coordinator, event_hub.clone())
-        .expect("register should succeed");
+    register_fulltext_sync(coordinator, event_hub.clone()).expect("register should succeed");
 
     let vertex = create_test_vertex_with_text();
     let event = StorageEvent::VertexInserted {
@@ -125,7 +124,11 @@ fn test_vertex_insert_sync_to_fulltext() {
     for (field_name, value) in &tag.properties {
         if let Value::String(_) = value {
             let engine = manager.get_engine(1, &tag.name, field_name);
-            assert!(engine.is_some(), "engine should exist for field {}", field_name);
+            assert!(
+                engine.is_some(),
+                "engine should exist for field {}",
+                field_name
+            );
         }
     }
 }
@@ -140,7 +143,10 @@ fn create_test_vertex() -> Vertex {
 fn create_test_vertex_with_text() -> Vertex {
     let mut properties = std::collections::HashMap::new();
     properties.insert("name".to_string(), Value::String("Alice".to_string()));
-    properties.insert("description".to_string(), Value::String("A test person".to_string()));
+    properties.insert(
+        "description".to_string(),
+        Value::String("A test person".to_string()),
+    );
 
     let tag = Tag {
         name: "Person".to_string(),
@@ -155,8 +161,14 @@ fn create_test_vertex_with_text() -> Vertex {
 
 fn create_test_vertex_with_text_updated() -> Vertex {
     let mut properties = std::collections::HashMap::new();
-    properties.insert("name".to_string(), Value::String("Alice Updated".to_string()));
-    properties.insert("description".to_string(), Value::String("Updated description".to_string()));
+    properties.insert(
+        "name".to_string(),
+        Value::String("Alice Updated".to_string()),
+    );
+    properties.insert(
+        "description".to_string(),
+        Value::String("Updated description".to_string()),
+    );
 
     let tag = Tag {
         name: "Person".to_string(),

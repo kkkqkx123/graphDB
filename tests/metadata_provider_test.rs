@@ -54,30 +54,28 @@ mod tests {
             &self,
             _space_id: u64,
             index_name: &str,
-        ) -> Result<IndexMetadata, graphdb::query::metadata::provider::MetadataProviderError> {
-            self.indexes
-                .get(index_name)
-                .cloned()
-                .ok_or_else(|| {
-                    graphdb::query::metadata::provider::MetadataProviderError::NotFound(
-                        format!("Index '{}' not found", index_name),
-                    )
-                })
+        ) -> Result<IndexMetadata, graphdb::query::metadata::provider::MetadataProviderError>
+        {
+            self.indexes.get(index_name).cloned().ok_or_else(|| {
+                graphdb::query::metadata::provider::MetadataProviderError::NotFound(format!(
+                    "Index '{}' not found",
+                    index_name
+                ))
+            })
         }
 
         fn get_tag_metadata(
             &self,
             _space_id: u64,
             tag_name: &str,
-        ) -> Result<TagMetadata, graphdb::query::metadata::provider::MetadataProviderError> {
-            self.tags
-                .get(tag_name)
-                .cloned()
-                .ok_or_else(|| {
-                    graphdb::query::metadata::provider::MetadataProviderError::NotFound(
-                        format!("Tag '{}' not found", tag_name),
-                    )
-                })
+        ) -> Result<TagMetadata, graphdb::query::metadata::provider::MetadataProviderError>
+        {
+            self.tags.get(tag_name).cloned().ok_or_else(|| {
+                graphdb::query::metadata::provider::MetadataProviderError::NotFound(format!(
+                    "Tag '{}' not found",
+                    tag_name
+                ))
+            })
         }
 
         fn get_edge_type_metadata(
@@ -86,14 +84,12 @@ mod tests {
             edge_type: &str,
         ) -> Result<EdgeTypeMetadata, graphdb::query::metadata::provider::MetadataProviderError>
         {
-            self.edge_types
-                .get(edge_type)
-                .cloned()
-                .ok_or_else(|| {
-                    graphdb::query::metadata::provider::MetadataProviderError::NotFound(
-                        format!("Edge type '{}' not found", edge_type),
-                    )
-                })
+            self.edge_types.get(edge_type).cloned().ok_or_else(|| {
+                graphdb::query::metadata::provider::MetadataProviderError::NotFound(format!(
+                    "Edge type '{}' not found",
+                    edge_type
+                ))
+            })
         }
 
         fn list_indexes(

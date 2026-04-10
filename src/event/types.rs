@@ -1,6 +1,6 @@
 //! 事件类型定义
 
-use crate::core::{Edge, Vertex, Value};
+use crate::core::{Edge, Value, Vertex};
 use std::fmt;
 
 /// 存储操作事件
@@ -162,10 +162,12 @@ mod tests {
     }
 
     fn create_test_vertex() -> Vertex {
-        use crate::core::types::Tag;
+        use std::collections::HashMap;
         Vertex {
-            vid: Value::Int64(1),
+            vid: Box::new(Value::Int64(1)),
+            id: 1,
             tags: vec![],
+            properties: HashMap::new(),
         }
     }
 }

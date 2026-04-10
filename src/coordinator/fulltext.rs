@@ -185,6 +185,10 @@ impl FulltextCoordinator {
         self.manager.get_engine(space_id, tag_name, field_name)
     }
 
+    pub fn get_manager(&self) -> &Arc<FulltextIndexManager> {
+        &self.manager
+    }
+
     pub async fn rebuild_index(
         &self,
         space_id: u64,

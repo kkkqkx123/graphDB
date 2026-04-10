@@ -24,9 +24,7 @@ impl FulltextSyncHandler {
     pub fn handle_event(&self, event: &StorageEvent) -> Result<(), EventError> {
         match event {
             StorageEvent::VertexInserted {
-                space_id,
-                vertex,
-                ..
+                space_id, vertex, ..
             } => self.on_vertex_inserted(*space_id, vertex),
             StorageEvent::VertexUpdated {
                 space_id,
@@ -40,12 +38,27 @@ impl FulltextSyncHandler {
                 vertex_id,
                 ..
             } => self.on_vertex_deleted(*space_id, tag_name, vertex_id),
-            _ => Ok(()), // 忽略边事件
+            // 处理边事件
+            StorageEvent::EdgeInserted { space_id, edge, .. } => {
+                self.on_edge_inserted(*space_id, edge)
+            }
+            StorageEvent::EdgeDeleted {
+                space_id,
+                src,
+                dst,
+                edge_type,
+                rank,
+                ..
+            } => self.on_edge_deleted(*space_id, src, dst, edge_type, *rank),
         }
     }
 
     /// 处理顶点插入事件
-    fn on_vertex_inserted(&self, space_id: u64, vertex: &crate::core::Vertex) -> Result<(), EventError> {
+    fn on_vertex_inserted(
+        &self,
+        space_id: u64,
+        vertex: &crate::core::Vertex,
+    ) -> Result<(), EventError> {
         for tag in &vertex.tags {
             let mut properties = HashMap::new();
 
@@ -56,15 +69,13 @@ impl FulltextSyncHandler {
             }
 
             if !properties.is_empty() {
-                futures::executor::block_on(
-                    self.coordinator.on_vertex_change(
-                        space_id,
-                        &tag.name,
-                        &vertex.vid,
-                        &properties,
-                        ChangeType::Insert,
-                    ),
-                )
+                futures::executor::block_on(self.coordinator.on_vertex_change(
+                    space_id,
+                    &tag.name,
+                    &vertex.vid,
+                    &properties,
+                    ChangeType::Insert,
+                ))
                 .map_err(|e| EventError::HandlerError(e.to_string()))?;
             }
         }
@@ -91,15 +102,13 @@ impl FulltextSyncHandler {
             }
 
             if !properties.is_empty() {
-                futures::executor::block_on(
-                    self.coordinator.on_vertex_change(
-                        space_id,
-                        &tag.name,
-                        &vertex.vid,
-                        &properties,
-                        ChangeType::Update,
-                    ),
-                )
+                futures::executor::block_on(self.coordinator.on_vertex_change(
+                    space_id,
+                    &tag.name,
+                    &vertex.vid,
+                    &properties,
+                    ChangeType::Update,
+                ))
                 .map_err(|e| EventError::HandlerError(e.to_string()))?;
             }
         }
@@ -118,6 +127,66 @@ impl FulltextSyncHandler {
             self.coordinator
                 .on_vertex_deleted(space_id, tag_name, vertex_id),
         )
+        .map_err(|e| EventError::HandlerError(e.to_string()))?;
+
+        Ok(())
+    }
+
+    /// 处理边插入事件
+    fn on_edge_inserted(&self, space_id: u64, edge: &crate::core::Edge) -> Result<(), EventError> {
+        // 为边的字符串属性建立索引
+        let mut properties = std::collections::HashMap::new();
+
+        for (field_name, value) in &edge.props {
+            if let crate::core::Value::String(_) = value {
+                properties.insert(field_name.clone(), value.clone());
+            }
+        }
+
+        if !properties.is_empty() {
+            // 使用边的唯一标识作为文档 ID
+            let edge_doc_id = format!(
+                "edge_{}_{}_{}_{}",
+                edge.edge_type, edge.src, edge.dst, edge.ranking
+            );
+
+            for (field_name, value) in &properties {
+                if let crate::core::Value::String(text) = value {
+                    futures::executor::block_on(
+                        self.coordinator.get_manager().index_edge_property(
+                            space_id,
+                            &edge.edge_type,
+                            field_name,
+                            &edge_doc_id,
+                            text,
+                        ),
+                    )
+                    .map_err(|e| EventError::HandlerError(e.to_string()))?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// 处理边删除事件
+    fn on_edge_deleted(
+        &self,
+        space_id: u64,
+        src: &crate::core::Value,
+        dst: &crate::core::Value,
+        edge_type: &str,
+        rank: i64,
+    ) -> Result<(), EventError> {
+        // 使用边的唯一标识作为文档 ID
+        let edge_doc_id = format!("edge_{}_{}_{}_{}", edge_type, src, dst, rank);
+
+        // 删除边的所有全文索引
+        futures::executor::block_on(self.coordinator.get_manager().delete_edge_index(
+            space_id,
+            edge_type,
+            &edge_doc_id,
+        ))
         .map_err(|e| EventError::HandlerError(e.to_string()))?;
 
         Ok(())
@@ -141,14 +210,13 @@ pub fn register_fulltext_sync(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::Tag;
-    use crate::core::Vertex;
+    use std::collections::HashMap;
 
     #[test]
     fn test_sync_handler_creation() {
         // 注意：这个测试需要 FulltextCoordinator 的实例
         // 实际测试需要在集成测试中完成
-        let config = crate::search::FulltextConfig::default();
+        let _config = crate::search::FulltextConfig::default();
         // 这里只是演示，实际使用需要正确初始化
     }
 }
