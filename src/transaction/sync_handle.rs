@@ -21,6 +21,10 @@ pub struct PendingIndexUpdate {
     pub doc_id: String,
     /// Updated content (None means deleted)
     pub content: Option<String>,
+    /// Previous content before update (for rollback)
+    pub old_content: Option<String>,
+    /// Vector data for vector index synchronization
+    pub vector_data: Option<Vec<f32>>,
     /// Type of change
     pub change_type: ChangeType,
     /// Creating timestamps
@@ -35,6 +39,8 @@ impl PendingIndexUpdate {
         field_name: String,
         doc_id: String,
         content: Option<String>,
+        old_content: Option<String>,
+        vector_data: Option<Vec<f32>>,
         change_type: ChangeType,
     ) -> Self {
         Self {
@@ -44,6 +50,8 @@ impl PendingIndexUpdate {
             field_name,
             doc_id,
             content,
+            old_content,
+            vector_data,
             change_type,
             created_at: Instant::now(),
         }
@@ -164,6 +172,8 @@ mod tests {
             "name".to_string(),
             "1".to_string(),
             Some("Alice".to_string()),
+            None,
+            None,
             ChangeType::Insert,
         );
 
@@ -172,6 +182,8 @@ mod tests {
         assert_eq!(update.tag_name, "user");
         assert_eq!(update.doc_id, "1");
         assert_eq!(update.content, Some("Alice".to_string()));
+        assert_eq!(update.old_content, None);
+        assert_eq!(update.vector_data, None);
         assert_eq!(update.change_type, ChangeType::Insert);
     }
 

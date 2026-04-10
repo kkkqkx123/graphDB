@@ -163,6 +163,9 @@ impl InsertVerticesValidator {
         row_idx: usize,
         tag_idx: usize,
     ) -> Result<(), ValidationError> {
+        use crate::core::DataType;
+        use crate::core::types::expr::Expression;
+        use crate::core::Value;
         use crate::storage::metadata::schema_manager::SchemaManager;
 
         // Get tag schema to check property types
@@ -190,18 +193,34 @@ impl InsertVerticesValidator {
             let prop_def = tag_info.properties.iter().find(|p| &p.name == prop_name);
 
             if let Some(prop_def) = prop_def {
-                // Check if property is a vector type
-                if matches!(prop_def.data_type, crate::core::DataType::Vector) {
+                // Check if property is a vector type and extract expected dimension
+                let expected_dim = match &prop_def.data_type {
+                    DataType::VectorDense(dim) => Some((*dim, "dense")),
+                    DataType::VectorSparse(dim) => Some((*dim, "sparse")),
+                    DataType::Vector => None, // Generic vector type without dimension constraint
+                    _ => None,
+                };
+
+                if let Some((expected_dim, vector_type)) = expected_dim {
                     // Evaluate the expression to get the actual value
                     if let Some(expr) = value_expr.get_expression() {
-                        if let crate::core::types::expr::Expression::Literal(
-                            crate::core::Value::Vector(vector_val),
-                        ) = &expr
-                        {
-                            let vector_data = vector_val.to_dense();
-                            // Note: We could store expected dimension in property comment or extend PropertyDef
-                            // For now, we just validate that it's a valid vector
-                            // TODO: Add dimension constraint checking when schema supports vector dimensions
+                        if let Expression::Literal(Value::Vector(vector_val)) = &expr {
+                            let actual_dim = vector_val.dimension();
+                            
+                            if actual_dim != expected_dim {
+                                return Err(ValidationError::new(
+                                    format!(
+                                        "Vector dimension mismatch for property '{}' in vertex {}, tag {}: expected {}D {} vector with {} dimensions, got {} dimensions",
+                                        prop_name,
+                                        row_idx + 1,
+                                        tag_idx + 1,
+                                        vector_type,
+                                        expected_dim,
+                                        actual_dim
+                                    ),
+                                    ValidationErrorType::SemanticError,
+                                ));
+                            }
                         }
                     }
                 }

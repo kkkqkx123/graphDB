@@ -145,6 +145,8 @@ mod tests {
             "name".to_string(),
             "1".to_string(),
             Some("Alice".to_string()),
+            None,
+            None,
             ChangeType::Insert,
         )
     }

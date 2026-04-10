@@ -105,6 +105,8 @@ pub struct AggregateContext {
     pub is_deterministic: bool,
     /// Aggregation expression complexity score
     pub complexity_score: u32,
+    /// Table name (tag name) for statistics lookup
+    pub table_name: Option<String>,
 }
 
 impl AggregateContext {
@@ -119,6 +121,7 @@ impl AggregateContext {
             sort_keys_match_group_keys: false,
             is_deterministic: true,
             complexity_score: 0,
+            table_name: None,
         }
     }
 
@@ -143,6 +146,12 @@ impl AggregateContext {
     ) -> Self {
         self.is_deterministic = is_deterministic;
         self.complexity_score = complexity_score;
+        self
+    }
+
+    /// Set table name for statistics lookup
+    pub fn with_table_name(mut self, table_name: Option<String>) -> Self {
+        self.table_name = table_name;
         self
     }
 }
@@ -385,11 +394,8 @@ impl AggregateStrategySelector {
 
     /// Get table name from aggregate context
     /// This is a helper method to extract table name for statistics lookup
-    fn get_table_name_from_context(&self, _context: &AggregateContext) -> Option<String> {
-        // In a real implementation, this would extract the table name from the context
-        // For now, return None to fall back to heuristic estimation
-        // TODO: Implement proper table name extraction from plan context
-        None
+    fn get_table_name_from_context(&self, context: &AggregateContext) -> Option<String> {
+        context.table_name.clone()
     }
 
     /// Quick estimation of the base number
@@ -608,6 +614,7 @@ mod tests {
             sort_keys_match_group_keys: true,
             is_deterministic: true,
             complexity_score: 0,
+            table_name: None,
         };
 
         let decision = selector.select_strategy(&context);
@@ -627,6 +634,7 @@ mod tests {
             sort_keys_match_group_keys: false,
             is_deterministic: true,
             complexity_score: 0,
+            table_name: None,
         };
 
         let decision = selector.select_strategy(&context);
@@ -646,6 +654,7 @@ mod tests {
             sort_keys_match_group_keys: false,
             is_deterministic: true,
             complexity_score: 0,
+            table_name: None,
         };
 
         let decision = selector.select_strategy(&context);
@@ -702,6 +711,7 @@ mod tests {
             sort_keys_match_group_keys: false,
             is_deterministic: true,
             complexity_score: 0,
+            table_name: None,
         };
 
         // Without memory pressure, should likely choose HashAggregate for high cardinality

@@ -551,8 +551,30 @@ impl SyncManager {
                     // Vector index (if any)
                     if let Some(ref vector_coord) = self.vector_coordinator {
                         if vector_coord.index_exists(update.space_id, &update.tag_name, &update.field_name) {
-                            // TODO: 需要从内容中提取向量，这里简化处理
-                            // Practical implementations require more complex vector extraction logic
+                            // Extract vector data from update
+                            if let Some(ref vector) = update.vector_data {
+                                let collection_name = crate::sync::vector_sync::VectorIndexLocation::new(
+                                    update.space_id,
+                                    &update.tag_name,
+                                    &update.field_name,
+                                ).to_collection_name();
+
+                                let mut payload = HashMap::new();
+                                payload.insert("doc_id".to_string(), Value::String(update.doc_id.clone()));
+                                payload.insert("tag_name".to_string(), Value::String(update.tag_name.clone()));
+                                payload.insert("field_name".to_string(), Value::String(update.field_name.clone()));
+
+                                let point_data = crate::sync::task::VectorPointData {
+                                    id: update.doc_id.clone(),
+                                    vector: vector.clone(),
+                                    payload,
+                                };
+
+                                vector_upserts
+                                    .entry(collection_name)
+                                    .or_insert_with(Vec::new)
+                                    .push(point_data);
+                            }
                         }
                     }
                 }
@@ -622,20 +644,20 @@ impl SyncManager {
     }
 
     /// Phase 2: Cancel submission
-    pub fn abort_sync(&self, handle: Arc<crate::transaction::SyncHandle>) -> Result<(), SyncError> {
+    pub async fn abort_sync(&self, handle: Arc<crate::transaction::SyncHandle>) -> Result<(), SyncError> {
         // Marked as canceled
         handle.set_state(crate::transaction::sync_handle::SyncHandleState::Cancelled);
 
         // In FailClosed mode, you need to roll back synchronized indexes
         if self.buffer.config().failure_policy == crate::search::SyncFailurePolicy::FailClosed {
-            self.rollback_pending_updates(&handle.pending_updates)?;
+            self.rollback_pending_updates(&handle.pending_updates).await?;
         }
 
         Ok(())
     }
 
     /// Rolling back pending updates
-    fn rollback_pending_updates(
+    async fn rollback_pending_updates(
         &self,
         updates: &[crate::sync::pending_update::PendingIndexUpdate],
     ) -> Result<(), SyncError> {
@@ -644,18 +666,48 @@ impl SyncManager {
             match update.change_type {
                 ChangeType::Insert => {
                     // Deleting an Inserted Index
-                    if let Some(ref content) = update.content {
-                        self.fulltext_coordinator
-                            .delete_document(update.space_id, &update.tag_name, &update.doc_id)
-                            .map_err(|e| SyncError::CoordinatorError(e))?;
+                    if let Some(ref _content) = update.content {
+                        if let Some(engine) = self.fulltext_coordinator.get_engine(
+                            update.space_id,
+                            &update.tag_name,
+                            &update.field_name,
+                        ) {
+                            engine
+                                .delete(&update.doc_id)
+                                .await
+                                .map_err(|e| SyncError::CoordinatorError(CoordinatorError::FulltextError(e.into())))?;
+                        }
                     }
                 }
                 ChangeType::Delete => {
-                    // Recovering deleted indexes
-                    // TODO: 需要保存原始内容以便恢复
+                    // Recovering deleted indexes using old_content
+                    if let Some(ref old_content) = update.old_content {
+                        if let Some(engine) = self.fulltext_coordinator.get_engine(
+                            update.space_id,
+                            &update.tag_name,
+                            &update.field_name,
+                        ) {
+                            engine
+                                .index(&update.doc_id, old_content)
+                                .await
+                                .map_err(|e| SyncError::CoordinatorError(CoordinatorError::FulltextError(e.into())))?;
+                        }
+                    }
                 }
                 ChangeType::Update => {
-                    // TODO: 恢复旧值
+                    // Rollback to old value using old_content
+                    if let Some(ref old_content) = update.old_content {
+                        if let Some(engine) = self.fulltext_coordinator.get_engine(
+                            update.space_id,
+                            &update.tag_name,
+                            &update.field_name,
+                        ) {
+                            engine
+                                .index(&update.doc_id, old_content)
+                                .await
+                                .map_err(|e| SyncError::CoordinatorError(CoordinatorError::FulltextError(e.into())))?;
+                        }
+                    }
                 }
             }
         }
