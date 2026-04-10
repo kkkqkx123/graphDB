@@ -3,7 +3,7 @@
 //! Combines task queue and batch processing into a single component.
 
 use crate::coordinator::FulltextCoordinator;
-use crate::event::async_queue::{AsyncQueue, QueueConfig, QueueHandler};
+use crate::sync::queue::{AsyncQueue, QueueConfig, QueueError, QueueHandler};
 use crate::sync::task::SyncTask;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -54,12 +54,12 @@ impl SyncTaskHandler {
 }
 
 impl QueueHandler<SyncTask> for SyncTaskHandler {
-    fn handle_item(&self, _task: &SyncTask) -> Result<(), crate::event::EventError> {
+    fn handle_item(&self, _task: &SyncTask) -> Result<(), QueueError> {
         // Single task processing, actual batch processing in handle_batch
         Ok(())
     }
 
-    fn handle_batch(&self, tasks: &[SyncTask]) -> Result<(), crate::event::EventError> {
+    fn handle_batch(&self, tasks: &[SyncTask]) -> Result<(), QueueError> {
         // Batch process tasks
         for task in tasks {
             match task {
@@ -76,7 +76,7 @@ impl QueueHandler<SyncTask> for SyncTaskHandler {
                     {
                         futures::executor::block_on(engine.index_batch(documents.clone()))
                             .map_err(|e| {
-                                crate::event::EventError::HandlerError(format!(
+                                QueueError::HandlerError(format!(
                                     "Index batch error: {:?}",
                                     e
                                 ))
@@ -96,17 +96,11 @@ impl QueueHandler<SyncTask> for SyncTaskHandler {
                     {
                         for doc_id in doc_ids {
                             futures::executor::block_on(engine.delete(doc_id)).map_err(|e| {
-                                crate::event::EventError::HandlerError(format!(
-                                    "Delete error: {:?}",
-                                    e
-                                ))
+                                QueueError::HandlerError(format!("Delete error: {:?}", e))
                             })?;
                         }
                         futures::executor::block_on(engine.commit()).map_err(|e| {
-                            crate::event::EventError::HandlerError(format!(
-                                "Commit error: {:?}",
-                                e
-                            ))
+                            QueueError::HandlerError(format!("Commit error: {:?}", e))
                         })?;
                     }
                 }
@@ -121,10 +115,7 @@ impl QueueHandler<SyncTask> for SyncTaskHandler {
                         .get_engine(*space_id, tag_name, field_name)
                     {
                         futures::executor::block_on(engine.commit()).map_err(|e| {
-                            crate::event::EventError::HandlerError(format!(
-                                "Commit error: {:?}",
-                                e
-                            ))
+                            QueueError::HandlerError(format!("Commit error: {:?}", e))
                         })?;
                     }
                 }
@@ -182,14 +173,14 @@ impl TaskBuffer {
 
     pub async fn submit(&self, task: SyncTask) -> Result<(), BufferError> {
         self.queue.submit(task).await.map_err(|e| match e {
-            crate::event::EventError::QueueFull => BufferError::QueueFull,
+            QueueError::QueueFull => BufferError::QueueFull,
             _ => BufferError::QueueClosed,
         })
     }
 
     pub async fn submit_blocking(&self, task: SyncTask) -> Result<(), BufferError> {
         self.queue.submit(task).await.map_err(|e| match e {
-            crate::event::EventError::QueueFull => BufferError::QueueFull,
+            QueueError::QueueFull => BufferError::QueueFull,
             _ => BufferError::QueueClosed,
         })
     }
@@ -384,8 +375,8 @@ pub enum BufferError {
     QueueFull,
     #[error("Queue is closed")]
     QueueClosed,
-    #[error("Event error: {0}")]
-    Event(#[from] crate::event::EventError),
+    #[error("Queue error: {0}")]
+    Queue(#[from] QueueError),
     #[error("Index error: {0}")]
     IndexError(String),
     #[error("Commit error: {0}")]

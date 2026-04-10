@@ -1,7 +1,7 @@
-//! Asynchronous Event Queue
+//! Asynchronous Task Queue
 //!
-//! Provide asynchronous batch event processing capability, supporting:
-//! - Asynchronous event queue
+//! Provide asynchronous batch task processing capability, supporting:
+//! - Asynchronous task queue
 //! - Batch processing timer
 //! - Error retry mechanism
 //! - Dead letter queue
@@ -9,12 +9,12 @@
 //! # Generic Usage Example
 //!
 //! ```rust
-//! use crate::event::async_queue::{AsyncQueue, QueueConfig, QueueHandler};
+//! use crate::sync::queue::{AsyncQueue, QueueConfig, QueueHandler};
 //!
 //! // Used for any clonable type T
 //! struct MyHandler;
 //! impl QueueHandler<String> for MyHandler {
-//!     fn handle_item(&self, item: &String) -> Result<(), crate::event::EventError> {
+//!     fn handle_item(&self, item: &String) -> Result<(), crate::sync::queue::QueueError> {
 //!         println!("Processing: {}", item);
 //!         Ok(())
 //!     }
@@ -24,11 +24,39 @@
 //! let queue = AsyncQueue::new(config);
 //! ```
 
-use crate::event::EventError;
 use std::collections::VecDeque;
 use std::sync::Arc;
+use thiserror::Error;
 use tokio::sync::{mpsc, Mutex, RwLock};
 use tokio::time::Duration;
+
+/// 队列错误类型
+#[derive(Debug, Error)]
+pub enum QueueError {
+    /// 处理器错误
+    #[error("Handler error: {0}")]
+    HandlerError(String),
+
+    /// 队列已满
+    #[error("Queue is full")]
+    QueueFull,
+
+    /// 队列已关闭
+    #[error("Queue is closed")]
+    QueueClosed,
+
+    /// 内部错误
+    #[error("Internal error: {0}")]
+    InternalError(String),
+}
+
+impl From<std::io::Error> for QueueError {
+    fn from(err: std::io::Error) -> Self {
+        QueueError::InternalError(err.to_string())
+    }
+}
+
+pub type QueueResult<T> = Result<T, QueueError>;
 
 /// 队列配置
 #[derive(Debug, Clone)]
@@ -75,9 +103,9 @@ pub struct DeadLetterItem<T> {
 
 /// 队列处理器 trait（泛型版本）
 pub trait QueueHandler<T>: Send + Sync {
-    fn handle_item(&self, item: &T) -> Result<(), EventError>;
-    
-    fn handle_batch(&self, items: &[T]) -> Result<(), EventError> {
+    fn handle_item(&self, item: &T) -> Result<(), QueueError>;
+
+    fn handle_batch(&self, items: &[T]) -> Result<(), QueueError> {
         // 默认逐个处理
         for item in items {
             self.handle_item(item)?;
@@ -87,7 +115,7 @@ pub trait QueueHandler<T>: Send + Sync {
 }
 
 /// 异步队列（泛型版本）
-pub struct AsyncQueue<T> 
+pub struct AsyncQueue<T>
 where
     T: Clone + Send + Sync + 'static,
 {
@@ -116,7 +144,9 @@ where
     /// 创建新的异步队列
     pub fn new(config: QueueConfig) -> Self {
         let (shutdown_tx, _) = mpsc::channel(1);
-        let pending_queue = Arc::new(Mutex::new(VecDeque::with_capacity(config.max_queue_size)));
+        let pending_queue = Arc::new(Mutex::new(VecDeque::with_capacity(
+            config.max_queue_size,
+        )));
         let dead_letter_queue = Arc::new(RwLock::new(VecDeque::with_capacity(
             config.dead_letter_queue_size,
         )));
@@ -146,11 +176,11 @@ where
     }
 
     /// 提交项到队列
-    pub async fn submit(&self, item: T) -> Result<(), EventError> {
+    pub async fn submit(&self, item: T) -> Result<(), QueueError> {
         let mut queue = self.pending_queue.lock().await;
 
         if queue.len() >= self.config.max_queue_size {
-            return Err(EventError::QueueFull);
+            return Err(QueueError::QueueFull);
         }
 
         queue.push_back(PendingItem {
@@ -162,11 +192,11 @@ where
     }
 
     /// 批量处理
-    async fn process_batch(&self) -> Result<usize, EventError> {
+    async fn process_batch(&self) -> Result<usize, QueueError> {
         let handler = match &self.handler {
             Some(h) => h.clone(),
             None => {
-                return Err(EventError::HandlerError(
+                return Err(QueueError::HandlerError(
                     "No handler configured".to_string(),
                 ))
             }
@@ -212,7 +242,7 @@ where
                         queue.push_front(pending);
                     }
                 }
-                Err(EventError::HandlerError(format!(
+                Err(QueueError::HandlerError(format!(
                     "Batch processing failed: {:?}",
                     e
                 )))
@@ -250,7 +280,7 @@ where
     }
 
     /// 启动后台处理循环
-    pub async fn start_processing(&self) -> Result<(), EventError> {
+    pub async fn start_processing(&self) -> Result<(), QueueError> {
         let interval = Duration::from_millis(self.config.batch_interval_ms);
         let mut timer = tokio::time::interval(interval);
 
@@ -274,58 +304,35 @@ where
     }
 }
 
-// 为 StorageEvent 保留类型别名和向后兼容的 API
-use crate::event::StorageEvent;
-
-/// 异步事件队列（向后兼容的类型别名）
-pub type AsyncEventQueue = AsyncQueue<StorageEvent>;
-
-/// 事件处理器（向后兼容的类型别名）
-pub type EventHandler = dyn QueueHandler<StorageEvent>;
-
-/// 死信事件（向后兼容的类型别名）
-pub type DeadLetterEvent = DeadLetterItem<StorageEvent>;
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::sync::Arc;
-
-    struct TestHandler {
-        count: AtomicUsize,
-    }
-
-    impl QueueHandler<StorageEvent> for TestHandler {
-        fn handle_item(&self, _event: &StorageEvent) -> Result<(), EventError> {
-            self.count.fetch_add(1, Ordering::SeqCst);
-            Ok(())
-        }
-    }
 
     #[tokio::test]
     async fn test_async_queue_submit() {
         let config = QueueConfig::default();
         let queue = AsyncQueue::new(config);
 
-        // 创建测试事件
-        let event = StorageEvent::VertexInserted {
-            space_id: 1,
-            vertex: crate::core::Vertex {
-                vid: Box::new(crate::core::Value::Int64(1)),
-                id: 1,
-                tags: vec![],
-                properties: std::collections::HashMap::new(),
-            },
-            timestamp: 0,
-        };
-
-        queue.submit(event).await.expect("Submit should succeed");
+        // 提交测试项
+        queue.submit("test".to_string()).await.expect("Submit should succeed");
         assert_eq!(queue.pending_count().await, 1);
     }
 
     #[tokio::test]
     async fn test_async_queue_batch_processing() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        struct TestHandler {
+            count: AtomicUsize,
+        }
+
+        impl QueueHandler<String> for TestHandler {
+            fn handle_item(&self, _item: &String) -> Result<(), QueueError> {
+                self.count.fetch_add(1, Ordering::SeqCst);
+                Ok(())
+            }
+        }
+
         let config = QueueConfig {
             batch_size: 5,
             ..Default::default()
@@ -337,19 +344,12 @@ mod tests {
         });
         queue.set_handler(handler.clone());
 
-        // 提交多个事件
+        // 提交多个项
         for i in 0..10 {
-            let event = StorageEvent::VertexInserted {
-                space_id: 1,
-                vertex: crate::core::Vertex {
-                    vid: Box::new(crate::core::Value::Int64(i)),
-                    id: i,
-                    tags: vec![],
-                    properties: std::collections::HashMap::new(),
-                },
-                timestamp: 0,
-            };
-            queue.submit(event).await.expect("Submit should succeed");
+            queue
+                .submit(format!("item_{}", i))
+                .await
+                .expect("Submit should succeed");
         }
 
         // 处理一批

@@ -19,7 +19,7 @@ pub mod vertex_storage;
 pub mod test_mock;
 
 pub use edge_storage::EdgeStorage;
-pub use event_storage::EventEmittingStorage;
+pub use event_storage::SyncStorage;
 pub use index::*;
 pub use iterator::*;
 pub use metadata::*;

@@ -380,8 +380,8 @@ impl SyncManager {
 
 #[derive(Debug, thiserror::Error)]
 pub enum SyncError {
-    #[error("Event error: {0}")]
-    Event(#[from] crate::event::EventError),
+    #[error("Queue error: {0}")]
+    Queue(#[from] crate::sync::queue::QueueError),
     #[error("Buffer error: {0}")]
     BufferError(#[from] BufferError),
     #[error("Coordinator error: {0}")]

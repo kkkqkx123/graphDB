@@ -1,4 +1,4 @@
-//! 存储层事件包装器
+//! 存储层同步包装器
 //!
 //! 包装 StorageClient，在存储操作时自动同步到索引
 
@@ -8,16 +8,16 @@ use crate::storage::StorageClient;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-/// 事件发射存储包装器
+/// 带同步功能的存储包装器
 #[derive(Clone, Debug)]
-pub struct EventEmittingStorage<S: StorageClient + Debug> {
+pub struct SyncStorage<S: StorageClient + Debug> {
     inner: S,
     sync_manager: Option<Arc<crate::sync::SyncManager>>,
     enabled: bool,
 }
 
-impl<S: StorageClient> EventEmittingStorage<S> {
-    /// 创建新的事件包装存储（不带 SyncManager）
+impl<S: StorageClient> SyncStorage<S> {
+    /// 创建新的同步存储（不带 SyncManager）
     pub fn new(storage: S) -> Self {
         Self {
             inner: storage,
@@ -35,12 +35,12 @@ impl<S: StorageClient> EventEmittingStorage<S> {
         }
     }
 
-    /// 启用/禁用事件发布
-    pub fn enable_events(&mut self, enabled: bool) {
+    /// 启用/禁用同步
+    pub fn enable_sync(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
 
-    /// 检查事件是否启用
+    /// 检查同步是否启用
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }
@@ -56,7 +56,7 @@ impl<S: StorageClient> EventEmittingStorage<S> {
     }
 }
 
-impl<S: StorageClient> StorageClient for EventEmittingStorage<S> {
+impl<S: StorageClient> StorageClient for SyncStorage<S> {
     fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
         self.inner.get_vertex(space, id)
     }

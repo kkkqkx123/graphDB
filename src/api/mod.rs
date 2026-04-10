@@ -29,7 +29,7 @@ pub use embedded::GraphDatabase;
 use crate::api::server::GraphService;
 use crate::config::Config;
 use crate::core::error::DBResult;
-use crate::storage::event_storage::EventEmittingStorage;
+use crate::storage::event_storage::SyncStorage;
 use crate::storage::redb_storage::DefaultStorage;
 use crate::transaction::{TransactionManager, TransactionManagerConfig};
 
@@ -81,17 +81,17 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
         println!("SyncManager initialized");
 
         // 包装存储层并绑定 SyncManager
-        let event_storage = EventEmittingStorage::with_sync_manager(
+        let sync_storage = SyncStorage::with_sync_manager(
             (*inner_storage).clone(),
             sync_manager,
         );
-        println!("Event publishing enabled for fulltext sync");
+        println!("Sync enabled for fulltext index");
 
-        Arc::new(event_storage)
+        Arc::new(sync_storage)
     } else {
         // 不使用全文索引，直接创建普通存储
-        let event_storage = EventEmittingStorage::new((*inner_storage).clone());
-        Arc::new(event_storage)
+        let sync_storage = SyncStorage::new((*inner_storage).clone());
+        Arc::new(sync_storage)
     };
 
     // Create a transaction manager
@@ -108,7 +108,7 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
     let rt = tokio::runtime::Runtime::new()?;
     rt.block_on(async {
         let graph_service =
-            GraphService::<EventEmittingStorage<DefaultStorage>>::new_with_transaction_manager(
+            GraphService::<SyncStorage<DefaultStorage>>::new_with_transaction_manager(
                 config.clone(),
                 storage.clone(),
                 transaction_manager.clone(),
@@ -151,11 +151,11 @@ pub async fn execute_query(query_str: &str) -> DBResult<()> {
     let inner_storage = Arc::new(DefaultStorage::new()?);
 
     // 初始化存储（简化版本，不启用全文索引）
-    let event_storage = EventEmittingStorage::new((*inner_storage).clone());
-    let storage = Arc::new(event_storage);
+    let sync_storage = SyncStorage::new((*inner_storage).clone());
+    let storage = Arc::new(sync_storage);
 
     let graph_service =
-        GraphService::<EventEmittingStorage<DefaultStorage>>::new_for_test(config, storage).await;
+        GraphService::<SyncStorage<DefaultStorage>>::new_for_test(config, storage).await;
 
     let session = match graph_service
         .get_session_manager()
