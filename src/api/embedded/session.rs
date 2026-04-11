@@ -449,12 +449,13 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// # Return
     /// - Returns () on success
     /// - Return error on failure
-    pub fn commit_transaction(
+    pub async fn commit_transaction(
         &self,
         txn_handle: crate::api::core::TransactionHandle,
     ) -> CoreResult<()> {
         self.txn_manager()
             .commit_transaction(txn_handle.0)
+            .await
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 

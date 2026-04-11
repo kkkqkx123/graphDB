@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use tempfile::TempDir;
+use tokio;
 
 use crate::transaction::manager::TransactionManager;
 use crate::transaction::types::{
@@ -94,8 +95,8 @@ fn test_begin_transaction_with_timeout() {
     assert!(context.remaining_time() > Duration::from_secs(50));
 }
 
-#[test]
-fn test_commit_transaction() {
+#[tokio::test]
+async fn test_commit_transaction() {
     let (manager, _db, _temp) = create_test_manager();
 
     let txn_id = manager
@@ -106,6 +107,7 @@ fn test_commit_transaction() {
 
     manager
         .commit_transaction(txn_id)
+        .await
         .expect("Failed to commit transaction");
 
     assert!(!manager.is_transaction_active(txn_id));
@@ -146,8 +148,8 @@ fn test_abort_transaction() {
     );
 }
 
-#[test]
-fn test_commit_readonly_transaction() {
+#[tokio::test]
+async fn test_commit_readonly_transaction() {
     let (manager, _db, _temp) = create_test_manager();
 
     let options = TransactionOptions::new().read_only();
@@ -157,6 +159,7 @@ fn test_commit_readonly_transaction() {
 
     manager
         .commit_transaction(txn_id)
+        .await
         .expect("Failed to commit readonly transaction");
 
     assert!(!manager.is_transaction_active(txn_id));
@@ -173,11 +176,11 @@ fn test_get_transaction_not_found() {
     ));
 }
 
-#[test]
-fn test_commit_transaction_not_found() {
+#[tokio::test]
+async fn test_commit_transaction_not_found() {
     let (manager, _db, _temp) = create_test_manager();
 
-    let result = manager.commit_transaction(9999);
+    let result = manager.commit_transaction(9999).await;
     assert!(matches!(
         result,
         Err(TransactionError::TransactionNotFound(_))
@@ -195,8 +198,8 @@ fn test_abort_transaction_not_found() {
     ));
 }
 
-#[test]
-fn test_commit_already_committed_transaction() {
+#[tokio::test]
+async fn test_commit_already_committed_transaction() {
     let (manager, _db, _temp) = create_test_manager();
 
     let txn_id = manager
@@ -205,10 +208,11 @@ fn test_commit_already_committed_transaction() {
 
     manager
         .commit_transaction(txn_id)
+        .await
         .expect("First commit failed");
 
     // Second commit should fail
-    let result = manager.commit_transaction(txn_id);
+    let result = manager.commit_transaction(txn_id).await;
     assert!(matches!(
         result,
         Err(TransactionError::TransactionNotFound(_))
@@ -235,8 +239,8 @@ fn test_abort_already_aborted_transaction() {
     ));
 }
 
-#[test]
-fn test_write_transaction_conflict() {
+#[tokio::test]
+async fn test_write_transaction_conflict() {
     let (manager, _db, _temp) = create_test_manager();
 
     // Begin first write transaction
@@ -254,6 +258,7 @@ fn test_write_transaction_conflict() {
     // Commit first transaction
     manager
         .commit_transaction(txn1)
+        .await
         .expect("Failed to commit first transaction");
 
     // Now can begin new transaction
@@ -263,11 +268,12 @@ fn test_write_transaction_conflict() {
 
     manager
         .commit_transaction(txn2)
+        .await
         .expect("Failed to commit second transaction");
 }
 
-#[test]
-fn test_multiple_readonly_transactions() {
+#[tokio::test]
+async fn test_multiple_readonly_transactions() {
     let (manager, _db, _temp) = create_test_manager();
 
     let options = TransactionOptions::new().read_only();
@@ -290,17 +296,20 @@ fn test_multiple_readonly_transactions() {
     // Commit all readonly transactions
     manager
         .commit_transaction(txn1)
+        .await
         .expect("Failed to commit first readonly transaction");
     manager
         .commit_transaction(txn2)
+        .await
         .expect("Failed to commit second readonly transaction");
     manager
         .commit_transaction(txn3)
+        .await
         .expect("Failed to commit third readonly transaction");
 }
 
-#[test]
-fn test_sequential_write_transactions() {
+#[tokio::test]
+async fn test_sequential_write_transactions() {
     let (manager, _db, _temp) = create_test_manager();
 
     // First transaction
@@ -309,6 +318,7 @@ fn test_sequential_write_transactions() {
         .expect("Failed to begin first transaction");
     manager
         .commit_transaction(txn1)
+        .await
         .expect("Failed to commit first transaction");
 
     // Second transaction
@@ -325,6 +335,7 @@ fn test_sequential_write_transactions() {
         .expect("Failed to begin third transaction");
     manager
         .commit_transaction(txn3)
+        .await
         .expect("Failed to commit third transaction");
 
     // Verify statistics
@@ -343,8 +354,8 @@ fn test_sequential_write_transactions() {
     );
 }
 
-#[test]
-fn test_transaction_timeout() {
+#[tokio::test]
+async fn test_transaction_timeout() {
     let (manager, _db, _temp) = create_test_manager();
 
     let options = TransactionOptions::new().with_timeout(Duration::from_millis(50));
@@ -357,7 +368,7 @@ fn test_transaction_timeout() {
     std::thread::sleep(Duration::from_millis(100));
 
     // Committing timeout transaction should fail
-    let result = manager.commit_transaction(txn_id);
+    let result = manager.commit_transaction(txn_id).await;
     assert!(matches!(result, Err(TransactionError::TransactionTimeout)));
 
     // Verify statistics
@@ -370,8 +381,8 @@ fn test_transaction_timeout() {
     );
 }
 
-#[test]
-fn test_list_active_transactions() {
+#[tokio::test]
+async fn test_list_active_transactions() {
     let (manager, _db, _temp) = create_test_manager();
 
     // Begin several transactions
@@ -389,6 +400,7 @@ fn test_list_active_transactions() {
     // Commit one transaction
     manager
         .commit_transaction(txn1)
+        .await
         .expect("Failed to commit transaction");
 
     // List active transactions again
@@ -398,11 +410,12 @@ fn test_list_active_transactions() {
     // Cleanup
     manager
         .commit_transaction(txn2)
+        .await
         .expect("Failed to commit transaction");
 }
 
-#[test]
-fn test_get_transaction_info() {
+#[tokio::test]
+async fn test_get_transaction_info() {
     let (manager, _db, _temp) = create_test_manager();
 
     let txn_id = manager
@@ -419,11 +432,12 @@ fn test_get_transaction_info() {
 
     manager
         .commit_transaction(txn_id)
+        .await
         .expect("Failed to commit transaction");
 }
 
-#[test]
-fn test_max_concurrent_transactions() {
+#[tokio::test]
+async fn test_max_concurrent_transactions() {
     let config = crate::transaction::types::TransactionManagerConfig {
         max_concurrent_transactions: 2,
         auto_cleanup: false,
@@ -455,14 +469,16 @@ fn test_max_concurrent_transactions() {
     // Cleanup
     manager
         .commit_transaction(txn1)
+        .await
         .expect("Failed to commit first transaction");
     manager
         .commit_transaction(txn2)
+        .await
         .expect("Failed to commit second transaction");
 }
 
-#[test]
-fn test_transaction_stats() {
+#[tokio::test]
+async fn test_transaction_stats() {
     let (manager, _db, _temp) = create_test_manager();
 
     let stats = manager.stats();
@@ -514,6 +530,7 @@ fn test_transaction_stats() {
     // Commit transaction
     manager
         .commit_transaction(txn1)
+        .await
         .expect("Failed to commit transaction");
 
     assert_eq!(

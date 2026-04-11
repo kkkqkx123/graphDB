@@ -84,25 +84,19 @@ pub async fn commit<S: StorageClient + Clone + Send + Sync + 'static>(
     Path(txn_id): Path<u64>,
     Json(_request): Json<TransactionActionRequest>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
-    let result = task::spawn_blocking(move || {
-        let txn_api = state.server.get_txn_api();
-        let handle = TransactionHandle(txn_id);
+    let txn_api = state.server.get_txn_api();
+    let handle = TransactionHandle(txn_id);
 
-        match txn_api.commit(handle) {
-            Ok(()) => Ok::<_, HttpError>(serde_json::json!({
-                "message": "Transaction committed successfully",
-                "transaction_id": txn_id,
-            })),
-            Err(e) => Err(HttpError::InternalError(format!(
-                "Failed to commit transaction: {}",
-                e
-            ))),
-        }
-    })
-    .await
-    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
-
-    Ok(JsonResponse(result?))
+    match txn_api.commit(handle).await {
+        Ok(()) => Ok(JsonResponse(serde_json::json!({
+            "message": "Transaction committed successfully",
+            "transaction_id": txn_id,
+        }))),
+        Err(e) => Err(HttpError::InternalError(format!(
+            "Failed to commit transaction: {}",
+            e
+        ))),
+    }
 }
 
 /// Roll back a transaction
@@ -111,23 +105,17 @@ pub async fn rollback<S: StorageClient + Clone + Send + Sync + 'static>(
     Path(txn_id): Path<u64>,
     Json(_request): Json<TransactionActionRequest>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
-    let result = task::spawn_blocking(move || {
-        let txn_api = state.server.get_txn_api();
-        let handle = TransactionHandle(txn_id);
+    let txn_api = state.server.get_txn_api();
+    let handle = TransactionHandle(txn_id);
 
-        match txn_api.rollback(handle) {
-            Ok(()) => Ok::<_, HttpError>(serde_json::json!({
-                "message": "Transaction rolled back successfully",
-                "transaction_id": txn_id,
-            })),
-            Err(e) => Err(HttpError::InternalError(format!(
-                "Failed to rollback transaction: {}",
-                e
-            ))),
-        }
-    })
-    .await
-    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
-
-    Ok(JsonResponse(result?))
+    match txn_api.rollback(handle) {
+        Ok(()) => Ok(JsonResponse(serde_json::json!({
+            "message": "Transaction rolled back successfully",
+            "transaction_id": txn_id,
+        }))),
+        Err(e) => Err(HttpError::InternalError(format!(
+            "Failed to rollback transaction: {}",
+            e
+        ))),
+    }
 }

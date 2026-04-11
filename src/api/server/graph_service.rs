@@ -181,7 +181,9 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         if result.is_ok() && session.is_auto_commit() {
             if let Some(txn_id) = session.current_transaction() {
                 if let Some(ref txn_manager) = self.transaction_manager {
-                    if let Err(e) = txn_manager.commit_transaction(txn_id) {
+                    // Use block_on to execute async commit_transaction in sync context
+                    let rt = tokio::runtime::Handle::current();
+                    if let Err(e) = rt.block_on(txn_manager.commit_transaction(txn_id)) {
                         warn!("Auto-commit failed: {}", e);
                     } else {
                         session.unbind_transaction();
@@ -444,7 +446,9 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             .as_ref()
             .ok_or("Transaction manager not initialized")?;
 
-        match txn_manager.commit_transaction(txn_id) {
+        // Use block_on to execute async commit_transaction in sync context
+        let rt = tokio::runtime::Handle::current();
+        match rt.block_on(txn_manager.commit_transaction(txn_id)) {
             Ok(()) => {
                 session.unbind_transaction();
                 session.set_auto_commit(true);

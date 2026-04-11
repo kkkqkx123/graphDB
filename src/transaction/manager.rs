@@ -668,8 +668,8 @@ mod tests {
         (manager, db, temp_dir)
     }
 
-    #[test]
-    fn test_begin_and_commit_transaction() {
+    #[tokio::test]
+    async fn test_begin_and_commit_transaction() {
         let (manager, _db, _temp) = create_test_manager();
 
         let txn_id = manager
@@ -680,6 +680,7 @@ mod tests {
 
         manager
             .commit_transaction(txn_id)
+            .await
             .expect("Failed to commit transaction");
 
         assert!(!manager.is_transaction_active(txn_id));
@@ -692,8 +693,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_begin_and_abort_transaction() {
+    #[tokio::test]
+    async fn test_begin_and_abort_transaction() {
         let (manager, _db, _temp) = create_test_manager();
 
         let txn_id = manager
@@ -711,8 +712,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_readonly_transaction() {
+    #[tokio::test]
+    async fn test_readonly_transaction() {
         let (manager, _db, _temp) = create_test_manager();
 
         let options = TransactionOptions::new().read_only();
@@ -727,6 +728,7 @@ mod tests {
 
         manager
             .commit_transaction(txn_id)
+            .await
             .expect("Failed to commit readonly transaction");
     }
 
@@ -741,8 +743,8 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn test_invalid_state_transition() {
+    #[tokio::test]
+    async fn test_invalid_state_transition() {
         let (manager, _db, _temp) = create_test_manager();
 
         let txn_id = manager
@@ -752,18 +754,19 @@ mod tests {
         // Commit transaction
         manager
             .commit_transaction(txn_id)
+            .await
             .expect("Failed to commit transaction");
 
         // Second commit should fail
-        let result = manager.commit_transaction(txn_id);
+        let result = manager.commit_transaction(txn_id).await;
         assert!(matches!(
             result,
             Err(TransactionError::TransactionNotFound(_))
         ));
     }
 
-    #[test]
-    fn test_concurrent_transactions() {
+    #[tokio::test]
+    async fn test_concurrent_transactions() {
         let (manager, _db, _temp) = create_test_manager();
 
         // Due to redb's single-writer restriction, we can only execute transactions sequentially
@@ -774,6 +777,7 @@ mod tests {
         assert!(manager.is_transaction_active(txn1));
         manager
             .commit_transaction(txn1)
+            .await
             .expect("Failed to commit transaction");
         assert!(!manager.is_transaction_active(txn1));
 
@@ -794,6 +798,7 @@ mod tests {
         assert!(manager.is_transaction_active(txn3));
         manager
             .commit_transaction(txn3)
+            .await
             .expect("Failed to commit transaction");
         assert!(!manager.is_transaction_active(txn3));
 
@@ -810,8 +815,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_multiple_readonly_transactions() {
+    #[tokio::test]
+    async fn test_multiple_readonly_transactions() {
         let (manager, _db, _temp) = create_test_manager();
 
         // Read-only transactions can be concurrent
@@ -832,12 +837,15 @@ mod tests {
 
         manager
             .commit_transaction(txn1)
+            .await
             .expect("Failed to commit transaction");
         manager
             .commit_transaction(txn2)
+            .await
             .expect("Failed to commit transaction");
         manager
             .commit_transaction(txn3)
+            .await
             .expect("Failed to commit transaction");
     }
 }

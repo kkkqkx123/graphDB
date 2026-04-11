@@ -235,12 +235,13 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     ///
     /// # Note
     /// Cannot be reused after a transaction has been committed
-    pub fn commit(mut self) -> CoreResult<()> {
+    pub async fn commit(mut self) -> CoreResult<()> {
         self.check_active()?;
 
         self.session
             .txn_manager()
             .commit_transaction(self.txn_handle.0)
+            .await
             .map_err(|e| crate::api::core::CoreError::TransactionFailed(e.to_string()))?;
         self.committed = true;
         Ok(())
@@ -254,7 +255,7 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     ///
     /// # Attention.
     /// Transaction rollback cannot be reused after
-    pub fn rollback(mut self) -> CoreResult<()> {
+    pub async fn rollback(mut self) -> CoreResult<()> {
         self.check_active()?;
 
         self.session

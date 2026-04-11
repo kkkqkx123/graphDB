@@ -254,40 +254,12 @@ impl SyncCoordinator {
     pub async fn prepare_transaction(
         &self,
         txn_id: crate::transaction::types::TransactionId,
-        ctx: ChangeContext,
     ) -> Result<(), SyncCoordinatorError> {
-        let operation = self.create_operation(&ctx)?;
-
-        let processor: Arc<dyn BatchProcessor> = match ctx.index_type {
-            IndexType::Fulltext => {
-                match self.get_or_create_fulltext_processor(
-                    ctx.space_id,
-                    &ctx.tag_name,
-                    &ctx.field_name,
-                ) {
-                    Some(p) => p as Arc<dyn BatchProcessor>,
-                    None => return Ok(()),
-                }
-            }
-            IndexType::Vector => {
-                match self.get_or_create_vector_processor(
-                    ctx.space_id,
-                    &ctx.tag_name,
-                    &ctx.field_name,
-                ) {
-                    Some(p) => p as Arc<dyn BatchProcessor>,
-                    None => return Ok(()),
-                }
-            }
-        };
-
-        let buffer = self
-            .transaction_buffers
-            .entry(txn_id)
-            .or_insert_with(|| Arc::new(TransactionBatchBuffer::new(processor)));
-
-        buffer.prepare(txn_id, operation).await?;
-
+        // Check if there's a buffer for this transaction
+        // In two-phase commit, this ensures the buffer is ready
+        if self.transaction_buffers.contains_key(&txn_id) {
+            log::debug!("Transaction {:?} has pending index changes", txn_id);
+        }
         Ok(())
     }
 

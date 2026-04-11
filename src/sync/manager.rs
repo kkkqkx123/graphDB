@@ -161,7 +161,7 @@ impl SyncManager {
             SyncMode::Sync => {
                 // Direct synchronous processing
                 self.sync_coordinator
-                    .on_vertex_change(space_id, tag_name, vertex_id, properties, change_type)
+                    .on_vertex_change(space_id, tag_name, vertex_id, properties, change_type.into())
                     .await?;
 
                 // Also process vector changes if vector coordinator is available
@@ -180,7 +180,7 @@ impl SyncManager {
             SyncMode::Async => {
                 // Async processing through coordinator
                 self.sync_coordinator
-                    .on_vertex_change(space_id, tag_name, vertex_id, properties, change_type)
+                    .on_vertex_change(space_id, tag_name, vertex_id, properties, change_type.into())
                     .await?;
             }
             SyncMode::Off => {}
@@ -316,14 +316,14 @@ pub enum SyncError {
     #[error("Sync coordinator error: {0}")]
     SyncCoordinatorError(#[from] crate::sync::coordinator::SyncCoordinatorError),
 
+    #[error("Recovery error: {0}")]
+    RecoveryError(#[from] crate::sync::recovery::RecoveryError),
+
     #[error("Buffer error: {0}")]
     BufferError(String),
 
     #[error("Vector error: {0}")]
     VectorError(String),
-
-    #[error("Recovery error: {0}")]
-    RecoveryError(String),
 
     #[error("Internal error: {0}")]
     Internal(String),

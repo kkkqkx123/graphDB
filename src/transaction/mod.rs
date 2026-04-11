@@ -71,6 +71,7 @@ mod tests {
     use super::*;
     use std::sync::Arc;
     use tempfile::TempDir;
+    use tokio;
 
     fn create_test_db() -> (Arc<redb::Database>, TempDir) {
         let temp_dir = TempDir::new().expect("Failed to create temporary directory");
@@ -86,8 +87,8 @@ mod tests {
         assert_eq!(VERSION, "1.0.0");
     }
 
-    #[test]
-    fn test_create_transaction_manager() {
+    #[tokio::test]
+    async fn test_create_transaction_manager() {
         let (db, _temp) = create_test_db();
         let manager = create_transaction_manager(db);
 
@@ -97,11 +98,12 @@ mod tests {
 
         manager
             .commit_transaction(txn_id)
+            .await
             .expect("Failed to commit transaction");
     }
 
-    #[test]
-    fn test_readonly_options() {
+    #[tokio::test]
+    async fn test_readonly_options() {
         let (db, _temp) = create_test_db();
         let manager = create_transaction_manager(db);
 
@@ -117,6 +119,7 @@ mod tests {
 
         manager
             .commit_transaction(txn_id)
+            .await
             .expect("Failed to commit transaction");
     }
 

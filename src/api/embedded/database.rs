@@ -113,7 +113,6 @@ impl GraphDatabase<RedbStorage> {
                 FulltextIndexManager::new(fulltext_config.clone())
                     .map_err(|e| CoreError::Internal(e.to_string()))?,
             );
-            let coordinator = Arc::new(FulltextCoordinator::new(manager.clone()));
 
             let sync_config = SyncConfig {
                 mode: fulltext_config.sync.mode,
@@ -123,7 +122,13 @@ impl GraphDatabase<RedbStorage> {
                 failure_policy: SyncFailurePolicy::FailOpen,
             };
 
-            let mut sync = SyncManager::with_sync_config(coordinator.clone(), sync_config);
+            let batch_config = crate::sync::batch::BatchConfig::from(sync_config);
+            let sync_coordinator = Arc::new(crate::sync::coordinator::SyncCoordinator::new(
+                manager.clone(),
+                batch_config,
+            ));
+
+            let mut sync = SyncManager::with_sync_config(sync_coordinator.clone(), sync_config);
 
             if vector_config.enabled {
                 let rt = tokio::runtime::Handle::current();
@@ -143,7 +148,7 @@ impl GraphDatabase<RedbStorage> {
             }
 
             let sync = Arc::new(sync);
-            (Some(manager), Some(coordinator), Some(sync))
+            (Some(manager), Some(sync_coordinator), Some(sync))
         } else if vector_config.enabled {
             let rt = tokio::runtime::Handle::current();
             let vector_manager = Arc::new(
@@ -157,10 +162,15 @@ impl GraphDatabase<RedbStorage> {
             );
 
             let sync_config = SyncConfig::default();
-            let coordinator = Arc::new(FulltextCoordinator::new(Arc::new(
+            let batch_config = crate::sync::batch::BatchConfig::from(sync_config);
+            let manager = Arc::new(
                 FulltextIndexManager::new(FulltextConfig::default()).unwrap(),
-            )));
-            let mut sync = SyncManager::with_sync_config(coordinator, sync_config);
+            );
+            let sync_coordinator = Arc::new(crate::sync::coordinator::SyncCoordinator::new(
+                manager,
+                batch_config,
+            ));
+            let mut sync = SyncManager::with_sync_config(sync_coordinator, sync_config);
             sync = sync.with_vector_coordinator(vector_coordinator);
             let sync = Arc::new(sync);
 
