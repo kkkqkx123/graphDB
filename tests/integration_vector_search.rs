@@ -18,7 +18,7 @@ use std::time::Duration;
 
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Value, Vertex};
-use graphdb::vector::VectorSyncCoordinator;
+use graphdb::sync::vector_sync::VectorSyncCoordinator;
 use vector_client::types::{
     CollectionConfig, FilterCondition, SearchQuery, VectorFilter, VectorPoint,
 };
@@ -46,6 +46,27 @@ impl VectorTestContext {
 
         // Use test name as collection prefix for isolation
         let collection_prefix = format!("test_{}", test_name);
+
+        Self {
+            coordinator,
+            manager,
+            collection_prefix,
+        }
+    }
+
+    async fn with_mock_engine(test_name: &str) -> Self {
+        // Create manager with disabled config for mock tests
+        let vector_config = VectorClientConfig::disabled();
+
+        let manager = Arc::new(
+            VectorManager::new(vector_config)
+                .await
+                .expect("Failed to create manager"),
+        );
+        let coordinator = Arc::new(VectorSyncCoordinator::new(manager.clone(), None));
+
+        // Use test name as collection prefix for isolation
+        let collection_prefix = format!("test_mock_{}", test_name);
 
         Self {
             coordinator,
@@ -100,7 +121,7 @@ async fn test_vector_manager_create_index() {
 
 #[tokio::test]
 async fn test_vector_manager_create_duplicate_index() {
-    let ctx = VectorTestContext::with_mock_engine().await;
+    let ctx = VectorTestContext::with_mock_engine("create_duplicate_index").await;
 
     let config = CollectionConfig::new(3, DistanceMetric::Cosine);
     ctx.manager
@@ -115,7 +136,7 @@ async fn test_vector_manager_create_duplicate_index() {
 
 #[tokio::test]
 async fn test_vector_manager_drop_index() {
-    let ctx = VectorTestContext::with_mock_engine().await;
+    let ctx = VectorTestContext::with_mock_engine("drop_index").await;
 
     let config = CollectionConfig::new(3, DistanceMetric::Cosine);
     ctx.manager
@@ -129,7 +150,7 @@ async fn test_vector_manager_drop_index() {
 
 #[tokio::test]
 async fn test_vector_manager_metadata() {
-    let ctx = VectorTestContext::with_mock_engine().await;
+    let ctx = VectorTestContext::with_mock_engine("metadata").await;
 
     let config = CollectionConfig::new(3, DistanceMetric::Cosine);
     ctx.manager
@@ -151,7 +172,7 @@ async fn test_vector_manager_metadata() {
 
 #[tokio::test]
 async fn test_vector_coordinator_create_index() {
-    let ctx = VectorTestContext::with_mock_engine().await;
+    let ctx = VectorTestContext::with_mock_engine("create_index").await;
 
     let result = ctx
         .coordinator
@@ -168,7 +189,7 @@ async fn test_vector_coordinator_create_index() {
 
 #[tokio::test]
 async fn test_vector_coordinator_drop_index() {
-    let ctx = VectorTestContext::with_mock_engine().await;
+    let ctx = VectorTestContext::with_mock_engine("drop_index").await;
 
     ctx.coordinator
         .create_vector_index(1, "Document", "embedding", 3, DistanceMetric::Cosine)
@@ -190,7 +211,7 @@ async fn test_vector_coordinator_drop_index() {
 
 #[tokio::test]
 async fn test_vector_search_basic() {
-    let ctx = VectorTestContext::with_mock_engine().await;
+    let ctx = VectorTestContext::with_mock_engine("search_basic").await;
 
     // Create index
     ctx.coordinator
@@ -225,7 +246,7 @@ async fn test_vector_search_basic() {
 #[tokio::test]
 #[ignore = "MockEngine does not fully support filtering"]
 async fn test_vector_search_with_filter() {
-    let ctx = VectorTestContext::with_mock_engine().await;
+    let ctx = VectorTestContext::with_mock_engine("search_with_filter").await;
 
     // Create index
     ctx.coordinator
@@ -277,7 +298,7 @@ async fn test_vector_search_with_filter() {
 
 #[tokio::test]
 async fn test_vertex_insert_with_vector() {
-    let ctx = VectorTestContext::with_mock_engine().await;
+    let ctx = VectorTestContext::with_mock_engine("vertex_insert").await;
 
     // Create index
     ctx.coordinator
@@ -312,7 +333,7 @@ async fn test_vertex_insert_with_vector() {
 
 #[tokio::test]
 async fn test_vertex_delete_with_vector() {
-    let ctx = VectorTestContext::with_mock_engine().await;
+    let ctx = VectorTestContext::with_mock_engine("vertex_delete").await;
 
     // Create index
     ctx.coordinator
@@ -352,7 +373,7 @@ async fn test_vertex_delete_with_vector() {
 
 #[tokio::test]
 async fn test_batch_upsert() {
-    let ctx = VectorTestContext::with_mock_engine().await;
+    let ctx = VectorTestContext::with_mock_engine("batch_upsert").await;
 
     // Create index
     ctx.coordinator
@@ -392,7 +413,7 @@ async fn test_batch_upsert() {
 
 #[tokio::test]
 async fn test_batch_delete() {
-    let ctx = VectorTestContext::with_mock_engine().await;
+    let ctx = VectorTestContext::with_mock_engine("batch_delete").await;
 
     // Create index
     ctx.coordinator
@@ -439,7 +460,7 @@ async fn test_batch_delete() {
 
 #[tokio::test]
 async fn test_health_check() {
-    let ctx = VectorTestContext::with_mock_engine().await;
+    let ctx = VectorTestContext::with_mock_engine("health_check").await;
 
     let health = ctx
         .coordinator

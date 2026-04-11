@@ -21,7 +21,7 @@ use common::{
 use graphdb::coordinator::{ChangeType, FulltextCoordinator};
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Value, Vertex};
-use graphdb::search::config::{FulltextConfig, SyncConfig};
+use graphdb::search::config::{FulltextConfig, SyncConfig, SyncFailurePolicy};
 use graphdb::search::engine::EngineType;
 use graphdb::search::manager::FulltextIndexManager;
 use graphdb::storage::storage_client::StorageClient;

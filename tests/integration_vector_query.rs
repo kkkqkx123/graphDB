@@ -10,8 +10,9 @@
 mod common;
 
 use graphdb::query::parser::Parser;
-use graphdb::vector::{VectorConfig, VectorIndexManager, VectorSyncCoordinator};
+use graphdb::sync::vector_sync::VectorSyncCoordinator;
 use std::sync::Arc;
+use vector_client::{VectorClientConfig, VectorManager};
 
 /// Test context for vector query integration
 #[allow(dead_code)]
@@ -22,11 +23,11 @@ struct VectorQueryTestContext {
 impl VectorQueryTestContext {
     /// Create a new test context with in-memory storage
     async fn new() -> Self {
-        let vector_config = VectorConfig::default();
+        let vector_config = VectorClientConfig::default();
         let manager = Arc::new(
-            VectorIndexManager::new(vector_config)
+            VectorManager::new(vector_config)
                 .await
-                .expect("Failed to create vector index manager"),
+                .expect("Failed to create vector manager"),
         );
         let coordinator = Arc::new(VectorSyncCoordinator::new(manager, None));
 

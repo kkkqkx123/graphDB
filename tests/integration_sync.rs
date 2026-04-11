@@ -44,6 +44,7 @@ impl SyncTestContext {
                 queue_size: 100,
                 commit_interval_ms: 100,
                 batch_size: 10,
+                failure_policy: graphdb::search::SyncFailurePolicy::FailOpen,
             },
             bm25: Default::default(),
             inversearch: Default::default(),
@@ -359,6 +360,7 @@ fn test_sync_config_parameters_applied() {
         queue_size: 5000,
         commit_interval_ms: 500,
         batch_size: 50,
+        failure_policy: graphdb::search::SyncFailurePolicy::FailOpen,
     };
 
     assert_eq!(sync_config.mode, SyncMode::Sync);
@@ -383,6 +385,7 @@ async fn test_sync_config_custom_queue_size() {
         queue_size: 50,
         commit_interval_ms: 100,
         batch_size: 5,
+        failure_policy: graphdb::search::SyncFailurePolicy::FailOpen,
     };
 
     let ctx = SyncTestContext::with_sync_config(sync_config);
@@ -897,6 +900,7 @@ fn test_sync_config_serde_roundtrip() {
         queue_size: 5000,
         commit_interval_ms: 500,
         batch_size: 50,
+        failure_policy: graphdb::search::SyncFailurePolicy::FailOpen,
     };
 
     let json = serde_json::to_string(&config).expect("Failed to serialize");
@@ -911,8 +915,8 @@ fn test_sync_config_serde_roundtrip() {
 
 mod vector_sync_tests {
     use super::*;
-    use graphdb::vector::{VectorConfig, VectorIndexManager, VectorSyncCoordinator};
-    use vector_client::DistanceMetric;
+    use graphdb::sync::vector_sync::VectorSyncCoordinator;
+    use vector_client::{DistanceMetric, VectorClientConfig, VectorManager};
 
     struct VectorSyncTestContext {
         vector_coordinator: Arc<VectorSyncCoordinator>,
@@ -939,6 +943,7 @@ mod vector_sync_tests {
                     queue_size: 100,
                     commit_interval_ms: 100,
                     batch_size: 10,
+                    failure_policy: graphdb::search::SyncFailurePolicy::FailOpen,
                 },
                 bm25: Default::default(),
                 inversearch: Default::default(),
@@ -954,10 +959,10 @@ mod vector_sync_tests {
             let fulltext_coordinator = Arc::new(FulltextCoordinator::new(fulltext_manager));
 
             // Setup vector coordinator
-            let vector_config = VectorConfig::disabled();
+            let vector_config = VectorClientConfig::disabled();
 
             let vector_manager = Arc::new(
-                VectorIndexManager::new(vector_config)
+                VectorManager::new(vector_config)
                     .await
                     .expect("Failed to create vector manager"),
             );
@@ -1040,7 +1045,7 @@ mod vector_sync_tests {
 
         let results = ctx
             .vector_coordinator
-            .search(1, "Document", "embedding", vector, 10)
+            .search_by_location(1, "Document", "embedding", vector, 10)
             .await
             .expect("Failed to search");
 
@@ -1089,7 +1094,7 @@ mod vector_sync_tests {
 
         let results = ctx
             .vector_coordinator
-            .search(1, "Document", "embedding", vector, 10)
+            .search_by_location(1, "Document", "embedding", vector, 10)
             .await
             .expect("Failed to search");
 
@@ -1137,7 +1142,7 @@ mod vector_sync_tests {
 
         let results = ctx
             .vector_coordinator
-            .search(1, "Document", "embedding", vector, 10)
+            .search_by_location(1, "Document", "embedding", vector, 10)
             .await
             .expect("Failed to search");
 
@@ -1212,14 +1217,14 @@ mod vector_sync_tests {
         // Search with old vector should not find result
         let _old_results = ctx
             .vector_coordinator
-            .search(1, "Document", "embedding", old_vector, 10)
+            .search_by_location(1, "Document", "embedding", old_vector, 10)
             .await
             .expect("Failed to search with old vector");
 
         // Search with new vector should find result
         let new_results = ctx
             .vector_coordinator
-            .search(1, "Document", "embedding", new_vector, 10)
+            .search_by_location(1, "Document", "embedding", new_vector, 10)
             .await
             .expect("Failed to search with new vector");
 
@@ -1266,7 +1271,7 @@ mod vector_sync_tests {
         // Verify vector is inserted
         let before_delete = ctx
             .vector_coordinator
-            .search(1, "Document", "embedding", vector.clone(), 10)
+            .search_by_location(1, "Document", "embedding", vector.clone(), 10)
             .await
             .expect("Failed to search before delete");
         assert_eq!(before_delete.len(), 1, "Vector should be inserted");
@@ -1285,7 +1290,7 @@ mod vector_sync_tests {
 
         let results = ctx
             .vector_coordinator
-            .search(1, "Document", "embedding", vector, 10)
+            .search_by_location(1, "Document", "embedding", vector, 10)
             .await
             .expect("Failed to search");
 
@@ -1359,7 +1364,7 @@ mod vector_sync_tests {
         // Test vector search
         let vector_results = ctx
             .vector_coordinator
-            .search(1, "Document", "embedding", vector, 10)
+            .search_by_location(1, "Document", "embedding", vector, 10)
             .await
             .expect("Failed to search vector");
 
@@ -1420,7 +1425,7 @@ mod vector_sync_tests {
         let query_vector = create_test_vector(3, 0.0);
         let results = ctx
             .vector_coordinator
-            .search(1, "Document", "embedding", query_vector, 10)
+            .search_by_location(1, "Document", "embedding", query_vector, 10)
             .await
             .expect("Failed to search");
 
@@ -1501,7 +1506,7 @@ mod vector_sync_tests {
         // Only first vector should be indexed
         let results = ctx
             .vector_coordinator
-            .search(1, "Document", "embedding", vector1, 10)
+            .search_by_location(1, "Document", "embedding", vector1, 10)
             .await
             .expect("Failed to search");
 

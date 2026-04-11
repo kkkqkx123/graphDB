@@ -263,7 +263,7 @@ fn test_flexi_logger_integration() {
             bootstrap: graphdb::config::BootstrapConfig::default(),
             optimizer: graphdb::config::OptimizerConfig::default(),
             monitoring: graphdb::config::MonitoringConfig::default(),
-            vector: graphdb::vector::VectorConfig::default(),
+            vector: VectorClientConfig::default(),
             fulltext: FulltextConfig::default(),
         };
 
@@ -291,7 +291,7 @@ fn test_flexi_logger_integration() {
             bootstrap: graphdb::config::BootstrapConfig::default(),
             optimizer: graphdb::config::OptimizerConfig::default(),
             monitoring: graphdb::config::MonitoringConfig::default(),
-            vector: graphdb::vector::VectorConfig::default(),
+            vector: VectorClientConfig::default(),
             fulltext: FulltextConfig::default(),
         };
 
@@ -333,7 +333,7 @@ fn test_flexi_logger_integration() {
             bootstrap: graphdb::config::BootstrapConfig::default(),
             optimizer: graphdb::config::OptimizerConfig::default(),
             monitoring: graphdb::config::MonitoringConfig::default(),
-            vector: graphdb::vector::VectorConfig::default(),
+            vector: VectorClientConfig::default(),
             fulltext: FulltextConfig::default(),
         };
 
@@ -369,7 +369,7 @@ fn test_flexi_logger_integration() {
             bootstrap: graphdb::config::BootstrapConfig::default(),
             optimizer: graphdb::config::OptimizerConfig::default(),
             monitoring: graphdb::config::MonitoringConfig::default(),
-            vector: graphdb::vector::VectorConfig::default(),
+            vector: VectorClientConfig::default(),
             fulltext: FulltextConfig::default(),
         };
 
@@ -418,7 +418,7 @@ fn test_log_file_path_resolution() {
         bootstrap: graphdb::config::BootstrapConfig::default(),
         optimizer: graphdb::config::OptimizerConfig::default(),
         monitoring: graphdb::config::MonitoringConfig::default(),
-        vector: graphdb::vector::VectorConfig::default(),
+        vector: VectorClientConfig::default(),
         fulltext: FulltextConfig::default(),
     };
 
@@ -445,7 +445,7 @@ fn test_log_file_size_config() {
         bootstrap: graphdb::config::BootstrapConfig::default(),
         optimizer: graphdb::config::OptimizerConfig::default(),
         monitoring: graphdb::config::MonitoringConfig::default(),
-        vector: graphdb::vector::VectorConfig::default(),
+        vector: VectorClientConfig::default(),
         fulltext: FulltextConfig::default(),
     };
     assert_eq!(custom_config.log.max_file_size, 500 * 1024 * 1024);
@@ -462,7 +462,7 @@ fn test_log_file_size_config() {
         bootstrap: graphdb::config::BootstrapConfig::default(),
         optimizer: graphdb::config::OptimizerConfig::default(),
         monitoring: graphdb::config::MonitoringConfig::default(),
-        vector: graphdb::vector::VectorConfig::default(),
+        vector: VectorClientConfig::default(),
         fulltext: FulltextConfig::default(),
     };
     assert_eq!(small_config.log.max_file_size, 1024);
@@ -485,7 +485,7 @@ fn test_log_level_validation() {
             bootstrap: graphdb::config::BootstrapConfig::default(),
             optimizer: graphdb::config::OptimizerConfig::default(),
             monitoring: graphdb::config::MonitoringConfig::default(),
-            vector: graphdb::vector::VectorConfig::default(),
+            vector: VectorClientConfig::default(),
             fulltext: FulltextConfig::default(),
         };
         assert_eq!(config.log.level, level);

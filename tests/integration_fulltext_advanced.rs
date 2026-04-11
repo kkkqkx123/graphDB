@@ -460,6 +460,7 @@ async fn test_sync_manager_with_recovery() {
         commit_interval: Duration::from_millis(100),
         max_wait_time: Duration::from_secs(5),
         queue_capacity: 1000,
+        failure_policy: graphdb::search::SyncFailurePolicy::FailOpen,
     };
 
     let sync_manager = SyncManager::with_recovery(
@@ -523,6 +524,7 @@ async fn test_task_buffer_batching() {
         commit_interval: Duration::from_millis(500),
         max_wait_time: Duration::from_secs(5),
         queue_capacity: 1000,
+        failure_policy: graphdb::search::SyncFailurePolicy::FailOpen,
     };
 
     let buffer = Arc::new(graphdb::sync::batch::TaskBuffer::new(
