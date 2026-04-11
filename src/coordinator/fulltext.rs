@@ -9,7 +9,7 @@ use crate::search::metadata::IndexMetadata;
 use crate::search::result::SearchResult;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum ChangeType {
     Insert,
     Update,

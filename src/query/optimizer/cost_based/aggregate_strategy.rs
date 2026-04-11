@@ -759,6 +759,7 @@ mod tests {
             sort_keys_match_group_keys: false,
             is_deterministic: true,
             complexity_score: 0,
+            table_name: None,
         };
 
         // Test comprehensive selection with empty functions

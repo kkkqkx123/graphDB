@@ -14,6 +14,7 @@ use std::time::Duration;
 
 use graphdb::config::Config;
 use graphdb::search::FulltextConfig;
+use vector_client::config::VectorClientConfig;
 
 /// Test Log Configuration Defaults
 #[test]
@@ -52,7 +53,7 @@ fn test_log_config_serialization() {
         bootstrap: graphdb::config::BootstrapConfig::default(),
         optimizer: graphdb::config::OptimizerConfig::default(),
         monitoring: graphdb::config::MonitoringConfig::default(),
-        vector: graphdb::vector::VectorConfig::default(),
+        vector: VectorClientConfig::default(),
         fulltext: FulltextConfig::default(),
     };
 

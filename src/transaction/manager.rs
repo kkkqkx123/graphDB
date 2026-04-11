@@ -106,6 +106,7 @@ impl TransactionManager {
             query_timeout: options.query_timeout,
             statement_timeout: options.statement_timeout,
             idle_timeout: options.idle_timeout,
+            two_phase_commit: options.two_phase_commit,
         };
 
         let db = Arc::clone(&self.db);

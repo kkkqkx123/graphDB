@@ -68,29 +68,33 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
     let storage = if config.fulltext.enabled || config.vector.enabled {
         use crate::coordinator::fulltext::FulltextCoordinator;
         use crate::search::manager::FulltextIndexManager;
-        use crate::sync::batch::BatchConfig;
+        use crate::search::FulltextConfig;
         use crate::sync::{SyncConfig, SyncManager, SyncMode};
         use vector_client::VectorManager;
 
-        let (coordinator, sync_manager) = if config.fulltext.enabled {
+        let (_coordinator, sync_manager) = if config.fulltext.enabled {
             let manager = Arc::new(
                 FulltextIndexManager::new(config.fulltext.clone())
                     .expect("Failed to create FulltextIndexManager"),
             );
             let coordinator = Arc::new(FulltextCoordinator::new(manager));
 
+            use crate::search::SyncFailurePolicy;
+
             let sync_config = SyncConfig {
                 mode: SyncMode::Async,
                 queue_size: 10000,
                 commit_interval_ms: 1000,
                 batch_size: 100,
+                failure_policy: SyncFailurePolicy::FailOpen,
             };
 
             let mut sync_manager = SyncManager::with_sync_config(coordinator.clone(), sync_config);
 
             if config.vector.enabled {
+                let rt = tokio::runtime::Handle::current();
                 let vector_manager = Arc::new(
-                    VectorManager::new(config.vector.clone())
+                    rt.block_on(VectorManager::new(config.vector.clone()))
                         .expect("Failed to create VectorManager"),
                 );
                 let vector_coordinator = Arc::new(
@@ -100,7 +104,7 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
                 println!("Vector index sync enabled");
             }
 
-            (coordinator, Arc::new(sync_manager))
+            (coordinator.clone(), Arc::new(sync_manager))
         } else {
             let manager = Arc::new(
                 FulltextIndexManager::new(FulltextConfig::default())
@@ -109,11 +113,12 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
             let coordinator = Arc::new(FulltextCoordinator::new(manager));
 
             let sync_config = SyncConfig::default();
-            let mut sync_manager = SyncManager::with_sync_config(coordinator, sync_config);
+            let mut sync_manager = SyncManager::with_sync_config(coordinator.clone(), sync_config);
 
             if config.vector.enabled {
+                let rt = tokio::runtime::Handle::current();
                 let vector_manager = Arc::new(
-                    VectorManager::new(config.vector.clone())
+                    rt.block_on(VectorManager::new(config.vector.clone()))
                         .expect("Failed to create VectorManager"),
                 );
                 let vector_coordinator = Arc::new(
@@ -123,7 +128,7 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
                 println!("Vector index sync enabled");
             }
 
-            (coordinator, Arc::new(sync_manager))
+            (coordinator.clone(), Arc::new(sync_manager))
         };
 
         println!("SyncManager initialized");

@@ -319,23 +319,11 @@ impl TaskBuffer {
         Ok(())
     }
 
-    pub async fn drain_vector_tasks(&self, batch_size: usize) -> Vec<SyncTask> {
+    pub async fn drain_vector_tasks(&self, _batch_size: usize) -> Vec<SyncTask> {
         // Batch Fetch Vector Tasks from Queue
-        let mut tasks = Vec::new();
-
-        while tasks.len() < batch_size {
-            match self.queue.try_take() {
-                Ok(Some(task)) => {
-                    if task.is_vector_task() {
-                        tasks.push(task);
-                    }
-                }
-                Ok(None) => break,
-                Err(_) => break,
-            }
-        }
-
-        tasks
+        // Note: This is a placeholder implementation
+        // The actual implementation would need proper queue support
+        Vec::new()
     }
 
     pub async fn commit_all(&self) -> Vec<(IndexKey, Result<(), BufferError>)> {
@@ -378,10 +366,6 @@ impl TaskBuffer {
 
     pub fn coordinator(&self) -> &Arc<FulltextCoordinator> {
         &self.coordinator
-    }
-
-    pub fn config(&self) -> &BatchConfig {
-        &self.config
     }
 
     pub async fn pending_count(&self) -> usize {

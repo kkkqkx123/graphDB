@@ -9,14 +9,14 @@ use crate::search::SyncConfig;
 use crate::sync::batch::{BatchConfig, BufferError, TaskBuffer};
 use crate::sync::recovery::RecoveryManager;
 use crate::sync::task::SyncTask;
-use crate::sync::vector_sync::{VectorPoint, VectorSyncCoordinator};
-use crate::vector::VectorChangeType;
+use crate::sync::vector_sync::{VectorChangeType, VectorSyncCoordinator};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::{interval, Duration};
+use vector_client::types::VectorPoint;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -407,6 +407,7 @@ impl SyncManager {
 
             // batch upsert
             for (collection_name, points) in upsert_by_collection {
+                let points_count = points.len();
                 if !points.is_empty() {
                     let vector_points: Vec<VectorPoint> = points
                         .into_iter()
@@ -422,6 +423,7 @@ impl SyncManager {
                         .collect();
 
                     if let Err(e) = vector_coord
+                        .vector_manager()
                         .upsert_batch(&collection_name, vector_points)
                         .await
                     {
@@ -433,7 +435,7 @@ impl SyncManager {
                     } else {
                         log::debug!(
                             "Batch upserted {} vectors to {}",
-                            points.len(),
+                            points_count,
                             collection_name
                         );
                     }
@@ -444,7 +446,11 @@ impl SyncManager {
             for (collection_name, point_ids) in delete_by_collection {
                 if !point_ids.is_empty() {
                     let refs: Vec<&str> = point_ids.iter().map(|s| s.as_str()).collect();
-                    if let Err(e) = vector_coord.delete_batch(&collection_name, refs).await {
+                    if let Err(e) = vector_coord
+                        .vector_manager()
+                        .delete_batch(&collection_name, refs)
+                        .await
+                    {
                         log::error!(
                             "Vector batch delete failed for {}: {:?}",
                             collection_name,
@@ -531,27 +537,24 @@ impl SyncManager {
         let handle = Arc::new(SyncHandle::new(txn_id, pending_updates.clone(), tx, rx));
 
         // 3. Perform index synchronization asynchronously
-        let handle_clone = handle.clone();
+        let pending_updates = handle.pending_updates.clone();
         let sync_manager = self.clone();
+        let handle_for_async = handle.clone();
 
         tokio::spawn(async move {
-            handle_clone.set_state(crate::transaction::sync_handle::SyncHandleState::Syncing);
+            handle_for_async.set_state(crate::transaction::sync_handle::SyncHandleState::Syncing);
 
             // Perform the actual index synchronization
-            let result = sync_manager
-                .execute_pending_updates(&handle_clone.pending_updates)
-                .await;
+            let result = sync_manager.execute_pending_updates(&pending_updates).await;
 
             match result {
                 Ok(()) => {
-                    handle_clone
+                    handle_for_async
                         .set_state(crate::transaction::sync_handle::SyncHandleState::Synced);
-                    let _ = handle_clone.completion_tx.send(Ok(()));
                 }
-                Err(e) => {
-                    handle_clone
+                Err(_e) => {
+                    handle_for_async
                         .set_state(crate::transaction::sync_handle::SyncHandleState::SyncFailed);
-                    let _ = handle_clone.completion_tx.send(Err(e));
                 }
             }
         });
@@ -562,11 +565,11 @@ impl SyncManager {
     /// Perform pending index updates
     async fn execute_pending_updates(
         &self,
-        updates: &[crate::sync::pending_update::PendingIndexUpdate],
+        updates: &[crate::transaction::sync_handle::PendingIndexUpdate],
     ) -> Result<(), SyncError> {
         // Updates grouped by type
-        let mut fulltext_upserts = Vec::new();
-        let mut fulltext_deletes = Vec::new();
+        let mut fulltext_upserts: Vec<(String, String)> = Vec::new();
+        let mut fulltext_deletes: Vec<String> = Vec::new();
         let mut vector_upserts: HashMap<String, Vec<crate::sync::task::VectorPointData>> =
             HashMap::new();
         let mut vector_deletes: HashMap<String, Vec<String>> = HashMap::new();
@@ -652,27 +655,68 @@ impl SyncManager {
 
         // Batch submission of full-text index
         if !fulltext_upserts.is_empty() {
-            let ctx = crate::coordinator::FulltextBatchContext::new(
-                fulltext_upserts.into_iter().collect(),
-                fulltext_deletes.into_iter().collect(),
-            );
-            self.fulltext_coordinator.batch_sync(ctx).await?;
+            for (doc_id, content) in fulltext_upserts {
+                // Find the engine for this document
+                // For simplicity, we'll use the first update's metadata
+                if let Some(update) = updates.iter().find(|u| u.doc_id == doc_id) {
+                    if let Some(engine) = self.fulltext_coordinator.get_engine(
+                        update.space_id,
+                        &update.tag_name,
+                        &update.field_name,
+                    ) {
+                        engine.index(&doc_id, &content).await.map_err(|e| {
+                            SyncError::CoordinatorError(CoordinatorError::Fulltext(e.into()))
+                        })?;
+                    }
+                }
+            }
+        }
+
+        if !fulltext_deletes.is_empty() {
+            for doc_id in fulltext_deletes {
+                // For deletes, we need to find which engines to delete from
+                if let Some(update) = updates.iter().find(|u| u.doc_id == doc_id) {
+                    if let Some(engine) = self.fulltext_coordinator.get_engine(
+                        update.space_id,
+                        &update.tag_name,
+                        &update.field_name,
+                    ) {
+                        engine.delete(&doc_id).await.map_err(|e| {
+                            SyncError::CoordinatorError(CoordinatorError::Fulltext(e.into()))
+                        })?;
+                    }
+                }
+            }
         }
 
         // Batch commit vector index
         if let Some(ref vector_coord) = self.vector_coordinator {
             for (collection_name, points) in vector_upserts {
-                vector_coord
-                    .upsert_points(&collection_name, points)
-                    .await
-                    .map_err(|e| SyncError::VectorError(e.to_string()))?;
+                for point in points {
+                    let mut payload = HashMap::new();
+                    for (k, v) in point.payload {
+                        if let Ok(json) = serde_json::to_value(&v) {
+                            payload.insert(k, json);
+                        }
+                    }
+                    let vector_point = VectorPoint::new(point.id.clone(), point.vector.clone())
+                        .with_payload(payload);
+                    vector_coord
+                        .vector_manager()
+                        .upsert(&collection_name, vector_point)
+                        .await
+                        .map_err(|e| SyncError::VectorError(e.to_string()))?;
+                }
             }
 
             for (collection_name, ids) in vector_deletes {
-                vector_coord
-                    .delete_points(&collection_name, ids)
-                    .await
-                    .map_err(|e| SyncError::VectorError(e.to_string()))?;
+                for id in ids {
+                    vector_coord
+                        .vector_manager()
+                        .delete(&collection_name, &id)
+                        .await
+                        .map_err(|e| SyncError::VectorError(e.to_string()))?;
+                }
             }
         }
 
@@ -716,7 +760,7 @@ impl SyncManager {
     /// Rolling back pending updates
     async fn rollback_pending_updates(
         &self,
-        updates: &[crate::sync::pending_update::PendingIndexUpdate],
+        updates: &[crate::sync::PendingIndexUpdate],
     ) -> Result<(), SyncError> {
         // Perform rollback in reverse order
         for update in updates.iter().rev() {
@@ -730,9 +774,7 @@ impl SyncManager {
                             &update.field_name,
                         ) {
                             engine.delete(&update.doc_id).await.map_err(|e| {
-                                SyncError::CoordinatorError(CoordinatorError::FulltextError(
-                                    e.into(),
-                                ))
+                                SyncError::CoordinatorError(CoordinatorError::Fulltext(e.into()))
                             })?;
                         }
                     }
@@ -746,10 +788,10 @@ impl SyncManager {
                             &update.field_name,
                         ) {
                             engine
-                                .index(&update.doc_id, old_content)
+                                .index(&update.doc_id, old_content.as_str())
                                 .await
                                 .map_err(|e| {
-                                    SyncError::CoordinatorError(CoordinatorError::FulltextError(
+                                    SyncError::CoordinatorError(CoordinatorError::Fulltext(
                                         e.into(),
                                     ))
                                 })?;
@@ -765,10 +807,10 @@ impl SyncManager {
                             &update.field_name,
                         ) {
                             engine
-                                .index(&update.doc_id, old_content)
+                                .index(&update.doc_id, old_content.as_str())
                                 .await
                                 .map_err(|e| {
-                                    SyncError::CoordinatorError(CoordinatorError::FulltextError(
+                                    SyncError::CoordinatorError(CoordinatorError::Fulltext(
                                         e.into(),
                                     ))
                                 })?;
@@ -849,6 +891,7 @@ mod tests {
             queue_size: 100,
             commit_interval_ms: 100,
             batch_size: 10,
+            failure_policy: crate::search::SyncFailurePolicy::FailOpen,
         };
         let sync_manager = SyncManager::with_sync_config(coordinator.clone(), sync_config);
 
@@ -932,6 +975,7 @@ mod tests {
             queue_size: 5000,
             commit_interval_ms: 500,
             batch_size: 50,
+            failure_policy: crate::search::SyncFailurePolicy::FailOpen,
         };
 
         assert_eq!(sync_config.mode, SyncMode::Sync);

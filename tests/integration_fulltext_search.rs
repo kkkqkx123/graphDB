@@ -79,6 +79,7 @@ async fn setup_sync_manager() -> (SyncManager, Arc<FulltextCoordinator>, TempDir
         batch_size: 100,
         commit_interval_ms: 100,
         queue_size: 10000,
+        failure_policy: SyncFailurePolicy::FailOpen,
     };
 
     let sync_manager = SyncManager::with_sync_config(coordinator.clone(), sync_config);

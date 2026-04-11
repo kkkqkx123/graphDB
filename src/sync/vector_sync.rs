@@ -253,7 +253,7 @@ impl VectorSyncCoordinator {
         &self,
         space_id: u64,
         vertex: &Vertex,
-        mode: InsertMode,
+        _mode: InsertMode,
     ) -> VectorCoordinatorResult<()> {
         let mut points_by_collection: HashMap<String, Vec<VectorPoint>> = HashMap::new();
 
@@ -284,7 +284,8 @@ impl VectorSyncCoordinator {
         }
 
         for (collection_name, points) in points_by_collection {
-            if points.len() == 1 {
+            let points_count = points.len();
+            if points_count == 1 {
                 self.vector_manager
                     .upsert(&collection_name, points.into_iter().next().unwrap())
                     .await?;
@@ -294,9 +295,7 @@ impl VectorSyncCoordinator {
                     .await?;
                 debug!(
                     "Batch upserted {} vectors for vertex {} in collection {}",
-                    points.len(),
-                    vertex.vid,
-                    collection_name
+                    points_count, vertex.vid, collection_name
                 );
             }
         }
@@ -350,7 +349,8 @@ impl VectorSyncCoordinator {
         }
 
         for (collection_name, points) in points_to_upsert {
-            if points.len() == 1 {
+            let points_count = points.len();
+            if points_count == 1 {
                 self.vector_manager
                     .upsert(&collection_name, points.into_iter().next().unwrap())
                     .await?;
@@ -360,15 +360,14 @@ impl VectorSyncCoordinator {
                     .await?;
                 debug!(
                     "Batch updated {} vectors for vertex {} in collection {}",
-                    points.len(),
-                    vertex.vid,
-                    collection_name
+                    points_count, vertex.vid, collection_name
                 );
             }
         }
 
         for (collection_name, point_ids) in points_to_delete {
-            if point_ids.len() == 1 {
+            let point_ids_count = point_ids.len();
+            if point_ids_count == 1 {
                 self.vector_manager
                     .delete(&collection_name, &point_ids[0])
                     .await?;
@@ -379,9 +378,7 @@ impl VectorSyncCoordinator {
                     .await?;
                 debug!(
                     "Batch deleted {} vectors for vertex {} from collection {}",
-                    point_ids.len(),
-                    vertex.vid,
-                    collection_name
+                    point_ids_count, vertex.vid, collection_name
                 );
             }
         }
@@ -491,7 +488,8 @@ impl VectorSyncCoordinator {
         }
 
         for (collection_name, points) in upsert_by_collection {
-            if points.len() == 1 {
+            let points_count = points.len();
+            if points_count == 1 {
                 self.vector_manager
                     .upsert(&collection_name, points.into_iter().next().unwrap())
                     .await?;
@@ -501,14 +499,14 @@ impl VectorSyncCoordinator {
                     .await?;
                 debug!(
                     "Batch upserted {} vectors to collection {}",
-                    points.len(),
-                    collection_name
+                    points_count, collection_name
                 );
             }
         }
 
         for (collection_name, point_ids) in delete_by_collection {
-            if point_ids.len() == 1 {
+            let point_ids_count = point_ids.len();
+            if point_ids_count == 1 {
                 self.vector_manager
                     .delete(&collection_name, &point_ids[0])
                     .await?;
@@ -519,8 +517,7 @@ impl VectorSyncCoordinator {
                     .await?;
                 debug!(
                     "Batch deleted {} vectors from collection {}",
-                    point_ids.len(),
-                    collection_name
+                    point_ids_count, collection_name
                 );
             }
         }

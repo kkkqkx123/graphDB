@@ -53,6 +53,7 @@ pub async fn begin<S: StorageClient + Clone + Send + Sync + 'static>(
             idle_timeout: request
                 .idle_timeout_seconds
                 .map(std::time::Duration::from_secs),
+            two_phase_commit: false,
         };
 
         match txn_api.begin(options) {

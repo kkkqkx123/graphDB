@@ -8,7 +8,7 @@ use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::session::{GraphDatabaseInner, Session};
 use crate::coordinator::FulltextCoordinator;
 use crate::core::Value;
-use crate::search::{FulltextConfig, FulltextIndexManager};
+use crate::search::{FulltextConfig, FulltextIndexManager, SyncFailurePolicy};
 use crate::storage::{RedbStorage, StorageClient};
 use crate::sync::{SyncConfig, SyncManager};
 use crate::transaction::{TransactionManager, TransactionManagerConfig};
@@ -120,15 +120,22 @@ impl GraphDatabase<RedbStorage> {
                 queue_size: fulltext_config.sync.queue_size,
                 commit_interval_ms: fulltext_config.sync.commit_interval_ms,
                 batch_size: fulltext_config.sync.batch_size,
+                failure_policy: SyncFailurePolicy::FailOpen,
             };
 
             let mut sync = SyncManager::with_sync_config(coordinator.clone(), sync_config);
 
             if vector_config.enabled {
-                let vector_manager =
-                    Arc::new(VectorManager::new(vector_config.clone()).map_err(|e| {
-                        CoreError::Internal(format!("Failed to initialize vector manager: {}", e))
-                    })?);
+                let rt = tokio::runtime::Handle::current();
+                let vector_manager = Arc::new(
+                    rt.block_on(VectorManager::new(vector_config.clone()))
+                        .map_err(|e| {
+                            CoreError::Internal(format!(
+                                "Failed to initialize vector manager: {}",
+                                e
+                            ))
+                        })?,
+                );
                 let vector_coordinator = Arc::new(
                     crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
                 );
@@ -138,10 +145,13 @@ impl GraphDatabase<RedbStorage> {
             let sync = Arc::new(sync);
             (Some(manager), Some(coordinator), Some(sync))
         } else if vector_config.enabled {
-            let vector_manager =
-                Arc::new(VectorManager::new(vector_config.clone()).map_err(|e| {
-                    CoreError::Internal(format!("Failed to initialize vector manager: {}", e))
-                })?);
+            let rt = tokio::runtime::Handle::current();
+            let vector_manager = Arc::new(
+                rt.block_on(VectorManager::new(vector_config.clone()))
+                    .map_err(|e| {
+                        CoreError::Internal(format!("Failed to initialize vector manager: {}", e))
+                    })?,
+            );
             let vector_coordinator = Arc::new(
                 crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
             );

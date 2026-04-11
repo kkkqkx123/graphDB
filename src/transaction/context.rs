@@ -13,10 +13,9 @@ use parking_lot::{Mutex, RwLock};
 
 use crate::core::StorageError;
 use crate::storage::redb_types::{ByteKey, EDGES_TABLE, NODES_TABLE};
-use crate::sync::pending_update::PendingIndexUpdate;
+use crate::transaction::sync_handle::PendingIndexUpdate;
 use crate::transaction::sync_handle::SyncHandle;
 use crate::transaction::types::*;
-use std::sync::Arc;
 
 /// Transaction Context
 pub struct TransactionContext {
@@ -178,6 +177,9 @@ impl TransactionContext {
             modified_tables: Mutex::new(Vec::new()),
             savepoint_manager: RwLock::new(SavepointManager::new()),
             db,
+            pending_index_updates: RwLock::new(Vec::new()),
+            sync_handle: Mutex::new(None),
+            two_phase_enabled: config.two_phase_commit,
         }
     }
 

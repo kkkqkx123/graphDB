@@ -37,6 +37,7 @@ struct EmbeddingRequest {
 #[derive(Debug, Deserialize)]
 struct EmbeddingResponse {
     data: Vec<EmbeddingData>,
+    #[allow(dead_code)]
     usage: Option<Usage>,
 }
 
@@ -47,6 +48,7 @@ struct EmbeddingData {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct Usage {
     prompt_tokens: usize,
     total_tokens: usize,
@@ -115,6 +117,7 @@ impl OpenAICompatibleProvider {
     }
 
     /// Build request with authentication
+    #[allow(dead_code)]
     fn add_auth(&self, request: RequestBuilder) -> RequestBuilder {
         if let Some(api_key) = &self.config.api_key {
             request.header("Authorization", format!("Bearer {}", api_key))

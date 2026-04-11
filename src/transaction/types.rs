@@ -291,6 +291,8 @@ pub struct TransactionOptions {
     pub statement_timeout: Option<Duration>,
     /// Idle timeout duration
     pub idle_timeout: Option<Duration>,
+    /// Whether to enable two-phase commit
+    pub two_phase_commit: bool,
 }
 
 impl Default for TransactionOptions {
@@ -303,6 +305,7 @@ impl Default for TransactionOptions {
             query_timeout: None,
             statement_timeout: None,
             idle_timeout: None,
+            two_phase_commit: false,
         }
     }
 }

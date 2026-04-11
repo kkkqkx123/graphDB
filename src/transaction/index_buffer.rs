@@ -1,11 +1,8 @@
 /// Index update buffer management
-use crate::sync::pending_update::PendingIndexUpdate;
-use crate::sync::sync_handle::{IndexBufferConfig, SyncHandle, SyncHandleState};
-use crate::sync::SyncError;
+use crate::sync::{IndexBufferConfig, PendingIndexUpdate, SyncError, SyncHandle};
 use crate::transaction::types::TransactionId;
 use dashmap::DashMap;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 /// index update buffer
 pub struct IndexUpdateBuffer {
@@ -42,7 +39,7 @@ impl IndexUpdateBuffer {
         // Check buffer size
         if buffer.len() >= self.config.max_buffer_size {
             return Err(SyncError::BufferError(
-                crate::sync::batch::BufferError::BufferFull(format!(
+                crate::sync::batch::BufferError::IndexError(format!(
                     "Buffer full for transaction {:?}",
                     txn_id
                 )),
@@ -63,10 +60,11 @@ impl IndexUpdateBuffer {
 
     /// Check if updates are pending
     pub fn has_pending_updates(&self, txn_id: TransactionId) -> bool {
-        self.buffers
-            .get(&txn_id)
-            .map(|buffer| !buffer.is_empty())
-            .unwrap_or(false)
+        if let Some(buffer) = self.buffers.get(&txn_id) {
+            !buffer.is_empty()
+        } else {
+            false
+        }
     }
 
     /// Register Synchronization Handle
@@ -141,7 +139,7 @@ use std::time::Instant;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::search::ChangeType;
+    use crate::coordinator::ChangeType;
 
     fn create_test_update(txn_id: TransactionId) -> PendingIndexUpdate {
         PendingIndexUpdate::new(

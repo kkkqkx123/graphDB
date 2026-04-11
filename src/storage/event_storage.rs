@@ -162,7 +162,7 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
     }
 
     fn update_vertex(&mut self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
-        let old_vertex = self
+        let _old_vertex = self
             .inner
             .get_vertex(space, &vertex.vid)?
             .ok_or_else(|| StorageError::NodeNotFound(*vertex.vid.clone()))?;

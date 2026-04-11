@@ -124,6 +124,7 @@ impl TransactionConfig {
             query_timeout: self.query_timeout,
             statement_timeout: self.statement_timeout,
             idle_timeout: self.idle_timeout,
+            two_phase_commit: false,
         }
     }
 }

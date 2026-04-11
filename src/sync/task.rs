@@ -2,7 +2,7 @@
 
 use crate::coordinator::ChangeType;
 use crate::core::Value;
-use crate::vector::VectorChangeType;
+use crate::sync::vector_sync::VectorChangeType;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

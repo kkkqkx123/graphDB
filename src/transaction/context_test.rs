@@ -32,6 +32,7 @@ fn create_default_config(timeout: Duration) -> TransactionConfig {
         query_timeout: None,
         statement_timeout: None,
         idle_timeout: None,
+        two_phase_commit: false,
     }
 }
 

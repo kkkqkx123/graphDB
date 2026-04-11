@@ -466,7 +466,7 @@ impl AggFunctionManager {
                             .iter()
                             .zip(input_data.iter())
                             .enumerate()
-                            .map(|(i, (&avg, &input))| avg + (input - avg) / cnt as f32)
+                            .map(|(_i, (&avg, &input))| avg + (input - avg) / cnt as f32)
                             .collect();
                         *agg_data.vec_avg_mut() = Value::vector(new_avg);
                     }

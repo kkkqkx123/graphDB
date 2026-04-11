@@ -3,7 +3,6 @@
 //! Query planning for INSERT VERTEX and INSERT EDGE statements
 
 use crate::core::types::expr::contextual::ContextualExpression;
-use crate::query::metadata::MetadataContext;
 use crate::query::parser::ast::{InsertStmt, InsertTarget, Stmt, VertexRow};
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,

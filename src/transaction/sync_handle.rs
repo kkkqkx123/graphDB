@@ -1,9 +1,10 @@
 /// Core data structures associated with two-phase submission
-use crate::search::ChangeType;
+use crate::coordinator::ChangeType;
 use crate::transaction::types::TransactionId;
-use crossbeam::atomic::AtomicCell;
+use crossbeam_utils::atomic::AtomicCell;
+use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::oneshot;
+use tokio::sync::{oneshot, Mutex};
 
 /// Pending index update operations
 #[derive(Debug, Clone)]
@@ -81,8 +82,8 @@ pub struct SyncHandle {
     /// Pending Index Update List
     pub pending_updates: Vec<PendingIndexUpdate>,
     /// Synchronized results channel
-    completion_tx: oneshot::Sender<Result<(), crate::sync::SyncError>>,
-    completion_rx: Option<oneshot::Receiver<Result<(), crate::sync::SyncError>>>,
+    pub completion_tx: Option<oneshot::Sender<Result<(), crate::sync::SyncError>>>,
+    pub completion_rx: Arc<Mutex<Option<oneshot::Receiver<Result<(), crate::sync::SyncError>>>>>,
     /// state of affairs
     state: AtomicCell<SyncHandleState>,
     /// Creation time
@@ -99,8 +100,8 @@ impl SyncHandle {
         Self {
             txn_id,
             pending_updates,
-            completion_tx,
-            completion_rx: Some(completion_rx),
+            completion_tx: Some(completion_tx),
+            completion_rx: Arc::new(Mutex::new(Some(completion_rx))),
             state: AtomicCell::new(SyncHandleState::Created),
             created_at: Instant::now(),
         }
@@ -120,7 +121,9 @@ impl SyncHandle {
     pub fn wait_for_completion(&self) -> Result<(), crate::sync::SyncError> {
         let rx = self
             .completion_rx
-            .clone()
+            .try_lock()
+            .expect("Lock poisoned")
+            .take()
             .expect("Completion receiver not set");
         futures::executor::block_on(rx)
             .map_err(|_| crate::sync::SyncError::Internal("Channel closed".to_string()))?
@@ -130,7 +133,9 @@ impl SyncHandle {
     pub async fn wait_for_completion_async(&self) -> Result<(), crate::sync::SyncError> {
         let rx = self
             .completion_rx
-            .clone()
+            .lock()
+            .await
+            .take()
             .expect("Completion receiver not set");
         rx.await
             .map_err(|_| crate::sync::SyncError::Internal("Channel closed".to_string()))?
@@ -145,7 +150,7 @@ pub struct IndexBufferConfig {
     /// timeout
     pub timeout: std::time::Duration,
     /// synchronous mode
-    pub sync_mode: crate::search::SyncMode,
+    pub sync_mode: crate::sync::SyncMode,
 }
 
 impl Default for IndexBufferConfig {
@@ -153,7 +158,7 @@ impl Default for IndexBufferConfig {
         Self {
             max_buffer_size: 1000,
             timeout: std::time::Duration::from_secs(30),
-            sync_mode: crate::search::SyncMode::Async,
+            sync_mode: crate::sync::SyncMode::Async,
         }
     }
 }

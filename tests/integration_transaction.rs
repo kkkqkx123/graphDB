@@ -114,6 +114,7 @@ fn test_read_only_transaction() {
         query_timeout: None,
         statement_timeout: None,
         idle_timeout: None,
+        two_phase_commit: false,
     };
     let txn_id = txn_manager
         .begin_transaction(options)
@@ -295,6 +296,7 @@ fn test_transaction_timeout() {
         query_timeout: None,
         statement_timeout: None,
         idle_timeout: None,
+        two_phase_commit: false,
     };
     let txn_id = txn_manager
         .begin_transaction(options)
@@ -336,6 +338,7 @@ fn test_concurrent_transactions() {
             query_timeout: None,
             statement_timeout: None,
             idle_timeout: None,
+            two_phase_commit: false,
         };
         let txn_id = txn_manager
             .begin_transaction(options)
