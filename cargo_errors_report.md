@@ -2,175 +2,148 @@
 
 ## Summary
 
-- **Total Errors**: 47
-- **Total Warnings**: 4
-- **Total Issues**: 51
-- **Unique Error Patterns**: 8
-- **Unique Warning Patterns**: 3
-- **Files with Issues**: 12
+- **Total Errors**: 26
+- **Total Warnings**: 13
+- **Total Issues**: 39
+- **Unique Error Patterns**: 6
+- **Unique Warning Patterns**: 10
+- **Files with Issues**: 11
 
 ## Error Statistics
 
-**Total Errors**: 47
+**Total Errors**: 26
 
 ### Error Type Breakdown
 
-- **error[E0599]**: 28 errors
-- **error[E0308]**: 15 errors
-- **error[E0282]**: 2 errors
-- **error[E0277]**: 1 errors
-- **error[E0061]**: 1 errors
+- **error[E0599]**: 22 errors
+- **error[E0282]**: 1 errors
+- **error[E0432]**: 1 errors
+- **error[E0308]**: 1 errors
+- **error[E0560]**: 1 errors
 
 ### Files with Errors (Top 10)
 
-- `src\transaction\manager_test.rs`: 19 errors
-- `src\transaction\manager.rs`: 9 errors
-- `src\sync\manager.rs`: 4 errors
-- `src\api\server\graph_service.rs`: 3 errors
-- `src\api\embedded\transaction.rs`: 2 errors
-- `src\api\embedded\database.rs`: 2 errors
-- `src\api\mod.rs`: 2 errors
-- `src\api\server\http\handlers\transaction.rs`: 2 errors
-- `src\api\embedded\session.rs`: 2 errors
-- `src\transaction\mod.rs`: 2 errors
+- `tests\integration_transaction.rs`: 21 errors
+- `tests\integration_fulltext_search.rs`: 5 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 4
+**Total Warnings**: 13
 
 ### Warning Type Breakdown
 
-- **warning**: 4 warnings
+- **warning**: 13 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\sync\batch\processor.rs`: 2 warnings
-- `src\sync\manager.rs`: 1 warnings
-- `src\sync\coordinator\coordinator.rs`: 1 warnings
+- `src\query\planning\plan\core\nodes\data_access\vector_search.rs`: 3 warnings
+- `src\transaction\sync_handle.rs`: 2 warnings
+- `src\query\validator\statements\insert_vertices_validator.rs`: 2 warnings
+- `src\sync\coordinator\mod.rs`: 1 warnings
+- `src\sync\batch\processor.rs`: 1 warnings
+- `src\query\executor\result_processing\agg_function_manager.rs`: 1 warnings
+- `src\query\executor\expression\functions\builtin\aggregate.rs`: 1 warnings
+- `src\search\config.rs`: 1 warnings
+- `src\transaction\index_buffer.rs`: 1 warnings
 
 ## Detailed Error Categorization
 
-### error[E0599]: no method named `map_err` found for opaque type `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>` in the current scope: method not found in `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>`
+### error[E0599]: no function or associated item named `with_mode` found for struct `graphdb::sync::SyncManager` in the current scope: function or associated item not found in `graphdb::sync::SyncManager`
 
-**Total Occurrences**: 28  
-**Unique Files**: 5
-
-#### `src\transaction\manager_test.rs`: 16 occurrences
-
-- Line 109: no method named `expect` found for opaque type `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>` in the current scope: method not found in `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>`
-- Line 160: no method named `expect` found for opaque type `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>` in the current scope: method not found in `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>`
-- Line 208: no method named `expect` found for opaque type `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>` in the current scope: method not found in `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>`
-- ... 13 more occurrences in this file
-
-#### `src\transaction\manager.rs`: 8 occurrences
-
-- Line 683: no method named `expect` found for opaque type `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>` in the current scope: method not found in `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>`
-- Line 730: no method named `expect` found for opaque type `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>` in the current scope: method not found in `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>`
-- Line 755: no method named `expect` found for opaque type `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>` in the current scope: method not found in `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>`
-- ... 5 more occurrences in this file
-
-#### `src\transaction\mod.rs`: 2 occurrences
-
-- Line 100: no method named `expect` found for opaque type `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>` in the current scope: method not found in `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>`
-- Line 120: no method named `expect` found for opaque type `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>` in the current scope: method not found in `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>`
-
-#### `src\api\embedded\transaction.rs`: 1 occurrences
-
-- Line 244: no method named `map_err` found for opaque type `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>` in the current scope: method not found in `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>`
-
-#### `src\api\embedded\session.rs`: 1 occurrences
-
-- Line 458: no method named `map_err` found for opaque type `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>` in the current scope: method not found in `impl futures::Future<Output = std::result::Result<(), transaction::types::TransactionError>>`
-
-### error[E0308]: mismatched types: expected future, found `Result<_, _>`
-
-**Total Occurrences**: 15  
-**Unique Files**: 7
-
-#### `src\transaction\manager_test.rs`: 3 occurrences
-
-- Line 183: mismatched types: expected future, found `Result<_, _>`
-- Line 214: mismatched types: expected future, found `Result<_, _>`
-- Line 361: mismatched types: expected future, found `Result<_, _>`
-
-#### `src\api\server\graph_service.rs`: 3 occurrences
-
-- Line 184: mismatched types: expected future, found `Result<_, _>`
-- Line 448: mismatched types: expected future, found `Result<_, _>`
-- Line 454: mismatched types: expected future, found `Result<_, _>`
-
-#### `src\sync\manager.rs`: 2 occurrences
-
-- Line 164: mismatched types: expected `sync::coordinator::types::ChangeType`, found `coordinator::fulltext::ChangeType`
-- Line 183: mismatched types: expected `sync::coordinator::types::ChangeType`, found `coordinator::fulltext::ChangeType`
-
-#### `src\api\server\http\handlers\transaction.rs`: 2 occurrences
-
-- Line 92: mismatched types: expected future, found `Result<_, _>`
-- Line 96: mismatched types: expected future, found `Result<_, _>`
-
-#### `src\api\mod.rs`: 2 occurrences
-
-- Line 92: mismatched types: expected `Arc<SyncCoordinator>`, found `Arc<FulltextCoordinator>`
-- Line 116: mismatched types: expected `Arc<SyncCoordinator>`, found `Arc<FulltextCoordinator>`
-
-#### `src\api\embedded\database.rs`: 2 occurrences
-
-- Line 126: mismatched types: expected `Arc<SyncCoordinator>`, found `Arc<FulltextCoordinator>`
-- Line 163: mismatched types: expected `Arc<SyncCoordinator>`, found `Arc<FulltextCoordinator>`
-
-#### `src\transaction\manager.rs`: 1 occurrences
-
-- Line 761: mismatched types: expected future, found `Result<_, _>`
-
-### error[E0282]: type annotations needed
-
-**Total Occurrences**: 2  
+**Total Occurrences**: 22  
 **Unique Files**: 2
 
-#### `src\api\embedded\session.rs`: 1 occurrences
+#### `tests\integration_transaction.rs`: 21 occurrences
 
-- Line 458: type annotations needed
+- Line 226: no method named `expect` found for opaque type `impl Future<Output = Result<(), TransactionError>>` in the current scope: method not found in `impl Future<Output = Result<(), TransactionError>>`
+- Line 358: no method named `expect` found for opaque type `impl Future<Output = Result<(), TransactionError>>` in the current scope: method not found in `impl Future<Output = Result<(), TransactionError>>`
+- Line 396: no method named `expect` found for opaque type `impl Future<Output = Result<(), TransactionError>>` in the current scope: method not found in `impl Future<Output = Result<(), TransactionError>>`
+- ... 18 more occurrences in this file
 
-#### `src\api\embedded\transaction.rs`: 1 occurrences
+#### `tests\integration_fulltext_search.rs`: 1 occurrences
 
-- Line 244: type annotations needed
+- Line 655: no function or associated item named `with_mode` found for struct `graphdb::sync::SyncManager` in the current scope: function or associated item not found in `graphdb::sync::SyncManager`
 
-### error[E0061]: this method takes 2 arguments but 1 argument was supplied
-
-**Total Occurrences**: 1  
-**Unique Files**: 1
-
-#### `src\sync\manager.rs`: 1 occurrences
-
-- Line 269: this method takes 2 arguments but 1 argument was supplied
-
-### error[E0277]: `?` couldn't convert the error to `sync::manager::SyncError`: the trait `std::convert::From<sync::recovery::RecoveryError>` is not implemented for `sync::manager::SyncError`
+### error[E0282]: type annotations needed: cannot infer type
 
 **Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\sync\manager.rs`: 1 occurrences
+#### `tests\integration_fulltext_search.rs`: 1 occurrences
 
-- Line 127: `?` couldn't convert the error to `sync::manager::SyncError`: the trait `std::convert::From<sync::recovery::RecoveryError>` is not implemented for `sync::manager::SyncError`
+- Line 664: type annotations needed: cannot infer type
+
+### error[E0432]: unresolved import `graphdb::sync::manager::SyncMode`: no `SyncMode` in `sync::manager`
+
+**Total Occurrences**: 1  
+**Unique Files**: 1
+
+#### `tests\integration_fulltext_search.rs`: 1 occurrences
+
+- Line 28: unresolved import `graphdb::sync::manager::SyncMode`: no `SyncMode` in `sync::manager`
+
+### error[E0560]: struct `graphdb::search::SyncConfig` has no field named `mode`: `graphdb::search::SyncConfig` does not have this field
+
+**Total Occurrences**: 1  
+**Unique Files**: 1
+
+#### `tests\integration_fulltext_search.rs`: 1 occurrences
+
+- Line 78: struct `graphdb::search::SyncConfig` has no field named `mode`: `graphdb::search::SyncConfig` does not have this field
+
+### error[E0308]: mismatched types: expected `Arc<SyncCoordinator>`, found `Arc<FulltextCoordinator>`
+
+**Total Occurrences**: 1  
+**Unique Files**: 1
+
+#### `tests\integration_fulltext_search.rs`: 1 occurrences
+
+- Line 85: mismatched types: expected `Arc<SyncCoordinator>`, found `Arc<FulltextCoordinator>`
 
 ## Detailed Warning Categorization
 
-### warning: unused import: `ExternalIndexClient`
+### warning: this function has too many arguments (8/7)
 
-**Total Occurrences**: 4  
-**Unique Files**: 3
+**Total Occurrences**: 13  
+**Unique Files**: 9
 
-#### `src\sync\batch\processor.rs`: 2 occurrences
+#### `src\query\planning\plan\core\nodes\data_access\vector_search.rs`: 3 occurrences
 
-- Line 215: use of deprecated field `sync::batch::processor::TransactionBatchBuffer::processor`
-- Line 228: use of deprecated field `sync::batch::processor::TransactionBatchBuffer::processor`
+- Line 34: this function has too many arguments (10/7)
+- Line 82: this function has too many arguments (10/7)
+- Line 180: this function has too many arguments (9/7)
 
-#### `src\sync\coordinator\coordinator.rs`: 1 occurrences
+#### `src\query\validator\statements\insert_vertices_validator.rs`: 2 occurrences
 
-- Line 10: unused import: `ExternalIndexClient`
+- Line 156: this function has too many arguments (8/7)
+- Line 202: this `if let` can be collapsed into the outer `if let`
 
-#### `src\sync\manager.rs`: 1 occurrences
+#### `src\transaction\sync_handle.rs`: 2 occurrences
 
-- Line 96: unused variable: `config`: help: if this is intentional, prefix it with an underscore: `_config`
+- Line 32: this function has too many arguments (9/7)
+- Line 82: very complex type used. Consider factoring parts into `type` definitions
+
+#### `src\query\executor\result_processing\agg_function_manager.rs`: 1 occurrences
+
+- Line 468: you seem to use `.enumerate()` and immediately discard the index
+
+#### `src\sync\batch\processor.rs`: 1 occurrences
+
+- Line 211: you should consider adding a `Default` implementation for `TransactionBatchBuffer`
+
+#### `src\transaction\index_buffer.rs`: 1 occurrences
+
+- Line 176: field assignment outside of initializer for an instance created with Default::default()
+
+#### `src\query\executor\expression\functions\builtin\aggregate.rs`: 1 occurrences
+
+- Line 378: you seem to use `.enumerate()` and immediately discard the index
+
+#### `src\search\config.rs`: 1 occurrences
+
+- Line 17: this `impl` can be derived
+
+#### `src\sync\coordinator\mod.rs`: 1 occurrences
+
+- Line 1: module has the same name as its containing module
 

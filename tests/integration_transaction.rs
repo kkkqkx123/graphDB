@@ -37,8 +37,8 @@ fn create_test_transaction_manager() -> Arc<TransactionManager> {
 }
 
 /// Testing the transaction lifecycle
-#[test]
-fn test_transaction_lifecycle() {
+#[tokio::test]
+async fn test_transaction_lifecycle() {
     let txn_manager = create_test_transaction_manager();
 
     // Start a transaction
@@ -56,6 +56,7 @@ fn test_transaction_lifecycle() {
     // Commit a transaction
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 
     // The transaction has been committed and is no longer listed in the table of active transactions.
@@ -73,8 +74,8 @@ fn test_transaction_lifecycle() {
 }
 
 /// Testing transaction rollback
-#[test]
-fn test_transaction_rollback() {
+#[tokio::test]
+async fn test_transaction_rollback() {
     let txn_manager = create_test_transaction_manager();
 
     // Start a transaction
@@ -84,7 +85,9 @@ fn test_transaction_rollback() {
         .expect("开始事务失败");
 
     // Roll back a transaction
-    txn_manager.abort_transaction(txn_id).expect("回滚事务失败");
+    txn_manager
+        .abort_transaction(txn_id)
+        .expect("回滚事务失败");
 
     // The transaction has been aborted and is no longer listed in the active transactions table.
     let txn_info = txn_manager.get_transaction_info(txn_id);
@@ -101,8 +104,8 @@ fn test_transaction_rollback() {
 }
 
 /// Testing read-only transactions
-#[test]
-fn test_read_only_transaction() {
+#[tokio::test]
+async fn test_read_only_transaction() {
     let txn_manager = create_test_transaction_manager();
 
     // Start a read-only transaction
@@ -129,12 +132,13 @@ fn test_read_only_transaction() {
     // Commit a transaction
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 }
 
 /// Testing the rollback of saved points and data recovery
-#[test]
-fn test_savepoint_rollback_with_data_recovery() {
+#[tokio::test]
+async fn test_savepoint_rollback_with_data_recovery() {
     use graphdb::core::Value;
     use graphdb::core::Vertex;
     use std::collections::HashMap;
@@ -219,12 +223,13 @@ fn test_savepoint_rollback_with_data_recovery() {
     // Commit a transaction
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 }
 
 /// Continue with the operations after rolling back to the test save point.
-#[test]
-fn test_continue_operations_after_savepoint_rollback() {
+#[tokio::test]
+async fn test_continue_operations_after_savepoint_rollback() {
     let txn_manager = create_test_transaction_manager();
 
     // Start a transaction
@@ -279,6 +284,7 @@ fn test_continue_operations_after_savepoint_rollback() {
     // Submission of transactions
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 }
 
@@ -323,8 +329,8 @@ fn test_transaction_timeout() {
 }
 
 /// Testing concurrent transactions
-#[test]
-fn test_concurrent_transactions() {
+#[tokio::test]
+async fn test_concurrent_transactions() {
     let txn_manager = create_test_transaction_manager();
 
     // Starting multiple read-only transactions
@@ -350,6 +356,7 @@ fn test_concurrent_transactions() {
     for txn_id in txn_ids {
         txn_manager
             .commit_transaction(txn_id)
+            .await
             .expect("提交事务失败");
     }
 
@@ -364,8 +371,8 @@ fn test_concurrent_transactions() {
 }
 
 /// Testing the integration of transactions with the storage layer
-#[test]
-fn test_transaction_with_storage() {
+#[tokio::test]
+async fn test_transaction_with_storage() {
     use tempfile::TempDir;
 
     let temp_dir = TempDir::new().expect("创建临时目录失败");
@@ -388,12 +395,13 @@ fn test_transaction_with_storage() {
     // Submission of transactions
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 }
 
 /// Test transaction statistics
-#[test]
-fn test_transaction_stats() {
+#[tokio::test]
+async fn test_transaction_stats() {
     let txn_manager = create_test_transaction_manager();
 
     // Start and commit a transaction
@@ -403,6 +411,7 @@ fn test_transaction_stats() {
         .expect("开始事务失败");
     txn_manager
         .commit_transaction(txn_id1)
+        .await
         .expect("提交事务失败");
 
     // Starting and rolling back a transaction
@@ -431,8 +440,8 @@ fn test_transaction_stats() {
 }
 
 /// Test creation of savepoints
-#[test]
-fn test_create_savepoint() {
+#[tokio::test]
+async fn test_create_savepoint() {
     let txn_manager = create_test_transaction_manager();
 
     // Commencement of business
@@ -461,12 +470,13 @@ fn test_create_savepoint() {
     // Submission of transactions
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 }
 
 /// Test finding savepoints by name
-#[test]
-fn test_find_savepoint_by_name() {
+#[tokio::test]
+async fn test_find_savepoint_by_name() {
     let txn_manager = create_test_transaction_manager();
 
     // Commencement of business
@@ -492,12 +502,13 @@ fn test_find_savepoint_by_name() {
     // Submission of transactions
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 }
 
 /// Test release save point
-#[test]
-fn test_release_savepoint() {
+#[tokio::test]
+async fn test_release_savepoint() {
     let txn_manager = create_test_transaction_manager();
 
     // Commencement of business
@@ -528,12 +539,13 @@ fn test_release_savepoint() {
     // Submission of transactions
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 }
 
 /// Test rollback to save point
-#[test]
-fn test_rollback_to_savepoint() {
+#[tokio::test]
+async fn test_rollback_to_savepoint() {
     let txn_manager = create_test_transaction_manager();
 
     // Commencement of business
@@ -569,12 +581,13 @@ fn test_rollback_to_savepoint() {
     // Submission of transactions
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 }
 
 /// Test rollback to a non-existent savepoint
-#[test]
-fn test_rollback_to_nonexistent_savepoint() {
+#[tokio::test]
+async fn test_rollback_to_nonexistent_savepoint() {
     let txn_manager = create_test_transaction_manager();
 
     // Start a transaction
@@ -599,12 +612,13 @@ fn test_rollback_to_nonexistent_savepoint() {
     // Submit the transaction
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 }
 
 /// Testing the release of a non-existent save point
-#[test]
-fn test_release_nonexistent_savepoint() {
+#[tokio::test]
+async fn test_release_nonexistent_savepoint() {
     let txn_manager = create_test_transaction_manager();
 
     // Start a transaction
@@ -623,12 +637,13 @@ fn test_release_nonexistent_savepoint() {
     // Submit the transaction
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 }
 
 /// Testing savepoints and transaction commits
-#[test]
-fn test_savepoint_with_transaction_commit() {
+#[tokio::test]
+async fn test_savepoint_with_transaction_commit() {
     let txn_manager = create_test_transaction_manager();
 
     // Start a transaction
@@ -645,6 +660,7 @@ fn test_savepoint_with_transaction_commit() {
     // Commit a transaction
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 
     // The transaction has been committed and is no longer listed in the table of active transactions.
@@ -653,8 +669,8 @@ fn test_savepoint_with_transaction_commit() {
 }
 
 /// Testing savepoints and transaction rollback
-#[test]
-fn test_savepoint_with_transaction_rollback() {
+#[tokio::test]
+async fn test_savepoint_with_transaction_rollback() {
     let txn_manager = create_test_transaction_manager();
 
     // Start a transaction
@@ -677,8 +693,8 @@ fn test_savepoint_with_transaction_rollback() {
 }
 
 /// Testing the retrieval of savepoint information
-#[test]
-fn test_get_savepoint_info() {
+#[tokio::test]
+async fn test_get_savepoint_info() {
     let txn_manager = create_test_transaction_manager();
 
     // Start a transaction
@@ -704,12 +720,13 @@ fn test_get_savepoint_info() {
     // Submit the transaction
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 }
 
 /// Testing the management of multiple savepoints
-#[test]
-fn test_multiple_savepoints() {
+#[tokio::test]
+async fn test_multiple_savepoints() {
     let txn_manager = create_test_transaction_manager();
 
     // Start a transaction
@@ -743,12 +760,13 @@ fn test_multiple_savepoints() {
     // Submit the transaction
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 }
 
 /// The test transaction manager has been shut down.
-#[test]
-fn test_transaction_manager_shutdown() {
+#[tokio::test]
+async fn test_transaction_manager_shutdown() {
     let txn_manager = create_test_transaction_manager();
 
     // Start a transaction
@@ -770,8 +788,8 @@ fn test_transaction_manager_shutdown() {
 }
 
 /// Testing operation log recording and rollback
-#[test]
-fn test_operation_log_recording_and_rollback() {
+#[tokio::test]
+async fn test_operation_log_recording_and_rollback() {
     use tempfile::TempDir;
 
     let temp_dir = TempDir::new().expect("创建临时目录失败");
@@ -840,12 +858,13 @@ fn test_operation_log_recording_and_rollback() {
     // Submission of transactions
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 }
 
 /// Test batch operation operation logging
-#[test]
-fn test_batch_operation_log_recording() {
+#[tokio::test]
+async fn test_batch_operation_log_recording() {
     use tempfile::TempDir;
 
     let temp_dir = TempDir::new().expect("创建临时目录失败");
@@ -931,12 +950,13 @@ fn test_batch_operation_log_recording() {
     // Submission of transactions
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 }
 
 /// Test savepoint resource auto-cleaning
-#[test]
-fn test_savepoint_resource_cleanup() {
+#[tokio::test]
+async fn test_savepoint_resource_cleanup() {
     use tempfile::TempDir;
 
     let temp_dir = TempDir::new().expect("创建临时目录失败");
@@ -974,6 +994,7 @@ fn test_savepoint_resource_cleanup() {
     // Submission of transactions
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 
     // Transaction has been committed and is no longer in the active transaction table
@@ -990,12 +1011,13 @@ fn test_savepoint_resource_cleanup() {
 
     txn_manager
         .commit_transaction(txn_id2)
+        .await
         .expect("提交事务失败");
 }
 
 /// Test savepoint resources are automatically cleaned up when transactions are rolled back
-#[test]
-fn test_savepoint_cleanup_on_rollback() {
+#[tokio::test]
+async fn test_savepoint_cleanup_on_rollback() {
     use tempfile::TempDir;
 
     let temp_dir = TempDir::new().expect("创建临时目录失败");
@@ -1036,8 +1058,8 @@ fn test_savepoint_cleanup_on_rollback() {
 }
 
 /// Test Rollback Failure Error Handling
-#[test]
-fn test_rollback_failure_error_handling() {
+#[tokio::test]
+async fn test_rollback_failure_error_handling() {
     use tempfile::TempDir;
 
     let temp_dir = TempDir::new().expect("创建临时目录失败");
@@ -1093,12 +1115,13 @@ fn test_rollback_failure_error_handling() {
     // Submission of transactions
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 }
 
 /// Test concurrent access to operation logs
-#[test]
-fn test_concurrent_operation_log_access() {
+#[tokio::test]
+async fn test_concurrent_operation_log_access() {
     use std::thread;
     use tempfile::TempDir;
 
@@ -1156,12 +1179,13 @@ fn test_concurrent_operation_log_access() {
     // Commit a transaction
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 }
 
 /// Testing the log truncation feature
-#[test]
-fn test_operation_log_truncation() {
+#[tokio::test]
+async fn test_operation_log_truncation() {
     use tempfile::TempDir;
 
     let temp_dir = TempDir::new().expect("创建临时目录失败");
@@ -1208,12 +1232,13 @@ fn test_operation_log_truncation() {
     // Submit the transaction
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 }
 
 /// Cleaning of subsequent savepoints after rolling back to a test savepoint
-#[test]
-fn test_savepoint_cleanup_after_rollback() {
+#[tokio::test]
+async fn test_savepoint_cleanup_after_rollback() {
     let txn_manager = create_test_transaction_manager();
 
     // Start a transaction
@@ -1255,5 +1280,6 @@ fn test_savepoint_cleanup_after_rollback() {
     // Commit a transaction
     txn_manager
         .commit_transaction(txn_id)
+        .await
         .expect("提交事务失败");
 }

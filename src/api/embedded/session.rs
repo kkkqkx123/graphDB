@@ -279,7 +279,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// # Return
     /// - Returns the closure's return value on success
     /// - Return error on failure
-    pub fn with_transaction<F, T>(&self, f: F) -> CoreResult<T>
+    pub async fn with_transaction<F, T>(&self, f: F) -> CoreResult<T>
     where
         F: FnOnce(&Transaction<'_, S>) -> CoreResult<T>,
     {
@@ -287,11 +287,11 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
 
         match f(&txn) {
             Ok(result) => {
-                txn.commit()?;
+                txn.commit().await?;
                 Ok(result)
             }
             Err(e) => {
-                let _ = txn.rollback();
+                let _ = txn.rollback().await;
                 Err(e)
             }
         }

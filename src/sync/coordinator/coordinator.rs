@@ -53,6 +53,10 @@ impl SyncCoordinator {
         self
     }
 
+    pub fn fulltext_manager(&self) -> &Arc<FulltextIndexManager> {
+        &self.fulltext_manager
+    }
+
 
 
     fn get_or_create_fulltext_processor(

@@ -25,7 +25,9 @@ use graphdb::search::config::{FulltextConfig, SyncConfig, SyncFailurePolicy};
 use graphdb::search::engine::EngineType;
 use graphdb::search::manager::FulltextIndexManager;
 use graphdb::storage::storage_client::StorageClient;
-use graphdb::sync::manager::{SyncManager, SyncMode};
+use graphdb::sync::batch::config::BatchConfig;
+use graphdb::sync::coordinator::SyncCoordinator;
+use graphdb::sync::manager::SyncManager;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -73,16 +75,19 @@ async fn setup_coordinator_with_engine(engine_type: EngineType) -> (FulltextCoor
 async fn setup_sync_manager() -> (SyncManager, Arc<FulltextCoordinator>, TempDir) {
     let (coordinator, temp_dir) = setup_coordinator().await;
     let coordinator = Arc::new(coordinator);
+    let fulltext_manager = coordinator.get_manager().clone();
+
+    let batch_config = BatchConfig::default();
+    let sync_coordinator = Arc::new(SyncCoordinator::new(fulltext_manager, batch_config));
 
     let sync_config = SyncConfig {
-        mode: SyncMode::Async,
         batch_size: 100,
         commit_interval_ms: 100,
         queue_size: 10000,
         failure_policy: SyncFailurePolicy::FailOpen,
     };
 
-    let sync_manager = SyncManager::with_sync_config(coordinator.clone(), sync_config);
+    let sync_manager = SyncManager::with_sync_config(sync_coordinator.clone(), sync_config);
 
     (sync_manager, coordinator, temp_dir)
 }
@@ -650,9 +655,12 @@ async fn test_sync_manager_async_mode() {
 #[tokio::test]
 async fn test_sync_manager_sync_mode() {
     let (coordinator, _temp) = setup_coordinator().await;
-    let coordinator = Arc::new(coordinator);
+    let fulltext_manager = coordinator.get_manager().clone();
 
-    let sync_manager = SyncManager::with_mode(coordinator.clone(), SyncMode::Sync);
+    let batch_config = BatchConfig::default();
+    let sync_coordinator = Arc::new(SyncCoordinator::new(fulltext_manager, batch_config));
+
+    let sync_manager = SyncManager::new(sync_coordinator.clone());
 
     coordinator
         .create_index(1, "Document", "title", Some(EngineType::Bm25))

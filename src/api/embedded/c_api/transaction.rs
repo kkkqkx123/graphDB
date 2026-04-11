@@ -283,7 +283,8 @@ pub unsafe extern "C" fn graphdb_txn_commit(txn: *mut graphdb_txn_t) -> c_int {
 
     // Use embedded session API instead of direct TransactionManager access
     let session = &*session_ptr;
-    match session.inner.commit_transaction(txn_handle) {
+    let rt = tokio::runtime::Handle::current();
+    match rt.block_on(session.inner.commit_transaction(txn_handle)) {
         Ok(_) => {
             handle.committed = true;
             graphdb_error_code_t::GRAPHDB_OK as c_int

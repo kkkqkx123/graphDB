@@ -3,7 +3,6 @@
 //! Used to generate C API header files and configure the build environment
 
 use std::env;
-use std::path::PathBuf;
 
 fn main() {
     // Only generate header file when c-api feature is enabled
@@ -20,7 +19,7 @@ fn main() {
 #[cfg(feature = "c-api")]
 fn generate_c_header() {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
-    let output_path = PathBuf::from(&crate_dir).join("include").join("graphdb.h");
+    let output_path = std::path::PathBuf::from(&crate_dir).join("include").join("graphdb.h");
 
     std::fs::create_dir_all(
         output_path
