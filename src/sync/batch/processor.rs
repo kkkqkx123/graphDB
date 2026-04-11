@@ -8,7 +8,7 @@ use super::buffer::BatchBuffer;
 use super::config::BatchConfig;
 use super::error::{BatchError, BatchResult};
 use super::trait_def::{BatchProcessor, TransactionBuffer};
-use crate::sync::external_index::{ExternalIndexClient, IndexData, IndexOperation};
+use crate::sync::external_index::{ExternalIndexClient, IndexData, IndexKey, IndexOperation};
 use crate::transaction::types::TransactionId;
 
 pub struct GenericBatchProcessor<E: ExternalIndexClient> {
@@ -109,7 +109,7 @@ impl<E: ExternalIndexClient + 'static> BatchProcessor for GenericBatchProcessor<
             IndexOperation::Insert { .. } | IndexOperation::Update { .. } => {
                 self.buffer.add_insert(&key, operation);
             }
-            IndexOperation::Delete { id } => {
+            IndexOperation::Delete { id, .. } => {
                 self.buffer.add_delete(&key, id.clone());
             }
         }
@@ -129,7 +129,7 @@ impl<E: ExternalIndexClient + 'static> BatchProcessor for GenericBatchProcessor<
                 IndexOperation::Insert { .. } | IndexOperation::Update { .. } => {
                     self.buffer.add_insert(&key, operation);
                 }
-                IndexOperation::Delete { id } => {
+                IndexOperation::Delete { id, .. } => {
                     self.buffer.add_delete(&key, id.clone());
                 }
             }
@@ -194,8 +194,13 @@ impl<E: ExternalIndexClient + 'static> BatchProcessor for GenericBatchProcessor<
     }
 }
 
+#[derive(Debug, Default)]
+pub struct TransactionBufferEntry {
+    pub operations: Vec<IndexOperation>,
+}
+
 pub struct TransactionBatchBuffer {
-    pending: DashMap<TransactionId, Vec<IndexOperation>>,
+    pending: DashMap<TransactionId, DashMap<IndexKey, TransactionBufferEntry>>,
 }
 
 impl std::fmt::Debug for TransactionBatchBuffer {
@@ -206,32 +211,72 @@ impl std::fmt::Debug for TransactionBatchBuffer {
     }
 }
 
+impl Default for TransactionBatchBuffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TransactionBatchBuffer {
-    /// 创建新的事务缓冲区
     pub fn new() -> Self {
         Self {
             pending: DashMap::new(),
         }
     }
 
-    /// 创建不带 processor 的事务缓冲区（用于事务性索引同步）
     pub fn new_without_processor() -> Self {
         Self::new()
+    }
+
+    pub fn take_operations(
+        &self,
+        txn_id: TransactionId,
+    ) -> BatchResult<Vec<(IndexKey, Vec<IndexOperation>)>> {
+        if let Some((_, txn_buffer)) = self.pending.remove(&txn_id) {
+            let mut result = Vec::new();
+            for entry in txn_buffer.iter() {
+                let key = entry.key().clone();
+                let ops = entry.value().operations.clone();
+                if !ops.is_empty() {
+                    result.push((key, ops));
+                }
+            }
+            Ok(result)
+        } else {
+            Ok(Vec::new())
+        }
     }
 }
 
 #[async_trait]
 impl TransactionBuffer for TransactionBatchBuffer {
-    async fn prepare(&self, txn_id: TransactionId, operation: IndexOperation) -> BatchResult<()> {
-        let mut buffer = self.pending.entry(txn_id).or_default();
-        buffer.push(operation);
+    async fn prepare(
+        &self,
+        txn_id: TransactionId,
+        operation: IndexOperation,
+    ) -> BatchResult<()> {
+        let txn_buffer = self.pending.entry(txn_id).or_default();
+
+        let key = match &operation {
+            IndexOperation::Insert { key, .. }
+            | IndexOperation::Update { key, .. }
+            | IndexOperation::Delete { key, .. } => {
+                key.clone()
+            }
+        };
+
+        let mut entry = txn_buffer.entry(key).or_default();
+        entry.operations.push(operation);
         Ok(())
     }
 
     async fn commit(&self, txn_id: TransactionId) -> BatchResult<()> {
-        if let Some((_, operations)) = self.pending.remove(&txn_id) {
-            // 事务提交时，操作由 SyncCoordinator 统一处理
-            log::debug!("TransactionBatchBuffer::commit called for {} operations (handled by coordinator)", operations.len());
+        if let Some((_, txn_buffer)) = self.pending.remove(&txn_id) {
+            let count: usize = txn_buffer.iter().map(|e| e.value().operations.len()).sum();
+            log::debug!(
+                "TransactionBatchBuffer::commit called for {} operations",
+                count
+            );
         }
         Ok(())
     }
@@ -242,6 +287,9 @@ impl TransactionBuffer for TransactionBatchBuffer {
     }
 
     fn pending_count(&self, txn_id: TransactionId) -> usize {
-        self.pending.get(&txn_id).map(|e| e.len()).unwrap_or(0)
+        self.pending
+            .get(&txn_id)
+            .map(|txn_buffer| txn_buffer.iter().map(|e| e.value().operations.len()).sum())
+            .unwrap_or(0)
     }
 }

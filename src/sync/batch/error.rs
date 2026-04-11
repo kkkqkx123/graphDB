@@ -22,6 +22,9 @@ pub enum BatchError {
 
     #[error("Transaction error: {0}")]
     TransactionError(String),
+
+    #[error("Invalid operation: {0}")]
+    InvalidOperation(String),
 }
 
 pub type BatchResult<T> = Result<T, BatchError>;

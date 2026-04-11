@@ -24,21 +24,53 @@ pub struct IndexOptions {
     pub analyzer: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct IndexKey {
+    pub space_id: u64,
+    pub tag_name: String,
+    pub field_name: String,
+}
+
+impl IndexKey {
+    pub fn new(space_id: u64, tag_name: String, field_name: String) -> Self {
+        Self {
+            space_id,
+            tag_name,
+            field_name,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IndexOperation {
     Insert {
+        key: IndexKey,
         id: String,
         data: IndexData,
         payload: std::collections::HashMap<String, serde_json::Value>,
     },
     Delete {
+        key: IndexKey,
         id: String,
     },
     Update {
+        key: IndexKey,
         id: String,
         data: IndexData,
         payload: std::collections::HashMap<String, serde_json::Value>,
     },
+}
+
+impl IndexOperation {
+    pub fn extract_index_key(&self) -> Option<(u64, String, String)> {
+        match self {
+            IndexOperation::Insert { key, .. }
+            | IndexOperation::Update { key, .. }
+            | IndexOperation::Delete { key, .. } => {
+                Some((key.space_id, key.tag_name.clone(), key.field_name.clone()))
+            }
+        }
+    }
 }
 
 #[async_trait]

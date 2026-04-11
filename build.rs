@@ -4,6 +4,9 @@
 
 use std::env;
 
+#[cfg(feature = "c-api")]
+use std::path::PathBuf;
+
 fn main() {
     // Only generate header file when c-api feature is enabled
     if env::var("CARGO_FEATURE_C_API").is_ok() {

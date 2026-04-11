@@ -6,5 +6,5 @@ pub mod vector_client;
 pub use error::ExternalIndexError;
 pub use error::IndexResult;
 pub use fulltext_client::FulltextClient;
-pub use trait_def::{ExternalIndexClient, IndexData, IndexOperation, IndexOptions};
+pub use trait_def::{ExternalIndexClient, IndexData, IndexKey, IndexOperation, IndexOptions};
 pub use vector_client::VectorClient;

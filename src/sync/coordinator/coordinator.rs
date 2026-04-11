@@ -1,14 +1,19 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use dashmap::DashMap;
 
 use crate::sync::batch::{
     BatchConfig, BatchProcessor, GenericBatchProcessor, TransactionBatchBuffer, TransactionBuffer,
 };
-use crate::sync::external_index::{IndexData, IndexOperation, FulltextClient, VectorClient};
+use crate::sync::compensation::CompensationManager;
+use crate::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
+use crate::sync::external_index::{IndexData, IndexKey, IndexOperation, FulltextClient, VectorClient};
+use crate::sync::metrics::SyncMetrics;
 use super::types::{ChangeContext, ChangeData, ChangeType, IndexType};
 use crate::search::manager::FulltextIndexManager;
+use crate::sync::retry::{with_retry, RetryConfig};
 
 type FulltextProcessor = GenericBatchProcessor<FulltextClient>;
 type VectorProcessor = GenericBatchProcessor<VectorClient>;
@@ -21,6 +26,9 @@ pub struct SyncCoordinator {
     transaction_buffers:
         DashMap<crate::transaction::types::TransactionId, Arc<TransactionBatchBuffer>>,
     config: BatchConfig,
+    metrics: Arc<SyncMetrics>,
+    dead_letter_queue: Arc<DeadLetterQueue>,
+    compensation_manager: Option<Arc<CompensationManager>>,
 }
 
 impl std::fmt::Debug for SyncCoordinator {
@@ -35,6 +43,16 @@ impl std::fmt::Debug for SyncCoordinator {
 
 impl SyncCoordinator {
     pub fn new(fulltext_manager: Arc<FulltextIndexManager>, config: BatchConfig) -> Self {
+        let metrics = Arc::new(SyncMetrics::new());
+        let dead_letter_queue = Arc::new(DeadLetterQueue::new(
+            DeadLetterQueueConfig::default()
+        ));
+        
+        let compensation_manager = CompensationManager::new(
+            dead_letter_queue.clone(),
+            metrics.clone(),
+        );
+
         Self {
             fulltext_manager,
             vector_manager: None,
@@ -42,6 +60,9 @@ impl SyncCoordinator {
             vector_processors: DashMap::new(),
             transaction_buffers: DashMap::new(),
             config,
+            metrics,
+            dead_letter_queue,
+            compensation_manager: Some(Arc::new(compensation_manager)),
         }
     }
 
@@ -51,6 +72,18 @@ impl SyncCoordinator {
     ) -> Self {
         self.vector_manager = Some(vector_manager);
         self
+    }
+
+    pub fn metrics(&self) -> &Arc<SyncMetrics> {
+        &self.metrics
+    }
+
+    pub fn dead_letter_queue(&self) -> &Arc<DeadLetterQueue> {
+        &self.dead_letter_queue
+    }
+
+    pub fn compensation_manager(&self) -> Option<&Arc<CompensationManager>> {
+        self.compensation_manager.as_ref()
     }
 
     pub fn fulltext_manager(&self) -> &Arc<FulltextIndexManager> {
@@ -161,18 +194,27 @@ impl SyncCoordinator {
             ChangeData::Vector(vector) => IndexData::Vector(vector.clone()),
         };
 
+        let key = IndexKey::new(
+            ctx.space_id,
+            ctx.tag_name.clone(),
+            ctx.field_name.clone(),
+        );
+
         let operation = match ctx.change_type {
             ChangeType::Insert => IndexOperation::Insert {
+                key,
                 id: ctx.vertex_id.clone(),
                 data,
                 payload: HashMap::new(),
             },
             ChangeType::Update => IndexOperation::Update {
+                key,
                 id: ctx.vertex_id.clone(),
                 data,
                 payload: HashMap::new(),
             },
             ChangeType::Delete => IndexOperation::Delete {
+                key,
                 id: ctx.vertex_id.clone(),
             },
         };
@@ -270,12 +312,147 @@ impl SyncCoordinator {
         &self,
         txn_id: crate::transaction::types::TransactionId,
     ) -> Result<(), SyncCoordinatorError> {
-        if let Some((_, buffer)) = self.transaction_buffers.remove(&txn_id) {
-            // 提交所有缓冲的操作
-            buffer.commit(txn_id).await.map_err(SyncCoordinatorError::BatchError)?;
+        let start_time = Instant::now();
+        self.metrics.record_active_transaction_start();
+
+        let result = if let Some((_, buffer)) = self.transaction_buffers.remove(&txn_id) {
+            // 获取所有缓冲的操作（按 key 分组）
+            let grouped_ops = buffer
+                .take_operations(txn_id)
+                .map_err(SyncCoordinatorError::BatchError)?;
+
+            // 对每个 key 执行对应的操作
+            for (key, operations) in grouped_ops {
+                // 记录操作类型
+                for op in &operations {
+                    match op {
+                        IndexOperation::Insert { .. } => {
+                            self.metrics.record_index_operation("insert");
+                        }
+                        IndexOperation::Update { .. } => {
+                            self.metrics.record_index_operation("update");
+                        }
+                        IndexOperation::Delete { .. } => {
+                            self.metrics.record_index_operation("delete");
+                        }
+                    }
+                }
+
+                // 根据操作类型判断是全文索引还是向量索引
+                let is_vector = operations.iter().any(|op| {
+                    matches!(
+                        op,
+                        IndexOperation::Insert { data: IndexData::Vector(_), .. }
+                            | IndexOperation::Update { data: IndexData::Vector(_), .. }
+                    )
+                });
+
+                // 创建重试配置
+                let retry_config = RetryConfig::new(3, Duration::from_millis(100), Duration::from_secs(5));
+                
+                if is_vector {
+                    // 向量索引处理（带重试）
+                    if let Some(processor) = self.get_or_create_vector_processor(
+                        key.space_id,
+                        &key.tag_name,
+                        &key.field_name,
+                    ) {
+                        let ops_clone = operations.clone();
+                        let retry_config_clone = retry_config.clone();
+                        let metrics_clone = self.metrics.clone();
+                        let dlq_clone = self.dead_letter_queue.clone();
+                        
+                        match with_retry(
+                            || async {
+                                processor.add_batch(ops_clone.clone()).await
+                            },
+                            &retry_config_clone,
+                        )
+                        .await
+                        {
+                            Ok(_) => {
+                                metrics_clone.record_retry_success();
+                            }
+                            Err(e) => {
+                                metrics_clone.record_retry_failure();
+                                // 将失败的操作加入死信队列
+                                for op in operations {
+                                    let entry = DeadLetterEntry::new(
+                                        op,
+                                        format!("Index sync failed after retries: {:?}", e),
+                                        retry_config_clone.max_retries,
+                                    );
+                                    dlq_clone.add(entry);
+                                }
+                                return Err(SyncCoordinatorError::BatchError(
+                                    crate::sync::batch::BatchError::InvalidOperation(
+                                        format!("Failed to sync index operations: {:?}", e)
+                                    )
+                                ));
+                            }
+                        }
+                    }
+                } else {
+                    // 全文索引处理（带重试）
+                    if let Some(processor) = self.get_or_create_fulltext_processor(
+                        key.space_id,
+                        &key.tag_name,
+                        &key.field_name,
+                    ) {
+                        let ops_clone = operations.clone();
+                        let retry_config_clone = retry_config.clone();
+                        let metrics_clone = self.metrics.clone();
+                        let dlq_clone = self.dead_letter_queue.clone();
+                        
+                        match with_retry(
+                            || async {
+                                processor.add_batch(ops_clone.clone()).await
+                            },
+                            &retry_config_clone,
+                        )
+                        .await
+                        {
+                            Ok(_) => {
+                                metrics_clone.record_retry_success();
+                            }
+                            Err(e) => {
+                                metrics_clone.record_retry_failure();
+                                // 将失败的操作加入死信队列
+                                for op in operations {
+                                    let entry = DeadLetterEntry::new(
+                                        op,
+                                        format!("Index sync failed after retries: {:?}", e),
+                                        retry_config_clone.max_retries,
+                                    );
+                                    dlq_clone.add(entry);
+                                }
+                                return Err(SyncCoordinatorError::BatchError(
+                                    crate::sync::batch::BatchError::InvalidOperation(
+                                        format!("Failed to sync index operations: {:?}", e)
+                                    )
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+
             log::debug!("Transaction {:?} committed", txn_id);
+            Ok(())
+        } else {
+            Ok(())
+        };
+
+        // 记录指标
+        self.metrics.record_active_transaction_end();
+        self.metrics.record_processing_time(start_time.elapsed());
+        
+        match &result {
+            Ok(_) => self.metrics.record_transaction_commit(),
+            Err(_) => self.metrics.record_transaction_rollback(),
         }
-        Ok(())
+
+        result
     }
 
     /// Rollback 阶段：丢弃缓冲区
@@ -306,6 +483,9 @@ impl SyncCoordinator {
     }
 
     pub async fn start_background_tasks(&self) {
+        log::info!("Starting background tasks for sync coordinator");
+
+        // 启动所有处理器的背景任务
         for entry in self.fulltext_processors.iter() {
             let processor: Arc<FulltextProcessor> = entry.value().clone();
             processor.start_background_task().await;
@@ -315,9 +495,40 @@ impl SyncCoordinator {
             let processor: Arc<VectorProcessor> = entry.value().clone();
             processor.start_background_task().await;
         }
+
+        // 启动补偿背景任务（如果启用了补偿管理器）
+        if let Some(compensation_manager) = &self.compensation_manager {
+            let cm_clone = compensation_manager.clone();
+            tokio::spawn(async move {
+                cm_clone.start_background_task(Duration::from_secs(60)).await;
+            });
+            log::info!("Started compensation background task");
+        }
+
+        // 启动死信队列自动清理任务
+        if self.dead_letter_queue.is_auto_cleanup_enabled() {
+            let dlq_clone = self.dead_letter_queue.clone();
+            let cleanup_interval = self.dead_letter_queue.get_cleanup_interval();
+            tokio::spawn(async move {
+                let mut interval = tokio::time::interval(cleanup_interval);
+                loop {
+                    interval.tick().await;
+                    let removed = dlq_clone.cleanup();
+                    if removed > 0 {
+                        log::info!("Auto-cleaned {} dead letter entries", removed);
+                    }
+                }
+            });
+            log::info!("Started dead letter queue cleanup task");
+        }
+
+        log::info!("All background tasks started");
     }
 
     pub async fn stop_background_tasks(&self) {
+        log::info!("Stopping background tasks for sync coordinator");
+
+        // 停止所有处理器的背景任务
         for entry in self.fulltext_processors.iter() {
             let processor: &Arc<FulltextProcessor> = entry.value();
             processor.stop_background_task().await;
@@ -327,6 +538,18 @@ impl SyncCoordinator {
             let processor: &Arc<VectorProcessor> = entry.value();
             processor.stop_background_task().await;
         }
+
+        // 注意：补偿任务和清理任务是 tokio::spawn 的，会在 coordinator 销毁时自动停止
+
+        log::info!("All background tasks stopped");
+    }
+
+    pub fn is_auto_cleanup_enabled(&self) -> bool {
+        self.dead_letter_queue.is_auto_cleanup_enabled()
+    }
+
+    pub fn get_cleanup_interval(&self) -> Duration {
+        self.dead_letter_queue.get_cleanup_interval()
     }
 }
 
