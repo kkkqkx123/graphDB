@@ -148,7 +148,7 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
                             .on_vertex_change(
                                 space_id,
                                 &tag_name,
-                                &*vertex_id,
+                                &vertex_id,
                                 &props,
                                 ChangeType::Insert,
                             )
@@ -191,7 +191,7 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
                             .on_vertex_change(
                                 space_id,
                                 &tag_name,
-                                &*vertex_id,
+                                &vertex_id,
                                 &props,
                                 ChangeType::Update,
                             )
@@ -304,7 +304,7 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
                                 .on_vertex_change(
                                     space_id,
                                     &tag_name,
-                                    &*vertex_id,
+                                    &vertex_id,
                                     &props,
                                     ChangeType::Insert,
                                 )

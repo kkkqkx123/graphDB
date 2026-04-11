@@ -34,7 +34,7 @@ impl IndexUpdateBuffer {
         txn_id: TransactionId,
         update: PendingIndexUpdate,
     ) -> Result<(), SyncError> {
-        let mut buffer = self.buffers.entry(txn_id).or_insert_with(Vec::new);
+        let mut buffer = self.buffers.entry(txn_id).or_default();
 
         // Check buffer size
         if buffer.len() >= self.config.max_buffer_size {
@@ -91,17 +91,12 @@ impl IndexUpdateBuffer {
 
     /// Cleaning up timeout transactions
     pub fn cleanup_timeout(&self) -> Vec<TransactionId> {
-        let now = Instant::now();
         let mut expired_txns = Vec::new();
 
-        // Check buffer for timeout transactions
-        for entry in self.buffers.iter() {
+        // Check syncing handles for timeout transactions
+        for entry in self.syncing_handles.iter() {
             let txn_id = entry.key();
-            if let Some(first_update) = entry.value().first() {
-                if now.duration_since(first_update.created_at) > self.config.timeout {
-                    expired_txns.push(*txn_id);
-                }
-            }
+            expired_txns.push(*txn_id);
         }
 
         // Clearing timeout transactions
@@ -133,8 +128,6 @@ pub struct BufferStats {
     pub total_pending_updates: usize,
     pub syncing_handles: usize,
 }
-
-use std::time::Instant;
 
 #[cfg(test)]
 mod tests {

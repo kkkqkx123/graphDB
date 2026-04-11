@@ -187,21 +187,16 @@ impl InsertVerticesValidator {
         })?;
 
         // Check each property value
-        for (_prop_idx, (prop_name, value_expr)) in prop_names.iter().zip(values.iter()).enumerate()
-        {
+        for (prop_name, value_expr) in prop_names.iter().zip(values.iter()) {
             // Find property definition in schema
-            let prop_def = tag_info.properties.iter().find(|p| &p.name == prop_name);
-
-            if let Some(prop_def) = prop_def {
+            if let Some(prop_def) = tag_info.properties.iter().find(|p| &p.name == prop_name) {
                 // Check if property is a vector type and extract expected dimension
-                let expected_dim = match &prop_def.data_type {
+                if let Some(expected_dim) = match &prop_def.data_type {
                     DataType::VectorDense(dim) => Some(*dim),
                     DataType::VectorSparse(dim) => Some(*dim),
                     DataType::Vector => None, // Generic vector type without dimension constraint
                     _ => None,
-                };
-
-                if let Some(expected_dim) = expected_dim {
+                } {
                     // Evaluate the expression to get the actual value
                     if let Some(expr) = value_expr.get_expression() {
                         if let Expression::Literal(Value::Vector(vector_val)) = &expr {

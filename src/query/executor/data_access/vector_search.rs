@@ -18,7 +18,7 @@ use crate::query::planning::plan::core::nodes::data_access::vector_search::{
     OutputField, VectorSearchNode,
 };
 use crate::storage::StorageClient;
-use crate::sync::vector_sync::VectorSyncCoordinator;
+use crate::sync::vector_sync::{SearchOptions, VectorSyncCoordinator};
 use parking_lot::Mutex;
 use vector_client::types::SearchResult;
 
@@ -156,16 +156,15 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
                 match (threshold, filter) {
                     (Some(threshold), Some(filter)) => {
                         // Search with both threshold and filter
+                        let options = SearchOptions::new(
+                            space_id,
+                            &tag_name,
+                            &field_name,
+                            query_vector,
+                            limit,
+                        );
                         self.coordinator
-                            .search_with_threshold_and_filter(
-                                space_id,
-                                &tag_name,
-                                &field_name,
-                                query_vector,
-                                limit,
-                                threshold,
-                                filter,
-                            )
+                            .search_with_threshold_and_filter(options, threshold, filter)
                             .await
                     }
                     (Some(threshold), None) => {

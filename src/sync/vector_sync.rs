@@ -11,6 +11,7 @@ use tracing::{debug, info};
 use crate::core::error::{VectorCoordinatorError, VectorCoordinatorResult};
 use crate::core::{Value, Vertex};
 pub use crate::sync::task::VectorPointData;
+pub use crate::sync::vector_batch::{VectorBatchConfig, VectorBatchManager};
 
 use vector_client::{
     EmbeddingService, SearchQuery, SearchResult, VectorFilter, VectorManager, VectorPoint,
@@ -61,23 +62,17 @@ impl SearchOptions {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum VectorChangeType {
     Insert,
-    Update,
     Delete,
 }
 
-/// Insert mode for batch operations
-#[derive(Debug, Clone, Copy)]
-enum InsertMode {
-    Insert,
-    Update,
-}
+
 
 impl From<crate::coordinator::ChangeType> for VectorChangeType {
     fn from(ct: crate::coordinator::ChangeType) -> Self {
         match ct {
             crate::coordinator::ChangeType::Insert => VectorChangeType::Insert,
-            crate::coordinator::ChangeType::Update => VectorChangeType::Update,
             crate::coordinator::ChangeType::Delete => VectorChangeType::Delete,
+            _ => VectorChangeType::Delete,
         }
     }
 }
@@ -136,8 +131,6 @@ impl VectorChangeContext {
 pub struct VectorSyncCoordinator {
     vector_manager: Arc<VectorManager>,
     embedding_service: Option<Arc<EmbeddingService>>,
-    batch_size: usize,
-    batch_timeout_ms: u64,
 }
 
 impl std::fmt::Debug for VectorSyncCoordinator {
@@ -158,23 +151,6 @@ impl VectorSyncCoordinator {
         Self {
             vector_manager,
             embedding_service,
-            batch_size: 256,
-            batch_timeout_ms: 1000,
-        }
-    }
-
-    /// Create a new vector sync coordinator with batch config
-    pub fn with_batch_config(
-        vector_manager: Arc<VectorManager>,
-        embedding_service: Option<Arc<EmbeddingService>>,
-        batch_size: usize,
-        batch_timeout_ms: u64,
-    ) -> Self {
-        Self {
-            vector_manager,
-            embedding_service,
-            batch_size,
-            batch_timeout_ms,
         }
     }
 
@@ -244,16 +220,14 @@ impl VectorSyncCoordinator {
         space_id: u64,
         vertex: &Vertex,
     ) -> VectorCoordinatorResult<()> {
-        self.batch_upsert_vectors(space_id, vertex, InsertMode::Insert)
-            .await
+        self.upsert_vertex_vectors(space_id, vertex).await
     }
 
-    /// Batch upsert vectors for a vertex
-    async fn batch_upsert_vectors(
+    /// Upsert vectors for a vertex
+    async fn upsert_vertex_vectors(
         &self,
         space_id: u64,
         vertex: &Vertex,
-        _mode: InsertMode,
     ) -> VectorCoordinatorResult<()> {
         let mut points_by_collection: HashMap<String, Vec<VectorPoint>> = HashMap::new();
 
@@ -276,7 +250,7 @@ impl VectorSyncCoordinator {
 
                         points_by_collection
                             .entry(collection_name)
-                            .or_insert_with(Vec::new)
+                            .or_default()
                             .push(point);
                     }
                 }
@@ -335,12 +309,12 @@ impl VectorSyncCoordinator {
 
                             points_to_upsert
                                 .entry(collection_name)
-                                .or_insert_with(Vec::new)
+                                .or_default()
                                 .push(point);
                         } else {
                             points_to_delete
                                 .entry(collection_name)
-                                .or_insert_with(Vec::new)
+                                .or_default()
                                 .push(point_id);
                         }
                     }
@@ -423,10 +397,10 @@ impl VectorSyncCoordinator {
     /// Handle vector change
     pub async fn on_vector_change(&self, ctx: VectorChangeContext) -> VectorCoordinatorResult<()> {
         let collection_name = ctx.location.to_collection_name();
-        let point_id = format!("{}", ctx.data.id);
+        let point_id = ctx.data.id.to_string();
 
         match ctx.change_type {
-            VectorChangeType::Insert | VectorChangeType::Update => {
+            VectorChangeType::Insert => {
                 let vector = ctx.data.vector;
                 let json_payload: HashMap<String, serde_json::Value> = ctx
                     .data
@@ -459,10 +433,10 @@ impl VectorSyncCoordinator {
 
         for ctx in contexts {
             let collection_name = ctx.location.to_collection_name();
-            let point_id = format!("{}", ctx.data.id);
+            let point_id = ctx.data.id.to_string();
 
             match ctx.change_type {
-                VectorChangeType::Insert | VectorChangeType::Update => {
+                VectorChangeType::Insert => {
                     let vector = ctx.data.vector;
                     let json_payload: HashMap<String, serde_json::Value> = ctx
                         .data
@@ -475,13 +449,13 @@ impl VectorSyncCoordinator {
 
                     upsert_by_collection
                         .entry(collection_name)
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push(point);
                 }
                 VectorChangeType::Delete => {
                     delete_by_collection
                         .entry(collection_name)
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push(point_id);
                 }
             }
@@ -666,21 +640,13 @@ impl VectorSyncCoordinator {
     /// Search with threshold and filter
     pub async fn search_with_threshold_and_filter(
         &self,
-        space_id: u64,
-        tag_name: &str,
-        field_name: &str,
-        query_vector: Vec<f32>,
-        limit: usize,
+        mut options: SearchOptions,
         threshold: f32,
         filter: VectorFilter,
     ) -> VectorCoordinatorResult<Vec<SearchResult>> {
-        let collection_name =
-            VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
-
-        let query = SearchQuery::new(query_vector, limit)
-            .with_score_threshold(threshold)
-            .with_filter(filter);
-        self.search(&collection_name, query).await
+        options.threshold = Some(threshold);
+        options.filter = Some(filter);
+        self.search_with_options(options).await
     }
 }
 

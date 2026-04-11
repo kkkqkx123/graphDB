@@ -52,9 +52,13 @@ impl Default for FulltextConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncConfig {
+    #[serde(default = "default_sync_mode")]
     pub mode: SyncMode,
+    #[serde(default = "default_queue_size")]
     pub queue_size: usize,
+    #[serde(default = "default_commit_interval_ms")]
     pub commit_interval_ms: u64,
+    #[serde(default = "default_batch_size")]
     pub batch_size: usize,
     /// 同步失败时的处理策略
     #[serde(default)]
@@ -64,11 +68,27 @@ pub struct SyncConfig {
 impl Default for SyncConfig {
     fn default() -> Self {
         Self {
-            mode: SyncMode::Async,
-            queue_size: 10000,
-            commit_interval_ms: 1000,
-            batch_size: 100,
-            failure_policy: SyncFailurePolicy::FailOpen,
+            mode: default_sync_mode(),
+            queue_size: default_queue_size(),
+            commit_interval_ms: default_commit_interval_ms(),
+            batch_size: default_batch_size(),
+            failure_policy: SyncFailurePolicy::default(),
         }
     }
+}
+
+fn default_sync_mode() -> SyncMode {
+    SyncMode::Async
+}
+
+fn default_queue_size() -> usize {
+    10000
+}
+
+fn default_commit_interval_ms() -> u64 {
+    1000
+}
+
+fn default_batch_size() -> usize {
+    100
 }

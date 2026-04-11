@@ -3,7 +3,6 @@ use crate::coordinator::ChangeType;
 use crate::transaction::types::TransactionId;
 use crossbeam_utils::atomic::AtomicCell;
 use std::sync::Arc;
-use std::time::Instant;
 use tokio::sync::{oneshot, Mutex};
 
 /// Pending index update operations
@@ -27,8 +26,6 @@ pub struct PendingIndexUpdate {
     pub vector_data: Option<Vec<f32>>,
     /// Type of change
     pub change_type: ChangeType,
-    /// Creating timestamps
-    pub created_at: Instant,
 }
 
 impl PendingIndexUpdate {
@@ -53,7 +50,6 @@ impl PendingIndexUpdate {
             old_content,
             vector_data,
             change_type,
-            created_at: Instant::now(),
         }
     }
 }
@@ -86,8 +82,6 @@ pub struct SyncHandle {
     pub completion_rx: Arc<Mutex<Option<oneshot::Receiver<Result<(), crate::sync::SyncError>>>>>,
     /// state of affairs
     state: AtomicCell<SyncHandleState>,
-    /// Creation time
-    created_at: Instant,
 }
 
 impl SyncHandle {
@@ -103,7 +97,6 @@ impl SyncHandle {
             completion_tx: Some(completion_tx),
             completion_rx: Arc::new(Mutex::new(Some(completion_rx))),
             state: AtomicCell::new(SyncHandleState::Created),
-            created_at: Instant::now(),
         }
     }
 

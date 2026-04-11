@@ -9,6 +9,7 @@ use crate::search::SyncConfig;
 use crate::sync::batch::{BatchConfig, BufferError, TaskBuffer};
 use crate::sync::recovery::RecoveryManager;
 use crate::sync::task::SyncTask;
+use crate::sync::vector_batch::VectorBatchManager;
 use crate::sync::vector_sync::{VectorChangeType, VectorSyncCoordinator};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -29,6 +30,7 @@ pub enum SyncMode {
 pub struct SyncManager {
     fulltext_coordinator: Arc<FulltextCoordinator>,
     vector_coordinator: Option<Arc<VectorSyncCoordinator>>,
+    vector_batch_manager: Option<Arc<VectorBatchManager>>,
     buffer: Arc<TaskBuffer>,
     mode: Arc<RwLock<SyncMode>>,
     running: Arc<std::sync::atomic::AtomicBool>,
@@ -42,6 +44,7 @@ impl Clone for SyncManager {
         Self {
             fulltext_coordinator: self.fulltext_coordinator.clone(),
             vector_coordinator: self.vector_coordinator.clone(),
+            vector_batch_manager: self.vector_batch_manager.clone(),
             buffer: self.buffer.clone(),
             mode: self.mode.clone(),
             running: self.running.clone(),
@@ -56,6 +59,7 @@ impl std::fmt::Debug for SyncManager {
         f.debug_struct("SyncManager")
             .field("fulltext_coordinator", &self.fulltext_coordinator)
             .field("vector_coordinator", &self.vector_coordinator)
+            .field("vector_batch_manager", &self.vector_batch_manager)
             .field("buffer", &self.buffer)
             .field("mode", &self.mode)
             .field("running", &self.running)
@@ -71,6 +75,7 @@ impl SyncManager {
         Self {
             fulltext_coordinator,
             vector_coordinator: None,
+            vector_batch_manager: None,
             buffer,
             mode: Arc::new(RwLock::new(SyncMode::Async)),
             running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -83,7 +88,18 @@ impl SyncManager {
         mut self,
         vector_coordinator: Arc<VectorSyncCoordinator>,
     ) -> Self {
-        self.vector_coordinator = Some(vector_coordinator);
+        self.vector_coordinator = Some(vector_coordinator.clone());
+        // Create vector batch manager with same config as TaskBuffer
+        let batch_config = self.buffer.config();
+        let vector_config = crate::sync::VectorBatchConfig::new(
+            batch_config.batch_size,
+            batch_config.commit_interval.as_millis() as u64,
+            batch_config.queue_capacity,
+            batch_config.failure_policy,
+        );
+        let vector_batch_manager =
+            Arc::new(VectorBatchManager::new(vector_coordinator, vector_config));
+        self.vector_batch_manager = Some(vector_batch_manager);
         self
     }
 
@@ -103,6 +119,7 @@ impl SyncManager {
         Self {
             fulltext_coordinator,
             vector_coordinator: None,
+            vector_batch_manager: None,
             buffer,
             mode: Arc::new(RwLock::new(sync_config.mode)),
             running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -120,6 +137,7 @@ impl SyncManager {
         Self {
             fulltext_coordinator,
             vector_coordinator: None,
+            vector_batch_manager: None,
             buffer,
             mode: Arc::new(RwLock::new(mode)),
             running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -142,6 +160,7 @@ impl SyncManager {
         Self {
             fulltext_coordinator,
             vector_coordinator: None,
+            vector_batch_manager: None,
             buffer,
             mode: Arc::new(RwLock::new(SyncMode::Async)),
             running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -168,6 +187,7 @@ impl SyncManager {
         Self {
             fulltext_coordinator,
             vector_coordinator: None,
+            vector_batch_manager: None,
             buffer,
             mode: Arc::new(RwLock::new(sync_config.mode)),
             running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -379,7 +399,7 @@ impl SyncManager {
 
                         upsert_by_collection
                             .entry(collection_name)
-                            .or_insert_with(Vec::new)
+                            .or_default()
                             .extend(points);
                     }
                     SyncTask::VectorBatchDelete {
@@ -398,7 +418,7 @@ impl SyncManager {
 
                         delete_by_collection
                             .entry(collection_name)
-                            .or_insert_with(Vec::new)
+                            .or_default()
                             .extend(point_ids);
                     }
                     _ => continue,
@@ -621,7 +641,7 @@ impl SyncManager {
 
                                 vector_upserts
                                     .entry(collection_name)
-                                    .or_insert_with(Vec::new)
+                                    .or_default()
                                     .push(point_data);
                             }
                         }
@@ -645,7 +665,7 @@ impl SyncManager {
                                 .to_collection_name();
                             vector_deletes
                                 .entry(collection_name)
-                                .or_insert_with(Vec::new)
+                                .or_default()
                                 .push(update.doc_id.clone());
                         }
                     }
@@ -831,7 +851,7 @@ impl SyncManager {
         self.buffer
             .add_pending_update(txn_id, update)
             .await
-            .map_err(|e| SyncError::BufferError(e))
+            .map_err(SyncError::BufferError)
     }
 
     /// Get pending updates

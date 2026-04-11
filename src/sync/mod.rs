@@ -8,6 +8,7 @@ pub mod persistence;
 pub mod queue;
 pub mod recovery;
 pub mod task;
+pub mod vector_batch;
 pub mod vector_sync;
 
 pub use crate::search::SyncConfig;
@@ -17,6 +18,7 @@ pub use persistence::{FailedTask, PersistenceError, SyncPersistence, SyncState};
 pub use queue::{AsyncQueue, DeadLetterItem, QueueConfig, QueueError, QueueHandler, QueueResult};
 pub use recovery::{RecoveryConfig, RecoveryError, RecoveryManager, RecoveryResult};
 pub use task::{SyncTask, TaskResult, VectorPointData};
+pub use vector_batch::{VectorBatchConfig, VectorBatchManager, VectorBatchError};
 pub use vector_sync::{
     SearchOptions, VectorChangeContext, VectorChangeType, VectorIndexLocation,
     VectorSyncCoordinator,
