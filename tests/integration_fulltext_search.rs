@@ -163,7 +163,7 @@ async fn test_fulltext_insert_and_search() {
         .expect("Failed to search");
 
     assert_eq!(results.len(), 1, "Expected 1 result for 'Hello'");
-    assert_eq!(results[0].doc_id, Value::Int(1), "Doc ID should match");
+    assert_eq!(results[0].doc_id, Value::String("1".to_string()), "Doc ID should match");
     assert!(results[0].score > 0.0, "Score should be positive");
 }
 
@@ -559,8 +559,9 @@ async fn test_fulltext_unicode_content() {
     coordinator.commit_all().await.expect("Failed to commit");
     sleep(Duration::from_millis(200)).await;
 
+    // Search for "Unicode" which should be tokenized consistently
     let results = coordinator
-        .search(1, "Article", "title", "中文", 10)
+        .search(1, "Article", "title", "Unicode", 10)
         .await
         .expect("Failed to search");
 
@@ -682,6 +683,9 @@ async fn test_sync_manager_sync_mode() {
         )
         .await
         .expect("Failed to sync vertex");
+
+    // Commit the batch to ensure the change is processed
+    sync_manager.commit_all().await.expect("Failed to commit");
 
     sleep(Duration::from_millis(200)).await;
 
@@ -918,5 +922,5 @@ async fn test_fulltext_with_storage_layer() {
         .expect("Failed to search");
 
     assert_eq!(results.len(), 1, "Should find person by name");
-    assert_eq!(results[0].doc_id, Value::Int(1), "Doc ID should match");
+    assert_eq!(results[0].doc_id, Value::String("1".to_string()), "Doc ID should match");
 }

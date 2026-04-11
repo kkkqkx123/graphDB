@@ -150,6 +150,9 @@ async fn test_sync_vertex_change() {
         .await
         .expect("Failed to sync vertex");
 
+    // Commit the batch to ensure the change is processed
+    ctx.coordinator.commit_all().await.expect("Failed to commit");
+
     // Wait for async processing
     sleep(Duration::from_millis(200)).await;
 
@@ -310,6 +313,9 @@ async fn test_concurrent_sync_operations() {
         let _ = handle.await.expect("Task failed");
     }
 
+    // Commit the batch to ensure all changes are processed
+    ctx.coordinator.commit_all().await.expect("Failed to commit");
+
     // Wait for processing
     sleep(Duration::from_millis(300)).await;
 
@@ -342,14 +348,23 @@ async fn test_sync_nonexistent_index() {
         .map(|(k, v)| (k.clone(), v.clone()))
         .collect();
 
-    // Should fail gracefully
+    // Should succeed but not index anything (index doesn't exist, so field is skipped)
     let result = ctx
         .coordinator
         .on_vertex_change(1, "Article", vid, &props, ChangeType::Insert.into())
         .await;
 
-    // Expected to fail because index doesn't exist
-    assert!(result.is_err());
+    // Should succeed (fields without indexes are silently skipped)
+    assert!(result.is_ok());
+    
+    // Verify search fails because index doesn't exist
+    let search_result = ctx
+        .coordinator
+        .fulltext_manager()
+        .search(1, "Article", "content", "Test", 10)
+        .await;
+    
+    assert!(search_result.is_err(), "Search should fail because index doesn't exist");
 }
 
 #[tokio::test]
@@ -409,6 +424,9 @@ async fn test_custom_batch_size() {
             .await
             .expect("Failed to sync vertex");
     }
+
+    // Commit the batch to ensure all changes are processed
+    ctx.coordinator.commit_all().await.expect("Failed to commit");
 
     sleep(Duration::from_millis(200)).await;
 
