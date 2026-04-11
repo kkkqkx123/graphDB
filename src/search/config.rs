@@ -3,7 +3,6 @@ use std::path::PathBuf;
 
 use crate::search::adapters::{Bm25Config, InversearchConfig};
 use crate::search::engine::EngineType;
-use crate::sync::SyncMode;
 
 /// 同步失败策略
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -52,8 +51,6 @@ impl Default for FulltextConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncConfig {
-    #[serde(default = "default_sync_mode")]
-    pub mode: SyncMode,
     #[serde(default = "default_queue_size")]
     pub queue_size: usize,
     #[serde(default = "default_commit_interval_ms")]
@@ -68,17 +65,12 @@ pub struct SyncConfig {
 impl Default for SyncConfig {
     fn default() -> Self {
         Self {
-            mode: default_sync_mode(),
             queue_size: default_queue_size(),
             commit_interval_ms: default_commit_interval_ms(),
             batch_size: default_batch_size(),
             failure_policy: SyncFailurePolicy::default(),
         }
     }
-}
-
-fn default_sync_mode() -> SyncMode {
-    SyncMode::Async
 }
 
 fn default_queue_size() -> usize {

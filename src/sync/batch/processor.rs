@@ -195,9 +195,6 @@ impl<E: ExternalIndexClient + 'static> BatchProcessor for GenericBatchProcessor<
 }
 
 pub struct TransactionBatchBuffer {
-    // Deprecated: Use SyncCoordinator directly instead
-    #[deprecated]
-    processor: Option<Arc<dyn BatchProcessor>>,
     pending: DashMap<TransactionId, Vec<IndexOperation>>,
 }
 
@@ -210,39 +207,16 @@ impl std::fmt::Debug for TransactionBatchBuffer {
 }
 
 impl TransactionBatchBuffer {
-    pub fn new(processor: Arc<dyn BatchProcessor>) -> Self {
+    /// 创建新的事务缓冲区
+    pub fn new() -> Self {
         Self {
-            processor: Some(processor),
             pending: DashMap::new(),
         }
     }
 
-    // Compatibility constructor for old TaskBuffer API
-    #[deprecated]
-    pub fn new_with_coordinator(
-        _coordinator: Arc<crate::sync::coordinator::SyncCoordinator>,
-        _config: BatchConfig,
-    ) -> Self {
-        // Deprecated: Use SyncCoordinator directly
-        Self {
-            processor: None,
-            pending: DashMap::new(),
-        }
-    }
-
-    // Compatibility method for old API
-    pub async fn submit(&self, _task: crate::sync::task::SyncTask) -> Result<(), crate::sync::batch::error::BatchError> {
-        // TODO: Implement proper task submission logic
-        // For now, just return Ok to allow compilation
-        Ok(())
-    }
-
-    // Compatibility method
-    #[allow(dead_code)]
-    pub fn config(&self) -> &BatchConfig {
-        // Return a default config for compatibility
-        static DEFAULT_CONFIG: std::sync::OnceLock<BatchConfig> = std::sync::OnceLock::new();
-        DEFAULT_CONFIG.get_or_init(|| BatchConfig::default())
+    /// 创建不带 processor 的事务缓冲区（用于事务性索引同步）
+    pub fn new_without_processor() -> Self {
+        Self::new()
     }
 }
 
@@ -251,17 +225,13 @@ impl TransactionBuffer for TransactionBatchBuffer {
     async fn prepare(&self, txn_id: TransactionId, operation: IndexOperation) -> BatchResult<()> {
         let mut buffer = self.pending.entry(txn_id).or_default();
         buffer.push(operation);
-
-        // Skip capacity check in deprecated mode
         Ok(())
     }
 
     async fn commit(&self, txn_id: TransactionId) -> BatchResult<()> {
         if let Some((_, operations)) = self.pending.remove(&txn_id) {
-            if !operations.is_empty() {
-                // Skip processor call in deprecated mode
-                // self.processor.add_batch(operations).await?;
-            }
+            // 事务提交时，操作由 SyncCoordinator 统一处理
+            log::debug!("TransactionBatchBuffer::commit called for {} operations (handled by coordinator)", operations.len());
         }
         Ok(())
     }

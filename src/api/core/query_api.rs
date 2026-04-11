@@ -19,7 +19,6 @@ use vector_client::{VectorClientConfig, VectorManager};
 /// Universal Query API – Core Layer
 pub struct QueryApi<S: StorageClient + 'static> {
     pipeline_manager: QueryPipelineManager<S>,
-    vector_coordinator: Option<Arc<crate::sync::vector_sync::VectorSyncCoordinator>>,
 }
 
 impl<S: StorageClient + Clone + 'static> QueryApi<S> {
@@ -33,7 +32,6 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
                 stats_manager,
                 optimizer_engine,
             ),
-            vector_coordinator: None,
         }
     }
 
@@ -69,7 +67,6 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
 
         Ok(Self {
             pipeline_manager,
-            vector_coordinator: Some(vector_coordinator),
         })
     }
 

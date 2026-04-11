@@ -27,7 +27,7 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
 use thiserror::Error;
-use tokio::sync::{mpsc, Mutex, RwLock};
+use tokio::sync::{Mutex, RwLock};
 use tokio::time::Duration;
 
 /// Queue Error Type
@@ -123,7 +123,6 @@ where
     pending_queue: Arc<Mutex<VecDeque<PendingItem<T>>>>,
     dead_letter_queue: Arc<RwLock<VecDeque<DeadLetterItem<T>>>>,
     handler: Option<Arc<dyn QueueHandler<T>>>,
-    shutdown_tx: mpsc::Sender<()>,
 }
 
 impl<T> std::fmt::Debug for AsyncQueue<T>
@@ -143,7 +142,6 @@ where
 {
     /// Creating a new asynchronous queue
     pub fn new(config: QueueConfig) -> Self {
-        let (shutdown_tx, _) = mpsc::channel(1);
         let pending_queue = Arc::new(Mutex::new(VecDeque::with_capacity(config.max_queue_size)));
         let dead_letter_queue = Arc::new(RwLock::new(VecDeque::with_capacity(
             config.dead_letter_queue_size,
@@ -154,7 +152,6 @@ where
             pending_queue,
             dead_letter_queue,
             handler: None,
-            shutdown_tx,
         }
     }
 

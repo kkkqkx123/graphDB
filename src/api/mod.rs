@@ -66,10 +66,9 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
 
     // 如果配置启用了全文索引或向量索引，初始化 SyncManager
     let storage = if config.fulltext.enabled || config.vector.enabled {
-        use crate::coordinator::fulltext::FulltextCoordinator;
         use crate::search::manager::FulltextIndexManager;
         use crate::search::FulltextConfig;
-        use crate::sync::{SyncConfig, SyncManager, SyncMode};
+        use crate::sync::{SyncConfig, SyncManager};
         use vector_client::VectorManager;
 
         let (_coordinator, sync_manager) = if config.fulltext.enabled {
@@ -81,7 +80,6 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
             use crate::search::SyncFailurePolicy;
 
             let sync_config = SyncConfig {
-                mode: SyncMode::Async,
                 queue_size: 10000,
                 commit_interval_ms: 1000,
                 batch_size: 100,

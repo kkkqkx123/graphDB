@@ -14,12 +14,12 @@ pub mod vector_batch;
 pub mod vector_sync;
 
 pub use crate::search::SyncConfig;
-pub use batch::{BatchConfig, BatchError, BatchProcessor, BufferError, GenericBatchProcessor, TaskBuffer, TransactionBatchBuffer, TransactionBuffer};
+pub use batch::{BatchConfig, BatchError, BatchProcessor, GenericBatchProcessor, TransactionBatchBuffer, TransactionBuffer};
 pub use coordinator::{
     ChangeContext, ChangeData, ChangeType, IndexType, SyncCoordinator, SyncCoordinatorError,
 };
 pub use external_index::{ExternalIndexClient, IndexData, IndexOperation};
-pub use manager::{SyncError, SyncManager, SyncMode};
+pub use manager::{SyncError, SyncManager};
 pub use persistence::{FailedTask, PersistenceError, SyncPersistence, SyncState};
 pub use queue::{AsyncQueue, DeadLetterItem, QueueConfig, QueueError, QueueHandler, QueueResult};
 pub use recovery::{RecoveryConfig, RecoveryError, RecoveryManager, RecoveryResult};

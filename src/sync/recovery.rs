@@ -2,7 +2,6 @@
 //!
 //! Handles recovery of failed sync tasks.
 
-use crate::sync::coordinator::SyncCoordinator;
 use crate::sync::persistence::{FailedTask, SyncPersistence};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -27,7 +26,6 @@ impl Default for RecoveryConfig {
 
 pub struct RecoveryManager {
     persistence: SyncPersistence,
-    sync_coordinator: Arc<SyncCoordinator>,
     config: RecoveryConfig,
     running: Arc<std::sync::atomic::AtomicBool>,
 }
@@ -41,23 +39,17 @@ impl std::fmt::Debug for RecoveryManager {
 }
 
 impl RecoveryManager {
-    pub fn new(sync_coordinator: Arc<SyncCoordinator>, data_dir: PathBuf) -> Self {
+    pub fn new(data_dir: PathBuf) -> Self {
         Self {
             persistence: SyncPersistence::new(data_dir),
-            sync_coordinator,
             config: RecoveryConfig::default(),
             running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
     }
 
-    pub fn with_config(
-        sync_coordinator: Arc<SyncCoordinator>,
-        data_dir: PathBuf,
-        config: RecoveryConfig,
-    ) -> Self {
+    pub fn with_config(data_dir: PathBuf, config: RecoveryConfig) -> Self {
         Self {
             persistence: SyncPersistence::new(data_dir),
-            sync_coordinator,
             config,
             running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }

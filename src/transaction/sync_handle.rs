@@ -142,8 +142,6 @@ pub struct IndexBufferConfig {
     pub max_buffer_size: usize,
     /// timeout
     pub timeout: std::time::Duration,
-    /// synchronous mode
-    pub sync_mode: crate::sync::SyncMode,
 }
 
 impl Default for IndexBufferConfig {
@@ -151,7 +149,6 @@ impl Default for IndexBufferConfig {
         Self {
             max_buffer_size: 1000,
             timeout: std::time::Duration::from_secs(30),
-            sync_mode: crate::sync::SyncMode::Async,
         }
     }
 }

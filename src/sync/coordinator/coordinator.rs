@@ -2,12 +2,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use tokio::sync::RwLock;
 
 use crate::sync::batch::{
     BatchConfig, BatchProcessor, GenericBatchProcessor, TransactionBatchBuffer, TransactionBuffer,
 };
-use crate::sync::external_index::{ExternalIndexClient, IndexData, IndexOperation, FulltextClient, VectorClient};
+use crate::sync::external_index::{IndexData, IndexOperation, FulltextClient, VectorClient};
 use super::types::{ChangeContext, ChangeData, ChangeType, IndexType};
 use crate::search::manager::FulltextIndexManager;
 
@@ -22,7 +21,6 @@ pub struct SyncCoordinator {
     transaction_buffers:
         DashMap<crate::transaction::types::TransactionId, Arc<TransactionBatchBuffer>>,
     config: BatchConfig,
-    mode: Arc<RwLock<crate::sync::SyncMode>>,
 }
 
 impl std::fmt::Debug for SyncCoordinator {
@@ -31,7 +29,6 @@ impl std::fmt::Debug for SyncCoordinator {
             .field("fulltext_processors_count", &self.fulltext_processors.len())
             .field("vector_processors_count", &self.vector_processors.len())
             .field("config", &self.config)
-            .field("mode", &self.mode)
             .finish_non_exhaustive()
     }
 }
@@ -45,7 +42,6 @@ impl SyncCoordinator {
             vector_processors: DashMap::new(),
             transaction_buffers: DashMap::new(),
             config,
-            mode: Arc::new(RwLock::new(crate::sync::SyncMode::Async)),
         }
     }
 
@@ -57,19 +53,7 @@ impl SyncCoordinator {
         self
     }
 
-    pub fn with_mode(mut self, mode: crate::sync::SyncMode) -> Self {
-        self.mode = Arc::new(RwLock::new(mode));
-        self
-    }
 
-    pub fn mode(&self) -> Arc<RwLock<crate::sync::SyncMode>> {
-        self.mode.clone()
-    }
-
-    pub async fn set_mode(&self, mode: crate::sync::SyncMode) {
-        let mut m = self.mode.write().await;
-        *m = mode;
-    }
 
     fn get_or_create_fulltext_processor(
         &self,
@@ -138,12 +122,6 @@ impl SyncCoordinator {
     }
 
     pub async fn on_change(&self, ctx: ChangeContext) -> Result<(), SyncCoordinatorError> {
-        let mode = *self.mode.read().await;
-
-        if mode == crate::sync::SyncMode::Off {
-            return Ok(());
-        }
-
         let operation = self.create_operation(&ctx)?;
 
         match ctx.index_type {
@@ -206,12 +184,6 @@ impl SyncCoordinator {
         properties: &[(String, crate::core::Value)],
         change_type: ChangeType,
     ) -> Result<(), SyncCoordinatorError> {
-        let mode = *self.mode.read().await;
-
-        if mode == crate::sync::SyncMode::Off {
-            return Ok(());
-        }
-
         let vid_str = vertex_id.to_string().unwrap_or_default();
 
         for (field_name, value) in properties {
@@ -251,33 +223,67 @@ impl SyncCoordinator {
         Ok(())
     }
 
+    /// 缓冲索引操作
+    pub fn buffer_operation(
+        &self,
+        txn_id: crate::transaction::types::TransactionId,
+        ctx: ChangeContext,
+    ) -> Result<(), SyncCoordinatorError> {
+        // 创建索引操作
+        let operation = self.create_operation(&ctx)?;
+
+        // 获取或创建事务缓冲区
+        let buffer = self
+            .transaction_buffers
+            .entry(txn_id)
+            .or_insert_with(|| {
+                Arc::new(TransactionBatchBuffer::new_without_processor())
+            })
+            .clone();
+
+        // 添加操作到缓冲区
+        futures::executor::block_on(buffer.prepare(txn_id, operation))
+            .map_err(SyncCoordinatorError::BatchError)?;
+
+        Ok(())
+    }
+
+    /// Prepare 阶段：验证所有操作
     pub async fn prepare_transaction(
         &self,
         txn_id: crate::transaction::types::TransactionId,
     ) -> Result<(), SyncCoordinatorError> {
-        // Check if there's a buffer for this transaction
-        // In two-phase commit, this ensures the buffer is ready
-        if self.transaction_buffers.contains_key(&txn_id) {
-            log::debug!("Transaction {:?} has pending index changes", txn_id);
+        // 检查是否有该事务的缓冲区
+        if let Some(buffer) = self.transaction_buffers.get(&txn_id) {
+            let count = buffer.pending_count(txn_id);
+            log::debug!("Transaction {:?} prepared with {} operations", txn_id, count);
         }
         Ok(())
     }
 
+    /// Commit 阶段：应用所有操作
     pub async fn commit_transaction(
         &self,
         txn_id: crate::transaction::types::TransactionId,
     ) -> Result<(), SyncCoordinatorError> {
         if let Some((_, buffer)) = self.transaction_buffers.remove(&txn_id) {
-            TransactionBuffer::commit(&*buffer, txn_id).await?;
+            // 提交所有缓冲的操作
+            buffer.commit(txn_id).await.map_err(SyncCoordinatorError::BatchError)?;
+            log::debug!("Transaction {:?} committed", txn_id);
         }
         Ok(())
     }
 
+    /// Rollback 阶段：丢弃缓冲区
     pub async fn rollback_transaction(
         &self,
         txn_id: crate::transaction::types::TransactionId,
     ) -> Result<(), SyncCoordinatorError> {
-        self.transaction_buffers.remove(&txn_id);
+        if let Some((_, buffer)) = self.transaction_buffers.remove(&txn_id) {
+            let count = buffer.pending_count(txn_id);
+            log::debug!("Transaction {:?} rolled back ({} operations discarded)", txn_id, count);
+            buffer.rollback(txn_id).await.map_err(SyncCoordinatorError::BatchError)?;
+        }
         Ok(())
     }
 

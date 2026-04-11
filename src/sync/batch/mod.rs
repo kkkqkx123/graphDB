@@ -11,7 +11,3 @@ pub use processor::GenericBatchProcessor;
 pub use processor::TransactionBatchBuffer;
 pub use trait_def::BatchProcessor;
 pub use trait_def::TransactionBuffer;
-
-// Compatibility aliases
-pub type TaskBuffer = TransactionBatchBuffer;
-pub type BufferError = BatchError;

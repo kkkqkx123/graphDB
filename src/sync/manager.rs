@@ -9,23 +9,13 @@ use crate::sync::batch::BatchConfig;
 use crate::sync::coordinator::SyncCoordinator;
 use crate::sync::recovery::RecoveryManager;
 use crate::sync::vector_sync::VectorSyncCoordinator;
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum SyncMode {
-    Sync,
-    Async,
-    Off,
-}
+use tokio::sync::Mutex;
 
 pub struct SyncManager {
     sync_coordinator: Arc<SyncCoordinator>,
     vector_coordinator: Option<Arc<VectorSyncCoordinator>>,
-    mode: Arc<RwLock<SyncMode>>,
     running: Arc<std::sync::atomic::AtomicBool>,
     recovery: Option<Arc<RecoveryManager>>,
     #[allow(clippy::type_complexity)]
@@ -37,7 +27,6 @@ impl Clone for SyncManager {
         Self {
             sync_coordinator: self.sync_coordinator.clone(),
             vector_coordinator: self.vector_coordinator.clone(),
-            mode: self.mode.clone(),
             running: self.running.clone(),
             recovery: self.recovery.clone(),
             handle: Mutex::new(None), // No cloning handle
@@ -50,7 +39,6 @@ impl std::fmt::Debug for SyncManager {
         f.debug_struct("SyncManager")
             .field("sync_coordinator", &self.sync_coordinator)
             .field("vector_coordinator", &self.vector_coordinator)
-            .field("mode", &self.mode)
             .field("running", &self.running)
             .field("recovery", &self.recovery)
             .finish_non_exhaustive()
@@ -58,11 +46,10 @@ impl std::fmt::Debug for SyncManager {
 }
 
 impl SyncManager {
-    pub fn new(sync_coordinator: Arc<SyncCoordinator>, _config: BatchConfig) -> Self {
+    pub fn new(sync_coordinator: Arc<SyncCoordinator>) -> Self {
         Self {
             sync_coordinator,
             vector_coordinator: None,
-            mode: Arc::new(RwLock::new(SyncMode::Async)),
             running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             recovery: None,
             handle: Mutex::new(None),
@@ -79,37 +66,25 @@ impl SyncManager {
 
     pub fn with_sync_config(
         sync_coordinator: Arc<SyncCoordinator>,
-        sync_config: SyncConfig,
+        _sync_config: SyncConfig,
     ) -> Self {
-        let batch_config = BatchConfig::from(sync_config);
-        Self::new(sync_coordinator, batch_config)
-    }
-
-    pub fn with_mode(sync_coordinator: Arc<SyncCoordinator>, mode: SyncMode) -> Self {
-        let manager = Self::new(sync_coordinator, BatchConfig::default());
-        manager.set_mode(mode);
-        manager
+        Self::new(sync_coordinator)
     }
 
     pub fn with_recovery(
         sync_coordinator: Arc<SyncCoordinator>,
-        config: BatchConfig,
+        _config: BatchConfig,
         data_dir: PathBuf,
     ) -> Self {
-        let recovery = Arc::new(RecoveryManager::new(sync_coordinator.clone(), data_dir));
+        let recovery = Arc::new(RecoveryManager::new(data_dir));
 
         Self {
             sync_coordinator,
             vector_coordinator: None,
-            mode: Arc::new(RwLock::new(SyncMode::Async)),
             running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             recovery: Some(recovery),
             handle: Mutex::new(None),
         }
-    }
-
-    pub fn set_mode(&self, mode: SyncMode) {
-        self.sync_coordinator.set_mode(mode);
     }
 
     pub async fn start(&self) -> Result<(), SyncError> {
@@ -147,6 +122,8 @@ impl SyncManager {
         }
     }
 
+    /// 顶点变更同步（事务模式）
+    /// 注意：此方法现在仅用于非事务场景，事务场景应使用 on_vertex_insert 或 on_vertex_change_with_txn
     pub async fn on_vertex_change(
         &self,
         space_id: u64,
@@ -155,35 +132,86 @@ impl SyncManager {
         properties: &[(String, Value)],
         change_type: crate::coordinator::ChangeType,
     ) -> Result<(), SyncError> {
-        let mode = *self.mode.read().await;
+        // 直接同步处理
+        self.sync_coordinator
+            .on_vertex_change(space_id, tag_name, vertex_id, properties, change_type.into())
+            .await?;
 
-        match mode {
-            SyncMode::Sync => {
-                // Direct synchronous processing
-                self.sync_coordinator
-                    .on_vertex_change(space_id, tag_name, vertex_id, properties, change_type.into())
-                    .await?;
+        // 同时处理向量索引变更（如果有）
+        if let Some(ref vector_coord) = self.vector_coordinator {
+            self.execute_vector_vertex_change_sync(
+                space_id,
+                tag_name,
+                vertex_id,
+                properties,
+                change_type,
+                vector_coord,
+            )
+            .await?;
+        }
 
-                // Also process vector changes if vector coordinator is available
-                if let Some(ref vector_coord) = self.vector_coordinator {
-                    self.execute_vector_vertex_change_sync(
-                        space_id,
-                        tag_name,
-                        vertex_id,
-                        properties,
-                        change_type,
-                        vector_coord,
-                    )
-                    .await?;
-                }
-            }
-            SyncMode::Async => {
-                // Async processing through coordinator
+        Ok(())
+    }
+
+    /// 带事务的顶点插入（同步缓冲）
+    pub fn on_vertex_insert(
+        &self,
+        _txn_id: crate::transaction::types::TransactionId,
+        space_id: u64,
+        vertex: &crate::core::Vertex,
+    ) -> Result<(), SyncError> {
+        // 创建变更上下文
+        let change_type = crate::coordinator::ChangeType::Insert;
+        let vertex_id = &vertex.vid;
+
+        // 提取所有属性
+        let props: Vec<(String, Value)> = vertex
+            .tags
+            .iter()
+            .flat_map(|tag| tag.properties.iter().map(|(k, v)| (k.clone(), v.clone())))
+            .collect();
+
+        // 获取第一个 tag 名称（如果有）
+        if let Some(first_tag) = vertex.tags.first() {
+            let tag_name = &first_tag.name;
+
+            // 缓冲操作（同步调用）
+            futures::executor::block_on(async {
                 self.sync_coordinator
-                    .on_vertex_change(space_id, tag_name, vertex_id, properties, change_type.into())
-                    .await?;
+                    .on_vertex_change(space_id, tag_name, vertex_id, &props, change_type.into())
+                    .await
+            })
+            .map_err(SyncError::from)?;
+        }
+
+        Ok(())
+    }
+
+    /// 带事务的顶点变更（同步缓冲）
+    pub fn on_vertex_change_with_txn(
+        &self,
+        txn_id: crate::transaction::types::TransactionId,
+        space_id: u64,
+        tag_name: &str,
+        vertex_id: &Value,
+        properties: &[(String, Value)],
+        change_type: crate::coordinator::ChangeType,
+    ) -> Result<(), SyncError> {
+        // 对于每个属性创建上下文并缓冲
+        for (field_name, value) in properties {
+            if let Value::String(text) = value {
+                let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
+                    space_id,
+                    tag_name,
+                    field_name,
+                    change_type.into(),
+                    vertex_id.to_string().unwrap_or_default(),
+                    text.clone(),
+                );
+                self.sync_coordinator
+                    .buffer_operation(txn_id, ctx)
+                    .map_err(SyncError::from)?;
             }
-            SyncMode::Off => {}
         }
 
         Ok(())
@@ -235,22 +263,12 @@ impl SyncManager {
             return Ok(());
         }
 
-        let mode = *self.mode.read().await;
-
-        match mode {
-            SyncMode::Sync => {
-                if let Some(ref vector_coord) = self.vector_coordinator {
-                    vector_coord
-                        .on_vector_change(ctx)
-                        .await
-                        .map_err(|e| SyncError::VectorError(e.to_string()))?;
-                }
-            }
-            SyncMode::Async => {
-                // Queue for async processing
-                // TODO: Implement async queue if needed
-            }
-            SyncMode::Off => {}
+        // 直接同步处理
+        if let Some(ref vector_coord) = self.vector_coordinator {
+            vector_coord
+                .on_vector_change(ctx)
+                .await
+                .map_err(|e| SyncError::VectorError(e.to_string()))?;
         }
 
         Ok(())
@@ -297,10 +315,6 @@ impl SyncManager {
 
     pub fn vector_coordinator(&self) -> Option<&Arc<VectorSyncCoordinator>> {
         self.vector_coordinator.as_ref()
-    }
-
-    pub fn mode(&self) -> SyncMode {
-        self.mode.try_read().map(|g| *g).unwrap_or(SyncMode::Off)
     }
 
     pub fn is_running(&self) -> bool {

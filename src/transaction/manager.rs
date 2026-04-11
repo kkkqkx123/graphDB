@@ -206,7 +206,6 @@ impl TransactionManager {
                     .await
                     .map_err(|e: SyncError| TransactionError::SyncFailed(e.to_string()))?;
 
-                // 2. Wait for sync completion (handled in commit_transaction)
                 log::debug!(
                     "Index sync prepared successfully for transaction {:?}",
                     txn_id
@@ -234,6 +233,7 @@ impl TransactionManager {
         // Confirm index sync (if two-phase commit was used)
         if context.is_two_phase_enabled() {
             if let Some(ref sync_manager) = self.sync_manager {
+                // Confirm the index sync after redb commit
                 if let Err(e) = sync_manager.commit_transaction(txn_id).await {
                     log::error!(
                         "Failed to confirm index sync for transaction {:?}: {}",
@@ -244,7 +244,7 @@ impl TransactionManager {
                 }
             }
         } else {
-            // Old mode: trigger sync after commit
+            // Non-two-phase mode: trigger sync after commit
             if let Some(ref sync_manager) = self.sync_manager {
                 match sync_manager.commit_all().await {
                     Ok(()) => {
@@ -275,6 +275,15 @@ impl TransactionManager {
         }
 
         context.transition_to(TransactionState::Aborting)?;
+
+        // Rollback index sync if sync manager is present
+        let txn_id = context.id;
+        if let Some(ref sync_manager) = self.sync_manager {
+            if let Err(e) = futures::executor::block_on(sync_manager.rollback_transaction(txn_id)) {
+                log::warn!("Index sync rollback failed for transaction {:?}: {}", txn_id, e);
+                // Continue with storage rollback, don't fail the whole operation
+            }
+        }
 
         // Take write transaction, automatic rollback on Drop
         if !context.read_only {
