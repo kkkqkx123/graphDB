@@ -5,19 +5,14 @@ use crate::search::adapters::{Bm25Config, InversearchConfig};
 use crate::search::engine::EngineType;
 
 /// 同步失败策略
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum SyncFailurePolicy {
     /// 失败时记录日志但允许事务提交（默认）
+    #[default]
     FailOpen,
     /// 失败时回滚事务
     FailClosed,
-}
-
-impl Default for SyncFailurePolicy {
-    fn default() -> Self {
-        SyncFailurePolicy::FailOpen
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

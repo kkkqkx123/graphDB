@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
-use crate::core::Expression;
+use crate::core::types::expr::Expression;
 use crate::core::Value;
 use crate::query::parser::ast::stmt::{Ast, InsertTarget, TagInsertSpec, VertexRow};
 use crate::query::parser::ast::Stmt;
@@ -199,12 +199,14 @@ impl InsertVerticesValidator {
             // Find property definition in schema
             if let Some(prop_def) = tag_info.properties.iter().find(|p| &p.name == prop_name) {
                 // Check if property is a vector type and extract expected dimension
-                if let Some(expected_dim) = match &prop_def.data_type {
+                let expected_dim = match &prop_def.data_type {
                     DataType::VectorDense(dim) => Some(*dim),
                     DataType::VectorSparse(dim) => Some(*dim),
                     DataType::Vector => None, // Generic vector type without dimension constraint
                     _ => None,
-                } {
+                };
+
+                if let Some(expected_dim) = expected_dim {
                     // Evaluate the expression to get the actual value and check dimension
                     if let Some(expr) = value_expr.get_expression() {
                         if let Expression::Literal(Value::Vector(vector_val)) = &expr {

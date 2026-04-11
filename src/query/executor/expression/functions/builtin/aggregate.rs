@@ -375,8 +375,7 @@ impl AggregateState {
                             let new_avg: Vec<f32> = avg_data
                                 .iter()
                                 .zip(input_data.iter())
-                                .enumerate()
-                                .map(|(_i, (&avg, &input))| avg + (input - avg) / self.count as f32)
+                                .map(|(&avg, &input)| avg + (input - avg) / self.count as f32)
                                 .collect();
                             self.vec_avg = Value::vector(new_avg);
                         }

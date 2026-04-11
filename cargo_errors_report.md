@@ -3,11 +3,11 @@
 ## Summary
 
 - **Total Errors**: 0
-- **Total Warnings**: 3
-- **Total Issues**: 3
+- **Total Warnings**: 1
+- **Total Issues**: 1
 - **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 3
-- **Files with Issues**: 3
+- **Unique Warning Patterns**: 1
+- **Files with Issues**: 1
 
 ## Error Statistics
 
@@ -15,34 +15,24 @@
 
 ## Warning Statistics
 
-**Total Warnings**: 3
+**Total Warnings**: 1
 
 ### Warning Type Breakdown
 
-- **warning**: 3 warnings
+- **warning**: 1 warnings
 
 ### Files with Warnings (Top 10)
 
 - `src\query\validator\statements\insert_vertices_validator.rs`: 1 warnings
-- `src\search\config.rs`: 1 warnings
-- `src\query\executor\expression\functions\builtin\aggregate.rs`: 1 warnings
 
 ## Detailed Warning Categorization
 
 ### warning: this `if let` can be collapsed into the outer `if let`
 
-**Total Occurrences**: 3  
-**Unique Files**: 3
+**Total Occurrences**: 1  
+**Unique Files**: 1
 
 #### `src\query\validator\statements\insert_vertices_validator.rs`: 1 occurrences
 
-- Line 207: this `if let` can be collapsed into the outer `if let`
-
-#### `src\query\executor\expression\functions\builtin\aggregate.rs`: 1 occurrences
-
-- Line 378: you seem to use `.enumerate()` and immediately discard the index
-
-#### `src\search\config.rs`: 1 occurrences
-
-- Line 17: this `impl` can be derived
+- Line 212: this `if let` can be collapsed into the outer `if let`
 

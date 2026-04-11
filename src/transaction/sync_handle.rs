@@ -5,13 +5,6 @@ use crossbeam_utils::atomic::AtomicCell;
 use std::sync::Arc;
 use tokio::sync::{oneshot, Mutex};
 
-/// Completion channel type for sync handles
-pub type SyncCompletionChannel =
-    Arc<Mutex<Option<oneshot::Receiver<Result<(), crate::sync::SyncError>>>>>;
-
-/// Completion sender type for sync handles
-pub type SyncCompletionSender = Option<oneshot::Sender<Result<(), crate::sync::SyncError>>>;
-
 /// Pending index update operations
 #[derive(Debug, Clone)]
 pub struct PendingIndexUpdate {
@@ -94,6 +87,8 @@ pub enum SyncHandleState {
     Cancelled,
 }
 
+type SyncResult = Result<(), crate::sync::SyncError>;
+
 /// Synchronization operation handles for tracking and controlling index synchronization
 pub struct SyncHandle {
     /// Transaction ID
@@ -101,8 +96,8 @@ pub struct SyncHandle {
     /// Pending Index Update List
     pub pending_updates: Vec<PendingIndexUpdate>,
     /// Synchronized results channel
-    pub completion_tx: SyncCompletionSender,
-    pub completion_rx: SyncCompletionChannel,
+    pub completion_tx: Option<oneshot::Sender<SyncResult>>,
+    pub completion_rx: Arc<Mutex<Option<oneshot::Receiver<SyncResult>>>>,
     /// state of affairs
     state: AtomicCell<SyncHandleState>,
 }
