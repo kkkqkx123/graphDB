@@ -280,7 +280,11 @@ impl TransactionManager {
         let txn_id = context.id;
         if let Some(ref sync_manager) = self.sync_manager {
             if let Err(e) = futures::executor::block_on(sync_manager.rollback_transaction(txn_id)) {
-                log::warn!("Index sync rollback failed for transaction {:?}: {}", txn_id, e);
+                log::warn!(
+                    "Index sync rollback failed for transaction {:?}: {}",
+                    txn_id,
+                    e
+                );
                 // Continue with storage rollback, don't fail the whole operation
             }
         }

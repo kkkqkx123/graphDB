@@ -4,15 +4,17 @@ use std::time::{Duration, Instant};
 
 use dashmap::DashMap;
 
+use super::types::{ChangeContext, ChangeData, ChangeType, IndexType};
+use crate::search::manager::FulltextIndexManager;
 use crate::sync::batch::{
     BatchConfig, BatchProcessor, GenericBatchProcessor, TransactionBatchBuffer, TransactionBuffer,
 };
 use crate::sync::compensation::CompensationManager;
 use crate::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
-use crate::sync::external_index::{IndexData, IndexKey, IndexOperation, FulltextClient, VectorClient};
+use crate::sync::external_index::{
+    FulltextClient, IndexData, IndexKey, IndexOperation, VectorClient,
+};
 use crate::sync::metrics::SyncMetrics;
-use super::types::{ChangeContext, ChangeData, ChangeType, IndexType};
-use crate::search::manager::FulltextIndexManager;
 use crate::sync::retry::{with_retry, RetryConfig};
 
 type FulltextProcessor = GenericBatchProcessor<FulltextClient>;
@@ -44,14 +46,10 @@ impl std::fmt::Debug for SyncCoordinator {
 impl SyncCoordinator {
     pub fn new(fulltext_manager: Arc<FulltextIndexManager>, config: BatchConfig) -> Self {
         let metrics = Arc::new(SyncMetrics::new());
-        let dead_letter_queue = Arc::new(DeadLetterQueue::new(
-            DeadLetterQueueConfig::default()
-        ));
-        
-        let compensation_manager = CompensationManager::new(
-            dead_letter_queue.clone(),
-            metrics.clone(),
-        );
+        let dead_letter_queue = Arc::new(DeadLetterQueue::new(DeadLetterQueueConfig::default()));
+
+        let compensation_manager =
+            CompensationManager::new(dead_letter_queue.clone(), metrics.clone());
 
         Self {
             fulltext_manager,
@@ -89,8 +87,6 @@ impl SyncCoordinator {
     pub fn fulltext_manager(&self) -> &Arc<FulltextIndexManager> {
         &self.fulltext_manager
     }
-
-
 
     fn get_or_create_fulltext_processor(
         &self,
@@ -194,11 +190,7 @@ impl SyncCoordinator {
             ChangeData::Vector(vector) => IndexData::Vector(vector.clone()),
         };
 
-        let key = IndexKey::new(
-            ctx.space_id,
-            ctx.tag_name.clone(),
-            ctx.field_name.clone(),
-        );
+        let key = IndexKey::new(ctx.space_id, ctx.tag_name.clone(), ctx.field_name.clone());
 
         let operation = match ctx.change_type {
             ChangeType::Insert => IndexOperation::Insert {
@@ -282,9 +274,7 @@ impl SyncCoordinator {
         let buffer = self
             .transaction_buffers
             .entry(txn_id)
-            .or_insert_with(|| {
-                Arc::new(TransactionBatchBuffer::new_without_processor())
-            })
+            .or_insert_with(|| Arc::new(TransactionBatchBuffer::new_without_processor()))
             .clone();
 
         // 添加操作到缓冲区
@@ -302,7 +292,11 @@ impl SyncCoordinator {
         // 检查是否有该事务的缓冲区
         if let Some(buffer) = self.transaction_buffers.get(&txn_id) {
             let count = buffer.pending_count(txn_id);
-            log::debug!("Transaction {:?} prepared with {} operations", txn_id, count);
+            log::debug!(
+                "Transaction {:?} prepared with {} operations",
+                txn_id,
+                count
+            );
         }
         Ok(())
     }
@@ -342,14 +336,20 @@ impl SyncCoordinator {
                 let is_vector = operations.iter().any(|op| {
                     matches!(
                         op,
-                        IndexOperation::Insert { data: IndexData::Vector(_), .. }
-                            | IndexOperation::Update { data: IndexData::Vector(_), .. }
+                        IndexOperation::Insert {
+                            data: IndexData::Vector(_),
+                            ..
+                        } | IndexOperation::Update {
+                            data: IndexData::Vector(_),
+                            ..
+                        }
                     )
                 });
 
                 // 创建重试配置
-                let retry_config = RetryConfig::new(3, Duration::from_millis(100), Duration::from_secs(5));
-                
+                let retry_config =
+                    RetryConfig::new(3, Duration::from_millis(100), Duration::from_secs(5));
+
                 if is_vector {
                     // 向量索引处理（带重试）
                     if let Some(processor) = self.get_or_create_vector_processor(
@@ -361,11 +361,9 @@ impl SyncCoordinator {
                         let retry_config_clone = retry_config.clone();
                         let metrics_clone = self.metrics.clone();
                         let dlq_clone = self.dead_letter_queue.clone();
-                        
+
                         match with_retry(
-                            || async {
-                                processor.add_batch(ops_clone.clone()).await
-                            },
+                            || async { processor.add_batch(ops_clone.clone()).await },
                             &retry_config_clone,
                         )
                         .await
@@ -385,9 +383,10 @@ impl SyncCoordinator {
                                     dlq_clone.add(entry);
                                 }
                                 return Err(SyncCoordinatorError::BatchError(
-                                    crate::sync::batch::BatchError::InvalidOperation(
-                                        format!("Failed to sync index operations: {:?}", e)
-                                    )
+                                    crate::sync::batch::BatchError::InvalidOperation(format!(
+                                        "Failed to sync index operations: {:?}",
+                                        e
+                                    )),
                                 ));
                             }
                         }
@@ -403,11 +402,9 @@ impl SyncCoordinator {
                         let retry_config_clone = retry_config.clone();
                         let metrics_clone = self.metrics.clone();
                         let dlq_clone = self.dead_letter_queue.clone();
-                        
+
                         match with_retry(
-                            || async {
-                                processor.add_batch(ops_clone.clone()).await
-                            },
+                            || async { processor.add_batch(ops_clone.clone()).await },
                             &retry_config_clone,
                         )
                         .await
@@ -427,9 +424,10 @@ impl SyncCoordinator {
                                     dlq_clone.add(entry);
                                 }
                                 return Err(SyncCoordinatorError::BatchError(
-                                    crate::sync::batch::BatchError::InvalidOperation(
-                                        format!("Failed to sync index operations: {:?}", e)
-                                    )
+                                    crate::sync::batch::BatchError::InvalidOperation(format!(
+                                        "Failed to sync index operations: {:?}",
+                                        e
+                                    )),
                                 ));
                             }
                         }
@@ -446,7 +444,7 @@ impl SyncCoordinator {
         // 记录指标
         self.metrics.record_active_transaction_end();
         self.metrics.record_processing_time(start_time.elapsed());
-        
+
         match &result {
             Ok(_) => self.metrics.record_transaction_commit(),
             Err(_) => self.metrics.record_transaction_rollback(),
@@ -462,8 +460,15 @@ impl SyncCoordinator {
     ) -> Result<(), SyncCoordinatorError> {
         if let Some((_, buffer)) = self.transaction_buffers.remove(&txn_id) {
             let count = buffer.pending_count(txn_id);
-            log::debug!("Transaction {:?} rolled back ({} operations discarded)", txn_id, count);
-            buffer.rollback(txn_id).await.map_err(SyncCoordinatorError::BatchError)?;
+            log::debug!(
+                "Transaction {:?} rolled back ({} operations discarded)",
+                txn_id,
+                count
+            );
+            buffer
+                .rollback(txn_id)
+                .await
+                .map_err(SyncCoordinatorError::BatchError)?;
         }
         Ok(())
     }
@@ -500,7 +505,9 @@ impl SyncCoordinator {
         if let Some(compensation_manager) = &self.compensation_manager {
             let cm_clone = compensation_manager.clone();
             tokio::spawn(async move {
-                cm_clone.start_background_task(Duration::from_secs(60)).await;
+                cm_clone
+                    .start_background_task(Duration::from_secs(60))
+                    .await;
             });
             log::info!("Started compensation background task");
         }

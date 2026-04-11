@@ -120,7 +120,7 @@ impl DeadLetterQueue {
     /// Add an entry to the dead letter queue
     pub fn add(&self, entry: DeadLetterEntry) {
         let mut entries = self.entries.lock();
-        
+
         // Check if queue is full
         if entries.len() >= self.config.max_size {
             // Remove oldest entry if full
@@ -136,10 +136,7 @@ impl DeadLetterQueue {
             metrics.record_dead_letter();
         }
 
-        log::warn!(
-            "Added entry to dead letter queue (size: {})",
-            entries.len()
-        );
+        log::warn!("Added entry to dead letter queue (size: {})", entries.len());
     }
 
     /// Get all entries
@@ -196,14 +193,14 @@ impl DeadLetterQueue {
     pub fn cleanup(&self) -> usize {
         let mut entries = self.entries.lock();
         let initial_len = entries.len();
-        
+
         entries.retain(|e| e.age() <= self.config.max_age);
-        
+
         let removed = initial_len - entries.len();
-        
+
         if removed > 0 {
             log::info!("Cleaned up {} old dead letter entries", removed);
-            
+
             // Update metrics
             if let Some(metrics) = &self.metrics {
                 for _ in 0..removed {
@@ -211,7 +208,7 @@ impl DeadLetterQueue {
                 }
             }
         }
-        
+
         removed
     }
 
@@ -230,13 +227,13 @@ impl DeadLetterQueue {
         let mut entries = self.entries.lock();
         let count = entries.len();
         entries.clear();
-        
+
         if let Some(metrics) = &self.metrics {
             for _ in 0..count {
                 metrics.remove_dead_letter();
             }
         }
-        
+
         log::info!("Cleared {} entries from dead letter queue", count);
     }
 }
@@ -265,11 +262,7 @@ mod tests {
         let config = DeadLetterQueueConfig::default();
         let dlq = DeadLetterQueue::new(config);
 
-        let entry = DeadLetterEntry::new(
-            create_test_operation(),
-            "test error".to_string(),
-            3,
-        );
+        let entry = DeadLetterEntry::new(create_test_operation(), "test error".to_string(), 3);
 
         dlq.add(entry);
         assert_eq!(dlq.len(), 1);
@@ -284,11 +277,7 @@ mod tests {
         let dlq = DeadLetterQueue::new(config);
 
         for i in 0..5 {
-            let entry = DeadLetterEntry::new(
-                create_test_operation(),
-                format!("error {}", i),
-                3,
-            );
+            let entry = DeadLetterEntry::new(create_test_operation(), format!("error {}", i), 3);
             dlq.add(entry);
         }
 
@@ -303,11 +292,7 @@ mod tests {
         };
         let dlq = DeadLetterQueue::new(config);
 
-        let entry = DeadLetterEntry::new(
-            create_test_operation(),
-            "test error".to_string(),
-            3,
-        );
+        let entry = DeadLetterEntry::new(create_test_operation(), "test error".to_string(), 3);
         dlq.add(entry);
 
         // Wait for entry to become old
@@ -323,11 +308,7 @@ mod tests {
         let config = DeadLetterQueueConfig::default();
         let dlq = DeadLetterQueue::new(config);
 
-        let entry = DeadLetterEntry::new(
-            create_test_operation(),
-            "test error".to_string(),
-            3,
-        );
+        let entry = DeadLetterEntry::new(create_test_operation(), "test error".to_string(), 3);
         dlq.add(entry);
 
         let unrecovered = dlq.get_unrecovered();

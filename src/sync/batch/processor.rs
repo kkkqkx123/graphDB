@@ -250,19 +250,13 @@ impl TransactionBatchBuffer {
 
 #[async_trait]
 impl TransactionBuffer for TransactionBatchBuffer {
-    async fn prepare(
-        &self,
-        txn_id: TransactionId,
-        operation: IndexOperation,
-    ) -> BatchResult<()> {
+    async fn prepare(&self, txn_id: TransactionId, operation: IndexOperation) -> BatchResult<()> {
         let txn_buffer = self.pending.entry(txn_id).or_default();
 
         let key = match &operation {
             IndexOperation::Insert { key, .. }
             | IndexOperation::Update { key, .. }
-            | IndexOperation::Delete { key, .. } => {
-                key.clone()
-            }
+            | IndexOperation::Delete { key, .. } => key.clone(),
         };
 
         let mut entry = txn_buffer.entry(key).or_default();

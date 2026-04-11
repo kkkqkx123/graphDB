@@ -2,6 +2,7 @@
 //!
 //! Provides monitoring and statistics for transaction and index synchronization.
 
+use std::fmt;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::time::Duration;
 
@@ -44,7 +45,8 @@ impl SyncMetrics {
     }
 
     pub fn record_transaction_rollback(&self) {
-        self.transactions_rolled_back.fetch_add(1, Ordering::Relaxed);
+        self.transactions_rolled_back
+            .fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn record_index_operation(&self, operation_type: &str) {
@@ -87,7 +89,8 @@ impl SyncMetrics {
 
     pub fn record_processing_time(&self, duration: Duration) {
         let ms = duration.as_millis() as u64;
-        self.total_processing_time_ms.fetch_add(ms, Ordering::Relaxed);
+        self.total_processing_time_ms
+            .fetch_add(ms, Ordering::Relaxed);
     }
 
     pub fn record_error(&self, error: impl Into<String>) {
@@ -164,9 +167,12 @@ impl SyncStats {
         }
         self.total_processing_time_ms as f64 / total_ops as f64
     }
+}
 
-    pub fn to_string(&self) -> String {
-        format!(
+impl fmt::Display for SyncStats {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
             "SyncStats {{ \
              committed: {}, rolled_back: {}, \
              index_ops: {} (insert: {}, update: {}, delete: {}), \

@@ -163,7 +163,11 @@ async fn test_fulltext_insert_and_search() {
         .expect("Failed to search");
 
     assert_eq!(results.len(), 1, "Expected 1 result for 'Hello'");
-    assert_eq!(results[0].doc_id, Value::String("1".to_string()), "Doc ID should match");
+    assert_eq!(
+        results[0].doc_id,
+        Value::String("1".to_string()),
+        "Doc ID should match"
+    );
     assert!(results[0].score > 0.0, "Score should be positive");
 }
 
@@ -922,5 +926,9 @@ async fn test_fulltext_with_storage_layer() {
         .expect("Failed to search");
 
     assert_eq!(results.len(), 1, "Should find person by name");
-    assert_eq!(results[0].doc_id, Value::String("1".to_string()), "Doc ID should match");
+    assert_eq!(
+        results[0].doc_id,
+        Value::String("1".to_string()),
+        "Doc ID should match"
+    );
 }

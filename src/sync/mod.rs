@@ -17,12 +17,15 @@ pub mod task;
 pub mod vector_batch;
 pub mod vector_sync;
 
-pub use batch::{BatchConfig, BatchError, BatchProcessor, GenericBatchProcessor, TransactionBatchBuffer, TransactionBuffer};
+pub use crate::search::SyncConfig;
+pub use batch::{
+    BatchConfig, BatchError, BatchProcessor, GenericBatchProcessor, TransactionBatchBuffer,
+    TransactionBuffer,
+};
 pub use compensation::{CompensationManager, CompensationResult, CompensationStats};
 pub use coordinator::{
     ChangeContext, ChangeData, ChangeType, IndexType, SyncCoordinator, SyncCoordinatorError,
 };
-pub use crate::search::SyncConfig;
 pub use dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
 pub use external_index::{ExternalIndexClient, IndexData, IndexOperation};
 pub use manager::{SyncError, SyncManager};

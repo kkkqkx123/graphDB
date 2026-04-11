@@ -62,6 +62,9 @@ pub struct SyncConfig {
     pub failure_policy: SyncFailurePolicy,
 }
 
+/// 同步配置
+/// 注意：Default 实现使用自定义默认值函数，这是 serde 推荐的模式
+/// 不能简单使用 #[derive(Default)] 因为需要为每个字段指定特定的默认值
 impl Default for SyncConfig {
     fn default() -> Self {
         Self {

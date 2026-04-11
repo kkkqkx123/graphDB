@@ -7,7 +7,6 @@ use std::time::Duration;
 
 use crate::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue};
 use crate::sync::external_index::IndexOperation;
-use crate::sync::metrics::SyncMetrics;
 
 /// Compensation result
 #[derive(Debug, Clone)]
@@ -23,18 +22,16 @@ pub enum CompensationResult {
 /// Compensation transaction manager
 pub struct CompensationManager {
     dead_letter_queue: Arc<DeadLetterQueue>,
-    metrics: Arc<SyncMetrics>,
     max_compensation_attempts: u32,
 }
 
 impl CompensationManager {
     pub fn new(
         dead_letter_queue: Arc<DeadLetterQueue>,
-        metrics: Arc<SyncMetrics>,
+        _metrics: Arc<crate::sync::metrics::SyncMetrics>,
     ) -> Self {
         Self {
             dead_letter_queue,
-            metrics,
             max_compensation_attempts: 3,
         }
     }
@@ -53,9 +50,7 @@ impl CompensationManager {
 
         // Check if operation is too old
         if entry.age() > Duration::from_secs(3600) {
-            return CompensationResult::Fatal(
-                "Operation is too old for compensation".to_string()
-            );
+            return CompensationResult::Fatal("Operation is too old for compensation".to_string());
         }
 
         // Check if already recovered
@@ -65,23 +60,20 @@ impl CompensationManager {
 
         // Attempt compensation based on operation type
         match &entry.operation {
-            IndexOperation::Insert { .. } => {
-                self.compensate_insert(entry).await
-            }
-            IndexOperation::Delete { .. } => {
-                self.compensate_delete(entry).await
-            }
-            IndexOperation::Update { .. } => {
-                self.compensate_update(entry).await
-            }
+            IndexOperation::Insert { .. } => self.compensate_insert(entry).await,
+            IndexOperation::Delete { .. } => self.compensate_delete(entry).await,
+            IndexOperation::Update { .. } => self.compensate_update(entry).await,
         }
     }
 
     async fn compensate_insert(&self, entry: &DeadLetterEntry) -> CompensationResult {
         // For insert operations, we can try to re-execute
         // In a real implementation, this would call the index processor
-        log::debug!("Compensating insert operation for ID: {}", self.get_operation_id(&entry.operation));
-        
+        log::debug!(
+            "Compensating insert operation for ID: {}",
+            self.get_operation_id(&entry.operation)
+        );
+
         // Simulate compensation logic
         // TODO: Integrate with actual index processor
         CompensationResult::Success
@@ -90,8 +82,11 @@ impl CompensationManager {
     async fn compensate_delete(&self, entry: &DeadLetterEntry) -> CompensationResult {
         // For delete operations, check if the data still exists
         // If it does, re-execute the delete
-        log::debug!("Compensating delete operation for ID: {}", self.get_operation_id(&entry.operation));
-        
+        log::debug!(
+            "Compensating delete operation for ID: {}",
+            self.get_operation_id(&entry.operation)
+        );
+
         // TODO: Check if data exists and re-execute delete
         CompensationResult::Success
     }
@@ -99,15 +94,18 @@ impl CompensationManager {
     async fn compensate_update(&self, entry: &DeadLetterEntry) -> CompensationResult {
         // For update operations, we need to ensure data consistency
         // Re-execute the update with the original data
-        log::debug!("Compensating update operation for ID: {}", self.get_operation_id(&entry.operation));
-        
+        log::debug!(
+            "Compensating update operation for ID: {}",
+            self.get_operation_id(&entry.operation)
+        );
+
         // TODO: Re-execute update
         CompensationResult::Success
     }
 
     fn get_operation_id(&self, operation: &IndexOperation) -> String {
         match operation {
-            IndexOperation::Insert { id, .. } 
+            IndexOperation::Insert { id, .. }
             | IndexOperation::Update { id, .. }
             | IndexOperation::Delete { id, .. } => id.clone(),
         }
@@ -157,13 +155,13 @@ impl CompensationManager {
     ) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
             let mut interval_timer = tokio::time::interval(interval);
-            
+
             loop {
                 interval_timer.tick().await;
-                
+
                 log::debug!("Running background compensation task");
                 let stats = self.process_dead_letter_queue().await;
-                
+
                 if stats.total > 0 {
                     log::info!("Compensation task completed: {:?}", stats);
                 }
@@ -197,6 +195,7 @@ mod tests {
     use super::*;
     use crate::sync::dead_letter_queue::DeadLetterQueueConfig;
     use crate::sync::external_index::IndexData;
+    use crate::sync::metrics::SyncMetrics;
     use std::collections::HashMap;
 
     fn create_test_entry() -> DeadLetterEntry {
@@ -221,12 +220,12 @@ mod tests {
         let config = DeadLetterQueueConfig::default();
         let dlq = Arc::new(DeadLetterQueue::new(config));
         let metrics = Arc::new(SyncMetrics::new());
-        
+
         let manager = CompensationManager::new(dlq.clone(), metrics);
-        
+
         let entry = create_test_entry();
         let result = manager.compensate(&entry).await;
-        
+
         assert!(matches!(result, CompensationResult::Success));
     }
 
@@ -235,14 +234,14 @@ mod tests {
         let config = DeadLetterQueueConfig::default();
         let dlq = Arc::new(DeadLetterQueue::new(config));
         let metrics = Arc::new(SyncMetrics::new());
-        
+
         let manager = CompensationManager::new(dlq.clone(), metrics);
-        
+
         // Add test entry
         dlq.add(create_test_entry());
-        
+
         let stats = manager.process_dead_letter_queue().await;
-        
+
         assert_eq!(stats.total, 1);
         assert_eq!(stats.successful, 1);
     }

@@ -18,6 +18,17 @@ use crate::query::validator::validator_trait::{
 use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
+/// Parameters for vector dimension validation
+struct VectorValidationContext<'a> {
+    schema_manager: &'a Arc<RedbSchemaManager>,
+    space_name: &'a str,
+    tag_name: &'a str,
+    prop_names: &'a [String],
+    values: &'a [ContextualExpression],
+    row_idx: usize,
+    tag_idx: usize,
+}
+
 /// Verified vertex insertion information
 #[derive(Debug, Clone)]
 pub struct ValidatedInsertVertices {
@@ -137,15 +148,15 @@ impl InsertVerticesValidator {
 
                 // Validate vector dimensions if schema manager is available
                 if let Some(schema_mgr) = schema_manager {
-                    self.validate_vector_dimensions(
-                        schema_mgr,
+                    self.validate_vector_dimensions(VectorValidationContext {
+                        schema_manager: schema_mgr,
                         space_name,
-                        &tag_spec.tag_name,
-                        &tag_spec.prop_names,
+                        tag_name: &tag_spec.tag_name,
+                        prop_names: &tag_spec.prop_names,
                         values,
                         row_idx,
                         tag_idx,
-                    )?;
+                    })?;
                 }
             }
         }
@@ -155,13 +166,7 @@ impl InsertVerticesValidator {
     /// Validate vector dimensions match the schema definition
     fn validate_vector_dimensions(
         &self,
-        schema_manager: &Arc<RedbSchemaManager>,
-        space_name: &str,
-        tag_name: &str,
-        prop_names: &[String],
-        values: &[ContextualExpression],
-        row_idx: usize,
-        tag_idx: usize,
+        ctx: VectorValidationContext<'_>,
     ) -> Result<(), ValidationError> {
         use crate::core::types::expr::Expression;
         use crate::core::DataType;
@@ -169,25 +174,28 @@ impl InsertVerticesValidator {
         use crate::storage::metadata::schema_manager::SchemaManager;
 
         // Get tag schema to check property types
-        let tag_info = schema_manager.get_tag(space_name, tag_name).map_err(|e| {
-            ValidationError::new(
-                format!("Failed to get tag schema for '{}': {}", tag_name, e),
-                ValidationErrorType::SemanticError,
-            )
-        })?;
+        let tag_info = ctx
+            .schema_manager
+            .get_tag(ctx.space_name, ctx.tag_name)
+            .map_err(|e| {
+                ValidationError::new(
+                    format!("Failed to get tag schema for '{}': {}", ctx.tag_name, e),
+                    ValidationErrorType::SemanticError,
+                )
+            })?;
 
         let tag_info = tag_info.ok_or_else(|| {
             ValidationError::new(
                 format!(
                     "Tag '{}' does not exist in space '{}'",
-                    tag_name, space_name
+                    ctx.tag_name, ctx.space_name
                 ),
                 ValidationErrorType::SemanticError,
             )
         })?;
 
         // Check each property value
-        for (prop_name, value_expr) in prop_names.iter().zip(values.iter()) {
+        for (prop_name, value_expr) in ctx.prop_names.iter().zip(ctx.values.iter()) {
             // Find property definition in schema
             if let Some(prop_def) = tag_info.properties.iter().find(|p| &p.name == prop_name) {
                 // Check if property is a vector type and extract expected dimension
@@ -197,7 +205,7 @@ impl InsertVerticesValidator {
                     DataType::Vector => None, // Generic vector type without dimension constraint
                     _ => None,
                 } {
-                    // Evaluate the expression to get the actual value
+                    // Evaluate the expression to get the actual value and check dimension
                     if let Some(expr) = value_expr.get_expression() {
                         if let Expression::Literal(Value::Vector(vector_val)) = &expr {
                             let actual_dim = vector_val.dimension();
@@ -207,8 +215,8 @@ impl InsertVerticesValidator {
                                     format!(
                                         "Vector dimension mismatch for property '{}' in vertex {}, tag {}: expected {}D vector, got {} dimensions",
                                         prop_name,
-                                        row_idx + 1,
-                                        tag_idx + 1,
+                                        ctx.row_idx + 1,
+                                        ctx.tag_idx + 1,
                                         expected_dim,
                                         actual_dim
                                     ),

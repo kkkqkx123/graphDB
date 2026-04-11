@@ -163,9 +163,7 @@ impl GraphDatabase<RedbStorage> {
 
             let sync_config = SyncConfig::default();
             let batch_config = crate::sync::batch::BatchConfig::from(sync_config.clone());
-            let manager = Arc::new(
-                FulltextIndexManager::new(FulltextConfig::default()).unwrap(),
-            );
+            let manager = Arc::new(FulltextIndexManager::new(FulltextConfig::default()).unwrap());
             let sync_coordinator = Arc::new(crate::sync::coordinator::SyncCoordinator::new(
                 manager.clone(),
                 batch_config,

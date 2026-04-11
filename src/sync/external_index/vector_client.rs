@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use super::error::{ExternalIndexError, IndexResult};
-use super::trait_def::{IndexData, IndexStats, ExternalIndexClient};
+use super::trait_def::{ExternalIndexClient, IndexData, IndexStats};
 
 pub struct VectorClient {
     space_id: u64,
@@ -49,20 +49,23 @@ impl ExternalIndexClient for VectorClient {
     }
 
     fn index_key(&self) -> (u64, String, String) {
-        (self.space_id, self.tag_name.clone(), self.field_name.clone())
+        (
+            self.space_id,
+            self.tag_name.clone(),
+            self.field_name.clone(),
+        )
     }
 
     async fn insert(&self, id: &str, data: &IndexData) -> IndexResult<()> {
         if let IndexData::Vector(vector) = data {
-            let point = vector_client::types::VectorPoint::new(
-                id.to_string(),
-                vector.clone(),
-            );
+            let point = vector_client::types::VectorPoint::new(id.to_string(), vector.clone());
 
             self.vector_manager
                 .upsert(&self.collection_name(), point)
                 .await
-                .map_err(|e: vector_client::error::VectorClientError| ExternalIndexError::InsertError(e.to_string()))
+                .map_err(|e: vector_client::error::VectorClientError| {
+                    ExternalIndexError::InsertError(e.to_string())
+                })
         } else {
             Err(ExternalIndexError::InvalidData(
                 "Expected vector data".to_string(),
@@ -75,10 +78,7 @@ impl ExternalIndexClient for VectorClient {
             .into_iter()
             .filter_map(|(id, data)| {
                 if let IndexData::Vector(vector) = data {
-                    Some(vector_client::types::VectorPoint::new(
-                        id,
-                        vector,
-                    ))
+                    Some(vector_client::types::VectorPoint::new(id, vector))
                 } else {
                     None
                 }
@@ -92,21 +92,27 @@ impl ExternalIndexClient for VectorClient {
         self.vector_manager
             .upsert_batch(&self.collection_name(), points)
             .await
-            .map_err(|e: vector_client::error::VectorClientError| ExternalIndexError::InsertError(e.to_string()))
+            .map_err(|e: vector_client::error::VectorClientError| {
+                ExternalIndexError::InsertError(e.to_string())
+            })
     }
 
     async fn delete(&self, id: &str) -> IndexResult<()> {
         self.vector_manager
             .delete(&self.collection_name(), id)
             .await
-            .map_err(|e: vector_client::error::VectorClientError| ExternalIndexError::DeleteError(e.to_string()))
+            .map_err(|e: vector_client::error::VectorClientError| {
+                ExternalIndexError::DeleteError(e.to_string())
+            })
     }
 
     async fn delete_batch(&self, ids: &[&str]) -> IndexResult<()> {
         self.vector_manager
             .delete_batch(&self.collection_name(), ids.to_vec())
             .await
-            .map_err(|e: vector_client::error::VectorClientError| ExternalIndexError::DeleteError(e.to_string()))
+            .map_err(|e: vector_client::error::VectorClientError| {
+                ExternalIndexError::DeleteError(e.to_string())
+            })
     }
 
     async fn commit(&self) -> IndexResult<()> {
@@ -122,7 +128,9 @@ impl ExternalIndexClient for VectorClient {
             .vector_manager
             .count(&self.collection_name())
             .await
-            .map_err(|e: vector_client::error::VectorClientError| ExternalIndexError::StatsError(e.to_string()))?;
+            .map_err(|e: vector_client::error::VectorClientError| {
+                ExternalIndexError::StatsError(e.to_string())
+            })?;
 
         Ok(IndexStats {
             doc_count: count as usize,

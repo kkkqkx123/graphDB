@@ -92,7 +92,8 @@ impl SyncManager {
             return Ok(());
         }
 
-        self.running.store(true, std::sync::atomic::Ordering::SeqCst);
+        self.running
+            .store(true, std::sync::atomic::Ordering::SeqCst);
 
         // Start background tasks in the coordinator
         self.sync_coordinator.start_background_tasks().await;
@@ -106,7 +107,8 @@ impl SyncManager {
     }
 
     pub async fn stop(&self) {
-        self.running.store(false, std::sync::atomic::Ordering::SeqCst);
+        self.running
+            .store(false, std::sync::atomic::Ordering::SeqCst);
 
         // Stop background tasks in the coordinator
         self.sync_coordinator.stop_background_tasks().await;
@@ -134,7 +136,13 @@ impl SyncManager {
     ) -> Result<(), SyncError> {
         // 直接同步处理
         self.sync_coordinator
-            .on_vertex_change(space_id, tag_name, vertex_id, properties, change_type.into())
+            .on_vertex_change(
+                space_id,
+                tag_name,
+                vertex_id,
+                properties,
+                change_type.into(),
+            )
             .await?;
 
         // 同时处理向量索引变更（如果有）
@@ -283,9 +291,7 @@ impl SyncManager {
         &self,
         txn_id: crate::transaction::types::TransactionId,
     ) -> Result<(), SyncError> {
-        self.sync_coordinator
-            .prepare_transaction(txn_id)
-            .await?;
+        self.sync_coordinator.prepare_transaction(txn_id).await?;
         Ok(())
     }
 
@@ -293,9 +299,7 @@ impl SyncManager {
         &self,
         txn_id: crate::transaction::types::TransactionId,
     ) -> Result<(), SyncError> {
-        self.sync_coordinator
-            .commit_transaction(txn_id)
-            .await?;
+        self.sync_coordinator.commit_transaction(txn_id).await?;
         Ok(())
     }
 
@@ -303,9 +307,7 @@ impl SyncManager {
         &self,
         txn_id: crate::transaction::types::TransactionId,
     ) -> Result<(), SyncError> {
-        self.sync_coordinator
-            .rollback_transaction(txn_id)
-            .await?;
+        self.sync_coordinator.rollback_transaction(txn_id).await?;
         Ok(())
     }
 

@@ -22,7 +22,9 @@ fn main() {
 #[cfg(feature = "c-api")]
 fn generate_c_header() {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
-    let output_path = std::path::PathBuf::from(&crate_dir).join("include").join("graphdb.h");
+    let output_path = std::path::PathBuf::from(&crate_dir)
+        .join("include")
+        .join("graphdb.h");
 
     std::fs::create_dir_all(
         output_path

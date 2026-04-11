@@ -12,7 +12,8 @@ use crate::query::parser::ast::vector::{
 use crate::query::parser::ast::Stmt;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::query::planning::plan::core::nodes::data_access::vector_search::{
-    CreateVectorIndexNode, DropVectorIndexNode, VectorLookupNode, VectorMatchNode, VectorSearchNode,
+    CreateVectorIndexNode, CreateVectorIndexParams, DropVectorIndexNode, VectorLookupNode,
+    VectorMatchNode, VectorSearchNode, VectorSearchParams,
 };
 use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
@@ -125,15 +126,17 @@ impl VectorSearchPlanner {
         };
 
         let node = CreateVectorIndexNode::new(
-            create.index_name.clone(),
-            schema_name,
-            create.schema_name.clone(),
-            create.field_name.clone(),
-            create.config.vector_size,
-            create.config.distance,
-            create.config.hnsw_m,
-            create.config.hnsw_ef_construct,
-            create.if_not_exists,
+            CreateVectorIndexParams::new(
+                create.index_name.clone(),
+                schema_name,
+                create.schema_name.clone(),
+                create.field_name.clone(),
+                create.config.vector_size,
+                create.config.distance,
+            )
+            .with_hnsw_m(create.config.hnsw_m)
+            .with_hnsw_ef_construct(create.config.hnsw_ef_construct)
+            .with_if_not_exists(),
         );
 
         Ok(SubPlan::new(Some(node.into_enum()), None))
@@ -202,16 +205,18 @@ impl VectorSearchPlanner {
         };
 
         let node = VectorSearchNode::new(
-            search.index_name.clone(),
-            space_id,
-            tag_name,
-            field_name,
-            search.query.clone(),
-            search.threshold,
-            filter,
-            search.limit.unwrap_or(10),
-            search.offset.unwrap_or(0),
-            output_fields,
+            VectorSearchParams::new(
+                search.index_name.clone(),
+                space_id,
+                tag_name,
+                field_name,
+                search.query.clone(),
+            )
+            .with_threshold(search.threshold.unwrap_or(0.0))
+            .with_filter(filter)
+            .with_limit(search.limit.unwrap_or(10))
+            .with_offset(search.offset.unwrap_or(0))
+            .with_output_fields(output_fields),
         );
 
         Ok(SubPlan::new(Some(node.into_enum()), None))
@@ -498,16 +503,18 @@ impl VectorSearchPlanner {
         };
 
         let node = VectorSearchNode::new(
-            search.index_name.clone(),
-            space_id,
-            tag_name,
-            field_name,
-            search.query.clone(),
-            search.threshold,
-            filter,
-            search.limit.unwrap_or(10),
-            search.offset.unwrap_or(0),
-            output_fields,
+            VectorSearchParams::new(
+                search.index_name.clone(),
+                space_id,
+                tag_name,
+                field_name,
+                search.query.clone(),
+            )
+            .with_threshold(search.threshold.unwrap_or(0.0))
+            .with_filter(filter)
+            .with_limit(search.limit.unwrap_or(10))
+            .with_offset(search.offset.unwrap_or(0))
+            .with_output_fields(output_fields),
         );
 
         Ok(SubPlan::new(Some(node.into_enum()), None))

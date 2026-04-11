@@ -65,9 +65,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
             QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer_engine)
                 .with_metadata_provider(cached_provider);
 
-        Ok(Self {
-            pipeline_manager,
-        })
+        Ok(Self { pipeline_manager })
     }
 
     /// Execute a query with the given query request

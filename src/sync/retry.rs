@@ -73,10 +73,7 @@ pub enum RetryResult<T, E> {
 }
 
 /// Execute a function with retry logic
-pub async fn with_retry<F, Fut, T, E>(
-    func: F,
-    config: &RetryConfig,
-) -> Result<T, E>
+pub async fn with_retry<F, Fut, T, E>(func: F, config: &RetryConfig) -> Result<T, E>
 where
     F: Fn() -> Fut,
     Fut: std::future::Future<Output = Result<T, E>>,
@@ -90,7 +87,7 @@ where
             Ok(result) => return Ok(result),
             Err(e) => {
                 last_error = Some(e);
-                
+
                 if attempt < config.max_retries {
                     log::warn!(
                         "Operation failed (attempt {}), retrying in {:?}...",
@@ -98,12 +95,10 @@ where
                         delay
                     );
                     sleep(delay).await;
-                    
+
                     // Exponential backoff with max delay cap
-                    delay = std::cmp::min(
-                        delay.mul_f64(config.backoff_multiplier),
-                        config.max_delay,
-                    );
+                    delay =
+                        std::cmp::min(delay.mul_f64(config.backoff_multiplier), config.max_delay);
                 }
             }
         }
@@ -137,7 +132,7 @@ where
                 }
 
                 last_error = Some(e);
-                
+
                 if attempt < config.max_retries {
                     log::warn!(
                         "Operation failed (attempt {}), retrying in {:?}...",
@@ -145,12 +140,10 @@ where
                         delay
                     );
                     sleep(delay).await;
-                    
+
                     // Exponential backoff with max delay cap
-                    delay = std::cmp::min(
-                        delay.mul_f64(config.backoff_multiplier),
-                        config.max_delay,
-                    );
+                    delay =
+                        std::cmp::min(delay.mul_f64(config.backoff_multiplier), config.max_delay);
                 }
             }
         }

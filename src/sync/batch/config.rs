@@ -6,13 +6,13 @@ use crate::search::SyncFailurePolicy;
 pub struct BatchConfig {
     pub batch_size: usize,
     pub flush_interval: Duration,
-    pub commit_interval: Duration,  // Alias for compatibility
+    pub commit_interval: Duration, // Alias for compatibility
     pub max_buffer_size: usize,
     pub enable_persistence: bool,
     pub persistence_path: Option<std::path::PathBuf>,
     pub failure_policy: SyncFailurePolicy,
-    pub queue_capacity: usize,  // For compatibility
-    pub max_wait_time: Duration,  // For compatibility
+    pub queue_capacity: usize,   // For compatibility
+    pub max_wait_time: Duration, // For compatibility
 }
 
 impl Default for BatchConfig {

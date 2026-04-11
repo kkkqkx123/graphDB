@@ -5,6 +5,13 @@ use crossbeam_utils::atomic::AtomicCell;
 use std::sync::Arc;
 use tokio::sync::{oneshot, Mutex};
 
+/// Completion channel type for sync handles
+pub type SyncCompletionChannel =
+    Arc<Mutex<Option<oneshot::Receiver<Result<(), crate::sync::SyncError>>>>>;
+
+/// Completion sender type for sync handles
+pub type SyncCompletionSender = Option<oneshot::Sender<Result<(), crate::sync::SyncError>>>;
+
 /// Pending index update operations
 #[derive(Debug, Clone)]
 pub struct PendingIndexUpdate {
@@ -35,10 +42,6 @@ impl PendingIndexUpdate {
         tag_name: String,
         field_name: String,
         doc_id: String,
-        content: Option<String>,
-        old_content: Option<String>,
-        vector_data: Option<Vec<f32>>,
-        change_type: ChangeType,
     ) -> Self {
         Self {
             txn_id,
@@ -46,11 +49,31 @@ impl PendingIndexUpdate {
             tag_name,
             field_name,
             doc_id,
-            content,
-            old_content,
-            vector_data,
-            change_type,
+            content: None,
+            old_content: None,
+            vector_data: None,
+            change_type: ChangeType::Insert,
         }
+    }
+
+    pub fn with_content(mut self, content: String) -> Self {
+        self.content = Some(content);
+        self
+    }
+
+    pub fn with_old_content(mut self, old_content: String) -> Self {
+        self.old_content = Some(old_content);
+        self
+    }
+
+    pub fn with_vector_data(mut self, vector_data: Vec<f32>) -> Self {
+        self.vector_data = Some(vector_data);
+        self
+    }
+
+    pub fn with_change_type(mut self, change_type: ChangeType) -> Self {
+        self.change_type = change_type;
+        self
     }
 }
 
@@ -78,8 +101,8 @@ pub struct SyncHandle {
     /// Pending Index Update List
     pub pending_updates: Vec<PendingIndexUpdate>,
     /// Synchronized results channel
-    pub completion_tx: Option<oneshot::Sender<Result<(), crate::sync::SyncError>>>,
-    pub completion_rx: Arc<Mutex<Option<oneshot::Receiver<Result<(), crate::sync::SyncError>>>>>,
+    pub completion_tx: SyncCompletionSender,
+    pub completion_rx: SyncCompletionChannel,
     /// state of affairs
     state: AtomicCell<SyncHandleState>,
 }
@@ -165,11 +188,9 @@ mod tests {
             "user".to_string(),
             "name".to_string(),
             "1".to_string(),
-            Some("Alice".to_string()),
-            None,
-            None,
-            ChangeType::Insert,
-        );
+        )
+        .with_content("Alice".to_string())
+        .with_change_type(ChangeType::Insert);
 
         assert_eq!(update.txn_id, TransactionId::from(1u64));
         assert_eq!(update.space_id, 1);

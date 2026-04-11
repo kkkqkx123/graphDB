@@ -85,9 +85,7 @@ async fn test_transaction_rollback() {
         .expect("开始事务失败");
 
     // Roll back a transaction
-    txn_manager
-        .abort_transaction(txn_id)
-        .expect("回滚事务失败");
+    txn_manager.abort_transaction(txn_id).expect("回滚事务失败");
 
     // The transaction has been aborted and is no longer listed in the active transactions table.
     let txn_info = txn_manager.get_transaction_info(txn_id);

@@ -37,11 +37,6 @@ impl VectorSearchParams {
         tag_name: String,
         field_name: String,
         query: VectorQueryExpr,
-        threshold: Option<f32>,
-        filter: Option<VectorFilter>,
-        limit: usize,
-        offset: usize,
-        output_fields: Vec<OutputField>,
     ) -> Self {
         Self {
             index_name,
@@ -49,13 +44,43 @@ impl VectorSearchParams {
             tag_name,
             field_name,
             query,
-            threshold,
-            filter,
-            limit,
-            offset,
-            output_fields,
+            threshold: None,
+            filter: None,
+            limit: 10,
+            offset: 0,
+            output_fields: Vec::new(),
             metadata_version: 0,
         }
+    }
+
+    pub fn with_threshold(mut self, threshold: f32) -> Self {
+        self.threshold = Some(threshold);
+        self
+    }
+
+    pub fn with_filter(mut self, filter: Option<VectorFilter>) -> Self {
+        self.filter = filter;
+        self
+    }
+
+    pub fn with_limit(mut self, limit: usize) -> Self {
+        self.limit = limit;
+        self
+    }
+
+    pub fn with_offset(mut self, offset: usize) -> Self {
+        self.offset = offset;
+        self
+    }
+
+    pub fn with_output_fields(mut self, fields: Vec<OutputField>) -> Self {
+        self.output_fields = fields;
+        self
+    }
+
+    pub fn with_metadata_version(mut self, version: u64) -> Self {
+        self.metadata_version = version;
+        self
     }
 }
 
@@ -79,35 +104,7 @@ pub struct VectorSearchNode {
 }
 
 impl VectorSearchNode {
-    pub fn new(
-        index_name: String,
-        space_id: u64,
-        tag_name: String,
-        field_name: String,
-        query: VectorQueryExpr,
-        threshold: Option<f32>,
-        filter: Option<VectorFilter>,
-        limit: usize,
-        offset: usize,
-        output_fields: Vec<OutputField>,
-    ) -> Self {
-        Self::with_metadata_version(VectorSearchParams {
-            index_name,
-            space_id,
-            tag_name,
-            field_name,
-            query,
-            threshold,
-            filter,
-            limit,
-            offset,
-            output_fields,
-            metadata_version: 0,
-        })
-    }
-
-    /// Create a new vector search node with metadata version
-    pub fn with_metadata_version(params: VectorSearchParams) -> Self {
+    pub fn new(params: VectorSearchParams) -> Self {
         Self {
             id: next_node_id(),
             index_name: params.index_name,
@@ -161,6 +158,58 @@ impl PlanNode for VectorSearchNode {
 
 impl ZeroInputNode for VectorSearchNode {}
 
+/// Parameters for creating a vector index node
+#[derive(Debug, Clone)]
+pub struct CreateVectorIndexParams {
+    pub index_name: String,
+    pub space_name: String,
+    pub tag_name: String,
+    pub field_name: String,
+    pub vector_size: usize,
+    pub distance: VectorDistance,
+    pub hnsw_m: Option<usize>,
+    pub hnsw_ef_construct: Option<usize>,
+    pub if_not_exists: bool,
+}
+
+impl CreateVectorIndexParams {
+    pub fn new(
+        index_name: String,
+        space_name: String,
+        tag_name: String,
+        field_name: String,
+        vector_size: usize,
+        distance: VectorDistance,
+    ) -> Self {
+        Self {
+            index_name,
+            space_name,
+            tag_name,
+            field_name,
+            vector_size,
+            distance,
+            hnsw_m: None,
+            hnsw_ef_construct: None,
+            if_not_exists: false,
+        }
+    }
+
+    pub fn with_hnsw_m(mut self, m: Option<usize>) -> Self {
+        self.hnsw_m = m;
+        self
+    }
+
+    pub fn with_hnsw_ef_construct(mut self, ef_construct: Option<usize>) -> Self {
+        self.hnsw_ef_construct = ef_construct;
+        self
+    }
+
+    pub fn with_if_not_exists(mut self) -> Self {
+        self.if_not_exists = true;
+        self
+    }
+}
+
 /// Create vector index plan node
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateVectorIndexNode {
@@ -177,28 +226,18 @@ pub struct CreateVectorIndexNode {
 }
 
 impl CreateVectorIndexNode {
-    pub fn new(
-        index_name: String,
-        space_name: String,
-        tag_name: String,
-        field_name: String,
-        vector_size: usize,
-        distance: VectorDistance,
-        hnsw_m: Option<usize>,
-        hnsw_ef_construct: Option<usize>,
-        if_not_exists: bool,
-    ) -> Self {
+    pub fn new(params: CreateVectorIndexParams) -> Self {
         Self {
             id: next_node_id(),
-            index_name,
-            space_name,
-            tag_name,
-            field_name,
-            vector_size,
-            distance,
-            hnsw_m,
-            hnsw_ef_construct,
-            if_not_exists,
+            index_name: params.index_name,
+            space_name: params.space_name,
+            tag_name: params.tag_name,
+            field_name: params.field_name,
+            vector_size: params.vector_size,
+            distance: params.distance,
+            hnsw_m: params.hnsw_m,
+            hnsw_ef_construct: params.hnsw_ef_construct,
+            if_not_exists: params.if_not_exists,
         }
     }
 }

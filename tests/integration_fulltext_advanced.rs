@@ -14,7 +14,7 @@ use common::{
     storage_helpers::{create_test_space, get_storage, person_tag_info},
     TestStorage,
 };
-use graphdb::coordinator::{ChangeType, FulltextCoordinator};
+use graphdb::coordinator::{ChangeType as CoordinatorChangeType, FulltextCoordinator};
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Value, Vertex};
 use graphdb::search::config::{FulltextConfig, SyncConfig};
@@ -22,6 +22,8 @@ use graphdb::search::engine::EngineType;
 use graphdb::search::manager::FulltextIndexManager;
 use graphdb::storage::storage_client::StorageClient;
 use graphdb::sync::batch::BatchConfig;
+use graphdb::sync::coordinator::ChangeType;
+use graphdb::sync::coordinator::SyncCoordinator;
 use graphdb::sync::manager::SyncManager;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -453,23 +455,28 @@ async fn test_sync_manager_with_recovery() {
     };
 
     let manager = Arc::new(FulltextIndexManager::new(config).expect("Failed to create manager"));
-    let coordinator = Arc::new(FulltextCoordinator::new(manager));
+    let _fulltext_coordinator = Arc::new(FulltextCoordinator::new(manager.clone()));
 
     let batch_config = BatchConfig {
         batch_size: 10,
+        flush_interval: Duration::from_millis(100),
         commit_interval: Duration::from_millis(100),
         max_wait_time: Duration::from_secs(5),
         queue_capacity: 1000,
+        max_buffer_size: 10000,
+        enable_persistence: false,
+        persistence_path: None,
         failure_policy: graphdb::search::SyncFailurePolicy::FailOpen,
     };
 
+    let sync_coordinator = Arc::new(SyncCoordinator::new(manager, batch_config));
     let sync_manager = SyncManager::with_recovery(
-        coordinator.clone(),
-        batch_config,
+        sync_coordinator.clone(),
+        BatchConfig::default(),
         recovery_dir.path().to_path_buf(),
     );
 
-    coordinator
+    _fulltext_coordinator
         .create_index(1, "Document", "content", Some(EngineType::Bm25))
         .await
         .expect("Failed to create index");
@@ -485,14 +492,14 @@ async fn test_sync_manager_with_recovery() {
                 "content".to_string(),
                 Value::String("Recovery test document".to_string()),
             )],
-            ChangeType::Insert,
+            CoordinatorChangeType::Insert,
         )
         .await
         .expect("Failed to sync vertex");
 
     sleep(Duration::from_millis(300)).await;
 
-    let results = coordinator
+    let results = _fulltext_coordinator
         .search(1, "Document", "content", "Recovery", 10)
         .await
         .expect("Failed to search");
@@ -501,7 +508,7 @@ async fn test_sync_manager_with_recovery() {
 }
 
 #[tokio::test]
-async fn test_task_buffer_batching() {
+async fn test_batch_processing() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     let config = FulltextConfig {
@@ -517,41 +524,44 @@ async fn test_task_buffer_batching() {
     };
 
     let manager = Arc::new(FulltextIndexManager::new(config).expect("Failed to create manager"));
-    let coordinator = Arc::new(FulltextCoordinator::new(manager));
+    let _fulltext_coordinator = Arc::new(FulltextCoordinator::new(manager.clone()));
 
     let batch_config = BatchConfig {
         batch_size: 5,
+        flush_interval: Duration::from_millis(500),
         commit_interval: Duration::from_millis(500),
         max_wait_time: Duration::from_secs(5),
         queue_capacity: 1000,
+        max_buffer_size: 10000,
+        enable_persistence: false,
+        persistence_path: None,
         failure_policy: graphdb::search::SyncFailurePolicy::FailOpen,
     };
 
-    let buffer = Arc::new(graphdb::sync::batch::TaskBuffer::new(
-        coordinator.clone(),
-        batch_config,
-    ));
+    let sync_coordinator = Arc::new(SyncCoordinator::new(manager, batch_config));
 
-    coordinator
+    sync_coordinator
+        .fulltext_manager()
         .create_index(1, "Article", "title", Some(EngineType::Bm25))
         .await
         .expect("Failed to create index");
 
     for i in 0..10 {
-        buffer
-            .add_document(
+        sync_coordinator
+            .on_vertex_change(
                 1,
                 "Article",
-                "title",
-                format!("doc_{}", i),
-                format!("Title {}", i),
+                &Value::Int(i),
+                &[("title".to_string(), Value::String(format!("Title {}", i)))],
+                ChangeType::Insert,
             )
-            .await;
+            .await
+            .expect("Failed to sync vertex");
     }
 
     sleep(Duration::from_millis(600)).await;
 
-    let results = coordinator
+    let results = _fulltext_coordinator
         .search(1, "Article", "title", "Title", 100)
         .await
         .expect("Failed to search");

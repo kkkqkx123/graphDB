@@ -38,12 +38,10 @@ impl IndexUpdateBuffer {
 
         // Check buffer size
         if buffer.len() >= self.config.max_buffer_size {
-            return Err(SyncError::BufferError(
-                format!(
-                    "Buffer full for transaction {:?}",
-                    txn_id
-                ),
-            ));
+            return Err(SyncError::BufferError(format!(
+                "Buffer full for transaction {:?}",
+                txn_id
+            )));
         }
 
         buffer.push(update);
@@ -141,11 +139,9 @@ mod tests {
             "user".to_string(),
             "name".to_string(),
             "1".to_string(),
-            Some("Alice".to_string()),
-            None,
-            None,
-            ChangeType::Insert,
         )
+        .with_content("Alice".to_string())
+        .with_change_type(ChangeType::Insert)
     }
 
     #[test]
@@ -172,9 +168,10 @@ mod tests {
 
     #[test]
     fn test_buffer_size_limit() {
-        let mut config = IndexBufferConfig::default();
-        config.max_buffer_size = 2;
-        let buffer = IndexUpdateBuffer::new(config);
+        let buffer = IndexUpdateBuffer::new(IndexBufferConfig {
+            max_buffer_size: 2,
+            ..Default::default()
+        });
         let txn_id = TransactionId::from(1u64);
 
         // Add 2 updates (limit reached)

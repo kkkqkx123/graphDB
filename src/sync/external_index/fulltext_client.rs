@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use super::error::{ExternalIndexError, IndexResult};
-use super::trait_def::{IndexData, IndexStats, ExternalIndexClient};
+use super::trait_def::{ExternalIndexClient, IndexData, IndexStats};
 
 pub struct FulltextClient {
     space_id: u64,
@@ -45,7 +45,11 @@ impl ExternalIndexClient for FulltextClient {
     }
 
     fn index_key(&self) -> (u64, String, String) {
-        (self.space_id, self.tag_name.clone(), self.field_name.clone())
+        (
+            self.space_id,
+            self.tag_name.clone(),
+            self.field_name.clone(),
+        )
     }
 
     async fn insert(&self, id: &str, data: &IndexData) -> IndexResult<()> {

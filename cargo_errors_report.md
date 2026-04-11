@@ -2,48 +2,47 @@
 
 ## Summary
 
-- **Total Errors**: 3
-- **Total Warnings**: 0
+- **Total Errors**: 0
+- **Total Warnings**: 3
 - **Total Issues**: 3
-- **Unique Error Patterns**: 2
-- **Unique Warning Patterns**: 0
-- **Files with Issues**: 1
+- **Unique Error Patterns**: 0
+- **Unique Warning Patterns**: 3
+- **Files with Issues**: 3
 
 ## Error Statistics
 
-**Total Errors**: 3
-
-### Error Type Breakdown
-
-- **error[E0425]**: 2 errors
-- **error[E0433]**: 1 errors
-
-### Files with Errors (Top 10)
-
-- `build.rs`: 3 errors
+**Total Errors**: 0
 
 ## Warning Statistics
 
-**Total Warnings**: 0
+**Total Warnings**: 3
 
-## Detailed Error Categorization
+### Warning Type Breakdown
 
-### error[E0425]: cannot find type `PathBuf` in this scope: not found in this scope
+- **warning**: 3 warnings
 
-**Total Occurrences**: 2  
-**Unique Files**: 1
+### Files with Warnings (Top 10)
 
-#### `build.rs`: 2 occurrences
+- `src\query\validator\statements\insert_vertices_validator.rs`: 1 warnings
+- `src\search\config.rs`: 1 warnings
+- `src\query\executor\expression\functions\builtin\aggregate.rs`: 1 warnings
 
-- Line 53: cannot find type `PathBuf` in this scope: not found in this scope
-- Line 74: cannot find type `PathBuf` in this scope: not found in this scope
+## Detailed Warning Categorization
 
-### error[E0433]: failed to resolve: use of undeclared type `PathBuf`: use of undeclared type `PathBuf`
+### warning: this `if let` can be collapsed into the outer `if let`
 
-**Total Occurrences**: 1  
-**Unique Files**: 1
+**Total Occurrences**: 3  
+**Unique Files**: 3
 
-#### `build.rs`: 1 occurrences
+#### `src\query\validator\statements\insert_vertices_validator.rs`: 1 occurrences
 
-- Line 54: failed to resolve: use of undeclared type `PathBuf`: use of undeclared type `PathBuf`
+- Line 207: this `if let` can be collapsed into the outer `if let`
+
+#### `src\query\executor\expression\functions\builtin\aggregate.rs`: 1 occurrences
+
+- Line 378: you seem to use `.enumerate()` and immediately discard the index
+
+#### `src\search\config.rs`: 1 occurrences
+
+- Line 17: this `impl` can be derived
 

@@ -60,7 +60,8 @@ impl RecoveryManager {
             return Ok(());
         }
 
-        self.running.store(true, std::sync::atomic::Ordering::SeqCst);
+        self.running
+            .store(true, std::sync::atomic::Ordering::SeqCst);
 
         // Recover failed tasks from persistence
         if let Ok(failed_tasks) = self.persistence.load_failed_tasks().await {
@@ -78,7 +79,8 @@ impl RecoveryManager {
     }
 
     pub async fn stop(&self) {
-        self.running.store(false, std::sync::atomic::Ordering::SeqCst);
+        self.running
+            .store(false, std::sync::atomic::Ordering::SeqCst);
     }
 
     async fn retry_task(&self, task: &FailedTask) -> Result<(), RecoveryError> {
