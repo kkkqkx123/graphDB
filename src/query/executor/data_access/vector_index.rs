@@ -8,7 +8,7 @@ use crate::core::error::DBError;
 use crate::query::executor::base::{
     BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, HasStorage,
 };
-use crate::query::planning::plan::core::nodes::data_access::vector_search::{
+use crate::query::planning::plan::core::nodes::search::vector::management::{
     CreateVectorIndexNode, DropVectorIndexNode,
 };
 use crate::storage::StorageClient;

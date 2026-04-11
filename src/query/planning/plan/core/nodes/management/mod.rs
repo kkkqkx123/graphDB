@@ -1,5 +1,4 @@
 pub mod edge_nodes;
-pub mod fulltext_nodes;
 pub mod index_nodes;
 pub mod space_nodes;
 pub mod stats_nodes;
@@ -9,11 +8,6 @@ pub mod user_nodes;
 pub use edge_nodes::{
     AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, EdgeAlterInfo, EdgeManageInfo,
     ShowEdgesNode,
-};
-pub use fulltext_nodes::{
-    AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
-    DropFulltextIndexNode, FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
-    ShowFulltextIndexNode,
 };
 pub use index_nodes::{
     CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,

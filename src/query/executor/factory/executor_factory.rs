@@ -725,7 +725,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
 
     fn build_fulltext_search(
         &mut self,
-        node: &crate::query::planning::plan::core::nodes::FulltextSearchNode,
+        node: &crate::query::planning::plan::core::nodes::search::fulltext::data_access::FulltextSearchNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -832,7 +832,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     // Vector Search build methods
     fn build_vector_search(
         &mut self,
-        node: &crate::query::planning::plan::core::nodes::data_access::vector_search::VectorSearchNode,
+        node: &crate::query::planning::plan::core::nodes::search::vector::data_access::VectorSearchNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -858,7 +858,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
 
     fn build_create_vector_index(
         &mut self,
-        node: &crate::query::planning::plan::core::nodes::data_access::vector_search::CreateVectorIndexNode,
+        node: &crate::query::planning::plan::core::nodes::search::vector::management::CreateVectorIndexNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -884,7 +884,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
 
     fn build_drop_vector_index(
         &mut self,
-        node: &crate::query::planning::plan::core::nodes::data_access::vector_search::DropVectorIndexNode,
+        node: &crate::query::planning::plan::core::nodes::search::vector::management::DropVectorIndexNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -910,7 +910,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
 
     fn build_vector_lookup(
         &mut self,
-        node: &crate::query::planning::plan::core::nodes::data_access::vector_search::VectorLookupNode,
+        node: &crate::query::planning::plan::core::nodes::search::vector::data_access::VectorLookupNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -936,7 +936,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
 
     fn build_vector_match(
         &mut self,
-        node: &crate::query::planning::plan::core::nodes::data_access::vector_search::VectorMatchNode,
+        node: &crate::query::planning::plan::core::nodes::search::vector::data_access::VectorMatchNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {

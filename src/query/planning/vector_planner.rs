@@ -11,10 +11,13 @@ use crate::query::parser::ast::vector::{
 };
 use crate::query::parser::ast::Stmt;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
-use crate::query::planning::plan::core::nodes::data_access::vector_search::{
-    CreateVectorIndexNode, CreateVectorIndexParams, DropVectorIndexNode, VectorLookupNode,
-    VectorMatchNode, VectorSearchNode, VectorSearchParams,
+use crate::query::planning::plan::core::nodes::search::vector::data_access::{
+    OutputField, VectorLookupNode, VectorMatchNode, VectorSearchNode,
 };
+use crate::query::planning::plan::core::nodes::search::vector::management::{
+    CreateVectorIndexNode, CreateVectorIndexParams, DropVectorIndexNode,
+};
+use crate::query::planning::plan::core::nodes::search::vector::VectorSearchParams;
 use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
@@ -172,7 +175,7 @@ impl VectorSearchPlanner {
             yield_clause
                 .items
                 .iter()
-                .map(|item| crate::query::planning::plan::core::nodes::data_access::vector_search::OutputField {
+                .map(|item| OutputField {
                     name: item.expr.clone(),
                     alias: item.alias.clone(),
                 })
@@ -238,7 +241,7 @@ impl VectorSearchPlanner {
             yield_clause
                 .items
                 .iter()
-                .map(|item| crate::query::planning::plan::core::nodes::data_access::vector_search::OutputField {
+                .map(|item| OutputField {
                     name: item.expr.clone(),
                     alias: item.alias.clone(),
                 })
@@ -265,7 +268,7 @@ impl VectorSearchPlanner {
             yield_clause
                 .items
                 .iter()
-                .map(|item| crate::query::planning::plan::core::nodes::data_access::vector_search::OutputField {
+                .map(|item| OutputField {
                     name: item.expr.clone(),
                     alias: item.alias.clone(),
                 })
@@ -476,7 +479,7 @@ impl VectorSearchPlanner {
             yield_clause
                 .items
                 .iter()
-                .map(|item| crate::query::planning::plan::core::nodes::data_access::vector_search::OutputField {
+                .map(|item| OutputField {
                     name: item.expr.clone(),
                     alias: item.alias.clone(),
                 })
@@ -538,7 +541,7 @@ impl VectorSearchPlanner {
             yield_clause
                 .items
                 .iter()
-                .map(|item| crate::query::planning::plan::core::nodes::data_access::vector_search::OutputField {
+                .map(|item| OutputField {
                     name: item.expr.clone(),
                     alias: item.alias.clone(),
                 })
@@ -570,7 +573,7 @@ impl VectorSearchPlanner {
             yield_clause
                 .items
                 .iter()
-                .map(|item| crate::query::planning::plan::core::nodes::data_access::vector_search::OutputField {
+                .map(|item| OutputField {
                     name: item.expr.clone(),
                     alias: item.alias.clone(),
                 })

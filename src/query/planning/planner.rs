@@ -39,7 +39,7 @@ use crate::query::planning::statements::dql::with_planner::WithPlanner;
 use crate::query::planning::statements::dql::yield_planner::YieldPlanner;
 use crate::query::planning::statements::match_statement_planner::MatchStatementPlanner;
 
-use crate::query::planning::plan::core::nodes::management::{
+use crate::query::planning::plan::core::nodes::search::{
     AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
     DropFulltextIndexNode, FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
     ShowFulltextIndexNode,

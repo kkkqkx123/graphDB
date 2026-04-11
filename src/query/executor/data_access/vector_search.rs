@@ -13,9 +13,8 @@ use crate::query::executor::base::{
     BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, HasStorage,
 };
 use crate::query::parser::ast::vector::{VectorQueryExpr, VectorQueryType};
-use crate::query::planning::plan::core::nodes::data_access::vector_search::VectorLookupNode;
-use crate::query::planning::plan::core::nodes::data_access::vector_search::{
-    OutputField, VectorSearchNode,
+use crate::query::planning::plan::core::nodes::search::vector::data_access::{
+    OutputField, VectorLookupNode, VectorMatchNode, VectorSearchNode,
 };
 use crate::storage::StorageClient;
 use crate::sync::vector_sync::{SearchOptions, VectorSyncCoordinator};
@@ -605,8 +604,6 @@ impl<S: StorageClient> HasStorage<S> for VectorLookupExecutor<S> {
 }
 
 // ============== Vector Match Executor ==============
-
-use crate::query::planning::plan::core::nodes::data_access::vector_search::VectorMatchNode;
 
 /// Vector match executor
 pub struct VectorMatchExecutor<S: StorageClient> {
