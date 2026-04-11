@@ -1,0 +1,99 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ChangeType {
+    Insert,
+    Update,
+    Delete,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum IndexType {
+    Fulltext,
+    Vector,
+}
+
+#[derive(Debug, Clone)]
+pub struct ChangeContext {
+    pub space_id: u64,
+    pub tag_name: String,
+    pub field_name: String,
+    pub index_type: IndexType,
+    pub change_type: ChangeType,
+    pub vertex_id: String,
+    pub data: ChangeData,
+}
+
+#[derive(Debug, Clone)]
+pub enum ChangeData {
+    Fulltext(String),
+    Vector(Vec<f32>),
+}
+
+impl ChangeContext {
+    pub fn new_fulltext(
+        space_id: u64,
+        tag_name: impl Into<String>,
+        field_name: impl Into<String>,
+        change_type: ChangeType,
+        vertex_id: impl Into<String>,
+        text: impl Into<String>,
+    ) -> Self {
+        Self {
+            space_id,
+            tag_name: tag_name.into(),
+            field_name: field_name.into(),
+            index_type: IndexType::Fulltext,
+            change_type,
+            vertex_id: vertex_id.into(),
+            data: ChangeData::Fulltext(text.into()),
+        }
+    }
+
+    pub fn new_vector(
+        space_id: u64,
+        tag_name: impl Into<String>,
+        field_name: impl Into<String>,
+        change_type: ChangeType,
+        vertex_id: impl Into<String>,
+        vector: Vec<f32>,
+    ) -> Self {
+        Self {
+            space_id,
+            tag_name: tag_name.into(),
+            field_name: field_name.into(),
+            index_type: IndexType::Vector,
+            change_type,
+            vertex_id: vertex_id.into(),
+            data: ChangeData::Vector(vector),
+        }
+    }
+
+    pub fn index_key(&self) -> (u64, String, String) {
+        (
+            self.space_id,
+            self.tag_name.clone(),
+            self.field_name.clone(),
+        )
+    }
+}
+
+impl From<crate::coordinator::ChangeType> for ChangeType {
+    fn from(ct: crate::coordinator::ChangeType) -> Self {
+        match ct {
+            crate::coordinator::ChangeType::Insert => ChangeType::Insert,
+            crate::coordinator::ChangeType::Update => ChangeType::Update,
+            crate::coordinator::ChangeType::Delete => ChangeType::Delete,
+        }
+    }
+}
+
+impl From<ChangeType> for crate::coordinator::ChangeType {
+    fn from(ct: ChangeType) -> Self {
+        match ct {
+            ChangeType::Insert => crate::coordinator::ChangeType::Insert,
+            ChangeType::Update => crate::coordinator::ChangeType::Update,
+            ChangeType::Delete => crate::coordinator::ChangeType::Delete,
+        }
+    }
+}

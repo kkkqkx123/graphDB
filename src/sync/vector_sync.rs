@@ -65,8 +65,6 @@ pub enum VectorChangeType {
     Delete,
 }
 
-
-
 impl From<crate::coordinator::ChangeType> for VectorChangeType {
     fn from(ct: crate::coordinator::ChangeType) -> Self {
         match ct {

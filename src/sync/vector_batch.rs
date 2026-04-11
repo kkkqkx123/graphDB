@@ -5,8 +5,8 @@
 //! - Async batch processing
 //! - Configurable batch size and timeout
 
-use crate::sync::vector_sync::{VectorChangeType, VectorSyncCoordinator};
 use crate::search::SyncFailurePolicy;
+use crate::sync::vector_sync::{VectorChangeType, VectorSyncCoordinator};
 use crate::transaction::types::TransactionId;
 use dashmap::DashMap;
 use std::collections::HashMap;
@@ -109,10 +109,7 @@ impl std::fmt::Debug for VectorBatchManager {
 
 impl VectorBatchManager {
     /// Create a new vector batch manager
-    pub fn new(
-        vector_coordinator: Arc<VectorSyncCoordinator>,
-        config: VectorBatchConfig,
-    ) -> Self {
+    pub fn new(vector_coordinator: Arc<VectorSyncCoordinator>, config: VectorBatchConfig) -> Self {
         Self {
             vector_coordinator,
             config,
@@ -152,10 +149,7 @@ impl VectorBatchManager {
     }
 
     /// Commit all buffered operations for a transaction (Phase 2)
-    pub async fn commit_transaction(
-        &self,
-        txn_id: TransactionId,
-    ) -> Result<(), VectorBatchError> {
+    pub async fn commit_transaction(&self, txn_id: TransactionId) -> Result<(), VectorBatchError> {
         let operations = self.pending_buffers.remove(&txn_id).map(|(_, ops)| ops);
 
         if let Some(ops) = operations {
@@ -279,7 +273,11 @@ impl VectorBatchManager {
     /// Commit all pending async operations
     pub async fn commit_all(&self) -> Result<(), VectorBatchError> {
         // Commit upserts
-        let upsert_keys: Vec<_> = self.upsert_buffers.iter().map(|e| e.key().clone()).collect();
+        let upsert_keys: Vec<_> = self
+            .upsert_buffers
+            .iter()
+            .map(|e| e.key().clone())
+            .collect();
         for key in upsert_keys {
             if let Some((_, points)) = self.upsert_buffers.remove(&key) {
                 if !points.is_empty() {
@@ -289,7 +287,11 @@ impl VectorBatchManager {
         }
 
         // Commit deletes
-        let delete_keys: Vec<_> = self.delete_buffers.iter().map(|e| e.key().clone()).collect();
+        let delete_keys: Vec<_> = self
+            .delete_buffers
+            .iter()
+            .map(|e| e.key().clone())
+            .collect();
         for key in delete_keys {
             if let Some((_, ids)) = self.delete_buffers.remove(&key) {
                 if !ids.is_empty() {
@@ -306,7 +308,11 @@ impl VectorBatchManager {
         let now = std::time::Instant::now();
 
         // Check upsert buffers
-        let upsert_keys: Vec<_> = self.upsert_buffers.iter().map(|e| e.key().clone()).collect();
+        let upsert_keys: Vec<_> = self
+            .upsert_buffers
+            .iter()
+            .map(|e| e.key().clone())
+            .collect();
         for key in upsert_keys {
             if let Some(last) = self.last_commit.get(&key) {
                 if now.duration_since(*last) >= self.config.commit_interval {
@@ -321,7 +327,11 @@ impl VectorBatchManager {
         }
 
         // Check delete buffers
-        let delete_keys: Vec<_> = self.delete_buffers.iter().map(|e| e.key().clone()).collect();
+        let delete_keys: Vec<_> = self
+            .delete_buffers
+            .iter()
+            .map(|e| e.key().clone())
+            .collect();
         for key in delete_keys {
             if let Some(last) = self.last_commit.get(&key) {
                 if now.duration_since(*last) >= self.config.commit_interval {
@@ -356,9 +366,7 @@ impl VectorBatchManager {
                     .vector_manager()
                     .upsert(&collection_name, point)
                     .await
-                    .map_err(|e| {
-                        VectorBatchError::VectorError(format!("Upsert failed: {}", e))
-                    })?;
+                    .map_err(|e| VectorBatchError::VectorError(format!("Upsert failed: {}", e)))?;
             }
         } else if points_count > 1 {
             self.vector_coordinator
@@ -389,9 +397,7 @@ impl VectorBatchManager {
                     .vector_manager()
                     .delete(&collection_name, id)
                     .await
-                    .map_err(|e| {
-                        VectorBatchError::VectorError(format!("Delete failed: {}", e))
-                    })?;
+                    .map_err(|e| VectorBatchError::VectorError(format!("Delete failed: {}", e)))?;
             }
         } else if ids_count > 1 {
             let refs: Vec<&str> = point_ids.iter().map(|s| s.as_str()).collect();

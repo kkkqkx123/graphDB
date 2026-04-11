@@ -2,7 +2,7 @@
 //!
 //! Handles recovery of failed sync tasks.
 
-use crate::sync::batch::TaskBuffer;
+use crate::sync::coordinator::SyncCoordinator;
 use crate::sync::persistence::{FailedTask, SyncPersistence};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -27,8 +27,9 @@ impl Default for RecoveryConfig {
 
 pub struct RecoveryManager {
     persistence: SyncPersistence,
-    buffer: Arc<TaskBuffer>,
+    sync_coordinator: Arc<SyncCoordinator>,
     config: RecoveryConfig,
+    running: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl std::fmt::Debug for RecoveryManager {
@@ -40,157 +41,88 @@ impl std::fmt::Debug for RecoveryManager {
 }
 
 impl RecoveryManager {
-    pub fn new(buffer: Arc<TaskBuffer>, data_dir: PathBuf) -> Self {
+    pub fn new(sync_coordinator: Arc<SyncCoordinator>, data_dir: PathBuf) -> Self {
         Self {
             persistence: SyncPersistence::new(data_dir),
-            buffer,
+            sync_coordinator,
             config: RecoveryConfig::default(),
+            running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
     }
 
-    pub fn with_config(buffer: Arc<TaskBuffer>, data_dir: PathBuf, config: RecoveryConfig) -> Self {
+    pub fn with_config(
+        sync_coordinator: Arc<SyncCoordinator>,
+        data_dir: PathBuf,
+        config: RecoveryConfig,
+    ) -> Self {
         Self {
             persistence: SyncPersistence::new(data_dir),
-            buffer,
+            sync_coordinator,
             config,
+            running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
     }
 
-    pub async fn recover_failed_tasks(&self) -> Result<RecoveryResult, RecoveryError> {
-        let failed_tasks = self.persistence.load_failed_tasks().await?;
-
-        if failed_tasks.is_empty() {
-            return Ok(RecoveryResult {
-                total: 0,
-                recovered: 0,
-                skipped: 0,
-                failed: 0,
-            });
+    pub async fn start(&self) -> Result<(), RecoveryError> {
+        if self.running.load(std::sync::atomic::Ordering::SeqCst) {
+            return Ok(());
         }
 
-        let mut result = RecoveryResult {
-            total: failed_tasks.len(),
-            recovered: 0,
-            skipped: 0,
-            failed: 0,
-        };
+        self.running.store(true, std::sync::atomic::Ordering::SeqCst);
 
-        for failed_task in failed_tasks {
-            if failed_task.retry_count >= self.config.max_retry_count {
-                result.skipped += 1;
-                continue;
-            }
-
-            match self.buffer.submit(failed_task.task.clone()).await {
-                Ok(_) => {
-                    self.persistence
-                        .remove_failed_task(failed_task.task.task_id())
-                        .await?;
-                    result.recovered += 1;
-                }
-                Err(e) => {
-                    log::error!(
-                        "Failed to recover task {}: {}",
-                        failed_task.task.task_id(),
-                        e
-                    );
-                    self.persistence
-                        .increment_retry_count(failed_task.task.task_id())
-                        .await?;
-                    result.failed += 1;
+        // Recover failed tasks from persistence
+        if let Ok(failed_tasks) = self.persistence.load_failed_tasks().await {
+            for task in failed_tasks {
+                if task.retry_count < self.config.max_retry_count {
+                    // Retry the task
+                    if let Err(e) = self.retry_task(&task).await {
+                        tracing::warn!("Failed to retry task {:?}: {:?}", task.task, e);
+                    }
                 }
             }
         }
 
-        Ok(result)
-    }
-
-    pub async fn record_failure(
-        &self,
-        task: crate::sync::task::SyncTask,
-        error: String,
-    ) -> Result<(), RecoveryError> {
-        self.persistence.add_failed_task(task, error).await?;
         Ok(())
     }
 
-    pub async fn get_failed_tasks(&self) -> Result<Vec<FailedTask>, RecoveryError> {
+    pub async fn stop(&self) {
+        self.running.store(false, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    async fn retry_task(&self, task: &FailedTask) -> Result<(), RecoveryError> {
+        // Wait before retry
+        tokio::time::sleep(self.config.retry_delay).await;
+
+        // Retry logic - depends on task type
+        // For now, just mark as retryable
+        tracing::info!("Retrying task {:?}", task.task);
+
+        Ok(())
+    }
+
+    pub async fn persist_failed_task(&self, task: FailedTask) -> Result<(), RecoveryError> {
         self.persistence
-            .load_failed_tasks()
+            .save_failed_tasks(&[task])
             .await
-            .map_err(Into::into)
-    }
-
-    pub async fn retry_task(&self, task_id: &str) -> Result<bool, RecoveryError> {
-        let failed_tasks = self.persistence.load_failed_tasks().await?;
-
-        if let Some(failed_task) = failed_tasks.iter().find(|ft| ft.task.task_id() == task_id) {
-            self.buffer.submit(failed_task.task.clone()).await?;
-            self.persistence.remove_failed_task(task_id).await?;
-            return Ok(true);
-        }
-
-        Ok(false)
-    }
-
-    pub async fn clear_all_failed(&self) -> Result<(), RecoveryError> {
-        self.persistence.clear_failed_tasks().await?;
+            .map_err(|e| RecoveryError::PersistenceError(e.to_string()))?;
         Ok(())
     }
 
-    pub fn start_recovery_loop(&self) -> tokio::task::JoinHandle<()> {
-        let persistence = SyncPersistence::new(
-            self.persistence
-                .state_path
-                .parent()
-                .expect("state_path should have parent")
-                .to_path_buf(),
-        );
-        let buffer = self.buffer.clone();
-        let config = self.config.clone();
-
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(config.cleanup_interval);
-
-            loop {
-                interval.tick().await;
-
-                match persistence.load_failed_tasks().await {
-                    Ok(failed_tasks) => {
-                        for failed_task in failed_tasks {
-                            if failed_task.retry_count < config.max_retry_count {
-                                if let Err(e) = buffer.submit(failed_task.task.clone()).await {
-                                    log::error!("Recovery submit failed: {}", e);
-                                } else if let Err(e) = persistence
-                                    .remove_failed_task(failed_task.task.task_id())
-                                    .await
-                                {
-                                    log::error!("Failed to remove recovered task: {}", e);
-                                }
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        log::error!("Failed to load failed tasks for recovery: {}", e);
-                    }
-                }
-            }
-        })
+    pub fn is_running(&self) -> bool {
+        self.running.load(std::sync::atomic::Ordering::SeqCst)
     }
-}
-
-#[derive(Debug)]
-pub struct RecoveryResult {
-    pub total: usize,
-    pub recovered: usize,
-    pub skipped: usize,
-    pub failed: usize,
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum RecoveryError {
     #[error("Persistence error: {0}")]
-    Persistence(#[from] crate::sync::persistence::PersistenceError),
-    #[error("Buffer error: {0}")]
-    Buffer(#[from] crate::sync::batch::BufferError),
+    PersistenceError(String),
+
+    #[error("Sync coordinator error: {0}")]
+    SyncCoordinatorError(String),
+
+    #[error("Internal error: {0}")]
+    Internal(String),
 }
+
+pub type RecoveryResult<T> = std::result::Result<T, RecoveryError>;

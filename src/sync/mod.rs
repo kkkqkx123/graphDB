@@ -3,6 +3,8 @@
 //! Synchronization system for fulltext and vector index updates.
 
 pub mod batch;
+pub mod coordinator;
+pub mod external_index;
 pub mod manager;
 pub mod persistence;
 pub mod queue;
@@ -12,13 +14,17 @@ pub mod vector_batch;
 pub mod vector_sync;
 
 pub use crate::search::SyncConfig;
-pub use batch::{BatchConfig, BufferError, TaskBuffer};
+pub use batch::{BatchConfig, BatchError, BatchProcessor, BufferError, GenericBatchProcessor, TaskBuffer, TransactionBatchBuffer, TransactionBuffer};
+pub use coordinator::{
+    ChangeContext, ChangeData, ChangeType, IndexType, SyncCoordinator, SyncCoordinatorError,
+};
+pub use external_index::{ExternalIndexClient, IndexData, IndexOperation};
 pub use manager::{SyncError, SyncManager, SyncMode};
 pub use persistence::{FailedTask, PersistenceError, SyncPersistence, SyncState};
 pub use queue::{AsyncQueue, DeadLetterItem, QueueConfig, QueueError, QueueHandler, QueueResult};
 pub use recovery::{RecoveryConfig, RecoveryError, RecoveryManager, RecoveryResult};
 pub use task::{SyncTask, TaskResult, VectorPointData};
-pub use vector_batch::{VectorBatchConfig, VectorBatchManager, VectorBatchError};
+pub use vector_batch::{VectorBatchConfig, VectorBatchError, VectorBatchManager};
 pub use vector_sync::{
     SearchOptions, VectorChangeContext, VectorChangeType, VectorIndexLocation,
     VectorSyncCoordinator,

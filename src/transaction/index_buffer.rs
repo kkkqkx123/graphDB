@@ -39,10 +39,10 @@ impl IndexUpdateBuffer {
         // Check buffer size
         if buffer.len() >= self.config.max_buffer_size {
             return Err(SyncError::BufferError(
-                crate::sync::batch::BufferError::IndexError(format!(
+                format!(
                     "Buffer full for transaction {:?}",
                     txn_id
-                )),
+                ),
             ));
         }
 

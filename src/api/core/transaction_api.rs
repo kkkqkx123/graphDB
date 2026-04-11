@@ -36,9 +36,10 @@ impl TransactionApi {
     ///
     /// # Parameters
     /// - `handle`: transaction handle
-    pub fn commit(&self, handle: TransactionHandle) -> CoreResult<()> {
+    pub async fn commit(&self, handle: TransactionHandle) -> CoreResult<()> {
         self.txn_manager
             .commit_transaction(handle.0)
+            .await
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 

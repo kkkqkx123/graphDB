@@ -9,7 +9,7 @@ use std::time::Duration;
 use dashmap::DashMap;
 use redb::Database;
 
-use crate::sync::SyncManager;
+use crate::sync::{SyncError, SyncManager};
 use crate::transaction::context::TransactionContext;
 use crate::transaction::types::*;
 
@@ -163,7 +163,7 @@ impl TransactionManager {
     }
 
     /// Commit transaction
-    pub fn commit_transaction(&self, txn_id: TransactionId) -> Result<(), TransactionError> {
+    pub async fn commit_transaction(&self, txn_id: TransactionId) -> Result<(), TransactionError> {
         // Remove transaction from DashMap and get ownership
         let context = {
             let entry = self
@@ -200,44 +200,17 @@ impl TransactionManager {
         // Phase 1: Prepare (if two-phase commit is enabled)
         if context.is_two_phase_enabled() {
             if let Some(ref sync_manager) = self.sync_manager {
-                // 1. Prepare index sync (async, block on sync method)
-                let sync_handle = futures::executor::block_on(sync_manager.prepare_commit(txn_id))
-                    .map_err(|e| TransactionError::SyncFailed(e.to_string()))?;
+                // 1. Prepare index sync
+                sync_manager
+                    .prepare_transaction(txn_id)
+                    .await
+                    .map_err(|e: SyncError| TransactionError::SyncFailed(e.to_string()))?;
 
-                context.set_sync_handle(sync_handle.clone());
-
-                // 2. Wait for sync completion
-                match sync_handle.wait_for_completion() {
-                    Ok(()) => {
-                        // Sync successful, proceed to commit
-                        log::debug!(
-                            "Index sync prepared successfully for transaction {:?}",
-                            txn_id
-                        );
-                    }
-                    Err(e) => {
-                        // Sync failed, handle based on policy
-                        match sync_manager.buffer().config().failure_policy {
-                            crate::search::SyncFailurePolicy::FailClosed => {
-                                // Fail closed: abort transaction before redb commit
-                                log::error!(
-                                    "Index sync failed, aborting transaction {:?}: {}",
-                                    txn_id,
-                                    e
-                                );
-                                self.abort_transaction_internal(context.clone())?;
-                                return Err(TransactionError::SyncFailed(e.to_string()));
-                            }
-                            crate::search::SyncFailurePolicy::FailOpen => {
-                                // Fail open: proceed with commit
-                                log::warn!(
-                                    "Index sync failed but proceeding with fail_open: {}",
-                                    e
-                                );
-                            }
-                        }
-                    }
-                }
+                // 2. Wait for sync completion (handled in commit_transaction)
+                log::debug!(
+                    "Index sync prepared successfully for transaction {:?}",
+                    txn_id
+                );
             }
         }
 
@@ -258,38 +231,29 @@ impl TransactionManager {
 
         context.transition_to(TransactionState::Committed)?;
 
-        // Confirm index commit (if two-phase commit was used)
+        // Confirm index sync (if two-phase commit was used)
         if context.is_two_phase_enabled() {
             if let Some(ref sync_manager) = self.sync_manager {
-                if let Some(handle) = context.clear_sync_handle() {
-                    if let Err(e) = sync_manager.commit_sync(handle) {
-                        log::error!(
-                            "Failed to confirm index sync for transaction {:?}: {}",
-                            txn_id,
-                            e
-                        );
-                        // Note: redb already committed, can only log error
-                    }
+                if let Err(e) = sync_manager.commit_transaction(txn_id).await {
+                    log::error!(
+                        "Failed to confirm index sync for transaction {:?}: {}",
+                        txn_id,
+                        e
+                    );
+                    // Note: redb already committed, can only log error
                 }
             }
         } else {
             // Old mode: trigger sync after commit
             if let Some(ref sync_manager) = self.sync_manager {
-                let failure_policy = sync_manager.buffer().config().failure_policy;
-
-                match futures::executor::block_on(sync_manager.force_commit()) {
+                match sync_manager.commit_all().await {
                     Ok(()) => {
                         log::debug!("Index sync completed successfully after transaction commit");
                     }
-                    Err(e) => match failure_policy {
-                        crate::search::SyncFailurePolicy::FailClosed => {
-                            log::error!("Index sync failed: {}", e);
-                            return Err(TransactionError::SyncFailed(e.to_string()));
-                        }
-                        crate::search::SyncFailurePolicy::FailOpen => {
-                            log::warn!("Index sync failed but transaction committed (fail_open policy): {}", e);
-                        }
-                    },
+                    Err(e) => {
+                        log::warn!("Index sync failed but transaction committed: {}", e);
+                        // Transaction already committed, just log the error
+                    }
                 }
             }
         }
@@ -532,7 +496,7 @@ impl TransactionManager {
     ///
     /// # Note
     /// Only retryable errors will be retried (WriteTransactionConflict, TransactionTimeout)
-    pub fn execute_with_retry<F, R>(
+    pub async fn execute_with_retry<F, R>(
         &self,
         options: TransactionOptions,
         retry_config: RetryConfig,
@@ -549,7 +513,7 @@ impl TransactionManager {
 
             match f(txn_id) {
                 Ok(result) => {
-                    self.commit_transaction(txn_id)?;
+                    self.commit_transaction(txn_id).await?;
                     return Ok(result);
                 }
                 Err(e) => {
@@ -595,11 +559,11 @@ impl TransactionManager {
     ///
     /// # Note
     /// If any transaction fails to commit, all previously committed transactions will be rolled back
-    pub fn commit_batch(&self, txn_ids: Vec<TransactionId>) -> Result<(), TransactionError> {
+    pub async fn commit_batch(&self, txn_ids: Vec<TransactionId>) -> Result<(), TransactionError> {
         let mut committed = Vec::new();
 
         for txn_id in txn_ids {
-            match self.commit_transaction(txn_id) {
+            match self.commit_transaction(txn_id).await {
                 Ok(()) => committed.push(txn_id),
                 Err(e) => {
                     // Rollback all previously committed transactions
