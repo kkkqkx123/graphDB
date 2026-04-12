@@ -29,8 +29,8 @@ pub use embedded::GraphDatabase;
 use crate::api::server::GraphService;
 use crate::config::Config;
 use crate::core::error::DBResult;
-use crate::storage::entity::SyncStorage;
 use crate::storage::engine::DefaultStorage;
+use crate::storage::entity::SyncStorage;
 use crate::transaction::{TransactionManager, TransactionManagerConfig};
 
 /// Start the service using the configuration file path (deprecated; please use start_service_with_config).

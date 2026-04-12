@@ -526,7 +526,10 @@ impl VectorSearchPlanner {
         metadata_context: &MetadataContext,
     ) -> Result<SubPlan, PlannerError> {
         // Validate index exists in metadata context
-        if metadata_context.get_index_metadata(&lookup.index_name).is_none() {
+        if metadata_context
+            .get_index_metadata(&lookup.index_name)
+            .is_none()
+        {
             return Err(PlannerError::IndexNotFound(lookup.index_name.clone()));
         }
 
@@ -584,8 +587,7 @@ mod tests {
     use super::*;
     use crate::core::types::span::Span;
     use crate::query::parser::ast::vector::{
-        VectorIndexConfig, VectorQueryExpr, VectorQueryType, VectorYieldClause,
-        VectorYieldItem,
+        VectorIndexConfig, VectorQueryExpr, VectorQueryType, VectorYieldClause, VectorYieldItem,
     };
 
     #[test]
@@ -610,7 +612,10 @@ mod tests {
             index_name: "idx".to_string(),
             schema_name: "tag".to_string(),
             field_name: "vec".to_string(),
-            config: VectorIndexConfig::new(128, crate::query::parser::ast::vector::VectorDistance::Cosine),
+            config: VectorIndexConfig::new(
+                128,
+                crate::query::parser::ast::vector::VectorDistance::Cosine,
+            ),
             if_not_exists: false,
         });
         assert!(planner.match_planner(&create_stmt));

@@ -670,11 +670,21 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         query_context: Arc<QueryContext>,
         plan: crate::query::planning::plan::ExecutionPlan,
     ) -> DBResult<ExecutionResult> {
-        use crate::query::executor::factory::executors::plan_executor::PlanExecutor;
+        use crate::query::executor::factory::engine::PlanExecutor;
         let mut plan_executor =
             PlanExecutor::with_object_pool(self.executor_factory.clone(), self.object_pool.clone());
+
+        // Get expression context from query context
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
+
+        let storage = self.executor_factory.storage.clone().ok_or_else(|| {
+            DBError::from(QueryError::ExecutionError(
+                "Storage not available".to_string(),
+            ))
+        })?;
+
         plan_executor
-            .execute_plan(query_context, plan)
+            .execute_plan(&plan, storage, expr_ctx)
             .map_err(|e| DBError::from(QueryError::pipeline_execution_error(e)))
     }
 

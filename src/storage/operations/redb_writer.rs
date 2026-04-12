@@ -1,6 +1,6 @@
 use crate::core::{Edge, StorageError, Value, Vertex};
-use crate::storage::operations::{EdgeWriter, VertexWriter};
 use crate::storage::engine::{ByteKey, EDGES_TABLE, NODES_TABLE};
+use crate::storage::operations::{EdgeWriter, VertexWriter};
 use crate::transaction::types::OperationLog;
 use crate::transaction::TransactionContext;
 use crate::utils::id_gen::generate_id;

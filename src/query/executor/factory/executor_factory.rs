@@ -11,15 +11,14 @@ use crate::query::executor::factory::builders::{
     DataProcessingBuilder, FulltextSearchBuilder, JoinBuilder, SetOperationBuilder,
     TransformationBuilder, TraversalBuilder, VectorSearchBuilder,
 };
-use crate::query::executor::factory::validators::RecursionDetector;
+use crate::query::executor::recursion_detector::{
+    ExecutorSafetyConfig, PlanValidator, RecursionDetector,
+};
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::storage::StorageClient;
 use crate::sync::SyncManager;
 use parking_lot::Mutex;
 use std::sync::Arc;
-
-// Import security configuration type
-use crate::query::executor::factory::validators::safety_validator::ExecutorSafetyConfig;
 
 /// Actuator Factory
 ///
@@ -120,27 +119,11 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
 
     /// Verify the security of the plan nodes.
     fn validate_plan_node(&self, plan_node: &PlanNodeEnum) -> Result<(), QueryError> {
-        match plan_node {
-            PlanNodeEnum::Expand(node) => {
-                let step_limit = node
-                    .step_limit()
-                    .and_then(|s| usize::try_from(s).ok())
-                    .unwrap_or(10);
-                if step_limit > 1000 {
-                    return Err(QueryError::ExecutionError(format!(
-                        "The number of steps limit for the Expand executor {} exceeds the safety threshold of 1000.",
-                        step_limit
-                    )));
-                }
-            }
-            PlanNodeEnum::Loop(_) => {
-                return Err(QueryError::ExecutionError(
-                    "循环执行器需要手动构建，不支持通过工厂自动创建".to_string(),
-                ));
-            }
-            _ => {}
-        }
-        Ok(())
+        let validator = PlanValidator::new();
+        validator.validate(plan_node).map_err(|e| match e {
+            crate::core::error::DBError::Query(qe) => qe,
+            _ => QueryError::ExecutionError(e.to_string()),
+        })
     }
 
     /// Create an executor based on the planned node.

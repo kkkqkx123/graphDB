@@ -188,10 +188,7 @@ impl SeekStrategySelector {
         })
     }
 
-    pub fn select_strategy(
-        &self,
-        context: &SeekStrategyContext,
-    ) -> SeekStrategyType {
+    pub fn select_strategy(&self, context: &SeekStrategyContext) -> SeekStrategyType {
         if context.has_explicit_vid() {
             SeekStrategyType::VertexSeek
         } else if context.has_property_predicates() && context.has_index_for_properties() {

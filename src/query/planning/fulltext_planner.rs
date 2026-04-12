@@ -69,9 +69,7 @@ impl Planner for FulltextSearchPlanner {
                 self.transform_describe_fulltext_index(describe)
             }
             Stmt::Search(search) => self.transform_search(search),
-            Stmt::LookupFulltext(lookup) => {
-                self.transform_lookup_fulltext(lookup, &space_name)
-            }
+            Stmt::LookupFulltext(lookup) => self.transform_lookup_fulltext(lookup, &space_name),
             Stmt::MatchFulltext(match_stmt) => self.transform_match_fulltext(match_stmt),
             _ => Err(PlannerError::PlanGenerationFailed(
                 "Not a full-text search statement".to_string(),
@@ -103,9 +101,12 @@ impl Planner for FulltextSearchPlanner {
         let space_name = qctx.space_name().unwrap_or_else(|| "default".to_string());
 
         match stmt {
-            Stmt::CreateFulltextIndex(create) => {
-                self.transform_create_fulltext_index_with_metadata(create, &space_name, metadata_context)
-            }
+            Stmt::CreateFulltextIndex(create) => self
+                .transform_create_fulltext_index_with_metadata(
+                    create,
+                    &space_name,
+                    metadata_context,
+                ),
             Stmt::DropFulltextIndex(drop) => self.transform_drop_fulltext_index(drop),
             Stmt::AlterFulltextIndex(alter) => {
                 self.transform_alter_fulltext_index_with_metadata(alter, metadata_context)
@@ -114,9 +115,7 @@ impl Planner for FulltextSearchPlanner {
             Stmt::DescribeFulltextIndex(describe) => {
                 self.transform_describe_fulltext_index_with_metadata(describe, metadata_context)
             }
-            Stmt::Search(search) => {
-                self.transform_search_with_metadata(search, metadata_context)
-            }
+            Stmt::Search(search) => self.transform_search_with_metadata(search, metadata_context),
             Stmt::LookupFulltext(lookup) => {
                 self.transform_lookup_fulltext_with_metadata(lookup, &space_name, metadata_context)
             }
@@ -217,7 +216,10 @@ impl FulltextSearchPlanner {
         metadata_context: &MetadataContext,
     ) -> Result<SubPlan, PlannerError> {
         // Validate that the index exists
-        if metadata_context.get_index_metadata(&alter.index_name).is_none() {
+        if metadata_context
+            .get_index_metadata(&alter.index_name)
+            .is_none()
+        {
             return Err(PlannerError::IndexNotFound(alter.index_name.clone()));
         }
 
@@ -254,7 +256,10 @@ impl FulltextSearchPlanner {
         metadata_context: &MetadataContext,
     ) -> Result<SubPlan, PlannerError> {
         // Validate that the index exists
-        if metadata_context.get_index_metadata(&describe.index_name).is_none() {
+        if metadata_context
+            .get_index_metadata(&describe.index_name)
+            .is_none()
+        {
             return Err(PlannerError::IndexNotFound(describe.index_name.clone()));
         }
 
@@ -289,7 +294,10 @@ impl FulltextSearchPlanner {
         metadata_context: &MetadataContext,
     ) -> Result<SubPlan, PlannerError> {
         // Validate index exists
-        if metadata_context.get_index_metadata(&search.index_name).is_none() {
+        if metadata_context
+            .get_index_metadata(&search.index_name)
+            .is_none()
+        {
             return Err(PlannerError::IndexNotFound(search.index_name.clone()));
         }
 
@@ -341,7 +349,10 @@ impl FulltextSearchPlanner {
         metadata_context: &MetadataContext,
     ) -> Result<SubPlan, PlannerError> {
         // Validate index exists
-        if metadata_context.get_index_metadata(&lookup.index_name).is_none() {
+        if metadata_context
+            .get_index_metadata(&lookup.index_name)
+            .is_none()
+        {
             return Err(PlannerError::IndexNotFound(lookup.index_name.clone()));
         }
 
@@ -595,7 +606,10 @@ mod tests {
 
         // Empty field should fail
         assert!(planner
-            .validate_query_expr(&FulltextQueryExpr::Field("".to_string(), "query".to_string()))
+            .validate_query_expr(&FulltextQueryExpr::Field(
+                "".to_string(),
+                "query".to_string()
+            ))
             .is_err());
     }
 

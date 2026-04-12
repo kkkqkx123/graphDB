@@ -16,6 +16,7 @@ use crate::query::QueryContext;
 // The ValidatedStatement is publicly exported for use by the planner implementation.
 pub use crate::query::validator::ValidatedStatement;
 
+use crate::query::planning::fulltext_planner::FulltextSearchPlanner;
 use crate::query::planning::statements::ddl::maintain_planner::MaintainPlanner;
 use crate::query::planning::statements::ddl::use_planner::UsePlanner;
 use crate::query::planning::statements::ddl::user_management_planner::UserManagementPlanner;
@@ -36,7 +37,6 @@ use crate::query::planning::statements::dql::set_operation_planner::SetOperation
 use crate::query::planning::statements::dql::subgraph_planner::SubgraphPlanner;
 use crate::query::planning::statements::dql::with_planner::WithPlanner;
 use crate::query::planning::statements::dql::yield_planner::YieldPlanner;
-use crate::query::planning::fulltext_planner::FulltextSearchPlanner;
 use crate::query::planning::statements::match_statement_planner::MatchStatementPlanner;
 use crate::query::planning::vector_planner::VectorSearchPlanner;
 

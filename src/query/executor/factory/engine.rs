@@ -1,4 +1,4 @@
-//! Plan Executor
+//! Plan Executor Engine
 //!
 //! Responsible for executing the execution plan and managing the lifecycle of the executor tree.
 
@@ -8,7 +8,7 @@ use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::object_pool::ThreadSafeExecutorPool;
 use crate::query::planning::plan::ExecutionPlan;
 use crate::query::planning::plan::PlanNodeEnum;
-use crate::query::QueryContext;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -148,8 +148,10 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
                             .output_var()
                             .map(|v| v.to_string())
                             .unwrap_or_else(|| format!("child_{}_0", plan_node.id()));
-                        if let Some(result) = context.get_result(&first_var) {
-                            context.set_result(input_var, result);
+                        if input_var != first_var {
+                            if let Some(first_result) = context.get_result(&first_var) {
+                                context.set_result(input_var, first_result);
+                            }
                         }
                     }
                 }
@@ -159,151 +161,44 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
         Ok(executor)
     }
 
-    /// Execute the execution plan.
+    /// Execute the query plan and return the result.
     pub fn execute_plan(
         &mut self,
-        query_context: Arc<QueryContext>,
-        plan: ExecutionPlan,
+        plan: &ExecutionPlan,
+        storage: Arc<Mutex<S>>,
+        expression_context: Arc<ExpressionAnalysisContext>,
     ) -> Result<ExecutionResult, QueryError> {
-        // Obtaining the storage engine
-        let storage = match &self.factory.storage {
-            Some(storage) => storage.clone(),
-            None => return Err(QueryError::ExecutionError("存储引擎未设置".to_string())),
-        };
+        let context = ExecutionContext::new(expression_context);
 
-        // Obtain the root node
-        let root_node = match plan.root() {
-            Some(node) => node,
-            None => return Err(QueryError::ExecutionError("执行计划没有根节点".to_string())),
-        };
+        // Build the executor chain from the plan root
+        let root_node = plan.root().as_ref().ok_or_else(|| {
+            QueryError::ExecutionError("Execution plan has no root node".to_string())
+        })?;
+        let mut root_executor = self.build_executor_chain(root_node, storage.clone(), &context)?;
 
-        // Analyzing the lifecycle and security of execution plans
-        self.factory.analyze_plan_lifecycle(root_node)?;
-
-        // Check whether the query was terminated.
-        if query_context.is_killed() {
-            return Err(QueryError::ExecutionError("查询已被终止".to_string()));
-        }
-
-        // Create an execution context.
-        let expr_context =
-            Arc::new(crate::query::validator::context::ExpressionAnalysisContext::new());
-        let execution_context =
-            ExecutionContext::with_parameters(expr_context, query_context.parameters().clone());
-
-        let executor_type = root_node.name();
-        let is_stateful_executor = matches!(
-            executor_type,
-            "CreateSpace"
-                | "DropSpace"
-                | "DescSpace"
-                | "CreateTag"
-                | "AlterTag"
-                | "DropTag"
-                | "DescTag"
-                | "CreateEdge"
-                | "AlterEdge"
-                | "DropEdge"
-                | "DescEdge"
-                | "CreateTagIndex"
-                | "DropTagIndex"
-                | "DescTagIndex"
-                | "RebuildTagIndex"
-                | "CreateEdgeIndex"
-                | "DropEdgeIndex"
-                | "DescEdgeIndex"
-                | "RebuildEdgeIndex"
-                | "CreateUser"
-                | "AlterUser"
-                | "DropUser"
-                | "GrantRole"
-                | "RevokeRole"
-                | "ChangePassword"
-                | "ShowSpaces"
-                | "ShowTags"
-                | "ShowEdges"
-                | "ShowStats"
-                | "ShowTagIndexes"
-                | "ShowEdgeIndexes"
-                | "SwitchSpace"
-                | "ClearSpace"
-                | "InsertVertices"
-                | "InsertEdges"
-                | "DeleteVertices"
-                | "DeleteEdges"
-                | "Remove"
-                | "Update"
-                | "UpdateVertices"
-                | "UpdateEdges"
-                | "Project"
-                | "Filter"
-                | "Limit"
-                | "Sort"
-                | "TopN"
-                | "Aggregate"
-                | "Dedup"
-                | "Sample"
-                | "GetVertices"
-                | "GetEdges"
-                | "GetNeighbors"
-                | "ScanVertices"
-                | "ScanEdges"
-                | "Expand"
-                | "ExpandAll"
-                | "Traverse"
-                | "ShortestPath"
-                | "AllPaths"
-                | "BFSShortest"
-                | "MultiShortestPath"
-                | "Materialize"
-                | "Loop"
-                | "Select"
-                | "Union"
-                | "Minus"
-                | "Intersect"
-                | "InnerJoin"
-                | "LeftJoin"
-                | "CrossJoin"
-                | "DataCollect"
-                | "Unwind"
-                | "Assign"
-                | "RollupApply"
-                | "PatternApply"
-                | "AppendVertices"
-                | "IndexScan"
-                | "EdgeIndexScan"
-                | "HashInnerJoin"
-                | "HashLeftJoin"
-                | "FullOuterJoin"
-        );
-
-        let mut executor = if is_stateful_executor || self.object_pool.is_none() {
-            self.build_executor_chain(root_node, storage, &execution_context)?
-        } else if let Some(pool) = &self.object_pool {
-            if let Some(pooled_executor) = pool.acquire(executor_type) {
-                log::debug!("从对象池获取执行器: {}", executor_type);
-                pooled_executor
-            } else {
-                log::debug!("对象池未命中，创建新执行器: {}", executor_type);
-                self.build_executor_chain(root_node, storage, &execution_context)?
-            }
-        } else {
-            self.build_executor_chain(root_node, storage, &execution_context)?
-        };
-
-        let result = executor
+        // Execute the root executor
+        root_executor
             .execute()
-            .map_err(|e| QueryError::ExecutionError(format!("Executor execution failed: {}", e)))?;
+            .map_err(|e| QueryError::ExecutionError(e.to_string()))
+    }
 
-        if let Some(pool) = &self.object_pool {
-            if !is_stateful_executor {
-                pool.release(executor_type, executor);
-                log::debug!("执行器已释放回对象池: {}", executor_type);
-            } else {
-                log::debug!("Stateful执行器不释放到对象池: {}", executor_type);
-            }
-        }
+    /// Get the executor factory.
+    pub fn factory(&self) -> &ExecutorFactory<S> {
+        &self.factory
+    }
 
-        Ok(result)
+    /// Get the mutable executor factory.
+    pub fn factory_mut(&mut self) -> &mut ExecutorFactory<S> {
+        &mut self.factory
+    }
+
+    /// Set the object pool.
+    pub fn set_object_pool(&mut self, pool: Arc<ThreadSafeExecutorPool<S>>) {
+        self.object_pool = Some(pool);
+    }
+
+    /// Get the object pool.
+    pub fn object_pool(&self) -> Option<&Arc<ThreadSafeExecutorPool<S>>> {
+        self.object_pool.as_ref()
     }
 }

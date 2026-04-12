@@ -25,35 +25,3 @@ pub use set_operation_builder::SetOperationBuilder;
 pub use transformation_builder::TransformationBuilder;
 pub use traversal_builder::TraversalBuilder;
 pub use vector_search_builder::VectorSearchBuilder;
-
-use crate::storage::StorageClient;
-
-/// Collection of builders
-///
-/// Simplified structure - all builder methods are now associated functions.
-/// This struct serves as a marker type and provides a unified interface through
-/// the individual builder types.
-pub struct Builders<S: StorageClient + Send + 'static> {
-    _phantom: std::marker::PhantomData<S>,
-}
-
-impl<S: StorageClient + Send + 'static> Builders<S> {
-    /// Create a new set of builders.
-    pub fn new() -> Self {
-        Self {
-            _phantom: std::marker::PhantomData,
-        }
-    }
-}
-
-impl<S: StorageClient + 'static> Clone for Builders<S> {
-    fn clone(&self) -> Self {
-        Self::new()
-    }
-}
-
-impl<S: StorageClient + 'static> Default for Builders<S> {
-    fn default() -> Self {
-        Self::new()
-    }
-}

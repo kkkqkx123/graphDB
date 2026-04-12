@@ -262,6 +262,60 @@ impl Default for ExecutorSafetyValidator {
     }
 }
 
+/// Plan node validator for executor factory
+///
+/// Validates plan nodes before executor creation to ensure safety constraints.
+pub struct PlanValidator;
+
+impl PlanValidator {
+    /// Create a new plan validator.
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Validate plan node safety constraints.
+    ///
+    /// Checks:
+    /// - Expand node step limits
+    /// - Loop node restrictions (must be manually constructed)
+    pub fn validate(
+        &self,
+        plan_node: &crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+    ) -> crate::core::error::DBResult<()> {
+        use crate::core::error::QueryError;
+        use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+
+        match plan_node {
+            PlanNodeEnum::Expand(node) => {
+                let step_limit = node
+                    .step_limit()
+                    .and_then(|s| usize::try_from(s).ok())
+                    .unwrap_or(10);
+                if step_limit > 1000 {
+                    return Err(QueryError::ExecutionError(format!(
+                        "Expand executor step limit {} exceeds safety threshold 1000",
+                        step_limit
+                    ))
+                    .into());
+                }
+            }
+            PlanNodeEnum::Loop(_) => {
+                return Err(QueryError::ExecutionError(
+                    "Loop executor needs to be built manually, automatic creation through factory is not supported".to_string(),
+                ).into());
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+}
+
+impl Default for PlanValidator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
