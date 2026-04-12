@@ -2,6 +2,7 @@
 //!
 //! Unified synchronization manager using SyncCoordinator.
 
+use crate::coordinator::FulltextCoordinator;
 use crate::core::error::CoordinatorError;
 use crate::core::Value;
 use crate::search::SyncConfig;
@@ -13,6 +14,9 @@ use crate::sync::vector_sync::VectorSyncCoordinator;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+
+// Re-export vector_client types for unified API
+pub use vector_client::{CollectionConfig, SearchResult};
 
 pub struct SyncManager {
     sync_coordinator: Arc<SyncCoordinator>,
@@ -565,6 +569,13 @@ impl SyncManager {
         self.vector_coordinator.as_ref()
     }
 
+    /// Get the fulltext coordinator
+    pub fn fulltext_coordinator(&self) -> Option<Arc<FulltextCoordinator>> {
+        Some(Arc::new(FulltextCoordinator::new(
+            self.sync_coordinator.fulltext_manager().clone(),
+        )))
+    }
+
     pub fn is_running(&self) -> bool {
         self.running.load(std::sync::atomic::Ordering::SeqCst)
     }
@@ -636,6 +647,85 @@ impl SyncManager {
             dlq.get_unrecovered().len()
         } else {
             0
+        }
+    }
+
+    // ===== Unified Index Management API =====
+
+    /// Check if vector index exists
+    pub fn vector_index_exists(&self, space_id: u64, tag_name: &str, field_name: &str) -> bool {
+        if let Some(ref vector_coord) = self.vector_coordinator {
+            vector_coord.index_exists(space_id, tag_name, field_name)
+        } else {
+            false
+        }
+    }
+
+    /// Create vector index
+    pub async fn create_vector_index(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+        vector_size: usize,
+        distance: vector_client::DistanceMetric,
+    ) -> Result<String, SyncError> {
+        if let Some(ref vector_coord) = self.vector_coordinator {
+            vector_coord
+                .create_vector_index(space_id, tag_name, field_name, vector_size, distance)
+                .await
+                .map_err(|e| SyncError::VectorError(e.to_string()))
+        } else {
+            Err(SyncError::Internal(
+                "Vector coordinator not available".to_string(),
+            ))
+        }
+    }
+
+    /// Drop vector index
+    pub async fn drop_vector_index(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+    ) -> Result<(), SyncError> {
+        if let Some(ref vector_coord) = self.vector_coordinator {
+            vector_coord
+                .drop_vector_index(space_id, tag_name, field_name)
+                .await
+                .map_err(|e| SyncError::VectorError(e.to_string()))
+        } else {
+            Err(SyncError::Internal(
+                "Vector coordinator not available".to_string(),
+            ))
+        }
+    }
+
+    /// Search vector index
+    pub async fn search_vector(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+        vector: &[f32],
+        top_k: usize,
+    ) -> Result<Vec<SearchResult>, SyncError> {
+        if let Some(ref vector_coord) = self.vector_coordinator {
+            let options = crate::sync::vector_sync::SearchOptions::new(
+                space_id,
+                tag_name,
+                field_name,
+                vector.to_vec(),
+                top_k,
+            );
+            vector_coord
+                .search_with_options(options)
+                .await
+                .map_err(|e| SyncError::VectorError(e.to_string()))
+        } else {
+            Err(SyncError::Internal(
+                "Vector coordinator not available".to_string(),
+            ))
         }
     }
 }

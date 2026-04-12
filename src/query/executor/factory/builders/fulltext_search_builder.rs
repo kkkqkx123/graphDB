@@ -1,0 +1,292 @@
+//! Full-Text Search Executor Builder
+//!
+//! Responsible for creating full-text search related executors.
+//! This module isolates the complex synchronization dependencies required by full-text search operations.
+
+use std::sync::Arc;
+
+use parking_lot::Mutex;
+
+use crate::core::error::QueryError;
+use crate::core::types::span::Span;
+use crate::query::executor::admin::{
+    AlterFulltextIndexExecutor, CreateFulltextIndexConfig, CreateFulltextIndexExecutor,
+    DescribeFulltextIndexExecutor, DropFulltextIndexExecutor, ShowFulltextIndexExecutor,
+};
+use crate::query::executor::base::ExecutionContext;
+use crate::query::executor::data_access::{
+    FulltextScanConfig, FulltextScanExecutor, FulltextSearchExecutor, MatchFulltextExecutor,
+};
+use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::parser::ast::SearchStatement;
+use crate::query::planning::plan::core::nodes::{
+    AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
+    DropFulltextIndexNode, FulltextLookupNode, MatchFulltextNode, ShowFulltextIndexNode,
+};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
+use crate::query::planning::plan::core::nodes::search::fulltext::data_access::FulltextSearchNode;
+use crate::storage::StorageClient;
+use crate::sync::SyncManager;
+
+/// Full-Text Search Executor Builder
+///
+/// Handles the creation of all full-text search related executors.
+/// These executors require special coordination with the FulltextCoordinator
+/// for managing full-text index operations and external search engine synchronization.
+pub struct FulltextSearchBuilder<S: StorageClient + Send + 'static> {
+    _phantom: std::marker::PhantomData<S>,
+}
+
+impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
+    /// Create a new full-text search builder.
+    pub fn new() -> Self {
+        Self {
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Build CreateFulltextIndex executor
+    pub fn build_create_fulltext_index(
+        node: &CreateFulltextIndexNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+        sync_manager: Option<&Arc<SyncManager>>,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let coordinator = sync_manager
+            .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
+            .fulltext_coordinator()
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
+            })?;
+
+        let space_id = context.current_space_id().unwrap_or(0);
+
+        let executor = CreateFulltextIndexExecutor::new(
+            node.id(),
+            storage,
+            CreateFulltextIndexConfig {
+                index_name: node.index_name.clone(),
+                schema_name: node.schema_name.clone(),
+                fields: node.fields.clone(),
+                engine_type: node.engine_type,
+                options: node.options.clone(),
+                if_not_exists: node.if_not_exists,
+                space_id,
+            },
+            context.expression_context().clone(),
+            coordinator,
+        );
+        Ok(ExecutorEnum::CreateFulltextIndex(executor))
+    }
+
+    /// Build DropFulltextIndex executor
+    pub fn build_drop_fulltext_index(
+        node: &DropFulltextIndexNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+        sync_manager: Option<&Arc<SyncManager>>,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let coordinator = sync_manager
+            .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
+            .fulltext_coordinator()
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
+            })?;
+
+        let space_id = context.current_space_id().unwrap_or(0);
+
+        let executor = DropFulltextIndexExecutor::new(
+            node.id(),
+            storage,
+            node.index_name.clone(),
+            node.if_exists,
+            space_id,
+            context.expression_context().clone(),
+            coordinator,
+        );
+        Ok(ExecutorEnum::DropFulltextIndex(executor))
+    }
+
+    /// Build AlterFulltextIndex executor
+    pub fn build_alter_fulltext_index(
+        node: &AlterFulltextIndexNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+        sync_manager: Option<&Arc<SyncManager>>,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let coordinator = sync_manager
+            .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
+            .fulltext_coordinator()
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
+            })?;
+
+        let executor = AlterFulltextIndexExecutor::new(
+            node.id(),
+            storage,
+            node.index_name.clone(),
+            node.actions.clone(),
+            context.expression_context().clone(),
+            coordinator,
+        );
+        Ok(ExecutorEnum::AlterFulltextIndex(executor))
+    }
+
+    /// Build ShowFulltextIndex executor
+    pub fn build_show_fulltext_index(
+        node: &ShowFulltextIndexNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+        sync_manager: Option<&Arc<SyncManager>>,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let coordinator = sync_manager
+            .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
+            .fulltext_coordinator()
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
+            })?;
+
+        let executor = ShowFulltextIndexExecutor::new(
+            node.id(),
+            storage,
+            context.expression_context().clone(),
+            coordinator,
+        );
+        Ok(ExecutorEnum::ShowFulltextIndex(executor))
+    }
+
+    /// Build DescribeFulltextIndex executor
+    pub fn build_describe_fulltext_index(
+        node: &DescribeFulltextIndexNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+        sync_manager: Option<&Arc<SyncManager>>,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let coordinator = sync_manager
+            .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
+            .fulltext_coordinator()
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
+            })?;
+
+        let space_id = context.current_space_id().unwrap_or(0);
+
+        let executor = DescribeFulltextIndexExecutor::new(
+            node.id(),
+            storage,
+            node.index_name.clone(),
+            space_id,
+            context.expression_context().clone(),
+            coordinator,
+        );
+        Ok(ExecutorEnum::DescribeFulltextIndex(executor))
+    }
+
+    /// Build FulltextSearch executor
+    pub fn build_fulltext_search(
+        node: &FulltextSearchNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+        sync_manager: Option<&Arc<SyncManager>>,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let statement = SearchStatement {
+            span: Span::default(),
+            index_name: node.index_name.clone(),
+            query: node.query.clone(),
+            yield_clause: node.yield_clause.clone(),
+            where_clause: node.where_clause.clone(),
+            order_clause: node.order_clause.clone(),
+            limit: node.limit,
+            offset: node.offset,
+        };
+
+        let search_engine = context
+            .search_engine()
+            .ok_or_else(|| QueryError::ExecutionError("Search engine not available".to_string()))?
+            .clone();
+
+        let coordinator = sync_manager
+            .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
+            .fulltext_coordinator()
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
+            })?;
+
+        let executor = FulltextSearchExecutor::new(
+            node.id(),
+            statement,
+            search_engine,
+            context.clone(),
+            storage,
+            context.expression_context().clone(),
+            coordinator,
+        );
+        Ok(ExecutorEnum::FulltextSearch(executor))
+    }
+
+    /// Build FulltextLookup executor
+    pub fn build_fulltext_lookup(
+        node: &FulltextLookupNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+        sync_manager: Option<&Arc<SyncManager>>,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let search_engine = context
+            .search_engine()
+            .ok_or_else(|| QueryError::ExecutionError("Search engine not available".to_string()))?
+            .clone();
+
+        let coordinator = sync_manager
+            .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
+            .fulltext_coordinator()
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
+            })?;
+
+        let executor = FulltextScanExecutor::new(
+            node.id(),
+            FulltextScanConfig {
+                index_name: node.index_name.clone(),
+                query: node.query.clone(),
+                limit: node.limit,
+            },
+            search_engine,
+            context.clone(),
+            storage,
+            context.expression_context().clone(),
+            coordinator,
+        );
+        Ok(ExecutorEnum::FulltextLookup(executor))
+    }
+
+    /// Build MatchFulltext executor
+    pub fn build_match_fulltext(
+        node: &MatchFulltextNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+        sync_manager: Option<&Arc<SyncManager>>,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let coordinator = sync_manager
+            .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
+            .fulltext_coordinator()
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
+            })?;
+
+        let executor = MatchFulltextExecutor::new(
+            node.id(),
+            storage,
+            node.fulltext_condition.clone(),
+            node.yield_clause.clone(),
+            context.expression_context().clone(),
+            coordinator,
+        );
+        Ok(ExecutorEnum::MatchFulltext(executor))
+    }
+}
+
+impl<S: StorageClient + 'static> Default for FulltextSearchBuilder<S> {
+    fn default() -> Self {
+        Self::new()
+    }
+}

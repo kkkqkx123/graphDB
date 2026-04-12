@@ -3,21 +3,18 @@
 //! Coordinating various builders, parsers, and validators
 //! Responsible for creating the corresponding executor instances based on the execution plan.
 
-use crate::coordinator::FulltextCoordinator;
 use crate::core::error::QueryError;
-use crate::core::types::span::Span;
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::factory::builders::{
     AdminBuilder, ControlFlowBuilder, DataAccessBuilder, DataModificationBuilder,
-    DataProcessingBuilder, JoinBuilder, SetOperationBuilder, TransformationBuilder,
-    TraversalBuilder,
+    DataProcessingBuilder, FulltextSearchBuilder, JoinBuilder, SetOperationBuilder,
+    TransformationBuilder, TraversalBuilder, VectorSearchBuilder,
 };
 use crate::query::executor::factory::validators::RecursionDetector;
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::storage::StorageClient;
-use crate::sync::vector_sync::VectorSyncCoordinator;
+use crate::sync::SyncManager;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
@@ -31,8 +28,7 @@ pub struct ExecutorFactory<S: StorageClient + Send + 'static> {
     pub(crate) storage: Option<Arc<Mutex<S>>>,
     pub(crate) config: ExecutorSafetyConfig,
     pub(crate) recursion_detector: RecursionDetector,
-    pub(crate) fulltext_coordinator: Option<Arc<FulltextCoordinator>>,
-    pub(crate) vector_coordinator: Option<Arc<VectorSyncCoordinator>>,
+    pub(crate) sync_manager: Option<Arc<SyncManager>>,
 }
 
 impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
@@ -45,8 +41,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             storage: None,
             config,
             recursion_detector,
-            fulltext_coordinator: None,
-            vector_coordinator: None,
+            sync_manager: None,
         }
     }
 
@@ -57,34 +52,32 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         factory
     }
 
-    /// Setting the fulltext coordinator
-    pub fn with_fulltext_coordinator(coordinator: Arc<FulltextCoordinator>) -> Self {
+    /// Setting the sync manager
+    pub fn with_sync_manager(sync_manager: Arc<SyncManager>) -> Self {
         let mut factory = Self::new();
-        factory.fulltext_coordinator = Some(coordinator);
+        factory.sync_manager = Some(sync_manager);
         factory
     }
 
-    /// Setting the vector coordinator
-    pub fn with_vector_coordinator(coordinator: Arc<VectorSyncCoordinator>) -> Self {
-        let mut factory = Self::new();
-        factory.vector_coordinator = Some(coordinator);
-        factory
-    }
-
-    /// Setting both storage and fulltext coordinator
-    pub fn with_storage_and_coordinator(
+    /// Setting both storage and sync manager
+    pub fn with_storage_and_sync_manager(
         storage: Arc<Mutex<S>>,
-        coordinator: Arc<FulltextCoordinator>,
+        sync_manager: Arc<SyncManager>,
     ) -> Self {
         let mut factory = Self::new();
         factory.storage = Some(storage);
-        factory.fulltext_coordinator = Some(coordinator);
+        factory.sync_manager = Some(sync_manager);
         factory
     }
 
-    /// Set fulltext coordinator
-    pub fn set_fulltext_coordinator(&mut self, coordinator: Arc<FulltextCoordinator>) {
-        self.fulltext_coordinator = Some(coordinator);
+    /// Set sync manager
+    pub fn set_sync_manager(&mut self, sync_manager: Arc<SyncManager>) {
+        self.sync_manager = Some(sync_manager);
+    }
+
+    /// Get sync manager
+    pub fn sync_manager(&self) -> Option<Arc<SyncManager>> {
+        self.sync_manager.clone()
     }
 
     /// Analyzing the lifecycle and security of execution plans
@@ -409,38 +402,101 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
 
             // Full-text Search Executors
             PlanNodeEnum::CreateFulltextIndex(node) => {
-                self.build_create_fulltext_index(node, storage, context)
+                FulltextSearchBuilder::build_create_fulltext_index(
+                    node,
+                    storage,
+                    context,
+                    self.sync_manager.as_ref(),
+                )
             }
             PlanNodeEnum::DropFulltextIndex(node) => {
-                self.build_drop_fulltext_index(node, storage, context)
+                FulltextSearchBuilder::build_drop_fulltext_index(
+                    node,
+                    storage,
+                    context,
+                    self.sync_manager.as_ref(),
+                )
             }
             PlanNodeEnum::AlterFulltextIndex(node) => {
-                self.build_alter_fulltext_index(node, storage, context)
+                FulltextSearchBuilder::build_alter_fulltext_index(
+                    node,
+                    storage,
+                    context,
+                    self.sync_manager.as_ref(),
+                )
             }
             PlanNodeEnum::ShowFulltextIndex(node) => {
-                self.build_show_fulltext_index(node, storage, context)
+                FulltextSearchBuilder::build_show_fulltext_index(
+                    node,
+                    storage,
+                    context,
+                    self.sync_manager.as_ref(),
+                )
             }
             PlanNodeEnum::DescribeFulltextIndex(node) => {
-                self.build_describe_fulltext_index(node, storage, context)
+                FulltextSearchBuilder::build_describe_fulltext_index(
+                    node,
+                    storage,
+                    context,
+                    self.sync_manager.as_ref(),
+                )
             }
             PlanNodeEnum::FulltextSearch(node) => {
-                self.build_fulltext_search(node, storage, context)
+                FulltextSearchBuilder::build_fulltext_search(
+                    node,
+                    storage,
+                    context,
+                    self.sync_manager.as_ref(),
+                )
             }
             PlanNodeEnum::FulltextLookup(node) => {
-                self.build_fulltext_lookup(node, storage, context)
+                FulltextSearchBuilder::build_fulltext_lookup(
+                    node,
+                    storage,
+                    context,
+                    self.sync_manager.as_ref(),
+                )
             }
-            PlanNodeEnum::MatchFulltext(node) => self.build_match_fulltext(node, storage, context),
+            PlanNodeEnum::MatchFulltext(node) => FulltextSearchBuilder::build_match_fulltext(
+                node,
+                storage,
+                context,
+                self.sync_manager.as_ref(),
+            ),
 
-            // Vector Search Executor
-            PlanNodeEnum::VectorSearch(node) => self.build_vector_search(node, storage, context),
+            // Vector Search Executors
+            PlanNodeEnum::VectorSearch(node) => VectorSearchBuilder::build_vector_search(
+                node,
+                storage,
+                context,
+                self.sync_manager.as_ref(),
+            ),
             PlanNodeEnum::CreateVectorIndex(node) => {
-                self.build_create_vector_index(node, storage, context)
+                VectorSearchBuilder::build_create_vector_index(
+                    node,
+                    storage,
+                    context,
+                    self.sync_manager.as_ref(),
+                )
             }
-            PlanNodeEnum::DropVectorIndex(node) => {
-                self.build_drop_vector_index(node, storage, context)
-            }
-            PlanNodeEnum::VectorLookup(node) => self.build_vector_lookup(node, storage, context),
-            PlanNodeEnum::VectorMatch(node) => self.build_vector_match(node, storage, context),
+            PlanNodeEnum::DropVectorIndex(node) => VectorSearchBuilder::build_drop_vector_index(
+                node,
+                storage,
+                context,
+                self.sync_manager.as_ref(),
+            ),
+            PlanNodeEnum::VectorLookup(node) => VectorSearchBuilder::build_vector_lookup(
+                node,
+                storage,
+                context,
+                self.sync_manager.as_ref(),
+            ),
+            PlanNodeEnum::VectorMatch(node) => VectorSearchBuilder::build_vector_match(
+                node,
+                storage,
+                context,
+                self.sync_manager.as_ref(),
+            ),
         }
     }
 
@@ -472,8 +528,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 storage: self.storage.clone(),
                 config,
                 recursion_detector: RecursionDetector::new(max_recursion_depth),
-                fulltext_coordinator: self.fulltext_coordinator.clone(),
-                vector_coordinator: self.vector_coordinator.clone(),
+                sync_manager: self.sync_manager.clone(),
             };
 
             temp_factory.create_executor(body, storage.clone(), context)?
@@ -529,8 +584,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 storage: self.storage.clone(),
                 config,
                 recursion_detector: RecursionDetector::new(max_recursion_depth),
-                fulltext_coordinator: self.fulltext_coordinator.clone(),
-                vector_coordinator: self.vector_coordinator.clone(),
+                sync_manager: self.sync_manager.clone(),
             };
 
             temp_factory.create_executor(if_node, storage.clone(), context)?
@@ -545,8 +599,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                     storage: self.storage.clone(),
                     config,
                     recursion_detector: RecursionDetector::new(max_recursion_depth),
-                    fulltext_coordinator: self.fulltext_coordinator.clone(),
-                    vector_coordinator: self.vector_coordinator.clone(),
+                    sync_manager: self.sync_manager.clone(),
                 };
 
                 Some(temp_factory.create_executor(else_node, storage.clone(), context)?)
@@ -567,398 +620,6 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         Ok(ExecutorEnum::Select(executor))
     }
 
-    // Full-text search executor building methods
-
-    fn build_create_fulltext_index(
-        &mut self,
-        node: &crate::query::planning::plan::core::nodes::CreateFulltextIndexNode,
-        storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
-    ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::admin::{
-            CreateFulltextIndexConfig, CreateFulltextIndexExecutor,
-        };
-
-        let coordinator = self
-            .fulltext_coordinator
-            .as_ref()
-            .or_else(|| context.fulltext_coordinator())
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
-            })?
-            .clone();
-
-        let space_id = context.current_space_id().unwrap_or(0);
-
-        let executor = CreateFulltextIndexExecutor::new(
-            node.id(),
-            storage,
-            CreateFulltextIndexConfig {
-                index_name: node.index_name.clone(),
-                schema_name: node.schema_name.clone(),
-                fields: node.fields.clone(),
-                engine_type: node.engine_type,
-                options: node.options.clone(),
-                if_not_exists: node.if_not_exists,
-                space_id,
-            },
-            context.expression_context().clone(),
-            coordinator,
-        );
-        Ok(ExecutorEnum::CreateFulltextIndex(executor))
-    }
-
-    fn build_drop_fulltext_index(
-        &mut self,
-        node: &crate::query::planning::plan::core::nodes::DropFulltextIndexNode,
-        storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
-    ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::admin::DropFulltextIndexExecutor;
-
-        let coordinator = self
-            .fulltext_coordinator
-            .as_ref()
-            .or_else(|| context.fulltext_coordinator())
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
-            })?
-            .clone();
-
-        let space_id = context.current_space_id().unwrap_or(0);
-
-        let executor = DropFulltextIndexExecutor::new(
-            node.id(),
-            storage,
-            node.index_name.clone(),
-            node.if_exists,
-            space_id,
-            context.expression_context().clone(),
-            coordinator,
-        );
-        Ok(ExecutorEnum::DropFulltextIndex(executor))
-    }
-
-    fn build_alter_fulltext_index(
-        &mut self,
-        node: &crate::query::planning::plan::core::nodes::AlterFulltextIndexNode,
-        storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
-    ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::admin::AlterFulltextIndexExecutor;
-
-        let coordinator = self
-            .fulltext_coordinator
-            .as_ref()
-            .or_else(|| context.fulltext_coordinator())
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
-            })?
-            .clone();
-
-        let executor = AlterFulltextIndexExecutor::new(
-            node.id(),
-            storage,
-            node.index_name.clone(),
-            node.actions.clone(),
-            context.expression_context().clone(),
-            coordinator,
-        );
-        Ok(ExecutorEnum::AlterFulltextIndex(executor))
-    }
-
-    fn build_show_fulltext_index(
-        &mut self,
-        node: &crate::query::planning::plan::core::nodes::ShowFulltextIndexNode,
-        storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
-    ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::admin::ShowFulltextIndexExecutor;
-
-        let coordinator = self
-            .fulltext_coordinator
-            .as_ref()
-            .or_else(|| context.fulltext_coordinator())
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
-            })?
-            .clone();
-
-        let executor = ShowFulltextIndexExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
-            coordinator,
-        );
-        Ok(ExecutorEnum::ShowFulltextIndex(executor))
-    }
-
-    fn build_describe_fulltext_index(
-        &mut self,
-        node: &crate::query::planning::plan::core::nodes::DescribeFulltextIndexNode,
-        storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
-    ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::admin::DescribeFulltextIndexExecutor;
-
-        let coordinator = self
-            .fulltext_coordinator
-            .as_ref()
-            .or_else(|| context.fulltext_coordinator())
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
-            })?
-            .clone();
-
-        let space_id = context.current_space_id().unwrap_or(0);
-
-        let executor = DescribeFulltextIndexExecutor::new(
-            node.id(),
-            storage,
-            node.index_name.clone(),
-            space_id,
-            context.expression_context().clone(),
-            coordinator,
-        );
-        Ok(ExecutorEnum::DescribeFulltextIndex(executor))
-    }
-
-    fn build_fulltext_search(
-        &mut self,
-        node: &crate::query::planning::plan::core::nodes::search::fulltext::data_access::FulltextSearchNode,
-        storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
-    ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::data_access::FulltextSearchExecutor;
-        use crate::query::parser::ast::SearchStatement;
-
-        let statement = SearchStatement {
-            span: Span::default(),
-            index_name: node.index_name.clone(),
-            query: node.query.clone(),
-            yield_clause: node.yield_clause.clone(),
-            where_clause: node.where_clause.clone(),
-            order_clause: node.order_clause.clone(),
-            limit: node.limit,
-            offset: node.offset,
-        };
-
-        let search_engine = context
-            .search_engine()
-            .ok_or_else(|| QueryError::ExecutionError("Search engine not available".to_string()))?
-            .clone();
-
-        let coordinator = context
-            .fulltext_coordinator()
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
-            })?
-            .clone();
-
-        let executor = FulltextSearchExecutor::new(
-            node.id(),
-            statement,
-            search_engine,
-            context.clone(),
-            storage,
-            context.expression_context().clone(),
-            coordinator,
-        );
-        Ok(ExecutorEnum::FulltextSearch(executor))
-    }
-
-    fn build_fulltext_lookup(
-        &mut self,
-        node: &crate::query::planning::plan::core::nodes::FulltextLookupNode,
-        storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
-    ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::data_access::{FulltextScanConfig, FulltextScanExecutor};
-
-        let search_engine = context
-            .search_engine()
-            .ok_or_else(|| QueryError::ExecutionError("Search engine not available".to_string()))?
-            .clone();
-
-        let coordinator = context
-            .fulltext_coordinator()
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
-            })?
-            .clone();
-
-        let executor = FulltextScanExecutor::new(
-            node.id(),
-            FulltextScanConfig {
-                index_name: node.index_name.clone(),
-                query: node.query.clone(),
-                limit: node.limit,
-            },
-            search_engine,
-            context.clone(),
-            storage,
-            context.expression_context().clone(),
-            coordinator,
-        );
-        Ok(ExecutorEnum::FulltextLookup(executor))
-    }
-
-    fn build_match_fulltext(
-        &mut self,
-        node: &crate::query::planning::plan::core::nodes::MatchFulltextNode,
-        storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
-    ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::data_access::MatchFulltextExecutor;
-
-        let coordinator = context
-            .fulltext_coordinator()
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
-            })?
-            .clone();
-
-        let executor = MatchFulltextExecutor::new(
-            node.id(),
-            storage,
-            node.fulltext_condition.clone(),
-            node.yield_clause.clone(),
-            context.expression_context().clone(),
-            coordinator,
-        );
-        Ok(ExecutorEnum::MatchFulltext(executor))
-    }
-
-    // Vector Search build methods
-    fn build_vector_search(
-        &mut self,
-        node: &crate::query::planning::plan::core::nodes::search::vector::data_access::VectorSearchNode,
-        storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
-    ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::data_access::VectorSearchExecutor;
-
-        let coordinator = self
-            .vector_coordinator
-            .clone()
-            .or_else(|| context.vector_coordinator().cloned())
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Vector coordinator not available".to_string())
-            })?;
-
-        let executor = VectorSearchExecutor::new(
-            node.id(),
-            node.clone(),
-            storage,
-            context.expression_context().clone(),
-            coordinator,
-        );
-        Ok(ExecutorEnum::VectorSearch(executor))
-    }
-
-    fn build_create_vector_index(
-        &mut self,
-        node: &crate::query::planning::plan::core::nodes::search::vector::management::CreateVectorIndexNode,
-        storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
-    ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::data_access::CreateVectorIndexExecutor;
-
-        let coordinator = self
-            .vector_coordinator
-            .clone()
-            .or_else(|| context.vector_coordinator().cloned())
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Vector coordinator not available".to_string())
-            })?;
-
-        let executor = CreateVectorIndexExecutor::new(
-            node.id(),
-            node.clone(),
-            storage,
-            context.expression_context().clone(),
-            coordinator,
-        );
-        Ok(ExecutorEnum::CreateVectorIndex(executor))
-    }
-
-    fn build_drop_vector_index(
-        &mut self,
-        node: &crate::query::planning::plan::core::nodes::search::vector::management::DropVectorIndexNode,
-        storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
-    ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::data_access::DropVectorIndexExecutor;
-
-        let coordinator = self
-            .vector_coordinator
-            .clone()
-            .or_else(|| context.vector_coordinator().cloned())
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Vector coordinator not available".to_string())
-            })?;
-
-        let executor = DropVectorIndexExecutor::new(
-            node.id(),
-            node.clone(),
-            storage,
-            context.expression_context().clone(),
-            coordinator,
-        );
-        Ok(ExecutorEnum::DropVectorIndex(executor))
-    }
-
-    fn build_vector_lookup(
-        &mut self,
-        node: &crate::query::planning::plan::core::nodes::search::vector::data_access::VectorLookupNode,
-        storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
-    ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::data_access::VectorLookupExecutor;
-
-        let coordinator = self
-            .vector_coordinator
-            .clone()
-            .or_else(|| context.vector_coordinator().cloned())
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Vector coordinator not available".to_string())
-            })?;
-
-        let executor = VectorLookupExecutor::new(
-            node.id(),
-            node.clone(),
-            storage,
-            context.expression_context().clone(),
-            coordinator,
-        );
-        Ok(ExecutorEnum::VectorLookup(executor))
-    }
-
-    fn build_vector_match(
-        &mut self,
-        node: &crate::query::planning::plan::core::nodes::search::vector::data_access::VectorMatchNode,
-        storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
-    ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::data_access::VectorMatchExecutor;
-
-        let coordinator = self
-            .vector_coordinator
-            .clone()
-            .or_else(|| context.vector_coordinator().cloned())
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Vector coordinator not available".to_string())
-            })?;
-
-        let executor = VectorMatchExecutor::new(
-            node.id(),
-            node.clone(),
-            storage,
-            context.expression_context().clone(),
-            coordinator,
-        );
-        Ok(ExecutorEnum::VectorMatch(executor))
-    }
 }
 
 impl<S: StorageClient + 'static> Clone for ExecutorFactory<S> {
@@ -967,8 +628,7 @@ impl<S: StorageClient + 'static> Clone for ExecutorFactory<S> {
             storage: self.storage.clone(),
             config: self.config.clone(),
             recursion_detector: RecursionDetector::new(self.config.max_recursion_depth),
-            fulltext_coordinator: self.fulltext_coordinator.clone(),
-            vector_coordinator: self.vector_coordinator.clone(),
+            sync_manager: self.sync_manager.clone(),
         }
     }
 }

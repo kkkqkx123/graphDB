@@ -38,6 +38,7 @@ use crate::query::validator::{ValidatedStatement, ValidationInfo};
 use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 use crate::storage::StorageClient;
+use crate::sync::SyncManager;
 use parking_lot::Mutex;
 use std::sync::Arc;
 use std::time::Instant;
@@ -181,6 +182,12 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     pub fn clear_object_pool(&self) {
         self.object_pool.clear();
         log::info!("Object pool cleared");
+    }
+
+    /// Set sync manager for executor factory
+    pub fn with_sync_manager(mut self, sync_manager: Arc<SyncManager>) -> Self {
+        self.executor_factory.set_sync_manager(sync_manager);
+        self
     }
 
     pub fn execute_query(&mut self, query_text: &str) -> DBResult<ExecutionResult> {

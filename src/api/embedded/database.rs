@@ -6,7 +6,6 @@ use crate::api::core::{CoreError, CoreResult, QueryApi, SchemaApi, SpaceConfig};
 use crate::api::embedded::config::DatabaseConfig;
 use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::session::{GraphDatabaseInner, Session};
-use crate::coordinator::FulltextCoordinator;
 use crate::core::Value;
 use crate::search::{FulltextConfig, FulltextIndexManager, SyncFailurePolicy};
 use crate::storage::{RedbStorage, StorageClient};
@@ -108,7 +107,7 @@ impl GraphDatabase<RedbStorage> {
         let fulltext_config = FulltextConfig::default();
         let vector_config = VectorClientConfig::default();
 
-        let (fulltext_manager, fulltext_coordinator, sync_manager) = if fulltext_config.enabled {
+        let (fulltext_manager, sync_manager) = if fulltext_config.enabled {
             let manager: Arc<FulltextIndexManager> = Arc::new(
                 FulltextIndexManager::new(fulltext_config.clone())
                     .map_err(|e| CoreError::Internal(e.to_string()))?,
@@ -126,7 +125,6 @@ impl GraphDatabase<RedbStorage> {
                 manager.clone(),
                 batch_config,
             ));
-            let fulltext_coordinator = Arc::new(FulltextCoordinator::new(manager.clone()));
 
             let mut sync = SyncManager::with_sync_config(sync_coordinator.clone(), sync_config);
 
@@ -148,7 +146,7 @@ impl GraphDatabase<RedbStorage> {
             }
 
             let sync = Arc::new(sync);
-            (Some(manager), Some(fulltext_coordinator), Some(sync))
+            (Some(manager), Some(sync))
         } else if vector_config.enabled {
             let rt = tokio::runtime::Handle::current();
             let vector_manager = Arc::new(
@@ -168,14 +166,13 @@ impl GraphDatabase<RedbStorage> {
                 manager.clone(),
                 batch_config,
             ));
-            let fulltext_coordinator = Arc::new(FulltextCoordinator::new(manager));
             let mut sync = SyncManager::with_sync_config(sync_coordinator, sync_config);
             sync = sync.with_vector_coordinator(vector_coordinator);
             let sync = Arc::new(sync);
 
-            (None, Some(fulltext_coordinator), Some(sync))
+            (None, Some(sync))
         } else {
-            (None, None, None)
+            (None, None)
         };
 
         let txn_manager_config = TransactionManagerConfig::default();
@@ -189,7 +186,14 @@ impl GraphDatabase<RedbStorage> {
             Arc::new(TransactionManager::new(db, txn_manager_config))
         };
 
-        let query_api = Arc::new(Mutex::new(QueryApi::new(storage.clone())));
+        let query_api = if let Some(ref sync) = sync_manager {
+            Arc::new(Mutex::new(QueryApi::with_sync_manager(
+                storage.clone(),
+                sync.clone(),
+            )))
+        } else {
+            Arc::new(Mutex::new(QueryApi::new(storage.clone())))
+        };
         let schema_api = SchemaApi::new(storage.clone());
 
         let inner = Arc::new(GraphDatabaseInner {
@@ -198,7 +202,6 @@ impl GraphDatabase<RedbStorage> {
             txn_manager,
             storage,
             fulltext_manager,
-            fulltext_coordinator,
             sync_manager,
         });
 
@@ -339,7 +342,6 @@ impl GraphDatabase<MockStorage> {
             txn_manager,
             storage,
             fulltext_manager: None,
-            fulltext_coordinator: None,
             sync_manager: None,
         });
 

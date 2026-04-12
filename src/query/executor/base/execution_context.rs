@@ -7,13 +7,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::execution_result::ExecutionResult;
-use crate::coordinator::FulltextCoordinator;
 use crate::core::Value;
 use crate::query::executor::expression::functions::global_registry_ref;
 use crate::query::executor::expression::functions::OwnedFunctionRef;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::search::SearchEngine;
-use crate::sync::vector_sync::VectorSyncCoordinator;
 
 /// Execution Context
 ///
@@ -28,10 +26,6 @@ pub struct ExecutionContext {
     pub expression_context: Arc<ExpressionAnalysisContext>,
     /// Search engine for full-text search
     pub search_engine: Option<Arc<dyn SearchEngine>>,
-    /// Fulltext coordinator
-    pub fulltext_coordinator: Option<Arc<FulltextCoordinator>>,
-    /// Vector coordinator for vector search operations
-    pub vector_coordinator: Option<Arc<VectorSyncCoordinator>>,
     /// Query parameters
     pub parameters: Arc<HashMap<String, crate::core::Value>>,
 }
@@ -44,8 +38,6 @@ impl ExecutionContext {
             variables: Arc::new(Mutex::new(HashMap::new())),
             expression_context,
             search_engine: None,
-            fulltext_coordinator: None,
-            vector_coordinator: None,
             parameters: Arc::new(HashMap::new()),
         }
     }
@@ -60,8 +52,6 @@ impl ExecutionContext {
             variables: Arc::new(Mutex::new(HashMap::new())),
             expression_context,
             search_engine: None,
-            fulltext_coordinator: None,
-            vector_coordinator: None,
             parameters: Arc::new(parameters),
         }
     }
@@ -76,42 +66,6 @@ impl ExecutionContext {
             variables: Arc::new(Mutex::new(HashMap::new())),
             expression_context,
             search_engine: Some(search_engine),
-            fulltext_coordinator: None,
-            vector_coordinator: None,
-            parameters: Arc::new(HashMap::new()),
-        }
-    }
-
-    /// Create a new execution context with fulltext coordinator.
-    pub fn with_fulltext_coordinator(
-        expression_context: Arc<ExpressionAnalysisContext>,
-        search_engine: Arc<dyn SearchEngine>,
-        coordinator: Arc<FulltextCoordinator>,
-    ) -> Self {
-        Self {
-            results: Arc::new(Mutex::new(HashMap::new())),
-            variables: Arc::new(Mutex::new(HashMap::new())),
-            expression_context,
-            search_engine: Some(search_engine),
-            fulltext_coordinator: Some(coordinator),
-            vector_coordinator: None,
-            parameters: Arc::new(HashMap::new()),
-        }
-    }
-
-    /// Create a new execution context with vector coordinator.
-    pub fn with_vector_coordinator(
-        expression_context: Arc<ExpressionAnalysisContext>,
-        search_engine: Arc<dyn SearchEngine>,
-        coordinator: Arc<VectorSyncCoordinator>,
-    ) -> Self {
-        Self {
-            results: Arc::new(Mutex::new(HashMap::new())),
-            variables: Arc::new(Mutex::new(HashMap::new())),
-            expression_context,
-            search_engine: Some(search_engine),
-            fulltext_coordinator: None,
-            vector_coordinator: Some(coordinator),
             parameters: Arc::new(HashMap::new()),
         }
     }
@@ -146,16 +100,6 @@ impl ExecutionContext {
         self.search_engine.as_ref()
     }
 
-    /// Obtain the fulltext coordinator.
-    pub fn fulltext_coordinator(&self) -> Option<&Arc<FulltextCoordinator>> {
-        self.fulltext_coordinator.as_ref()
-    }
-
-    /// Obtain the vector coordinator.
-    pub fn vector_coordinator(&self) -> Option<&Arc<VectorSyncCoordinator>> {
-        self.vector_coordinator.as_ref()
-    }
-
     /// Get query parameter
     pub fn get_param(&self, name: &str) -> Option<&crate::core::Value> {
         self.parameters.get(name)
@@ -185,8 +129,6 @@ impl Default for ExecutionContext {
             variables: Arc::new(Mutex::new(HashMap::new())),
             expression_context: Arc::new(ExpressionAnalysisContext::new()),
             search_engine: None,
-            fulltext_coordinator: None,
-            vector_coordinator: None,
             parameters: Arc::new(HashMap::new()),
         }
     }

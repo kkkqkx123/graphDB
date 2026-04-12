@@ -10,6 +10,7 @@ use crate::query::metadata::{
 };
 use crate::query::{OptimizerEngine, QueryPipelineManager};
 use crate::storage::StorageClient;
+use crate::sync::SyncManager;
 use crate::sync::vector_sync::VectorSyncCoordinator;
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -32,6 +33,20 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
                 stats_manager,
                 optimizer_engine,
             ),
+        }
+    }
+
+    /// Create a new QueryApi instance with sync manager support
+    pub fn with_sync_manager(storage: Arc<Mutex<S>>, sync_manager: Arc<SyncManager>) -> Self {
+        let stats_manager = Arc::new(StatsManager::new());
+        let optimizer_engine = Arc::new(OptimizerEngine::default());
+        Self {
+            pipeline_manager: QueryPipelineManager::with_optimizer(
+                storage,
+                stats_manager,
+                optimizer_engine,
+            )
+            .with_sync_manager(sync_manager),
         }
     }
 
