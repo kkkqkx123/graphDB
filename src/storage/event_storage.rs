@@ -97,6 +97,11 @@ impl<S: StorageClient> SyncStorage<S> {
         self.enabled
     }
 
+    /// Get sync manager reference
+    pub fn get_sync_manager(&self) -> Option<Arc<crate::sync::SyncManager>> {
+        self.sync_manager.clone()
+    }
+
     /// Get reference to the inner storage client
     pub fn inner(&self) -> &S {
         &self.inner
@@ -181,7 +186,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
         let result = self.inner.insert_vertex(space, vertex.clone())?;
 
         if self.enabled {
-            if let Some(ref sync_manager) = self.sync_manager {
+            if let Some(sync_manager) = self.get_sync_manager() {
                 let space_id = self.inner.get_space_id(space)?;
 
                 // Get the current transaction ID from storage context
@@ -212,7 +217,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
         self.inner.update_vertex(space, vertex.clone())?;
 
         if self.enabled {
-            if let Some(ref sync_manager) = self.sync_manager {
+            if let Some(sync_manager) = self.get_sync_manager() {
                 let space_id = self.inner.get_space_id(space)?;
                 let txn_id = self.get_current_txn_id();
 
@@ -255,7 +260,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
         self.inner.delete_vertex(space, id)?;
 
         if self.enabled {
-            if let Some(ref sync_manager) = self.sync_manager {
+            if let Some(sync_manager) = self.get_sync_manager() {
                 let space_id = self.inner.get_space_id(space)?;
                 let txn_id = self.get_current_txn_id();
 
@@ -291,7 +296,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
         self.inner.delete_vertex_with_edges(space, id)?;
 
         if self.enabled {
-            if let Some(ref sync_manager) = self.sync_manager {
+            if let Some(sync_manager) = self.get_sync_manager() {
                 let space_id = self.inner.get_space_id(space)?;
                 let txn_id = self.get_current_txn_id();
 
@@ -326,7 +331,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
         let results = self.inner.batch_insert_vertices(space, vertices.clone())?;
 
         if self.enabled {
-            if let Some(ref sync_manager) = self.sync_manager {
+            if let Some(sync_manager) = self.get_sync_manager() {
                 let space_id = self.inner.get_space_id(space)?;
                 let txn_id = self.get_current_txn_id();
 
@@ -361,7 +366,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
         let result = self.inner.insert_edge(space, edge.clone());
 
         if self.enabled {
-            if let Some(ref sync_manager) = self.sync_manager {
+            if let Some(sync_manager) = self.get_sync_manager() {
                 if let Ok(space_id) = self.inner.get_space_id(space) {
                     let txn_id = self.get_current_txn_id();
 
@@ -388,7 +393,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
         let result = self.inner.delete_edge(space, src, dst, edge_type, rank);
 
         if self.enabled {
-            if let Some(ref sync_manager) = self.sync_manager {
+            if let Some(sync_manager) = self.get_sync_manager() {
                 if let Ok(space_id) = self.inner.get_space_id(space) {
                     let txn_id = self.get_current_txn_id();
 
@@ -408,7 +413,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
         let result = self.inner.batch_insert_edges(space, edges.clone());
 
         if self.enabled {
-            if let Some(ref sync_manager) = self.sync_manager {
+            if let Some(sync_manager) = self.get_sync_manager() {
                 if let Ok(space_id) = self.inner.get_space_id(space) {
                     let txn_id = self.get_current_txn_id();
 

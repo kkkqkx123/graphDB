@@ -144,7 +144,7 @@ impl EdgeStorage {
         }
 
         // Sync to fulltext/vector index (if enabled)
-        if let Some(ref sync_manager) = self.state.sync_manager {
+        if let Some(sync_manager) = self.state.get_sync_manager() {
             sync_manager
                 .on_edge_insert(txn_id, space_id, &edge)
                 .map_err(|e| StorageError::DbError(format!("Failed to sync edge insert: {}", e)))?;
@@ -189,7 +189,7 @@ impl EdgeStorage {
             .delete_edge_indexes(space_id, src, dst, &index_names)?;
 
         // Sync to fulltext/vector index (if enabled)
-        if let Some(ref sync_manager) = self.state.sync_manager {
+        if let Some(sync_manager) = self.state.get_sync_manager() {
             if let Some(edge) = old_edge {
                 sync_manager
                     .on_edge_delete(

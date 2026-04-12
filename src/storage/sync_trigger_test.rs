@@ -22,8 +22,9 @@ mod tests {
         let mut storage = RedbStorage::new_with_path(db_path).unwrap();
 
         // Verify storage is created successfully
+        // Sync manager is now wrapped in RwLock
         assert!(
-            storage.state().sync_manager.is_none(),
+            storage.state().get_sync_manager().is_none(),
             "Sync manager should be None by default"
         );
 

@@ -9,6 +9,7 @@ pub mod data_fixtures;
 pub mod debug_helpers;
 pub mod query_helpers;
 pub mod storage_helpers;
+pub mod sync_helpers;
 pub mod test_scenario;
 pub mod transaction_helpers;
 pub mod validation_helpers;

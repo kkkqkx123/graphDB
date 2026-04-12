@@ -131,10 +131,7 @@ impl RedbStorage {
 
     /// Set sync manager (for enabling index synchronization)
     pub fn set_sync_manager(&self, sync_manager: Arc<SyncManager>) {
-        let mut state = (*self.state).clone();
-        state.with_sync_manager(sync_manager);
-        // Cannot modify self.state directly as it's Arc, so this method is for future extension
-        // For now, sync_manager should be set during initialization
+        self.state.set_sync_manager(sync_manager);
     }
 
     /// Initialize the database tables

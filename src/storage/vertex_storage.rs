@@ -183,7 +183,7 @@ impl VertexStorage {
         }
 
         // Sync to fulltext/vector index (if enabled)
-        if let Some(ref sync_manager) = self.state.sync_manager {
+        if let Some(sync_manager) = self.state.get_sync_manager() {
             sync_manager
                 .on_vertex_insert(txn_id, space_id, &vertex)
                 .map_err(|e| {
@@ -214,7 +214,7 @@ impl VertexStorage {
         self.inner.reader.lock().invalidate_vertex_cache(&vid);
 
         // Sync to fulltext/vector index (if enabled)
-        if let Some(ref sync_manager) = self.state.sync_manager {
+        if let Some(sync_manager) = self.state.get_sync_manager() {
             if let Some(old_v) = old_vertex {
                 // Detect changed properties
                 let changed_props = self.detect_changed_properties(&old_v, &vertex);
@@ -273,7 +273,7 @@ impl VertexStorage {
         self.inner.reader.lock().invalidate_vertex_cache(id);
 
         // Sync to fulltext/vector index (if enabled)
-        if let Some(ref sync_manager) = self.state.sync_manager {
+        if let Some(sync_manager) = self.state.get_sync_manager() {
             if let Some(vertex) = old_vertex {
                 // Get tag name for sync
                 if let Some(tag) = vertex.tags.first() {

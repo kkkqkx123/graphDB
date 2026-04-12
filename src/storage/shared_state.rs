@@ -6,19 +6,19 @@ use crate::storage::metadata::{RedbIndexMetadataManager, RedbSchemaManager};
 use crate::storage::operations::{RedbReader, RedbWriter};
 use crate::sync::SyncManager;
 use crate::transaction::context::TransactionContext;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use redb::Database;
 use std::sync::Arc;
 
 /// Storage layer shared state
 ///
-/// These fields are shared across multiple storage components, wrapped with Arc
+/// These fields are shared across multiple storage layer components, wrapped with Arc
 #[derive(Clone)]
 pub struct StorageSharedState {
     pub db: Arc<Database>,
     pub schema_manager: Arc<RedbSchemaManager>,
     pub index_metadata_manager: Arc<RedbIndexMetadataManager>,
-    pub sync_manager: Option<Arc<SyncManager>>,
+    pub sync_manager: Arc<RwLock<Option<Arc<SyncManager>>>>,
 }
 
 impl StorageSharedState {
@@ -31,12 +31,20 @@ impl StorageSharedState {
             db,
             schema_manager,
             index_metadata_manager,
-            sync_manager: None,
+            sync_manager: Arc::new(RwLock::new(None)),
         }
     }
 
     pub fn with_sync_manager(&mut self, sync_manager: Arc<SyncManager>) {
-        self.sync_manager = Some(sync_manager);
+        *self.sync_manager.write() = Some(sync_manager);
+    }
+
+    pub fn set_sync_manager(&self, sync_manager: Arc<SyncManager>) {
+        *self.sync_manager.write() = Some(sync_manager);
+    }
+
+    pub fn get_sync_manager(&self) -> Option<Arc<SyncManager>> {
+        self.sync_manager.read().clone()
     }
 }
 
