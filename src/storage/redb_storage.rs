@@ -261,6 +261,10 @@ impl RedbStorage {
 
 impl StorageClient for RedbStorage {
     // ==================== Vertex Operations ====================
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
     fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
         self.vertex_storage.get_vertex(space, id)
     }

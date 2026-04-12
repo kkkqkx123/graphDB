@@ -9,6 +9,7 @@ use std::time::Duration;
 use dashmap::DashMap;
 use redb::Database;
 
+use crate::storage::shared_state::StorageInner;
 use crate::sync::{SyncError, SyncManager};
 use crate::transaction::context::TransactionContext;
 use crate::transaction::types::*;
@@ -17,6 +18,8 @@ use crate::transaction::types::*;
 pub struct TransactionManager {
     /// Database instance
     db: Arc<Database>,
+    /// Storage inner reference for transaction context management
+    storage_inner: Option<Arc<StorageInner>>,
     /// Configuration
     config: TransactionManagerConfig,
     /// Active transactions table - Using DashMap instead of RwLock<HashMap> for better concurrent performance
@@ -37,6 +40,25 @@ impl TransactionManager {
     pub fn new(db: Arc<Database>, config: TransactionManagerConfig) -> Self {
         Self {
             db,
+            storage_inner: None,
+            config,
+            active_transactions: DashMap::new(),
+            id_generator: AtomicU64::new(1),
+            stats: Arc::new(TransactionStats::new()),
+            shutdown_flag: AtomicU64::new(0),
+            sync_manager: None,
+        }
+    }
+
+    /// Create a new transaction manager with storage inner
+    pub fn with_storage_inner(
+        db: Arc<Database>,
+        config: TransactionManagerConfig,
+        storage_inner: Arc<StorageInner>,
+    ) -> Self {
+        Self {
+            db,
+            storage_inner: Some(storage_inner),
             config,
             active_transactions: DashMap::new(),
             id_generator: AtomicU64::new(1),
@@ -54,6 +76,26 @@ impl TransactionManager {
     ) -> Self {
         Self {
             db,
+            storage_inner: None,
+            config,
+            active_transactions: DashMap::new(),
+            id_generator: AtomicU64::new(1),
+            stats: Arc::new(TransactionStats::new()),
+            shutdown_flag: AtomicU64::new(0),
+            sync_manager: Some(sync_manager),
+        }
+    }
+
+    /// Create a new transaction manager with storage inner and sync manager
+    pub fn with_storage_and_sync(
+        db: Arc<Database>,
+        config: TransactionManagerConfig,
+        storage_inner: Arc<StorageInner>,
+        sync_manager: Arc<SyncManager>,
+    ) -> Self {
+        Self {
+            db,
+            storage_inner: Some(storage_inner),
             config,
             active_transactions: DashMap::new(),
             id_generator: AtomicU64::new(1),
@@ -136,9 +178,14 @@ impl TransactionManager {
             ))
         };
 
-        self.active_transactions.insert(txn_id, context);
+        self.active_transactions.insert(txn_id, context.clone());
         self.stats.increment_total();
         self.stats.increment_active();
+
+        // Set transaction context in storage
+        if let Some(ref storage_inner) = self.storage_inner {
+            storage_inner.set_transaction_context(Some(context.clone()));
+        }
 
         Ok(txn_id)
     }
@@ -262,6 +309,11 @@ impl TransactionManager {
         self.stats.decrement_active();
         self.stats.increment_committed();
 
+        // Clear transaction context from storage
+        if let Some(ref storage_inner) = self.storage_inner {
+            storage_inner.set_transaction_context(None);
+        }
+
         Ok(())
     }
 
@@ -296,6 +348,11 @@ impl TransactionManager {
 
         self.stats.decrement_active();
         self.stats.increment_aborted();
+
+        // Clear transaction context from storage
+        if let Some(ref storage_inner) = self.storage_inner {
+            storage_inner.set_transaction_context(None);
+        }
 
         Ok(())
     }

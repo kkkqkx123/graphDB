@@ -4,10 +4,10 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::core::{Value, Vertex};
     use crate::core::types::{DataType, PropertyDef, SpaceInfo, TagInfo};
-    use crate::storage::RedbStorage;
+    use crate::core::{Value, Vertex};
     use crate::storage::storage_client::StorageClient;
+    use crate::storage::RedbStorage;
     use tempfile::TempDir;
 
     #[test]
@@ -15,31 +15,33 @@ mod tests {
         // Test that vertex insert correctly uses transaction ID
         let temp_dir = TempDir::new().unwrap();
         let db_path = temp_dir.path().join("test_txn.db");
-        
+
         let mut storage = RedbStorage::new_with_path(db_path).unwrap();
-        
+
         // Create space
-        let space_info = SpaceInfo::new("test_space".to_string())
-            .with_vid_type(DataType::Int64);
+        let space_info = SpaceInfo::new("test_space".to_string()).with_vid_type(DataType::Int64);
         storage.create_space(&space_info).unwrap();
-        
+
         // Create tag
         let tag_info = TagInfo::new("person".to_string())
             .with_properties(vec![PropertyDef::new("name".to_string(), DataType::String)]);
         storage.create_tag("test_space", &tag_info).unwrap();
-        
+
         // Insert vertex (should use default txn_id = 0 when not in transaction)
         let vertex = Vertex::new(
             Value::Int(123),
             vec![crate::core::vertex_edge_path::Tag {
                 name: "person".to_string(),
-                properties: [("name".to_string(), Value::String("Alice".to_string()))].iter().cloned().collect(),
+                properties: [("name".to_string(), Value::String("Alice".to_string()))]
+                    .iter()
+                    .cloned()
+                    .collect(),
             }],
         );
-        
+
         let result = storage.insert_vertex("test_space", vertex.clone());
         assert!(result.is_ok(), "Failed to insert vertex: {:?}", result);
-        
+
         // Verify vertex was inserted
         let retrieved = storage.get_vertex("test_space", &Value::Int(123));
         assert!(retrieved.is_ok());
@@ -51,40 +53,45 @@ mod tests {
         // Test that vertex update correctly uses transaction ID
         let temp_dir = TempDir::new().unwrap();
         let db_path = temp_dir.path().join("test_txn_update.db");
-        
+
         let mut storage = RedbStorage::new_with_path(db_path).unwrap();
-        
+
         // Setup space and tag
-        let space_info = SpaceInfo::new("test_space".to_string())
-            .with_vid_type(DataType::Int64);
+        let space_info = SpaceInfo::new("test_space".to_string()).with_vid_type(DataType::Int64);
         storage.create_space(&space_info).unwrap();
-        
+
         let tag_info = TagInfo::new("person".to_string())
             .with_properties(vec![PropertyDef::new("name".to_string(), DataType::String)]);
         storage.create_tag("test_space", &tag_info).unwrap();
-        
+
         // Insert initial vertex
         let vertex = Vertex::new(
             Value::Int(456),
             vec![crate::core::vertex_edge_path::Tag {
                 name: "person".to_string(),
-                properties: [("name".to_string(), Value::String("Bob".to_string()))].iter().cloned().collect(),
+                properties: [("name".to_string(), Value::String("Bob".to_string()))]
+                    .iter()
+                    .cloned()
+                    .collect(),
             }],
         );
         storage.insert_vertex("test_space", vertex).unwrap();
-        
+
         // Update vertex (should use default txn_id = 0 when not in transaction)
         let updated_vertex = Vertex::new(
             Value::Int(456),
             vec![crate::core::vertex_edge_path::Tag {
                 name: "person".to_string(),
-                properties: [("name".to_string(), Value::String("Bob Updated".to_string()))].iter().cloned().collect(),
+                properties: [("name".to_string(), Value::String("Bob Updated".to_string()))]
+                    .iter()
+                    .cloned()
+                    .collect(),
             }],
         );
-        
+
         let result = storage.update_vertex("test_space", updated_vertex);
         assert!(result.is_ok(), "Failed to update vertex: {:?}", result);
-        
+
         // Verify vertex was updated
         let retrieved = storage.get_vertex("test_space", &Value::Int(456));
         assert!(retrieved.is_ok());
@@ -95,14 +102,13 @@ mod tests {
         // Test that edge insert correctly uses transaction ID
         let temp_dir = TempDir::new().unwrap();
         let db_path = temp_dir.path().join("test_txn_edge.db");
-        
+
         let mut storage = RedbStorage::new_with_path(db_path).unwrap();
-        
+
         // Create space
-        let space_info = SpaceInfo::new("test_space".to_string())
-            .with_vid_type(DataType::Int64);
+        let space_info = SpaceInfo::new("test_space".to_string()).with_vid_type(DataType::Int64);
         storage.create_space(&space_info).unwrap();
-        
+
         // Insert edge (should use default txn_id = 0 when not in transaction)
         let edge = crate::core::Edge::new(
             Value::Int(100),
@@ -111,13 +117,99 @@ mod tests {
             0,
             std::collections::HashMap::new(),
         );
-        
+
         let result = storage.insert_edge("test_space", edge.clone());
         assert!(result.is_ok(), "Failed to insert edge: {:?}", result);
-        
+
         // Verify edge was inserted
-        let edges = storage.get_edge("test_space", &Value::Int(100), &Value::Int(200), "friend", 0);
+        let edges = storage.get_edge(
+            "test_space",
+            &Value::Int(100),
+            &Value::Int(200),
+            "friend",
+            0,
+        );
         assert!(edges.is_ok());
         assert!(edges.unwrap().is_some());
+    }
+
+    #[test]
+    fn test_transaction_context_propagation() {
+        // Test that transaction context is correctly propagated to storage
+        use crate::storage::shared_state::StorageInner;
+        use crate::transaction::{
+            TransactionManager, TransactionManagerConfig, TransactionOptions,
+        };
+        use redb::Database;
+        use std::sync::Arc;
+
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test_txn_ctx.db");
+
+        // Create database
+        let db = Arc::new(Database::create(&db_path).unwrap());
+
+        // Create storage inner
+        let reader = crate::storage::operations::RedbReader::new(db.clone()).unwrap();
+        let writer = crate::storage::operations::RedbWriter::new(db.clone()).unwrap();
+        let storage_inner = Arc::new(StorageInner::new(reader, writer));
+
+        // Create transaction manager with storage inner
+        let config = TransactionManagerConfig::default();
+        let txn_manager =
+            TransactionManager::with_storage_inner(db.clone(), config, storage_inner.clone());
+
+        // Before transaction, context should be None
+        assert!(storage_inner.get_transaction_context().is_none());
+
+        // Begin transaction
+        let txn_id = txn_manager
+            .begin_transaction(TransactionOptions::default())
+            .unwrap();
+
+        // After begin, context should be set
+        let ctx = storage_inner.get_transaction_context();
+        assert!(ctx.is_some());
+        assert_eq!(ctx.unwrap().id, txn_id);
+
+        // Commit transaction
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(txn_manager.commit_transaction(txn_id)).unwrap();
+
+        // After commit, context should be cleared
+        assert!(storage_inner.get_transaction_context().is_none());
+    }
+
+    #[test]
+    fn test_transaction_with_vertex_operations() {
+        // Test complete transaction flow with vertex operations
+        use crate::transaction::{
+            TransactionManager, TransactionManagerConfig, TransactionOptions,
+        };
+        use redb::Database;
+        use std::sync::Arc;
+
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test_txn_ops.db");
+
+        // Create database
+        let db = Arc::new(Database::create(&db_path).unwrap());
+        let config = TransactionManagerConfig::default();
+        let txn_manager = TransactionManager::new(db.clone(), config);
+
+        // Begin transaction
+        let txn_id = txn_manager
+            .begin_transaction(TransactionOptions::default())
+            .unwrap();
+
+        // Verify transaction is active
+        assert!(txn_manager.is_transaction_active(txn_id));
+
+        // Commit transaction
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(txn_manager.commit_transaction(txn_id)).unwrap();
+
+        // Verify transaction is no longer active
+        assert!(!txn_manager.is_transaction_active(txn_id));
     }
 }

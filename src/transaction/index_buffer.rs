@@ -68,7 +68,8 @@ impl IndexUpdateBuffer {
 
     /// Cleaning up timeout transactions
     pub fn cleanup_timeout(&self) -> Vec<TransactionId> {
-        let expired_txns: Vec<TransactionId> = self.buffers.iter().map(|entry| *entry.key()).collect();
+        let expired_txns: Vec<TransactionId> =
+            self.buffers.iter().map(|entry| *entry.key()).collect();
         for txn_id in &expired_txns {
             self.buffers.remove(txn_id);
         }

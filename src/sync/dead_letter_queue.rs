@@ -236,6 +236,34 @@ impl DeadLetterQueue {
 
         log::info!("Cleared {} entries from dead letter queue", count);
     }
+
+    /// Get statistics about the dead letter queue
+    pub fn get_stats(&self) -> DeadLetterQueueStats {
+        let entries = self.entries.lock();
+        let total = entries.len();
+        let unrecovered = entries.iter().filter(|e| !e.recovered).count();
+        let recovered = total - unrecovered;
+
+        DeadLetterQueueStats {
+            total_entries: total,
+            unrecovered_entries: unrecovered,
+            recovered_entries: recovered,
+            oldest_entry_age: entries
+                .iter()
+                .map(|e| e.age())
+                .max()
+                .unwrap_or(Duration::from_secs(0)),
+        }
+    }
+}
+
+/// Statistics for dead letter queue
+#[derive(Debug, Clone)]
+pub struct DeadLetterQueueStats {
+    pub total_entries: usize,
+    pub unrecovered_entries: usize,
+    pub recovered_entries: usize,
+    pub oldest_entry_age: Duration,
 }
 
 #[cfg(test)]

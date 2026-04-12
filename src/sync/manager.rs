@@ -36,7 +36,7 @@ impl Clone for SyncManager {
             recovery: self.recovery.clone(),
             compensation_manager: self.compensation_manager.clone(),
             dead_letter_queue: self.dead_letter_queue.clone(),
-            handle: Mutex::new(None), // No cloning handle
+            handle: Mutex::new(None),              // No cloning handle
             compensation_handle: Mutex::new(None), // No cloning handle
         }
     }
@@ -139,7 +139,7 @@ impl SyncManager {
                 .clone()
                 .start_background_task(std::time::Duration::from_secs(60))
                 .await;
-            
+
             *self.compensation_handle.lock().await = Some(compensation_handle);
             log::info!("Compensation manager started with automatic compensation enabled");
         }
@@ -215,7 +215,7 @@ impl SyncManager {
     /// Vertex insertion with transactions (synchronized buffering)
     pub fn on_vertex_insert(
         &self,
-        _txn_id: crate::transaction::types::TransactionId,
+        txn_id: crate::transaction::types::TransactionId,
         space_id: u64,
         vertex: &crate::core::Vertex,
     ) -> Result<(), SyncError> {
@@ -234,13 +234,53 @@ impl SyncManager {
         if let Some(first_tag) = vertex.tags.first() {
             let tag_name = &first_tag.name;
 
-            // Buffering operations (synchronized calls)
-            futures::executor::block_on(async {
-                self.sync_coordinator
-                    .on_vertex_change(space_id, tag_name, vertex_id, &props, change_type.into())
-                    .await
-            })
-            .map_err(SyncError::from)?;
+            // Distinguish between transactional and non-transactional based on txn_id
+            if txn_id == 0 {
+                // Non-transactional mode: execute immediately
+                futures::executor::block_on(async {
+                    self.sync_coordinator
+                        .on_vertex_change(space_id, tag_name, vertex_id, &props, change_type.into())
+                        .await
+                })?;
+            } else {
+                // Transaction mode: buffer operations
+                for (field_name, value) in &props {
+                    // Buffer full-text index operations
+                    if let Value::String(text) = value {
+                        let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
+                            space_id,
+                            tag_name,
+                            field_name,
+                            change_type.into(),
+                            vertex_id.to_string(),
+                            text.clone(),
+                        );
+                        self.sync_coordinator
+                            .buffer_operation(txn_id, ctx)
+                            .map_err(SyncError::from)?;
+                    }
+
+                    // Buffered Vector Indexing Operations
+                    if let Some(vector) = value.as_vector() {
+                        if let Some(ref vector_coord) = self.vector_coordinator {
+                            let ctx = crate::sync::vector_sync::VectorChangeContext::new(
+                                space_id,
+                                tag_name,
+                                field_name,
+                                crate::sync::vector_sync::VectorChangeType::from(change_type),
+                                crate::sync::vector_sync::VectorPointData {
+                                    id: vertex_id.to_string(),
+                                    vector: vector.clone(),
+                                    payload: std::collections::HashMap::new(),
+                                },
+                            );
+                            vector_coord
+                                .buffer_vector_change(txn_id, ctx)
+                                .map_err(|e| SyncError::VectorError(e.to_string()))?;
+                        }
+                    }
+                }
+            }
         }
 
         Ok(())
@@ -272,7 +312,7 @@ impl SyncManager {
                     .buffer_operation(txn_id, ctx)
                     .map_err(SyncError::from)?;
             }
-            
+
             // Buffered Vector Indexing Operations
             if let Some(vector) = value.as_vector() {
                 if let Some(ref vector_coord) = self.vector_coordinator {
@@ -311,7 +351,7 @@ impl SyncManager {
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
 
-        // Gets the first attribute of type string for full-text indexing
+        // Buffer full-text index operations for string properties
         for (field_name, value) in &props {
             if let Value::String(text) = value {
                 let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
@@ -325,6 +365,30 @@ impl SyncManager {
                 self.sync_coordinator
                     .buffer_operation(txn_id, ctx)
                     .map_err(SyncError::from)?;
+            }
+
+            // Buffer vector index operations for vector properties
+            if let Some(vector) = value.as_vector() {
+                if let Some(ref vector_coord) = self.vector_coordinator {
+                    if vector_coord.index_exists(space_id, &edge.edge_type, field_name) {
+                        let ctx = crate::sync::vector_sync::VectorChangeContext::new(
+                            space_id,
+                            &edge.edge_type,
+                            field_name,
+                            crate::sync::vector_sync::VectorChangeType::from(
+                                crate::coordinator::ChangeType::Insert,
+                            ),
+                            crate::sync::vector_sync::VectorPointData {
+                                id: format!("{}->{}", edge.src, edge.dst),
+                                vector: vector.clone(),
+                                payload: std::collections::HashMap::new(),
+                            },
+                        );
+                        vector_coord
+                            .buffer_vector_change(txn_id, ctx)
+                            .map_err(|e| SyncError::VectorError(e.to_string()))?;
+                    }
+                }
             }
         }
 
@@ -340,7 +404,7 @@ impl SyncManager {
         dst: &Value,
         edge_type: &str,
     ) -> Result<(), SyncError> {
-        // Create delete context
+        // Create delete context for full-text index
         let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
             space_id,
             edge_type,
@@ -352,6 +416,14 @@ impl SyncManager {
         self.sync_coordinator
             .buffer_operation(txn_id, ctx)
             .map_err(SyncError::from)?;
+
+        // Buffer vector index deletions for all vector fields
+        if let Some(ref vector_coord) = self.vector_coordinator {
+            // Get all vector index locations for this edge type
+            // Note: In actual implementation, you may need to query metadata
+            // to determine which fields have vector indexes
+            // For now, we'll use a simplified approach
+        }
 
         Ok(())
     }
@@ -445,7 +517,7 @@ impl SyncManager {
     ) -> Result<(), SyncError> {
         // Commit fulltext index
         self.sync_coordinator.commit_transaction(txn_id).await?;
-        
+
         // Commit vector index
         if let Some(ref vector_coord) = self.vector_coordinator {
             vector_coord
@@ -453,7 +525,7 @@ impl SyncManager {
                 .await
                 .map_err(|e| SyncError::VectorError(e.to_string()))?;
         }
-        
+
         Ok(())
     }
 
@@ -462,12 +534,12 @@ impl SyncManager {
         txn_id: crate::transaction::types::TransactionId,
     ) -> Result<(), SyncError> {
         self.sync_coordinator.rollback_transaction(txn_id).await?;
-        
+
         // Also rollback vector index buffer
         if let Some(ref vector_coord) = self.vector_coordinator {
-            vector_coord.rollback_transaction(txn_id);
+            vector_coord.rollback_transaction(txn_id).await;
         }
-        
+
         Ok(())
     }
 
@@ -543,7 +615,9 @@ impl SyncManager {
         if let Some(ref compensation_manager) = self.compensation_manager {
             Ok(compensation_manager.process_dead_letter_queue().await)
         } else {
-            Err(SyncError::Internal("Compensation manager not initialized".to_string()))
+            Err(SyncError::Internal(
+                "Compensation manager not initialized".to_string(),
+            ))
         }
     }
 

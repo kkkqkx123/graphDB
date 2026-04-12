@@ -55,6 +55,10 @@ impl Default for MockStorage {
 
 #[cfg(test)]
 impl StorageClient for MockStorage {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
     fn get_vertex(&self, _space: &str, _id: &Value) -> Result<Option<Vertex>, StorageError> {
         Ok(None)
     }

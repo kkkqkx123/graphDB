@@ -426,7 +426,10 @@ impl VectorSyncCoordinator {
         if let Some(ref buffer) = self.transaction_buffer {
             let update = PendingVectorUpdate::new(txn_id, ctx);
             buffer.add_update(txn_id, update).map_err(|e| {
-                VectorCoordinatorError::BufferError(format!("Failed to buffer vector update: {}", e))
+                VectorCoordinatorError::BufferError(format!(
+                    "Failed to buffer vector update: {}",
+                    e
+                ))
             })?;
             Ok(())
         } else {
@@ -466,13 +469,10 @@ impl VectorSyncCoordinator {
     }
 
     /// Commit transaction: flush buffered vector updates
-    pub async fn commit_transaction(
-        &self,
-        txn_id: TransactionId,
-    ) -> VectorCoordinatorResult<()> {
+    pub async fn commit_transaction(&self, txn_id: TransactionId) -> VectorCoordinatorResult<()> {
         if let Some(ref buffer) = self.transaction_buffer {
             let updates = buffer.take_updates(txn_id);
-            
+
             if !updates.is_empty() {
                 debug!(
                     "Committing {} vector updates for transaction {:?}",
@@ -486,18 +486,15 @@ impl VectorSyncCoordinator {
                 }
             }
         }
-        
+
         Ok(())
     }
 
     /// Rollback transaction: clear buffered vector updates
-    pub fn rollback_transaction(&self, txn_id: TransactionId) {
+    pub async fn rollback_transaction(&self, txn_id: TransactionId) {
         if let Some(ref buffer) = self.transaction_buffer {
             buffer.cleanup(txn_id);
-            debug!(
-                "Rolled back vector updates for transaction {:?}",
-                txn_id
-            );
+            debug!("Rolled back vector updates for transaction {:?}", txn_id);
         }
     }
 

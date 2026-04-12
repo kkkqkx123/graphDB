@@ -6,8 +6,6 @@
 pub mod data_access;
 pub mod management;
 
-pub use data_access::{
-    OutputField, VectorLookupNode, VectorMatchNode, VectorSearchNode,
-};
 pub use data_access::VectorSearchParams;
+pub use data_access::{OutputField, VectorLookupNode, VectorMatchNode, VectorSearchNode};
 pub use management::{CreateVectorIndexNode, CreateVectorIndexParams, DropVectorIndexNode};

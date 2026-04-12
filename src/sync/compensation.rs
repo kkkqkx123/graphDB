@@ -162,8 +162,9 @@ impl CompensationManager {
         self: Arc<Self>,
         interval: Duration,
     ) -> tokio::task::JoinHandle<()> {
-        self.running.store(true, std::sync::atomic::Ordering::SeqCst);
-        
+        self.running
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+
         tokio::spawn(async move {
             let mut interval_timer = tokio::time::interval(interval);
 
@@ -180,11 +181,12 @@ impl CompensationManager {
 
                 if stats.total > 0 {
                     log::info!("Compensation task completed: {:?}", stats);
-                    
+
                     // Record metrics
                     self.metrics.record_compensation_attempt(stats.total);
                     self.metrics.record_compensation_success(stats.successful);
-                    self.metrics.record_compensation_failure(stats.fatal + stats.retryable);
+                    self.metrics
+                        .record_compensation_failure(stats.fatal + stats.retryable);
                 }
             }
         })
@@ -192,7 +194,8 @@ impl CompensationManager {
 
     /// Stop background compensation task
     pub fn stop(&self) {
-        self.running.store(false, std::sync::atomic::Ordering::SeqCst);
+        self.running
+            .store(false, std::sync::atomic::Ordering::SeqCst);
         log::info!("Compensation manager stopped");
     }
 }

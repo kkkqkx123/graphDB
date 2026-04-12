@@ -3,9 +3,7 @@
 //! This module defines plan nodes for full-text index management operations.
 
 use crate::core::types::FulltextEngineType;
-use crate::query::parser::ast::fulltext::{
-    AlterIndexAction, IndexFieldDef, IndexOptions,
-};
+use crate::query::parser::ast::fulltext::{AlterIndexAction, IndexFieldDef, IndexOptions};
 use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
 use crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{PlanNode, ZeroInputNode};

@@ -171,8 +171,12 @@ mod tests {
         let buffer = VectorTransactionBuffer::new(VectorTransactionBufferConfig::default());
         let txn_id = TransactionId::from(1u64);
 
-        buffer.add_update(txn_id, create_test_update(txn_id)).unwrap();
-        buffer.add_update(txn_id, create_test_update(txn_id)).unwrap();
+        buffer
+            .add_update(txn_id, create_test_update(txn_id))
+            .unwrap();
+        buffer
+            .add_update(txn_id, create_test_update(txn_id))
+            .unwrap();
 
         assert!(buffer.has_pending_updates(txn_id));
 
@@ -189,8 +193,12 @@ mod tests {
         });
         let txn_id = TransactionId::from(1u64);
 
-        buffer.add_update(txn_id, create_test_update(txn_id)).unwrap();
-        buffer.add_update(txn_id, create_test_update(txn_id)).unwrap();
+        buffer
+            .add_update(txn_id, create_test_update(txn_id))
+            .unwrap();
+        buffer
+            .add_update(txn_id, create_test_update(txn_id))
+            .unwrap();
 
         let result = buffer.add_update(txn_id, create_test_update(txn_id));
         assert!(result.is_err());
@@ -201,7 +209,9 @@ mod tests {
         let buffer = VectorTransactionBuffer::new(VectorTransactionBufferConfig::default());
         let txn_id = TransactionId::from(1u64);
 
-        buffer.add_update(txn_id, create_test_update(txn_id)).unwrap();
+        buffer
+            .add_update(txn_id, create_test_update(txn_id))
+            .unwrap();
         assert!(buffer.has_pending_updates(txn_id));
 
         buffer.cleanup(txn_id);

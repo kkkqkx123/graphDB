@@ -18,9 +18,6 @@ pub use access::{IndexLimit, IndexScanNode, OrderByItem, ScanType};
 pub use base::plan_node_traits::*;
 pub use base::{PlanNodeCategory, PlanNodeEnum, PlanNodeVisitor};
 pub use control_flow::{ArgumentNode, LoopNode, PassThroughNode, SelectNode, StartNode};
-pub use search::{
-    CreateVectorIndexNode, DropVectorIndexNode, VectorLookupNode, VectorMatchNode, VectorSearchNode,
-};
 pub use data_modification::{
     DeleteEdgesNode, DeleteVerticesNode, EdgeDeleteInfo, EdgeInsertInfo, EdgeUpdateInfo,
     InsertEdgesNode, InsertVerticesNode, TagInsertSpec, UpdateEdgesNode, UpdateNode,
@@ -35,15 +32,14 @@ pub use join::{
     LeftJoinNode,
 };
 pub use management::{
-    AlterEdgeNode, AlterSpaceNode, AlterTagNode, AlterUserNode, ChangePasswordNode,
-    ClearSpaceNode, CreateEdgeIndexNode, CreateEdgeNode, CreateSpaceNode, CreateTagIndexNode,
-    CreateTagNode, CreateUserNode, DescEdgeIndexNode, DescEdgeNode, DescSpaceNode,
-    DescTagIndexNode, DescTagNode, DropEdgeIndexNode, DropEdgeNode, DropSpaceNode,
-    DropTagIndexNode, DropTagNode, DropUserNode, EdgeAlterInfo, EdgeManageInfo, GrantRoleNode,
-    IndexManageInfo, RebuildEdgeIndexNode, RebuildTagIndexNode, RevokeRoleNode, ShowCreateTagNode,
-    ShowEdgeIndexesNode, ShowEdgesNode, ShowSpacesNode, ShowStatsNode, ShowStatsType,
-    ShowTagIndexesNode, ShowTagsNode, SpaceAlterOption, SpaceManageInfo, SwitchSpaceNode,
-    TagAlterInfo, TagManageInfo,
+    AlterEdgeNode, AlterSpaceNode, AlterTagNode, AlterUserNode, ChangePasswordNode, ClearSpaceNode,
+    CreateEdgeIndexNode, CreateEdgeNode, CreateSpaceNode, CreateTagIndexNode, CreateTagNode,
+    CreateUserNode, DescEdgeIndexNode, DescEdgeNode, DescSpaceNode, DescTagIndexNode, DescTagNode,
+    DropEdgeIndexNode, DropEdgeNode, DropSpaceNode, DropTagIndexNode, DropTagNode, DropUserNode,
+    EdgeAlterInfo, EdgeManageInfo, GrantRoleNode, IndexManageInfo, RebuildEdgeIndexNode,
+    RebuildTagIndexNode, RevokeRoleNode, ShowCreateTagNode, ShowEdgeIndexesNode, ShowEdgesNode,
+    ShowSpacesNode, ShowStatsNode, ShowStatsType, ShowTagIndexesNode, ShowTagsNode,
+    SpaceAlterOption, SpaceManageInfo, SwitchSpaceNode, TagAlterInfo, TagManageInfo,
 };
 pub use operation::{FilterNode, LimitNode, ProjectNode, SampleNode, SortItem, SortNode, TopNNode};
 pub use plan_node_factory::PlanNodeFactory;
@@ -51,6 +47,9 @@ pub use search::{
     AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
     DropFulltextIndexNode, FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
     ShowFulltextIndexNode,
+};
+pub use search::{
+    CreateVectorIndexNode, DropVectorIndexNode, VectorLookupNode, VectorMatchNode, VectorSearchNode,
 };
 pub use traversal::{
     AllPathsNode, AppendVerticesNode, BFSShortestNode, ExpandAllNode, ExpandNode,

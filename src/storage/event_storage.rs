@@ -20,7 +20,7 @@ impl<S: StorageClient> SyncStorage<S> {
     /// Detect changed properties between two vertices (static helper method)
     fn detect_changed_properties(old_vertex: &Vertex, new_vertex: &Vertex) -> Vec<(String, Value)> {
         let mut changed_props = Vec::new();
-        
+
         // Compare properties in each tag
         for new_tag in &new_vertex.tags {
             if let Some(old_tag) = old_vertex.tags.iter().find(|t| t.name == new_tag.name) {
@@ -35,7 +35,7 @@ impl<S: StorageClient> SyncStorage<S> {
                         changed_props.push((prop_name.clone(), new_value.clone()));
                     }
                 }
-                
+
                 // Check deleted properties
                 for (prop_name, old_value) in &old_tag.properties {
                     if !new_tag.properties.contains_key(prop_name) {
@@ -49,10 +49,26 @@ impl<S: StorageClient> SyncStorage<S> {
                 }
             }
         }
-        
+
         changed_props
     }
-    
+
+    /// Get the current transaction ID from storage context
+    fn get_current_txn_id(&self) -> crate::transaction::types::TransactionId {
+        // Try to get transaction context from RedbStorage
+        if let Some(redb_storage) = self
+            .inner
+            .as_any()
+            .downcast_ref::<crate::storage::RedbStorage>()
+        {
+            if let Some(ctx) = redb_storage.get_transaction_context() {
+                return ctx.id;
+            }
+        }
+        // Default to 0 for non-transactional operations
+        0
+    }
+
     /// Create a new synchronous storage without a SyncManager
     pub fn new(storage: S) -> Self {
         Self {
@@ -92,7 +108,11 @@ impl<S: StorageClient> SyncStorage<S> {
     }
 }
 
-impl<S: StorageClient> StorageClient for SyncStorage<S> {
+impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
     fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
         self.inner.get_vertex(space, id)
     }
@@ -163,19 +183,19 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
         if self.enabled {
             if let Some(ref sync_manager) = self.sync_manager {
                 let space_id = self.inner.get_space_id(space)?;
-                
-                // Get the current transaction ID (if a transaction context exists)
-                // Note: SyncStorage does not directly manage the transaction context, and 0 is used here to indicate non-transactional operations.
-                // In transactional mode, transactions and synchronization should be explicitly managed by the caller
-                let txn_id = 0;
-                
+
+                // Get the current transaction ID from storage context
+                let txn_id = self.get_current_txn_id();
+
                 // Get the first tag name (if any)
                 if let Some(_first_tag) = vertex.tags.first() {
-                    
                     // Synchronized Calls to SyncManager
-                    // For non-transactional operations (txn_id=0), SyncManager performs synchronization immediately
-                    sync_manager.on_vertex_insert(txn_id, space_id, &vertex)
-                        .map_err(|e| StorageError::DbError(format!("Failed to sync vertex insert: {}", e)))?;
+                    // SyncManager will distinguish between transactional and non-transactional based on txn_id
+                    sync_manager
+                        .on_vertex_insert(txn_id, space_id, &vertex)
+                        .map_err(|e| {
+                            StorageError::DbError(format!("Failed to sync vertex insert: {}", e))
+                        })?;
                 }
             }
         }
@@ -194,25 +214,30 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
         if self.enabled {
             if let Some(ref sync_manager) = self.sync_manager {
                 let space_id = self.inner.get_space_id(space)?;
-                let txn_id = 0; // non-transactional operation
-                
+                let txn_id = self.get_current_txn_id();
+
                 if let Some(first_tag) = vertex.tags.first() {
                     let tag_name = &first_tag.name;
-                    
+
                     // Detecting changed properties
                     let changed_props = Self::detect_changed_properties(&old_vertex, &vertex);
-                    
+
                     if !changed_props.is_empty() {
-                        sync_manager.on_vertex_change_with_txn(
-                            txn_id,
-                            space_id,
-                            tag_name,
-                            &vertex.vid,
-                            &changed_props,
-                            ChangeType::Update,
-                        ).map_err(|e| {
-                            StorageError::DbError(format!("Failed to sync vertex update: {}", e))
-                        })?;
+                        sync_manager
+                            .on_vertex_change_with_txn(
+                                txn_id,
+                                space_id,
+                                tag_name,
+                                &vertex.vid,
+                                &changed_props,
+                                ChangeType::Update,
+                            )
+                            .map_err(|e| {
+                                StorageError::DbError(format!(
+                                    "Failed to sync vertex update: {}",
+                                    e
+                                ))
+                            })?;
                     }
                 }
             }
@@ -232,22 +257,24 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
         if self.enabled {
             if let Some(ref sync_manager) = self.sync_manager {
                 let space_id = self.inner.get_space_id(space)?;
-                let txn_id = 0; // non-transactional operation
-                
+                let txn_id = self.get_current_txn_id();
+
                 // Call SyncManager for each tag
                 for tag in &vertex.tags {
                     let tag_name = &tag.name;
-                    
-                    sync_manager.on_vertex_change_with_txn(
-                        txn_id,
-                        space_id,
-                        tag_name,
-                        id,
-                        &[], // Delete without attributes
-                        ChangeType::Delete,
-                    ).map_err(|e| {
-                        StorageError::DbError(format!("Failed to sync vertex delete: {}", e))
-                    })?;
+
+                    sync_manager
+                        .on_vertex_change_with_txn(
+                            txn_id,
+                            space_id,
+                            tag_name,
+                            id,
+                            &[], // Delete without attributes
+                            ChangeType::Delete,
+                        )
+                        .map_err(|e| {
+                            StorageError::DbError(format!("Failed to sync vertex delete: {}", e))
+                        })?;
                 }
             }
         }
@@ -266,22 +293,24 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
         if self.enabled {
             if let Some(ref sync_manager) = self.sync_manager {
                 let space_id = self.inner.get_space_id(space)?;
-                let txn_id = 0; // non-transactional operation
-                
+                let txn_id = self.get_current_txn_id();
+
                 // Call SyncManager for each tag
                 for tag in &vertex.tags {
                     let tag_name = &tag.name;
-                    
-                    sync_manager.on_vertex_change_with_txn(
-                        txn_id,
-                        space_id,
-                        tag_name,
-                        id,
-                        &[],
-                        ChangeType::Delete,
-                    ).map_err(|e| {
-                        StorageError::DbError(format!("Failed to sync vertex delete: {}", e))
-                    })?;
+
+                    sync_manager
+                        .on_vertex_change_with_txn(
+                            txn_id,
+                            space_id,
+                            tag_name,
+                            id,
+                            &[],
+                            ChangeType::Delete,
+                        )
+                        .map_err(|e| {
+                            StorageError::DbError(format!("Failed to sync vertex delete: {}", e))
+                        })?;
                 }
             }
         }
@@ -299,12 +328,18 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
         if self.enabled {
             if let Some(ref sync_manager) = self.sync_manager {
                 let space_id = self.inner.get_space_id(space)?;
-                let txn_id = 0; // non-transactional operation
+                let txn_id = self.get_current_txn_id();
 
                 for vertex in &vertices {
                     if let Some(_first_tag) = vertex.tags.first() {
-                        sync_manager.on_vertex_insert(txn_id, space_id, vertex)
-                            .map_err(|e| StorageError::DbError(format!("Failed to sync vertex insert: {}", e)))?;
+                        sync_manager
+                            .on_vertex_insert(txn_id, space_id, vertex)
+                            .map_err(|e| {
+                                StorageError::DbError(format!(
+                                    "Failed to sync vertex insert: {}",
+                                    e
+                                ))
+                            })?;
                     }
                 }
             }
@@ -323,7 +358,23 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
     }
 
     fn insert_edge(&mut self, space: &str, edge: Edge) -> Result<(), StorageError> {
-        self.inner.insert_edge(space, edge)
+        let result = self.inner.insert_edge(space, edge.clone());
+
+        if self.enabled {
+            if let Some(ref sync_manager) = self.sync_manager {
+                if let Ok(space_id) = self.inner.get_space_id(space) {
+                    let txn_id = self.get_current_txn_id();
+
+                    sync_manager
+                        .on_edge_insert(txn_id, space_id, &edge)
+                        .map_err(|e| {
+                            StorageError::DbError(format!("Failed to sync edge insert: {}", e))
+                        })?;
+                }
+            }
+        }
+
+        result
     }
 
     fn delete_edge(
@@ -334,11 +385,45 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
         edge_type: &str,
         rank: i64,
     ) -> Result<(), StorageError> {
-        self.inner.delete_edge(space, src, dst, edge_type, rank)
+        let result = self.inner.delete_edge(space, src, dst, edge_type, rank);
+
+        if self.enabled {
+            if let Some(ref sync_manager) = self.sync_manager {
+                if let Ok(space_id) = self.inner.get_space_id(space) {
+                    let txn_id = self.get_current_txn_id();
+
+                    sync_manager
+                        .on_edge_delete(txn_id, space_id, src, dst, edge_type)
+                        .map_err(|e| {
+                            StorageError::DbError(format!("Failed to sync edge delete: {}", e))
+                        })?;
+                }
+            }
+        }
+
+        result
     }
 
     fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
-        self.inner.batch_insert_edges(space, edges)
+        let result = self.inner.batch_insert_edges(space, edges.clone());
+
+        if self.enabled {
+            if let Some(ref sync_manager) = self.sync_manager {
+                if let Ok(space_id) = self.inner.get_space_id(space) {
+                    let txn_id = self.get_current_txn_id();
+
+                    for edge in &edges {
+                        sync_manager
+                            .on_edge_insert(txn_id, space_id, edge)
+                            .map_err(|e| {
+                                StorageError::DbError(format!("Failed to sync edge insert: {}", e))
+                            })?;
+                    }
+                }
+            }
+        }
+
+        result
     }
 
     fn create_space(

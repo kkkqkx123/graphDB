@@ -301,7 +301,7 @@ impl SyncCoordinator {
         Ok(())
     }
 
-    /// Commit phase: Apply all operations
+    /// Commit phase: Apply all operations with batch optimization
     pub async fn commit_transaction(
         &self,
         txn_id: crate::transaction::types::TransactionId,
@@ -315,8 +315,34 @@ impl SyncCoordinator {
                 .take_operations(txn_id)
                 .map_err(SyncCoordinatorError::BatchError)?;
 
-            // For each key, perform the corresponding operation
+            // Group operations by type (vector vs full-text) for batch processing
+            let mut vector_batches: HashMap<IndexKey, Vec<IndexOperation>> = HashMap::new();
+            let mut fulltext_batches: HashMap<IndexKey, Vec<IndexOperation>> = HashMap::new();
+
+            // First pass: categorize operations
             for (key, operations) in grouped_ops {
+                let is_vector = operations.iter().any(|op| {
+                    matches!(
+                        op,
+                        IndexOperation::Insert {
+                            data: IndexData::Vector(_),
+                            ..
+                        } | IndexOperation::Update {
+                            data: IndexData::Vector(_),
+                            ..
+                        }
+                    )
+                });
+
+                if is_vector {
+                    vector_batches.insert(key.clone(), operations);
+                } else {
+                    fulltext_batches.insert(key.clone(), operations);
+                }
+            }
+
+            // Second pass: process vector batches with aggregation
+            for (key, operations) in vector_batches {
                 // Record operation type
                 for op in &operations {
                     match op {
@@ -332,110 +358,114 @@ impl SyncCoordinator {
                     }
                 }
 
-                // Determine whether it is a full-text index or a vector index based on the type of operation
-                let is_vector = operations.iter().any(|op| {
-                    matches!(
-                        op,
-                        IndexOperation::Insert {
-                            data: IndexData::Vector(_),
-                            ..
-                        } | IndexOperation::Update {
-                            data: IndexData::Vector(_),
-                            ..
-                        }
-                    )
-                });
-
                 // Creating a Retry Configuration
                 let retry_config =
                     RetryConfig::new(3, Duration::from_millis(100), Duration::from_secs(5));
 
-                if is_vector {
-                    // Vector index processing (with retries)
-                    if let Some(processor) = self.get_or_create_vector_processor(
-                        key.space_id,
-                        &key.tag_name,
-                        &key.field_name,
-                    ) {
-                        let ops_clone = operations.clone();
-                        let retry_config_clone = retry_config.clone();
-                        let metrics_clone = self.metrics.clone();
-                        let dlq_clone = self.dead_letter_queue.clone();
+                if let Some(processor) = self.get_or_create_vector_processor(
+                    key.space_id,
+                    &key.tag_name,
+                    &key.field_name,
+                ) {
+                    let ops_clone = operations.clone();
+                    let retry_config_clone = retry_config.clone();
+                    let metrics_clone = self.metrics.clone();
+                    let dlq_clone = self.dead_letter_queue.clone();
 
-                        match with_retry(
-                            || async { processor.add_batch(ops_clone.clone()).await },
-                            &retry_config_clone,
-                        )
-                        .await
-                        {
-                            Ok(_) => {
-                                metrics_clone.record_retry_success();
-                            }
-                            Err(e) => {
-                                metrics_clone.record_retry_failure();
-                                // Add failed operations to the dead letter queue
-                                for op in operations {
-                                    let entry = DeadLetterEntry::new(
-                                        op,
-                                        format!("Index sync failed after retries: {:?}", e),
-                                        retry_config_clone.max_retries,
-                                    );
-                                    dlq_clone.add(entry);
-                                }
-                                return Err(SyncCoordinatorError::BatchError(
-                                    crate::sync::batch::BatchError::InvalidOperation(format!(
-                                        "Failed to sync index operations: {:?}",
-                                        e
-                                    )),
-                                ));
-                            }
+                    match with_retry(
+                        || async { processor.add_batch(ops_clone.clone()).await },
+                        &retry_config_clone,
+                    )
+                    .await
+                    {
+                        Ok(_) => {
+                            metrics_clone.record_retry_success();
                         }
-                    }
-                } else {
-                    // Full-text indexing processing (with retries)
-                    if let Some(processor) = self.get_or_create_fulltext_processor(
-                        key.space_id,
-                        &key.tag_name,
-                        &key.field_name,
-                    ) {
-                        let ops_clone = operations.clone();
-                        let retry_config_clone = retry_config.clone();
-                        let metrics_clone = self.metrics.clone();
-                        let dlq_clone = self.dead_letter_queue.clone();
-
-                        match with_retry(
-                            || async { processor.add_batch(ops_clone.clone()).await },
-                            &retry_config_clone,
-                        )
-                        .await
-                        {
-                            Ok(_) => {
-                                metrics_clone.record_retry_success();
+                        Err(e) => {
+                            metrics_clone.record_retry_failure();
+                            // Add failed operations to the dead letter queue
+                            for op in operations {
+                                let entry = DeadLetterEntry::new(
+                                    op,
+                                    format!("Index sync failed after retries: {:?}", e),
+                                    retry_config_clone.max_retries,
+                                );
+                                dlq_clone.add(entry);
                             }
-                            Err(e) => {
-                                metrics_clone.record_retry_failure();
-                                // Add failed operations to the dead letter queue
-                                for op in operations {
-                                    let entry = DeadLetterEntry::new(
-                                        op,
-                                        format!("Index sync failed after retries: {:?}", e),
-                                        retry_config_clone.max_retries,
-                                    );
-                                    dlq_clone.add(entry);
-                                }
-                                return Err(SyncCoordinatorError::BatchError(
-                                    crate::sync::batch::BatchError::InvalidOperation(format!(
-                                        "Failed to sync index operations: {:?}",
-                                        e
-                                    )),
-                                ));
-                            }
+                            return Err(SyncCoordinatorError::BatchError(
+                                crate::sync::batch::BatchError::InvalidOperation(format!(
+                                    "Failed to sync index operations: {:?}",
+                                    e
+                                )),
+                            ));
                         }
                     }
                 }
             }
 
-            log::debug!("Transaction {:?} committed", txn_id);
+            // Third pass: process full-text batches with aggregation
+            for (key, operations) in fulltext_batches {
+                // Record operation type
+                for op in &operations {
+                    match op {
+                        IndexOperation::Insert { .. } => {
+                            self.metrics.record_index_operation("insert");
+                        }
+                        IndexOperation::Update { .. } => {
+                            self.metrics.record_index_operation("update");
+                        }
+                        IndexOperation::Delete { .. } => {
+                            self.metrics.record_index_operation("delete");
+                        }
+                    }
+                }
+
+                // Creating a Retry Configuration
+                let retry_config =
+                    RetryConfig::new(3, Duration::from_millis(100), Duration::from_secs(5));
+
+                if let Some(processor) = self.get_or_create_fulltext_processor(
+                    key.space_id,
+                    &key.tag_name,
+                    &key.field_name,
+                ) {
+                    let ops_clone = operations.clone();
+                    let retry_config_clone = retry_config.clone();
+                    let metrics_clone = self.metrics.clone();
+                    let dlq_clone = self.dead_letter_queue.clone();
+
+                    match with_retry(
+                        || async { processor.add_batch(ops_clone.clone()).await },
+                        &retry_config_clone,
+                    )
+                    .await
+                    {
+                        Ok(_) => {
+                            metrics_clone.record_retry_success();
+                        }
+                        Err(e) => {
+                            metrics_clone.record_retry_failure();
+                            // Add failed operations to the dead letter queue
+                            for op in operations {
+                                let entry = DeadLetterEntry::new(
+                                    op,
+                                    format!("Index sync failed after retries: {:?}", e),
+                                    retry_config_clone.max_retries,
+                                );
+                                dlq_clone.add(entry);
+                            }
+                            return Err(SyncCoordinatorError::BatchError(
+                                crate::sync::batch::BatchError::InvalidOperation(format!(
+                                    "Failed to sync index operations: {:?}",
+                                    e
+                                )),
+                            ));
+                        }
+                    }
+                }
+            }
+
+            log::debug!("Transaction {:?} committed with batch optimization", txn_id);
             Ok(())
         } else {
             Ok(())
@@ -487,6 +517,169 @@ impl SyncCoordinator {
         Ok(())
     }
 
+    /// Recover failed operations from dead letter queue
+    pub async fn recover_from_dead_letter_queue(
+        &self,
+        max_entries: usize,
+    ) -> Result<RecoveryResult, SyncCoordinatorError> {
+        let unrecovered = self.dead_letter_queue.get_unrecovered();
+        let mut result = RecoveryResult::default();
+
+        for (index, entry) in unrecovered.iter().take(max_entries).enumerate() {
+            if entry.recovered {
+                continue;
+            }
+
+            // Try to recover the operation
+            match self.recover_operation(&entry.operation).await {
+                Ok(()) => {
+                    self.dead_letter_queue.mark_recovered(index);
+                    result.successful += 1;
+                }
+                Err(e) => {
+                    result.failed += 1;
+                    result.errors.push(format!(
+                        "Failed to recover operation at index {}: {}",
+                        index, e
+                    ));
+                }
+            }
+        }
+
+        result.total_attempted = result.successful + result.failed;
+        Ok(result)
+    }
+
+    /// Recover a single operation
+    async fn recover_operation(
+        &self,
+        operation: &IndexOperation,
+    ) -> Result<(), SyncCoordinatorError> {
+        match operation {
+            IndexOperation::Insert {
+                key,
+                id,
+                data,
+                payload,
+            } => {
+                // Determine if it's a vector or full-text operation based on data type
+                match data {
+                    IndexData::Fulltext(text) => {
+                        if let Some(processor) = self.get_or_create_fulltext_processor(
+                            key.space_id,
+                            &key.tag_name,
+                            &key.field_name,
+                        ) {
+                            processor.add(operation.clone()).await.map_err(|e| {
+                                SyncCoordinatorError::BatchError(
+                                    crate::sync::batch::BatchError::InvalidOperation(format!(
+                                        "Recovery failed: {:?}",
+                                        e
+                                    )),
+                                )
+                            })?;
+                        }
+                    }
+                    IndexData::Vector(vector) => {
+                        if let Some(processor) = self.get_or_create_vector_processor(
+                            key.space_id,
+                            &key.tag_name,
+                            &key.field_name,
+                        ) {
+                            processor.add(operation.clone()).await.map_err(|e| {
+                                SyncCoordinatorError::BatchError(
+                                    crate::sync::batch::BatchError::InvalidOperation(format!(
+                                        "Recovery failed: {:?}",
+                                        e
+                                    )),
+                                )
+                            })?;
+                        }
+                    }
+                }
+            }
+            IndexOperation::Update {
+                key,
+                id,
+                data,
+                payload,
+            } => {
+                // Similar to insert, but for updates
+                match data {
+                    IndexData::Fulltext(text) => {
+                        if let Some(processor) = self.get_or_create_fulltext_processor(
+                            key.space_id,
+                            &key.tag_name,
+                            &key.field_name,
+                        ) {
+                            processor.add(operation.clone()).await.map_err(|e| {
+                                SyncCoordinatorError::BatchError(
+                                    crate::sync::batch::BatchError::InvalidOperation(format!(
+                                        "Recovery failed: {:?}",
+                                        e
+                                    )),
+                                )
+                            })?;
+                        }
+                    }
+                    IndexData::Vector(vector) => {
+                        if let Some(processor) = self.get_or_create_vector_processor(
+                            key.space_id,
+                            &key.tag_name,
+                            &key.field_name,
+                        ) {
+                            processor.add(operation.clone()).await.map_err(|e| {
+                                SyncCoordinatorError::BatchError(
+                                    crate::sync::batch::BatchError::InvalidOperation(format!(
+                                        "Recovery failed: {:?}",
+                                        e
+                                    )),
+                                )
+                            })?;
+                        }
+                    }
+                }
+            }
+            IndexOperation::Delete { key, id } => {
+                // For deletes, we can retry the deletion
+                if let Some(processor) = self.get_or_create_fulltext_processor(
+                    key.space_id,
+                    &key.tag_name,
+                    &key.field_name,
+                ) {
+                    processor.add(operation.clone()).await.map_err(|e| {
+                        SyncCoordinatorError::BatchError(
+                            crate::sync::batch::BatchError::InvalidOperation(format!(
+                                "Recovery failed: {:?}",
+                                e
+                            )),
+                        )
+                    })?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Get dead letter queue statistics
+    pub fn get_dead_letter_queue_stats(
+        &self,
+    ) -> crate::sync::dead_letter_queue::DeadLetterQueueStats {
+        self.dead_letter_queue.get_stats()
+    }
+}
+
+/// Recovery result statistics
+#[derive(Debug, Default)]
+pub struct RecoveryResult {
+    pub total_attempted: usize,
+    pub successful: usize,
+    pub failed: usize,
+    pub errors: Vec<String>,
+}
+
+impl SyncCoordinator {
     pub async fn start_background_tasks(&self) {
         log::info!("Starting background tasks for sync coordinator");
 
@@ -499,6 +692,28 @@ impl SyncCoordinator {
         for entry in self.vector_processors.iter() {
             let processor: Arc<VectorProcessor> = entry.value().clone();
             processor.start_background_task().await;
+        }
+
+        // Start dead letter queue cleanup task
+        if self.dead_letter_queue.is_auto_cleanup_enabled() {
+            let dlq = self.dead_letter_queue.clone();
+            let interval = self.dead_letter_queue.get_cleanup_interval();
+            let metrics = self.metrics.clone();
+
+            tokio::spawn(async move {
+                log::info!(
+                    "Starting dead letter queue cleanup task (interval: {:?})",
+                    interval
+                );
+                let mut interval_timer = tokio::time::interval(interval);
+                loop {
+                    interval_timer.tick().await;
+                    let removed = dlq.cleanup();
+                    if removed > 0 {
+                        log::debug!("Cleaned up {} old dead letter entries", removed);
+                    }
+                }
+            });
         }
 
         // Start the compensation background task (if Compensation Manager is enabled)

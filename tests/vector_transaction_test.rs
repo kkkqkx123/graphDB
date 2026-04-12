@@ -2,13 +2,13 @@
 
 use std::sync::Arc;
 
+use graphdb::sync::task::VectorPointData;
 use graphdb::sync::vector_sync::{
     VectorChangeContext, VectorChangeType, VectorIndexLocation, VectorSyncCoordinator,
 };
 use graphdb::sync::vector_transaction_buffer::{
     PendingVectorUpdate, VectorTransactionBuffer, VectorTransactionBufferConfig,
 };
-use graphdb::sync::task::VectorPointData;
 use graphdb::transaction::types::TransactionId;
 use vector_client::{DistanceMetric, VectorManager};
 
@@ -16,9 +16,9 @@ use vector_client::{DistanceMetric, VectorManager};
 async fn test_vector_transaction_buffer_basic() {
     let config = VectorTransactionBufferConfig::default();
     let buffer = VectorTransactionBuffer::new(config);
-    
+
     let txn_id = TransactionId::from(1u64);
-    
+
     // Create test update
     let location = VectorIndexLocation::new(1, "test", "vector_field");
     let context = VectorChangeContext::new(
@@ -32,19 +32,19 @@ async fn test_vector_transaction_buffer_basic() {
             payload: std::collections::HashMap::new(),
         },
     );
-    
+
     let update = PendingVectorUpdate::new(txn_id, context);
-    
+
     // Add update to buffer
     buffer.add_update(txn_id, update).unwrap();
-    
+
     // Verify update is buffered
     assert!(buffer.has_pending_updates(txn_id));
-    
+
     // Take updates
     let updates = buffer.take_updates(txn_id);
     assert_eq!(updates.len(), 1);
-    
+
     // Verify buffer is cleared
     assert!(!buffer.has_pending_updates(txn_id));
 }
@@ -53,9 +53,9 @@ async fn test_vector_transaction_buffer_basic() {
 async fn test_vector_transaction_buffer_cleanup() {
     let config = VectorTransactionBufferConfig::default();
     let buffer = VectorTransactionBuffer::new(config);
-    
+
     let txn_id = TransactionId::from(1u64);
-    
+
     // Add multiple updates
     for i in 0..3 {
         let context = VectorChangeContext::new(
@@ -69,16 +69,16 @@ async fn test_vector_transaction_buffer_cleanup() {
                 payload: std::collections::HashMap::new(),
             },
         );
-        
+
         let update = PendingVectorUpdate::new(txn_id, context);
         buffer.add_update(txn_id, update).unwrap();
     }
-    
+
     assert!(buffer.has_pending_updates(txn_id));
-    
+
     // Cleanup
     buffer.cleanup(txn_id);
-    
+
     // Verify buffer is cleared
     assert!(!buffer.has_pending_updates(txn_id));
 }
@@ -87,16 +87,16 @@ async fn test_vector_transaction_buffer_cleanup() {
 async fn test_vector_sync_coordinator_with_buffer() {
     // Create a mock vector manager (using in-memory)
     let vector_manager = Arc::new(VectorManager::new_in_memory());
-    
+
     // Create coordinator with transaction buffer
     let coordinator = VectorSyncCoordinator::with_transaction_buffer(
         vector_manager,
         None,
         VectorTransactionBufferConfig::default(),
     );
-    
+
     let txn_id = TransactionId::from(1u64);
-    
+
     // Create test context
     let context = VectorChangeContext::new(
         1,
@@ -109,20 +109,22 @@ async fn test_vector_sync_coordinator_with_buffer() {
             payload: std::collections::HashMap::new(),
         },
     );
-    
+
     // Buffer the update
-    coordinator.buffer_vector_change(txn_id, context.clone()).unwrap();
-    
+    coordinator
+        .buffer_vector_change(txn_id, context.clone())
+        .unwrap();
+
     // Verify buffer has pending updates
     if let Some(buffer) = coordinator.transaction_buffer() {
         assert!(buffer.has_pending_updates(txn_id));
     } else {
         panic!("Transaction buffer not initialized");
     }
-    
+
     // Commit transaction
     coordinator.commit_transaction(txn_id).await.unwrap();
-    
+
     // Verify buffer is cleared after commit
     if let Some(buffer) = coordinator.transaction_buffer() {
         assert!(!buffer.has_pending_updates(txn_id));
@@ -133,16 +135,16 @@ async fn test_vector_sync_coordinator_with_buffer() {
 async fn test_vector_sync_coordinator_rollback() {
     // Create a mock vector manager
     let vector_manager = Arc::new(VectorManager::new_in_memory());
-    
+
     // Create coordinator with transaction buffer
     let coordinator = VectorSyncCoordinator::with_transaction_buffer(
         vector_manager,
         None,
         VectorTransactionBufferConfig::default(),
     );
-    
+
     let txn_id = TransactionId::from(1u64);
-    
+
     // Buffer multiple updates
     for i in 0..3 {
         let context = VectorChangeContext::new(
@@ -156,19 +158,19 @@ async fn test_vector_sync_coordinator_rollback() {
                 payload: std::collections::HashMap::new(),
             },
         );
-        
+
         coordinator.buffer_vector_change(txn_id, context).unwrap();
     }
-    
+
     // Verify updates are buffered
     if let Some(buffer) = coordinator.transaction_buffer() {
         assert!(buffer.has_pending_updates(txn_id));
         assert_eq!(buffer.take_updates(txn_id).len(), 3);
     }
-    
+
     // Rollback transaction
     coordinator.rollback_transaction(txn_id);
-    
+
     // Verify buffer is cleared
     if let Some(buffer) = coordinator.transaction_buffer() {
         assert!(!buffer.has_pending_updates(txn_id));
@@ -182,9 +184,9 @@ async fn test_vector_transaction_buffer_size_limit() {
         ..Default::default()
     };
     let buffer = VectorTransactionBuffer::new(config);
-    
+
     let txn_id = TransactionId::from(1u64);
-    
+
     // Add 2 updates (at limit)
     for i in 0..2 {
         let context = VectorChangeContext::new(
@@ -198,11 +200,11 @@ async fn test_vector_transaction_buffer_size_limit() {
                 payload: std::collections::HashMap::new(),
             },
         );
-        
+
         let update = PendingVectorUpdate::new(txn_id, context);
         buffer.add_update(txn_id, update).unwrap();
     }
-    
+
     // Third update should fail
     let context = VectorChangeContext::new(
         1,
@@ -215,10 +217,10 @@ async fn test_vector_transaction_buffer_size_limit() {
             payload: std::collections::HashMap::new(),
         },
     );
-    
+
     let update = PendingVectorUpdate::new(txn_id, context);
     let result = buffer.add_update(txn_id, update);
-    
+
     assert!(result.is_err());
 }
 
@@ -226,11 +228,11 @@ async fn test_vector_transaction_buffer_size_limit() {
 async fn test_vector_transaction_multiple_transactions() {
     let config = VectorTransactionBufferConfig::default();
     let buffer = VectorTransactionBuffer::new(config);
-    
+
     // Create updates for multiple transactions
     for txn_num in 0..3 {
         let txn_id = TransactionId::from(txn_num as u64);
-        
+
         let context = VectorChangeContext::new(
             1,
             "test",
@@ -242,19 +244,19 @@ async fn test_vector_transaction_multiple_transactions() {
                 payload: std::collections::HashMap::new(),
             },
         );
-        
+
         let update = PendingVectorUpdate::new(txn_id, context);
         buffer.add_update(txn_id, update).unwrap();
     }
-    
+
     // Verify all transactions have pending updates
     let txn_ids = buffer.get_all_txn_ids();
     assert_eq!(txn_ids.len(), 3);
-    
+
     // Take updates for specific transaction
     let updates = buffer.take_updates(TransactionId::from(1u64));
     assert_eq!(updates.len(), 1);
-    
+
     // Verify remaining transactions
     let txn_ids = buffer.get_all_txn_ids();
     assert_eq!(txn_ids.len(), 2);
@@ -264,16 +266,16 @@ async fn test_vector_transaction_multiple_transactions() {
 async fn test_vector_buffer_stats() {
     let config = VectorTransactionBufferConfig::default();
     let buffer = VectorTransactionBuffer::new(config);
-    
+
     // Initial stats
     let stats = buffer.stats();
     assert_eq!(stats.active_transactions, 0);
     assert_eq!(stats.total_pending_updates, 0);
-    
+
     // Add updates
     for txn_num in 0..2 {
         let txn_id = TransactionId::from(txn_num as u64);
-        
+
         for i in 0..3 {
             let context = VectorChangeContext::new(
                 1,
@@ -286,12 +288,12 @@ async fn test_vector_buffer_stats() {
                     payload: std::collections::HashMap::new(),
                 },
             );
-            
+
             let update = PendingVectorUpdate::new(txn_id, context);
             buffer.add_update(txn_id, update).unwrap();
         }
     }
-    
+
     // Verify stats
     let stats = buffer.stats();
     assert_eq!(stats.active_transactions, 2);

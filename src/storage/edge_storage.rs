@@ -110,7 +110,7 @@ impl EdgeStorage {
     pub fn insert_edge(&self, space: &str, space_id: u64, edge: Edge) -> Result<(), StorageError> {
         // Get current transaction ID
         let txn_id = self.get_current_txn_id();
-        
+
         {
             let mut writer = self.inner.writer.lock();
             writer.insert_edge(space, edge.clone())?;
@@ -145,9 +145,9 @@ impl EdgeStorage {
 
         // Sync to fulltext/vector index (if enabled)
         if let Some(ref sync_manager) = self.state.sync_manager {
-            sync_manager.on_edge_insert(txn_id, space_id, &edge).map_err(|e| {
-                StorageError::DbError(format!("Failed to sync edge insert: {}", e))
-            })?;
+            sync_manager
+                .on_edge_insert(txn_id, space_id, &edge)
+                .map_err(|e| StorageError::DbError(format!("Failed to sync edge insert: {}", e)))?;
         }
 
         Ok(())
@@ -164,8 +164,12 @@ impl EdgeStorage {
         rank: i64,
     ) -> Result<(), StorageError> {
         // Get old edge to sync deletion
-        let old_edge = self.inner.reader.lock().get_edge(space, src, dst, edge_type, rank)?;
-        
+        let old_edge = self
+            .inner
+            .reader
+            .lock()
+            .get_edge(space, src, dst, edge_type, rank)?;
+
         {
             let mut writer = self.inner.writer.lock();
             writer.delete_edge(space, src, dst, edge_type, rank)?;
@@ -187,15 +191,17 @@ impl EdgeStorage {
         // Sync to fulltext/vector index (if enabled)
         if let Some(ref sync_manager) = self.state.sync_manager {
             if let Some(edge) = old_edge {
-                sync_manager.on_edge_delete(
-                    0, // txn_id
-                    space_id,
-                    &edge.src,
-                    &edge.dst,
-                    &edge.edge_type,
-                ).map_err(|e| {
-                    StorageError::DbError(format!("Failed to sync edge delete: {}", e))
-                })?;
+                sync_manager
+                    .on_edge_delete(
+                        0, // txn_id
+                        space_id,
+                        &edge.src,
+                        &edge.dst,
+                        &edge.edge_type,
+                    )
+                    .map_err(|e| {
+                        StorageError::DbError(format!("Failed to sync edge delete: {}", e))
+                    })?;
             }
         }
 

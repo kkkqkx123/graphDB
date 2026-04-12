@@ -237,16 +237,19 @@ impl VectorSearchPlanner {
             lookup.schema_name.clone()
         };
 
-        let yield_fields = lookup.yield_clause.as_ref().map_or_else(Vec::new, |yield_clause| {
-            yield_clause
-                .items
-                .iter()
-                .map(|item| OutputField {
-                    name: item.expr.clone(),
-                    alias: item.alias.clone(),
-                })
-                .collect()
-        });
+        let yield_fields = lookup
+            .yield_clause
+            .as_ref()
+            .map_or_else(Vec::new, |yield_clause| {
+                yield_clause
+                    .items
+                    .iter()
+                    .map(|item| OutputField {
+                        name: item.expr.clone(),
+                        alias: item.alias.clone(),
+                    })
+                    .collect()
+            });
 
         let node = VectorLookupNode::new(
             schema_name,
@@ -264,16 +267,19 @@ impl VectorSearchPlanner {
         match_stmt: &MatchVector,
         _space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
-        let yield_fields = match_stmt.yield_clause.as_ref().map_or_else(Vec::new, |yield_clause| {
-            yield_clause
-                .items
-                .iter()
-                .map(|item| OutputField {
-                    name: item.expr.clone(),
-                    alias: item.alias.clone(),
-                })
-                .collect()
-        });
+        let yield_fields = match_stmt
+            .yield_clause
+            .as_ref()
+            .map_or_else(Vec::new, |yield_clause| {
+                yield_clause
+                    .items
+                    .iter()
+                    .map(|item| OutputField {
+                        name: item.expr.clone(),
+                        alias: item.alias.clone(),
+                    })
+                    .collect()
+            });
 
         let node = VectorMatchNode::new(
             match_stmt.pattern.clone(),
@@ -537,16 +543,19 @@ impl VectorSearchPlanner {
             lookup.schema_name.clone()
         };
 
-        let yield_fields = lookup.yield_clause.as_ref().map_or_else(Vec::new, |yield_clause| {
-            yield_clause
-                .items
-                .iter()
-                .map(|item| OutputField {
-                    name: item.expr.clone(),
-                    alias: item.alias.clone(),
-                })
-                .collect()
-        });
+        let yield_fields = lookup
+            .yield_clause
+            .as_ref()
+            .map_or_else(Vec::new, |yield_clause| {
+                yield_clause
+                    .items
+                    .iter()
+                    .map(|item| OutputField {
+                        name: item.expr.clone(),
+                        alias: item.alias.clone(),
+                    })
+                    .collect()
+            });
 
         let limit = lookup.limit.unwrap_or(10);
 
@@ -569,16 +578,19 @@ impl VectorSearchPlanner {
         _metadata_context: &MetadataContext,
     ) -> Result<SubPlan, PlannerError> {
         // Parse yield fields
-        let yield_fields = match_stmt.yield_clause.as_ref().map_or_else(Vec::new, |yield_clause| {
-            yield_clause
-                .items
-                .iter()
-                .map(|item| OutputField {
-                    name: item.expr.clone(),
-                    alias: item.alias.clone(),
-                })
-                .collect()
-        });
+        let yield_fields = match_stmt
+            .yield_clause
+            .as_ref()
+            .map_or_else(Vec::new, |yield_clause| {
+                yield_clause
+                    .items
+                    .iter()
+                    .map(|item| OutputField {
+                        name: item.expr.clone(),
+                        alias: item.alias.clone(),
+                    })
+                    .collect()
+            });
 
         let node = VectorMatchNode::new(
             match_stmt.pattern.clone(),

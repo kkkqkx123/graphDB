@@ -57,4 +57,14 @@ impl StorageInner {
             current_txn_context: Mutex::new(None),
         }
     }
+
+    /// Set the current transaction context
+    pub fn set_transaction_context(&self, context: Option<Arc<TransactionContext>>) {
+        *self.current_txn_context.lock() = context;
+    }
+
+    /// Get the current transaction context
+    pub fn get_transaction_context(&self) -> Option<Arc<TransactionContext>> {
+        self.current_txn_context.lock().clone()
+    }
 }

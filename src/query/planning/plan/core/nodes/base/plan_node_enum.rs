@@ -9,25 +9,12 @@ use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEs
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
     PlanNode, SingleInputNode,
 };
-use crate::query::planning::plan::core::nodes::search::vector::data_access::{
-    VectorLookupNode, VectorMatchNode, VectorSearchNode,
-};
-use crate::query::planning::plan::core::nodes::search::vector::management::{
-    CreateVectorIndexNode, DropVectorIndexNode,
-};
 use crate::query::planning::plan::core::nodes::data_modification::{
     DeleteEdgesNode, DeleteVerticesNode, InsertEdgesNode, InsertVerticesNode, UpdateEdgesNode,
     UpdateNode, UpdateVerticesNode,
 };
 use crate::query::planning::plan::core::nodes::management::edge_nodes::{
     AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
-};
-use crate::query::planning::plan::core::nodes::search::fulltext::data_access::{
-    FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
-};
-use crate::query::planning::plan::core::nodes::search::fulltext::management::{
-    AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
-    DropFulltextIndexNode, ShowFulltextIndexNode,
 };
 use crate::query::planning::plan::core::nodes::management::index_nodes::{
     CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,
@@ -44,6 +31,19 @@ use crate::query::planning::plan::core::nodes::management::tag_nodes::{
 };
 use crate::query::planning::plan::core::nodes::management::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode,
+};
+use crate::query::planning::plan::core::nodes::search::fulltext::data_access::{
+    FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
+};
+use crate::query::planning::plan::core::nodes::search::fulltext::management::{
+    AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
+    DropFulltextIndexNode, ShowFulltextIndexNode,
+};
+use crate::query::planning::plan::core::nodes::search::vector::data_access::{
+    VectorLookupNode, VectorMatchNode, VectorSearchNode,
+};
+use crate::query::planning::plan::core::nodes::search::vector::management::{
+    CreateVectorIndexNode, DropVectorIndexNode,
 };
 
 // Import and re-export all specific node types.

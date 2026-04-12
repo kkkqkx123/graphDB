@@ -6,6 +6,9 @@ use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
 use crate::storage::Schema;
 
 pub trait StorageClient: Send + Sync + std::fmt::Debug {
+    /// Get a reference to self as Any for downcasting
+    fn as_any(&self) -> &dyn std::any::Any;
+
     fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError>;
     fn scan_vertices(&self, space: &str) -> Result<Vec<Vertex>, StorageError>;
     fn scan_vertices_by_tag(&self, space: &str, tag: &str) -> Result<Vec<Vertex>, StorageError>;

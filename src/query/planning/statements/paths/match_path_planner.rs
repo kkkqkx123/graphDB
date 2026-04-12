@@ -178,6 +178,10 @@ impl MatchPathPlanner {
 struct DummyStorage;
 
 impl StorageClient for DummyStorage {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
     fn insert_vertex(
         &mut self,
         _space: &str,
