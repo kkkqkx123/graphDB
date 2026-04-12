@@ -1,5 +1,10 @@
 # GraphDB Project Context
 
+## Language
+
+Always use English in code, comments, logging, error info or other string literal. Use Chinese in docs (except code block)
+**Never use any Chinese in any code files or code block.**
+
 ## Coding Standards
 
 **Security Assurance**
