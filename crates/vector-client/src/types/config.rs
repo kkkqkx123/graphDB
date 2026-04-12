@@ -5,11 +5,22 @@ pub enum DistanceMetric {
     Cosine,
     Euclid,
     Dot,
+    Manhattan,
 }
 
 impl Default for DistanceMetric {
     fn default() -> Self {
         Self::Cosine
+    }
+}
+
+impl DistanceMetric {
+    pub fn is_supported_by_qdrant(&self) -> bool {
+        matches!(self, Self::Cosine | Self::Euclid | Self::Dot)
+    }
+
+    pub fn requires_custom_implementation(&self) -> bool {
+        matches!(self, Self::Manhattan)
     }
 }
 
@@ -66,6 +77,18 @@ impl HnswConfig {
     pub fn with_payload_m(mut self, payload_m: usize) -> Self {
         self.payload_m = Some(payload_m);
         self
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum IndexType {
+    HNSW,
+    FLAT,
+}
+
+impl Default for IndexType {
+    fn default() -> Self {
+        Self::HNSW
     }
 }
 
@@ -161,6 +184,7 @@ impl QuantizationConfig {
 pub struct CollectionConfig {
     pub vector_size: usize,
     pub distance: DistanceMetric,
+    pub index_type: Option<IndexType>,
     pub hnsw_config: Option<HnswConfig>,
     pub quantization_config: Option<QuantizationConfig>,
     pub replication_factor: Option<usize>,
@@ -174,6 +198,7 @@ impl CollectionConfig {
         Self {
             vector_size,
             distance,
+            index_type: None,
             hnsw_config: None,
             quantization_config: None,
             replication_factor: None,
@@ -183,7 +208,13 @@ impl CollectionConfig {
         }
     }
 
+    pub fn with_index_type(mut self, index_type: IndexType) -> Self {
+        self.index_type = Some(index_type);
+        self
+    }
+
     pub fn with_hnsw(mut self, hnsw_config: HnswConfig) -> Self {
+        self.index_type = Some(IndexType::HNSW);
         self.hnsw_config = Some(hnsw_config);
         self
     }

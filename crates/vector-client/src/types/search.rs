@@ -1,6 +1,19 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SearchMode {
+    TopK(usize),
+    KNN {
+        k: usize,
+        ef_search: Option<usize>,
+    },
+    Range {
+        radius: f32,
+        max_results: Option<usize>,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchQuery {
     pub vector: Vec<f32>,
     pub limit: usize,
@@ -9,6 +22,8 @@ pub struct SearchQuery {
     pub filter: Option<super::VectorFilter>,
     pub with_payload: Option<bool>,
     pub with_vector: Option<bool>,
+    pub nprobe: Option<usize>,
+    pub search_mode: Option<SearchMode>,
 }
 
 impl SearchQuery {
@@ -21,6 +36,8 @@ impl SearchQuery {
             filter: None,
             with_payload: Some(true),
             with_vector: None,
+            nprobe: None,
+            search_mode: None,
         }
     }
 
@@ -46,6 +63,31 @@ impl SearchQuery {
 
     pub fn with_vector(mut self, with_vector: bool) -> Self {
         self.with_vector = Some(with_vector);
+        self
+    }
+
+    pub fn with_nprobe(mut self, nprobe: usize) -> Self {
+        self.nprobe = Some(nprobe);
+        self
+    }
+
+    pub fn with_search_mode(mut self, mode: SearchMode) -> Self {
+        self.search_mode = Some(mode);
+        self
+    }
+
+    pub fn with_knn(mut self, k: usize, ef_search: Option<usize>) -> Self {
+        self.search_mode = Some(SearchMode::KNN { k, ef_search });
+        self.limit = k;
+        self
+    }
+
+    pub fn with_range(mut self, radius: f32, max_results: Option<usize>) -> Self {
+        self.search_mode = Some(SearchMode::Range { radius, max_results });
+        self.score_threshold = Some(radius);
+        if let Some(max) = max_results {
+            self.limit = max;
+        }
         self
     }
 }

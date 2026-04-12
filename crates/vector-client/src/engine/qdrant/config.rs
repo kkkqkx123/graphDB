@@ -4,13 +4,21 @@ use qdrant_client::qdrant::{
     quantization_config::Quantization as QdrantQuantization,
 };
 
-use crate::types::{DistanceMetric, HnswConfig, QuantizationConfig, QuantizationType, CompressionRatio, PayloadSchemaType};
+use crate::types::{DistanceMetric, HnswConfig, QuantizationConfig, QuantizationType, CompressionRatio, PayloadSchemaType, IndexType};
 
 pub fn convert_distance(distance: DistanceMetric) -> Distance {
     match distance {
         DistanceMetric::Cosine => Distance::Cosine,
         DistanceMetric::Euclid => Distance::Euclid,
         DistanceMetric::Dot => Distance::Dot,
+        DistanceMetric::Manhattan => Distance::Euclid,
+    }
+}
+
+pub fn convert_index_type(index_type: IndexType) -> &'static str {
+    match index_type {
+        IndexType::HNSW => "hnsw",
+        IndexType::FLAT => "flat",
     }
 }
 

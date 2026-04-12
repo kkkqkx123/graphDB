@@ -21,7 +21,7 @@ mod config;
 mod filter;
 mod utils;
 
-use config::{convert_distance, build_hnsw_config, build_quantization_config, convert_field_type};
+use config::{convert_distance, build_hnsw_config, build_quantization_config, convert_field_type, convert_index_type};
 use filter::convert_filter;
 use utils::{
     point_id_from_str, point_struct_from_vector_point, payload_to_qdrant_payload,
@@ -110,6 +110,8 @@ impl VectorEngine for QdrantEngine {
         debug!("Creating collection '{}' with config: {:?}", name, config);
 
         let distance = convert_distance(config.distance);
+        let index_type = config.index_type.unwrap_or(IndexType::HNSW);
+        
         let mut vector_params = VectorParamsBuilder::new(config.vector_size as u64, distance);
 
         if let Some(hnsw_config) = build_hnsw_config(&config.hnsw_config) {
@@ -139,7 +141,7 @@ impl VectorEngine for QdrantEngine {
 
         self.collections.write().await.insert(name.to_string(), config);
 
-        info!("Collection '{}' created successfully", name);
+        info!("Collection '{}' created successfully with index type: {:?}", name, index_type);
         Ok(())
     }
 
@@ -285,6 +287,31 @@ impl VectorEngine for QdrantEngine {
 
         if let Some(threshold) = query.score_threshold {
             builder = builder.score_threshold(threshold);
+        }
+
+        if let Some(nprobe) = query.nprobe {
+            builder = builder.params(
+                qdrant_client::qdrant::SearchParamsBuilder::default()
+                    .hnsw_ef(nprobe as u64)
+            );
+        }
+
+        match query.search_mode {
+            Some(SearchMode::KNN { ef_search, .. }) => {
+                if let Some(ef) = ef_search {
+                    builder = builder.params(
+                        qdrant_client::qdrant::SearchParamsBuilder::default()
+                            .hnsw_ef(ef as u64)
+                    );
+                }
+            }
+            Some(SearchMode::Range { radius, max_results }) => {
+                builder = builder.score_threshold(radius);
+                if let Some(max) = max_results {
+                    builder = builder.limit(max as u64);
+                }
+            }
+            Some(SearchMode::TopK(_)) | None => {}
         }
 
         let result = self.client.search_points(builder).await?;

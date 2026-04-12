@@ -2,6 +2,7 @@ mod point;
 mod search;
 mod config;
 mod filter;
+pub mod distance_utils;
 
 pub use point::*;
 pub use search::*;
