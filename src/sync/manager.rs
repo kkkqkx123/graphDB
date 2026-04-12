@@ -175,8 +175,8 @@ impl SyncManager {
         }
     }
 
-    /// 顶点变更同步（事务模式）
-    /// 注意：此方法现在仅用于非事务场景，事务场景应使用 on_vertex_insert 或 on_vertex_change_with_txn
+    /// Vertex change synchronization (transaction mode)
+    /// Note: This method is now only used in non-transactional scenarios, which should use on_vertex_insert or on_vertex_change_with_txn
     pub async fn on_vertex_change(
         &self,
         space_id: u64,
@@ -185,7 +185,7 @@ impl SyncManager {
         properties: &[(String, Value)],
         change_type: crate::coordinator::ChangeType,
     ) -> Result<(), SyncError> {
-        // 直接同步处理
+        // Direct synchronous processing
         self.sync_coordinator
             .on_vertex_change(
                 space_id,
@@ -196,7 +196,7 @@ impl SyncManager {
             )
             .await?;
 
-        // 同时处理向量索引变更（如果有）
+        // Simultaneously handle vector index changes (if any)
         if let Some(ref vector_coord) = self.vector_coordinator {
             self.execute_vector_vertex_change_sync(
                 space_id,
@@ -212,29 +212,29 @@ impl SyncManager {
         Ok(())
     }
 
-    /// 带事务的顶点插入（同步缓冲）
+    /// Vertex insertion with transactions (synchronized buffering)
     pub fn on_vertex_insert(
         &self,
         _txn_id: crate::transaction::types::TransactionId,
         space_id: u64,
         vertex: &crate::core::Vertex,
     ) -> Result<(), SyncError> {
-        // 创建变更上下文
+        // Create a change context
         let change_type = crate::coordinator::ChangeType::Insert;
         let vertex_id = &vertex.vid;
 
-        // 提取所有属性
+        // Extract all properties
         let props: Vec<(String, Value)> = vertex
             .tags
             .iter()
             .flat_map(|tag| tag.properties.iter().map(|(k, v)| (k.clone(), v.clone())))
             .collect();
 
-        // 获取第一个 tag 名称（如果有）
+        // Get the first tag name (if any)
         if let Some(first_tag) = vertex.tags.first() {
             let tag_name = &first_tag.name;
 
-            // 缓冲操作（同步调用）
+            // Buffering operations (synchronized calls)
             futures::executor::block_on(async {
                 self.sync_coordinator
                     .on_vertex_change(space_id, tag_name, vertex_id, &props, change_type.into())
@@ -246,7 +246,7 @@ impl SyncManager {
         Ok(())
     }
 
-    /// 带事务的顶点变更（同步缓冲）
+    /// Vertex changes with transactions (synchronous buffering)
     pub fn on_vertex_change_with_txn(
         &self,
         txn_id: crate::transaction::types::TransactionId,
@@ -256,8 +256,9 @@ impl SyncManager {
         properties: &[(String, Value)],
         change_type: crate::coordinator::ChangeType,
     ) -> Result<(), SyncError> {
-        // 对于每个属性创建上下文并缓冲
+        // For each attribute create a context and buffer
         for (field_name, value) in properties {
+            // Buffer full-text index operations
             if let Value::String(text) = value {
                 let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
                     space_id,
@@ -271,26 +272,46 @@ impl SyncManager {
                     .buffer_operation(txn_id, ctx)
                     .map_err(SyncError::from)?;
             }
+            
+            // Buffered Vector Indexing Operations
+            if let Some(vector) = value.as_vector() {
+                if let Some(ref vector_coord) = self.vector_coordinator {
+                    let ctx = crate::sync::vector_sync::VectorChangeContext::new(
+                        space_id,
+                        tag_name,
+                        field_name,
+                        crate::sync::vector_sync::VectorChangeType::from(change_type),
+                        crate::sync::vector_sync::VectorPointData {
+                            id: vertex_id.to_string().unwrap_or_default(),
+                            vector: vector.clone(),
+                            payload: std::collections::HashMap::new(),
+                        },
+                    );
+                    vector_coord
+                        .buffer_vector_change(txn_id, ctx)
+                        .map_err(|e| SyncError::VectorError(e.to_string()))?;
+                }
+            }
         }
 
         Ok(())
     }
 
-    /// 边插入（同步缓冲）
+    /// Edge insertion (synchronous buffering)
     pub fn on_edge_insert(
         &self,
         txn_id: crate::transaction::types::TransactionId,
         space_id: u64,
         edge: &crate::core::Edge,
     ) -> Result<(), SyncError> {
-        // 提取边的属性
+        // Extracting edge properties
         let props: Vec<(String, Value)> = edge
             .props
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
 
-        // 获取第一个 string 类型的属性进行全文索引
+        // Gets the first attribute of type string for full-text indexing
         for (field_name, value) in &props {
             if let Value::String(text) = value {
                 let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
@@ -310,7 +331,7 @@ impl SyncManager {
         Ok(())
     }
 
-    /// 边删除（同步缓冲）
+    /// Edge deletion (synchronized buffering)
     pub fn on_edge_delete(
         &self,
         txn_id: crate::transaction::types::TransactionId,
@@ -319,14 +340,14 @@ impl SyncManager {
         dst: &Value,
         edge_type: &str,
     ) -> Result<(), SyncError> {
-        // 创建删除上下文
+        // Create delete context
         let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
             space_id,
             edge_type,
-            "_id", // 使用特殊字段名标识边
+            "_id", // Use special field names to identify edges
             crate::coordinator::ChangeType::Delete.into(),
             format!("{}->{}", src, dst),
-            String::new(), // 删除时不需要文本内容
+            String::new(), // No text content is required when deleting
         );
         self.sync_coordinator
             .buffer_operation(txn_id, ctx)
@@ -394,7 +415,7 @@ impl SyncManager {
             return Ok(());
         }
 
-        // 直接同步处理
+        // Direct synchronous processing
         if let Some(ref vector_coord) = self.vector_coordinator {
             vector_coord
                 .on_vector_change(ctx)

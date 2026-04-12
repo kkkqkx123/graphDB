@@ -261,35 +261,35 @@ impl SyncCoordinator {
         Ok(())
     }
 
-    /// 缓冲索引操作
+    /// Buffered index operations
     pub fn buffer_operation(
         &self,
         txn_id: crate::transaction::types::TransactionId,
         ctx: ChangeContext,
     ) -> Result<(), SyncCoordinatorError> {
-        // 创建索引操作
+        // Creating Index Operations
         let operation = self.create_operation(&ctx)?;
 
-        // 获取或创建事务缓冲区
+        // Getting or creating a transaction buffer
         let buffer = self
             .transaction_buffers
             .entry(txn_id)
             .or_insert_with(|| Arc::new(TransactionBatchBuffer::new_without_processor()))
             .clone();
 
-        // 添加操作到缓冲区
+        // Adding operations to the buffer
         futures::executor::block_on(buffer.prepare(txn_id, operation))
             .map_err(SyncCoordinatorError::BatchError)?;
 
         Ok(())
     }
 
-    /// Prepare 阶段：验证所有操作
+    /// Prepare phase: validate all operations
     pub async fn prepare_transaction(
         &self,
         txn_id: crate::transaction::types::TransactionId,
     ) -> Result<(), SyncCoordinatorError> {
-        // 检查是否有该事务的缓冲区
+        // Check if there is a buffer for this transaction
         if let Some(buffer) = self.transaction_buffers.get(&txn_id) {
             let count = buffer.pending_count(txn_id);
             log::debug!(
@@ -301,7 +301,7 @@ impl SyncCoordinator {
         Ok(())
     }
 
-    /// Commit 阶段：应用所有操作
+    /// Commit phase: Apply all operations
     pub async fn commit_transaction(
         &self,
         txn_id: crate::transaction::types::TransactionId,
@@ -310,14 +310,14 @@ impl SyncCoordinator {
         self.metrics.record_active_transaction_start();
 
         let result = if let Some((_, buffer)) = self.transaction_buffers.remove(&txn_id) {
-            // 获取所有缓冲的操作（按 key 分组）
+            // Get all cached operations (grouped by key)
             let grouped_ops = buffer
                 .take_operations(txn_id)
                 .map_err(SyncCoordinatorError::BatchError)?;
 
-            // 对每个 key 执行对应的操作
+            // For each key, perform the corresponding operation
             for (key, operations) in grouped_ops {
-                // 记录操作类型
+                // Record operation type
                 for op in &operations {
                     match op {
                         IndexOperation::Insert { .. } => {
@@ -332,7 +332,7 @@ impl SyncCoordinator {
                     }
                 }
 
-                // 根据操作类型判断是全文索引还是向量索引
+                // Determine whether it is a full-text index or a vector index based on the type of operation
                 let is_vector = operations.iter().any(|op| {
                     matches!(
                         op,
@@ -346,12 +346,12 @@ impl SyncCoordinator {
                     )
                 });
 
-                // 创建重试配置
+                // Creating a Retry Configuration
                 let retry_config =
                     RetryConfig::new(3, Duration::from_millis(100), Duration::from_secs(5));
 
                 if is_vector {
-                    // 向量索引处理（带重试）
+                    // Vector index processing (with retries)
                     if let Some(processor) = self.get_or_create_vector_processor(
                         key.space_id,
                         &key.tag_name,
@@ -373,7 +373,7 @@ impl SyncCoordinator {
                             }
                             Err(e) => {
                                 metrics_clone.record_retry_failure();
-                                // 将失败的操作加入死信队列
+                                // Add failed operations to the dead letter queue
                                 for op in operations {
                                     let entry = DeadLetterEntry::new(
                                         op,
@@ -392,7 +392,7 @@ impl SyncCoordinator {
                         }
                     }
                 } else {
-                    // 全文索引处理（带重试）
+                    // Full-text indexing processing (with retries)
                     if let Some(processor) = self.get_or_create_fulltext_processor(
                         key.space_id,
                         &key.tag_name,
@@ -414,7 +414,7 @@ impl SyncCoordinator {
                             }
                             Err(e) => {
                                 metrics_clone.record_retry_failure();
-                                // 将失败的操作加入死信队列
+                                // Add failed operations to the dead letter queue
                                 for op in operations {
                                     let entry = DeadLetterEntry::new(
                                         op,
@@ -441,7 +441,7 @@ impl SyncCoordinator {
             Ok(())
         };
 
-        // 记录指标
+        // Recording of indicators
         self.metrics.record_active_transaction_end();
         self.metrics.record_processing_time(start_time.elapsed());
 
@@ -453,7 +453,7 @@ impl SyncCoordinator {
         result
     }
 
-    /// Rollback 阶段：丢弃缓冲区
+    /// Rollback phase: discard buffer
     pub async fn rollback_transaction(
         &self,
         txn_id: crate::transaction::types::TransactionId,
@@ -490,7 +490,7 @@ impl SyncCoordinator {
     pub async fn start_background_tasks(&self) {
         log::info!("Starting background tasks for sync coordinator");
 
-        // 启动所有处理器的背景任务
+        // Start background tasks for all processors
         for entry in self.fulltext_processors.iter() {
             let processor: Arc<FulltextProcessor> = entry.value().clone();
             processor.start_background_task().await;
@@ -501,7 +501,7 @@ impl SyncCoordinator {
             processor.start_background_task().await;
         }
 
-        // 启动补偿背景任务（如果启用了补偿管理器）
+        // Start the compensation background task (if Compensation Manager is enabled)
         if let Some(compensation_manager) = &self.compensation_manager {
             let cm_clone = compensation_manager.clone();
             tokio::spawn(async move {
@@ -512,7 +512,7 @@ impl SyncCoordinator {
             log::info!("Started compensation background task");
         }
 
-        // 启动死信队列自动清理任务
+        // Initiate an automatic cleanup task for the dead letter queue
         if self.dead_letter_queue.is_auto_cleanup_enabled() {
             let dlq_clone = self.dead_letter_queue.clone();
             let cleanup_interval = self.dead_letter_queue.get_cleanup_interval();
@@ -535,7 +535,7 @@ impl SyncCoordinator {
     pub async fn stop_background_tasks(&self) {
         log::info!("Stopping background tasks for sync coordinator");
 
-        // 停止所有处理器的背景任务
+        // Stop background tasks for all processors
         for entry in self.fulltext_processors.iter() {
             let processor: &Arc<FulltextProcessor> = entry.value();
             processor.stop_background_task().await;
@@ -546,7 +546,7 @@ impl SyncCoordinator {
             processor.stop_background_task().await;
         }
 
-        // 注意：补偿任务和清理任务是 tokio::spawn 的，会在 coordinator 销毁时自动停止
+        // Note: Compensation and cleanup tasks are tokio::spawn and are automatically stopped when the coordinator is destroyed.
 
         log::info!("All background tasks stopped");
     }

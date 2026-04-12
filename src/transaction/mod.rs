@@ -24,7 +24,6 @@
 pub mod context;
 pub mod index_buffer;
 pub mod manager;
-pub mod sync_handle;
 pub mod types;
 
 #[cfg(test)]
@@ -35,7 +34,6 @@ pub mod manager_test;
 pub use context::TransactionContext;
 pub use index_buffer::IndexUpdateBuffer;
 pub use manager::TransactionManager;
-pub use sync_handle::{PendingIndexUpdate, SyncHandle, SyncHandleState};
 pub use types::*;
 
 /// Transaction Management Module Version

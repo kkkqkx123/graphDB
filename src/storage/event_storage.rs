@@ -1,6 +1,6 @@
-//! 存储层同步包装器
+//! Storage layer synchronous wrapper
 //!
-//! 包装 StorageClient，在存储操作时自动同步到索引
+//! Package the Storage Client to automatically synchronize to the index during storage operations
 
 use crate::coordinator::ChangeType;
 use crate::core::{Edge, StorageError, Value, Vertex};
@@ -8,7 +8,7 @@ use crate::storage::StorageClient;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-/// 带同步功能的存储包装器
+/// Storage layer synchronous wrapper
 #[derive(Clone, Debug)]
 pub struct SyncStorage<S: StorageClient + Debug> {
     inner: S,
@@ -17,7 +17,43 @@ pub struct SyncStorage<S: StorageClient + Debug> {
 }
 
 impl<S: StorageClient> SyncStorage<S> {
-    /// 创建新的同步存储（不带 SyncManager）
+    /// Detect changed properties between two vertices (static helper method)
+    fn detect_changed_properties(old_vertex: &Vertex, new_vertex: &Vertex) -> Vec<(String, Value)> {
+        let mut changed_props = Vec::new();
+        
+        // Compare properties in each tag
+        for new_tag in &new_vertex.tags {
+            if let Some(old_tag) = old_vertex.tags.iter().find(|t| t.name == new_tag.name) {
+                // Compare properties within the tag
+                for (prop_name, new_value) in &new_tag.properties {
+                    if let Some(old_value) = old_tag.properties.get(prop_name) {
+                        if old_value != new_value {
+                            changed_props.push((prop_name.clone(), new_value.clone()));
+                        }
+                    } else {
+                        // New property added
+                        changed_props.push((prop_name.clone(), new_value.clone()));
+                    }
+                }
+                
+                // Check deleted properties
+                for (prop_name, old_value) in &old_tag.properties {
+                    if !new_tag.properties.contains_key(prop_name) {
+                        changed_props.push((prop_name.clone(), old_value.clone()));
+                    }
+                }
+            } else {
+                // New tag, all properties are changed
+                for (prop_name, value) in &new_tag.properties {
+                    changed_props.push((prop_name.clone(), value.clone()));
+                }
+            }
+        }
+        
+        changed_props
+    }
+    
+    /// Create a new synchronous storage without a SyncManager
     pub fn new(storage: S) -> Self {
         Self {
             inner: storage,
@@ -26,7 +62,7 @@ impl<S: StorageClient> SyncStorage<S> {
         }
     }
 
-    /// 创建新的存储并绑定 SyncManager
+    /// Create a new synchronous storage with a SyncManager
     pub fn with_sync_manager(storage: S, sync_manager: Arc<crate::sync::SyncManager>) -> Self {
         Self {
             inner: storage,
@@ -35,22 +71,22 @@ impl<S: StorageClient> SyncStorage<S> {
         }
     }
 
-    /// 启用/禁用同步
+    /// Enable/disable synchronization
     pub fn enable_sync(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
 
-    /// 检查同步是否启用
+    /// Check if synchronization is enabled
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }
 
-    /// 获取内部存储的引用
+    /// Get reference to the inner storage client
     pub fn inner(&self) -> &S {
         &self.inner
     }
 
-    /// 获取内部存储的可变引用
+    /// Get mutable reference to the inner storage client
     pub fn inner_mut(&mut self) -> &mut S {
         &mut self.inner
     }
@@ -127,33 +163,19 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
         if self.enabled {
             if let Some(ref sync_manager) = self.sync_manager {
                 let space_id = self.inner.get_space_id(space)?;
-                // 提取属性
-                let props: Vec<_> = vertex
-                    .tags
-                    .iter()
-                    .flat_map(|tag| tag.properties.iter().map(|(k, v)| (k.clone(), v.clone())))
-                    .collect();
-
-                // 获取第一个 tag 名称（如果有）
-                if let Some(first_tag) = vertex.tags.first() {
-                    let tag_name = &first_tag.name;
-
-                    // 异步调用 SyncManager
-                    let sync_manager = sync_manager.clone();
-                    let vertex_id = vertex.vid.clone();
-                    let tag_name = tag_name.clone();
-
-                    tokio::spawn(async move {
-                        let _ = sync_manager
-                            .on_vertex_change(
-                                space_id,
-                                &tag_name,
-                                &vertex_id,
-                                &props,
-                                ChangeType::Insert,
-                            )
-                            .await;
-                    });
+                
+                // Get the current transaction ID (if a transaction context exists)
+                // Note: SyncStorage does not directly manage the transaction context, and 0 is used here to indicate non-transactional operations.
+                // In transactional mode, transactions and synchronization should be explicitly managed by the caller
+                let txn_id = 0;
+                
+                // Get the first tag name (if any)
+                if let Some(_first_tag) = vertex.tags.first() {
+                    
+                    // Synchronized Calls to SyncManager
+                    // For non-transactional operations (txn_id=0), SyncManager performs synchronization immediately
+                    sync_manager.on_vertex_insert(txn_id, space_id, &vertex)
+                        .map_err(|e| StorageError::DbError(format!("Failed to sync vertex insert: {}", e)))?;
                 }
             }
         }
@@ -162,7 +184,7 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
     }
 
     fn update_vertex(&mut self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
-        let _old_vertex = self
+        let old_vertex = self
             .inner
             .get_vertex(space, &vertex.vid)?
             .ok_or_else(|| StorageError::NodeNotFound(*vertex.vid.clone()))?;
@@ -172,31 +194,26 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
         if self.enabled {
             if let Some(ref sync_manager) = self.sync_manager {
                 let space_id = self.inner.get_space_id(space)?;
-
-                // 提取所有属性（简化处理，不计算变更字段）
-                let props: Vec<_> = vertex
-                    .tags
-                    .iter()
-                    .flat_map(|tag| tag.properties.iter().map(|(k, v)| (k.clone(), v.clone())))
-                    .collect();
-
+                let txn_id = 0; // non-transactional operation
+                
                 if let Some(first_tag) = vertex.tags.first() {
                     let tag_name = &first_tag.name;
-                    let sync_manager = sync_manager.clone();
-                    let vertex_id = vertex.vid.clone();
-                    let tag_name = tag_name.clone();
-
-                    tokio::spawn(async move {
-                        let _ = sync_manager
-                            .on_vertex_change(
-                                space_id,
-                                &tag_name,
-                                &vertex_id,
-                                &props,
-                                ChangeType::Update,
-                            )
-                            .await;
-                    });
+                    
+                    // Detecting changed properties
+                    let changed_props = Self::detect_changed_properties(&old_vertex, &vertex);
+                    
+                    if !changed_props.is_empty() {
+                        sync_manager.on_vertex_change_with_txn(
+                            txn_id,
+                            space_id,
+                            tag_name,
+                            &vertex.vid,
+                            &changed_props,
+                            ChangeType::Update,
+                        ).map_err(|e| {
+                            StorageError::DbError(format!("Failed to sync vertex update: {}", e))
+                        })?;
+                    }
                 }
             }
         }
@@ -215,24 +232,22 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
         if self.enabled {
             if let Some(ref sync_manager) = self.sync_manager {
                 let space_id = self.inner.get_space_id(space)?;
-
-                // 为每个 tag 调用 SyncManager
+                let txn_id = 0; // non-transactional operation
+                
+                // Call SyncManager for each tag
                 for tag in &vertex.tags {
-                    let sync_manager = sync_manager.clone();
-                    let tag_name = tag.name.clone();
-                    let vertex_id = id.clone();
-
-                    tokio::spawn(async move {
-                        let _ = sync_manager
-                            .on_vertex_change(
-                                space_id,
-                                &tag_name,
-                                &vertex_id,
-                                &[],
-                                ChangeType::Delete,
-                            )
-                            .await;
-                    });
+                    let tag_name = &tag.name;
+                    
+                    sync_manager.on_vertex_change_with_txn(
+                        txn_id,
+                        space_id,
+                        tag_name,
+                        id,
+                        &[], // Delete without attributes
+                        ChangeType::Delete,
+                    ).map_err(|e| {
+                        StorageError::DbError(format!("Failed to sync vertex delete: {}", e))
+                    })?;
                 }
             }
         }
@@ -251,24 +266,22 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
         if self.enabled {
             if let Some(ref sync_manager) = self.sync_manager {
                 let space_id = self.inner.get_space_id(space)?;
-
-                // 为每个 tag 调用 SyncManager
+                let txn_id = 0; // non-transactional operation
+                
+                // Call SyncManager for each tag
                 for tag in &vertex.tags {
-                    let sync_manager = sync_manager.clone();
-                    let tag_name = tag.name.clone();
-                    let vertex_id = id.clone();
-
-                    tokio::spawn(async move {
-                        let _ = sync_manager
-                            .on_vertex_change(
-                                space_id,
-                                &tag_name,
-                                &vertex_id,
-                                &[],
-                                ChangeType::Delete,
-                            )
-                            .await;
-                    });
+                    let tag_name = &tag.name;
+                    
+                    sync_manager.on_vertex_change_with_txn(
+                        txn_id,
+                        space_id,
+                        tag_name,
+                        id,
+                        &[],
+                        ChangeType::Delete,
+                    ).map_err(|e| {
+                        StorageError::DbError(format!("Failed to sync vertex delete: {}", e))
+                    })?;
                 }
             }
         }
@@ -286,30 +299,12 @@ impl<S: StorageClient> StorageClient for SyncStorage<S> {
         if self.enabled {
             if let Some(ref sync_manager) = self.sync_manager {
                 let space_id = self.inner.get_space_id(space)?;
+                let txn_id = 0; // non-transactional operation
 
-                for vertex in vertices {
-                    let props: Vec<_> = vertex
-                        .tags
-                        .iter()
-                        .flat_map(|tag| tag.properties.iter().map(|(k, v)| (k.clone(), v.clone())))
-                        .collect();
-
-                    if let Some(first_tag) = vertex.tags.first() {
-                        let sync_manager = sync_manager.clone();
-                        let tag_name = first_tag.name.clone();
-                        let vertex_id = vertex.vid.clone();
-
-                        tokio::spawn(async move {
-                            let _ = sync_manager
-                                .on_vertex_change(
-                                    space_id,
-                                    &tag_name,
-                                    &vertex_id,
-                                    &props,
-                                    ChangeType::Insert,
-                                )
-                                .await;
-                        });
+                for vertex in &vertices {
+                    if let Some(_first_tag) = vertex.tags.first() {
+                        sync_manager.on_vertex_insert(txn_id, space_id, vertex)
+                            .map_err(|e| StorageError::DbError(format!("Failed to sync vertex insert: {}", e)))?;
                     }
                 }
             }

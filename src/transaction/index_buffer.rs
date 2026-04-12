@@ -1,15 +1,12 @@
 /// Index update buffer management
-use crate::sync::{IndexBufferConfig, PendingIndexUpdate, SyncError, SyncHandle};
+use crate::sync::{IndexBufferConfig, PendingIndexUpdate, SyncError};
 use crate::transaction::types::TransactionId;
 use dashmap::DashMap;
-use std::sync::Arc;
 
 /// index update buffer
 pub struct IndexUpdateBuffer {
     /// Pending updates organized by transaction ID
     buffers: DashMap<TransactionId, Vec<PendingIndexUpdate>>,
-    /// Handle in synchronization
-    syncing_handles: DashMap<TransactionId, Arc<SyncHandle>>,
     /// deployment
     config: IndexBufferConfig,
 }
@@ -18,7 +15,6 @@ impl IndexUpdateBuffer {
     pub fn new(config: IndexBufferConfig) -> Self {
         Self {
             buffers: DashMap::new(),
-            syncing_handles: DashMap::new(),
             config,
         }
     }
@@ -65,23 +61,6 @@ impl IndexUpdateBuffer {
         }
     }
 
-    /// Register Synchronization Handle
-    pub fn register_sync_handle(&self, txn_id: TransactionId, handle: Arc<SyncHandle>) {
-        self.syncing_handles.insert(txn_id, handle);
-    }
-
-    /// Get synchronization handle
-    pub fn get_sync_handle(&self, txn_id: TransactionId) -> Option<Arc<SyncHandle>> {
-        self.syncing_handles.get(&txn_id).map(|h| h.clone())
-    }
-
-    /// Remove Synchronization Handle
-    pub fn remove_sync_handle(&self, txn_id: TransactionId) -> Option<Arc<SyncHandle>> {
-        self.syncing_handles
-            .remove(&txn_id)
-            .map(|(_, handle)| handle)
-    }
-
     /// Get all pending transaction IDs
     pub fn get_all_txn_ids(&self) -> Vec<TransactionId> {
         self.buffers.iter().map(|entry| *entry.key()).collect()
@@ -89,32 +68,20 @@ impl IndexUpdateBuffer {
 
     /// Cleaning up timeout transactions
     pub fn cleanup_timeout(&self) -> Vec<TransactionId> {
-        let mut expired_txns = Vec::new();
-
-        // Check syncing handles for timeout transactions
-        for entry in self.syncing_handles.iter() {
-            let txn_id = entry.key();
-            expired_txns.push(*txn_id);
-        }
-
-        // Clearing timeout transactions
+        let expired_txns: Vec<TransactionId> = self.buffers.iter().map(|entry| *entry.key()).collect();
         for txn_id in &expired_txns {
             self.buffers.remove(txn_id);
-            self.syncing_handles.remove(txn_id);
         }
-
         expired_txns
     }
 
     /// Get buffer statistics
     pub fn stats(&self) -> BufferStats {
         let total_updates: usize = self.buffers.iter().map(|entry| entry.value().len()).sum();
-        let total_handles = self.syncing_handles.len();
 
         BufferStats {
             active_transactions: self.buffers.len(),
             total_pending_updates: total_updates,
-            syncing_handles: total_handles,
         }
     }
 }
@@ -124,7 +91,6 @@ impl IndexUpdateBuffer {
 pub struct BufferStats {
     pub active_transactions: usize,
     pub total_pending_updates: usize,
-    pub syncing_handles: usize,
 }
 
 #[cfg(test)]
@@ -141,7 +107,6 @@ mod tests {
             "1".to_string(),
         )
         .with_content("Alice".to_string())
-        .with_change_type(ChangeType::Insert)
     }
 
     #[test]
@@ -185,29 +150,6 @@ mod tests {
         // The third update should fail
         let result = buffer.add_update(txn_id, create_test_update(txn_id));
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_sync_handle_management() {
-        let buffer = IndexUpdateBuffer::new(IndexBufferConfig::default());
-        let txn_id = TransactionId::from(1u64);
-
-        // Creating a Synchronization Handle
-        let (tx, rx) = tokio::sync::oneshot::channel();
-        let handle = Arc::new(SyncHandle::new(txn_id, vec![], tx, rx));
-
-        // Registration handle
-        buffer.register_sync_handle(txn_id, handle.clone());
-
-        // Get handle
-        let retrieved = buffer.get_sync_handle(txn_id);
-        assert!(retrieved.is_some());
-        assert!(Arc::ptr_eq(&retrieved.unwrap(), &handle));
-
-        // Remove handle
-        let removed = buffer.remove_sync_handle(txn_id);
-        assert!(removed.is_some());
-        assert!(buffer.get_sync_handle(txn_id).is_none());
     }
 
     #[test]

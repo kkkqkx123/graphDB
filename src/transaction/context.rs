@@ -13,7 +13,6 @@ use parking_lot::{Mutex, RwLock};
 
 use crate::core::StorageError;
 use crate::storage::redb_types::{ByteKey, EDGES_TABLE, NODES_TABLE};
-use crate::sync::SyncHandle;
 use crate::transaction::types::*;
 
 /// Transaction Context
@@ -58,8 +57,6 @@ pub struct TransactionContext {
     db: Option<Arc<redb::Database>>,
     /// Whether to enable two-stage submission
     two_phase_enabled: bool,
-    /// Sync handle for tracking index synchronization (two-phase commit)
-    sync_handle: Arc<Mutex<Option<SyncHandle>>>,
 }
 
 /// Savepoint Manager
@@ -142,7 +139,6 @@ impl TransactionContext {
             savepoint_manager: RwLock::new(SavepointManager::new()),
             db,
             two_phase_enabled: config.two_phase_commit,
-            sync_handle: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -174,7 +170,6 @@ impl TransactionContext {
             savepoint_manager: RwLock::new(SavepointManager::new()),
             db,
             two_phase_enabled: config.two_phase_commit,
-            sync_handle: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -284,21 +279,6 @@ impl TransactionContext {
     /// Whether to enable two-stage submission
     pub fn is_two_phase_enabled(&self) -> bool {
         self.two_phase_enabled
-    }
-
-    /// Get sync handle reference
-    pub fn sync_handle(&self) -> &Arc<Mutex<Option<SyncHandle>>> {
-        &self.sync_handle
-    }
-
-    /// Set sync handle
-    pub fn set_sync_handle(&self, handle: SyncHandle) {
-        *self.sync_handle.try_lock().expect("SyncHandle lock poisoned") = Some(handle);
-    }
-
-    /// Take sync handle (for commit)
-    pub fn take_sync_handle(&self) -> Option<SyncHandle> {
-        self.sync_handle.try_lock().expect("SyncHandle lock poisoned").take()
     }
 
     /// Check if operation can be executed
