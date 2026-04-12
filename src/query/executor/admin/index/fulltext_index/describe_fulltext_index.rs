@@ -3,12 +3,12 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::coordinator::FulltextCoordinator;
 use crate::core::error::{DBError, QueryError};
 use crate::core::DataSet;
 use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::search::manager::FulltextIndexManager;
 use crate::storage::StorageClient;
 
 /// Executor for describing full-text index metadata
@@ -17,7 +17,7 @@ pub struct DescribeFulltextIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     index_name: String,
     space_id: u64,
-    coordinator: Arc<FulltextCoordinator>,
+    fulltext_manager: Arc<FulltextIndexManager>,
 }
 
 impl<S: StorageClient> DescribeFulltextIndexExecutor<S> {
@@ -27,7 +27,7 @@ impl<S: StorageClient> DescribeFulltextIndexExecutor<S> {
         index_name: String,
         space_id: u64,
         expr_context: Arc<ExpressionAnalysisContext>,
-        coordinator: Arc<FulltextCoordinator>,
+        fulltext_manager: Arc<FulltextIndexManager>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(
@@ -38,7 +38,7 @@ impl<S: StorageClient> DescribeFulltextIndexExecutor<S> {
             ),
             index_name,
             space_id,
-            coordinator,
+            fulltext_manager,
         }
     }
 
@@ -74,37 +74,75 @@ impl<S: StorageClient> Executor<S> for DescribeFulltextIndexExecutor<S> {
             }
         };
 
-        let metadata = self
-            .coordinator
+        let engine = self
+            .fulltext_manager
             .get_engine(self.space_id, &tag_name, &field_name);
 
-        match metadata {
-            Some(_) => {
-                let col_names = vec![
-                    "Index Name".to_string(),
-                    "Space ID".to_string(),
-                    "Tag Name".to_string(),
-                    "Field Name".to_string(),
-                ];
-
-                let row = vec![
-                    Value::String(self.index_name.clone()),
-                    Value::Int(self.space_id as i64),
-                    Value::String(tag_name),
-                    Value::String(field_name),
-                ];
-
-                let dataset = DataSet {
-                    col_names,
-                    rows: vec![row],
-                };
-                Ok(ExecutionResult::DataSet(dataset))
+        let metadata = match engine {
+            Some(engine) => {
+                let stats = futures::executor::block_on(engine.stats())?;
+                Some(("Active".to_string(), stats))
             }
-            None => Err(DBError::Query(QueryError::ExecutionError(format!(
-                "Fulltext index '{}' not found",
-                self.index_name
-            )))),
-        }
+            None => None,
+        };
+
+        let col_names = vec!["Property".to_string(), "Value".to_string()];
+
+        let rows: Vec<Vec<Value>> = if let Some((status, stats)) = metadata {
+            vec![
+                vec![
+                    Value::String("Index Name".to_string()),
+                    Value::String(self.index_name.clone()),
+                ],
+                vec![
+                    Value::String("Space ID".to_string()),
+                    Value::Int(self.space_id as i64),
+                ],
+                vec![
+                    Value::String("Tag Name".to_string()),
+                    Value::String(tag_name),
+                ],
+                vec![
+                    Value::String("Field Name".to_string()),
+                    Value::String(field_name),
+                ],
+                vec![Value::String("Status".to_string()), Value::String(status)],
+                vec![
+                    Value::String("Document Count".to_string()),
+                    Value::Int(stats.doc_count as i64),
+                ],
+                vec![
+                    Value::String("Index Size".to_string()),
+                    Value::String(format!("{} bytes", stats.index_size)),
+                ],
+            ]
+        } else {
+            vec![
+                vec![
+                    Value::String("Index Name".to_string()),
+                    Value::String(self.index_name.clone()),
+                ],
+                vec![
+                    Value::String("Space ID".to_string()),
+                    Value::Int(self.space_id as i64),
+                ],
+                vec![
+                    Value::String("Tag Name".to_string()),
+                    Value::String(tag_name),
+                ],
+                vec![
+                    Value::String("Field Name".to_string()),
+                    Value::String(field_name),
+                ],
+                vec![
+                    Value::String("Status".to_string()),
+                    Value::String("Not Found".to_string()),
+                ],
+            ]
+        };
+
+        let dataset = DataSet { col_names, rows };
+        Ok(ExecutionResult::DataSet(dataset))
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -128,14 +166,14 @@ impl<S: StorageClient> Executor<S> for DescribeFulltextIndexExecutor<S> {
     }
 
     fn description(&self) -> &str {
-        "Describe Fulltext Index Executor"
+        "Executor for describing full-text index metadata"
     }
 
-    fn stats(&self) -> &crate::query::executor::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base.stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.stats_mut()
     }
 }

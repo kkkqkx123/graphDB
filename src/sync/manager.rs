@@ -2,13 +2,12 @@
 //!
 //! Unified synchronization manager using SyncCoordinator.
 
-use crate::coordinator::FulltextCoordinator;
 use crate::core::error::CoordinatorError;
 use crate::core::Value;
 use crate::search::SyncConfig;
 use crate::sync::batch::BatchConfig;
 use crate::sync::compensation::{CompensationManager, CompensationStats};
-use crate::sync::coordinator::SyncCoordinator;
+use crate::sync::coordinator::{ChangeType, SyncCoordinator};
 use crate::sync::recovery::RecoveryManager;
 use crate::sync::vector_sync::VectorSyncCoordinator;
 use std::path::PathBuf;
@@ -179,117 +178,6 @@ impl SyncManager {
         }
     }
 
-    /// Vertex change synchronization (transaction mode)
-    /// Note: This method is now only used in non-transactional scenarios, which should use on_vertex_insert or on_vertex_change_with_txn
-    pub async fn on_vertex_change(
-        &self,
-        space_id: u64,
-        tag_name: &str,
-        vertex_id: &Value,
-        properties: &[(String, Value)],
-        change_type: crate::coordinator::ChangeType,
-    ) -> Result<(), SyncError> {
-        // Direct synchronous processing
-        self.sync_coordinator
-            .on_vertex_change(
-                space_id,
-                tag_name,
-                vertex_id,
-                properties,
-                change_type.into(),
-            )
-            .await?;
-
-        // Simultaneously handle vector index changes (if any)
-        if let Some(ref vector_coord) = self.vector_coordinator {
-            self.execute_vector_vertex_change_sync(
-                space_id,
-                tag_name,
-                vertex_id,
-                properties,
-                change_type,
-                vector_coord,
-            )
-            .await?;
-        }
-
-        Ok(())
-    }
-
-    /// Vertex insertion with transactions (synchronized buffering)
-    pub fn on_vertex_insert(
-        &self,
-        txn_id: crate::transaction::types::TransactionId,
-        space_id: u64,
-        vertex: &crate::core::Vertex,
-    ) -> Result<(), SyncError> {
-        // Create a change context
-        let change_type = crate::coordinator::ChangeType::Insert;
-        let vertex_id = &vertex.vid;
-
-        // Extract all properties
-        let props: Vec<(String, Value)> = vertex
-            .tags
-            .iter()
-            .flat_map(|tag| tag.properties.iter().map(|(k, v)| (k.clone(), v.clone())))
-            .collect();
-
-        // Get the first tag name (if any)
-        if let Some(first_tag) = vertex.tags.first() {
-            let tag_name = &first_tag.name;
-
-            // Distinguish between transactional and non-transactional based on txn_id
-            if txn_id == 0 {
-                // Non-transactional mode: execute immediately
-                futures::executor::block_on(async {
-                    self.sync_coordinator
-                        .on_vertex_change(space_id, tag_name, vertex_id, &props, change_type.into())
-                        .await
-                })?;
-            } else {
-                // Transaction mode: buffer operations
-                for (field_name, value) in &props {
-                    // Buffer full-text index operations
-                    if let Value::String(text) = value {
-                        let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
-                            space_id,
-                            tag_name,
-                            field_name,
-                            change_type.into(),
-                            vertex_id.to_string(),
-                            text.clone(),
-                        );
-                        self.sync_coordinator
-                            .buffer_operation(txn_id, ctx)
-                            .map_err(SyncError::from)?;
-                    }
-
-                    // Buffered Vector Indexing Operations
-                    if let Some(vector) = value.as_vector() {
-                        if let Some(ref vector_coord) = self.vector_coordinator {
-                            let ctx = crate::sync::vector_sync::VectorChangeContext::new(
-                                space_id,
-                                tag_name,
-                                field_name,
-                                crate::sync::vector_sync::VectorChangeType::from(change_type),
-                                crate::sync::vector_sync::VectorPointData {
-                                    id: vertex_id.to_string(),
-                                    vector: vector.clone(),
-                                    payload: std::collections::HashMap::new(),
-                                },
-                            );
-                            vector_coord
-                                .buffer_vector_change(txn_id, ctx)
-                                .map_err(|e| SyncError::VectorError(e.to_string()))?;
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-
     /// Vertex changes with transactions (synchronous buffering)
     pub fn on_vertex_change_with_txn(
         &self,
@@ -298,7 +186,7 @@ impl SyncManager {
         tag_name: &str,
         vertex_id: &Value,
         properties: &[(String, Value)],
-        change_type: crate::coordinator::ChangeType,
+        change_type: ChangeType,
     ) -> Result<(), SyncError> {
         // For each attribute create a context and buffer
         for (field_name, value) in properties {
@@ -308,7 +196,7 @@ impl SyncManager {
                     space_id,
                     tag_name,
                     field_name,
-                    change_type.into(),
+                    change_type,
                     vertex_id.to_string().unwrap_or_default(),
                     text.clone(),
                 );
@@ -362,7 +250,7 @@ impl SyncManager {
                     space_id,
                     &edge.edge_type,
                     field_name,
-                    crate::coordinator::ChangeType::Insert.into(),
+                    ChangeType::Insert,
                     format!("{}->{}", edge.src, edge.dst),
                     text.clone(),
                 );
@@ -379,9 +267,7 @@ impl SyncManager {
                             space_id,
                             &edge.edge_type,
                             field_name,
-                            crate::sync::vector_sync::VectorChangeType::from(
-                                crate::coordinator::ChangeType::Insert,
-                            ),
+                            crate::sync::vector_sync::VectorChangeType::from(ChangeType::Insert),
                             crate::sync::vector_sync::VectorPointData {
                                 id: format!("{}->{}", edge.src, edge.dst),
                                 vector: vector.clone(),
@@ -413,7 +299,7 @@ impl SyncManager {
             space_id,
             edge_type,
             "_id", // Use special field names to identify edges
-            crate::coordinator::ChangeType::Delete.into(),
+            ChangeType::Delete,
             format!("{}->{}", src, dst),
             String::new(), // No text content is required when deleting
         );
@@ -429,44 +315,6 @@ impl SyncManager {
             // For now, we'll use a simplified approach
         }
 
-        Ok(())
-    }
-
-    async fn execute_vector_vertex_change_sync(
-        &self,
-        space_id: u64,
-        tag_name: &str,
-        vertex_id: &Value,
-        properties: &[(String, Value)],
-        change_type: crate::coordinator::ChangeType,
-        vector_coord: &Arc<VectorSyncCoordinator>,
-    ) -> Result<(), SyncError> {
-        use std::collections::HashMap;
-
-        for (field_name, value) in properties {
-            if vector_coord.index_exists(space_id, tag_name, field_name) {
-                let vector = value.as_vector().unwrap_or_default();
-                let mut payload = HashMap::new();
-                payload.insert("vertex_id".to_string(), vertex_id.clone());
-
-                let ctx = crate::sync::vector_sync::VectorChangeContext::new(
-                    space_id,
-                    tag_name,
-                    field_name,
-                    crate::sync::vector_sync::VectorChangeType::from(change_type),
-                    crate::sync::vector_sync::VectorPointData {
-                        id: format!("{}", vertex_id),
-                        vector,
-                        payload,
-                    },
-                );
-
-                vector_coord
-                    .on_vector_change(ctx)
-                    .await
-                    .map_err(|e| SyncError::VectorError(e.to_string()))?;
-            }
-        }
         Ok(())
     }
 
@@ -569,11 +417,9 @@ impl SyncManager {
         self.vector_coordinator.as_ref()
     }
 
-    /// Get the fulltext coordinator
-    pub fn fulltext_coordinator(&self) -> Option<Arc<FulltextCoordinator>> {
-        Some(Arc::new(FulltextCoordinator::new(
-            self.sync_coordinator.fulltext_manager().clone(),
-        )))
+    /// Get the fulltext manager directly
+    pub fn fulltext_manager(&self) -> Arc<crate::search::manager::FulltextIndexManager> {
+        self.sync_coordinator.fulltext_manager().clone()
     }
 
     pub fn is_running(&self) -> bool {

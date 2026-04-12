@@ -77,23 +77,3 @@ impl ChangeContext {
         )
     }
 }
-
-impl From<crate::coordinator::ChangeType> for ChangeType {
-    fn from(ct: crate::coordinator::ChangeType) -> Self {
-        match ct {
-            crate::coordinator::ChangeType::Insert => ChangeType::Insert,
-            crate::coordinator::ChangeType::Update => ChangeType::Update,
-            crate::coordinator::ChangeType::Delete => ChangeType::Delete,
-        }
-    }
-}
-
-impl From<ChangeType> for crate::coordinator::ChangeType {
-    fn from(ct: ChangeType) -> Self {
-        match ct {
-            ChangeType::Insert => crate::coordinator::ChangeType::Insert,
-            ChangeType::Update => crate::coordinator::ChangeType::Update,
-            ChangeType::Delete => crate::coordinator::ChangeType::Delete,
-        }
-    }
-}

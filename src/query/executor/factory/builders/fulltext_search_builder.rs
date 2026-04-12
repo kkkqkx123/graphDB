@@ -1,7 +1,6 @@
 //! Full-Text Search Executor Builder
 //!
 //! Responsible for creating full-text search related executors.
-//! This module isolates the complex synchronization dependencies required by full-text search operations.
 
 use std::sync::Arc;
 
@@ -25,14 +24,13 @@ use crate::query::planning::plan::core::nodes::{
     AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
     DropFulltextIndexNode, FulltextLookupNode, MatchFulltextNode, ShowFulltextIndexNode,
 };
+use crate::search::manager::FulltextIndexManager;
 use crate::storage::StorageClient;
 use crate::sync::SyncManager;
 
 /// Full-Text Search Executor Builder
 ///
 /// Handles the creation of all full-text search related executors.
-/// These executors require special coordination with the FulltextCoordinator
-/// for managing full-text index operations and external search engine synchronization.
 pub struct FulltextSearchBuilder<S: StorageClient + Send + 'static> {
     _phantom: std::marker::PhantomData<S>,
 }
@@ -52,12 +50,9 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let coordinator = sync_manager
+        let fulltext_manager = sync_manager
             .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
-            .fulltext_coordinator()
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
-            })?;
+            .fulltext_manager();
 
         let space_id = context.current_space_id().unwrap_or(0);
 
@@ -74,7 +69,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
                 space_id,
             },
             context.expression_context().clone(),
-            coordinator,
+            fulltext_manager,
         );
         Ok(ExecutorEnum::CreateFulltextIndex(executor))
     }
@@ -86,12 +81,9 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let coordinator = sync_manager
+        let fulltext_manager = sync_manager
             .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
-            .fulltext_coordinator()
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
-            })?;
+            .fulltext_manager();
 
         let space_id = context.current_space_id().unwrap_or(0);
 
@@ -102,7 +94,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             node.if_exists,
             space_id,
             context.expression_context().clone(),
-            coordinator,
+            fulltext_manager,
         );
         Ok(ExecutorEnum::DropFulltextIndex(executor))
     }
@@ -114,12 +106,9 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let coordinator = sync_manager
+        let fulltext_manager = sync_manager
             .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
-            .fulltext_coordinator()
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
-            })?;
+            .fulltext_manager();
 
         let executor = AlterFulltextIndexExecutor::new(
             node.id(),
@@ -127,7 +116,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             node.index_name.clone(),
             node.actions.clone(),
             context.expression_context().clone(),
-            coordinator,
+            fulltext_manager,
         );
         Ok(ExecutorEnum::AlterFulltextIndex(executor))
     }
@@ -139,18 +128,15 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let coordinator = sync_manager
+        let fulltext_manager = sync_manager
             .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
-            .fulltext_coordinator()
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
-            })?;
+            .fulltext_manager();
 
         let executor = ShowFulltextIndexExecutor::new(
             node.id(),
             storage,
             context.expression_context().clone(),
-            coordinator,
+            fulltext_manager,
         );
         Ok(ExecutorEnum::ShowFulltextIndex(executor))
     }
@@ -162,12 +148,9 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let coordinator = sync_manager
+        let fulltext_manager = sync_manager
             .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
-            .fulltext_coordinator()
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
-            })?;
+            .fulltext_manager();
 
         let space_id = context.current_space_id().unwrap_or(0);
 
@@ -177,7 +160,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             node.index_name.clone(),
             space_id,
             context.expression_context().clone(),
-            coordinator,
+            fulltext_manager,
         );
         Ok(ExecutorEnum::DescribeFulltextIndex(executor))
     }
@@ -205,12 +188,9 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             .ok_or_else(|| QueryError::ExecutionError("Search engine not available".to_string()))?
             .clone();
 
-        let coordinator = sync_manager
+        let fulltext_manager = sync_manager
             .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
-            .fulltext_coordinator()
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
-            })?;
+            .fulltext_manager();
 
         let executor = FulltextSearchExecutor::new(
             node.id(),
@@ -219,7 +199,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             context.clone(),
             storage,
             context.expression_context().clone(),
-            coordinator,
+            fulltext_manager,
         );
         Ok(ExecutorEnum::FulltextSearch(executor))
     }
@@ -236,12 +216,9 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             .ok_or_else(|| QueryError::ExecutionError("Search engine not available".to_string()))?
             .clone();
 
-        let coordinator = sync_manager
+        let fulltext_manager = sync_manager
             .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
-            .fulltext_coordinator()
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
-            })?;
+            .fulltext_manager();
 
         let executor = FulltextScanExecutor::new(
             node.id(),
@@ -254,7 +231,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             context.clone(),
             storage,
             context.expression_context().clone(),
-            coordinator,
+            fulltext_manager,
         );
         Ok(ExecutorEnum::FulltextLookup(executor))
     }
@@ -266,12 +243,9 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let coordinator = sync_manager
+        let fulltext_manager = sync_manager
             .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
-            .fulltext_coordinator()
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Fulltext coordinator not available".to_string())
-            })?;
+            .fulltext_manager();
 
         let executor = MatchFulltextExecutor::new(
             node.id(),
@@ -279,7 +253,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             node.fulltext_condition.clone(),
             node.yield_clause.clone(),
             context.expression_context().clone(),
-            coordinator,
+            fulltext_manager,
         );
         Ok(ExecutorEnum::MatchFulltext(executor))
     }

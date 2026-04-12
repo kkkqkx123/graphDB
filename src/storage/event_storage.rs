@@ -2,9 +2,9 @@
 //!
 //! Package the Storage Client to automatically synchronize to the index during storage operations
 
-use crate::coordinator::ChangeType;
 use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::storage::StorageClient;
+use crate::sync::coordinator::ChangeType;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -192,15 +192,32 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
                 // Get the current transaction ID from storage context
                 let txn_id = self.get_current_txn_id();
 
-                // Get the first tag name (if any)
-                if let Some(_first_tag) = vertex.tags.first() {
-                    // Synchronized Calls to SyncManager
-                    // SyncManager will distinguish between transactional and non-transactional based on txn_id
-                    sync_manager
-                        .on_vertex_insert(txn_id, space_id, &vertex)
-                        .map_err(|e| {
-                            StorageError::DbError(format!("Failed to sync vertex insert: {}", e))
-                        })?;
+                // Process each tag separately
+                for tag in &vertex.tags {
+                    let tag_name = &tag.name;
+                    let props: Vec<(String, crate::core::Value)> = tag
+                        .properties
+                        .iter()
+                        .map(|(k, v)| (k.clone(), v.clone()))
+                        .collect();
+
+                    if !props.is_empty() {
+                        sync_manager
+                            .on_vertex_change_with_txn(
+                                txn_id,
+                                space_id,
+                                tag_name,
+                                &vertex.vid,
+                                &props,
+                                ChangeType::Insert,
+                            )
+                            .map_err(|e| {
+                                StorageError::DbError(format!(
+                                    "Failed to sync vertex insert: {}",
+                                    e
+                                ))
+                            })?;
+                    }
                 }
             }
         }
@@ -336,15 +353,31 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
                 let txn_id = self.get_current_txn_id();
 
                 for vertex in &vertices {
-                    if let Some(_first_tag) = vertex.tags.first() {
-                        sync_manager
-                            .on_vertex_insert(txn_id, space_id, vertex)
-                            .map_err(|e| {
-                                StorageError::DbError(format!(
-                                    "Failed to sync vertex insert: {}",
-                                    e
-                                ))
-                            })?;
+                    for tag in &vertex.tags {
+                        let tag_name = &tag.name;
+                        let props: Vec<(String, crate::core::Value)> = tag
+                            .properties
+                            .iter()
+                            .map(|(k, v)| (k.clone(), v.clone()))
+                            .collect();
+
+                        if !props.is_empty() {
+                            sync_manager
+                                .on_vertex_change_with_txn(
+                                    txn_id,
+                                    space_id,
+                                    tag_name,
+                                    &vertex.vid,
+                                    &props,
+                                    ChangeType::Insert,
+                                )
+                                .map_err(|e| {
+                                    StorageError::DbError(format!(
+                                        "Failed to sync vertex insert: {}",
+                                        e
+                                    ))
+                                })?;
+                        }
                     }
                 }
             }

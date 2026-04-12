@@ -2,6 +2,7 @@
 //!
 //! Aggregates all states that need to be shared across storage layer components, reducing Arc nesting
 
+use crate::search::manager::FulltextIndexManager;
 use crate::storage::metadata::{RedbIndexMetadataManager, RedbSchemaManager};
 use crate::storage::operations::{RedbReader, RedbWriter};
 use crate::sync::SyncManager;
@@ -19,6 +20,7 @@ pub struct StorageSharedState {
     pub schema_manager: Arc<RedbSchemaManager>,
     pub index_metadata_manager: Arc<RedbIndexMetadataManager>,
     pub sync_manager: Arc<RwLock<Option<Arc<SyncManager>>>>,
+    pub fulltext_manager: Arc<RwLock<Option<Arc<FulltextIndexManager>>>>,
 }
 
 impl StorageSharedState {
@@ -32,6 +34,7 @@ impl StorageSharedState {
             schema_manager,
             index_metadata_manager,
             sync_manager: Arc::new(RwLock::new(None)),
+            fulltext_manager: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -45,6 +48,18 @@ impl StorageSharedState {
 
     pub fn get_sync_manager(&self) -> Option<Arc<SyncManager>> {
         self.sync_manager.read().clone()
+    }
+
+    pub fn with_fulltext_manager(&mut self, fulltext_manager: Arc<FulltextIndexManager>) {
+        *self.fulltext_manager.write() = Some(fulltext_manager);
+    }
+
+    pub fn set_fulltext_manager(&self, fulltext_manager: Arc<FulltextIndexManager>) {
+        *self.fulltext_manager.write() = Some(fulltext_manager);
+    }
+
+    pub fn get_fulltext_manager(&self) -> Option<Arc<FulltextIndexManager>> {
+        self.fulltext_manager.read().clone()
     }
 }
 

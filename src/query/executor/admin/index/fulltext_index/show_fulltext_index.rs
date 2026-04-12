@@ -3,17 +3,17 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::coordinator::FulltextCoordinator;
 use crate::core::DataSet;
 use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::search::manager::FulltextIndexManager;
 use crate::storage::StorageClient;
 
 #[derive(Debug)]
 pub struct ShowFulltextIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
-    coordinator: Arc<FulltextCoordinator>,
+    fulltext_manager: Arc<FulltextIndexManager>,
 }
 
 impl<S: StorageClient> ShowFulltextIndexExecutor<S> {
@@ -21,7 +21,7 @@ impl<S: StorageClient> ShowFulltextIndexExecutor<S> {
         id: i64,
         storage: Arc<Mutex<S>>,
         expr_context: Arc<ExpressionAnalysisContext>,
-        coordinator: Arc<FulltextCoordinator>,
+        fulltext_manager: Arc<FulltextIndexManager>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(
@@ -30,7 +30,7 @@ impl<S: StorageClient> ShowFulltextIndexExecutor<S> {
                 storage,
                 expr_context,
             ),
-            coordinator,
+            fulltext_manager,
         }
     }
 }
@@ -43,7 +43,7 @@ impl<S: StorageClient> HasStorage<S> for ShowFulltextIndexExecutor<S> {
 
 impl<S: StorageClient> Executor<S> for ShowFulltextIndexExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let indexes = self.coordinator.list_indexes();
+        let indexes = self.fulltext_manager.list_indexes();
 
         let col_names = vec![
             "Index Name".to_string(),
@@ -97,14 +97,14 @@ impl<S: StorageClient> Executor<S> for ShowFulltextIndexExecutor<S> {
     }
 
     fn description(&self) -> &str {
-        "Show Fulltext Index Executor"
+        "Executor for showing full-text indexes"
     }
 
-    fn stats(&self) -> &crate::query::executor::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base.stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.stats_mut()
     }
 }

@@ -3,13 +3,14 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::coordinator::FulltextCoordinator;
-use crate::core::error::{CoordinatorError, DBError, FulltextError};
+use crate::core::error::DBError;
 use crate::core::types::FulltextEngineType;
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::parser::ast::{IndexFieldDef, IndexOptions};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::search::engine::EngineType;
+use crate::search::error::SearchError;
+use crate::search::manager::FulltextIndexManager;
 use crate::storage::StorageClient;
 
 /// Configuration for creating a full-text index
@@ -42,7 +43,7 @@ pub struct CreateFulltextIndexExecutor<S: StorageClient> {
     options: IndexOptions,
     if_not_exists: bool,
     space_id: u64,
-    coordinator: Arc<FulltextCoordinator>,
+    fulltext_manager: Arc<FulltextIndexManager>,
 }
 
 impl<S: StorageClient> CreateFulltextIndexExecutor<S> {
@@ -51,7 +52,7 @@ impl<S: StorageClient> CreateFulltextIndexExecutor<S> {
         storage: Arc<Mutex<S>>,
         config: CreateFulltextIndexConfig,
         expr_context: Arc<ExpressionAnalysisContext>,
-        coordinator: Arc<FulltextCoordinator>,
+        fulltext_manager: Arc<FulltextIndexManager>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(
@@ -67,7 +68,7 @@ impl<S: StorageClient> CreateFulltextIndexExecutor<S> {
             options: config.options,
             if_not_exists: config.if_not_exists,
             space_id: config.space_id,
-            coordinator,
+            fulltext_manager,
         }
     }
 
@@ -91,7 +92,7 @@ impl<S: StorageClient> Executor<S> for CreateFulltextIndexExecutor<S> {
         let tag_name = &self.schema_name;
 
         for field in &self.fields {
-            let result = futures::executor::block_on(self.coordinator.create_index(
+            let result = futures::executor::block_on(self.fulltext_manager.create_index(
                 self.space_id,
                 tag_name,
                 &field.field_name,
@@ -106,20 +107,21 @@ impl<S: StorageClient> Executor<S> for CreateFulltextIndexExecutor<S> {
                         index_id
                     );
                 }
-                Err(CoordinatorError::Fulltext(FulltextError::IndexAlreadyExists(_))) => {
+                Err(SearchError::IndexAlreadyExists(_)) => {
                     if self.if_not_exists {
                         log::warn!(
                             "Fulltext index '{}' already exists, skipping",
                             self.index_name
                         );
                     } else {
-                        return Err(DBError::from(CoordinatorError::Fulltext(
-                            FulltextError::IndexAlreadyExists(self.index_name.clone()),
+                        return Err(DBError::Search(format!(
+                            "Index already exists: {}",
+                            self.index_name
                         )));
                     }
                 }
                 Err(e) => {
-                    return Err(DBError::from(e));
+                    return Err(DBError::Search(e.to_string()));
                 }
             }
         }

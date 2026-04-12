@@ -3,7 +3,6 @@
 //! This module implements the executor for full-text search queries,
 //! including SEARCH statements and full-text scan operations.
 
-use crate::coordinator::FulltextCoordinator;
 use crate::core::error::DBError;
 use crate::core::Value;
 use crate::query::executor::base::{
@@ -15,6 +14,7 @@ use crate::query::parser::ast::fulltext::{
     SearchStatement, WhereCondition, YieldExpression,
 };
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::search::manager::FulltextIndexManager;
 use crate::search::SearchEngine;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -34,8 +34,8 @@ pub struct FulltextSearchExecutor<S: StorageClient> {
     /// Execution context
     #[allow(dead_code)]
     context: ExecutionContext,
-    /// Fulltext coordinator
-    coordinator: Arc<FulltextCoordinator>,
+    /// Fulltext manager
+    fulltext_manager: Arc<FulltextIndexManager>,
     _phantom: std::marker::PhantomData<S>,
 }
 
@@ -48,7 +48,7 @@ impl<S: StorageClient> FulltextSearchExecutor<S> {
         context: ExecutionContext,
         storage: Arc<Mutex<S>>,
         expr_context: Arc<ExpressionAnalysisContext>,
-        coordinator: Arc<FulltextCoordinator>,
+        fulltext_manager: Arc<FulltextIndexManager>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(
@@ -60,7 +60,7 @@ impl<S: StorageClient> FulltextSearchExecutor<S> {
             statement,
             engine,
             context,
-            coordinator,
+            fulltext_manager,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -301,8 +301,8 @@ pub struct FulltextScanExecutor<S: StorageClient> {
     /// Execution context
     #[allow(dead_code)]
     context: ExecutionContext,
-    /// Fulltext coordinator
-    coordinator: Arc<FulltextCoordinator>,
+    /// Fulltext manager
+    fulltext_manager: Arc<FulltextIndexManager>,
     /// Limit
     limit: Option<usize>,
     _phantom: std::marker::PhantomData<S>,
@@ -317,7 +317,7 @@ impl<S: StorageClient> FulltextScanExecutor<S> {
         context: ExecutionContext,
         storage: Arc<Mutex<S>>,
         expr_context: Arc<ExpressionAnalysisContext>,
-        coordinator: Arc<FulltextCoordinator>,
+        fulltext_manager: Arc<FulltextIndexManager>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(
@@ -330,7 +330,7 @@ impl<S: StorageClient> FulltextScanExecutor<S> {
             query: config.query,
             engine,
             context,
-            coordinator,
+            fulltext_manager,
             limit: config.limit,
             _phantom: std::marker::PhantomData,
         }
@@ -345,7 +345,7 @@ impl<S: StorageClient> Executor<S> for FulltextSearchExecutor<S> {
 
         let limit = self.statement.limit.unwrap_or(100);
 
-        let search_results = futures::executor::block_on(self.coordinator.search(
+        let search_results = futures::executor::block_on(self.fulltext_manager.search(
             space_id,
             &tag_name,
             &field_name,
@@ -547,7 +547,7 @@ impl<S: StorageClient> Executor<S> for FulltextScanExecutor<S> {
 
         let limit = self.limit.unwrap_or(100);
 
-        let search_results = futures::executor::block_on(self.coordinator.search(
+        let search_results = futures::executor::block_on(self.fulltext_manager.search(
             space_id,
             &tag_name,
             &field_name,
@@ -680,12 +680,10 @@ mod tests {
         );
 
         let config = crate::search::config::FulltextConfig::default();
-        let manager = std::sync::Arc::new(
+        let fulltext_manager = std::sync::Arc::new(
             crate::search::manager::FulltextIndexManager::new(config)
                 .expect("Failed to create manager"),
         );
-        let coordinator =
-            std::sync::Arc::new(crate::coordinator::FulltextCoordinator::new(manager));
 
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
@@ -709,7 +707,7 @@ mod tests {
             context: crate::query::executor::ExecutionContext::new(std::sync::Arc::new(
                 ExpressionAnalysisContext::new(),
             )),
-            coordinator,
+            fulltext_manager,
             _phantom: std::marker::PhantomData,
         }
     }

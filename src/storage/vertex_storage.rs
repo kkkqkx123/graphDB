@@ -5,6 +5,7 @@ use crate::storage::metadata::{IndexMetadataManager, SchemaManager};
 use crate::storage::operations::{VertexReader, VertexWriter};
 use crate::storage::shared_state::{StorageInner, StorageSharedState};
 use crate::storage::Schema;
+use crate::sync::coordinator::ChangeType;
 use std::sync::Arc;
 
 /// Vertex Storage Manager
@@ -198,7 +199,7 @@ impl VertexStorage {
                             &tag.name,
                             &vid,
                             &props,
-                            crate::coordinator::ChangeType::Insert,
+                            ChangeType::Insert,
                         )
                         .map_err(|e| {
                             StorageError::DbError(format!("Failed to sync vertex insert: {}", e))
@@ -250,7 +251,7 @@ impl VertexStorage {
                             tag_name,
                             &vid,
                             &changed_props,
-                            crate::coordinator::ChangeType::Update,
+                            ChangeType::Update,
                         )
                         .map_err(|e| {
                             StorageError::DbError(format!("Failed to sync vertex update: {}", e))
@@ -300,7 +301,7 @@ impl VertexStorage {
                             &tag.name,
                             id,
                             &[], // No properties needed for deletion
-                            crate::coordinator::ChangeType::Delete,
+                            ChangeType::Delete,
                         )
                         .map_err(|e| {
                             StorageError::DbError(format!("Failed to sync vertex delete: {}", e))
@@ -345,7 +346,7 @@ impl VertexStorage {
                                 &tag.name,
                                 &vid,
                                 &props,
-                                crate::coordinator::ChangeType::Insert,
+                                ChangeType::Insert,
                             )
                             .map_err(|e| {
                                 StorageError::DbError(format!(
@@ -458,7 +459,7 @@ impl VertexStorage {
                         &tag_name,
                         &info.vertex_id,
                         &info.props,
-                        crate::coordinator::ChangeType::Insert,
+                        ChangeType::Insert,
                     )
                     .map_err(|e| {
                         StorageError::DbError(format!("Failed to sync vertex data insert: {}", e))
@@ -500,7 +501,7 @@ impl VertexStorage {
                             &tag.name,
                             vertex_id,
                             &[], // No properties needed for deletion
-                            crate::coordinator::ChangeType::Delete,
+                            ChangeType::Delete,
                         )
                         .map_err(|e| {
                             StorageError::DbError(format!(

@@ -3,10 +3,11 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::coordinator::FulltextCoordinator;
-use crate::core::error::{CoordinatorError, DBError, FulltextError, QueryError};
+use crate::core::error::{DBError, QueryError};
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::search::error::SearchError;
+use crate::search::manager::FulltextIndexManager;
 use crate::storage::StorageClient;
 
 /// Executor for dropping full-text indexes
@@ -16,7 +17,7 @@ pub struct DropFulltextIndexExecutor<S: StorageClient> {
     index_name: String,
     if_exists: bool,
     space_id: u64,
-    coordinator: Arc<FulltextCoordinator>,
+    fulltext_manager: Arc<FulltextIndexManager>,
 }
 
 impl<S: StorageClient> DropFulltextIndexExecutor<S> {
@@ -27,7 +28,7 @@ impl<S: StorageClient> DropFulltextIndexExecutor<S> {
         if_exists: bool,
         space_id: u64,
         expr_context: Arc<ExpressionAnalysisContext>,
-        coordinator: Arc<FulltextCoordinator>,
+        fulltext_manager: Arc<FulltextIndexManager>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(
@@ -39,7 +40,7 @@ impl<S: StorageClient> DropFulltextIndexExecutor<S> {
             index_name,
             if_exists,
             space_id,
-            coordinator,
+            fulltext_manager,
         }
     }
 
@@ -67,7 +68,7 @@ impl<S: StorageClient> Executor<S> for DropFulltextIndexExecutor<S> {
 
         match parsed {
             Some((tag_name, field_name)) => {
-                let result = futures::executor::block_on(self.coordinator.drop_index(
+                let result = futures::executor::block_on(self.fulltext_manager.drop_index(
                     self.space_id,
                     &tag_name,
                     &field_name,
@@ -82,34 +83,29 @@ impl<S: StorageClient> Executor<S> for DropFulltextIndexExecutor<S> {
                             field_name
                         );
                     }
-                    Err(CoordinatorError::Fulltext(FulltextError::IndexNotFound(_))) => {
+                    Err(SearchError::IndexNotFound(_)) => {
                         if self.if_exists {
                             log::warn!(
                                 "Fulltext index '{}' does not exist, skipping",
                                 self.index_name
                             );
                         } else {
-                            return Err(DBError::from(CoordinatorError::Fulltext(
-                                FulltextError::IndexNotFound(self.index_name.clone()),
+                            return Err(DBError::Search(format!(
+                                "Index not found: {}",
+                                self.index_name
                             )));
                         }
                     }
                     Err(e) => {
-                        return Err(DBError::from(e));
+                        return Err(DBError::Search(e.to_string()));
                     }
                 }
             }
             None => {
-                if !self.if_exists {
-                    return Err(DBError::Query(QueryError::ExecutionError(format!(
-                        "Invalid fulltext index name format: '{}'. Expected format: <prefix>_<tag>_<field>",
-                        self.index_name
-                    ))));
-                }
-                log::warn!(
-                    "Invalid fulltext index name format '{}', skipping due to IF EXISTS",
+                return Err(DBError::Query(QueryError::ExecutionError(format!(
+                    "Invalid fulltext index name format: '{}'",
                     self.index_name
-                );
+                ))));
             }
         }
 
@@ -137,14 +133,14 @@ impl<S: StorageClient> Executor<S> for DropFulltextIndexExecutor<S> {
     }
 
     fn description(&self) -> &str {
-        "Drop Fulltext Index Executor"
+        "Executor for dropping full-text indexes"
     }
 
-    fn stats(&self) -> &crate::query::executor::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base.stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.stats_mut()
     }
 }

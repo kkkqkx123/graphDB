@@ -110,6 +110,9 @@ pub enum DBError {
 
     #[error("Vector coordinator error: {0}")]
     VectorCoordinator(#[from] VectorCoordinatorError),
+
+    #[error("Search error: {0}")]
+    Search(String),
 }
 
 /// Harmonized result types
@@ -147,6 +150,7 @@ impl ToPublicError for DBError {
             DBError::Coordinator(_) => ErrorCode::ExecutionError,
             DBError::Vector(_) => ErrorCode::ExecutionError,
             DBError::VectorCoordinator(_) => ErrorCode::ExecutionError,
+            DBError::Search(_) => ErrorCode::ExecutionError,
         }
     }
 
@@ -196,6 +200,12 @@ impl From<validation::ValidationError> for DBError {
 impl From<std::io::Error> for DBError {
     fn from(err: std::io::Error) -> Self {
         DBError::Io(err.to_string())
+    }
+}
+
+impl From<crate::search::error::SearchError> for DBError {
+    fn from(err: crate::search::error::SearchError) -> Self {
+        DBError::Search(err.to_string())
     }
 }
 

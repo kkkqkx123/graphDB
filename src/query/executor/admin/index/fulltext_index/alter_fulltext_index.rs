@@ -3,10 +3,10 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::coordinator::FulltextCoordinator;
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::parser::ast::AlterIndexAction;
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::search::manager::FulltextIndexManager;
 use crate::storage::StorageClient;
 
 /// Executor for altering full-text indexes
@@ -17,8 +17,8 @@ pub struct AlterFulltextIndexExecutor<S: StorageClient> {
     index_name: String,
     /// Alteration actions
     actions: Vec<AlterIndexAction>,
-    /// Fulltext coordinator
-    coordinator: Arc<FulltextCoordinator>,
+    /// Fulltext manager
+    fulltext_manager: Arc<FulltextIndexManager>,
 }
 
 impl<S: StorageClient> AlterFulltextIndexExecutor<S> {
@@ -28,7 +28,7 @@ impl<S: StorageClient> AlterFulltextIndexExecutor<S> {
         index_name: String,
         actions: Vec<AlterIndexAction>,
         expr_context: Arc<ExpressionAnalysisContext>,
-        coordinator: Arc<FulltextCoordinator>,
+        fulltext_manager: Arc<FulltextIndexManager>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(
@@ -39,7 +39,7 @@ impl<S: StorageClient> AlterFulltextIndexExecutor<S> {
             ),
             index_name,
             actions,
-            coordinator,
+            fulltext_manager,
         }
     }
 
@@ -65,18 +65,24 @@ impl<S: StorageClient> AlterFulltextIndexExecutor<S> {
         for action in &self.actions {
             match action {
                 AlterIndexAction::Rebuild => {
-                    self.coordinator
-                        .rebuild_index(space_id, tag_name, field_name)
-                        .await
-                        .map_err(|e| {
+                    let engine = self
+                        .fulltext_manager
+                        .get_engine(space_id, tag_name, field_name)
+                        .ok_or_else(|| {
                             crate::core::error::DBError::Internal(format!(
-                                "Failed to rebuild index: {}",
-                                e
+                                "Index not found: {}.{}.{}",
+                                space_id, tag_name, field_name
                             ))
                         })?;
+                    engine.commit().await.map_err(|e| {
+                        crate::core::error::DBError::Internal(format!(
+                            "Failed to rebuild index: {}",
+                            e
+                        ))
+                    })?;
                 }
                 AlterIndexAction::Optimize => {
-                    self.coordinator.commit_all().await.map_err(|e| {
+                    self.fulltext_manager.commit_all().await.map_err(|e| {
                         crate::core::error::DBError::Internal(format!(
                             "Failed to optimize index: {}",
                             e
@@ -101,7 +107,7 @@ impl<S: StorageClient> AlterFulltextIndexExecutor<S> {
             }
         }
 
-        Ok(ExecutionResult::Success)
+        Ok(ExecutionResult::Empty)
     }
 }
 
@@ -113,7 +119,7 @@ impl<S: StorageClient> HasStorage<S> for AlterFulltextIndexExecutor<S> {
 
 impl<S: StorageClient> Executor<S> for AlterFulltextIndexExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        tokio::runtime::Handle::current().block_on(self.execute_alter_actions())
+        futures::executor::block_on(self.execute_alter_actions())
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -137,14 +143,14 @@ impl<S: StorageClient> Executor<S> for AlterFulltextIndexExecutor<S> {
     }
 
     fn description(&self) -> &str {
-        "Alter Fulltext Index Executor"
+        "Executor for altering full-text indexes"
     }
 
-    fn stats(&self) -> &crate::query::executor::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base.stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.stats_mut()
     }
 }

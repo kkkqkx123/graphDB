@@ -5,7 +5,6 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::coordinator::FulltextCoordinator;
 use crate::core::error::DBError;
 use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
@@ -13,6 +12,7 @@ use crate::query::parser::ast::fulltext::{
     FulltextMatchCondition, FulltextYieldClause, YieldExpression,
 };
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::search::manager::FulltextIndexManager;
 use crate::storage::StorageClient;
 
 /// Executor for MATCH FULLTEXT operations
@@ -22,8 +22,8 @@ pub struct MatchFulltextExecutor<S: StorageClient> {
     fulltext_condition: FulltextMatchCondition,
     /// Yield clause
     yield_clause: Option<FulltextYieldClause>,
-    /// Fulltext coordinator
-    coordinator: Arc<FulltextCoordinator>,
+    /// Fulltext manager
+    fulltext_manager: Arc<FulltextIndexManager>,
 }
 
 impl<S: StorageClient> MatchFulltextExecutor<S> {
@@ -33,7 +33,7 @@ impl<S: StorageClient> MatchFulltextExecutor<S> {
         fulltext_condition: FulltextMatchCondition,
         yield_clause: Option<FulltextYieldClause>,
         expr_context: Arc<ExpressionAnalysisContext>,
-        coordinator: Arc<FulltextCoordinator>,
+        fulltext_manager: Arc<FulltextIndexManager>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(
@@ -44,7 +44,7 @@ impl<S: StorageClient> MatchFulltextExecutor<S> {
             ),
             fulltext_condition,
             yield_clause,
-            coordinator,
+            fulltext_manager,
         }
     }
 }
@@ -83,7 +83,7 @@ impl<S: StorageClient> Executor<S> for MatchFulltextExecutor<S> {
         let limit = 100;
 
         let search_results = futures::executor::block_on(
-            self.coordinator
+            self.fulltext_manager
                 .search(space_id, &tag_name, field, query, limit),
         )
         .map_err(DBError::from)?;
@@ -102,7 +102,7 @@ impl<S: StorageClient> Executor<S> for MatchFulltextExecutor<S> {
             if let Some(vertex) = vertex {
                 let mut row = HashMap::new();
 
-                if let Some(yield_clause) = &self.yield_clause {
+                if let Some(ref yield_clause) = self.yield_clause {
                     for yield_item in &yield_clause.items {
                         let value = match &yield_item.expr {
                             YieldExpression::Field(name) => {
@@ -176,11 +176,6 @@ impl<S: StorageClient> Executor<S> for MatchFulltextExecutor<S> {
                 } else {
                     row.insert("doc_id".to_string(), result.doc_id.clone());
                     row.insert("score".to_string(), Value::Float(result.score as f64));
-                    if let Some(tag) = vertex.tags.first() {
-                        for (k, v) in &tag.properties {
-                            row.insert(k.clone(), v.clone());
-                        }
-                    }
                 }
 
                 rows.push(row);
@@ -249,14 +244,14 @@ impl<S: StorageClient> Executor<S> for MatchFulltextExecutor<S> {
     }
 
     fn description(&self) -> &str {
-        "Match Fulltext Executor"
+        "Executor for MATCH FULLTEXT operations"
     }
 
-    fn stats(&self) -> &crate::query::executor::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base.stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.stats_mut()
     }
 }

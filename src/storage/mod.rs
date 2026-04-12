@@ -1,5 +1,6 @@
 pub mod edge_storage;
 pub mod event_storage;
+pub mod fulltext_storage;
 pub mod index;
 pub mod iterator;
 pub mod metadata;
@@ -20,6 +21,7 @@ pub mod test_mock;
 
 pub use edge_storage::EdgeStorage;
 pub use event_storage::SyncStorage;
+pub use fulltext_storage::FulltextStorage;
 pub use index::*;
 pub use iterator::*;
 pub use metadata::*;
