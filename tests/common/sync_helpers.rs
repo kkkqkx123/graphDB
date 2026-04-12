@@ -21,8 +21,10 @@ use tempfile::TempDir;
 pub struct SyncTestHarness {
     pub storage: RedbStorage,
     pub sync_manager: Arc<SyncManager>,
+    pub sync_coordinator: Arc<SyncCoordinator>,
     pub temp_dir: TempDir,
     pub current_txn_id: Option<u64>,
+    pub rt: tokio::runtime::Runtime,
 }
 
 impl SyncTestHarness {
@@ -71,11 +73,19 @@ impl SyncTestHarness {
         // Create sync manager
         let sync_manager = Arc::new(SyncManager::new(sync_coordinator.clone()));
 
+        // Create runtime for async operations
+        let rt = tokio::runtime::Runtime::new()?;
+        
+        // Start background tasks for batch processing
+        rt.block_on(sync_coordinator.start_background_tasks());
+
         Ok(Self {
             storage,
             sync_manager,
+            sync_coordinator,
             temp_dir,
             current_txn_id: None,
+            rt,
         })
     }
 
@@ -214,10 +224,8 @@ impl SyncTestHarness {
         self.sync_manager
             .on_vertex_insert(0, space_id, &vertex)?;
         
-        // Force flush all pending batches for non-transactional mode
-        let rt = tokio::runtime::Runtime::new()?;
-        rt.block_on(self.sync_manager.sync_coordinator().commit_all())?;
-        
+        // Note: Batch processing will happen automatically based on batch config
+        // Tests should wait for async processing or call commit_all explicitly
         Ok(())
     }
 

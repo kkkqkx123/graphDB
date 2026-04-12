@@ -16,6 +16,7 @@ pub struct GenericBatchProcessor<E: ExternalIndexClient> {
     config: BatchConfig,
     buffer: Arc<BatchBuffer>,
     background_task: Mutex<Option<tokio::task::JoinHandle<()>>>,
+    immediate_mode: bool,
 }
 
 impl<E: ExternalIndexClient> std::fmt::Debug for GenericBatchProcessor<E> {
@@ -35,7 +36,38 @@ impl<E: ExternalIndexClient + 'static> GenericBatchProcessor<E> {
             config,
             buffer: Arc::new(BatchBuffer::new()),
             background_task: Mutex::new(None),
+            immediate_mode: false,
         }
+    }
+
+    /// Create a processor that executes operations immediately without batching
+    pub fn new_immediate(engine: Arc<E>) -> Self {
+        Self {
+            engine,
+            config: BatchConfig::default(),
+            buffer: Arc::new(BatchBuffer::new()),
+            background_task: Mutex::new(None),
+            immediate_mode: true,
+        }
+    }
+
+    /// Execute a single operation immediately without buffering
+    async fn execute_immediate(&self, operation: IndexOperation) -> BatchResult<()> {
+        match operation {
+            IndexOperation::Insert { id, data, .. } | IndexOperation::Update { id, data, .. } => {
+                self.engine
+                    .insert_batch(vec![(id, data)])
+                    .await
+                    .map_err(BatchError::from)?;
+            }
+            IndexOperation::Delete { id, .. } => {
+                self.engine
+                    .delete_batch(&[id.as_str()])
+                    .await
+                    .map_err(BatchError::from)?;
+            }
+        }
+        Ok(())
     }
 
     pub fn engine(&self) -> &Arc<E> {
@@ -92,8 +124,8 @@ impl<E: ExternalIndexClient + 'static> GenericBatchProcessor<E> {
 
 impl<E: ExternalIndexClient> Drop for GenericBatchProcessor<E> {
     fn drop(&mut self) {
-        if let Ok(mut handle) = self.background_task.try_lock() {
-            if let Some(task) = handle.take() {
+        if let Ok(handle) = self.background_task.try_lock() {
+            if let Some(task) = handle.as_ref() {
                 task.abort();
             }
         }
@@ -103,6 +135,11 @@ impl<E: ExternalIndexClient> Drop for GenericBatchProcessor<E> {
 #[async_trait]
 impl<E: ExternalIndexClient + 'static> BatchProcessor for GenericBatchProcessor<E> {
     async fn add(&self, operation: IndexOperation) -> BatchResult<()> {
+        if self.immediate_mode {
+            // Immediate mode: execute directly without buffering
+            return self.execute_immediate(operation).await;
+        }
+
         let key = self.engine.index_key();
 
         match &operation {
@@ -122,6 +159,14 @@ impl<E: ExternalIndexClient + 'static> BatchProcessor for GenericBatchProcessor<
     }
 
     async fn add_batch(&self, operations: Vec<IndexOperation>) -> BatchResult<()> {
+        if self.immediate_mode {
+            // Immediate mode: execute all operations directly
+            for operation in operations {
+                self.execute_immediate(operation).await?;
+            }
+            return Ok(());
+        }
+
         let key = self.engine.index_key();
 
         for operation in operations {
@@ -161,6 +206,10 @@ impl<E: ExternalIndexClient + 'static> BatchProcessor for GenericBatchProcessor<
     }
 
     async fn start_background_task(self: Arc<Self>) {
+        if self.immediate_mode {
+            return;
+        }
+
         let mut handle = self.background_task.lock().await;
         if handle.is_some() {
             return;

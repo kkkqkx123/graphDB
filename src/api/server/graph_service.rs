@@ -516,7 +516,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 .as_ref()
                 .ok_or("Transaction manager not initialized")?;
 
-            match txn_manager.abort_transaction(txn_id) {
+            match txn_manager.rollback_transaction(txn_id) {
                 Ok(()) => {
                     session.unbind_transaction();
                     session.set_auto_commit(true);

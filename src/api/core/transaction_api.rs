@@ -49,7 +49,7 @@ impl TransactionApi {
     /// `handle`: Transaction handler
     pub fn rollback(&self, handle: TransactionHandle) -> CoreResult<()> {
         self.txn_manager
-            .abort_transaction(handle.0)
+            .rollback_transaction(handle.0)
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 

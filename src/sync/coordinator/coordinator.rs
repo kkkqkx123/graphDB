@@ -111,10 +111,7 @@ impl SyncCoordinator {
             engine,
         ));
 
-        let processor = Arc::new(GenericBatchProcessor::new(
-            fulltext_client,
-            self.config.clone(),
-        ));
+        let processor = Arc::new(GenericBatchProcessor::new_immediate(fulltext_client));
 
         self.fulltext_processors
             .insert(key.clone(), processor.clone());
@@ -143,10 +140,7 @@ impl SyncCoordinator {
             vector_manager.clone(),
         ));
 
-        let processor = Arc::new(GenericBatchProcessor::new(
-            vector_client,
-            self.config.clone(),
-        ));
+        let processor = Arc::new(GenericBatchProcessor::new_immediate(vector_client));
 
         self.vector_processors
             .insert(key.clone(), processor.clone());

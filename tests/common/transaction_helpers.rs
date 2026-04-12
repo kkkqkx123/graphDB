@@ -61,8 +61,8 @@ impl TransactionTestContext {
         Ok(())
     }
 
-    /// Abort a transaction by name
-    pub async fn abort_transaction(&mut self, name: &str) -> DBResult<()> {
+    /// Rollback a transaction by name
+    pub async fn rollback_transaction(&mut self, name: &str) -> DBResult<()> {
         let txn_id = self.active_transactions
             .remove(name)
             .ok_or_else(|| graphdb::core::error::DBError::Transaction(
@@ -70,7 +70,7 @@ impl TransactionTestContext {
             ))?;
 
         let manager = self.manager.lock().await;
-        manager.abort_transaction(txn_id)
+        manager.rollback_transaction(txn_id)
             .map_err(txn_err_to_db_err)?;
 
         Ok(())
@@ -102,7 +102,7 @@ impl TransactionTestContext {
     pub async fn cleanup_all(&mut self) -> DBResult<()> {
         let names: Vec<String> = self.active_transactions.keys().cloned().collect();
         for name in names {
-            let _ = self.abort_transaction(&name).await;
+            let _ = self.rollback_transaction(&name).await;
         }
         self.active_transactions.clear();
         Ok(())
@@ -326,8 +326,8 @@ pub async fn stress_test_transactions(
             }
 
             if i % 3 == 0 {
-                manager.abort_transaction(txn_id)
-                    .map_err(|e| format!("Failed to abort: {:?}", e))?;
+                manager.rollback_transaction(txn_id)
+                    .map_err(|e| format!("Failed to rollback: {:?}", e))?;
             } else {
                 manager.commit_transaction(txn_id).await
                     .map_err(|e| format!("Failed to commit: {:?}", e))?;

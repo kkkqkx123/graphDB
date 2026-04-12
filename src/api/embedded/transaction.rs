@@ -260,7 +260,7 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
 
         self.session
             .txn_manager()
-            .abort_transaction(self.txn_handle.0)
+            .rollback_transaction(self.txn_handle.0)
             .map_err(|e| crate::api::core::CoreError::TransactionFailed(e.to_string()))?;
         self.rolled_back = true;
         Ok(())
@@ -456,7 +456,7 @@ impl<'sess, S: StorageClient + Clone + 'static> Drop for Transaction<'sess, S> {
             let _ = self
                 .session
                 .txn_manager()
-                .abort_transaction(self.txn_handle.0);
+                .rollback_transaction(self.txn_handle.0);
         }
     }
 }

@@ -357,8 +357,14 @@ impl TransactionManager {
         Ok(())
     }
 
-    /// Abort transaction
-    pub fn abort_transaction(&self, txn_id: TransactionId) -> Result<(), TransactionError> {
+    /// Abort transaction by ID (helper for cleanup operations)
+    fn abort_transaction_internal_by_id(&self, txn_id: TransactionId) -> Result<(), TransactionError> {
+        let context = self.get_context(txn_id)?;
+        self.abort_transaction_internal(context)
+    }
+
+    /// Rollback transaction
+    pub fn rollback_transaction(&self, txn_id: TransactionId) -> Result<(), TransactionError> {
         // Remove transaction from DashMap and get ownership
         let context = {
             let entry = self
@@ -420,7 +426,7 @@ impl TransactionManager {
         };
 
         for txn_id in expired {
-            let _ = self.abort_transaction(txn_id);
+            let _ = self.abort_transaction_internal_by_id(txn_id);
             self.stats.increment_timeout();
         }
     }
@@ -439,7 +445,7 @@ impl TransactionManager {
         };
 
         for txn_id in txn_ids {
-            let _ = self.abort_transaction(txn_id);
+            let _ = self.abort_transaction_internal_by_id(txn_id);
         }
     }
 
@@ -587,7 +593,7 @@ impl TransactionManager {
                     return Ok(result);
                 }
                 Err(e) => {
-                    self.abort_transaction(txn_id)?;
+                    self.rollback_transaction(txn_id)?;
                     last_error = Some(e.clone());
 
                     // Check if error is retryable
@@ -638,7 +644,7 @@ impl TransactionManager {
                 Err(e) => {
                     // Rollback all previously committed transactions
                     for committed_id in committed {
-                        let _ = self.abort_transaction(committed_id);
+                        let _ = self.rollback_transaction(committed_id);
                     }
                     return Err(e);
                 }

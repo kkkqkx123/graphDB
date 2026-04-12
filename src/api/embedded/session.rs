@@ -470,7 +470,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         txn_handle: crate::api::core::TransactionHandle,
     ) -> CoreResult<()> {
         self.txn_manager()
-            .abort_transaction(txn_handle.0)
+            .rollback_transaction(txn_handle.0)
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 
