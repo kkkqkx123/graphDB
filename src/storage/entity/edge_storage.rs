@@ -3,8 +3,8 @@ use crate::core::{Edge, EdgeDirection, StorageError, Value};
 use crate::storage::index::{IndexDataManager, RedbIndexDataManager};
 use crate::storage::metadata::{IndexMetadataManager, SchemaManager};
 use crate::storage::operations::{EdgeReader, EdgeWriter, VertexReader};
+use crate::storage::schema::Schema;
 use crate::storage::shared_state::{StorageInner, StorageSharedState};
-use crate::storage::Schema;
 use std::sync::Arc;
 
 /// Side Storage Manager
@@ -435,7 +435,7 @@ impl EdgeStorage {
     pub fn build_edge_schema(&self, edge_type_info: &EdgeTypeInfo) -> Result<Schema, StorageError> {
         let mut schema = Schema::new(edge_type_info.edge_type_name.clone(), 1);
         for prop in &edge_type_info.properties {
-            let field_def = crate::storage::types::FieldDef {
+            let field_def = crate::storage::api::types::FieldDef {
                 name: prop.name.clone(),
                 field_type: prop.data_type.clone(),
                 nullable: prop.nullable,

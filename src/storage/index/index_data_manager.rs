@@ -11,7 +11,7 @@ use crate::core::{StorageError, Value};
 use crate::storage::index::edge_index_manager::EdgeIndexManager;
 use crate::storage::index::index_key_codec::IndexKeyCodec;
 use crate::storage::index::vertex_index_manager::VertexIndexManager;
-use crate::storage::redb_types::{ByteKey, INDEX_DATA_TABLE};
+use crate::storage::engine::{ByteKey, INDEX_DATA_TABLE};
 
 use redb::Database;
 use std::sync::Arc;

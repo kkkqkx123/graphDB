@@ -12,7 +12,7 @@ use crossbeam_utils::atomic::AtomicCell;
 use parking_lot::{Mutex, RwLock};
 
 use crate::core::StorageError;
-use crate::storage::redb_types::{ByteKey, EDGES_TABLE, NODES_TABLE};
+use crate::storage::engine::{ByteKey, EDGES_TABLE, NODES_TABLE};
 use crate::transaction::types::*;
 
 /// Transaction Context

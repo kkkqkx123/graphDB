@@ -5,7 +5,7 @@
 use crate::core::types::Index;
 use crate::core::{StorageError, Value};
 use crate::storage::index::index_key_codec::IndexKeyCodec;
-use crate::storage::redb_types::{ByteKey, INDEX_DATA_TABLE};
+use crate::storage::engine::{ByteKey, INDEX_DATA_TABLE};
 use redb::{Database, ReadableTable};
 use std::sync::Arc;
 

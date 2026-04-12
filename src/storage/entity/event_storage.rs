@@ -3,7 +3,7 @@
 //! Package the Storage Client to automatically synchronize to the index during storage operations
 
 use crate::core::{Edge, StorageError, Value, Vertex};
-use crate::storage::StorageClient;
+use crate::storage::api::StorageClient;
 use crate::sync::coordinator::ChangeType;
 use std::fmt::Debug;
 use std::sync::Arc;

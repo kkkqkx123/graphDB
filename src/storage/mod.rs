@@ -1,47 +1,50 @@
-pub mod edge_storage;
-pub mod event_storage;
-pub mod fulltext_storage;
+pub mod api;
+pub mod engine;
+pub mod entity;
+pub mod extend;
 pub mod index;
 pub mod iterator;
 pub mod metadata;
 pub mod monitoring;
 pub mod operations;
-pub mod redb_storage;
-pub mod redb_types;
-pub mod runtime_context;
 pub mod schema;
 pub mod shared_state;
-pub mod storage_client;
-pub mod types;
-pub mod user_storage;
-pub mod vertex_storage;
 
 #[cfg(test)]
 pub mod test_mock;
 
-pub use edge_storage::EdgeStorage;
-pub use event_storage::SyncStorage;
-pub use fulltext_storage::FulltextStorage;
+// Re-export from api module
+pub use api::{
+    ColumnDef, EncodingFormat, FieldDef, FieldType, GeoShape, InsertEdgeInfo, InsertVertexInfo,
+    StorageClient, StorageStats, UpdateInfo, UpdateOp, UpdateTarget,
+};
+
+// Re-export from engine module
+pub use engine::{
+    ByteKey, DefaultStorage, PlanContext, RuntimeContext, StorageEnv, RedbStorage,
+    CURRENT_VERSIONS_TABLE, EDGE_DATA_TABLE, EDGE_TYPE_ID_COUNTER_TABLE,
+    EDGE_TYPE_NAME_INDEX_TABLE, EDGE_TYPES_TABLE, EDGES_TABLE, INDEX_COUNTER_TABLE,
+    INDEX_DATA_TABLE, INDEXES_TABLE, NODES_TABLE, PASSWORDS_TABLE, SCHEMA_CHANGES_TABLE,
+    SCHEMA_VERSIONS_TABLE, SPACE_NAME_INDEX_TABLE, SPACES_TABLE, TAG_ID_COUNTER_TABLE,
+    TAG_INDEXES_TABLE, TAG_NAME_INDEX_TABLE, TAGS_TABLE, VERTEX_DATA_TABLE,
+};
+
+// Re-export from entity module
+pub use entity::{EdgeStorage, SyncStorage, UserStorage, VertexStorage};
+
+// Re-export from extend module
+pub use extend::FulltextStorage;
+
+// Re-export from other modules
 pub use index::*;
 pub use iterator::*;
 pub use metadata::*;
 pub use operations::*;
-pub use redb_storage::DefaultStorage;
-pub use redb_storage::*;
-pub use storage_client::*;
-pub use user_storage::UserStorage;
-pub use vertex_storage::VertexStorage;
+pub use schema::Schema;
+pub use shared_state::{StorageInner, StorageSharedState};
 
 pub use crate::core::StorageError;
 pub use crate::core::StorageResult;
 
 #[cfg(test)]
 pub use test_mock::*;
-
-// Types related to data export encoding
-pub use schema::Schema;
-pub use types::{ColumnDef, FieldDef, FieldType};
-pub use types::{InsertEdgeInfo, InsertVertexInfo, UpdateInfo, UpdateOp, UpdateTarget};
-
-// Export the runtime context type.
-pub use runtime_context::{PlanContext, RuntimeContext, StorageEnv};

@@ -1,6 +1,6 @@
 use crate::core::{Edge, EdgeDirection, StorageError, Value, Vertex};
 use crate::storage::operations::{EdgeReader, ScanResult, VertexReader};
-use crate::storage::redb_types::{ByteKey, EDGES_TABLE, NODES_TABLE};
+use crate::storage::engine::{ByteKey, EDGES_TABLE, NODES_TABLE};
 use crate::transaction::TransactionContext;
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use lru::LruCache;

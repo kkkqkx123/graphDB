@@ -3,7 +3,7 @@ use crate::core::types::{
     EdgeTypeInfo, SchemaChange, SchemaExportConfig, SchemaImportResult, SchemaVersion, TagInfo,
 };
 use crate::storage::metadata::ExtendedSchemaManager;
-use crate::storage::redb_types::{
+use crate::storage::engine::{
     ByteKey, CURRENT_VERSIONS_TABLE, SCHEMA_CHANGES_TABLE, SCHEMA_VERSIONS_TABLE,
 };
 use bincode::{decode_from_slice, encode_to_vec};

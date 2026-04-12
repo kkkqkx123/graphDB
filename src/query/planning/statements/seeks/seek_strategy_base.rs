@@ -5,7 +5,6 @@
 use crate::core::types::expr::visitor_checkers::PropertyContainsChecker;
 use crate::core::types::Expression;
 use crate::core::Value;
-use crate::storage::StorageClient;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SeekStrategyType {
@@ -189,9 +188,8 @@ impl SeekStrategySelector {
         })
     }
 
-    pub fn select_strategy<S: StorageClient + ?Sized>(
+    pub fn select_strategy(
         &self,
-        _storage: &S,
         context: &SeekStrategyContext,
     ) -> SeekStrategyType {
         if context.has_explicit_vid() {

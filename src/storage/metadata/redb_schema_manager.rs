@@ -1,7 +1,7 @@
 use crate::core::types::{EdgeTypeInfo, Index, PropertyDef, SpaceInfo, TagInfo};
 use crate::core::value::Value;
 use crate::core::StorageError;
-use crate::storage::redb_types::{
+use crate::storage::engine::{
     ByteKey, EDGE_INDEXES_TABLE, EDGE_TYPES_TABLE, EDGE_TYPE_ID_COUNTER_TABLE, SPACES_TABLE,
     SPACE_NAME_INDEX_TABLE, TAGS_TABLE, TAG_ID_COUNTER_TABLE, TAG_INDEXES_TABLE,
 };

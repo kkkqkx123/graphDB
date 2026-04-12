@@ -5,8 +5,8 @@
 //! - PlanContext
 //! - RuntimeContext
 
+use crate::storage::engine::RedbStorage;
 use crate::storage::metadata::RedbSchemaManager;
-use crate::storage::redb_storage::RedbStorage;
 use std::sync::Arc;
 
 /// storage environment

@@ -3,8 +3,8 @@ use crate::core::{StorageError, Value, Vertex};
 use crate::storage::index::{IndexDataManager, RedbIndexDataManager};
 use crate::storage::metadata::{IndexMetadataManager, SchemaManager};
 use crate::storage::operations::{VertexReader, VertexWriter};
+use crate::storage::schema::Schema;
 use crate::storage::shared_state::{StorageInner, StorageSharedState};
-use crate::storage::Schema;
 use crate::sync::coordinator::ChangeType;
 use std::sync::Arc;
 
@@ -579,7 +579,7 @@ impl VertexStorage {
     pub fn build_vertex_schema(&self, tag_info: &TagInfo) -> Result<Schema, StorageError> {
         let mut schema = Schema::new(tag_info.tag_name.clone(), 1);
         for prop in &tag_info.properties {
-            let field_def = crate::storage::types::FieldDef {
+            let field_def = crate::storage::api::types::FieldDef {
                 name: prop.name.clone(),
                 field_type: prop.data_type.clone(),
                 nullable: prop.nullable,

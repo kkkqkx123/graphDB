@@ -110,7 +110,7 @@ impl SeekStrategySelector {
         storage: &S,
         context: &SeekStrategyContext,
     ) -> Result<SeekResult, StorageError> {
-        let strategy_type = self.select_strategy(storage, context);
+        let strategy_type = self.select_strategy(context);
         let strategy = match strategy_type {
             SeekStrategyType::VertexSeek => AnySeekStrategy::VertexSeek(VertexSeek::new()),
             SeekStrategyType::IndexSeek => AnySeekStrategy::IndexSeek(IndexSeek::new()),

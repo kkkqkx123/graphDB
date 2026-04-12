@@ -4,7 +4,7 @@
 //! Support for both forward and reverse indexing key formats for vertices and edges.
 
 use crate::core::{StorageError, Value};
-use crate::storage::redb_types::ByteKey;
+use crate::storage::engine::ByteKey;
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
 
 /// Index key type identifier

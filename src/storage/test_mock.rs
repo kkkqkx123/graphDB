@@ -12,9 +12,9 @@ use crate::core::types::{
 #[cfg(test)]
 use crate::core::{Edge, EdgeDirection, NullType, RoleType, Value, Vertex};
 #[cfg(test)]
-use crate::storage::Schema;
+use crate::storage::api::StorageClient;
 #[cfg(test)]
-use crate::storage::StorageClient;
+use crate::storage::schema::Schema;
 #[cfg(test)]
 use std::sync::Arc;
 
@@ -429,8 +429,8 @@ impl StorageClient for MockStorage {
         Ok(())
     }
 
-    fn get_storage_stats(&self) -> crate::storage::storage_client::StorageStats {
-        crate::storage::storage_client::StorageStats {
+    fn get_storage_stats(&self) -> crate::storage::api::StorageStats {
+        crate::storage::api::StorageStats {
             total_vertices: 0,
             total_edges: 0,
             total_spaces: 0,

@@ -1,19 +1,17 @@
-use super::StorageClient;
 use crate::core::types::{
     EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
     TagInfo, UpdateInfo, UserAlterInfo, UserInfo,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
-use crate::storage::edge_storage::EdgeStorage;
+use crate::storage::api::StorageClient;
+use crate::storage::entity::{EdgeStorage, UserStorage, VertexStorage};
 use crate::storage::index::{IndexDataManager, RedbIndexDataManager};
 use crate::storage::metadata::{
     IndexMetadataManager, RedbIndexMetadataManager, RedbSchemaManager, SchemaManager,
 };
 use crate::storage::operations::{RedbReader, RedbWriter};
+use crate::storage::schema::Schema;
 use crate::storage::shared_state::{StorageInner, StorageSharedState};
-use crate::storage::user_storage::UserStorage;
-use crate::storage::vertex_storage::VertexStorage;
-use crate::storage::Schema;
 use crate::sync::SyncManager;
 use crate::transaction::TransactionContext;
 use parking_lot::Mutex;
@@ -140,7 +138,7 @@ impl RedbStorage {
             StorageError::DbError(format!("Failed to start write transaction: {}", e))
         })?;
         {
-            use crate::storage::redb_types::*;
+            use crate::storage::engine::redb_types::*;
             // Index-related tables
             let _ = write_txn.open_table(TAG_INDEXES_TABLE).map_err(|e| {
                 StorageError::DbError(format!("Failed to open TAG_INDEXES_TABLE: {}", e))
@@ -901,7 +899,7 @@ impl StorageClient for RedbStorage {
         Ok(())
     }
 
-    fn get_storage_stats(&self) -> crate::storage::storage_client::StorageStats {
+    fn get_storage_stats(&self) -> crate::storage::api::StorageStats {
         let total_spaces = self
             .state
             .schema_manager
@@ -932,7 +930,7 @@ impl StorageClient for RedbStorage {
             .map(|e| e.len())
             .unwrap_or(0);
 
-        crate::storage::storage_client::StorageStats {
+        crate::storage::api::StorageStats {
             total_vertices,
             total_edges,
             total_spaces,

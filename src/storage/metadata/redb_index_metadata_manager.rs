@@ -1,7 +1,7 @@
 use crate::core::types::Index;
 use crate::core::StorageError;
 use crate::storage::metadata::IndexMetadataManager;
-use crate::storage::redb_types::{ByteKey, EDGE_INDEXES_TABLE, TAG_INDEXES_TABLE};
+use crate::storage::engine::{ByteKey, EDGE_INDEXES_TABLE, TAG_INDEXES_TABLE};
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use redb::{Database, ReadableTable};
 use std::sync::Arc;

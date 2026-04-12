@@ -2,7 +2,7 @@
 //!
 //! The Schema structure of the storage layer and the related operations have been defined.
 
-use super::types::FieldDef;
+use crate::storage::api::FieldDef;
 
 use std::collections::BTreeMap;
 
