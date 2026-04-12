@@ -31,6 +31,12 @@ pub struct SyncMetrics {
     pub active_transactions: AtomicUsize,
     /// Total processing time (in milliseconds)
     pub total_processing_time_ms: AtomicU64,
+    /// Number of compensation attempts
+    pub compensation_attempts_total: AtomicU64,
+    /// Number of successful compensations
+    pub compensation_successes: AtomicU64,
+    /// Number of failed compensations
+    pub compensation_failures: AtomicU64,
     /// Last error message
     last_error: parking_lot::Mutex<Option<String>>,
 }
@@ -79,6 +85,21 @@ impl SyncMetrics {
         self.dead_letter_queue_size.fetch_sub(1, Ordering::Relaxed);
     }
 
+    pub fn record_compensation_attempt(&self, count: usize) {
+        self.compensation_attempts_total
+            .fetch_add(count as u64, Ordering::Relaxed);
+    }
+
+    pub fn record_compensation_success(&self, count: usize) {
+        self.compensation_successes
+            .fetch_add(count as u64, Ordering::Relaxed);
+    }
+
+    pub fn record_compensation_failure(&self, count: usize) {
+        self.compensation_failures
+            .fetch_add(count as u64, Ordering::Relaxed);
+    }
+
     pub fn record_active_transaction_start(&self) {
         self.active_transactions.fetch_add(1, Ordering::Relaxed);
     }
@@ -115,6 +136,9 @@ impl SyncMetrics {
             dead_letter_queue_size: self.dead_letter_queue_size.load(Ordering::Relaxed),
             active_transactions: self.active_transactions.load(Ordering::Relaxed),
             total_processing_time_ms: self.total_processing_time_ms.load(Ordering::Relaxed),
+            compensation_attempts_total: self.compensation_attempts_total.load(Ordering::Relaxed),
+            compensation_successes: self.compensation_successes.load(Ordering::Relaxed),
+            compensation_failures: self.compensation_failures.load(Ordering::Relaxed),
         }
     }
 
@@ -131,6 +155,9 @@ impl SyncMetrics {
         self.dead_letter_queue_size.store(0, Ordering::Relaxed);
         self.active_transactions.store(0, Ordering::Relaxed);
         self.total_processing_time_ms.store(0, Ordering::Relaxed);
+        self.compensation_attempts_total.store(0, Ordering::Relaxed);
+        self.compensation_successes.store(0, Ordering::Relaxed);
+        self.compensation_failures.store(0, Ordering::Relaxed);
         *self.last_error.lock() = None;
     }
 }
@@ -150,6 +177,9 @@ pub struct SyncStats {
     pub dead_letter_queue_size: usize,
     pub active_transactions: usize,
     pub total_processing_time_ms: u64,
+    pub compensation_attempts_total: u64,
+    pub compensation_successes: u64,
+    pub compensation_failures: u64,
 }
 
 impl SyncStats {
@@ -178,7 +208,8 @@ impl fmt::Display for SyncStats {
              index_ops: {} (insert: {}, update: {}, delete: {}), \
              retries: {} (success: {}, failures: {}), \
              dlq_size: {}, active_txns: {}, \
-             avg_time_ms: {:.2} }}",
+             avg_time_ms: {:.2}, \
+             compensation: {} (success: {}, failures: {}) }}",
             self.transactions_committed,
             self.transactions_rolled_back,
             self.index_operations_total,
@@ -190,7 +221,10 @@ impl fmt::Display for SyncStats {
             self.retry_failures,
             self.dead_letter_queue_size,
             self.active_transactions,
-            self.avg_processing_time_ms()
+            self.avg_processing_time_ms(),
+            self.compensation_attempts_total,
+            self.compensation_successes,
+            self.compensation_failures
         )
     }
 }

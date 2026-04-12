@@ -4,6 +4,7 @@
 
 use crate::storage::metadata::{RedbIndexMetadataManager, RedbSchemaManager};
 use crate::storage::operations::{RedbReader, RedbWriter};
+use crate::sync::SyncManager;
 use crate::transaction::context::TransactionContext;
 use parking_lot::Mutex;
 use redb::Database;
@@ -17,6 +18,7 @@ pub struct StorageSharedState {
     pub db: Arc<Database>,
     pub schema_manager: Arc<RedbSchemaManager>,
     pub index_metadata_manager: Arc<RedbIndexMetadataManager>,
+    pub sync_manager: Option<Arc<SyncManager>>,
 }
 
 impl StorageSharedState {
@@ -29,7 +31,12 @@ impl StorageSharedState {
             db,
             schema_manager,
             index_metadata_manager,
+            sync_manager: None,
         }
+    }
+
+    pub fn with_sync_manager(&mut self, sync_manager: Arc<SyncManager>) {
+        self.sync_manager = Some(sync_manager);
     }
 }
 

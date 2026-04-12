@@ -23,22 +23,31 @@ pub enum CompensationResult {
 pub struct CompensationManager {
     dead_letter_queue: Arc<DeadLetterQueue>,
     max_compensation_attempts: u32,
+    metrics: Arc<crate::sync::metrics::SyncMetrics>,
+    running: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl CompensationManager {
     pub fn new(
         dead_letter_queue: Arc<DeadLetterQueue>,
-        _metrics: Arc<crate::sync::metrics::SyncMetrics>,
+        metrics: Arc<crate::sync::metrics::SyncMetrics>,
     ) -> Self {
         Self {
             dead_letter_queue,
             max_compensation_attempts: 3,
+            metrics,
+            running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
     }
 
     pub fn with_max_attempts(mut self, attempts: u32) -> Self {
         self.max_compensation_attempts = attempts;
         self
+    }
+
+    /// Check if compensation manager is running
+    pub fn is_running(&self) -> bool {
+        self.running.load(std::sync::atomic::Ordering::SeqCst)
     }
 
     /// Attempt to compensate a failed operation
@@ -153,20 +162,38 @@ impl CompensationManager {
         self: Arc<Self>,
         interval: Duration,
     ) -> tokio::task::JoinHandle<()> {
+        self.running.store(true, std::sync::atomic::Ordering::SeqCst);
+        
         tokio::spawn(async move {
             let mut interval_timer = tokio::time::interval(interval);
 
             loop {
                 interval_timer.tick().await;
 
+                if !self.running.load(std::sync::atomic::Ordering::SeqCst) {
+                    log::debug!("Compensation manager stopped");
+                    break;
+                }
+
                 log::debug!("Running background compensation task");
                 let stats = self.process_dead_letter_queue().await;
 
                 if stats.total > 0 {
                     log::info!("Compensation task completed: {:?}", stats);
+                    
+                    // Record metrics
+                    self.metrics.record_compensation_attempt(stats.total);
+                    self.metrics.record_compensation_success(stats.successful);
+                    self.metrics.record_compensation_failure(stats.fatal + stats.retryable);
                 }
             }
         })
+    }
+
+    /// Stop background compensation task
+    pub fn stop(&self) {
+        self.running.store(false, std::sync::atomic::Ordering::SeqCst);
+        log::info!("Compensation manager stopped");
     }
 }
 

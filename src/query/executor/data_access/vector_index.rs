@@ -86,6 +86,7 @@ impl<S: StorageClient> Executor<S> for CreateVectorIndexExecutor<S> {
         let config = vector_client::CollectionConfig {
             vector_size: self.node.vector_size,
             distance: convert_distance(self.node.distance),
+            index_type: Some(vector_client::IndexType::HNSW),
             hnsw_config: Some(vector_client::HnswConfig {
                 m: self.node.hnsw_m.unwrap_or(16),
                 ef_construct: self.node.hnsw_ef_construct.unwrap_or(100),

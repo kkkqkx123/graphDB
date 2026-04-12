@@ -125,10 +125,16 @@ impl VectorChangeContext {
     }
 }
 
+use crate::sync::vector_transaction_buffer::{
+    PendingVectorUpdate, VectorTransactionBuffer, VectorTransactionBufferConfig,
+};
+use crate::transaction::types::TransactionId;
+
 /// Vector synchronization coordinator
 pub struct VectorSyncCoordinator {
     vector_manager: Arc<VectorManager>,
     embedding_service: Option<Arc<EmbeddingService>>,
+    transaction_buffer: Option<Arc<VectorTransactionBuffer>>,
 }
 
 impl std::fmt::Debug for VectorSyncCoordinator {
@@ -149,6 +155,20 @@ impl VectorSyncCoordinator {
         Self {
             vector_manager,
             embedding_service,
+            transaction_buffer: None,
+        }
+    }
+
+    /// Create with transaction buffer support
+    pub fn with_transaction_buffer(
+        vector_manager: Arc<VectorManager>,
+        embedding_service: Option<Arc<EmbeddingService>>,
+        config: VectorTransactionBufferConfig,
+    ) -> Self {
+        Self {
+            vector_manager,
+            embedding_service,
+            transaction_buffer: Some(Arc::new(VectorTransactionBuffer::new(config))),
         }
     }
 
@@ -160,6 +180,11 @@ impl VectorSyncCoordinator {
     /// Get the embedding service
     pub fn embedding_service(&self) -> Option<&Arc<EmbeddingService>> {
         self.embedding_service.as_ref()
+    }
+
+    /// Get the transaction buffer
+    pub fn transaction_buffer(&self) -> Option<&Arc<VectorTransactionBuffer>> {
+        self.transaction_buffer.as_ref()
     }
 
     /// Create a vector index
@@ -392,7 +417,26 @@ impl VectorSyncCoordinator {
         Ok(())
     }
 
-    /// Handle vector change
+    /// Handle vector change (transaction mode - buffer the operation)
+    pub fn buffer_vector_change(
+        &self,
+        txn_id: TransactionId,
+        ctx: VectorChangeContext,
+    ) -> Result<(), VectorCoordinatorError> {
+        if let Some(ref buffer) = self.transaction_buffer {
+            let update = PendingVectorUpdate::new(txn_id, ctx);
+            buffer.add_update(txn_id, update).map_err(|e| {
+                VectorCoordinatorError::BufferError(format!("Failed to buffer vector update: {}", e))
+            })?;
+            Ok(())
+        } else {
+            Err(VectorCoordinatorError::BufferError(
+                "Transaction buffer not initialized".to_string(),
+            ))
+        }
+    }
+
+    /// Handle vector change (direct sync mode)
     pub async fn on_vector_change(&self, ctx: VectorChangeContext) -> VectorCoordinatorResult<()> {
         let collection_name = ctx.location.to_collection_name();
         let point_id = ctx.data.id.to_string();
@@ -419,6 +463,42 @@ impl VectorSyncCoordinator {
         }
 
         Ok(())
+    }
+
+    /// Commit transaction: flush buffered vector updates
+    pub async fn commit_transaction(
+        &self,
+        txn_id: TransactionId,
+    ) -> VectorCoordinatorResult<()> {
+        if let Some(ref buffer) = self.transaction_buffer {
+            let updates = buffer.take_updates(txn_id);
+            
+            if !updates.is_empty() {
+                debug!(
+                    "Committing {} vector updates for transaction {:?}",
+                    updates.len(),
+                    txn_id
+                );
+
+                // Process updates in batch
+                for update in updates {
+                    self.on_vector_change(update.context).await?;
+                }
+            }
+        }
+        
+        Ok(())
+    }
+
+    /// Rollback transaction: clear buffered vector updates
+    pub fn rollback_transaction(&self, txn_id: TransactionId) {
+        if let Some(ref buffer) = self.transaction_buffer {
+            buffer.cleanup(txn_id);
+            debug!(
+                "Rolled back vector updates for transaction {:?}",
+                txn_id
+            );
+        }
     }
 
     /// Handle batch vector changes

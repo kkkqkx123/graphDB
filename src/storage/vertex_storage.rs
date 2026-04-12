@@ -37,6 +37,63 @@ impl VertexStorage {
         })
     }
 
+    /// Get space ID from space name
+    fn get_space_id(&self, space: &str) -> Result<u64, StorageError> {
+        let space_info = self.state.schema_manager.get_space(space)?
+            .ok_or_else(|| StorageError::DbError(format!("Space '{}' not found", space)))?;
+        Ok(space_info.space_id)
+    }
+
+    /// Get current transaction ID
+    fn get_current_txn_id(&self) -> crate::transaction::types::TransactionId {
+        // Try to get transaction ID from current transaction context
+        if let Some(ctx) = self.inner.current_txn_context.lock().as_ref() {
+            ctx.id
+        } else {
+            0 // Default transaction ID for non-transactional operations
+        }
+    }
+
+    /// Detect changed properties between two vertices
+    fn detect_changed_properties(
+        &self,
+        old_vertex: &Vertex,
+        new_vertex: &Vertex,
+    ) -> Vec<(String, Value)> {
+        let mut changed_props = Vec::new();
+        
+        // Compare properties in tags
+        for new_tag in &new_vertex.tags {
+            if let Some(old_tag) = old_vertex.tags.iter().find(|t| t.name == new_tag.name) {
+                // Compare properties within the same tag
+                for (prop_name, new_value) in &new_tag.properties {
+                    if let Some(old_value) = old_tag.properties.get(prop_name) {
+                        if old_value != new_value {
+                            changed_props.push((prop_name.clone(), new_value.clone()));
+                        }
+                    } else {
+                        // New property added
+                        changed_props.push((prop_name.clone(), new_value.clone()));
+                    }
+                }
+                
+                // Check for deleted properties
+                for (prop_name, old_value) in &old_tag.properties {
+                    if !new_tag.properties.contains_key(prop_name) {
+                        changed_props.push((prop_name.clone(), old_value.clone()));
+                    }
+                }
+            } else {
+                // New tag added, all properties are considered changed
+                for (prop_name, value) in &new_tag.properties {
+                    changed_props.push((prop_name.clone(), value.clone()));
+                }
+            }
+        }
+        
+        changed_props
+    }
+
     /// Get a single vertex
     pub fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
         self.inner.reader.lock().get_vertex(space, id)
@@ -86,6 +143,9 @@ impl VertexStorage {
         space_id: u64,
         vertex: Vertex,
     ) -> Result<Value, StorageError> {
+        // Get current transaction ID if in transaction context
+        let txn_id = self.get_current_txn_id();
+        
         let id = {
             let mut writer = self.inner.writer.lock();
             writer.insert_vertex(space, vertex.clone())?
@@ -119,16 +179,59 @@ impl VertexStorage {
             }
         }
 
+        // Sync to fulltext/vector index (if enabled)
+        if let Some(ref sync_manager) = self.state.sync_manager {
+            sync_manager.on_vertex_insert(txn_id, space_id, &vertex).map_err(|e| {
+                StorageError::DbError(format!("Failed to sync vertex insert: {}", e))
+            })?;
+        }
+
         Ok(id)
     }
 
     /// Update Vertex
     pub fn update_vertex(&self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
         let vid = vertex.vid.clone();
-        let mut writer = self.inner.writer.lock();
-        writer.update_vertex(space, vertex)?;
-        drop(writer);
+        
+        // Get current transaction ID
+        let txn_id = self.get_current_txn_id();
+        
+        // Get old vertex to detect changes
+        let old_vertex = self.inner.reader.lock().get_vertex(space, &vid)?;
+        
+        // Update storage
+        {
+            let mut writer = self.inner.writer.lock();
+            writer.update_vertex(space, vertex.clone())?;
+        }
+        
+        // Invalidate cache
         self.inner.reader.lock().invalidate_vertex_cache(&vid);
+        
+        // Sync to fulltext/vector index (if enabled)
+        if let Some(ref sync_manager) = self.state.sync_manager {
+            if let Some(old_v) = old_vertex {
+                // Detect changed properties
+                let changed_props = self.detect_changed_properties(&old_v, &vertex);
+                if !changed_props.is_empty() {
+                    // Get space_id and tag_name for sync
+                    let space_id = self.get_space_id(space)?;
+                    let tag_name = vertex.tags.first().map(|t| t.name.as_str()).unwrap_or("default");
+                    
+                    sync_manager.on_vertex_change_with_txn(
+                        txn_id,
+                        space_id,
+                        tag_name,
+                        &vid,
+                        &changed_props,
+                        crate::coordinator::ChangeType::Update,
+                    ).map_err(|e| {
+                        StorageError::DbError(format!("Failed to sync vertex update: {}", e))
+                    })?;
+                }
+            }
+        }
+        
         Ok(())
     }
 
@@ -139,6 +242,13 @@ impl VertexStorage {
         space_id: u64,
         id: &Value,
     ) -> Result<(), StorageError> {
+        // Get current transaction ID
+        let txn_id = self.get_current_txn_id();
+        
+        // Get old vertex to sync deletion
+        let old_vertex = self.inner.reader.lock().get_vertex(space, id)?;
+        
+        // Delete from storage
         {
             let mut writer = self.inner.writer.lock();
             writer.delete_vertex(space, id)?;
@@ -150,6 +260,25 @@ impl VertexStorage {
 
         // Clear cache
         self.inner.reader.lock().invalidate_vertex_cache(id);
+
+        // Sync to fulltext/vector index (if enabled)
+        if let Some(ref sync_manager) = self.state.sync_manager {
+            if let Some(vertex) = old_vertex {
+                // Get tag name for sync
+                if let Some(tag) = vertex.tags.first() {
+                    sync_manager.on_vertex_change_with_txn(
+                        txn_id,
+                        space_id,
+                        &tag.name,
+                        id,
+                        &[], // No properties needed for deletion
+                        crate::coordinator::ChangeType::Delete,
+                    ).map_err(|e| {
+                        StorageError::DbError(format!("Failed to sync vertex delete: {}", e))
+                    })?;
+                }
+            }
+        }
 
         Ok(())
     }

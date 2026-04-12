@@ -16,6 +16,7 @@ pub mod retry;
 pub mod task;
 pub mod vector_batch;
 pub mod vector_sync;
+pub mod vector_transaction_buffer;
 
 pub use crate::search::SyncConfig;
 pub use batch::{
@@ -39,6 +40,9 @@ pub use vector_batch::{VectorBatchConfig, VectorBatchError, VectorBatchManager};
 pub use vector_sync::{
     SearchOptions, VectorChangeContext, VectorChangeType, VectorIndexLocation,
     VectorSyncCoordinator,
+};
+pub use vector_transaction_buffer::{
+    PendingVectorUpdate, VectorTransactionBuffer, VectorTransactionBufferConfig,
 };
 
 // Re-export from transaction module

@@ -119,6 +119,9 @@ pub enum VectorCoordinatorError {
 
     #[error("Internal error: {0}")]
     Internal(String),
+
+    #[error("Buffer error: {0}")]
+    BufferError(String),
 }
 
 pub type VectorResult<T> = std::result::Result<T, VectorError>;

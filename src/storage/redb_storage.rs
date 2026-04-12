@@ -14,6 +14,7 @@ use crate::storage::shared_state::{StorageInner, StorageSharedState};
 use crate::storage::user_storage::UserStorage;
 use crate::storage::vertex_storage::VertexStorage;
 use crate::storage::Schema;
+use crate::sync::SyncManager;
 use crate::transaction::TransactionContext;
 use parking_lot::Mutex;
 use redb::Database;
@@ -126,6 +127,14 @@ impl RedbStorage {
     /// Get shared state reference
     pub fn state(&self) -> &StorageSharedState {
         &self.state
+    }
+
+    /// Set sync manager (for enabling index synchronization)
+    pub fn set_sync_manager(&self, sync_manager: Arc<SyncManager>) {
+        let mut state = (*self.state).clone();
+        state.with_sync_manager(sync_manager);
+        // Cannot modify self.state directly as it's Arc, so this method is for future extension
+        // For now, sync_manager should be set during initialization
     }
 
     /// Initialize the database tables

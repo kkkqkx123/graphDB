@@ -108,6 +108,9 @@ impl EdgeStorage {
 
     /// insertion side
     pub fn insert_edge(&self, space: &str, space_id: u64, edge: Edge) -> Result<(), StorageError> {
+        // Get current transaction ID
+        let txn_id = self.get_current_txn_id();
+        
         {
             let mut writer = self.inner.writer.lock();
             writer.insert_edge(space, edge.clone())?;
@@ -140,6 +143,13 @@ impl EdgeStorage {
             }
         }
 
+        // Sync to fulltext/vector index (if enabled)
+        if let Some(ref sync_manager) = self.state.sync_manager {
+            sync_manager.on_edge_insert(txn_id, space_id, &edge).map_err(|e| {
+                StorageError::DbError(format!("Failed to sync edge insert: {}", e))
+            })?;
+        }
+
         Ok(())
     }
 
@@ -153,6 +163,9 @@ impl EdgeStorage {
         edge_type: &str,
         rank: i64,
     ) -> Result<(), StorageError> {
+        // Get old edge to sync deletion
+        let old_edge = self.inner.reader.lock().get_edge(space, src, dst, edge_type, rank)?;
+        
         {
             let mut writer = self.inner.writer.lock();
             writer.delete_edge(space, src, dst, edge_type, rank)?;
@@ -170,6 +183,21 @@ impl EdgeStorage {
             .collect();
         self.index_data_manager
             .delete_edge_indexes(space_id, src, dst, &index_names)?;
+
+        // Sync to fulltext/vector index (if enabled)
+        if let Some(ref sync_manager) = self.state.sync_manager {
+            if let Some(edge) = old_edge {
+                sync_manager.on_edge_delete(
+                    0, // txn_id
+                    space_id,
+                    &edge.src,
+                    &edge.dst,
+                    &edge.edge_type,
+                ).map_err(|e| {
+                    StorageError::DbError(format!("Failed to sync edge delete: {}", e))
+                })?;
+            }
+        }
 
         Ok(())
     }
@@ -222,6 +250,16 @@ impl EdgeStorage {
             }
         }
         Ok(())
+    }
+
+    /// Get current transaction ID
+    fn get_current_txn_id(&self) -> crate::transaction::types::TransactionId {
+        // Try to get transaction ID from current transaction context
+        if let Some(ctx) = self.inner.current_txn_context.lock().as_ref() {
+            ctx.id
+        } else {
+            0 // Default transaction ID for non-transactional operations
+        }
     }
 
     /// Insertion side data (advanced interface)
