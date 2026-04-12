@@ -21,10 +21,14 @@ fn test_transaction_basic_lifecycle() {
         .query("MATCH (v:Person) WHERE id(v) == 1 RETURN v")
         .assert_result_count(1)
         .assert_vertex_exists(1, "Person")
-        .assert_vertex_props(1, "Person", HashMap::from([
-            ("name", Value::String("Alice".into())),
-            ("age", Value::Int(30)),
-        ]));
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([
+                ("name", Value::String("Alice".into())),
+                ("age", Value::Int(30)),
+            ]),
+        );
 }
 
 /// Test transaction rollback - data should not persist after abort
@@ -52,10 +56,12 @@ fn test_transaction_multiple_vertices() {
         .setup_space("test_space")
         .exec_ddl("CREATE TAG IF NOT EXISTS Person(name STRING, age INT)")
         .assert_success()
-        .exec_dml("INSERT VERTEX Person(name, age) VALUES \
+        .exec_dml(
+            "INSERT VERTEX Person(name, age) VALUES \
             1:('Alice', 30), \
             2:('Bob', 25), \
-            3:('Charlie', 35)")
+            3:('Charlie', 35)",
+        )
         .assert_success()
         .query("MATCH (v:Person) RETURN v")
         .assert_result_count(3)
@@ -74,10 +80,14 @@ fn test_transaction_vertex_update() {
         .assert_success()
         .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)")
         .assert_success()
-        .assert_vertex_props(1, "Person", HashMap::from([
-            ("name", Value::String("Alice".into())),
-            ("age", Value::Int(30)),
-        ]));
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([
+                ("name", Value::String("Alice".into())),
+                ("age", Value::Int(30)),
+            ]),
+        );
 }
 
 /// Test vertex deletion in transaction
@@ -140,17 +150,21 @@ fn test_transaction_complex_operations() {
         .assert_success()
         .exec_ddl("CREATE EDGE IF NOT EXISTS WORKS_AT")
         .assert_success()
-        .exec_dml("INSERT VERTEX Person(name, age) VALUES \
+        .exec_dml(
+            "INSERT VERTEX Person(name, age) VALUES \
             1:('Alice', 30), \
             2:('Bob', 25), \
-            3:('Charlie', 35)")
+            3:('Charlie', 35)",
+        )
         .assert_success()
         .exec_dml("INSERT VERTEX Company(name) VALUES 100:('TechCorp')")
         .assert_success()
-        .exec_dml("INSERT EDGE WORKS_AT VALUES \
+        .exec_dml(
+            "INSERT EDGE WORKS_AT VALUES \
             1->100, \
             2->100, \
-            3->100")
+            3->100",
+        )
         .assert_success()
         .query("MATCH (p:Person)-[:WORKS_AT]->(c:Company) RETURN p")
         .assert_result_count(3);
@@ -162,22 +176,30 @@ fn test_transaction_property_types() {
     TestScenario::new()
         .expect("Failed to create test scenario")
         .setup_space("test_space")
-        .exec_ddl("CREATE TAG IF NOT EXISTS TestTypes( \
+        .exec_ddl(
+            "CREATE TAG IF NOT EXISTS TestTypes( \
             int_val INT, \
             string_val STRING, \
             bool_val BOOL, \
             float_val FLOAT, \
-            timestamp_val TIMESTAMP)")
+            timestamp_val TIMESTAMP)",
+        )
         .assert_success()
-        .exec_dml("INSERT VERTEX TestTypes(int_val, string_val, bool_val, float_val) \
-            VALUES 1:(42, 'test', true, 3.14)")
+        .exec_dml(
+            "INSERT VERTEX TestTypes(int_val, string_val, bool_val, float_val) \
+            VALUES 1:(42, 'test', true, 3.14)",
+        )
         .assert_success()
-        .assert_vertex_props(1, "TestTypes", HashMap::from([
-            ("int_val", Value::Int(42)),
-            ("string_val", Value::String("test".into())),
-            ("bool_val", Value::Bool(true)),
-            ("float_val", Value::Float(3.14)),
-        ]));
+        .assert_vertex_props(
+            1,
+            "TestTypes",
+            HashMap::from([
+                ("int_val", Value::Int(42)),
+                ("string_val", Value::String("test".into())),
+                ("bool_val", Value::Bool(true)),
+                ("float_val", Value::Float(3.14)),
+            ]),
+        );
 }
 
 /// Test empty transaction (no operations)
@@ -200,10 +222,12 @@ fn test_transaction_conditional_operations() {
         .setup_space("test_space")
         .exec_ddl("CREATE TAG IF NOT EXISTS Person(name STRING, age INT)")
         .assert_success()
-        .exec_dml("INSERT VERTEX Person(name, age) VALUES \
+        .exec_dml(
+            "INSERT VERTEX Person(name, age) VALUES \
             1:('Alice', 30), \
             2:('Bob', 25), \
-            3:('Charlie', 35)")
+            3:('Charlie', 35)",
+        )
         .assert_success()
         .query("MATCH (v:Person) WHERE v.age > 28 RETURN v.name")
         .assert_result_count(2);
@@ -241,10 +265,14 @@ fn test_transaction_tag_modification() {
         .assert_success()
         .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)")
         .assert_success()
-        .assert_vertex_props(1, "Person", HashMap::from([
-            ("name", Value::String("Alice".into())),
-            ("age", Value::Int(30)),
-        ]));
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([
+                ("name", Value::String("Alice".into())),
+                ("age", Value::Int(30)),
+            ]),
+        );
 }
 
 /// Test batch insert performance in transaction
@@ -321,9 +349,11 @@ fn test_transaction_read_committed_only() {
         .assert_success()
         .query("MATCH (v:Person) WHERE id(v) == 1 RETURN v")
         .assert_result_count(1)
-        .assert_vertex_props(1, "Person", HashMap::from([
-            ("name", Value::String("Alice".into())),
-        ]));
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([("name", Value::String("Alice".into()))]),
+        );
 }
 
 /// Test transaction with multiple edge types

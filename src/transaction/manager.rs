@@ -358,7 +358,10 @@ impl TransactionManager {
     }
 
     /// Abort transaction by ID (helper for cleanup operations)
-    fn abort_transaction_internal_by_id(&self, txn_id: TransactionId) -> Result<(), TransactionError> {
+    fn abort_transaction_internal_by_id(
+        &self,
+        txn_id: TransactionId,
+    ) -> Result<(), TransactionError> {
         let context = self.get_context(txn_id)?;
         self.abort_transaction_internal(context)
     }

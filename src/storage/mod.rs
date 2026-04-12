@@ -11,8 +11,6 @@ pub mod runtime_context;
 pub mod schema;
 pub mod shared_state;
 pub mod storage_client;
-pub mod sync_trigger_test;
-pub mod transaction_sync_test;
 pub mod types;
 pub mod user_storage;
 pub mod vertex_storage;

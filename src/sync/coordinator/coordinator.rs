@@ -279,7 +279,10 @@ impl SyncCoordinator {
     }
 
     /// Get the count of buffered operations for a transaction
-    pub fn transaction_buffer_count(&self, txn_id: crate::transaction::types::TransactionId) -> usize {
+    pub fn transaction_buffer_count(
+        &self,
+        txn_id: crate::transaction::types::TransactionId,
+    ) -> usize {
         if let Some(buffer) = self.transaction_buffers.get(&txn_id) {
             buffer.pending_count(txn_id)
         } else {

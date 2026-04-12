@@ -65,17 +65,15 @@ impl SyncTestHarness {
             max_wait_time: Duration::from_millis(500),
         };
 
-        let sync_coordinator = Arc::new(SyncCoordinator::new(
-            fulltext_manager.clone(),
-            batch_config,
-        ));
+        let sync_coordinator =
+            Arc::new(SyncCoordinator::new(fulltext_manager.clone(), batch_config));
 
         // Create sync manager
         let sync_manager = Arc::new(SyncManager::new(sync_coordinator.clone()));
 
         // Create runtime for async operations
         let rt = tokio::runtime::Runtime::new()?;
-        
+
         // Start background tasks for batch processing
         rt.block_on(sync_coordinator.start_background_tasks());
 
@@ -185,13 +183,13 @@ impl SyncTestHarness {
     pub fn commit_transaction(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(txn_id) = self.current_txn_id.take() {
             let rt = tokio::runtime::Runtime::new()?;
-            
+
             // Commit through sync manager
             let sync_manager = self.sync_manager.clone();
             let coordinator = sync_manager.sync_coordinator();
-            
+
             rt.block_on(sync_manager.commit_transaction(txn_id))?;
-            
+
             // Force flush all pending batches
             rt.block_on(coordinator.commit_all())?;
         }
@@ -202,7 +200,7 @@ impl SyncTestHarness {
     pub fn rollback_transaction(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(txn_id) = self.current_txn_id.take() {
             let rt = tokio::runtime::Runtime::new()?;
-            
+
             // Rollback through sync manager
             let sync_manager = self.sync_manager.clone();
             rt.block_on(sync_manager.rollback_transaction(txn_id))?;
@@ -218,12 +216,11 @@ impl SyncTestHarness {
     ) -> Result<(), Box<dyn std::error::Error>> {
         // Insert into storage first
         self.storage.insert_vertex(space_name, vertex.clone())?;
-        
+
         // Manually sync to fulltext index (non-transactional mode, txn_id=0)
         let space_id = self.storage.get_space_id(space_name)?;
-        self.sync_manager
-            .on_vertex_insert(0, space_id, &vertex)?;
-        
+        self.sync_manager.on_vertex_insert(0, space_id, &vertex)?;
+
         // Note: Batch processing will happen automatically based on batch config
         // Tests should wait for async processing or call commit_all explicitly
         Ok(())
@@ -241,11 +238,11 @@ impl SyncTestHarness {
 
         let space_id = self.storage.get_space_id(space_name)?;
         let txn_id = self.current_txn_id.unwrap();
-        
+
         // Check if vertex already exists
         let vertex_id = vertex.vid.clone();
         let exists = self.storage.get_vertex(space_name, &vertex_id)?.is_some();
-        
+
         if exists {
             // Update mode: Get old vertex and buffer delete operations
             if let Some(old_vertex) = self.storage.get_vertex(space_name, &vertex_id)? {
@@ -264,7 +261,7 @@ impl SyncTestHarness {
                     }
                 }
             }
-            
+
             // Buffer insert for new properties
             for tag in &vertex.tags {
                 let tag_name = &tag.name;
@@ -279,17 +276,17 @@ impl SyncTestHarness {
                     )?;
                 }
             }
-            
+
             // Update in storage
             self.storage.update_vertex(space_name, vertex)?;
         } else {
             // Insert mode: use on_vertex_insert
             self.sync_manager
                 .on_vertex_insert(txn_id, space_id, &vertex)?;
-            
+
             self.storage.insert_vertex(space_name, vertex)?;
         }
-        
+
         Ok(())
     }
 
@@ -329,10 +326,8 @@ impl SyncTestHarness {
             let results = rt.block_on(async {
                 // Create search query
                 let query = vector_client::SearchQuery::new(query_vector, limit);
-                    
-                vector_coord
-                    .search(tag_name, query)
-                    .await
+
+                vector_coord.search(tag_name, query).await
             })?;
             Ok(results)
         } else {
@@ -410,11 +405,7 @@ impl Clone for SyncTestHarness {
 }
 
 /// Helper function to create test vertex
-pub fn create_test_vertex(
-    vid: i64,
-    tag_name: &str,
-    props: Vec<(&str, Value)>,
-) -> Vertex {
+pub fn create_test_vertex(vid: i64, tag_name: &str, props: Vec<(&str, Value)>) -> Vertex {
     let mut properties = HashMap::new();
     for (k, v) in props {
         properties.insert(k.to_string(), v);
@@ -431,20 +422,21 @@ pub fn create_test_vertex_with_vector(
     vector_prop: (&str, Vec<f32>),
 ) -> Vertex {
     let mut properties = HashMap::new();
-    properties.insert(string_prop.0.to_string(), Value::String(string_prop.1.to_string()));
-    
+    properties.insert(
+        string_prop.0.to_string(),
+        Value::String(string_prop.1.to_string()),
+    );
+
     // Convert Vec<f32> to VectorValue
     use graphdb::core::VectorValue;
     let vector_value = VectorValue::Dense(vector_prop.1);
     properties.insert(vector_prop.0.to_string(), Value::Vector(vector_value));
-    
+
     let tag = Tag::new(tag_name.to_string(), properties);
     Vertex::new(Value::Int(vid), vec![tag])
 }
 
 /// Helper function to generate random vector
 pub fn generate_random_vector(dim: usize) -> Vec<f32> {
-    (0..dim)
-        .map(|_| rand::random::<f32>())
-        .collect()
+    (0..dim).map(|_| rand::random::<f32>()).collect()
 }

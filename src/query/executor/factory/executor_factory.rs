@@ -441,22 +441,18 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                     self.sync_manager.as_ref(),
                 )
             }
-            PlanNodeEnum::FulltextSearch(node) => {
-                FulltextSearchBuilder::build_fulltext_search(
-                    node,
-                    storage,
-                    context,
-                    self.sync_manager.as_ref(),
-                )
-            }
-            PlanNodeEnum::FulltextLookup(node) => {
-                FulltextSearchBuilder::build_fulltext_lookup(
-                    node,
-                    storage,
-                    context,
-                    self.sync_manager.as_ref(),
-                )
-            }
+            PlanNodeEnum::FulltextSearch(node) => FulltextSearchBuilder::build_fulltext_search(
+                node,
+                storage,
+                context,
+                self.sync_manager.as_ref(),
+            ),
+            PlanNodeEnum::FulltextLookup(node) => FulltextSearchBuilder::build_fulltext_lookup(
+                node,
+                storage,
+                context,
+                self.sync_manager.as_ref(),
+            ),
             PlanNodeEnum::MatchFulltext(node) => FulltextSearchBuilder::build_match_fulltext(
                 node,
                 storage,
@@ -619,7 +615,6 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         );
         Ok(ExecutorEnum::Select(executor))
     }
-
 }
 
 impl<S: StorageClient + 'static> Clone for ExecutorFactory<S> {

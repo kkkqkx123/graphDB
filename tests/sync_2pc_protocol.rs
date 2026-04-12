@@ -9,19 +9,22 @@ use graphdb::core::types::DataType;
 use graphdb::core::Value;
 use graphdb::sync::manager::SyncManager;
 use graphdb::transaction::{TransactionManager, TransactionManagerConfig, TransactionOptions};
-use std::sync::Arc;
 use std::path::Path;
+use std::sync::Arc;
 use tempfile::TempDir;
 
 /// Helper function to create harness with specific paths
-fn create_harness_with_paths(db_path: &Path, index_path: &Path) -> Result<SyncTestHarness, Box<dyn std::error::Error>> {
-    use graphdb::storage::RedbStorage;
+fn create_harness_with_paths(
+    db_path: &Path,
+    index_path: &Path,
+) -> Result<SyncTestHarness, Box<dyn std::error::Error>> {
     use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager, SyncConfig};
+    use graphdb::storage::RedbStorage;
     use graphdb::sync::batch::BatchConfig;
     use graphdb::sync::coordinator::SyncCoordinator;
     use graphdb::sync::manager::SyncManager;
     use std::time::Duration;
-    
+
     // Create storage
     let storage = RedbStorage::new_with_path(db_path.to_path_buf())?;
 
@@ -53,17 +56,14 @@ fn create_harness_with_paths(db_path: &Path, index_path: &Path) -> Result<SyncTe
         max_wait_time: Duration::from_millis(500),
     };
 
-    let sync_coordinator = Arc::new(SyncCoordinator::new(
-        fulltext_manager.clone(),
-        batch_config,
-    ));
+    let sync_coordinator = Arc::new(SyncCoordinator::new(fulltext_manager.clone(), batch_config));
 
     // Create sync manager
     let sync_manager = Arc::new(SyncManager::new(sync_coordinator.clone()));
 
     // Create runtime for async operations
     let rt = tokio::runtime::Runtime::new()?;
-    
+
     // Start background tasks for batch processing
     rt.block_on(sync_coordinator.start_background_tasks());
 
@@ -105,10 +105,7 @@ fn test_2pc_full_protocol() {
         let vertex = create_test_vertex(
             i + 1,
             "Person",
-            vec![(
-                "name",
-                Value::String(format!("Person{}", i + 1)),
-            )],
+            vec![("name", Value::String(format!("Person{}", i + 1)))],
         );
         harness
             .insert_vertex_with_txn("test_space", vertex)
@@ -145,8 +142,12 @@ fn test_2pc_full_protocol() {
         .search_fulltext("test_space", "Person", "name", "Person1", 20)
         .expect("Failed to search");
     println!("Search results for 'Person1': {}", results.len());
-    assert!(results.len() >= 1, "At least one index should be synced, found {}", results.len());
-    
+    assert!(
+        results.len() >= 1,
+        "At least one index should be synced, found {}",
+        results.len()
+    );
+
     // Verify all indexes are synced
     let mut found_count = 0;
     for i in 0..10 {
@@ -158,7 +159,11 @@ fn test_2pc_full_protocol() {
             found_count += 1;
         }
     }
-    assert!(found_count >= 10, "All indexes should be synced, found {}", found_count);
+    assert!(
+        found_count >= 10,
+        "All indexes should be synced, found {}",
+        found_count
+    );
 }
 
 /// TC-041: 2PC prepare phase failure
@@ -212,7 +217,7 @@ fn test_2pc_prepare_failure() {
 fn test_2pc_storage_commit_failure() {
     // This test verifies that when storage commit fails,
     // the index buffer is cleaned up
-    
+
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
     // Setup
@@ -244,9 +249,7 @@ fn test_2pc_storage_commit_failure() {
         .expect("Failed to insert vertex");
 
     // Rollback instead of commit (simulating storage failure)
-    harness
-        .rollback_transaction()
-        .expect("Failed to rollback");
+    harness.rollback_transaction().expect("Failed to rollback");
 
     harness.wait_for_async(200);
 
@@ -266,7 +269,7 @@ fn test_2pc_storage_commit_failure() {
 fn test_2pc_index_sync_failure() {
     // This test verifies that storage is committed even if index sync fails
     // (FailOpen policy)
-    
+
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
     // Setup
@@ -318,7 +321,7 @@ fn test_2pc_index_sync_failure() {
 #[test]
 fn test_concurrent_transactions_sync() {
     use std::thread;
-    
+
     // Create independent harness for each thread with unique paths
     let mut handles = vec![];
     for i in 0..5 {
@@ -327,10 +330,10 @@ fn test_concurrent_transactions_sync() {
             let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
             let db_path = temp_dir.path().join(format!("test_{}.db", i));
             let index_path = temp_dir.path().join(format!("index_{}", i));
-            
-            let mut harness = create_harness_with_paths(&db_path, &index_path)
-                .expect("Failed to create harness");
-            
+
+            let mut harness =
+                create_harness_with_paths(&db_path, &index_path).expect("Failed to create harness");
+
             // Setup space
             harness
                 .create_space("test_space")
@@ -343,7 +346,7 @@ fn test_concurrent_transactions_sync() {
                     vec!["name"],
                 )
                 .expect("Failed to create tag");
-            
+
             // Begin transaction
             harness
                 .begin_transaction()
@@ -353,10 +356,7 @@ fn test_concurrent_transactions_sync() {
             let vertex = create_test_vertex(
                 i * 10 + 1,
                 "Person",
-                vec![(
-                    "name",
-                    Value::String(format!("Thread{}", i)),
-                )],
+                vec![("name", Value::String(format!("Thread{}", i)))],
             );
             harness
                 .insert_vertex_with_txn("test_space", vertex)
@@ -366,10 +366,10 @@ fn test_concurrent_transactions_sync() {
             harness
                 .commit_transaction()
                 .expect("Failed to commit transaction");
-            
+
             // Verify in same thread
             harness.wait_for_async(300);
-            
+
             // Force commit all
             let rt = &harness.rt;
             rt.block_on(async {
@@ -379,12 +379,12 @@ fn test_concurrent_transactions_sync() {
                     .await
                     .expect("Commit all should succeed");
             });
-            
+
             // Verify vertex exists
             harness
                 .assert_vertex_exists("test_space", &Value::Int((i * 10 + 1) as i64))
                 .expect("Vertex should exist");
-            
+
             // Verify index is synced
             let results = harness
                 .search_fulltext("test_space", "Person", "name", &format!("Thread{}", i), 10)
@@ -398,7 +398,7 @@ fn test_concurrent_transactions_sync() {
     for handle in handles {
         handle.join().expect("Thread failed");
     }
-    
+
     // If we reach here, all threads succeeded
     assert!(true, "All concurrent transactions completed successfully");
 }
@@ -416,10 +416,10 @@ fn test_concurrent_index_updates_same_space() {
             let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
             let db_path = temp_dir.path().join(format!("test_{}.db", i));
             let index_path = temp_dir.path().join(format!("index_{}", i));
-            
-            let mut harness = create_harness_with_paths(&db_path, &index_path)
-                .expect("Failed to create harness");
-            
+
+            let mut harness =
+                create_harness_with_paths(&db_path, &index_path).expect("Failed to create harness");
+
             // Setup space
             harness
                 .create_space("test_space")
@@ -432,23 +432,20 @@ fn test_concurrent_index_updates_same_space() {
                     vec!["name"],
                 )
                 .expect("Failed to create tag");
-            
+
             // Non-transactional insert (concurrent)
             let vertex = create_test_vertex(
                 i + 1,
                 "Person",
-                vec![(
-                    "name",
-                    Value::String(format!("Concurrent{}", i)),
-                )],
+                vec![("name", Value::String(format!("Concurrent{}", i)))],
             );
             harness
                 .insert_vertex("test_space", vertex)
                 .expect("Failed to insert vertex");
-            
+
             // Verify in same thread
             harness.wait_for_async(300);
-            
+
             // Force commit all
             let rt = &harness.rt;
             rt.block_on(async {
@@ -458,15 +455,21 @@ fn test_concurrent_index_updates_same_space() {
                     .await
                     .expect("Commit all should succeed");
             });
-            
+
             // Verify vertex exists
             harness
                 .assert_vertex_exists("test_space", &Value::Int((i + 1) as i64))
                 .expect("Vertex should exist");
-            
+
             // Verify index is synced
             let results = harness
-                .search_fulltext("test_space", "Person", "name", &format!("Concurrent{}", i), 10)
+                .search_fulltext(
+                    "test_space",
+                    "Person",
+                    "name",
+                    &format!("Concurrent{}", i),
+                    10,
+                )
                 .expect("Failed to search");
             assert!(!results.is_empty(), "Index should be synced");
         });
@@ -477,7 +480,7 @@ fn test_concurrent_index_updates_same_space() {
     for handle in handles {
         handle.join().expect("Thread failed");
     }
-    
+
     // If we reach here, all threads succeeded
     assert!(true, "All concurrent index updates completed successfully");
 }

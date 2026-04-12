@@ -19,12 +19,12 @@ use crate::query::executor::data_access::{
 };
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::parser::ast::SearchStatement;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
+use crate::query::planning::plan::core::nodes::search::fulltext::data_access::FulltextSearchNode;
 use crate::query::planning::plan::core::nodes::{
     AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
     DropFulltextIndexNode, FulltextLookupNode, MatchFulltextNode, ShowFulltextIndexNode,
 };
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
-use crate::query::planning::plan::core::nodes::search::fulltext::data_access::FulltextSearchNode;
 use crate::storage::StorageClient;
 use crate::sync::SyncManager;
 

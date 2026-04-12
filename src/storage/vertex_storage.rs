@@ -148,6 +148,7 @@ impl VertexStorage {
     ) -> Result<Value, StorageError> {
         // Get current transaction ID if in transaction context
         let txn_id = self.get_current_txn_id();
+        let vid = vertex.vid.clone();
 
         let id = {
             let mut writer = self.inner.writer.lock();
@@ -180,15 +181,30 @@ impl VertexStorage {
                     }
                 }
             }
-        }
 
-        // Sync to fulltext/vector index (if enabled)
-        if let Some(sync_manager) = self.state.get_sync_manager() {
-            sync_manager
-                .on_vertex_insert(txn_id, space_id, &vertex)
-                .map_err(|e| {
-                    StorageError::DbError(format!("Failed to sync vertex insert: {}", e))
-                })?;
+            // Sync to fulltext/vector index (if enabled)
+            if let Some(sync_manager) = self.state.get_sync_manager() {
+                let props: Vec<(String, Value)> = tag
+                    .properties
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect();
+
+                if !props.is_empty() {
+                    sync_manager
+                        .on_vertex_change_with_txn(
+                            txn_id,
+                            space_id,
+                            &tag.name,
+                            &vid,
+                            &props,
+                            crate::coordinator::ChangeType::Insert,
+                        )
+                        .map_err(|e| {
+                            StorageError::DbError(format!("Failed to sync vertex insert: {}", e))
+                        })?;
+                }
+            }
         }
 
         Ok(id)
@@ -300,10 +316,49 @@ impl VertexStorage {
     pub fn batch_insert_vertices(
         &self,
         space: &str,
+        space_id: u64,
         vertices: Vec<Vertex>,
     ) -> Result<Vec<Value>, StorageError> {
-        let mut writer = self.inner.writer.lock();
-        writer.batch_insert_vertices(space, vertices)
+        let txn_id = self.get_current_txn_id();
+
+        let ids = {
+            let mut writer = self.inner.writer.lock();
+            writer.batch_insert_vertices(space, vertices.clone())?
+        };
+
+        // Sync to fulltext/vector index (if enabled)
+        if let Some(sync_manager) = self.state.get_sync_manager() {
+            for vertex in &vertices {
+                let vid = vertex.vid.clone();
+                for tag in &vertex.tags {
+                    let props: Vec<(String, Value)> = tag
+                        .properties
+                        .iter()
+                        .map(|(k, v)| (k.clone(), v.clone()))
+                        .collect();
+
+                    if !props.is_empty() {
+                        sync_manager
+                            .on_vertex_change_with_txn(
+                                txn_id,
+                                space_id,
+                                &tag.name,
+                                &vid,
+                                &props,
+                                crate::coordinator::ChangeType::Insert,
+                            )
+                            .map_err(|e| {
+                                StorageError::DbError(format!(
+                                    "Failed to sync vertex insert in batch: {}",
+                                    e
+                                ))
+                            })?;
+                    }
+                }
+            }
+        }
+
+        Ok(ids)
     }
 
     /// Deletes the specified label on a vertex
@@ -335,6 +390,8 @@ impl VertexStorage {
         space_id: u64,
         info: &InsertVertexInfo,
     ) -> Result<bool, StorageError> {
+        let txn_id = self.get_current_txn_id();
+
         // Get label information
         let tag_name = info.tag_name.clone();
         let _tag_info = self
@@ -391,6 +448,24 @@ impl VertexStorage {
             &info.props,
         )?;
 
+        // Sync to fulltext/vector index (if enabled)
+        if let Some(sync_manager) = self.state.get_sync_manager() {
+            if !info.props.is_empty() {
+                sync_manager
+                    .on_vertex_change_with_txn(
+                        txn_id,
+                        space_id,
+                        &tag_name,
+                        &info.vertex_id,
+                        &info.props,
+                        crate::coordinator::ChangeType::Insert,
+                    )
+                    .map_err(|e| {
+                        StorageError::DbError(format!("Failed to sync vertex data insert: {}", e))
+                    })?;
+            }
+        }
+
         Ok(true)
     }
 
@@ -401,6 +476,11 @@ impl VertexStorage {
         space_id: u64,
         vertex_id: &Value,
     ) -> Result<bool, StorageError> {
+        let txn_id = self.get_current_txn_id();
+
+        // Get old vertex to sync deletion
+        let old_vertex = self.inner.reader.lock().get_vertex(space, vertex_id)?;
+
         // Delete Vertex Index
         self.index_data_manager
             .delete_vertex_indexes(space_id, vertex_id)?;
@@ -408,6 +488,29 @@ impl VertexStorage {
         // Delete the vertex itself
         let mut writer = self.inner.writer.lock();
         writer.delete_vertex(space, vertex_id)?;
+
+        // Sync to fulltext/vector index (if enabled)
+        if let Some(sync_manager) = self.state.get_sync_manager() {
+            if let Some(vertex) = old_vertex {
+                if let Some(tag) = vertex.tags.first() {
+                    sync_manager
+                        .on_vertex_change_with_txn(
+                            txn_id,
+                            space_id,
+                            &tag.name,
+                            vertex_id,
+                            &[], // No properties needed for deletion
+                            crate::coordinator::ChangeType::Delete,
+                        )
+                        .map_err(|e| {
+                            StorageError::DbError(format!(
+                                "Failed to sync vertex data delete: {}",
+                                e
+                            ))
+                        })?;
+                }
+            }
+        }
 
         Ok(true)
     }

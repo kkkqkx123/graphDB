@@ -70,7 +70,12 @@ fn test_transaction_vertex_insert_sync() {
     use graphdb::core::Value;
     let unique_docs: std::collections::HashSet<_> = results.iter().map(|r| &r.doc_id).collect();
     assert_eq!(unique_docs.len(), 1, "Should find exactly one document");
-    assert!(results.iter().any(|r| r.doc_id == Value::String("1".to_string())), "Should find vertex with id=1");
+    assert!(
+        results
+            .iter()
+            .any(|r| r.doc_id == Value::String("1".to_string())),
+        "Should find vertex with id=1"
+    );
 }
 
 /// TC-002: Transaction vertex update sync
@@ -214,10 +219,7 @@ fn test_transaction_batch_vertex_insert_sync() {
         let vertex = create_test_vertex(
             i + 1,
             "Person",
-            vec![(
-                "name",
-                Value::String(format!("Person{}", i + 1)),
-            )],
+            vec![("name", Value::String(format!("Person{}", i + 1)))],
         );
         harness
             .insert_vertex_with_txn("test_space", vertex)
@@ -249,7 +251,7 @@ fn test_transaction_batch_vertex_insert_sync() {
         "Should find at least one vertex, found {}",
         results.len()
     );
-    
+
     // Also verify total count by searching with empty string or checking storage
     let mut found_count = 0;
     for i in 0..100 {
@@ -261,7 +263,7 @@ fn test_transaction_batch_vertex_insert_sync() {
             found_count += 1;
         }
     }
-    
+
     assert!(
         found_count >= 100,
         "Should find all 100 vertices, found {}",
@@ -442,7 +444,10 @@ fn test_transaction_edge_with_properties_sync() {
         .expect("Failed to begin transaction");
 
     let mut edge_props = HashMap::new();
-    edge_props.insert("position".to_string(), Value::String("Engineer".to_string()));
+    edge_props.insert(
+        "position".to_string(),
+        Value::String("Engineer".to_string()),
+    );
     edge_props.insert("since".to_string(), Value::Int(2020));
 
     let edge = graphdb::core::Edge::new(
@@ -464,7 +469,13 @@ fn test_transaction_edge_with_properties_sync() {
     // Verify edge exists with properties
     let edge_opt = harness
         .storage
-        .get_edge("test_space", &Value::Int(1), &Value::Int(100), "WORKS_AT", 0)
+        .get_edge(
+            "test_space",
+            &Value::Int(1),
+            &Value::Int(100),
+            "WORKS_AT",
+            0,
+        )
         .expect("Failed to get edge");
     assert!(edge_opt.is_some(), "Edge should exist");
 

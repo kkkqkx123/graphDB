@@ -10,8 +10,8 @@ use crate::query::metadata::{
 };
 use crate::query::{OptimizerEngine, QueryPipelineManager};
 use crate::storage::StorageClient;
-use crate::sync::SyncManager;
 use crate::sync::vector_sync::VectorSyncCoordinator;
+use crate::sync::SyncManager;
 use parking_lot::Mutex;
 use std::sync::Arc;
 use std::time::Instant;

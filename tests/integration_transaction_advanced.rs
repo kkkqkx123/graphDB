@@ -21,15 +21,14 @@ fn test_savepoint_basic() {
         .assert_success()
         .exec_dml("INSERT VERTEX Account(id, amount) VALUES 1:(1, 100)")
         .assert_success()
-        .assert_vertex_props(1, "Account", HashMap::from([
-            ("id", Value::Int(1)),
-            ("amount", Value::Int(100)),
-        ]))
+        .assert_vertex_props(
+            1,
+            "Account",
+            HashMap::from([("id", Value::Int(1)), ("amount", Value::Int(100))]),
+        )
         .exec_dml("INSERT VERTEX Account(id, amount) VALUES 2:(2, 200)")
         .assert_success()
-        .assert_vertex_props(2, "Account", HashMap::from([
-            ("amount", Value::Int(200)),
-        ]));
+        .assert_vertex_props(2, "Account", HashMap::from([("amount", Value::Int(200))]));
 }
 
 /// Test multiple savepoints
@@ -81,20 +80,19 @@ fn test_transaction_durability_levels() {
 /// Test transaction with timeout handling
 #[tokio::test]
 async fn test_transaction_timeout_handling() {
-    use graphdb::transaction::{TransactionManager, TransactionOptions, TransactionManagerConfig};
+    use graphdb::transaction::{TransactionManager, TransactionManagerConfig, TransactionOptions};
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database")
+        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
     );
 
     let manager = TransactionManager::new(db, TransactionManagerConfig::default());
 
-    let options = TransactionOptions::new()
-        .with_timeout(Duration::from_millis(50));
+    let options = TransactionOptions::new().with_timeout(Duration::from_millis(50));
 
-    let txn_id = manager.begin_transaction(options)
+    let txn_id = manager
+        .begin_transaction(options)
         .expect("Failed to begin transaction");
 
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -109,87 +107,87 @@ async fn test_transaction_timeout_handling() {
 /// Test transaction with query timeout
 #[tokio::test]
 async fn test_transaction_query_timeout() {
-    use graphdb::transaction::{TransactionManager, TransactionOptions, TransactionManagerConfig};
+    use graphdb::transaction::{TransactionManager, TransactionManagerConfig, TransactionOptions};
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database")
+        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
     );
 
     let manager = TransactionManager::new(db, TransactionManagerConfig::default());
 
-    let options = TransactionOptions::new()
-        .with_query_timeout(Duration::from_secs(5));
+    let options = TransactionOptions::new().with_query_timeout(Duration::from_secs(5));
 
-    let txn_id = manager.begin_transaction(options)
+    let txn_id = manager
+        .begin_transaction(options)
         .expect("Failed to begin transaction");
 
-    let context = manager.get_context(txn_id)
-        .expect("Failed to get context");
+    let context = manager.get_context(txn_id).expect("Failed to get context");
 
     assert!(context.query_timeout.is_some());
     assert_eq!(context.query_timeout.unwrap(), Duration::from_secs(5));
 
-    manager.commit_transaction(txn_id).await
+    manager
+        .commit_transaction(txn_id)
+        .await
         .expect("Failed to commit transaction");
 }
 
 /// Test transaction with statement timeout
 #[tokio::test]
 async fn test_transaction_statement_timeout() {
-    use graphdb::transaction::{TransactionManager, TransactionOptions, TransactionManagerConfig};
+    use graphdb::transaction::{TransactionManager, TransactionManagerConfig, TransactionOptions};
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database")
+        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
     );
 
     let manager = TransactionManager::new(db, TransactionManagerConfig::default());
 
-    let options = TransactionOptions::new()
-        .with_statement_timeout(Duration::from_secs(1));
+    let options = TransactionOptions::new().with_statement_timeout(Duration::from_secs(1));
 
-    let txn_id = manager.begin_transaction(options)
+    let txn_id = manager
+        .begin_transaction(options)
         .expect("Failed to begin transaction");
 
-    let context = manager.get_context(txn_id)
-        .expect("Failed to get context");
+    let context = manager.get_context(txn_id).expect("Failed to get context");
 
     assert!(context.statement_timeout.is_some());
     assert_eq!(context.statement_timeout.unwrap(), Duration::from_secs(1));
 
-    manager.commit_transaction(txn_id).await
+    manager
+        .commit_transaction(txn_id)
+        .await
         .expect("Failed to commit transaction");
 }
 
 /// Test transaction with idle timeout
 #[tokio::test]
 async fn test_transaction_idle_timeout() {
-    use graphdb::transaction::{TransactionManager, TransactionOptions, TransactionManagerConfig};
+    use graphdb::transaction::{TransactionManager, TransactionManagerConfig, TransactionOptions};
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database")
+        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
     );
 
     let manager = TransactionManager::new(db, TransactionManagerConfig::default());
 
-    let options = TransactionOptions::new()
-        .with_idle_timeout(Duration::from_secs(30));
+    let options = TransactionOptions::new().with_idle_timeout(Duration::from_secs(30));
 
-    let txn_id = manager.begin_transaction(options)
+    let txn_id = manager
+        .begin_transaction(options)
         .expect("Failed to begin transaction");
 
-    let context = manager.get_context(txn_id)
-        .expect("Failed to get context");
+    let context = manager.get_context(txn_id).expect("Failed to get context");
 
     assert!(context.idle_timeout.is_some());
     assert_eq!(context.idle_timeout.unwrap(), Duration::from_secs(30));
 
-    manager.commit_transaction(txn_id).await
+    manager
+        .commit_transaction(txn_id)
+        .await
         .expect("Failed to commit transaction");
 }
 
@@ -259,22 +257,23 @@ fn test_transaction_complex_graph_pattern() {
 /// Test transaction abort and recovery
 #[tokio::test]
 async fn test_transaction_abort_recovery() {
-    use graphdb::transaction::{TransactionManager, TransactionOptions, TransactionManagerConfig};
+    use graphdb::transaction::{TransactionManager, TransactionManagerConfig, TransactionOptions};
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database")
+        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
     );
 
     let manager = TransactionManager::new(db, TransactionManagerConfig::default());
 
-    let txn_id = manager.begin_transaction(TransactionOptions::default())
+    let txn_id = manager
+        .begin_transaction(TransactionOptions::default())
         .expect("Failed to begin transaction");
 
     assert!(manager.is_transaction_active(txn_id));
 
-    manager.abort_transaction(txn_id)
+    manager
+        .abort_transaction(txn_id)
         .expect("Failed to abort transaction");
 
     assert!(!manager.is_transaction_active(txn_id));
@@ -283,13 +282,12 @@ async fn test_transaction_abort_recovery() {
 /// Test transaction statistics
 #[tokio::test]
 async fn test_transaction_statistics() {
-    use graphdb::transaction::{TransactionManager, TransactionOptions, TransactionManagerConfig};
+    use graphdb::transaction::{TransactionManager, TransactionManagerConfig, TransactionOptions};
     use std::sync::atomic::Ordering;
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database")
+        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
     );
 
     let manager = TransactionManager::new(db, TransactionManagerConfig::default());
@@ -304,14 +302,18 @@ async fn test_transaction_statistics() {
             TransactionOptions::new().read_only()
         };
 
-        let txn_id = manager.begin_transaction(options)
+        let txn_id = manager
+            .begin_transaction(options)
             .expect("Failed to begin transaction");
 
         if i % 3 == 0 {
-            manager.abort_transaction(txn_id)
+            manager
+                .abort_transaction(txn_id)
                 .expect("Failed to abort transaction");
         } else {
-            manager.commit_transaction(txn_id).await
+            manager
+                .commit_transaction(txn_id)
+                .await
                 .expect("Failed to commit transaction");
         }
     }
@@ -332,13 +334,19 @@ fn test_transaction_multiple_schema_changes() {
         .assert_success()
         .exec_ddl("ALTER TAG Person ADD (email STRING)")
         .assert_success()
-        .exec_dml("INSERT VERTEX Person(name, age, email) VALUES 1:('Alice', 30, 'alice@example.com')")
+        .exec_dml(
+            "INSERT VERTEX Person(name, age, email) VALUES 1:('Alice', 30, 'alice@example.com')",
+        )
         .assert_success()
-        .assert_vertex_props(1, "Person", HashMap::from([
-            ("name", Value::String("Alice".into())),
-            ("age", Value::Int(30)),
-            ("email", Value::String("alice@example.com".into())),
-        ]));
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([
+                ("name", Value::String("Alice".into())),
+                ("age", Value::Int(30)),
+                ("email", Value::String("alice@example.com".into())),
+            ]),
+        );
 }
 
 /// Test transaction with edge direction
@@ -367,10 +375,12 @@ fn test_transaction_property_filtering() {
         .setup_space("test_space")
         .exec_ddl("CREATE TAG IF NOT EXISTS Person(name STRING, age INT, active BOOL)")
         .assert_success()
-        .exec_dml("INSERT VERTEX Person(name, age, active) VALUES \
+        .exec_dml(
+            "INSERT VERTEX Person(name, age, active) VALUES \
             1:('Alice', 25, true), \
             2:('Bob', 30, false), \
-            3:('Charlie', 35, true)")
+            3:('Charlie', 35, true)",
+        )
         .assert_success()
         .query("MATCH (v:Person) WHERE v.active == true RETURN v.name")
         .assert_result_count(2)
@@ -386,9 +396,11 @@ fn test_transaction_string_operations() {
         .setup_space("test_space")
         .exec_ddl("CREATE TAG IF NOT EXISTS Person(name STRING, description STRING)")
         .assert_success()
-        .exec_dml("INSERT VERTEX Person(name, description) VALUES \
+        .exec_dml(
+            "INSERT VERTEX Person(name, description) VALUES \
             1:('Alice', 'Software Engineer'), \
-            2:('Bob', 'Data Scientist')")
+            2:('Bob', 'Data Scientist')",
+        )
         .assert_success()
         .query("MATCH (v:Person) WHERE v.name STARTS WITH 'A' RETURN v.name")
         .assert_result_count(1)
@@ -398,13 +410,12 @@ fn test_transaction_string_operations() {
 /// Test transaction cleanup on drop
 #[tokio::test]
 async fn test_transaction_cleanup() {
-    use graphdb::transaction::{TransactionManager, TransactionOptions, TransactionManagerConfig};
+    use graphdb::transaction::{TransactionManager, TransactionManagerConfig, TransactionOptions};
     use std::sync::atomic::Ordering;
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database")
+        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
     );
 
     let manager = TransactionManager::new(db, TransactionManagerConfig::default());
@@ -412,7 +423,9 @@ async fn test_transaction_cleanup() {
     // Create transactions one at a time and commit/abort immediately
     // because write transactions are exclusive
     for i in 0..5 {
-        let txn_id = manager.begin_transaction(TransactionOptions::default()).unwrap();
+        let txn_id = manager
+            .begin_transaction(TransactionOptions::default())
+            .unwrap();
 
         let active_count = manager.stats().active_transactions.load(Ordering::Relaxed);
         assert_eq!(active_count, 1);
@@ -438,16 +451,20 @@ fn test_transaction_nested_operations() {
         .assert_success()
         .exec_ddl("CREATE EDGE IF NOT EXISTS SUBCATEGORY_OF")
         .assert_success()
-        .exec_dml("INSERT VERTEX Category(name) VALUES \
+        .exec_dml(
+            "INSERT VERTEX Category(name) VALUES \
             1:('Electronics'), \
             2:('Computers'), \
             3:('Laptops'), \
-            4:('Desktops')")
+            4:('Desktops')",
+        )
         .assert_success()
-        .exec_dml("INSERT EDGE SUBCATEGORY_OF VALUES \
+        .exec_dml(
+            "INSERT EDGE SUBCATEGORY_OF VALUES \
             2->1, \
             3->2, \
-            4->2")
+            4->2",
+        )
         .assert_success()
         .query("MATCH (sub:Category)-[:SUBCATEGORY_OF]->(parent:Category) RETURN sub")
         .assert_result_count(3);
@@ -461,10 +478,12 @@ fn test_transaction_aggregation() {
         .setup_space("test_space")
         .exec_ddl("CREATE TAG IF NOT EXISTS Product(name STRING, price INT, quantity INT)")
         .assert_success()
-        .exec_dml("INSERT VERTEX Product(name, price, quantity) VALUES \
+        .exec_dml(
+            "INSERT VERTEX Product(name, price, quantity) VALUES \
             1:('ProductA', 100, 10), \
             2:('ProductB', 200, 5), \
-            3:('ProductC', 150, 8)")
+            3:('ProductC', 150, 8)",
+        )
         .assert_success()
         .query("MATCH (p:Product) RETURN p.price")
         .assert_result_count(3);
@@ -473,15 +492,17 @@ fn test_transaction_aggregation() {
 /// Test concurrent read-only transactions using TransactionManager directly
 #[tokio::test]
 async fn test_concurrent_readonly_transactions() {
-    use graphdb::transaction::{TransactionManager, TransactionOptions, TransactionManagerConfig};
+    use graphdb::transaction::{TransactionManager, TransactionManagerConfig, TransactionOptions};
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database")
+        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
     );
 
-    let manager = Arc::new(TransactionManager::new(db, TransactionManagerConfig::default()));
+    let manager = Arc::new(TransactionManager::new(
+        db,
+        TransactionManagerConfig::default(),
+    ));
 
     let mut handles = vec![];
 
@@ -489,15 +510,19 @@ async fn test_concurrent_readonly_transactions() {
         let manager_clone = Arc::clone(&manager);
         let handle = tokio::spawn(async move {
             let options = TransactionOptions::new().read_only();
-            let txn_id = manager_clone.begin_transaction(options)
+            let txn_id = manager_clone
+                .begin_transaction(options)
                 .expect("Failed to begin transaction");
 
-            let context = manager_clone.get_context(txn_id)
+            let context = manager_clone
+                .get_context(txn_id)
                 .expect("Failed to get context");
 
             assert!(context.read_only);
 
-            manager_clone.commit_transaction(txn_id).await
+            manager_clone
+                .commit_transaction(txn_id)
+                .await
                 .expect("Failed to commit transaction");
 
             println!("Read-only transaction {} completed", i);
@@ -513,17 +538,22 @@ async fn test_concurrent_readonly_transactions() {
 /// Test write transaction exclusivity using TransactionManager
 #[tokio::test]
 async fn test_write_transaction_exclusivity() {
-    use graphdb::transaction::{TransactionManager, TransactionOptions, TransactionManagerConfig, TransactionError};
+    use graphdb::transaction::{
+        TransactionError, TransactionManager, TransactionManagerConfig, TransactionOptions,
+    };
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database")
+        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
     );
 
-    let manager = Arc::new(TransactionManager::new(db, TransactionManagerConfig::default()));
+    let manager = Arc::new(TransactionManager::new(
+        db,
+        TransactionManagerConfig::default(),
+    ));
 
-    let txn1 = manager.begin_transaction(TransactionOptions::default())
+    let txn1 = manager
+        .begin_transaction(TransactionOptions::default())
         .expect("Failed to begin first transaction");
 
     let result = manager.begin_transaction(TransactionOptions::default());
@@ -533,30 +563,37 @@ async fn test_write_transaction_exclusivity() {
         "Expected WriteTransactionConflict error"
     );
 
-    manager.commit_transaction(txn1).await
+    manager
+        .commit_transaction(txn1)
+        .await
         .expect("Failed to commit transaction");
 }
 
 /// Test concurrent read and write operations using TransactionManager
 #[tokio::test]
 async fn test_concurrent_read_write() {
-    use graphdb::transaction::{TransactionManager, TransactionOptions, TransactionManagerConfig};
+    use graphdb::transaction::{TransactionManager, TransactionManagerConfig, TransactionOptions};
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database")
+        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
     );
 
-    let manager = Arc::new(TransactionManager::new(db, TransactionManagerConfig::default()));
+    let manager = Arc::new(TransactionManager::new(
+        db,
+        TransactionManagerConfig::default(),
+    ));
 
     let write_handle = {
         let manager = Arc::clone(&manager);
         tokio::spawn(async move {
-            let txn_id = manager.begin_transaction(TransactionOptions::default())
+            let txn_id = manager
+                .begin_transaction(TransactionOptions::default())
                 .expect("Failed to begin write transaction");
             tokio::time::sleep(Duration::from_millis(50)).await;
-            manager.commit_transaction(txn_id).await
+            manager
+                .commit_transaction(txn_id)
+                .await
                 .expect("Failed to commit transaction");
         })
     };
@@ -567,9 +604,12 @@ async fn test_concurrent_read_write() {
         let manager = Arc::clone(&manager);
         tokio::spawn(async move {
             let options = TransactionOptions::new().read_only();
-            let txn_id = manager.begin_transaction(options)
+            let txn_id = manager
+                .begin_transaction(options)
                 .expect("Failed to begin read transaction");
-            manager.commit_transaction(txn_id).await
+            manager
+                .commit_transaction(txn_id)
+                .await
                 .expect("Failed to commit read transaction");
         })
     };

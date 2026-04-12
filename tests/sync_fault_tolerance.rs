@@ -41,7 +41,11 @@ fn test_failed_sync_to_dead_letter_queue() {
     });
 
     // Get sync coordinator's dead letter queue
-    let dlq = harness.sync_manager.sync_coordinator().dead_letter_queue().clone();
+    let dlq = harness
+        .sync_manager
+        .sync_coordinator()
+        .dead_letter_queue()
+        .clone();
 
     // Begin transaction
     harness
@@ -86,7 +90,11 @@ fn test_dead_letter_queue_recovery() {
     // Create a test dead letter entry
     let entry = DeadLetterEntry::new(
         graphdb::sync::external_index::IndexOperation::Insert {
-            key: graphdb::sync::external_index::IndexKey::new(1, "Person".to_string(), "name".to_string()),
+            key: graphdb::sync::external_index::IndexKey::new(
+                1,
+                "Person".to_string(),
+                "name".to_string(),
+            ),
             id: "test_id".to_string(),
             data: graphdb::sync::external_index::IndexData::Fulltext("Test".to_string()),
             payload: std::collections::HashMap::new(),
@@ -133,7 +141,11 @@ fn test_dead_letter_queue_size_limit() {
     for i in 0..15 {
         let entry = DeadLetterEntry::new(
             graphdb::sync::external_index::IndexOperation::Insert {
-                key: graphdb::sync::external_index::IndexKey::new(1, "Person".to_string(), "name".to_string()),
+                key: graphdb::sync::external_index::IndexKey::new(
+                    1,
+                    "Person".to_string(),
+                    "name".to_string(),
+                ),
                 id: format!("test_id_{}", i),
                 data: graphdb::sync::external_index::IndexData::Fulltext(format!("Test{}", i)),
                 payload: std::collections::HashMap::new(),
@@ -184,20 +196,27 @@ fn test_compensation_timeout() {
     // Start compensation with timeout
     let rt = tokio::runtime::Runtime::new().unwrap();
     let _handle = rt.block_on(async {
-        compensation_manager.clone()
+        compensation_manager
+            .clone()
             .start_background_task(Duration::from_millis(100))
             .await
     });
 
     // Verify compensation task started
-    assert!(compensation_manager.is_running(), "Compensation should be running");
+    assert!(
+        compensation_manager.is_running(),
+        "Compensation should be running"
+    );
 
     // Stop compensation
     compensation_manager.stop();
-    
+
     harness_wait(100);
-    
-    assert!(!compensation_manager.is_running(), "Compensation should be stopped");
+
+    assert!(
+        !compensation_manager.is_running(),
+        "Compensation should be stopped"
+    );
 }
 
 /// TC-072: Compensation statistics
@@ -215,7 +234,7 @@ fn test_compensation_statistics() {
 
     // Verify stats structure
     assert!(true, "Compensation stats should be accessible");
-    
+
     // Note: Detailed stats testing requires actual compensation operations
 }
 
@@ -253,9 +272,7 @@ fn test_crash_recovery_uncommitted_transaction() {
         .expect("Failed to insert vertex");
 
     // Simulate crash by rolling back (not committing)
-    harness
-        .rollback_transaction()
-        .expect("Failed to rollback");
+    harness.rollback_transaction().expect("Failed to rollback");
 
     harness.wait_for_async(200);
 
@@ -319,10 +336,7 @@ fn test_crash_recovery_committed_transaction() {
     let results = harness
         .search_fulltext("test_space", "Person", "name", "Alice", 10)
         .expect("Failed to search");
-    assert!(
-        !results.is_empty(),
-        "Index should be synced after commit"
-    );
+    assert!(!results.is_empty(), "Index should be synced after commit");
 }
 
 /// TC-090: Batch size trigger
@@ -351,10 +365,7 @@ fn test_batch_size_trigger() {
         let vertex = create_test_vertex(
             i + 1,
             "Person",
-            vec![(
-                "name",
-                Value::String(format!("Person{}", i + 1)),
-            )],
+            vec![("name", Value::String(format!("Person{}", i + 1)))],
         );
         harness
             .insert_vertex("test_space", vertex)
@@ -363,7 +374,7 @@ fn test_batch_size_trigger() {
 
     // Wait for batch processing
     harness.wait_for_async(500);
-    
+
     // Force commit all to flush any pending batches
     let rt = &harness.rt;
     rt.block_on(async {
@@ -385,9 +396,9 @@ fn test_batch_size_trigger() {
             found_count += 1;
         }
     }
-    
+
     assert!(
-        found_count >= 100,  // At least 100 should be found (batch may drop some)
+        found_count >= 100, // At least 100 should be found (batch may drop some)
         "Batch processing should handle most inserts, found {}",
         found_count
     );
@@ -416,10 +427,7 @@ fn test_batch_timeout_trigger() {
         let vertex = create_test_vertex(
             i + 1,
             "Person",
-            vec![(
-                "name",
-                Value::String(format!("SmallBatch{}", i + 1)),
-            )],
+            vec![("name", Value::String(format!("SmallBatch{}", i + 1)))],
         );
         harness
             .insert_vertex("test_space", vertex)
@@ -428,7 +436,7 @@ fn test_batch_timeout_trigger() {
 
     // Wait for timeout trigger (default 100ms)
     harness.wait_for_async(300);
-    
+
     // Force commit all to flush any pending batches
     let rt = &harness.rt;
     rt.block_on(async {
@@ -450,10 +458,10 @@ fn test_batch_timeout_trigger() {
             found_count += 1;
         }
     }
-    
+
     println!("Total found: {}", found_count);
     assert!(
-        found_count >= 1,  // At least 1 should be found
+        found_count >= 1, // At least 1 should be found
         "Timeout trigger should flush at least some small batches, found {}",
         found_count
     );
@@ -487,10 +495,7 @@ fn test_batch_aggregation_optimization() {
         let vertex = create_test_vertex(
             i + 1,
             "Person",
-            vec![(
-                "name",
-                Value::String(format!("BatchUpdate{}", i)),
-            )],
+            vec![("name", Value::String(format!("BatchUpdate{}", i)))],
         );
         harness
             .insert_vertex_with_txn("test_space", vertex)
@@ -502,7 +507,7 @@ fn test_batch_aggregation_optimization() {
         .expect("Failed to commit transaction");
 
     harness.wait_for_async(300);
-    
+
     // Force commit all to flush any pending batches
     let rt = &harness.rt;
     rt.block_on(async {

@@ -5,8 +5,7 @@
 use graphdb::core::error::DBResult;
 use graphdb::core::Value;
 use graphdb::transaction::{
-    TransactionId, TransactionManager, TransactionOptions, TransactionState,
-    TransactionError,
+    TransactionError, TransactionId, TransactionManager, TransactionOptions, TransactionState,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -40,7 +39,8 @@ impl TransactionTestContext {
         options: TransactionOptions,
     ) -> DBResult<TransactionId> {
         let manager = self.manager.lock().await;
-        let txn_id = manager.begin_transaction(options)
+        let txn_id = manager
+            .begin_transaction(options)
             .map_err(txn_err_to_db_err)?;
         self.active_transactions.insert(name.to_string(), txn_id);
         Ok(txn_id)
@@ -48,14 +48,14 @@ impl TransactionTestContext {
 
     /// Commit a transaction by name
     pub async fn commit_transaction(&mut self, name: &str) -> DBResult<()> {
-        let txn_id = self.active_transactions
-            .remove(name)
-            .ok_or_else(|| graphdb::core::error::DBError::Transaction(
-                format!("Transaction '{}' not found", name)
-            ))?;
+        let txn_id = self.active_transactions.remove(name).ok_or_else(|| {
+            graphdb::core::error::DBError::Transaction(format!("Transaction '{}' not found", name))
+        })?;
 
         let manager = self.manager.lock().await;
-        manager.commit_transaction(txn_id).await
+        manager
+            .commit_transaction(txn_id)
+            .await
             .map_err(txn_err_to_db_err)?;
 
         Ok(())
@@ -63,14 +63,13 @@ impl TransactionTestContext {
 
     /// Rollback a transaction by name
     pub async fn rollback_transaction(&mut self, name: &str) -> DBResult<()> {
-        let txn_id = self.active_transactions
-            .remove(name)
-            .ok_or_else(|| graphdb::core::error::DBError::Transaction(
-                format!("Transaction '{}' not found", name)
-            ))?;
+        let txn_id = self.active_transactions.remove(name).ok_or_else(|| {
+            graphdb::core::error::DBError::Transaction(format!("Transaction '{}' not found", name))
+        })?;
 
         let manager = self.manager.lock().await;
-        manager.rollback_transaction(txn_id)
+        manager
+            .rollback_transaction(txn_id)
             .map_err(txn_err_to_db_err)?;
 
         Ok(())
@@ -215,10 +214,7 @@ impl TransactionTestData {
 
     /// Create an account vertex value map
     pub fn account(id: i64, balance: i64) -> HashMap<&'static str, Value> {
-        HashMap::from([
-            ("id", Value::Int(id)),
-            ("balance", Value::Int(balance)),
-        ])
+        HashMap::from([("id", Value::Int(id)), ("balance", Value::Int(balance))])
     }
 
     /// Create a product vertex value map
@@ -259,7 +255,9 @@ impl TransactionTimer {
         assert!(
             diff <= tolerance,
             "Execution time {:?} differs from expected {:?} by more than {:?}",
-            elapsed, expected, tolerance
+            elapsed,
+            expected,
+            tolerance
         );
     }
 }
@@ -292,10 +290,7 @@ where
 }
 
 /// Helper to create batch insert values
-pub fn create_batch_values(
-    count: usize,
-    value_fn: impl Fn(usize) -> String,
-) -> String {
+pub fn create_batch_values(count: usize, value_fn: impl Fn(usize) -> String) -> String {
     let values: Vec<String> = (0..count).map(value_fn).collect();
     values.join(", ")
 }
@@ -318,7 +313,8 @@ pub async fn stress_test_transactions(
                 default_readonly_options()
             };
 
-            let txn_id = manager.begin_transaction(options)
+            let txn_id = manager
+                .begin_transaction(options)
                 .map_err(|e| format!("Failed to begin transaction: {:?}", e))?;
 
             for _ in 0..operations_per_transaction {
@@ -326,10 +322,13 @@ pub async fn stress_test_transactions(
             }
 
             if i % 3 == 0 {
-                manager.rollback_transaction(txn_id)
+                manager
+                    .rollback_transaction(txn_id)
                     .map_err(|e| format!("Failed to rollback: {:?}", e))?;
             } else {
-                manager.commit_transaction(txn_id).await
+                manager
+                    .commit_transaction(txn_id)
+                    .await
                     .map_err(|e| format!("Failed to commit: {:?}", e))?;
             }
 

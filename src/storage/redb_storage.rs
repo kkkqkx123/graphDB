@@ -316,7 +316,9 @@ impl StorageClient for RedbStorage {
         space: &str,
         vertices: Vec<Vertex>,
     ) -> Result<Vec<Value>, StorageError> {
-        self.vertex_storage.batch_insert_vertices(space, vertices)
+        let space_id = self.get_space_id_internal(space)?;
+        self.vertex_storage
+            .batch_insert_vertices(space, space_id, vertices)
     }
 
     fn delete_tags(
