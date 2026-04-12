@@ -16,7 +16,6 @@ use crate::query::QueryContext;
 // The ValidatedStatement is publicly exported for use by the planner implementation.
 pub use crate::query::validator::ValidatedStatement;
 
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::query::planning::statements::ddl::maintain_planner::MaintainPlanner;
 use crate::query::planning::statements::ddl::use_planner::UsePlanner;
 use crate::query::planning::statements::ddl::user_management_planner::UserManagementPlanner;
@@ -37,13 +36,8 @@ use crate::query::planning::statements::dql::set_operation_planner::SetOperation
 use crate::query::planning::statements::dql::subgraph_planner::SubgraphPlanner;
 use crate::query::planning::statements::dql::with_planner::WithPlanner;
 use crate::query::planning::statements::dql::yield_planner::YieldPlanner;
+use crate::query::planning::fulltext_planner::FulltextSearchPlanner;
 use crate::query::planning::statements::match_statement_planner::MatchStatementPlanner;
-
-use crate::query::planning::plan::core::nodes::search::{
-    AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
-    DropFulltextIndexNode, FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
-    ShowFulltextIndexNode,
-};
 use crate::query::planning::vector_planner::VectorSearchPlanner;
 
 ///  Planner Configuration
@@ -118,132 +112,6 @@ pub trait Planner: std::fmt::Debug {
 
     fn name(&self) -> &'static str {
         std::any::type_name::<Self>()
-    }
-}
-
-// ============================================================================
-// Fulltext Search Planner
-// ============================================================================
-
-/// Full-text search planner
-#[derive(Debug, Clone, Default)]
-pub struct FulltextSearchPlanner;
-
-impl FulltextSearchPlanner {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Planner for FulltextSearchPlanner {
-    fn transform(
-        &mut self,
-        validated: &ValidatedStatement,
-        qctx: Arc<QueryContext>,
-    ) -> Result<SubPlan, PlannerError> {
-        let stmt = validated.stmt();
-        let space_name = qctx.space_name().unwrap_or_else(|| "default".to_string());
-
-        match stmt {
-            Stmt::CreateFulltextIndex(create) => {
-                let schema_name = if create.schema_name.is_empty() {
-                    space_name
-                } else {
-                    create.schema_name.clone()
-                };
-                let node = CreateFulltextIndexNode::new(
-                    create.index_name.clone(),
-                    schema_name,
-                    create.fields.clone(),
-                    create.engine_type,
-                    create.options.clone(),
-                    create.if_not_exists,
-                );
-                let sub_plan = SubPlan::new(Some(node.into_enum()), None);
-                Ok(sub_plan)
-            }
-            Stmt::DropFulltextIndex(drop) => {
-                let node = DropFulltextIndexNode::new(drop.index_name.clone(), drop.if_exists);
-                let sub_plan = SubPlan::new(Some(node.into_enum()), None);
-                Ok(sub_plan)
-            }
-            Stmt::AlterFulltextIndex(alter) => {
-                let node =
-                    AlterFulltextIndexNode::new(alter.index_name.clone(), alter.actions.clone());
-                let sub_plan = SubPlan::new(Some(node.into_enum()), None);
-                Ok(sub_plan)
-            }
-            Stmt::ShowFulltextIndex(show) => {
-                let from_schema = if show.from_schema.is_none() {
-                    Some(space_name.clone())
-                } else {
-                    show.from_schema.clone()
-                };
-                let node = ShowFulltextIndexNode::new(show.pattern.clone(), from_schema);
-                let sub_plan = SubPlan::new(Some(node.into_enum()), None);
-                Ok(sub_plan)
-            }
-            Stmt::DescribeFulltextIndex(describe) => {
-                let node = DescribeFulltextIndexNode::new(describe.index_name.clone());
-                let sub_plan = SubPlan::new(Some(node.into_enum()), None);
-                Ok(sub_plan)
-            }
-            Stmt::Search(search) => {
-                let node = FulltextSearchNode::new(
-                    search.index_name.clone(),
-                    search.query.clone(),
-                    search.yield_clause.clone(),
-                    search.where_clause.clone(),
-                    search.order_clause.clone(),
-                    search.limit,
-                    search.offset,
-                );
-                let sub_plan = SubPlan::new(Some(node.into_enum()), None);
-                Ok(sub_plan)
-            }
-            Stmt::LookupFulltext(lookup) => {
-                let schema_name = if lookup.schema_name.is_empty() {
-                    space_name
-                } else {
-                    lookup.schema_name.clone()
-                };
-                let node = FulltextLookupNode::new(
-                    schema_name,
-                    lookup.index_name.clone(),
-                    lookup.query.clone(),
-                    lookup.yield_clause.clone(),
-                    lookup.limit,
-                );
-                let sub_plan = SubPlan::new(Some(node.into_enum()), None);
-                Ok(sub_plan)
-            }
-            Stmt::MatchFulltext(match_stmt) => {
-                let node = MatchFulltextNode::new(
-                    match_stmt.pattern.clone(),
-                    match_stmt.fulltext_condition.clone(),
-                    match_stmt.yield_clause.clone(),
-                );
-                let sub_plan = SubPlan::new(Some(node.into_enum()), None);
-                Ok(sub_plan)
-            }
-            _ => Err(PlannerError::PlanGenerationFailed(
-                "Not a full-text search statement".to_string(),
-            )),
-        }
-    }
-
-    fn match_planner(&self, stmt: &Stmt) -> bool {
-        matches!(
-            stmt,
-            Stmt::CreateFulltextIndex(_)
-                | Stmt::DropFulltextIndex(_)
-                | Stmt::AlterFulltextIndex(_)
-                | Stmt::ShowFulltextIndex(_)
-                | Stmt::DescribeFulltextIndex(_)
-                | Stmt::Search(_)
-                | Stmt::LookupFulltext(_)
-                | Stmt::MatchFulltext(_)
-        )
     }
 }
 

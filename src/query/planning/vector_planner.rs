@@ -171,18 +171,7 @@ impl VectorSearchPlanner {
         space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
         // Parse output fields from yield clause
-        let output_fields = if let Some(yield_clause) = &search.yield_clause {
-            yield_clause
-                .items
-                .iter()
-                .map(|item| OutputField {
-                    name: item.expr.clone(),
-                    alias: item.alias.clone(),
-                })
-                .collect()
-        } else {
-            vec![]
-        };
+        let output_fields = self.parse_output_fields(&search.yield_clause);
 
         // Convert WHERE clause to VectorFilter
         let filter = search
@@ -207,19 +196,13 @@ impl VectorSearchPlanner {
             (String::new(), String::new())
         };
 
-        let node = VectorSearchNode::new(
-            VectorSearchParams::new(
-                search.index_name.clone(),
-                space_id,
-                tag_name,
-                field_name,
-                search.query.clone(),
-            )
-            .with_threshold(search.threshold.unwrap_or(0.0))
-            .with_filter(filter)
-            .with_limit(search.limit.unwrap_or(10))
-            .with_offset(search.offset.unwrap_or(0))
-            .with_output_fields(output_fields),
+        let node = self.build_vector_search_node(
+            search,
+            space_id,
+            tag_name,
+            field_name,
+            filter,
+            output_fields,
         );
 
         Ok(SubPlan::new(Some(node.into_enum()), None))
@@ -237,19 +220,7 @@ impl VectorSearchPlanner {
             lookup.schema_name.clone()
         };
 
-        let yield_fields = lookup
-            .yield_clause
-            .as_ref()
-            .map_or_else(Vec::new, |yield_clause| {
-                yield_clause
-                    .items
-                    .iter()
-                    .map(|item| OutputField {
-                        name: item.expr.clone(),
-                        alias: item.alias.clone(),
-                    })
-                    .collect()
-            });
+        let yield_fields = self.parse_output_fields(&lookup.yield_clause);
 
         let node = VectorLookupNode::new(
             schema_name,
@@ -267,19 +238,7 @@ impl VectorSearchPlanner {
         match_stmt: &MatchVector,
         _space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
-        let yield_fields = match_stmt
-            .yield_clause
-            .as_ref()
-            .map_or_else(Vec::new, |yield_clause| {
-                yield_clause
-                    .items
-                    .iter()
-                    .map(|item| OutputField {
-                        name: item.expr.clone(),
-                        alias: item.alias.clone(),
-                    })
-                    .collect()
-            });
+        let yield_fields = self.parse_output_fields(&match_stmt.yield_clause);
 
         let node = VectorMatchNode::new(
             match_stmt.pattern.clone(),
@@ -290,6 +249,52 @@ impl VectorSearchPlanner {
         );
 
         Ok(SubPlan::new(Some(node.into_enum()), None))
+    }
+
+    /// Parse output fields from yield clause
+    fn parse_output_fields(
+        &self,
+        yield_clause: &Option<crate::query::parser::ast::vector::VectorYieldClause>,
+    ) -> Vec<OutputField> {
+        yield_clause
+            .as_ref()
+            .map(|yield_clause| {
+                yield_clause
+                    .items
+                    .iter()
+                    .map(|item| OutputField {
+                        name: item.expr.clone(),
+                        alias: item.alias.clone(),
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Build VectorSearchNode with common parameters
+    fn build_vector_search_node(
+        &self,
+        search: &SearchVectorStatement,
+        space_id: u64,
+        tag_name: String,
+        field_name: String,
+        filter: Option<VectorFilter>,
+        output_fields: Vec<OutputField>,
+    ) -> VectorSearchNode {
+        VectorSearchNode::new(
+            VectorSearchParams::new(
+                search.index_name.clone(),
+                space_id,
+                tag_name,
+                field_name,
+                search.query.clone(),
+            )
+            .with_threshold(search.threshold.unwrap_or(0.0))
+            .with_filter(filter)
+            .with_limit(search.limit.unwrap_or(10))
+            .with_offset(search.offset.unwrap_or(0))
+            .with_output_fields(output_fields),
+        )
     }
 
     /// Convert WhereClause to VectorFilter
@@ -481,18 +486,7 @@ impl VectorSearchPlanner {
         metadata_context: &MetadataContext,
     ) -> Result<SubPlan, PlannerError> {
         // Parse output fields from yield clause
-        let output_fields = if let Some(yield_clause) = &search.yield_clause {
-            yield_clause
-                .items
-                .iter()
-                .map(|item| OutputField {
-                    name: item.expr.clone(),
-                    alias: item.alias.clone(),
-                })
-                .collect()
-        } else {
-            vec![]
-        };
+        let output_fields = self.parse_output_fields(&search.yield_clause);
 
         // Convert WHERE clause to VectorFilter
         let filter = search
@@ -511,19 +505,13 @@ impl VectorSearchPlanner {
             }
         };
 
-        let node = VectorSearchNode::new(
-            VectorSearchParams::new(
-                search.index_name.clone(),
-                space_id,
-                tag_name,
-                field_name,
-                search.query.clone(),
-            )
-            .with_threshold(search.threshold.unwrap_or(0.0))
-            .with_filter(filter)
-            .with_limit(search.limit.unwrap_or(10))
-            .with_offset(search.offset.unwrap_or(0))
-            .with_output_fields(output_fields),
+        let node = self.build_vector_search_node(
+            search,
+            space_id,
+            tag_name,
+            field_name,
+            filter,
+            output_fields,
         );
 
         Ok(SubPlan::new(Some(node.into_enum()), None))
@@ -535,36 +523,27 @@ impl VectorSearchPlanner {
         lookup: &LookupVector,
         _space_id: u64,
         space_name: &str,
-        _metadata_context: &MetadataContext,
+        metadata_context: &MetadataContext,
     ) -> Result<SubPlan, PlannerError> {
+        // Validate index exists in metadata context
+        if metadata_context.get_index_metadata(&lookup.index_name).is_none() {
+            return Err(PlannerError::IndexNotFound(lookup.index_name.clone()));
+        }
+
         let schema_name = if lookup.schema_name.is_empty() {
             space_name.to_string()
         } else {
             lookup.schema_name.clone()
         };
 
-        let yield_fields = lookup
-            .yield_clause
-            .as_ref()
-            .map_or_else(Vec::new, |yield_clause| {
-                yield_clause
-                    .items
-                    .iter()
-                    .map(|item| OutputField {
-                        name: item.expr.clone(),
-                        alias: item.alias.clone(),
-                    })
-                    .collect()
-            });
-
-        let limit = lookup.limit.unwrap_or(10);
+        let yield_fields = self.parse_output_fields(&lookup.yield_clause);
 
         let node = VectorLookupNode::new(
             schema_name,
             lookup.index_name.clone(),
             lookup.query.clone(),
             yield_fields,
-            limit,
+            lookup.limit.unwrap_or(10),
         );
 
         Ok(SubPlan::new(Some(node.into_enum()), None))
@@ -577,20 +556,16 @@ impl VectorSearchPlanner {
         _space_id: u64,
         _metadata_context: &MetadataContext,
     ) -> Result<SubPlan, PlannerError> {
-        // Parse yield fields
-        let yield_fields = match_stmt
-            .yield_clause
-            .as_ref()
-            .map_or_else(Vec::new, |yield_clause| {
-                yield_clause
-                    .items
-                    .iter()
-                    .map(|item| OutputField {
-                        name: item.expr.clone(),
-                        alias: item.alias.clone(),
-                    })
-                    .collect()
-            });
+        // Validate that the field exists in metadata context if index info is available
+        // Note: MatchVector uses direct field reference rather than index name
+        // so we perform a basic validation that the field is not empty
+        if match_stmt.vector_condition.field.is_empty() {
+            return Err(PlannerError::InvalidOperation(
+                "Vector field name cannot be empty".to_string(),
+            ));
+        }
+
+        let yield_fields = self.parse_output_fields(&match_stmt.yield_clause);
 
         let node = VectorMatchNode::new(
             match_stmt.pattern.clone(),
@@ -601,5 +576,101 @@ impl VectorSearchPlanner {
         );
 
         Ok(SubPlan::new(Some(node.into_enum()), None))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::types::span::Span;
+    use crate::query::parser::ast::vector::{
+        VectorIndexConfig, VectorQueryExpr, VectorQueryType, VectorYieldClause,
+        VectorYieldItem,
+    };
+
+    #[test]
+    fn test_vector_search_planner_new() {
+        let planner = VectorSearchPlanner::new();
+        assert!(planner.metadata_context.is_none());
+    }
+
+    #[test]
+    fn test_vector_search_planner_with_metadata() {
+        let metadata_context = Arc::new(MetadataContext::new());
+        let planner = VectorSearchPlanner::with_metadata_context(metadata_context);
+        assert!(planner.metadata_context.is_some());
+    }
+
+    #[test]
+    fn test_match_planner() {
+        let planner = VectorSearchPlanner::new();
+
+        let create_stmt = Stmt::CreateVectorIndex(CreateVectorIndex {
+            span: Span::default(),
+            index_name: "idx".to_string(),
+            schema_name: "tag".to_string(),
+            field_name: "vec".to_string(),
+            config: VectorIndexConfig::new(128, crate::query::parser::ast::vector::VectorDistance::Cosine),
+            if_not_exists: false,
+        });
+        assert!(planner.match_planner(&create_stmt));
+
+        let drop_stmt = Stmt::DropVectorIndex(DropVectorIndex {
+            span: Span::default(),
+            index_name: "idx".to_string(),
+            if_exists: false,
+        });
+        assert!(planner.match_planner(&drop_stmt));
+    }
+
+    #[test]
+    fn test_parse_output_fields() {
+        let planner = VectorSearchPlanner::new();
+
+        // Test with None
+        let fields = planner.parse_output_fields(&None);
+        assert!(fields.is_empty());
+
+        // Test with Some
+        let yield_clause = VectorYieldClause {
+            items: vec![
+                VectorYieldItem {
+                    expr: "field1".to_string(),
+                    alias: Some("f1".to_string()),
+                },
+                VectorYieldItem {
+                    expr: "field2".to_string(),
+                    alias: None,
+                },
+            ],
+        };
+        let fields = planner.parse_output_fields(&Some(yield_clause));
+        assert_eq!(fields.len(), 2);
+        assert_eq!(fields[0].name, "field1");
+        assert_eq!(fields[0].alias, Some("f1".to_string()));
+        assert_eq!(fields[1].name, "field2");
+        assert_eq!(fields[1].alias, None);
+    }
+
+    #[test]
+    fn test_value_to_string() {
+        let planner = VectorSearchPlanner::new();
+
+        assert_eq!(
+            planner.value_to_string(&crate::core::Value::String("test".to_string())),
+            Some("test".to_string())
+        );
+        assert_eq!(
+            planner.value_to_string(&crate::core::Value::Int(42)),
+            Some("42".to_string())
+        );
+        assert_eq!(
+            planner.value_to_string(&crate::core::Value::Float(3.14)),
+            Some("3.14".to_string())
+        );
+        assert_eq!(
+            planner.value_to_string(&crate::core::Value::Bool(true)),
+            Some("true".to_string())
+        );
     }
 }
