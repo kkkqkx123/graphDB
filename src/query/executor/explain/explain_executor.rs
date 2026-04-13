@@ -19,7 +19,7 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 use super::execution_stats_context::{ExecutionStatsContext, NodeExecutionStats};
-use super::format::{format_plan_as_dot, format_plan_as_table};
+use super::format::{format_plan_as_dot, format_plan_with_output_table};
 use super::instrumented_executor::InstrumentedExecutor;
 
 /// Explain execution mode
@@ -151,10 +151,20 @@ impl<S: StorageClient + Send + 'static> ExplainExecutor<S> {
     }
 
     /// Format plan description according to output format
-    fn format_output(&self, plan_desc: &PlanDescription) -> String {
+    fn format_output(&self, plan_desc: &PlanDescription) -> DBResult<String> {
         match self.format {
-            ExplainFormat::Table => format_plan_as_table(plan_desc),
-            ExplainFormat::Dot => format_plan_as_dot(plan_desc),
+            ExplainFormat::Table => {
+                // Use output module's table formatter
+                format_plan_with_output_table(plan_desc).map_err(|e| {
+                    crate::core::error::DBError::from(
+                        crate::core::error::QueryError::ExecutionError(e.to_string()),
+                    )
+                })
+            }
+            ExplainFormat::Dot => {
+                // Keep existing DOT format (not migrated to output module)
+                Ok(format_plan_as_dot(plan_desc))
+            }
         }
     }
 }
@@ -164,7 +174,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExplainExecutor<S> {
         match self.mode {
             ExplainMode::PlanOnly => {
                 let plan_desc = self.generate_plan_description()?;
-                let output = self.format_output(&plan_desc);
+                let output = self.format_output(&plan_desc)?;
                 Ok(ExecutionResult::from_result(
                     crate::core::query_result::Result::from_rows(
                         vec![vec![crate::core::value::Value::String(output)]],
@@ -182,7 +192,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExplainExecutor<S> {
                 let node_stats = stats_context.collect_stats();
                 self.attach_execution_stats(&mut plan_desc, &node_stats);
 
-                let output = self.format_output(&plan_desc);
+                let output = self.format_output(&plan_desc)?;
 
                 let planning_time = stats_context.get_global_stats().planning_time_ms;
                 let total_time = planning_time + execution_time_ms;

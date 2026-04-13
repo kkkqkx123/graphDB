@@ -28,6 +28,8 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::{Mutex, RwLock};
+
+use crate::utils::output;
 use tokio::time::Duration;
 
 /// Queue Error Type
@@ -292,7 +294,7 @@ where
                 }
                 Err(e) => {
                     // Logging errors without interrupting the processing loop
-                    eprintln!("Error processing batch: {:?}", e);
+                    let _ = output::print_error(&format!("Error processing batch: {:?}", e));
                 }
             }
         }

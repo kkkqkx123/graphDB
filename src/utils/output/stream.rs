@@ -7,9 +7,34 @@ use super::config::{OutputConfig, OutputMode};
 use super::writer::{FileWriter, MultiWriter, StdoutWriter};
 use super::{OutputError, Result};
 
+/// Enum to represent different writer types without dynamic dispatch
+enum WriterKind {
+    Stdout(StdoutWriter),
+    File(FileWriter),
+    Both(MultiWriter),
+}
+
+impl Write for WriterKind {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        match self {
+            WriterKind::Stdout(w) => w.write(buf),
+            WriterKind::File(w) => w.write(buf),
+            WriterKind::Both(w) => w.write(buf),
+        }
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        match self {
+            WriterKind::Stdout(w) => w.flush(),
+            WriterKind::File(w) => w.flush(),
+            WriterKind::Both(w) => w.flush(),
+        }
+    }
+}
+
 /// Stream output manager for handling file and console output
 pub struct StreamOutput {
-    writer: Box<dyn Write + Send>,
+    writer: WriterKind,
     file: Option<std::fs::File>,
 }
 
@@ -20,7 +45,7 @@ impl StreamOutput {
 
         match config.mode {
             OutputMode::Console => {
-                let writer = Box::new(StdoutWriter::new());
+                let writer = WriterKind::Stdout(StdoutWriter::new());
                 Ok(Self { writer, file: None })
             }
             OutputMode::File => {
@@ -28,7 +53,7 @@ impl StreamOutput {
                 let file = Self::open_file(file_path, config.append)?;
                 let file_writer = FileWriter::new(file.try_clone()?);
                 Ok(Self {
-                    writer: Box::new(file_writer),
+                    writer: WriterKind::File(file_writer),
                     file: Some(file),
                 })
             }
@@ -38,12 +63,10 @@ impl StreamOutput {
                 let file_writer = FileWriter::new(file.try_clone()?);
                 let stdout_writer = StdoutWriter::new();
 
-                let multi = MultiWriter::new();
-                multi.add_writer(stdout_writer);
-                multi.add_writer(file_writer);
+                let multi = MultiWriter::with_stdout_and_file(stdout_writer, file_writer);
 
                 Ok(Self {
-                    writer: Box::new(multi),
+                    writer: WriterKind::Both(multi),
                     file: Some(file),
                 })
             }
@@ -53,7 +76,7 @@ impl StreamOutput {
     /// Create a console-only stream output
     pub fn console() -> Self {
         Self {
-            writer: Box::new(StdoutWriter::new()),
+            writer: WriterKind::Stdout(StdoutWriter::new()),
             file: None,
         }
     }
@@ -63,7 +86,7 @@ impl StreamOutput {
         let file = Self::open_file(path.as_ref(), append)?;
         let file_writer = FileWriter::new(file.try_clone()?);
         Ok(Self {
-            writer: Box::new(file_writer),
+            writer: WriterKind::File(file_writer),
             file: Some(file),
         })
     }
@@ -74,12 +97,10 @@ impl StreamOutput {
         let file_writer = FileWriter::new(file.try_clone()?);
         let stdout_writer = StdoutWriter::new();
 
-        let multi = MultiWriter::new();
-        multi.add_writer(stdout_writer);
-        multi.add_writer(file_writer);
+        let multi = MultiWriter::with_stdout_and_file(stdout_writer, file_writer);
 
         Ok(Self {
-            writer: Box::new(multi),
+            writer: WriterKind::Both(multi),
             file: Some(file),
         })
     }
@@ -111,7 +132,11 @@ impl StreamOutput {
 
     /// Get a reference to the writer
     pub fn writer(&mut self) -> &mut dyn Write {
-        &mut *self.writer
+        match &mut self.writer {
+            WriterKind::Stdout(w) => w,
+            WriterKind::File(w) => w,
+            WriterKind::Both(w) => w,
+        }
     }
 
     /// Write data to the stream

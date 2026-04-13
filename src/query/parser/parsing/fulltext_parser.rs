@@ -680,9 +680,6 @@ mod tests {
 
         let mut parser = Parser::new(sql);
         let result = parser.parse();
-        if let Err(e) = &result {
-            eprintln!("Parse error: {:?}", e);
-        }
         assert!(result.is_ok());
     }
 
@@ -694,9 +691,6 @@ mod tests {
 
         let mut parser = Parser::new(sql);
         let result = parser.parse();
-        if let Err(e) = &result {
-            eprintln!("Parse error: {:?}", e);
-        }
         assert!(result.is_ok());
     }
 
@@ -706,9 +700,6 @@ mod tests {
 
         let mut parser = Parser::new(sql);
         let result = parser.parse();
-        if let Err(e) = &result {
-            eprintln!("Parse error: {:?}", e);
-        }
         assert!(result.is_ok());
     }
 }

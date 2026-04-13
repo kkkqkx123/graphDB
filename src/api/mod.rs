@@ -8,6 +8,8 @@
 use log::info;
 use std::sync::Arc;
 
+use crate::utils::output;
+
 pub mod core;
 
 #[cfg(feature = "server")]
@@ -39,10 +41,10 @@ pub fn start_service(config_path: String) -> DBResult<()> {
     let config = match Config::load(&config_path) {
         Ok(config) => config,
         Err(e) => {
-            eprintln!(
+            let _ = output::print_error(&format!(
                 "Failed to load config from '{}': {}, using default config",
                 config_path, e
-            );
+            ));
             Config::default()
         }
     };
@@ -52,8 +54,8 @@ pub fn start_service(config_path: String) -> DBResult<()> {
 /// Start the service using the configuration object.
 #[cfg(feature = "server")]
 pub fn start_service_with_config(config: Config) -> DBResult<()> {
-    println!("Initializing GraphDB service...");
-    println!("Configuration loaded: {:?}", config);
+    let _ = output::print_info("Initializing GraphDB service...");
+    let _ = output::print_info(&format!("Configuration loaded: {:?}", config));
 
     info!(
         "Log system has been initialized: {}/{}",
@@ -62,7 +64,7 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
     );
 
     let inner_storage = Arc::new(DefaultStorage::new()?);
-    println!("Storage initialized (memory mode)");
+    let _ = output::print_success("Storage initialized (memory mode)");
 
     // 如果配置启用了全文索引或向量索引，初始化 SyncManager
     let storage = if config.fulltext.enabled || config.vector.enabled {
@@ -105,7 +107,7 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
                     crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
                 );
                 sync_manager = sync_manager.with_vector_coordinator(vector_coordinator);
-                println!("Vector index sync enabled");
+                let _ = output::print_info("Vector index sync enabled");
             }
 
             (sync_coordinator.clone(), Arc::new(sync_manager))
@@ -135,16 +137,16 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
                     crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
                 );
                 sync_manager = sync_manager.with_vector_coordinator(vector_coordinator);
-                println!("Vector index sync enabled");
+                let _ = output::print_info("Vector index sync enabled");
             }
 
             (sync_coordinator.clone(), Arc::new(sync_manager))
         };
 
-        println!("SyncManager initialized");
+        let _ = output::print_success("SyncManager initialized");
 
         let sync_storage = SyncStorage::with_sync_manager((*inner_storage).clone(), sync_manager);
-        println!("Sync enabled for fulltext and vector indexes");
+        let _ = output::print_success("Sync enabled for fulltext and vector indexes");
 
         Arc::new(sync_storage)
     } else {
@@ -160,7 +162,7 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
         auto_cleanup: true,
     };
     let transaction_manager = Arc::new(TransactionManager::new(db, txn_config));
-    println!("Transaction manager initialized");
+    let _ = output::print_success("Transaction manager initialized");
 
     // Create Tokio runtime for async initialization
     let rt = tokio::runtime::Runtime::new()?;
@@ -172,7 +174,7 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
                 transaction_manager.clone(),
             )
             .await;
-        println!("Graph service initialized with transaction management");
+        let _ = output::print_success("Graph service initialized with transaction management");
 
         // Create HTTP server
         let http_server = Arc::new(HttpServer::new(
@@ -181,29 +183,29 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
             transaction_manager,
             &config,
         ));
-        println!("HTTP server created");
+        let _ = output::print_info("HTTP server created");
 
-        println!(
+        let _ = output::print_info(&format!(
             "Starting HTTP server on {}:{}",
             config.host(),
             config.port()
-        );
+        ));
 
         // Start HTTP server
         if let Err(e) = start_http_server(http_server, &config).await {
-            eprintln!("HTTP server error: {}", e);
+            let _ = output::print_error(&format!("HTTP server error: {}", e));
         }
     });
 
     shutdown_signal();
 
-    println!("Shutting down GraphDB service...");
+    let _ = output::print_info("Shutting down GraphDB service...");
     Ok(())
 }
 
 #[cfg(feature = "server")]
 pub async fn execute_query(query_str: &str) -> DBResult<()> {
-    println!("Executing query: {}", query_str);
+    let _ = output::print_info(&format!("Executing query: {}", query_str));
 
     let config = crate::config::Config::default();
     let inner_storage = Arc::new(DefaultStorage::new()?);
@@ -222,7 +224,7 @@ pub async fn execute_query(query_str: &str) -> DBResult<()> {
     {
         Ok(session) => session,
         Err(e) => {
-            eprintln!("Failed to create session: {}", e);
+            let _ = output::print_error(&format!("Failed to create session: {}", e));
             return Err(crate::core::error::DBError::Session(
                 crate::core::error::SessionError::ManagerError(format!(
                     "Failed to create session: {}",
@@ -236,10 +238,10 @@ pub async fn execute_query(query_str: &str) -> DBResult<()> {
 
     match graph_service.execute(session_id, query_str) {
         Ok(result) => {
-            println!("Query executed successfully: {:?}", result);
+            let _ = output::print_success(&format!("Query executed successfully: {:?}", result));
         }
         Err(e) => {
-            eprintln!("Query execution error: {}", e);
+            let _ = output::print_error(&format!("Query execution error: {}", e));
         }
     }
 
@@ -253,7 +255,7 @@ pub async fn execute_query(query_str: &str) -> DBResult<()> {
 pub fn shutdown_signal() {
     use tokio::runtime::Runtime;
 
-    println!("Waiting for shutdown signal (Ctrl+C or SIGTERM)...");
+    let _ = output::print_info("Waiting for shutdown signal (Ctrl+C or SIGTERM)...");
 
     // Create a temporary runtime to wait for asynchronous signals.
     let rt = Runtime::new().expect("Failed to create temporary runtime");
@@ -261,7 +263,7 @@ pub fn shutdown_signal() {
         async_shutdown_signal().await;
     });
 
-    println!("Received shutdown signal");
+    let _ = output::print_info("Received shutdown signal");
 }
 
 // Additional API endpoints can be added here

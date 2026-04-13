@@ -1,4 +1,5 @@
 use crate::core::value::Value;
+use crate::utils::output::{Format, Result as OutputResult};
 
 /// Result Status
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -150,6 +151,95 @@ impl Result {
 
     pub fn meta(&self) -> &ResultMeta {
         &self.meta
+    }
+
+    /// Convert result to output string based on format
+    pub fn to_output(&self, format: Format) -> OutputResult<String> {
+        match format {
+            Format::Plain => self.to_plain_string(),
+            Format::Json => self.to_json_string(),
+            Format::Table => self.to_table_string(),
+        }
+    }
+
+    /// Convert result to plain string format
+    fn to_plain_string(&self) -> OutputResult<String> {
+        let mut output = String::new();
+
+        // Column names
+        if !self.col_names.is_empty() {
+            output.push_str(&self.col_names.join("\t"));
+            output.push('\n');
+        }
+
+        // Rows
+        for row in &self.rows {
+            let row_str: Vec<String> = row.iter().map(|v| format!("{}", v)).collect();
+            output.push_str(&row_str.join("\t"));
+            output.push('\n');
+        }
+
+        Ok(output)
+    }
+
+    /// Convert result to JSON string
+    fn to_json_string(&self) -> OutputResult<String> {
+        use serde::Serialize;
+        use std::collections::HashMap;
+
+        #[derive(Serialize)]
+        struct RowData {
+            #[serde(flatten)]
+            data: HashMap<String, Value>,
+        }
+
+        #[derive(Serialize)]
+        struct ResultData {
+            columns: Vec<String>,
+            rows: Vec<RowData>,
+            row_count: usize,
+        }
+
+        let rows: Vec<RowData> = self
+            .rows
+            .iter()
+            .map(|row| {
+                let mut data = HashMap::new();
+                for (i, value) in row.iter().enumerate() {
+                    if let Some(col_name) = self.col_names.get(i) {
+                        data.insert(col_name.clone(), value.clone());
+                    }
+                }
+                RowData { data }
+            })
+            .collect();
+
+        let result_data = ResultData {
+            columns: self.col_names.clone(),
+            rows,
+            row_count: self.rows.len(),
+        };
+
+        crate::utils::output::to_json_string(&result_data)
+    }
+
+    /// Convert result to table format
+    fn to_table_string(&self) -> OutputResult<String> {
+        use crate::utils::output::TableFormatter;
+
+        let mut formatter = TableFormatter::new();
+
+        if !self.col_names.is_empty() {
+            let col_names: Vec<&str> = self.col_names.iter().map(|s| s.as_str()).collect();
+            formatter.set_headers(&col_names);
+        }
+
+        for row in &self.rows {
+            let row_str: Vec<String> = row.iter().map(|v| format!("{}", v)).collect();
+            formatter.add_row_strings(row_str);
+        }
+
+        formatter.render_to_string()
     }
 }
 

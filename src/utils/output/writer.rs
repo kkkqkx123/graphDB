@@ -1,7 +1,6 @@
 //! Writer implementations for output module
 
 use std::io::{self, BufWriter, Write};
-use std::sync::Mutex;
 
 /// A writer that outputs to stdout
 pub struct StdoutWriter {
@@ -104,73 +103,70 @@ impl Write for FileWriter {
 }
 
 /// A writer that outputs to multiple writers
-pub struct MultiWriter {
-    writers: Mutex<Vec<Box<dyn Write + Send>>>,
+/// Uses enum to avoid dynamic dispatch for known writer types
+pub enum MultiWriter {
+    StdoutFile(StdoutWriter, FileWriter),
 }
 
 impl MultiWriter {
-    /// Create a new multi-writer
-    pub fn new() -> Self {
-        Self {
-            writers: Mutex::new(Vec::new()),
+    /// Create a new multi-writer with stdout and file writers
+    pub fn with_stdout_and_file(stdout: StdoutWriter, file: FileWriter) -> Self {
+        Self::StdoutFile(stdout, file)
+    }
+
+    /// Get the number of writers
+    pub fn len(&self) -> usize {
+        match self {
+            MultiWriter::StdoutFile(_, _) => 2,
         }
     }
 
-    /// Add a writer to the multi-writer
-    pub fn add_writer<W: Write + Send + 'static>(&self, writer: W) {
-        let mut writers = self.writers.lock().expect("lock poisoned");
-        writers.push(Box::new(writer));
-    }
-
-    /// Create a multi-writer with initial writers
-    pub fn with_writers<W: Write + Send + 'static>(writers: Vec<W>) -> Self {
-        let multi = Self::new();
-        for w in writers {
-            multi.add_writer(w);
-        }
-        multi
-    }
-}
-
-impl Default for MultiWriter {
-    fn default() -> Self {
-        Self::new()
+    /// Check if the multi-writer is empty
+    pub fn is_empty(&self) -> bool {
+        false
     }
 }
 
 impl Write for MultiWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let mut writers = self.writers.lock().expect("lock poisoned");
-        for writer in writers.iter_mut() {
-            writer.write_all(buf)?;
+        match self {
+            MultiWriter::StdoutFile(stdout, file) => {
+                // Write to both writers
+                stdout.write_all(buf)?;
+                file.write_all(buf)?;
+                Ok(buf.len())
+            }
         }
-        Ok(buf.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        let mut writers = self.writers.lock().expect("lock poisoned");
-        for writer in writers.iter_mut() {
-            writer.flush()?;
+        match self {
+            MultiWriter::StdoutFile(stdout, file) => {
+                stdout.flush()?;
+                file.flush()?;
+                Ok(())
+            }
         }
-        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Cursor;
 
     #[test]
     fn test_multi_writer() {
-        let cursor1 = Cursor::new(Vec::new());
-        let cursor2 = Cursor::new(Vec::new());
+        let stdout = StdoutWriter::new();
+        let file = FileWriter::new(std::fs::File::create(std::env::temp_dir().join("test_multi.log")).unwrap());
 
-        let mut multi = MultiWriter::with_writers(vec![cursor1, cursor2]);
+        let mut multi = MultiWriter::with_stdout_and_file(stdout, file);
         multi.write_all(b"hello").unwrap();
         multi.flush().unwrap();
 
         // Note: We can't easily verify the content without interior mutability
         // This test mainly checks that it compiles and runs without panic
+        
+        // Clean up
+        let _ = std::fs::remove_file(std::env::temp_dir().join("test_multi.log"));
     }
 }

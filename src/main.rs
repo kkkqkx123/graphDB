@@ -4,7 +4,7 @@ mod server_main {
     use graphdb::api;
     use graphdb::config::Config;
     use graphdb::core::error::DBResult;
-    use graphdb::utils::logging;
+    use graphdb::utils::{logging, output};
 
     #[derive(Parser)]
     #[clap(version = "0.1.0", author = "GraphDB Contributors")]
@@ -26,24 +26,24 @@ mod server_main {
 
         match cli {
             Cli::Serve { config } => {
-                println!("Starting GraphDB service with config: {}", config);
-                println!("Process ID: {}", std::process::id());
+                output::print_info(&format!("Starting GraphDB service with config: {}", config));
+                output::print_info(&format!("Process ID: {}", std::process::id()));
 
                 // Load configuration
                 let cfg = match Config::load(&config) {
                     Ok(cfg) => cfg,
                     Err(e) => {
-                        eprintln!(
+                        let _ = output::print_error(&format!(
                             "Failed to load configuration file: {}, using default configuration",
                             e
-                        );
+                        ));
                         Config::default()
                     }
                 };
 
                 // Initialize logging system
                 if let Err(e) = logging::init(&cfg) {
-                    eprintln!("Failed to initialize logging system: {}", e);
+                    let _ = output::print_error(&format!("Failed to initialize logging system: {}", e));
                 }
 
                 // Initialize and start service
@@ -54,13 +54,13 @@ mod server_main {
                 result?;
             }
             Cli::Query { query } => {
-                println!("Executing query: {}", query);
-                println!("Process ID: {}", std::process::id());
+                output::print_info(&format!("Executing query: {}", query));
+                output::print_info(&format!("Process ID: {}", std::process::id()));
 
                 // Use default configuration to initialize logging
                 let cfg = Config::default();
                 if let Err(e) = logging::init(&cfg) {
-                    eprintln!("Failed to initialize logging system: {}", e);
+                    let _ = output::print_error(&format!("Failed to initialize logging system: {}", e));
                 }
 
                 // Execute query directly using tokio runtime
@@ -87,8 +87,8 @@ fn main() -> DBResult<()> {
 
 #[cfg(not(feature = "server"))]
 fn main() {
-    eprintln!("Error: server feature is not enabled, cannot run server program");
-    eprintln!("Please recompile using the following command:");
-    eprintln!("  cargo run --features server");
+    output::print_error("Error: server feature is not enabled, cannot run server program");
+    output::print_error("Please recompile using the following command:");
+    output::print_error("  cargo run --features server");
     std::process::exit(1);
 }

@@ -309,6 +309,152 @@ fn truncate_or_pad(s: &str, width: usize) -> String {
     }
 }
 
+/// Format plan description using output module's table formatter
+pub fn format_plan_with_output_table(plan_desc: &PlanDescription) -> crate::utils::output::Result<String> {
+    use crate::utils::output::TableFormatter;
+
+    let mut formatter = TableFormatter::new();
+
+    // Set headers
+    formatter.set_headers(&[
+        "id", "name", "deps", "profiling_data", "operator_info", "output_var",
+    ]);
+
+    // Add rows
+    for node in &plan_desc.plan_node_descs {
+        let id = node.id.to_string();
+
+        let deps = node
+            .dependencies
+            .as_ref()
+            .map(|d| {
+                if d.is_empty() {
+                    "-".to_string()
+                } else {
+                    d.iter()
+                        .map(|id| id.to_string())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                }
+            })
+            .unwrap_or_else(|| "-".to_string());
+
+        let profile = if let Some(ref profiles) = node.profiles {
+            profiles
+                .iter()
+                .map(|p| format!("rows:{},time:{}us", p.rows, p.exec_duration_in_us))
+                .collect::<Vec<_>>()
+                .join(";")
+        } else {
+            "-".to_string()
+        };
+
+        let info = node
+            .description
+            .as_ref()
+            .map(|descs| {
+                descs
+                    .iter()
+                    .map(|p| format!("{}:{}", p.key, p.value))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            })
+            .unwrap_or_else(|| "-".to_string());
+
+        let output_var_str = if node.output_var.is_empty() {
+            "-".to_string()
+        } else {
+            node.output_var.clone()
+        };
+
+        formatter.add_row(&[
+            &id,
+            &node.name,
+            &deps,
+            &profile,
+            &info,
+            &output_var_str,
+        ]);
+    }
+
+    formatter.render_to_string()
+}
+
+/// Format plan description as JSON using output module
+pub fn format_plan_as_json(plan_desc: &PlanDescription, pretty: bool) -> crate::utils::output::Result<String> {
+    use serde::Serialize;
+
+    #[derive(Serialize)]
+    struct SerializablePlanDescription {
+        format: String,
+        plan_node_descs: Vec<SerializablePlanNodeDescription>,
+    }
+
+    #[derive(Serialize)]
+    struct SerializablePlanNodeDescription {
+        id: i64,
+        name: String,
+        dependencies: Option<Vec<i64>>,
+        profiles: Option<Vec<SerializableProfilingStats>>,
+        description: Option<Vec<SerializableKeyValue>>,
+        output_var: String,
+    }
+
+    #[derive(Serialize)]
+    struct SerializableProfilingStats {
+        rows: i64,
+        exec_duration_in_us: i64,
+        total_duration_in_us: i64,
+    }
+
+    #[derive(Serialize)]
+    struct SerializableKeyValue {
+        key: String,
+        value: String,
+    }
+
+    let serializable_nodes: Vec<SerializablePlanNodeDescription> = plan_desc
+        .plan_node_descs
+        .iter()
+        .map(|node| SerializablePlanNodeDescription {
+            id: node.id,
+            name: node.name.clone(),
+            dependencies: node.dependencies.clone(),
+            profiles: node.profiles.as_ref().map(|profiles| {
+                profiles
+                    .iter()
+                    .map(|p| SerializableProfilingStats {
+                        rows: p.rows,
+                        exec_duration_in_us: p.exec_duration_in_us,
+                        total_duration_in_us: p.total_duration_in_us,
+                    })
+                    .collect()
+            }),
+            description: node.description.as_ref().map(|descs| {
+                descs
+                    .iter()
+                    .map(|p| SerializableKeyValue {
+                        key: p.key.clone(),
+                        value: p.value.clone(),
+                    })
+                    .collect()
+            }),
+            output_var: node.output_var.clone(),
+        })
+        .collect();
+
+    let serializable_plan = SerializablePlanDescription {
+        format: plan_desc.format.clone(),
+        plan_node_descs: serializable_nodes,
+    };
+
+    if pretty {
+        crate::utils::output::to_json_string(&serializable_plan)
+    } else {
+        crate::utils::output::to_json_string_compact(&serializable_plan)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
