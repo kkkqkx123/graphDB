@@ -283,9 +283,9 @@ impl<S: StorageClient> ProjectExecutor<S> {
     /// Large amount of data: Parallel processing using Rayon technology
     fn project_dataset(
         &self,
-        dataset: crate::core::value::DataSet,
-    ) -> DBResult<crate::core::value::DataSet> {
-        let mut result_dataset = crate::core::value::DataSet::new();
+        dataset: crate::query::DataSet,
+    ) -> DBResult<crate::query::DataSet> {
+        let mut result_dataset = crate::query::DataSet::new();
 
         // Set new column names
         result_dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
@@ -392,8 +392,8 @@ impl<S: StorageClient> ProjectExecutor<S> {
     fn project_vertices(
         &self,
         vertices: Vec<crate::core::Vertex>,
-    ) -> DBResult<crate::core::value::DataSet> {
-        let mut result_dataset = crate::core::value::DataSet::new();
+    ) -> DBResult<crate::query::DataSet> {
+        let mut result_dataset = crate::query::DataSet::new();
 
         result_dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
 
@@ -471,8 +471,8 @@ impl<S: StorageClient> ProjectExecutor<S> {
     fn project_edges(
         &self,
         edges: Vec<crate::core::Edge>,
-    ) -> DBResult<crate::core::value::DataSet> {
-        let mut result_dataset = crate::core::value::DataSet::new();
+    ) -> DBResult<crate::query::DataSet> {
+        let mut result_dataset = crate::query::DataSet::new();
 
         result_dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
 
@@ -552,7 +552,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute()?
         } else {
-            ExecutionResult::DataSet(crate::core::value::DataSet::new())
+            ExecutionResult::DataSet(crate::query::DataSet::new())
         };
 
         if self.columns.is_empty() {
@@ -582,7 +582,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
                     }
                 }
 
-                let mut dataset = crate::core::value::DataSet::new();
+                let mut dataset = crate::query::DataSet::new();
                 dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
 
                 for value in values {
@@ -591,7 +591,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
                 ExecutionResult::DataSet(dataset)
             }
             ExecutionResult::Paths(paths) => {
-                let mut dataset = crate::core::value::DataSet::new();
+                let mut dataset = crate::query::DataSet::new();
                 dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
 
                 for path in paths {
@@ -624,7 +624,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
                 ExecutionResult::DataSet(dataset)
             }
             ExecutionResult::Count(count) => {
-                let mut dataset = crate::core::value::DataSet::new();
+                let mut dataset = crate::query::DataSet::new();
                 dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
                 dataset.rows.push(vec![Value::Int(count as i64)]);
                 ExecutionResult::DataSet(dataset)
@@ -704,7 +704,7 @@ mod tests {
         let executor = ProjectExecutor::new(1, storage, columns, expr_context);
 
         // Create a test dataset
-        let mut input_dataset = crate::core::value::DataSet::new();
+        let mut input_dataset = crate::query::DataSet::new();
         input_dataset.col_names = vec!["col1".to_string(), "col2".to_string()];
         input_dataset.rows = vec![
             vec![Value::Int(1), Value::String("Alice".to_string())],
@@ -744,7 +744,7 @@ mod tests {
         let executor = ProjectExecutor::new(1, storage, columns, expr_context);
 
         // Create a test dataset
-        let mut input_dataset = crate::core::value::DataSet::new();
+        let mut input_dataset = crate::query::DataSet::new();
         input_dataset.col_names = vec!["col1".to_string(), "col2".to_string()];
         input_dataset.rows = vec![
             vec![Value::Int(1), Value::Int(10)],

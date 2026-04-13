@@ -202,7 +202,7 @@ impl<S: StorageClient> Executor<S> for MatchFulltextExecutor<S> {
             score_b.partial_cmp(&score_a).unwrap_or(Ordering::Equal)
         });
 
-        let mut dataset = crate::core::DataSet::new();
+        let mut dataset = crate::query::DataSet::new();
         if let Some(first_row) = rows.first() {
             for key in first_row.keys() {
                 dataset.col_names.push(key.clone());

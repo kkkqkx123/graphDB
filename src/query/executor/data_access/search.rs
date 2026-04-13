@@ -6,7 +6,8 @@ use std::sync::Arc;
 
 use super::super::base::{BaseExecutor, ExecutorConfig, IndexScanConfig};
 use crate::core::error::DBError;
-use crate::core::{DataSet, NullType, Value};
+use crate::query::DataSet;
+use crate::core::{NullType, Value};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::storage::StorageClient;

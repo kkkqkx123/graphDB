@@ -467,7 +467,7 @@ impl<S: StorageClient> Executor<S> for FulltextSearchExecutor<S> {
             rows = rows.into_iter().take(limit).collect();
         }
 
-        let mut dataset = crate::core::DataSet::new();
+        let mut dataset = crate::query::DataSet::new();
         if let Some(first_row) = rows.first() {
             for key in first_row.keys() {
                 dataset.col_names.push(key.clone());
@@ -606,7 +606,7 @@ impl<S: StorageClient> Executor<S> for FulltextScanExecutor<S> {
             rows = rows.into_iter().take(limit).collect();
         }
 
-        let mut dataset = crate::core::DataSet::new();
+        let mut dataset = crate::query::DataSet::new();
         if let Some(first_row) = rows.first() {
             for key in first_row.keys() {
                 dataset.col_names.push(key.clone());

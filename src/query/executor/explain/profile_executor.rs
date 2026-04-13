@@ -7,7 +7,8 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::core::error::DBResult as ExecutorDBResult;
-use crate::core::{DataSet, Value};
+use crate::query::DataSet;
+use crate::core::Value;
 use crate::query::core::NodeType;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, ExecutorStats};
 use crate::query::executor::factory::ExecutorFactory;

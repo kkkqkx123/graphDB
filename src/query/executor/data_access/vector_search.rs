@@ -8,7 +8,8 @@ use std::sync::Arc;
 use crate::core::error::DBError;
 use crate::core::value::list::List;
 use crate::core::value::null::NullType;
-use crate::core::{DataSet, Value};
+use crate::query::DataSet;
+use crate::core::Value;
 use crate::query::executor::base::{
     BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, HasStorage,
 };

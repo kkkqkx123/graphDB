@@ -259,7 +259,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
         self
     }
 
-    fn process_input(&mut self) -> DBResult<crate::core::value::DataSet> {
+    fn process_input(&mut self) -> DBResult<crate::query::DataSet> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute()?
         } else if let Some(input) = &self.base.input {
@@ -291,8 +291,8 @@ impl<S: StorageClient> AggregateExecutor<S> {
     fn vertices_to_dataset(
         &self,
         vertices: Vec<crate::core::Vertex>,
-    ) -> crate::core::value::DataSet {
-        let mut dataset = crate::core::value::DataSet::new();
+    ) -> crate::query::DataSet {
+        let mut dataset = crate::query::DataSet::new();
         // Use the first group key as the column name, or default to "vertex"
         let col_name = self
             .group_keys
@@ -314,8 +314,8 @@ impl<S: StorageClient> AggregateExecutor<S> {
 
     fn aggregate_dataset(
         &mut self,
-        dataset: crate::core::value::DataSet,
-    ) -> DBResult<crate::core::value::DataSet> {
+        dataset: crate::query::DataSet,
+    ) -> DBResult<crate::query::DataSet> {
         let total_size = dataset.rows.len();
 
         // 处理 COUNT(*) 的特殊情况（无分组键且只有一个 COUNT(*)）
@@ -339,9 +339,9 @@ impl<S: StorageClient> AggregateExecutor<S> {
     /// 处理 COUNT(*) 特殊情况
     fn handle_count_star(
         &self,
-        dataset: crate::core::value::DataSet,
-    ) -> DBResult<crate::core::value::DataSet> {
-        let mut result_dataset = crate::core::value::DataSet::new();
+        dataset: crate::query::DataSet,
+    ) -> DBResult<crate::query::DataSet> {
+        let mut result_dataset = crate::query::DataSet::new();
         result_dataset.col_names.push("count".to_string());
         result_dataset
             .rows
@@ -351,8 +351,8 @@ impl<S: StorageClient> AggregateExecutor<S> {
 
     fn aggregate_dataset_serial(
         &mut self,
-        dataset: crate::core::value::DataSet,
-    ) -> DBResult<crate::core::value::DataSet> {
+        dataset: crate::query::DataSet,
+    ) -> DBResult<crate::query::DataSet> {
         let agg_func_count = self.aggregate_functions.len();
         let mut group_state = GroupAggregateState::new(agg_func_count);
 
@@ -495,8 +495,8 @@ impl<S: StorageClient> AggregateExecutor<S> {
     /// Parallel aggregation
     fn aggregate_dataset_parallel(
         &mut self,
-        dataset: crate::core::value::DataSet,
-    ) -> DBResult<crate::core::value::DataSet> {
+        dataset: crate::query::DataSet,
+    ) -> DBResult<crate::query::DataSet> {
         let batch_size = self
             .parallel_config
             .calculate_batch_size(dataset.rows.len());
@@ -597,8 +597,8 @@ impl<S: StorageClient> AggregateExecutor<S> {
     fn build_result_dataset(
         &self,
         group_state: GroupAggregateState,
-    ) -> DBResult<crate::core::value::DataSet> {
-        let mut result_dataset = crate::core::value::DataSet::new();
+    ) -> DBResult<crate::query::DataSet> {
+        let mut result_dataset = crate::query::DataSet::new();
 
         // Set column names
         for _ in &self.group_keys {
@@ -803,7 +803,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AggregateExecutor
             self.base
                 .input
                 .clone()
-                .unwrap_or(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
+                .unwrap_or(ExecutionResult::DataSet(crate::query::DataSet::new()))
         };
 
         self.process(input_result)
@@ -959,7 +959,7 @@ impl<S: StorageClient> HavingExecutor<S> {
         }
     }
 
-    fn process_input(&mut self) -> DBResult<crate::core::value::DataSet> {
+    fn process_input(&mut self) -> DBResult<crate::query::DataSet> {
         if let Some(ref mut input_exec) = self.input_executor {
             let input_result = input_exec.execute()?;
 
@@ -996,7 +996,7 @@ impl<S: StorageClient> HavingExecutor<S> {
         }
     }
 
-    fn apply_having_condition(&self, dataset: &mut crate::core::value::DataSet) -> DBResult<()> {
+    fn apply_having_condition(&self, dataset: &mut crate::query::DataSet) -> DBResult<()> {
         let mut filtered_rows = Vec::new();
 
         for row in &dataset.rows {
@@ -1075,7 +1075,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for HavingExecutor<S>
             self.base
                 .input
                 .clone()
-                .unwrap_or(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
+                .unwrap_or(ExecutionResult::DataSet(crate::query::DataSet::new()))
         };
 
         self.process(input_result)

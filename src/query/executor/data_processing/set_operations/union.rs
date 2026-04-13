@@ -5,7 +5,8 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::core::{DataSet, Value};
+use crate::query::DataSet;
+use crate::core::Value;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryError;
@@ -127,7 +128,8 @@ impl<S: StorageClient + Send + 'static> Executor<S> for UnionExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{DataSet, Value};
+    use crate::query::DataSet;
+use crate::core::Value;
     use ExpressionAnalysisContext;
 
     // Create a storage engine for testing purposes.

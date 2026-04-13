@@ -6,7 +6,8 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::core::{DataSet, Expression, Value};
+use crate::query::DataSet;
+use crate::core::{Expression, Value};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, JoinConfig, JoinConfigWithDesc};
 use crate::query::executor::data_processing::join::hash_table::JoinKey;
 use crate::query::executor::data_processing::join::join_key_evaluator::JoinKeyEvaluator;

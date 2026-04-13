@@ -9,7 +9,8 @@ use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
-use crate::core::{DataSet, List, Value};
+use crate::query::DataSet;
+use crate::core::{List, Value};
 use crate::query::executor::base::{
     BaseExecutor, ExecutionResult, Executor, ExecutorConfig, PatternApplyConfig,
 };

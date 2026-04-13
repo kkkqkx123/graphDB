@@ -9,7 +9,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::value::DataSet;
+use crate::query::DataSet;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 use crate::query::executor::base::{ExecutionResult, Executor};
@@ -439,7 +439,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for SampleExecutor<S>
             self.base
                 .input
                 .clone()
-                .unwrap_or(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
+                .unwrap_or(ExecutionResult::DataSet(crate::query::DataSet::new()))
         };
 
         self.process(input_result)

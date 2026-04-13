@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::value::DataSet;
+use crate::query::DataSet;
 use crate::query::executor::base::ExecutionResult;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -212,7 +212,7 @@ impl<S: StorageClient> BaseResultProcessor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::value::DataSet;
+    use crate::query::DataSet;
 
     #[test]
     fn test_result_processor_context_default() {

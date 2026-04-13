@@ -151,8 +151,8 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
 
                 let metadata = ExecutionMetadata {
                     execution_time_ms: 0,
-                    rows_scanned: data.rows.len() as u64,
-                    rows_returned: data.rows.len() as u64,
+                    rows_scanned: data.row_count() as u64,
+                    rows_returned: data.row_count() as u64,
                     cache_hit: false,
                 };
 
@@ -162,121 +162,25 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
                     metadata,
                 })
             }
-            crate::query::executor::base::ExecutionResult::Values(values) => {
-                // Processing value list results
-                let column = "value".to_string();
-                let rows: Vec<Row> = values
-                    .into_iter()
-                    .map(|v| {
-                        let mut row = Row::new();
-                        row.insert(column.clone(), v);
-                        row
-                    })
-                    .collect();
-
+            crate::query::executor::base::ExecutionResult::Success => {
+                // Successful execution with no data
                 Ok(QueryResult {
-                    columns: vec![column],
-                    rows,
+                    columns: vec![],
+                    rows: vec![],
                     metadata: ExecutionMetadata::default(),
                 })
             }
-            crate::query::executor::base::ExecutionResult::Vertices(vertices) => {
-                // Processing vertex results: The Value::Vertex type requires a Box(Vertex> object.
-                let rows: Vec<Row> = vertices
-                    .into_iter()
-                    .map(|v| {
-                        let mut row = Row::new();
-                        row.insert(
-                            "vertex".to_string(),
-                            crate::core::Value::Vertex(Box::new(v)),
-                        );
-                        row
-                    })
-                    .collect();
-
-                Ok(QueryResult {
-                    columns: vec!["vertex".to_string()],
-                    rows,
-                    metadata: ExecutionMetadata::default(),
-                })
-            }
-            crate::query::executor::base::ExecutionResult::Edges(edges) => {
-                // Processing Edge Results - Value::Edge does not require a Box.
-                let rows: Vec<Row> = edges
-                    .into_iter()
-                    .map(|e| {
-                        let mut row = Row::new();
-                        row.insert("edge".to_string(), crate::core::Value::Edge(e));
-                        row
-                    })
-                    .collect();
-
-                Ok(QueryResult {
-                    columns: vec!["edge".to_string()],
-                    rows,
-                    metadata: ExecutionMetadata::default(),
-                })
-            }
-            crate::query::executor::base::ExecutionResult::Result(core_result) => {
-                // Handle CoreResult - use col_names() method and rows() method
-                let columns: Vec<String> = core_result.col_names().to_vec();
-                let mut rows = Vec::new();
-
-                for row_data in core_result.rows().iter() {
-                    let mut row = Row::with_capacity(columns.len());
-                    for (i, col) in columns.iter().enumerate() {
-                        if let Some(value) = row_data.get(i) {
-                            row.insert(col.clone(), value.clone());
-                        }
-                    }
-                    rows.push(row);
-                }
-
-                Ok(QueryResult {
-                    columns,
-                    rows,
-                    metadata: ExecutionMetadata::default(),
-                })
-            }
-            crate::query::executor::base::ExecutionResult::Empty
-            | crate::query::executor::base::ExecutionResult::Success => {
+            crate::query::executor::base::ExecutionResult::Empty => {
                 // Empty result
                 Ok(QueryResult {
-                    columns: Vec::new(),
-                    rows: Vec::new(),
+                    columns: vec![],
+                    rows: vec![],
                     metadata: ExecutionMetadata::default(),
                 })
             }
-            crate::query::executor::base::ExecutionResult::Count(count) => {
-                // Counting results
-                let mut row = Row::new();
-                row.insert("count".to_string(), crate::core::Value::Int(count as i64));
-
-                Ok(QueryResult {
-                    columns: vec!["count".to_string()],
-                    rows: vec![row],
-                    metadata: ExecutionMetadata::default(),
-                })
-            }
-            crate::query::executor::base::ExecutionResult::Paths(paths) => {
-                // Path result – The Value::Path type does not require the use of a Box.
-                let rows: Vec<Row> = paths
-                    .into_iter()
-                    .map(|p| {
-                        let mut row = Row::new();
-                        row.insert("path".to_string(), crate::core::Value::Path(p));
-                        row
-                    })
-                    .collect();
-
-                Ok(QueryResult {
-                    columns: vec!["path".to_string()],
-                    rows,
-                    metadata: ExecutionMetadata::default(),
-                })
-            }
-            crate::query::executor::base::ExecutionResult::Error(e) => {
-                Err(CoreError::QueryExecutionFailed(e))
+            crate::query::executor::base::ExecutionResult::Error(msg) => {
+                // Error case - should be handled before this function
+                Err(CoreError::Internal(msg))
             }
         }
     }

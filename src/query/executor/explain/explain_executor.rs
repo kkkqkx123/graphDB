@@ -175,12 +175,11 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExplainExecutor<S> {
             ExplainMode::PlanOnly => {
                 let plan_desc = self.generate_plan_description()?;
                 let output = self.format_output(&plan_desc)?;
-                Ok(ExecutionResult::from_result(
-                    crate::core::query_result::Result::from_rows(
-                        vec![vec![crate::core::value::Value::String(output)]],
-                        vec!["plan".to_string()],
-                    ),
-                ))
+                let dataset = crate::query::DataSet::from_rows(
+                    vec![vec![crate::core::value::Value::String(output)]],
+                    vec!["plan".to_string()],
+                );
+                Ok(ExecutionResult::from_data_set(dataset))
             }
 
             ExplainMode::Analyze => {
@@ -202,12 +201,11 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExplainExecutor<S> {
                     output, planning_time, execution_time_ms, total_time
                 );
 
-                Ok(ExecutionResult::from_result(
-                    crate::core::query_result::Result::from_rows(
-                        vec![vec![crate::core::value::Value::String(full_output)]],
-                        vec!["plan".to_string()],
-                    ),
-                ))
+                let dataset = crate::query::DataSet::from_rows(
+                    vec![vec![crate::core::value::Value::String(full_output)]],
+                    vec!["plan".to_string()],
+                );
+                Ok(ExecutionResult::from_data_set(dataset))
             }
         }
     }

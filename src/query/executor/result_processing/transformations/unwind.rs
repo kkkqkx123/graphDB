@@ -6,7 +6,8 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::{DataSet, Expression, Value};
+use crate::query::DataSet;
+use crate::core::{Expression, Value};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;

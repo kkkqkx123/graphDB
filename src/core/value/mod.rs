@@ -10,14 +10,12 @@
 //! - `value_arithmetic` - 算术/逻辑/位运算
 //! - `value_convert` - 类型转换
 //! - `list` - 列表类型
-//! - `dataset` - 数据集类型
 //! - `date_time` - 日期时间类型
 //! - `decimal128` - Decimal128 高精度数值
 //! - `geography` - 地理空间类型
 //! - `memory` - 内存估算
 
 #[allow(non_snake_case)]
-pub mod dataset;
 pub mod date_time;
 pub mod decimal128;
 pub mod geography;
@@ -31,7 +29,6 @@ pub mod value_def;
 pub mod vector;
 
 // Re-export all public types
-pub use dataset::DataSet;
 pub use date_time::{DateTimeValue, DateValue, DurationValue, TimeValue};
 pub use decimal128::Decimal128Value;
 pub use geography::GeographyValue;

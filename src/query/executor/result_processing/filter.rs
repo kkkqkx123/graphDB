@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::types::ContextualExpression;
-use crate::core::value::DataSet;
+use crate::query::DataSet;
 use crate::core::value::NullType;
 use crate::core::Expression;
 use crate::core::Value;
@@ -514,7 +514,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for FilterExecutor<S>
             self.base
                 .input
                 .clone()
-                .unwrap_or(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
+                .unwrap_or(ExecutionResult::DataSet(crate::query::DataSet::new()))
         };
 
         let result = self.process(input_result);

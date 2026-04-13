@@ -238,7 +238,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
 
         // Build a DataSet with separate columns for src, edge, and dst
         // Use the configured column names, which may include custom dst column names
-        let mut dataset = crate::core::DataSet::new();
+        let mut dataset = crate::query::DataSet::new();
         dataset.col_names = self.col_names.clone();
 
         let target_depth = self.max_depth.unwrap_or(1);

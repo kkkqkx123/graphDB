@@ -1,6 +1,7 @@
 //! DataSet Type Module
 //!
 //! This module defines the DataSet type and its associated operations.
+//! DataSet is the core data structure for query result representation and data passing.
 
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
@@ -8,10 +9,13 @@ use std::collections::HashMap;
 use std::hash::Hash;
 
 /// Simple dataset representation
+///
+/// DataSet is the primary carrier of structured data in query execution,
+/// used for passing data between executors and returning results to API layer.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
 pub struct DataSet {
     pub col_names: Vec<String>,
-    pub rows: Vec<Vec<super::Value>>,
+    pub rows: Vec<Vec<crate::core::Value>>,
 }
 
 impl Default for DataSet {
@@ -36,8 +40,13 @@ impl DataSet {
         }
     }
 
+    /// Create a DataSet from rows and column names
+    pub fn from_rows(rows: Vec<Vec<crate::core::Value>>, col_names: Vec<String>) -> Self {
+        Self { col_names, rows }
+    }
+
     /// Add a row
-    pub fn add_row(&mut self, row: Vec<super::Value>) {
+    pub fn add_row(&mut self, row: Vec<crate::core::Value>) {
         self.rows.push(row);
     }
 
@@ -62,7 +71,7 @@ impl DataSet {
     }
 
     /// Get all values of specified column
-    pub fn get_column(&self, col_name: &str) -> Option<Vec<super::Value>> {
+    pub fn get_column(&self, col_name: &str) -> Option<Vec<crate::core::Value>> {
         self.get_col_index(col_name).map(|index| {
             self.rows
                 .iter()
@@ -74,7 +83,7 @@ impl DataSet {
     /// Filter dataset
     pub fn filter<F>(&self, predicate: F) -> DataSet
     where
-        F: Fn(&Vec<super::Value>) -> bool,
+        F: Fn(&Vec<crate::core::Value>) -> bool,
     {
         DataSet {
             col_names: self.col_names.clone(),
@@ -90,7 +99,7 @@ impl DataSet {
     /// Map dataset
     pub fn map<F>(&self, mapper: F) -> DataSet
     where
-        F: Fn(&Vec<super::Value>) -> Vec<super::Value>,
+        F: Fn(&Vec<crate::core::Value>) -> Vec<crate::core::Value>,
     {
         DataSet {
             col_names: self.col_names.clone(),
@@ -101,7 +110,7 @@ impl DataSet {
     /// Sort dataset
     pub fn sort_by<F>(&mut self, comparator: F)
     where
-        F: Fn(&Vec<super::Value>, &Vec<super::Value>) -> std::cmp::Ordering,
+        F: Fn(&Vec<crate::core::Value>, &Vec<crate::core::Value>) -> std::cmp::Ordering,
     {
         self.rows.sort_by(comparator);
     }
@@ -148,10 +157,10 @@ impl DataSet {
     /// Group dataset
     pub fn group_by<F, K>(&self, key_fn: F) -> Vec<(K, DataSet)>
     where
-        F: Fn(&Vec<super::Value>) -> K,
+        F: Fn(&Vec<crate::core::Value>) -> K,
         K: std::hash::Hash + Eq + Clone,
     {
-        let mut groups: HashMap<K, Vec<Vec<super::Value>>> = HashMap::new();
+        let mut groups: HashMap<K, Vec<Vec<crate::core::Value>>> = HashMap::new();
 
         for row in &self.rows {
             let key = key_fn(row);
@@ -173,7 +182,7 @@ impl DataSet {
     /// Aggregate dataset
     pub fn aggregate<F, R>(&self, aggregator: F) -> Vec<R>
     where
-        F: Fn(&Vec<super::Value>) -> R,
+        F: Fn(&Vec<crate::core::Value>) -> R,
     {
         self.rows.iter().map(aggregator).collect()
     }
@@ -209,7 +218,7 @@ impl DataSet {
     /// Calculate intersection
     pub fn intersect(&self, other: &DataSet) -> DataSet {
         use std::collections::HashSet;
-        let other_set: HashSet<&Vec<super::Value>> = other.rows.iter().collect();
+        let other_set: HashSet<&Vec<crate::core::Value>> = other.rows.iter().collect();
         DataSet {
             col_names: self.col_names.clone(),
             rows: self
@@ -224,7 +233,7 @@ impl DataSet {
     /// Calculate difference
     pub fn except(&self, other: &DataSet) -> DataSet {
         use std::collections::HashSet;
-        let other_set: HashSet<&Vec<super::Value>> = other.rows.iter().collect();
+        let other_set: HashSet<&Vec<crate::core::Value>> = other.rows.iter().collect();
         DataSet {
             col_names: self.col_names.clone(),
             rows: self
@@ -262,7 +271,7 @@ impl DataSet {
     }
 
     /// Get unique values
-    pub fn distinct(&self, col_name: &str) -> Vec<super::Value> {
+    pub fn distinct(&self, col_name: &str) -> Vec<crate::core::Value> {
         use std::collections::HashSet;
         if let Some(index) = self.get_col_index(col_name) {
             let mut unique = HashSet::new();
@@ -288,14 +297,84 @@ impl DataSet {
         }
 
         // rows capacity
-        size += self.rows.capacity() * std::mem::size_of::<Vec<super::Value>>();
+        size += self.rows.capacity() * std::mem::size_of::<Vec<crate::core::Value>>();
         for row in &self.rows {
-            size += row.capacity() * std::mem::size_of::<super::Value>();
+            size += row.capacity() * std::mem::size_of::<crate::core::Value>();
             for value in row {
                 size += value.estimated_size();
             }
         }
 
         size
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::Value;
+
+    #[test]
+    fn test_dataset_creation() {
+        let dataset = DataSet::new();
+        assert!(dataset.is_empty());
+        assert_eq!(dataset.row_count(), 0);
+        assert_eq!(dataset.col_count(), 0);
+    }
+
+    #[test]
+    fn test_dataset_with_columns() {
+        let dataset = DataSet::with_columns(vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(dataset.col_count(), 2);
+        assert!(dataset.is_empty());
+    }
+
+    #[test]
+    fn test_dataset_add_row() {
+        let mut dataset = DataSet::with_columns(vec!["id".to_string(), "name".to_string()]);
+        dataset.add_row(vec![Value::Int(1), Value::String("Alice".to_string())]);
+        dataset.add_row(vec![Value::Int(2), Value::String("Bob".to_string())]);
+
+        assert_eq!(dataset.row_count(), 2);
+        assert_eq!(dataset.col_count(), 2);
+        assert!(!dataset.is_empty());
+    }
+
+    #[test]
+    fn test_dataset_filter() {
+        let mut dataset = DataSet::with_columns(vec!["id".to_string()]);
+        dataset.add_row(vec![Value::Int(1)]);
+        dataset.add_row(vec![Value::Int(2)]);
+        dataset.add_row(vec![Value::Int(3)]);
+
+        let filtered = dataset.filter(|row| {
+            if let Value::Int(n) = &row[0] {
+                *n > 1
+            } else {
+                false
+            }
+        });
+
+        assert_eq!(filtered.row_count(), 2);
+    }
+
+    #[test]
+    fn test_dataset_limit() {
+        let mut dataset = DataSet::with_columns(vec!["id".to_string()]);
+        dataset.add_row(vec![Value::Int(1)]);
+        dataset.add_row(vec![Value::Int(2)]);
+        dataset.add_row(vec![Value::Int(3)]);
+
+        let limited = dataset.limit(2);
+        assert_eq!(limited.row_count(), 2);
+    }
+
+    #[test]
+    fn test_dataset_estimated_size() {
+        let mut dataset = DataSet::with_columns(vec!["id".to_string()]);
+        dataset.add_row(vec![Value::Int(1)]);
+        
+        let size = dataset.estimated_size();
+        assert!(size > 0);
     }
 }

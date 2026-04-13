@@ -10,6 +10,7 @@
 pub mod cache;
 pub mod context;
 pub mod core;
+pub mod data_set;
 pub mod executor;
 pub mod metadata;
 pub mod optimizer;
@@ -21,6 +22,9 @@ pub mod query_manager;
 pub mod query_pipeline_manager;
 pub mod query_request_context;
 pub mod validator;
+
+// Re-export DataSet for convenience
+pub use data_set::DataSet;
 // Re-export error types from core module
 pub use crate::core::{DBResult, QueryError};
 // Re-export execution result from executor module

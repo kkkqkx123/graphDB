@@ -4,7 +4,8 @@ use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::types::ContextualExpression;
-use crate::core::{DataSet, Expression, Value};
+use crate::query::DataSet;
+use crate::core::{Expression, Value};
 use crate::query::executor::base::{ExecutionResult, Executor, JoinConfigWithDesc};
 use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor,

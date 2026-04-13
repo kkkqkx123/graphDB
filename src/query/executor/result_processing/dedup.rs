@@ -169,7 +169,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
     /// Large amount of data: Rayon is used to perform parallel partitioning and deduplication.
     fn dedup_dataset(
         &mut self,
-        dataset: &mut crate::core::value::DataSet,
+        dataset: &mut crate::query::DataSet,
     ) -> Result<(), crate::query::QueryError> {
         let total_size = dataset.rows.len();
 
@@ -183,7 +183,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
     /// Duplication removal with sequential execution
     fn dedup_dataset_sequential(
         &mut self,
-        dataset: &mut crate::core::value::DataSet,
+        dataset: &mut crate::query::DataSet,
     ) -> Result<(), crate::query::QueryError> {
         match self.strategy.clone() {
             DedupStrategy::Full => {
@@ -238,7 +238,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
     /// 4. Combine the results from each district
     fn dedup_dataset_parallel(
         &mut self,
-        dataset: &mut crate::core::value::DataSet,
+        dataset: &mut crate::query::DataSet,
     ) -> Result<(), crate::query::QueryError> {
         let rows = std::mem::take(&mut dataset.rows);
         let strategy = self.strategy.clone();
@@ -288,7 +288,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
 
     fn dedup_dataset_with_strategy_sequential(
         &mut self,
-        dataset: &mut crate::core::value::DataSet,
+        dataset: &mut crate::query::DataSet,
     ) -> Result<(), crate::query::QueryError> {
         match self.strategy.clone() {
             DedupStrategy::Full => {
@@ -354,7 +354,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
 
     fn hash_based_dedup_dataset<F>(
         &mut self,
-        dataset: &mut crate::core::value::DataSet,
+        dataset: &mut crate::query::DataSet,
         key_extractor: F,
     ) -> Result<(), crate::query::QueryError>
     where

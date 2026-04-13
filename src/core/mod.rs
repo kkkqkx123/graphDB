@@ -1,6 +1,5 @@
 pub mod error;
 pub mod npath;
-pub mod query_result;
 pub mod session_stats;
 pub mod type_system;
 pub mod value;
@@ -22,9 +21,6 @@ pub use error::{
 // External error code
 pub use error::codes::ErrorCategory as CodeErrorCategory;
 pub use error::{ErrorCode, PublicError, ToPublicError};
-
-// “Result System”
-pub use query_result::{DefaultIterator, GetNeighborsIterator, PropIterator};
 
 // Core data types
 pub use npath::{NPath, NPathEdgeIter, NPathIter, NPathVertexIter};

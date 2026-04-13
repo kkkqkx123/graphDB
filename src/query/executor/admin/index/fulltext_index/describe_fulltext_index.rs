@@ -4,7 +4,7 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, QueryError};
-use crate::core::DataSet;
+use crate::query::DataSet;
 use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;

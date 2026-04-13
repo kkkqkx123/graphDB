@@ -7,7 +7,8 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 
 use crate::core::types::EdgeDirection;
-use crate::core::{DataSet, Value};
+use crate::query::DataSet;
+use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::optimizer::stats::{EdgeTypeStatistics, StatisticsManager, TagStatistics};
 use crate::query::validator::context::ExpressionAnalysisContext;
