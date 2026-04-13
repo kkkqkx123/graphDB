@@ -2,37 +2,61 @@
 
 ## Summary
 
-- **Total Errors**: 1
-- **Total Warnings**: 0
-- **Total Issues**: 1
-- **Unique Error Patterns**: 1
-- **Unique Warning Patterns**: 0
-- **Files with Issues**: 1
+- **Total Errors**: 0
+- **Total Warnings**: 14
+- **Total Issues**: 14
+- **Unique Error Patterns**: 0
+- **Unique Warning Patterns**: 11
+- **Files with Issues**: 4
 
 ## Error Statistics
 
-**Total Errors**: 1
-
-### Error Type Breakdown
-
-- **error**: 1 errors
-
-### Files with Errors (Top 10)
-
-- `tests\sync_fault_tolerance.rs`: 1 errors
+**Total Errors**: 0
 
 ## Warning Statistics
 
-**Total Warnings**: 0
+**Total Warnings**: 14
 
-## Detailed Error Categorization
+### Warning Type Breakdown
 
-### error: an async construct yields a type which is itself awaitable: awaitable value not awaited
+- **warning**: 14 warnings
 
-**Total Occurrences**: 1  
-**Unique Files**: 1
+### Files with Warnings (Top 10)
 
-#### `tests\sync_fault_tolerance.rs`: 1 occurrences
+- `tests\integration_fulltext_edge_cases.rs`: 5 warnings
+- `tests\integration_fulltext_concurrent.rs`: 3 warnings
+- `tests\integration_fulltext_basic.rs`: 3 warnings
+- `tests\integration_fulltext_sync.rs`: 3 warnings
 
-- Line 197: an async construct yields a type which is itself awaitable: awaitable value not awaited
+## Detailed Warning Categorization
+
+### warning: redundant closure: help: replace the closure with the tuple variant itself: `graphdb::core::Value::Int`
+
+**Total Occurrences**: 14  
+**Unique Files**: 4
+
+#### `tests\integration_fulltext_edge_cases.rs`: 5 occurrences
+
+- Line 347: function call inside of `expect`: help: try: `unwrap_or_else(|_| panic!("Failed to create index {}", i))`
+- Line 363: function call inside of `expect`: help: try: `unwrap_or_else(|_| panic!("Failed to insert docs for index {}", i))`
+- Line 374: function call inside of `expect`: help: try: `unwrap_or_else(|_| panic!("Search should succeed for index {}", i))`
+- ... 2 more occurrences in this file
+
+#### `tests\integration_fulltext_sync.rs`: 3 occurrences
+
+- Line 329: redundant closure: help: replace the closure with the tuple variant itself: `graphdb::core::Value::Int`
+- Line 333: the loop variable `i` is used to index `vertex_ids`
+- Line 342: the loop variable `i` is used to index `vertex_ids`
+
+#### `tests\integration_fulltext_basic.rs`: 3 occurrences
+
+- Line 231: function call inside of `expect`: help: try: `unwrap_or_else(|_| panic!("Should contain doc_{}", i))`
+- Line 371: function call inside of `expect`: help: try: `unwrap_or_else(|_| panic!("Should contain doc_{}", i))`
+- Line 447: length comparison to zero: help: using `!is_empty` is clearer and more explicit: `!results.is_empty()`
+
+#### `tests\integration_fulltext_concurrent.rs`: 3 occurrences
+
+- Line 75: function call inside of `expect`: help: try: `unwrap_or_else(|_| panic!("Should find all {} documents", num_tasks))`
+- Line 80: function call inside of `expect`: help: try: `unwrap_or_else(|_| panic!("Should contain doc_{}", i))`
+- Line 139: function call inside of `expect`: help: try: `unwrap_or_else(|_| panic!("Should find all {} documents", num_docs))`
 
