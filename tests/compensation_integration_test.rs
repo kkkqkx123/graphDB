@@ -3,7 +3,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use graphdb::sync::compensation::{CompensationManager, CompensationResult};
+use graphdb::sync::compensation::CompensationManager;
 use graphdb::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
 use graphdb::sync::external_index::{IndexData, IndexKey, IndexOperation};
 use graphdb::sync::metrics::SyncMetrics;
@@ -112,7 +112,7 @@ async fn test_compensation_retryable_failure() {
     let manager = CompensationManager::new(dlq.clone(), metrics.clone()).with_max_attempts(3);
 
     // Add an entry with max attempts already reached
-    let mut entry = DeadLetterEntry::new(
+    let entry = DeadLetterEntry::new(
         IndexOperation::Insert {
             key: IndexKey {
                 space_id: 1,
@@ -249,7 +249,7 @@ async fn test_compensation_old_entry() {
     );
 
     // Simulate old entry by modifying first_failure
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::time::SystemTime;
     entry.first_failure = SystemTime::now() - Duration::from_secs(3601); // Older than 1 hour
 
     dlq.add(entry);

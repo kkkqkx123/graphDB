@@ -76,7 +76,7 @@ fn test_failed_sync_to_dead_letter_queue() {
 
     // In normal operation, DLQ should be empty
     // This test verifies the DLQ infrastructure exists
-    let entries = dlq.get_all();
+    let _entries = dlq.get_all();
     // DLQ might be empty if sync succeeded, which is fine
     // The test verifies DLQ is accessible
     assert!(true, "DLQ infrastructure is working");
@@ -172,7 +172,7 @@ fn test_automatic_compensation() {
     let dlq = Arc::new(DeadLetterQueue::new(DeadLetterQueueConfig::default()));
     let metrics = Arc::new(SyncMetrics::new());
 
-    let compensation_manager = Arc::new(CompensationManager::new(dlq.clone(), metrics.clone()));
+    let _compensation_manager = Arc::new(CompensationManager::new(dlq.clone(), metrics.clone()));
 
     // Verify compensation manager is created
     // Note: stats() method may not exist, just verify creation
@@ -199,7 +199,6 @@ fn test_compensation_timeout() {
         compensation_manager
             .clone()
             .start_background_task(Duration::from_millis(100))
-            .await
     });
 
     // Verify compensation task started
@@ -227,7 +226,7 @@ fn test_compensation_statistics() {
     let dlq = Arc::new(DeadLetterQueue::new(DeadLetterQueueConfig::default()));
     let metrics = Arc::new(SyncMetrics::new());
 
-    let compensation_manager = Arc::new(CompensationManager::new(dlq.clone(), metrics.clone()));
+    let _compensation_manager = Arc::new(CompensationManager::new(dlq.clone(), metrics.clone()));
 
     // Get initial stats (stats method may not exist)
     // let stats = compensation_manager.stats().expect("Should get stats");
@@ -342,9 +341,6 @@ fn test_crash_recovery_committed_transaction() {
 /// TC-090: Batch size trigger
 #[test]
 fn test_batch_size_trigger() {
-    use graphdb::sync::batch::BatchConfig;
-    use std::time::Duration;
-
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
     // Setup with small batch size

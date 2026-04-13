@@ -4,7 +4,7 @@ use std::io::Write;
 
 use serde::Serialize;
 
-use super::{OutputError, Result};
+use super::Result;
 
 /// JSON formatter with configurable options
 pub struct JsonFormatter {

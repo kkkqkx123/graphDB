@@ -30,6 +30,7 @@ use crate::query::QueryContext;
 #[derive(Debug, Clone, Default)]
 pub struct FulltextSearchPlanner {
     /// Metadata context for pre-resolved metadata (optional for backward compatibility)
+    #[allow(dead_code)]
     metadata_context: Option<Arc<MetadataContext>>,
 }
 
@@ -530,7 +531,7 @@ mod tests {
     use crate::core::types::span::Span;
     use crate::core::types::FulltextEngineType;
     use crate::query::parser::ast::fulltext::{
-        FulltextMatchCondition, FulltextYieldClause, IndexFieldDef, IndexOptions,
+        IndexFieldDef, IndexOptions,
     };
 
     #[test]

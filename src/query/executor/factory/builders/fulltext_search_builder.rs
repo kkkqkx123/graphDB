@@ -24,7 +24,6 @@ use crate::query::planning::plan::core::nodes::{
     AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
     DropFulltextIndexNode, FulltextLookupNode, MatchFulltextNode, ShowFulltextIndexNode,
 };
-use crate::search::manager::FulltextIndexManager;
 use crate::storage::StorageClient;
 use crate::sync::SyncManager;
 

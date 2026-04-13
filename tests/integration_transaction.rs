@@ -197,7 +197,7 @@ fn test_transaction_property_types() {
                 ("int_val", Value::Int(42)),
                 ("string_val", Value::String("test".into())),
                 ("bool_val", Value::Bool(true)),
-                ("float_val", Value::Float(3.14)),
+                ("float_val", Value::Float(std::f64::consts::PI)),
             ]),
         );
 }
@@ -278,7 +278,7 @@ fn test_transaction_tag_modification() {
 /// Test batch insert performance in transaction
 #[test]
 fn test_transaction_batch_insert() {
-    let mut scenario = TestScenario::new()
+    let scenario = TestScenario::new()
         .expect("Failed to create test scenario")
         .setup_space("test_space2")
         .exec_ddl("CREATE TAG IF NOT EXISTS Person(id INT, name STRING)")

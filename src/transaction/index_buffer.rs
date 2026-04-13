@@ -97,7 +97,6 @@ pub struct BufferStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sync::coordinator::ChangeType;
 
     fn create_test_update(txn_id: TransactionId) -> PendingIndexUpdate {
         PendingIndexUpdate::new(

@@ -11,7 +11,6 @@ use graphdb::storage::RedbStorage;
 use graphdb::sync::batch::BatchConfig;
 use graphdb::sync::coordinator::{ChangeType, SyncCoordinator};
 use graphdb::sync::manager::SyncManager;
-use graphdb::transaction::{TransactionManager, TransactionManagerConfig, TransactionOptions};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -125,7 +124,7 @@ impl SyncTestHarness {
         rt.block_on(async {
             let coordinator = self.sync_manager.sync_coordinator();
             for field in fulltext_fields {
-                coordinator
+                let _ = coordinator
                     .fulltext_manager()
                     .create_index(space_id, tag_name, field, Some(EngineType::Bm25))
                     .await;
@@ -273,7 +272,7 @@ impl SyncTestHarness {
                             tag_name,
                             &vertex_id,
                             &[(field_name.clone(), value.clone())],
-                            graphdb::sync::coordinator::ChangeType::Delete.into(),
+                            graphdb::sync::coordinator::ChangeType::Delete,
                         )?;
                     }
                 }
@@ -289,7 +288,7 @@ impl SyncTestHarness {
                         tag_name,
                         &vertex_id,
                         &[(field_name.clone(), value.clone())],
-                        graphdb::sync::coordinator::ChangeType::Insert.into(),
+                        graphdb::sync::coordinator::ChangeType::Insert,
                     )?;
                 }
             }
@@ -349,12 +348,12 @@ impl SyncTestHarness {
         &self,
         space_name: &str,
         tag_name: &str,
-        field_name: &str,
+        _field_name: &str,
         query_vector: Vec<f32>,
         limit: usize,
     ) -> Result<Vec<vector_client::SearchResult>, Box<dyn std::error::Error>> {
         if let Some(vector_coord) = self.sync_manager.vector_coordinator() {
-            let space_id = self.storage.get_space_id(space_name)?;
+            let _space_id = self.storage.get_space_id(space_name)?;
             let rt = tokio::runtime::Runtime::new()?;
             let results = rt.block_on(async {
                 // Create search query

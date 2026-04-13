@@ -146,9 +146,10 @@ impl FulltextStorage {
         Ok(())
     }
 
-    /// Update vertex document in indexes
+    /// Update vertex full-text index
     ///
     /// This method re-indexes changed fields for a vertex.
+    #[allow(clippy::collapsible_if)]
     pub async fn update_vertex(
         &self,
         space_id: u64,

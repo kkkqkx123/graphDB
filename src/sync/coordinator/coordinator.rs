@@ -564,13 +564,13 @@ impl SyncCoordinator {
         match operation {
             IndexOperation::Insert {
                 key,
-                id,
+                id: _,
                 data,
-                payload,
+                payload: _,
             } => {
                 // Determine if it's a vector or full-text operation based on data type
                 match data {
-                    IndexData::Fulltext(text) => {
+                    IndexData::Fulltext(_text) => {
                         if let Some(processor) = self.get_or_create_fulltext_processor(
                             key.space_id,
                             &key.tag_name,
@@ -586,7 +586,7 @@ impl SyncCoordinator {
                             })?;
                         }
                     }
-                    IndexData::Vector(vector) => {
+                    IndexData::Vector(_vector) => {
                         if let Some(processor) = self.get_or_create_vector_processor(
                             key.space_id,
                             &key.tag_name,
@@ -606,13 +606,13 @@ impl SyncCoordinator {
             }
             IndexOperation::Update {
                 key,
-                id,
+                id: _,
                 data,
-                payload,
+                payload: _,
             } => {
                 // Similar to insert, but for updates
                 match data {
-                    IndexData::Fulltext(text) => {
+                    IndexData::Fulltext(_text) => {
                         if let Some(processor) = self.get_or_create_fulltext_processor(
                             key.space_id,
                             &key.tag_name,
@@ -628,7 +628,7 @@ impl SyncCoordinator {
                             })?;
                         }
                     }
-                    IndexData::Vector(vector) => {
+                    IndexData::Vector(_vector) => {
                         if let Some(processor) = self.get_or_create_vector_processor(
                             key.space_id,
                             &key.tag_name,
@@ -646,7 +646,7 @@ impl SyncCoordinator {
                     }
                 }
             }
-            IndexOperation::Delete { key, id } => {
+            IndexOperation::Delete { key, id: _ } => {
                 // For deletes, we can retry the deletion
                 if let Some(processor) = self.get_or_create_fulltext_processor(
                     key.space_id,
@@ -704,7 +704,7 @@ impl SyncCoordinator {
         if self.dead_letter_queue.is_auto_cleanup_enabled() {
             let dlq = self.dead_letter_queue.clone();
             let interval = self.dead_letter_queue.get_cleanup_interval();
-            let metrics = self.metrics.clone();
+            let _metrics = self.metrics.clone();
 
             tokio::spawn(async move {
                 log::info!(

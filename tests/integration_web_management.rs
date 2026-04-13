@@ -19,7 +19,7 @@ mod common;
 /// Test helper to create a test web state with temporary storage
 /// Returns the web state and a valid session ID for testing
 async fn create_test_web_state() -> (
-    graphdb::api::server::web::WebState<graphdb::storage::redb_storage::RedbStorage>,
+    graphdb::api::server::web::WebState<graphdb::storage::RedbStorage>,
     i64,
 ) {
     use graphdb::api::server::graph_service::GraphService;
@@ -27,7 +27,7 @@ async fn create_test_web_state() -> (
     use graphdb::api::server::http::HttpServer;
     use graphdb::api::server::web::{storage::SqliteStorage, WebState};
     use graphdb::config::Config;
-    use graphdb::storage::redb_storage::RedbStorage;
+    use graphdb::storage::RedbStorage;
     use graphdb::transaction::{TransactionManager, TransactionManagerConfig};
     use parking_lot::Mutex;
     use tempfile::tempdir;

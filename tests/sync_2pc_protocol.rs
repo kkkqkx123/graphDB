@@ -7,8 +7,6 @@ mod common;
 use common::sync_helpers::{create_test_vertex, SyncTestHarness};
 use graphdb::core::types::DataType;
 use graphdb::core::Value;
-use graphdb::sync::manager::SyncManager;
-use graphdb::transaction::{TransactionManager, TransactionManagerConfig, TransactionOptions};
 use std::path::Path;
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -143,7 +141,7 @@ fn test_2pc_full_protocol() {
         .expect("Failed to search");
     println!("Search results for 'Person1': {}", results.len());
     assert!(
-        results.len() >= 1,
+        !results.is_empty(),
         "At least one index should be synced, found {}",
         results.len()
     );

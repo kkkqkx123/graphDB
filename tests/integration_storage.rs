@@ -22,8 +22,8 @@ use std::sync::Arc;
 
 // Auxiliary function: Retrieve accessible storage
 fn get_storage(
-    storage: &Arc<Mutex<graphdb::storage::redb_storage::RedbStorage>>,
-) -> parking_lot::MutexGuard<'_, graphdb::storage::redb_storage::RedbStorage> {
+    storage: &Arc<Mutex<graphdb::storage::RedbStorage>>,
+) -> parking_lot::MutexGuard<'_, graphdb::storage::RedbStorage> {
     storage.lock()
 }
 

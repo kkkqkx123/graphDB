@@ -225,6 +225,9 @@ impl InsertVerticesValidator {
                                     ValidationErrorType::SemanticError,
                                 ));
                             }
+                        } else {
+                            // Expression is not a vector literal, skip dimension check
+                            continue;
                         }
                     }
                 }

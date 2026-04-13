@@ -162,6 +162,7 @@ pub fn print_table(headers: &[&str], rows: &[Vec<String>]) -> Result<()> {
 }
 
 /// Quick print a table with string slices
+#[allow(dead_code)]
 pub fn print_table_slices(headers: &[&str], rows: &[&[&str]]) -> Result<()> {
     let string_rows: Vec<Vec<String>> = rows
         .iter()

@@ -587,7 +587,7 @@ mod tests {
     use super::*;
     use crate::core::types::span::Span;
     use crate::query::parser::ast::vector::{
-        VectorIndexConfig, VectorQueryExpr, VectorQueryType, VectorYieldClause, VectorYieldItem,
+        VectorIndexConfig, VectorYieldClause, VectorYieldItem,
     };
 
     #[test]
@@ -670,8 +670,8 @@ mod tests {
             Some("42".to_string())
         );
         assert_eq!(
-            planner.value_to_string(&crate::core::Value::Float(3.14)),
-            Some("3.14".to_string())
+            planner.value_to_string(&crate::core::Value::Float(std::f64::consts::PI)),
+            Some(format!("{}", std::f64::consts::PI))
         );
         assert_eq!(
             planner.value_to_string(&crate::core::Value::Bool(true)),

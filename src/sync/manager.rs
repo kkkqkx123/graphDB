@@ -308,7 +308,7 @@ impl SyncManager {
             .map_err(SyncError::from)?;
 
         // Buffer vector index deletions for all vector fields
-        if let Some(ref vector_coord) = self.vector_coordinator {
+        if self.vector_coordinator.is_some() {
             // Get all vector index locations for this edge type
             // Note: In actual implementation, you may need to query metadata
             // to determine which fields have vector indexes

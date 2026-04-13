@@ -1,20 +1,15 @@
 //! Configuration for output module
 
 /// Output mode - where to send output
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum OutputMode {
     /// Output to console only (stdout/stderr)
+    #[default]
     Console,
     /// Output to file only
     File,
     /// Output to both console and file
     Both,
-}
-
-impl Default for OutputMode {
-    fn default() -> Self {
-        OutputMode::Console
-    }
 }
 
 impl std::str::FromStr for OutputMode {

@@ -15,6 +15,7 @@ pub fn convert_distance(distance: DistanceMetric) -> Distance {
     }
 }
 
+#[allow(dead_code)]
 pub fn convert_index_type(index_type: IndexType) -> &'static str {
     match index_type {
         IndexType::HNSW => "hnsw",

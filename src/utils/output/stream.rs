@@ -35,7 +35,6 @@ impl Write for WriterKind {
 /// Stream output manager for handling file and console output
 pub struct StreamOutput {
     writer: WriterKind,
-    file: Option<std::fs::File>,
 }
 
 impl StreamOutput {
@@ -46,7 +45,7 @@ impl StreamOutput {
         match config.mode {
             OutputMode::Console => {
                 let writer = WriterKind::Stdout(StdoutWriter::new());
-                Ok(Self { writer, file: None })
+                Ok(Self { writer })
             }
             OutputMode::File => {
                 let file_path = config.file_path.as_ref().expect("validated");
@@ -54,7 +53,6 @@ impl StreamOutput {
                 let file_writer = FileWriter::new(file.try_clone()?);
                 Ok(Self {
                     writer: WriterKind::File(file_writer),
-                    file: Some(file),
                 })
             }
             OutputMode::Both => {
@@ -67,7 +65,6 @@ impl StreamOutput {
 
                 Ok(Self {
                     writer: WriterKind::Both(multi),
-                    file: Some(file),
                 })
             }
         }
@@ -77,7 +74,6 @@ impl StreamOutput {
     pub fn console() -> Self {
         Self {
             writer: WriterKind::Stdout(StdoutWriter::new()),
-            file: None,
         }
     }
 
@@ -87,7 +83,6 @@ impl StreamOutput {
         let file_writer = FileWriter::new(file.try_clone()?);
         Ok(Self {
             writer: WriterKind::File(file_writer),
-            file: Some(file),
         })
     }
 
@@ -101,7 +96,6 @@ impl StreamOutput {
 
         Ok(Self {
             writer: WriterKind::Both(multi),
-            file: Some(file),
         })
     }
 

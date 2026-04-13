@@ -1,26 +1,21 @@
 //! Output manager for centralized output control
 
-use std::io::{self, Write};
+use std::io::Write;
 use std::sync::Mutex;
 
 use super::writer::{StderrWriter, StdoutWriter};
 use super::Result;
 
 /// Output format types
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Format {
     /// Plain text output
+    #[default]
     Plain,
     /// JSON formatted output
     Json,
     /// Table formatted output
     Table,
-}
-
-impl Default for Format {
-    fn default() -> Self {
-        Format::Plain
-    }
 }
 
 impl std::fmt::Display for Format {
@@ -124,7 +119,7 @@ impl OutputManager {
 
     /// Print a separator line
     pub fn print_separator(&self, char: char, length: usize) -> Result<()> {
-        let line: String = std::iter::repeat(char).take(length).collect();
+        let line: String = std::iter::repeat_n(char, length).collect();
         self.println(&line)
     }
 

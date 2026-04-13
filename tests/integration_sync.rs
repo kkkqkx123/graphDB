@@ -46,11 +46,10 @@ impl SyncTestContext {
 
         let manager =
             Arc::new(FulltextIndexManager::new(config.clone()).expect("Failed to create manager"));
-        let coordinator = Arc::new(FulltextCoordinator::new(manager));
 
         let batch_config = BatchConfig::default();
         let sync_coordinator = Arc::new(SyncCoordinator::new(
-            coordinator.get_manager().clone(),
+            manager.clone(),
             batch_config,
         ));
 
@@ -79,10 +78,9 @@ impl SyncTestContext {
 
         let manager =
             Arc::new(FulltextIndexManager::new(config.clone()).expect("Failed to create manager"));
-        let coordinator = Arc::new(FulltextCoordinator::new(manager));
 
         let sync_coordinator = Arc::new(SyncCoordinator::new(
-            coordinator.get_manager().clone(),
+            manager.clone(),
             batch_config,
         ));
 

@@ -21,7 +21,7 @@ mod config;
 mod filter;
 mod utils;
 
-use config::{convert_distance, build_hnsw_config, build_quantization_config, convert_field_type, convert_index_type};
+use config::{convert_distance, build_hnsw_config, build_quantization_config, convert_field_type};
 use filter::convert_filter;
 use utils::{
     point_id_from_str, point_struct_from_vector_point, payload_to_qdrant_payload,

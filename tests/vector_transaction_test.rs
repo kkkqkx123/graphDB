@@ -10,7 +10,7 @@ use graphdb::sync::vector_transaction_buffer::{
     PendingVectorUpdate, VectorTransactionBuffer, VectorTransactionBufferConfig,
 };
 use graphdb::transaction::types::TransactionId;
-use vector_client::{DistanceMetric, VectorManager};
+use vector_client::VectorManager;
 
 #[tokio::test]
 async fn test_vector_transaction_buffer_basic() {
@@ -20,7 +20,7 @@ async fn test_vector_transaction_buffer_basic() {
     let txn_id = TransactionId::from(1u64);
 
     // Create test update
-    let location = VectorIndexLocation::new(1, "test", "vector_field");
+    let _location = VectorIndexLocation::new(1, "test", "vector_field");
     let context = VectorChangeContext::new(
         1,
         "test",

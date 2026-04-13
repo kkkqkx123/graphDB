@@ -151,7 +151,7 @@ mod tests {
     use crate::sync::vector_sync::{VectorChangeContext, VectorChangeType, VectorIndexLocation};
 
     fn create_test_update(txn_id: TransactionId) -> PendingVectorUpdate {
-        let location = VectorIndexLocation::new(1, "test", "vector_field");
+        let _location = VectorIndexLocation::new(1, "test", "vector_field");
         let context = VectorChangeContext::new(
             1,
             "test",

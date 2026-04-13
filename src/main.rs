@@ -26,8 +26,8 @@ mod server_main {
 
         match cli {
             Cli::Serve { config } => {
-                output::print_info(&format!("Starting GraphDB service with config: {}", config));
-                output::print_info(&format!("Process ID: {}", std::process::id()));
+                let _ = output::print_info(&format!("Starting GraphDB service with config: {}", config));
+                let _ = output::print_info(&format!("Process ID: {}", std::process::id()));
 
                 // Load configuration
                 let cfg = match Config::load(&config) {
@@ -54,8 +54,8 @@ mod server_main {
                 result?;
             }
             Cli::Query { query } => {
-                output::print_info(&format!("Executing query: {}", query));
-                output::print_info(&format!("Process ID: {}", std::process::id()));
+                let _ = output::print_info(&format!("Executing query: {}", query));
+                let _ = output::print_info(&format!("Process ID: {}", std::process::id()));
 
                 // Use default configuration to initialize logging
                 let cfg = Config::default();

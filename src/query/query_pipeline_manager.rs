@@ -667,7 +667,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
     fn execute_plan(
         &mut self,
-        query_context: Arc<QueryContext>,
+        _query_context: Arc<QueryContext>,
         plan: crate::query::planning::plan::ExecutionPlan,
     ) -> DBResult<ExecutionResult> {
         use crate::query::executor::factory::engine::PlanExecutor;

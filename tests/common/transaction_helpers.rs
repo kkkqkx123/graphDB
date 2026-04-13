@@ -247,11 +247,7 @@ impl TransactionTimer {
     /// Assert that execution time is within expected range
     pub fn assert_within(&self, expected: Duration, tolerance: Duration) {
         let elapsed = self.elapsed();
-        let diff = if elapsed > expected {
-            elapsed - expected
-        } else {
-            expected - elapsed
-        };
+        let diff = elapsed.abs_diff(expected);
         assert!(
             diff <= tolerance,
             "Execution time {:?} differs from expected {:?} by more than {:?}",
