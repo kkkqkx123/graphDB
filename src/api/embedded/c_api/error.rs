@@ -67,6 +67,8 @@ pub fn extended_error_code_from_core_error(error: &CoreError) -> graphdb_extende
         CoreError::InvalidParameter(_) => graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
         CoreError::NotFound(_) => graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
         CoreError::Internal(_) => graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
+        CoreError::SyncError(_) => graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
+        CoreError::VectorError(_) => graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
     }
 }
 
@@ -268,6 +270,14 @@ pub fn error_code_from_core_error(error: &CoreError) -> (i32, graphdb_extended_e
         ),
         CoreError::InvalidParameter(_) => (
             graphdb_error_code_t::GRAPHDB_MISUSE as i32,
+            graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
+        ),
+        CoreError::SyncError(_) => (
+            graphdb_error_code_t::GRAPHDB_IOERR as i32,
+            graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
+        ),
+        CoreError::VectorError(_) => (
+            graphdb_error_code_t::GRAPHDB_IOERR as i32,
             graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
         ),
     }

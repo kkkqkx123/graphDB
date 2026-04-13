@@ -239,6 +239,32 @@ typedef struct graphdb_value_t {
 } graphdb_value_t;
 
 /**
+ * Database Configuration
+ */
+typedef struct graphdb_config_t {
+  /**
+   * Read-only or not
+   */
+  bool read_only;
+  /**
+   * If it doesn't exist is it created
+   */
+  bool create_if_missing;
+  /**
+   * Cache size (MB)
+   */
+  int cache_size_mb;
+  /**
+   * Maximum number of open files
+   */
+  int max_open_files;
+  /**
+   * Whether to enable compression
+   */
+  bool enable_compression;
+} graphdb_config_t;
+
+/**
  * Database handle (opaque pointer)
  */
 typedef struct graphdb_t {
@@ -303,6 +329,28 @@ typedef void (*graphdb_update_hook_callback)(void *user_data,
                                              const char *database,
                                              const char *table,
                                              int64_t rowid);
+
+/**
+ * Session statistics structure
+ */
+typedef struct SessionStatistics {
+  /**
+   * Number of rows affected by the last operation
+   */
+  uint64_t last_changes;
+  /**
+   * Total number of rows affected
+   */
+  uint64_t total_changes;
+  /**
+   * ID of the last inserted vertex (-1 if none)
+   */
+  int64_t last_insert_vertex_id;
+  /**
+   * ID of the last inserted edge (-1 if none)
+   */
+  int64_t last_insert_edge_id;
+} SessionStatistics;
 
 /**
  * Transaction handles (opaque pointers)
@@ -479,6 +527,255 @@ int graphdb_batch_buffered_vertices(struct graphdb_batch_t *batch);
  * - Number of buffered edges, or -1 if batch is null
  */
 int graphdb_batch_buffered_edges(struct graphdb_batch_t *batch);
+
+/**
+ * Create a new busy handler
+ *
+ * # Arguments
+ * - `timeout_ms`: Timeout in milliseconds, 0 means no wait
+ *
+ * # Returns
+ * - Busy handler handle
+ *
+ * # Memory Management
+ * The returned handler must be freed using `graphdb_busy_handler_free` when done
+ *
+ * # Safety
+ * This function uses FFI and returns a raw pointer. The returned pointer must be freed
+ * using `graphdb_busy_handler_free` to avoid memory leaks.
+ */
+void *graphdb_busy_handler_create(int timeout_ms);
+
+/**
+ * Free busy handler
+ *
+ * # Arguments
+ * - `handler`: Busy handler handle
+ *
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `handler` must be a valid busy handler handle created by `graphdb_busy_handler_create`
+ */
+int graphdb_busy_handler_free(void *handler);
+
+/**
+ * Handle busy condition
+ *
+ * Returns 1 to continue waiting, 0 to abort (timeout)
+ *
+ * # Arguments
+ * - `handler`: Busy handler handle
+ *
+ * # Returns
+ * - 1: Continue waiting
+ * - 0: Timeout or abort
+ *
+ * # Safety
+ * - `handler` must be a valid busy handler handle
+ */
+int graphdb_busy_handler_handle(void *handler);
+
+/**
+ * Check if timeout has expired
+ *
+ * # Arguments
+ * - `handler`: Busy handler handle
+ *
+ * # Returns
+ * - 1: Timeout expired
+ * - 0: Not timeout
+ *
+ * # Safety
+ * - `handler` must be a valid busy handler handle
+ */
+int graphdb_busy_handler_is_timeout(void *handler);
+
+/**
+ * Get current retry count
+ *
+ * # Arguments
+ * - `handler`: Busy handler handle
+ *
+ * # Returns
+ * - Retry count, returns 0 on error
+ *
+ * # Safety
+ * - `handler` must be a valid busy handler handle
+ */
+uint32_t graphdb_busy_handler_retry_count(void *handler);
+
+/**
+ * Get elapsed time in milliseconds
+ *
+ * # Arguments
+ * - `handler`: Busy handler handle
+ *
+ * # Returns
+ * - Elapsed time in milliseconds, returns 0 on error
+ *
+ * # Safety
+ * - `handler` must be a valid busy handler handle
+ */
+uint64_t graphdb_busy_handler_elapsed_ms(void *handler);
+
+/**
+ * Reset busy handler state
+ *
+ * # Arguments
+ * - `handler`: Busy handler handle
+ *
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `handler` must be a valid busy handler handle
+ */
+int graphdb_busy_handler_reset(void *handler);
+
+/**
+ * Create a new configuration (default configuration)
+ *
+ * # Returns
+ * - Configuration handle
+ *
+ * # Memory Management
+ * The returned configuration must be freed using `graphdb_config_free` when done
+ *
+ * # Safety
+ * This function uses FFI and returns a raw pointer. The returned pointer must be freed
+ * using `graphdb_config_free` to avoid memory leaks.
+ */
+struct graphdb_config_t *graphdb_config_new(void);
+
+/**
+ * Create a file database configuration
+ *
+ * # Arguments
+ * - `path`: Database file path (UTF-8 encoded)
+ *
+ * # Returns
+ * - Configuration handle
+ *
+ * # Safety
+ * - `path` must be a valid pointer to a null-terminated UTF-8 string
+ * - The returned configuration must be freed using `graphdb_config_free` when done
+ */
+struct graphdb_config_t *graphdb_config_file(const char *path);
+
+/**
+ * Create an in-memory database configuration
+ *
+ * # Returns
+ * - Configuration handle
+ *
+ * # Memory Management
+ * The returned configuration must be freed using `graphdb_config_free` when done
+ *
+ * # Safety
+ * This function uses FFI and returns a raw pointer. The returned pointer must be freed
+ * using `graphdb_config_free` to avoid memory leaks.
+ */
+struct graphdb_config_t *graphdb_config_memory(void);
+
+/**
+ * Free configuration handle
+ *
+ * # Arguments
+ * - `config`: Configuration handle
+ *
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `config` must be a valid configuration handle created by graphdb_config_new,
+ *   graphdb_config_file, or graphdb_config_memory
+ */
+int graphdb_config_free(struct graphdb_config_t *config);
+
+/**
+ * Set cache size
+ *
+ * # Arguments
+ * - `config`: Configuration handle
+ * - `size_mb`: Cache size in MB
+ *
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `config` must be a valid configuration handle
+ */
+int graphdb_config_set_cache_size(struct graphdb_config_t *config, int size_mb);
+
+/**
+ * Set timeout
+ *
+ * # Arguments
+ * - `config`: Configuration handle
+ * - `timeout_ms`: Timeout in milliseconds
+ *
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `config` must be a valid configuration handle
+ */
+int graphdb_config_set_timeout(struct graphdb_config_t *config, int timeout_ms);
+
+/**
+ * Set read-only mode
+ *
+ * # Arguments
+ * - `config`: Configuration handle
+ * - `read_only`: Read-only flag
+ *
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `config` must be a valid configuration handle
+ */
+int graphdb_config_set_read_only(struct graphdb_config_t *config, int read_only);
+
+/**
+ * Set create-if-missing flag
+ *
+ * # Arguments
+ * - `config`: Configuration handle
+ * - `create`: Create-if-missing flag
+ *
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `config` must be a valid configuration handle
+ */
+int graphdb_config_set_create_if_missing(struct graphdb_config_t *config, int create);
+
+/**
+ * Set WAL (Write-Ahead Logging) enabled
+ *
+ * # Arguments
+ * - `config`: Configuration handle
+ * - `enable`: Enable flag
+ *
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `config` must be a valid configuration handle
+ */
+int graphdb_config_set_enable_wal(struct graphdb_config_t *config, int enable);
 
 /**
  * Open database
@@ -1450,6 +1747,85 @@ void *graphdb_rollback_hook(struct graphdb_session_t *session,
 void *graphdb_update_hook(struct graphdb_session_t *session,
                           graphdb_update_hook_callback callback,
                           void *user_data);
+
+/**
+ * Get the number of rows affected by the last operation
+ *
+ * # Arguments
+ * - `session`: Session handle
+ *
+ * # Returns
+ * - Number of rows affected, returns 0 on error
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ */
+uint64_t graphdb_session_changes(struct graphdb_session_t *session);
+
+/**
+ * Get the total number of rows affected
+ *
+ * # Arguments
+ * - `session`: Session handle
+ *
+ * # Returns
+ * - Total number of rows affected, returns 0 on error
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ */
+uint64_t graphdb_session_total_changes(struct graphdb_session_t *session);
+
+/**
+ * Get the ID of the last inserted vertex
+ *
+ * # Arguments
+ * - `session`: Session handle
+ * - `vertex_id`: Output parameter, vertex ID
+ *
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code (GRAPHDB_NOTFOUND if no vertex was inserted)
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ * - `vertex_id` must be a valid pointer to store the result
+ */
+int graphdb_session_last_insert_vertex_id(struct graphdb_session_t *session, int64_t *vertex_id);
+
+/**
+ * Get the ID of the last inserted edge
+ *
+ * # Arguments
+ * - `session`: Session handle
+ * - `edge_id`: Output parameter, edge ID
+ *
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code (GRAPHDB_NOTFOUND if no edge was inserted)
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ * - `edge_id` must be a valid pointer to store the result
+ */
+int graphdb_session_last_insert_edge_id(struct graphdb_session_t *session, int64_t *edge_id);
+
+/**
+ * Get session statistics (total changes)
+ *
+ * # Arguments
+ * - `session`: Session handle
+ * - `stats`: Output parameter, statistics structure
+ *
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ */
+int graphdb_session_get_statistics(struct graphdb_session_t *session,
+                                   struct SessionStatistics *stats);
 
 /**
  * Begin a transaction

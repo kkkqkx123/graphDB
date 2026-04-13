@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::storage::StorageClient;
+use crate::sync::vector_sync::SearchOptions;
 use vector_client::{DistanceMetric, VectorFilter};
 
 /// Vector index creation request
@@ -200,16 +201,24 @@ pub async fn search<S: StorageClient + Clone + Send + Sync + 'static>(
     let vector_api = graph_service.vector_api();
 
     if let Some(vector_api) = vector_api {
+        let mut options = SearchOptions::new(
+            request.space_id,
+            &request.tag_name,
+            &request.field_name,
+            request.query_vector,
+            request.limit,
+        );
+        
+        if let Some(threshold) = request.threshold {
+            options = options.with_threshold(threshold);
+        }
+        
+        if let Some(filter) = request.filter {
+            options = options.with_filter(filter);
+        }
+        
         let results = vector_api
-            .search(
-                request.space_id,
-                &request.tag_name,
-                &request.field_name,
-                request.query_vector,
-                request.limit,
-                request.threshold,
-                request.filter,
-            )
+            .search_with_options(options)
             .await
             .map_err(|e| HttpError::InternalError(e.to_string()))?;
 

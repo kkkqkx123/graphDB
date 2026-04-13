@@ -12,6 +12,7 @@ use crate::query::executor::expression::functions::{CustomFunction, FunctionRegi
 use crate::search::FulltextIndexManager;
 use crate::storage::StorageClient;
 use crate::sync::SyncManager;
+use crate::sync::vector_sync::SearchOptions;
 use crate::transaction::TransactionManager;
 use crate::transaction::TransactionOptions;
 use parking_lot::Mutex;
@@ -564,10 +565,21 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
             .vector_coordinator()
             .ok_or_else(|| CoreError::InvalidParameter("Vector coordinator not available".to_string()))?;
 
-        coordinator
-            .search(space_id, tag_name, field_name, query_vector, limit, None, None)
+        let options = SearchOptions::new(space_id, tag_name, field_name, query_vector, limit);
+        let results = coordinator
+            .search_with_options(options)
             .await
-            .map_err(|e| CoreError::VectorError(e.to_string()))
+            .map_err(|e| CoreError::VectorError(e.to_string()))?;
+
+        Ok(results
+            .into_iter()
+            .map(|r| crate::api::core::VectorSearchResult {
+                id: r.id,
+                score: r.score,
+                vector: r.vector.map(|v| v.to_vec()),
+                payload: r.payload.map(|p| p.into_iter().collect()),
+            })
+            .collect())
     }
 
     /// Vector search with threshold
@@ -604,10 +616,22 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
             .vector_coordinator()
             .ok_or_else(|| CoreError::InvalidParameter("Vector coordinator not available".to_string()))?;
 
-        coordinator
-            .search(space_id, tag_name, field_name, query_vector, limit, Some(threshold), None)
+        let options = SearchOptions::new(space_id, tag_name, field_name, query_vector, limit)
+            .with_threshold(threshold);
+        let results = coordinator
+            .search_with_options(options)
             .await
-            .map_err(|e| CoreError::VectorError(e.to_string()))
+            .map_err(|e| CoreError::VectorError(e.to_string()))?;
+
+        Ok(results
+            .into_iter()
+            .map(|r| crate::api::core::VectorSearchResult {
+                id: r.id,
+                score: r.score,
+                vector: r.vector.map(|v| v.to_vec()),
+                payload: r.payload.map(|p| p.into_iter().collect()),
+            })
+            .collect())
     }
 
     /// Create a vector index

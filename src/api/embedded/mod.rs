@@ -65,6 +65,7 @@ pub use c_api::{
         graphdb_batch_t, graphdb_config_t, graphdb_result_t, graphdb_session_t, graphdb_string_t,
         graphdb_t, graphdb_txn_t, graphdb_value_data_t, graphdb_value_t, graphdb_value_type_t,
     },
+    statistics::SessionStatistics as CApiSessionStatistics,
 };
 
 // Error type

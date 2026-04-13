@@ -4,10 +4,10 @@
 
 use crate::api::core::error::{CoreError, CoreResult};
 use crate::api::core::types::VectorSearchResult;
-use crate::sync::vector_sync::{SearchOptions, VectorSyncCoordinator};
+use crate::sync::vector_sync::{SearchOptions, VectorIndexLocation, VectorSyncCoordinator};
 use std::sync::Arc;
 use vector_client::{
-    CollectionConfig, DistanceMetric, SearchQuery, VectorFilter, VectorManager, VectorPoint,
+    CollectionConfig, DistanceMetric, SearchQuery, VectorManager, VectorPoint,
     VectorClientError,
 };
 use vector_client::manager::IndexMetadata;
@@ -180,23 +180,25 @@ impl VectorApi {
             .map_err(|e| CoreError::VectorError(e.to_string()))
     }
 
-    /// Search vectors
-    pub async fn search(
+    /// Search vectors with options
+    pub async fn search_with_options(
         &self,
-        space_id: u64,
-        tag_name: &str,
-        field_name: &str,
-        query_vector: Vec<f32>,
-        limit: usize,
-        threshold: Option<f32>,
-        filter: Option<VectorFilter>,
+        options: SearchOptions,
     ) -> CoreResult<Vec<VectorSearchResult>> {
-        let collection_name = format!("space_{}_{}_{}", space_id, tag_name, field_name);
-        let mut query = SearchQuery::new(query_vector, limit);
-        if let Some(threshold) = threshold {
+        let collection_name = VectorIndexLocation::new(
+            options.space_id,
+            &options.tag_name,
+            &options.field_name,
+        )
+        .to_collection_name();
+
+        let mut query = SearchQuery::new(options.query_vector, options.limit);
+
+        if let Some(threshold) = options.threshold {
             query = query.with_score_threshold(threshold);
         }
-        if let Some(filter) = filter {
+
+        if let Some(filter) = options.filter {
             query = query.with_filter(filter);
         }
 
@@ -215,23 +217,6 @@ impl VectorApi {
                 payload: r.payload.map(|p| p.into_iter().collect()),
             })
             .collect())
-    }
-
-    /// Search vectors with options
-    pub async fn search_with_options(
-        &self,
-        options: SearchOptions,
-    ) -> CoreResult<Vec<VectorSearchResult>> {
-        self.search(
-            options.space_id,
-            &options.tag_name,
-            &options.field_name,
-            options.query_vector,
-            options.limit,
-            options.threshold,
-            options.filter,
-        )
-        .await
     }
 
     /// Get a vector point by ID

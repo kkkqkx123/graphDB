@@ -330,19 +330,19 @@ async fn test_concurrent_transaction_buffers() {
         .collect();
 
     // Insert first batch (TX1)
-    for idx in 0..3 {
+    for (idx, vertex_id) in vertex_ids.iter().take(3).enumerate() {
         let properties = create_test_properties(&format!("TX1 Content {}", idx + 1));
         ctx.coordinator
-            .on_vertex_change(1, "Article", &vertex_ids[idx], &properties, ChangeType::Insert)
+            .on_vertex_change(1, "Article", vertex_id, &properties, ChangeType::Insert)
             .await
             .expect("Failed to sync vertex for TX1");
     }
 
     // Insert second batch (TX2)
-    for idx in 3..6 {
-        let properties = create_test_properties(&format!("TX2 Content {}", idx + 1));
+    for (idx, vertex_id) in vertex_ids.iter().skip(3).take(3).enumerate() {
+        let properties = create_test_properties(&format!("TX2 Content {}", idx + 4));
         ctx.coordinator
-            .on_vertex_change(1, "Article", &vertex_ids[idx], &properties, ChangeType::Insert)
+            .on_vertex_change(1, "Article", vertex_id, &properties, ChangeType::Insert)
             .await
             .expect("Failed to sync vertex for TX2");
     }
