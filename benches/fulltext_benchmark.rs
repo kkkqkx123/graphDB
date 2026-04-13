@@ -1,10 +1,11 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use graphdb::coordinator::FulltextCoordinator;
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Value, Vertex};
 use graphdb::search::config::FulltextConfig;
 use graphdb::search::engine::EngineType;
 use graphdb::search::manager::FulltextIndexManager;
+use graphdb::sync::coordinator::SyncCoordinator;
+use graphdb::sync::batch::BatchConfig;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -22,7 +23,7 @@ fn create_test_vertex(vid: i64, tag_name: &str, properties: Vec<(&str, &str)>) -
     Vertex::new(Value::Int(vid), vec![tag])
 }
 
-async fn setup_coordinator() -> (FulltextCoordinator, TempDir) {
+async fn setup_coordinator() -> (Arc<SyncCoordinator>, TempDir) {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let config = FulltextConfig {
         enabled: true,
@@ -36,7 +37,7 @@ async fn setup_coordinator() -> (FulltextCoordinator, TempDir) {
         result_cache_ttl_secs: 60,
     };
     let manager = Arc::new(FulltextIndexManager::new(config).expect("Failed to create manager"));
-    let coordinator = FulltextCoordinator::new(manager);
+    let coordinator = Arc::new(SyncCoordinator::new(manager, BatchConfig::default()));
     (coordinator, temp_dir)
 }
 

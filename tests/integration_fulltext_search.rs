@@ -18,15 +18,14 @@ use common::{
     storage_helpers::{create_test_space, get_storage, person_tag_info},
     TestStorage,
 };
-use graphdb::coordinator::{ChangeType, FulltextCoordinator};
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Value, Vertex};
 use graphdb::search::config::{FulltextConfig, SyncConfig, SyncFailurePolicy};
 use graphdb::search::engine::EngineType;
 use graphdb::search::manager::FulltextIndexManager;
-use graphdb::storage::storage_client::StorageClient;
+use graphdb::storage::StorageClient;
 use graphdb::sync::batch::config::BatchConfig;
-use graphdb::sync::coordinator::SyncCoordinator;
+use graphdb::sync::coordinator::{ChangeType, SyncCoordinator};
 use graphdb::sync::manager::SyncManager;
 use std::collections::HashMap;
 use std::sync::Arc;

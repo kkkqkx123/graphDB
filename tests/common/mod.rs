@@ -19,7 +19,7 @@ pub mod validation_helpers;
 pub mod c_api_helpers;
 
 use graphdb::core::error::DBResult;
-use graphdb::storage::redb_storage::RedbStorage;
+use graphdb::storage::RedbStorage;
 use parking_lot::Mutex;
 use std::path::PathBuf;
 use std::sync::Arc;

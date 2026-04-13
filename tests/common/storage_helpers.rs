@@ -6,6 +6,7 @@
 
 use graphdb::core::types::{EdgeTypeInfo, PropertyDef, SpaceInfo, TagInfo};
 use graphdb::core::DataType;
+use graphdb::storage::RedbStorage;
 use parking_lot::{Mutex, MutexGuard};
 use std::sync::Arc;
 
@@ -51,7 +52,7 @@ pub fn knows_edge_type_info() -> EdgeTypeInfo {
 
 /// Helper function to get storage guard from Arc<Mutex<RedbStorage>>
 pub fn get_storage(
-    storage: &Arc<Mutex<graphdb::storage::redb_storage::RedbStorage>>,
-) -> MutexGuard<'_, graphdb::storage::redb_storage::RedbStorage> {
+    storage: &Arc<Mutex<RedbStorage>>,
+) -> MutexGuard<'_, RedbStorage> {
     storage.lock()
 }

@@ -773,7 +773,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_begin_and_abort_transaction() {
+    async fn test_begin_and_rollback_transaction() {
         let (manager, _db, _temp) = create_test_manager();
 
         let txn_id = manager
@@ -781,8 +781,8 @@ mod tests {
             .expect("Failed to begin transaction");
 
         manager
-            .abort_transaction(txn_id)
-            .expect("Failed to abort transaction");
+            .rollback_transaction(txn_id)
+            .expect("Failed to rollback transaction");
 
         assert!(!manager.is_transaction_active(txn_id));
         assert_eq!(
@@ -866,8 +866,8 @@ mod tests {
             .expect("Failed to begin transaction");
         assert!(manager.is_transaction_active(txn2));
         manager
-            .abort_transaction(txn2)
-            .expect("Failed to abort transaction");
+            .rollback_transaction(txn2)
+            .expect("Failed to rollback transaction");
         assert!(!manager.is_transaction_active(txn2));
 
         // Third transaction

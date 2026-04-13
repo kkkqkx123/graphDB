@@ -12,12 +12,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use graphdb::coordinator::{ChangeType, FulltextCoordinator};
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Value, Vertex};
 use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager};
 use graphdb::sync::batch::BatchConfig;
-use graphdb::sync::coordinator::SyncCoordinator;
+use graphdb::sync::coordinator::{ChangeType, SyncCoordinator};
 use graphdb::sync::manager::SyncManager;
 use tempfile::TempDir;
 use tokio::time::sleep;

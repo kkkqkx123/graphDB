@@ -1,15 +1,16 @@
-use graphdb::coordinator::FulltextCoordinator;
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Value, Vertex};
 use graphdb::search::config::FulltextConfig;
 use graphdb::search::engine::EngineType;
 use graphdb::search::manager::FulltextIndexManager;
+use graphdb::sync::batch::BatchConfig;
+use graphdb::sync::coordinator::SyncCoordinator;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
 
-async fn setup_test_coordinator() -> (FulltextCoordinator, TempDir) {
+async fn setup_test_coordinator() -> (Arc<SyncCoordinator>, TempDir) {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let config = FulltextConfig {
         enabled: true,
@@ -23,7 +24,7 @@ async fn setup_test_coordinator() -> (FulltextCoordinator, TempDir) {
         result_cache_ttl_secs: 60,
     };
     let manager = Arc::new(FulltextIndexManager::new(config).expect("Failed to create manager"));
-    let coordinator = FulltextCoordinator::new(manager);
+    let coordinator = Arc::new(SyncCoordinator::new(manager, BatchConfig::default()));
     (coordinator, temp_dir)
 }
 

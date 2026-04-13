@@ -256,12 +256,12 @@ mod tests {
         let row3 = vec![Value::Int(2), Value::String("test".to_string())];
 
         assert_eq!(
-            SetExecutor::<crate::storage::redb_storage::DefaultStorage>::hash_row(&row1),
-            SetExecutor::<crate::storage::redb_storage::DefaultStorage>::hash_row(&row2)
+            SetExecutor::<crate::storage::DefaultStorage>::hash_row(&row1),
+            SetExecutor::<crate::storage::DefaultStorage>::hash_row(&row2)
         );
         assert_ne!(
-            SetExecutor::<crate::storage::redb_storage::DefaultStorage>::hash_row(&row1),
-            SetExecutor::<crate::storage::redb_storage::DefaultStorage>::hash_row(&row3)
+            SetExecutor::<crate::storage::DefaultStorage>::hash_row(&row1),
+            SetExecutor::<crate::storage::DefaultStorage>::hash_row(&row3)
         );
     }
 
@@ -274,7 +274,7 @@ mod tests {
         ];
 
         let row_set =
-            SetExecutor::<crate::storage::redb_storage::DefaultStorage>::create_row_set(&rows);
+            SetExecutor::<crate::storage::DefaultStorage>::create_row_set(&rows);
         assert_eq!(row_set.len(), 2); // There should only be 2 unique hash values.
     }
 
@@ -287,7 +287,7 @@ mod tests {
             vec![Value::Int(3), Value::String("c".to_string())],
         ];
 
-        let deduped = SetExecutor::<crate::storage::redb_storage::DefaultStorage>::dedup_rows(rows);
+        let deduped = SetExecutor::<crate::storage::DefaultStorage>::dedup_rows(rows);
         assert_eq!(deduped.len(), 3); // The text should be deduplicated to three lines.
     }
 
@@ -303,7 +303,7 @@ mod tests {
             rows: vec![vec![Value::Int(2), Value::String("Bob".to_string())]],
         };
 
-        let result = SetExecutor::<crate::storage::redb_storage::DefaultStorage>::concat_datasets(
+        let result = SetExecutor::<crate::storage::DefaultStorage>::concat_datasets(
             left, right,
         );
         assert_eq!(result.rows.len(), 2);

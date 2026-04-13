@@ -273,8 +273,8 @@ async fn test_transaction_abort_recovery() {
     assert!(manager.is_transaction_active(txn_id));
 
     manager
-        .abort_transaction(txn_id)
-        .expect("Failed to abort transaction");
+        .rollback_transaction(txn_id)
+        .expect("Failed to rollback transaction");
 
     assert!(!manager.is_transaction_active(txn_id));
 }
@@ -308,8 +308,8 @@ async fn test_transaction_statistics() {
 
         if i % 3 == 0 {
             manager
-                .abort_transaction(txn_id)
-                .expect("Failed to abort transaction");
+                .rollback_transaction(txn_id)
+                .expect("Failed to rollback transaction");
         } else {
             manager
                 .commit_transaction(txn_id)
@@ -433,7 +433,7 @@ async fn test_transaction_cleanup() {
         if i % 2 == 0 {
             manager.commit_transaction(txn_id).await.unwrap();
         } else {
-            manager.abort_transaction(txn_id).unwrap();
+            manager.rollback_transaction(txn_id).unwrap();
         }
 
         let final_active_count = manager.stats().active_transactions.load(Ordering::Relaxed);

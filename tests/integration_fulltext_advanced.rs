@@ -14,16 +14,14 @@ use common::{
     storage_helpers::{create_test_space, get_storage, person_tag_info},
     TestStorage,
 };
-use graphdb::coordinator::{ChangeType as CoordinatorChangeType, FulltextCoordinator};
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Value, Vertex};
 use graphdb::search::config::{FulltextConfig, SyncConfig};
 use graphdb::search::engine::EngineType;
 use graphdb::search::manager::FulltextIndexManager;
-use graphdb::storage::storage_client::StorageClient;
+use graphdb::storage::StorageClient;
 use graphdb::sync::batch::BatchConfig;
-use graphdb::sync::coordinator::ChangeType;
-use graphdb::sync::coordinator::SyncCoordinator;
+use graphdb::sync::coordinator::{ChangeType, SyncCoordinator};
 use graphdb::sync::manager::SyncManager;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -484,6 +482,7 @@ async fn test_sync_manager_with_recovery() {
     let _vertex = create_vertex(1, "Document", vec![("content", "Recovery test document")]);
 
     sync_manager
+        .sync_coordinator()
         .on_vertex_change(
             1,
             "Document",
@@ -492,7 +491,7 @@ async fn test_sync_manager_with_recovery() {
                 "content".to_string(),
                 Value::String("Recovery test document".to_string()),
             )],
-            CoordinatorChangeType::Insert,
+            ChangeType::Insert,
         )
         .await
         .expect("Failed to sync vertex");

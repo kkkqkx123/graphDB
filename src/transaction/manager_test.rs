@@ -123,7 +123,7 @@ async fn test_commit_transaction() {
 }
 
 #[test]
-fn test_abort_transaction() {
+fn test_rollback_transaction() {
     let (manager, _db, _temp) = create_test_manager();
 
     let txn_id = manager
@@ -133,8 +133,8 @@ fn test_abort_transaction() {
     assert!(manager.is_transaction_active(txn_id));
 
     manager
-        .abort_transaction(txn_id)
-        .expect("Failed to abort transaction");
+        .rollback_transaction(txn_id)
+        .expect("Failed to rollback transaction");
 
     assert!(!manager.is_transaction_active(txn_id));
 
@@ -188,10 +188,10 @@ async fn test_commit_transaction_not_found() {
 }
 
 #[test]
-fn test_abort_transaction_not_found() {
+fn test_rollback_transaction_not_found() {
     let (manager, _db, _temp) = create_test_manager();
 
-    let result = manager.abort_transaction(9999);
+    let result = manager.rollback_transaction(9999);
     assert!(matches!(
         result,
         Err(TransactionError::TransactionNotFound(_))
@@ -220,7 +220,7 @@ async fn test_commit_already_committed_transaction() {
 }
 
 #[test]
-fn test_abort_already_aborted_transaction() {
+fn test_rollback_already_rolledback_transaction() {
     let (manager, _db, _temp) = create_test_manager();
 
     let txn_id = manager
@@ -228,11 +228,11 @@ fn test_abort_already_aborted_transaction() {
         .expect("Failed to start transaction");
 
     manager
-        .abort_transaction(txn_id)
-        .expect("First abort failed");
+        .rollback_transaction(txn_id)
+        .expect("First rollback failed");
 
-    // Second abort should fail
-    let result = manager.abort_transaction(txn_id);
+    // Second rollback should fail
+    let result = manager.rollback_transaction(txn_id);
     assert!(matches!(
         result,
         Err(TransactionError::TransactionNotFound(_))
@@ -326,8 +326,8 @@ async fn test_sequential_write_transactions() {
         .begin_transaction(TransactionOptions::default())
         .expect("Failed to begin second transaction");
     manager
-        .abort_transaction(txn2)
-        .expect("Failed to abort second transaction");
+        .rollback_transaction(txn2)
+        .expect("Failed to rollback second transaction");
 
     // Third transaction
     let txn3 = manager
@@ -546,14 +546,14 @@ async fn test_transaction_stats() {
         1
     );
 
-    // Begin and abort another transaction
+    // Begin and rollback another transaction
     let txn2 = manager
         .begin_transaction(TransactionOptions::default())
         .expect("Failed to begin transaction");
 
     manager
-        .abort_transaction(txn2)
-        .expect("Failed to abort transaction");
+        .rollback_transaction(txn2)
+        .expect("Failed to rollback transaction");
 
     assert_eq!(
         stats

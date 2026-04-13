@@ -6,7 +6,7 @@ use graphdb::core::error::DBResult;
 use graphdb::core::Value;
 use graphdb::query::executor::base::ExecutionResult;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use graphdb::storage::redb_storage::RedbStorage;
+use graphdb::storage::RedbStorage;
 use graphdb::storage::StorageClient;
 use parking_lot::Mutex;
 use std::collections::HashMap;

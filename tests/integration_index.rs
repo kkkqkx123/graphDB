@@ -17,13 +17,13 @@ use common::{
 use graphdb::core::types::{Index, IndexField, IndexStatus, IndexType};
 use graphdb::core::{Edge, Value, Vertex};
 use graphdb::query::planning::plan::{IndexLimit, ScanType};
-use graphdb::storage::StorageClient;
+use graphdb::storage::{RedbStorage, StorageClient};
 use parking_lot::Mutex;
 use std::sync::Arc;
 
 fn get_storage(
-    storage: &Arc<Mutex<graphdb::storage::redb_storage::RedbStorage>>,
-) -> parking_lot::MutexGuard<'_, graphdb::storage::redb_storage::RedbStorage> {
+    storage: &Arc<Mutex<RedbStorage>>,
+) -> parking_lot::MutexGuard<'_, RedbStorage> {
     storage.lock()
 }
 
