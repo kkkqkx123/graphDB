@@ -9,7 +9,9 @@ pub mod schema;
 pub mod session;
 pub mod statistics;
 pub mod stream;
+pub mod sync;
 pub mod transaction;
+pub mod vector;
 
 pub use auth::{login, logout};
 pub use batch::{
@@ -30,4 +32,8 @@ pub use schema::{
 pub use session::{create as create_session, delete_session, get_session};
 pub use statistics::{database, queries, session, system};
 pub use stream::{execute_stream, StreamQueryRequest};
+pub use sync::status;
 pub use transaction::{begin, commit, rollback};
+pub use vector::{
+    count, create_index, drop_index, get_index_info, get_vector, list_indexes, search,
+};

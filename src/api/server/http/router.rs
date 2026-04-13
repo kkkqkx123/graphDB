@@ -27,7 +27,9 @@ use super::{
         session::{create as create_session, delete_session, get_session},
         statistics::{database, queries, session, system},
         stream::execute_stream,
+        sync,
         transaction,
+        vector,
     },
     middleware::{auth::auth_middleware, error, logging},
     state::AppState,
@@ -84,6 +86,27 @@ pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
         .route("/functions/{name}", get(function_info).delete(unregister))
         // Streaming Query Routing
         .route("/query/stream", post(execute_stream))
+        // Vector Index Routes
+        .route(
+            "/vector/indexes",
+            post(vector::create_index).get(vector::list_indexes),
+        )
+        .route(
+            "/vector/indexes/{space_id}/{tag_name}/{field_name}",
+            get(vector::get_index_info).delete(vector::drop_index),
+        )
+        .route("/vector/search", post(vector::search))
+        .route(
+            "/vector/{space_id}/{tag_name}/{field_name}/{point_id}",
+            get(vector::get_vector),
+        )
+        .route(
+            "/vector/{space_id}/{tag_name}/{field_name}/count",
+            get(vector::count),
+        )
+        // Sync Management Routes
+        .route("/sync/status", get(sync::status))
+        // Schema Routes
         .route(
             "/schema/spaces",
             post(schema::create_space).get(schema::list_spaces),

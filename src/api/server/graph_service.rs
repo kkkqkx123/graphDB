@@ -1,4 +1,4 @@
-use crate::api::core::QueryApi;
+use crate::api::core::{QueryApi, SyncApi, VectorApi};
 use crate::api::server::auth::{Authenticator, AuthenticatorFactory, PasswordAuthenticator};
 use crate::api::server::permission::PermissionManager;
 use crate::api::server::session::{ClientSession, GraphSessionManager, SpaceInfo};
@@ -12,6 +12,7 @@ use log::{info, warn};
 use parking_lot::Mutex;
 use std::sync::Arc;
 use std::time::Duration;
+use vector_client::VectorManager;
 
 pub struct GraphService<S: StorageClient + Clone + 'static> {
     session_manager: Arc<GraphSessionManager>,
@@ -20,6 +21,8 @@ pub struct GraphService<S: StorageClient + Clone + 'static> {
     permission_manager: Arc<PermissionManager>,
     pub stats_manager: Arc<StatsManager>,
     storage: Arc<S>,
+    vector_api: Option<Arc<VectorApi>>,
+    sync_api: Option<Arc<SyncApi>>,
 
     // Transaction management-related
     transaction_manager: Option<Arc<TransactionManager>>,
@@ -69,33 +72,53 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         // Use core layer QueryApi instead of directly using QueryPipelineManager
         // Support vector search with metadata provider if enabled
-        let query_api = if config.vector.enabled {
+        let (query_api, vector_api) = if config.vector.enabled {
             match QueryApi::with_vector_search(
                 Arc::new(Mutex::new((*storage).clone())),
                 config.vector.clone(),
             )
             .await
             {
-                Ok(api) => Arc::new(Mutex::new(api)),
+                Ok(api) => {
+                    // Create vector manager and vector API
+                    let vector_manager = Arc::new(
+                        VectorManager::new(config.vector.clone())
+                            .await
+                            .unwrap_or_else(|_| panic!("Failed to create vector manager")),
+                    );
+                    let vector_api = Arc::new(VectorApi::new(vector_manager.clone()));
+                    (Arc::new(Mutex::new(api)), Some(vector_api))
+                }
                 Err(e) => {
                     warn!(
                         "Failed to initialize vector search, falling back to basic QueryApi: {}",
                         e
                     );
-                    Arc::new(Mutex::new(QueryApi::new(Arc::new(Mutex::new(
-                        (*storage).clone(),
-                    )))))
+                    (
+                        Arc::new(Mutex::new(QueryApi::new(Arc::new(Mutex::new(
+                            (*storage).clone(),
+                        ))))),
+                        None,
+                    )
                 }
             }
         } else {
-            Arc::new(Mutex::new(QueryApi::new(Arc::new(Mutex::new(
-                (*storage).clone(),
-            )))))
+            (
+                Arc::new(Mutex::new(QueryApi::new(Arc::new(Mutex::new(
+                    (*storage).clone(),
+                ))))),
+                None,
+            )
         };
 
         let authenticator = AuthenticatorFactory::create_default(&config.auth);
         let permission_manager = Arc::new(PermissionManager::new());
         let server_stats_manager = Arc::new(StatsManager::new());
+
+        // Create sync API if storage supports it
+        let sync_api = storage.get_sync_manager().map(|sync_manager| {
+            Arc::new(SyncApi::new(sync_manager))
+        });
 
         Arc::new(Self {
             session_manager,
@@ -104,6 +127,8 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             permission_manager,
             stats_manager: server_stats_manager,
             storage,
+            vector_api,
+            sync_api,
             transaction_manager,
         })
     }
@@ -358,6 +383,14 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
     pub fn get_stats_manager(&self) -> &Arc<StatsManager> {
         &self.stats_manager
+    }
+
+    pub fn vector_api(&self) -> Option<&Arc<VectorApi>> {
+        self.vector_api.as_ref()
+    }
+
+    pub fn sync_api(&self) -> Option<&Arc<SyncApi>> {
+        self.sync_api.as_ref()
     }
 
     /// Obtain the session list (SHOW SESSIONS)

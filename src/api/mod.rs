@@ -19,7 +19,7 @@ pub mod server;
 pub mod embedded;
 
 // Convenient export options
-pub use core::{CoreError, CoreResult, QueryApi, SchemaApi};
+pub use core::{CoreError, CoreResult, QueryApi, SchemaApi, SyncApi, VectorApi, VectorSearchResult};
 
 #[cfg(feature = "server")]
 pub use server::{session, HttpServer};

@@ -120,3 +120,12 @@ impl Default for SpaceConfig {
         }
     }
 }
+
+/// Vector search result
+#[derive(Debug, Clone)]
+pub struct VectorSearchResult {
+    pub id: String,
+    pub score: f32,
+    pub vector: Option<Vec<f32>>,
+    pub payload: Option<std::collections::HashMap<String, serde_json::Value>>,
+}

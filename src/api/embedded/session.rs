@@ -531,6 +531,156 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
             .rollback_to_savepoint(txn_handle.0, savepoint.0)
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
+
+    /// Vector search - search for similar vectors
+    ///
+    /// # Parameters
+    /// - `tag_name` - tag name
+    /// - `field_name` - vector field name
+    /// - `query_vector` - query vector
+    /// - `limit` - maximum number of results to return
+    ///
+    /// # Return
+    /// - Returns vector search results on success
+    /// - Return error on failure
+    pub async fn vector_search(
+        &self,
+        tag_name: &str,
+        field_name: &str,
+        query_vector: Vec<f32>,
+        limit: usize,
+    ) -> CoreResult<Vec<crate::api::core::VectorSearchResult>> {
+        let space_id = self
+            .space_id
+            .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
+
+        let sync_manager = self
+            .db
+            .sync_manager
+            .as_ref()
+            .ok_or_else(|| CoreError::InvalidParameter("Sync manager not available".to_string()))?;
+
+        let coordinator = sync_manager
+            .vector_coordinator()
+            .ok_or_else(|| CoreError::InvalidParameter("Vector coordinator not available".to_string()))?;
+
+        coordinator
+            .search(space_id, tag_name, field_name, query_vector, limit, None, None)
+            .await
+            .map_err(|e| CoreError::VectorError(e.to_string()))
+    }
+
+    /// Vector search with threshold
+    ///
+    /// # Parameters
+    /// - `tag_name` - tag name
+    /// - `field_name` - vector field name
+    /// - `query_vector` - query vector
+    /// - `limit` - maximum number of results to return
+    /// - `threshold` - minimum similarity threshold
+    ///
+    /// # Return
+    /// - Returns vector search results on success
+    /// - Return error on failure
+    pub async fn vector_search_with_threshold(
+        &self,
+        tag_name: &str,
+        field_name: &str,
+        query_vector: Vec<f32>,
+        limit: usize,
+        threshold: f32,
+    ) -> CoreResult<Vec<crate::api::core::VectorSearchResult>> {
+        let space_id = self
+            .space_id
+            .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
+
+        let sync_manager = self
+            .db
+            .sync_manager
+            .as_ref()
+            .ok_or_else(|| CoreError::InvalidParameter("Sync manager not available".to_string()))?;
+
+        let coordinator = sync_manager
+            .vector_coordinator()
+            .ok_or_else(|| CoreError::InvalidParameter("Vector coordinator not available".to_string()))?;
+
+        coordinator
+            .search(space_id, tag_name, field_name, query_vector, limit, Some(threshold), None)
+            .await
+            .map_err(|e| CoreError::VectorError(e.to_string()))
+    }
+
+    /// Create a vector index
+    ///
+    /// # Parameters
+    /// - `tag_name` - tag name
+    /// - `field_name` - vector field name
+    /// - `vector_size` - dimension of the vector
+    /// - `distance` - distance metric
+    ///
+    /// # Return
+    /// - Returns collection name on success
+    /// - Return error on failure
+    pub async fn create_vector_index(
+        &self,
+        tag_name: &str,
+        field_name: &str,
+        vector_size: usize,
+        distance: vector_client::DistanceMetric,
+    ) -> CoreResult<String> {
+        let space_id = self
+            .space_id
+            .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
+
+        let sync_manager = self
+            .db
+            .sync_manager
+            .as_ref()
+            .ok_or_else(|| CoreError::InvalidParameter("Sync manager not available".to_string()))?;
+
+        let coordinator = sync_manager
+            .vector_coordinator()
+            .ok_or_else(|| CoreError::InvalidParameter("Vector coordinator not available".to_string()))?;
+
+        coordinator
+            .create_vector_index(space_id, tag_name, field_name, vector_size, distance)
+            .await
+            .map_err(|e| CoreError::VectorError(e.to_string()))
+    }
+
+    /// Drop a vector index
+    ///
+    /// # Parameters
+    /// - `tag_name` - tag name
+    /// - `field_name` - vector field name
+    ///
+    /// # Return
+    /// - Returns () on success
+    /// - Return error on failure
+    pub async fn drop_vector_index(
+        &self,
+        tag_name: &str,
+        field_name: &str,
+    ) -> CoreResult<()> {
+        let space_id = self
+            .space_id
+            .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
+
+        let sync_manager = self
+            .db
+            .sync_manager
+            .as_ref()
+            .ok_or_else(|| CoreError::InvalidParameter("Sync manager not available".to_string()))?;
+
+        let coordinator = sync_manager
+            .vector_coordinator()
+            .ok_or_else(|| CoreError::InvalidParameter("Vector coordinator not available".to_string()))?;
+
+        coordinator
+            .drop_vector_index(space_id, tag_name, field_name)
+            .await
+            .map_err(|e| CoreError::VectorError(e.to_string()))
+    }
 }
 
 impl<S: StorageClient + Clone + 'static> Drop for Session<S> {

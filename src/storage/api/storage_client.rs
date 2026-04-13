@@ -215,6 +215,12 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
 
     /// Get database file path
     fn get_db_path(&self) -> &str;
+
+    /// Get sync manager (if available)
+    /// Default implementation returns None for storage clients that don't support sync
+    fn get_sync_manager(&self) -> Option<std::sync::Arc<crate::sync::SyncManager>> {
+        None
+    }
 }
 
 /// Storing statistical information

@@ -7,8 +7,10 @@ pub mod batch;
 pub mod error;
 pub mod query_api;
 pub mod schema_api;
+pub mod sync_api;
 pub mod transaction_api;
 pub mod types;
+pub mod vector_api;
 
 pub use batch::{
     BatchConfig, BatchError, BatchItem, BatchItemType, BatchOperation, BatchOperationBuilder,
@@ -17,8 +19,10 @@ pub use batch::{
 pub use error::{CoreError, CoreResult, ExtendedErrorCode};
 pub use query_api::QueryApi;
 pub use schema_api::SchemaApi;
+pub use sync_api::SyncApi;
 pub use transaction_api::TransactionApi;
 pub use types::*;
+pub use vector_api::VectorApi;
 
 // Re-export the statistical types from the core layer.
 pub use crate::core::{

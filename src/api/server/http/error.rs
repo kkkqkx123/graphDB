@@ -79,6 +79,8 @@ impl From<crate::api::core::CoreError> for HttpError {
             CoreError::StorageError(msg) => HttpError::InternalError(msg),
             CoreError::Internal(msg) => HttpError::InternalError(msg),
             CoreError::DetailedQueryError { message, .. } => HttpError::InternalError(message),
+            CoreError::SyncError(msg) => HttpError::InternalError(msg),
+            CoreError::VectorError(msg) => HttpError::InternalError(msg),
         }
     }
 }

@@ -796,4 +796,8 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
     fn get_db_path(&self) -> &str {
         self.inner.get_db_path()
     }
+
+    fn get_sync_manager(&self) -> Option<std::sync::Arc<crate::sync::SyncManager>> {
+        self.sync_manager.clone()
+    }
 }

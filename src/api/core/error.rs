@@ -77,6 +77,12 @@ pub enum CoreError {
         extended_code: ExtendedErrorCode,
         offset: Option<usize>,
     },
+
+    #[error("Sync error: {0}")]
+    SyncError(String),
+
+    #[error("Vector error: {0}")]
+    VectorError(String),
 }
 
 impl CoreError {
