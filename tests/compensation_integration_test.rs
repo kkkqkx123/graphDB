@@ -167,7 +167,7 @@ async fn test_compensation_metrics() {
     }
 
     // Process DLQ
-    let stats = manager.process_dead_letter_queue().await;
+    let _stats = manager.process_dead_letter_queue().await;
 
     // Verify metrics were recorded
     let sync_stats = metrics.get_stats();

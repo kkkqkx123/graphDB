@@ -137,7 +137,7 @@ async fn test_sync_vertex_change() {
 
     // Sync vertex change
     ctx.coordinator
-        .on_vertex_change(1, "Article", vid, &props, ChangeType::Insert.into())
+        .on_vertex_change(1, "Article", vid, &props, ChangeType::Insert)
         .await
         .expect("Failed to sync vertex");
 
@@ -198,7 +198,7 @@ async fn test_sync_batch_processing() {
             .collect();
 
         ctx.coordinator
-            .on_vertex_change(1, "Article", vid, &props, ChangeType::Insert.into())
+            .on_vertex_change(1, "Article", vid, &props, ChangeType::Insert)
             .await
             .expect("Failed to sync vertex");
     }
@@ -241,7 +241,7 @@ async fn test_sync_delete_operation() {
         .collect();
 
     ctx.coordinator
-        .on_vertex_change(1, "Article", vid, &props, ChangeType::Insert.into())
+        .on_vertex_change(1, "Article", vid, &props, ChangeType::Insert)
         .await
         .expect("Failed to insert vertex");
 
@@ -249,7 +249,7 @@ async fn test_sync_delete_operation() {
 
     // Delete vertex
     ctx.coordinator
-        .on_vertex_change(1, "Article", vid, &props, ChangeType::Delete.into())
+        .on_vertex_change(1, "Article", vid, &props, ChangeType::Delete)
         .await
         .expect("Failed to delete vertex");
 
@@ -296,7 +296,7 @@ async fn test_concurrent_sync_operations() {
                 .collect();
 
             coordinator
-                .on_vertex_change(1, "Article", vid, &props, ChangeType::Insert.into())
+                .on_vertex_change(1, "Article", vid, &props, ChangeType::Insert)
                 .await
         });
         handles.push(handle);
@@ -348,7 +348,7 @@ async fn test_sync_nonexistent_index() {
     // Should succeed but not index anything (index doesn't exist, so field is skipped)
     let result = ctx
         .coordinator
-        .on_vertex_change(1, "Article", vid, &props, ChangeType::Insert.into())
+        .on_vertex_change(1, "Article", vid, &props, ChangeType::Insert)
         .await;
 
     // Should succeed (fields without indexes are silently skipped)
@@ -420,7 +420,7 @@ async fn test_custom_batch_size() {
             .collect();
 
         ctx.coordinator
-            .on_vertex_change(1, "Article", vid, &props, ChangeType::Insert.into())
+            .on_vertex_change(1, "Article", vid, &props, ChangeType::Insert)
             .await
             .expect("Failed to sync vertex");
     }

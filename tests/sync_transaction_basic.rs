@@ -247,7 +247,7 @@ fn test_transaction_batch_vertex_insert_sync() {
         .expect("Failed to search");
 
     assert!(
-        results.len() >= 1,
+        !results.is_empty(),
         "Should find at least one vertex, found {}",
         results.len()
     );

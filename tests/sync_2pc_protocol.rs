@@ -380,7 +380,7 @@ fn test_concurrent_transactions_sync() {
 
             // Verify vertex exists
             harness
-                .assert_vertex_exists("test_space", &Value::Int((i * 10 + 1) as i64))
+                .assert_vertex_exists("test_space", &Value::Int(i * 10 + 1))
                 .expect("Vertex should exist");
 
             // Verify index is synced
@@ -398,7 +398,6 @@ fn test_concurrent_transactions_sync() {
     }
 
     // If we reach here, all threads succeeded
-    assert!(true, "All concurrent transactions completed successfully");
 }
 
 /// TC-051: Concurrent index updates same space
@@ -456,7 +455,7 @@ fn test_concurrent_index_updates_same_space() {
 
             // Verify vertex exists
             harness
-                .assert_vertex_exists("test_space", &Value::Int((i + 1) as i64))
+                .assert_vertex_exists("test_space", &Value::Int(i + 1))
                 .expect("Vertex should exist");
 
             // Verify index is synced
@@ -480,5 +479,4 @@ fn test_concurrent_index_updates_same_space() {
     }
 
     // If we reach here, all threads succeeded
-    assert!(true, "All concurrent index updates completed successfully");
 }

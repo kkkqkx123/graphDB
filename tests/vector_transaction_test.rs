@@ -10,7 +10,7 @@ use graphdb::sync::vector_transaction_buffer::{
     PendingVectorUpdate, VectorTransactionBuffer, VectorTransactionBufferConfig,
 };
 use graphdb::transaction::types::TransactionId;
-use vector_client::VectorManager;
+use vector_client::{VectorClientConfig, VectorManager};
 
 #[tokio::test]
 async fn test_vector_transaction_buffer_basic() {
@@ -85,8 +85,9 @@ async fn test_vector_transaction_buffer_cleanup() {
 
 #[tokio::test]
 async fn test_vector_sync_coordinator_with_buffer() {
-    // Create a mock vector manager (using in-memory)
-    let vector_manager = Arc::new(VectorManager::new_in_memory());
+    // Create a mock vector manager (using disabled config)
+    let vector_manager =
+        Arc::new(VectorManager::new(VectorClientConfig::disabled()).await.unwrap());
 
     // Create coordinator with transaction buffer
     let coordinator = VectorSyncCoordinator::with_transaction_buffer(
@@ -134,7 +135,8 @@ async fn test_vector_sync_coordinator_with_buffer() {
 #[tokio::test]
 async fn test_vector_sync_coordinator_rollback() {
     // Create a mock vector manager
-    let vector_manager = Arc::new(VectorManager::new_in_memory());
+    let vector_manager =
+        Arc::new(VectorManager::new(VectorClientConfig::disabled()).await.unwrap());
 
     // Create coordinator with transaction buffer
     let coordinator = VectorSyncCoordinator::with_transaction_buffer(
@@ -169,7 +171,7 @@ async fn test_vector_sync_coordinator_rollback() {
     }
 
     // Rollback transaction
-    coordinator.rollback_transaction(txn_id);
+    coordinator.rollback_transaction(txn_id).await;
 
     // Verify buffer is cleared
     if let Some(buffer) = coordinator.transaction_buffer() {

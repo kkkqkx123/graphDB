@@ -79,7 +79,6 @@ fn test_failed_sync_to_dead_letter_queue() {
     let _entries = dlq.get_all();
     // DLQ might be empty if sync succeeded, which is fine
     // The test verifies DLQ is accessible
-    assert!(true, "DLQ infrastructure is working");
 }
 
 /// TC-061: Dead letter queue recovery
@@ -176,7 +175,6 @@ fn test_automatic_compensation() {
 
     // Verify compensation manager is created
     // Note: stats() method may not exist, just verify creation
-    assert!(true, "Should create compensation manager");
 
     // Note: Full compensation test requires mocking the index client
     // This test verifies the infrastructure exists
@@ -195,10 +193,11 @@ fn test_compensation_timeout() {
 
     // Start compensation with timeout
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let _handle = rt.block_on(async {
-        compensation_manager
+    rt.block_on(async {
+        let _handle = compensation_manager
             .clone()
-            .start_background_task(Duration::from_millis(100))
+            .start_background_task(Duration::from_millis(100));
+        // Don't await the handle, just let it run in the background
     });
 
     // Verify compensation task started
@@ -232,7 +231,6 @@ fn test_compensation_statistics() {
     // let stats = compensation_manager.stats().expect("Should get stats");
 
     // Verify stats structure
-    assert!(true, "Compensation stats should be accessible");
 
     // Note: Detailed stats testing requires actual compensation operations
 }

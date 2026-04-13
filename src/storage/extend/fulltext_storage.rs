@@ -160,21 +160,19 @@ impl FulltextStorage {
 
         for tag in &vertex.tags {
             for field_name in changed_fields {
-                if let Some(value) = tag.properties.get(field_name) {
-                    if let Value::String(text) = value {
-                        if let Some(engine) =
-                            self.manager.get_engine(space_id, &tag.name, field_name)
-                        {
-                            // Delete old document first
-                            engine.delete(&doc_id).await.ok();
-                            // Index new content
-                            engine.index(&doc_id, text).await.map_err(|e| {
-                                StorageError::DbError(format!(
-                                    "Failed to update vertex document: {}",
-                                    e
-                                ))
-                            })?;
-                        }
+                if let Some(Value::String(text)) = tag.properties.get(field_name) {
+                    if let Some(engine) =
+                        self.manager.get_engine(space_id, &tag.name, field_name)
+                    {
+                        // Delete old document first
+                        engine.delete(&doc_id).await.ok();
+                        // Index new content
+                        engine.index(&doc_id, text).await.map_err(|e| {
+                            StorageError::DbError(format!(
+                                "Failed to update vertex document: {}",
+                                e
+                            ))
+                        })?;
                     }
                 }
             }
