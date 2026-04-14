@@ -44,21 +44,6 @@ impl<S: graphdb::storage::StorageClient + 'static> ValidationHelper<S> {
         let result = self.pipeline.execute_query(&query)?;
 
         match result {
-            ExecutionResult::Result(r) => {
-                if r.row_count() == 0 {
-                    return Ok(HashMap::new());
-                }
-                let col_names = r.col_names().to_vec();
-                let row = r.get_row(0).unwrap();
-
-                let mut props = HashMap::new();
-                for (i, col_name) in col_names.iter().enumerate() {
-                    if let Some(value) = row.get(i) {
-                        props.insert(col_name.clone(), value.clone());
-                    }
-                }
-                Ok(props)
-            }
             ExecutionResult::DataSet(ds) => {
                 if ds.row_count() == 0 {
                     return Ok(HashMap::new());
@@ -117,21 +102,6 @@ impl<S: graphdb::storage::StorageClient + 'static> ValidationHelper<S> {
         let result = self.pipeline.execute_query(&query)?;
 
         match result {
-            ExecutionResult::Result(r) => {
-                if r.row_count() == 0 {
-                    return Ok(HashMap::new());
-                }
-                let col_names = r.col_names().to_vec();
-                let row = r.get_row(0).unwrap();
-
-                let mut props = HashMap::new();
-                for (i, col_name) in col_names.iter().enumerate() {
-                    if let Some(value) = row.get(i) {
-                        props.insert(col_name.clone(), value.clone());
-                    }
-                }
-                Ok(props)
-            }
             ExecutionResult::DataSet(ds) => {
                 if ds.row_count() == 0 {
                     return Ok(HashMap::new());
@@ -194,17 +164,6 @@ impl<S: graphdb::storage::StorageClient + 'static> ValidationHelper<S> {
 
         let mut schema = Vec::new();
         match result {
-            ExecutionResult::Result(r) => {
-                for row in r.rows() {
-                    if row.len() >= 2 {
-                        if let (Value::String(field), Value::String(field_type)) =
-                            (&row[0], &row[1])
-                        {
-                            schema.push((field.clone(), field_type.clone()));
-                        }
-                    }
-                }
-            }
             ExecutionResult::DataSet(ds) => {
                 for row in &ds.rows {
                     if row.len() >= 2 {

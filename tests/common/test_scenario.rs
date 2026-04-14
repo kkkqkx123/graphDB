@@ -251,13 +251,6 @@ impl TestScenario {
                         eprintln!("  Row {}: {:?}", i, row);
                     }
                 }
-                ExecutionResult::Result(r) => {
-                    eprintln!("Columns: {:?}", r.col_names());
-                    eprintln!("Rows ({}):", r.rows().len());
-                    for (i, row) in r.rows().iter().enumerate() {
-                        eprintln!("  Row {}: {:?}", i, row);
-                    }
-                }
                 _ => {
                     eprintln!("Result: {:?}", result);
                 }
@@ -289,7 +282,6 @@ impl TestScenario {
     pub fn assert_result_columns(self, expected: &[&str]) -> Self {
         if let Some(ref result) = self.last_result {
             let col_names: Vec<String> = match result {
-                ExecutionResult::Result(r) => r.col_names().to_vec(),
                 ExecutionResult::DataSet(ds) => ds.col_names.clone(),
                 _ => vec![],
             };
@@ -310,32 +302,7 @@ impl TestScenario {
     pub fn assert_result_contains(self, expected: Vec<Value>) -> Self {
         if let Some(ref result) = self.last_result {
             let rows: Vec<Vec<Value>> = match result {
-                ExecutionResult::Result(r) => r.rows().to_vec(),
                 ExecutionResult::DataSet(ds) => ds.rows.clone(),
-                ExecutionResult::Vertices(vertices) => vertices
-                    .iter()
-                    .flat_map(|v| {
-                        let mut row = vec![(*v.vid).clone()];
-                        for tag in &v.tags {
-                            for (k, val) in &tag.properties {
-                                row.push(Value::String(k.clone()));
-                                row.push(val.clone());
-                            }
-                        }
-                        Some(row)
-                    })
-                    .collect(),
-                ExecutionResult::Edges(edges) => edges
-                    .iter()
-                    .flat_map(|e| {
-                        let mut row = vec![e.src().clone(), e.dst().clone()];
-                        for (k, val) in e.properties() {
-                            row.push(Value::String(k.clone()));
-                            row.push(val.clone());
-                        }
-                        Some(row)
-                    })
-                    .collect(),
                 _ => vec![],
             };
 
@@ -573,30 +540,11 @@ impl TestScenario {
         let mut props = HashMap::new();
 
         match result {
-            ExecutionResult::Result(r) => {
-                if let Some(row) = r.get_row(0) {
-                    for (i, col_name) in r.col_names().iter().enumerate() {
-                        if let Some(value) = row.get(i) {
-                            props.insert(col_name.clone(), value.clone());
-                        }
-                    }
-                }
-            }
             ExecutionResult::DataSet(ds) => {
                 if let Some(row) = ds.rows.first() {
                     for (i, col_name) in ds.col_names.iter().enumerate() {
                         if let Some(value) = row.get(i) {
                             props.insert(col_name.clone(), value.clone());
-                        }
-                    }
-                }
-            }
-            ExecutionResult::Vertices(vertices) => {
-                // Extract properties from the first vertex's tags
-                if let Some(vertex) = vertices.first() {
-                    for tag in &vertex.tags {
-                        for (prop_name, prop_value) in &tag.properties {
-                            props.insert(prop_name.clone(), prop_value.clone());
                         }
                     }
                 }

@@ -95,63 +95,6 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
         }
     }
 
-    /// Value deduplication
-    fn dedup_values(&mut self, values: Vec<Value>) -> Result<Vec<Value>, crate::query::QueryError> {
-        match self.strategy.clone() {
-            DedupStrategy::Full => self.hash_based_dedup(values, |value| format!("{:?}", value)),
-            DedupStrategy::ByKeys(keys) => {
-                let keys = Arc::new(keys);
-                let keys_clone = keys.clone();
-                let key_extractor =
-                    move |value: &Value| Self::extract_keys_from_value_static(value, &keys_clone);
-                self.hash_based_dedup(values, key_extractor)
-            }
-            _ => self.hash_based_dedup(values, |value| format!("{:?}", value)),
-        }
-    }
-
-    fn dedup_vertices(
-        &mut self,
-        vertices: Vec<Vertex>,
-    ) -> Result<Vec<Vertex>, crate::query::QueryError> {
-        match self.strategy.clone() {
-            DedupStrategy::Full => {
-                self.hash_based_dedup(vertices, |vertex| format!("{:?}", vertex))
-            }
-            DedupStrategy::ByVertexId => {
-                self.hash_based_dedup(vertices, |vertex| format!("{:?}", vertex.vid))
-            }
-            DedupStrategy::ByKeys(keys) => {
-                let keys = Arc::new(keys);
-                let keys_clone = keys.clone();
-                let key_extractor = move |vertex: &Vertex| {
-                    Self::extract_keys_from_vertex_static(vertex, &keys_clone)
-                };
-                self.hash_based_dedup(vertices, key_extractor)
-            }
-            _ => self.hash_based_dedup(vertices, |vertex| format!("{:?}", vertex.vid)),
-        }
-    }
-
-    fn dedup_edges(&mut self, edges: Vec<Edge>) -> Result<Vec<Edge>, crate::query::QueryError> {
-        match self.strategy.clone() {
-            DedupStrategy::Full => self.hash_based_dedup(edges, |edge| format!("{:?}", edge)),
-            DedupStrategy::ByEdgeKey => self.hash_based_dedup(edges, |edge| {
-                format!("{:?}-{}-{:?}", edge.src, edge.edge_type, edge.dst)
-            }),
-            DedupStrategy::ByKeys(keys) => {
-                let keys = Arc::new(keys);
-                let keys_clone = keys.clone();
-                let key_extractor =
-                    move |edge: &Edge| Self::extract_keys_from_edge_static(edge, &keys_clone);
-                self.hash_based_dedup(edges, key_extractor)
-            }
-            _ => self.hash_based_dedup(edges, |edge| {
-                format!("{:?}-{}-{:?}", edge.src, edge.edge_type, edge.dst)
-            }),
-        }
-    }
-
     /// Data set deduplication
     ///
     /// Choose the deduplication method based on the amount of data:
@@ -609,7 +552,7 @@ mod tests {
                 assert_eq!(dataset.rows.len(), 3); // The duplicates should be removed to leave only 3 values.
                 let mut values: Vec<Value> = dataset.rows.iter().map(|r| r[0].clone()).collect();
                 values.sort_by(|a, b| match (a, b) {
-                    (Value::Int(a), Value::Int(b)) => a.cmp(&b),
+                    (Value::Int(a), Value::Int(b)) => a.cmp(b),
                     _ => std::cmp::Ordering::Equal,
                 });
                 assert_eq!(

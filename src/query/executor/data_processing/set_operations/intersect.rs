@@ -7,7 +7,6 @@ use std::sync::Arc;
 
 use crate::core::error::QueryError;
 use crate::query::DataSet;
-use crate::core::Value;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;

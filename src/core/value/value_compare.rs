@@ -513,28 +513,4 @@ impl Value {
             DataType::Vector | DataType::VectorDense(_) | DataType::VectorSparse(_) => 21,
         }
     }
-
-    // String list comparison helper function
-    fn cmp_string_list(a: &[String], b: &[String]) -> CmpOrdering {
-        let min_len = a.len().min(b.len());
-        for i in 0..min_len {
-            match a[i].cmp(&b[i]) {
-                CmpOrdering::Equal => continue,
-                ord => return ord,
-            }
-        }
-        a.len().cmp(&b.len())
-    }
-
-    // Value List Comparison Helper Functions
-    fn cmp_value_list(a: &[Value], b: &[Value]) -> CmpOrdering {
-        let min_len = a.len().min(b.len());
-        for i in 0..min_len {
-            match a[i].cmp(&b[i]) {
-                CmpOrdering::Equal => continue,
-                ord => return ord,
-            }
-        }
-        a.len().cmp(&b.len())
-    }
 }

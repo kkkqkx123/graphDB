@@ -50,9 +50,9 @@ impl<S: graphdb::storage::StorageClient + 'static> QueryHelper<S> {
     pub fn exec_dml(&mut self, query: &str) -> DBResult<usize> {
         let result = self.execute(query)?;
         match result {
-            ExecutionResult::Count(n) => Ok(n),
             ExecutionResult::Success => Ok(1),
             ExecutionResult::Empty => Ok(0),
+            ExecutionResult::DataSet(ds) => Ok(ds.row_count()),
             ExecutionResult::Error(msg) => Err(graphdb::core::error::DBError::Query(
                 graphdb::core::error::QueryError::ExecutionError(msg),
             )),
@@ -64,16 +64,7 @@ impl<S: graphdb::storage::StorageClient + 'static> QueryHelper<S> {
     pub fn query_rows(&mut self, query: &str) -> DBResult<Vec<Vec<Value>>> {
         let result = self.execute(query)?;
         match result {
-            ExecutionResult::Result(r) => Ok(r.rows().to_vec()),
             ExecutionResult::DataSet(ds) => Ok(ds.rows),
-            ExecutionResult::Values(v) => Ok(vec![v]),
-            ExecutionResult::Vertices(v) => Ok(v
-                .into_iter()
-                .map(|vertex| vec![Value::Vertex(Box::new(vertex))])
-                .collect()),
-            ExecutionResult::Edges(e) => {
-                Ok(e.into_iter().map(|edge| vec![Value::Edge(edge)]).collect())
-            }
             ExecutionResult::Empty => Ok(vec![]),
             ExecutionResult::Error(msg) => Err(graphdb::core::error::DBError::Query(
                 graphdb::core::error::QueryError::ExecutionError(msg),

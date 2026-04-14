@@ -160,7 +160,6 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
                 ExecutionResult::Error(_) => {
                     has_error = true;
                 }
-                _ => {}
             }
         }
 
@@ -176,8 +175,8 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
             ExecutionResult::DataSet(all_datasets.into_iter().next().expect("Failed to get next dataset"))
         } else {
             let first_dataset = all_datasets.first().cloned().expect("Failed to get first dataset");
-            let mut combined_rows = first_dataset.rows;
-            let mut combined_col_names = first_dataset.col_names;
+            let combined_rows = first_dataset.rows;
+            let combined_col_names = first_dataset.col_names;
 
             for dataset in all_datasets.into_iter().skip(1) {
                 combined_rows.extend(dataset.rows);
