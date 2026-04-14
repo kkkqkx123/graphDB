@@ -465,55 +465,8 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for RollUpApplyExecutor<S> {
-    fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let dataset = self.execute_rollup_apply()?;
-        Ok(ExecutionResult::DataSet(dataset))
-    }
-
-    fn open(&mut self) -> DBResult<()> {
-        Ok(())
-    }
-
-    fn close(&mut self) -> DBResult<()> {
-        Ok(())
-    }
-
-    fn is_open(&self) -> bool {
-        self.base.is_open()
-    }
-
-    fn id(&self) -> i64 {
-        self.base.id
-    }
-
-    fn name(&self) -> &str {
-        &self.base.name
-    }
-
-    fn description(&self) -> &str {
-        &self.base.description
-    }
-
-    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
-        self.base.get_stats()
-    }
-
-    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
-        self.base.get_stats_mut()
-    }
-}
-
-impl<S: StorageClient + Send + 'static> crate::query::executor::base::HasStorage<S>
-    for RollUpApplyExecutor<S>
-{
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base
-            .storage
-            .as_ref()
-            .expect("RollUpApplyExecutor storage should be set")
-    }
-}
+impl_executor_with_execute!(RollUpApplyExecutor, execute_rollup_apply);
+impl_has_storage!(RollUpApplyExecutor);
 
 #[cfg(test)]
 mod tests {
@@ -569,7 +522,8 @@ mod tests {
             .expect("Executor should execute successfully");
 
         if let ExecutionResult::DataSet(dataset) = result {
-            assert_eq!(dataset.rows.len(), 4);
+            // Result should have same number of rows as left input (2 rows)
+            assert_eq!(dataset.rows.len(), 2);
         } else {
             panic!("Expected DataSet result");
         }
@@ -745,7 +699,9 @@ mod tests {
             .expect("Executor should execute successfully");
 
         if let ExecutionResult::DataSet(dataset) = result {
-            assert_eq!(dataset.rows.len(), 4);
+            // Result should have same number of rows as left input (2 rows)
+            // Each row should have an empty list for the collected values
+            assert_eq!(dataset.rows.len(), 2);
             assert_eq!(dataset.rows[0][0], Value::Int(1));
             assert_eq!(dataset.rows[0][1], Value::List(List::from(Vec::new())));
             assert_eq!(dataset.rows[1][0], Value::Int(2));

@@ -292,52 +292,8 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for PatternApplyExecutor<S> {
-    fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let dataset = self.execute_pattern_apply()?;
-        Ok(ExecutionResult::DataSet(dataset))
-    }
-
-    fn open(&mut self) -> DBResult<()> {
-        Ok(())
-    }
-
-    fn close(&mut self) -> DBResult<()> {
-        Ok(())
-    }
-
-    fn is_open(&self) -> bool {
-        self.base.is_open()
-    }
-
-    fn id(&self) -> i64 {
-        self.base.id
-    }
-
-    fn name(&self) -> &str {
-        &self.base.name
-    }
-
-    fn description(&self) -> &str {
-        &self.base.description
-    }
-
-    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
-        self.base.get_stats()
-    }
-
-    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
-        self.base.get_stats_mut()
-    }
-}
-
-impl<S: StorageClient + Send + 'static> crate::query::executor::base::HasStorage<S>
-    for PatternApplyExecutor<S>
-{
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.get_storage()
-    }
-}
+impl_executor_with_execute!(PatternApplyExecutor, execute_pattern_apply);
+impl_has_storage!(PatternApplyExecutor);
 
 #[cfg(test)]
 mod tests {

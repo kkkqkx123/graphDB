@@ -170,8 +170,8 @@ mod tests {
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::DataSet(dataset)) = result {
-            // All 8 unique values should be included: 4 values from the left table + 4 values from the right table.
-            assert_eq!(dataset.rows.len(), 8);
+            // All rows should be included: 2 rows from left + 2 rows from right = 4 rows
+            assert_eq!(dataset.rows.len(), 4);
         } else {
             panic!("Expected DataSet results");
         }
@@ -218,7 +218,8 @@ mod tests {
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::DataSet(dataset)) = result {
-            assert_eq!(dataset.rows.len(), 4);
+            // Only the right dataset rows should be included (2 rows)
+            assert_eq!(dataset.rows.len(), 2);
         }
     }
 
@@ -264,8 +265,7 @@ mod tests {
 
         if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // Only the content from the left dataset should be included.
-            // 2 rows × 2 columns = 4 values
-            assert_eq!(dataset.rows.len(), 4);
+            assert_eq!(dataset.rows.len(), 2);
         }
     }
 
@@ -404,8 +404,7 @@ mod tests {
         if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // All duplicate rows should be retained.
             // The left dataset contains 2 rows (one of which is repeated), and the right dataset also contains 2 rows. In total, there are 4 rows.
-            // 4 rows × 2 columns = 8 values
-            assert_eq!(dataset.rows.len(), 8);
+            assert_eq!(dataset.rows.len(), 4);
         } else {
             panic!("Expected DataSet results");
         }

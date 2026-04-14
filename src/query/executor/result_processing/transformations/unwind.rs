@@ -79,9 +79,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
         }
     }
 
-    /// Please provide the text you would like to have translated. I will then perform the translation and provide the translated version.
     fn execute_unwind(&mut self) -> DBResult<DataSet> {
-        // Obtain the input result.
         let input_result = self
             .base
             .context
@@ -93,16 +91,12 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                 )))
             })?;
 
-        // Create the context for the expression.
         let mut expr_context = DefaultExpressionContext::new();
-
-        // Create an output dataset
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),
             rows: Vec::new(),
         };
 
-        // Process the input result based on its type
         match input_result {
             ExecutionResult::DataSet(input_data) => {
                 for row in input_data.rows {
@@ -166,55 +160,8 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for UnwindExecutor<S> {
-    fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let dataset = self.execute_unwind()?;
-        Ok(ExecutionResult::DataSet(dataset))
-    }
-
-    fn open(&mut self) -> DBResult<()> {
-        Ok(())
-    }
-
-    fn close(&mut self) -> DBResult<()> {
-        Ok(())
-    }
-
-    fn is_open(&self) -> bool {
-        self.base.is_open()
-    }
-
-    fn id(&self) -> i64 {
-        self.base.id
-    }
-
-    fn name(&self) -> &str {
-        &self.base.name
-    }
-
-    fn description(&self) -> &str {
-        &self.base.description
-    }
-
-    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
-        self.base.get_stats()
-    }
-
-    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
-        self.base.get_stats_mut()
-    }
-}
-
-impl<S: StorageClient + Send + 'static> crate::query::executor::base::HasStorage<S>
-    for UnwindExecutor<S>
-{
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base
-            .storage
-            .as_ref()
-            .expect("UnwindExecutor storage should be set")
-    }
-}
+impl_executor_with_execute!(UnwindExecutor, execute_unwind);
+impl_has_storage!(UnwindExecutor);
 
 #[cfg(test)]
 mod tests {

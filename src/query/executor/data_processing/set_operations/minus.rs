@@ -206,8 +206,7 @@ mod tests {
 
         if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // Only Alice and Charlie should be included (Bob and David are excluded).
-            // 2 rows × 2 columns = 4 values
-            assert_eq!(dataset.rows.len(), 4);
+            assert_eq!(dataset.rows.len(), 2);
         } else {
             panic!("Expected DataSet results");
         }
@@ -258,8 +257,7 @@ mod tests {
 
         if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // There is no overlap; therefore, the entire left dataset should be returned.
-            // 2 rows × 2 columns = 4 values
-            assert_eq!(dataset.rows.len(), 4);
+            assert_eq!(dataset.rows.len(), 2);
         }
     }
 
@@ -400,8 +398,7 @@ mod tests {
 
         if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // The right dataset is empty; therefore, the entire left dataset should be returned.
-            // 2 rows × 2 columns = 4 values
-            assert_eq!(dataset.rows.len(), 4);
+            assert_eq!(dataset.rows.len(), 2);
         }
     }
 
@@ -494,8 +491,9 @@ mod tests {
 
         if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // Only unique rows should be included; the terms "common" and "another" should be excluded.
-            // 1 row × 2 columns = 2 values
-            assert_eq!(dataset.rows.len(), 2);
+            // Left has [2, "unique"] and [3, "another"], right has [1, "common"] and [3, "another"]
+            // Result should be [2, "unique"] (1 row)
+            assert_eq!(dataset.rows.len(), 1);
         } else {
             panic!("Expected DataSet results");
         }

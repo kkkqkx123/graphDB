@@ -58,12 +58,7 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
 
     /// Perform an assignment operation
     fn execute_assign(&mut self) -> DBResult<()> {
-        // Use `ExecutionContext` directly, as it now implements the `ExpressionContext` trait.
-        // This can prevent the need to copy variables between the two contexts.
-
-        // Execute each assignment statement.
         for (var_name, expression) in &self.assign_items {
-            // Calculate the value of the expression.
             let value =
                 ExpressionEvaluator::evaluate(expression, &mut self.base.context).map_err(|e| {
                     DBError::Query(crate::core::error::QueryError::ExecutionError(
@@ -71,7 +66,6 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
                     ))
                 })?;
 
-            // Set according to the type of the value in the execution context.
             match &value {
                 Value::DataSet(dataset) => {
                     self.base
@@ -89,7 +83,6 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
                 }
             }
 
-            // Set variables for subsequent use.
             self.base.context.set_variable(var_name.clone(), value);
         }
 
@@ -136,16 +129,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AssignExecutor<S>
     }
 }
 
-impl<S: StorageClient + Send + 'static> crate::query::executor::base::HasStorage<S>
-    for AssignExecutor<S>
-{
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base
-            .storage
-            .as_ref()
-            .expect("AssignExecutor storage should be set")
-    }
-}
+impl_has_storage!(AssignExecutor);
 
 #[cfg(test)]
 mod tests {

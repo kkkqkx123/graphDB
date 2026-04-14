@@ -512,7 +512,6 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for DedupExecutor<S> {
 mod tests {
     use super::*;
     use crate::storage::MockStorage;
-    use std::collections::HashMap;
 
     #[test]
     fn test_dedup_executor_full_strategy() {
@@ -566,7 +565,7 @@ mod tests {
 
     #[test]
     fn test_dedup_executor_by_keys_strategy() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建 Mock 存储失败")));
 
         let mut executor = DedupExecutor::<MockStorage>::new(
             1,
@@ -575,24 +574,15 @@ mod tests {
             None,
         );
 
-        // Set up test data (including different objects with the same ID).
-        let test_data = vec![
-            Value::Map(HashMap::from([
-                ("id".to_string(), Value::Int(1)),
-                ("name".to_string(), Value::String("Alice".to_string())),
-            ])),
-            Value::Map(HashMap::from([
-                ("id".to_string(), Value::Int(2)),
-                ("name".to_string(), Value::String("Bob".to_string())),
-            ])),
-            Value::Map(HashMap::from([
-                ("id".to_string(), Value::Int(1)), // Duplicate ID
-                ("name".to_string(), Value::String("Alice2".to_string())),
-            ])),
+        // Set up test data with id column (including different objects with the same ID).
+        let test_rows = vec![
+            vec![Value::Int(1)], // id=1
+            vec![Value::Int(2)], // id=2
+            vec![Value::Int(1)], // Duplicate id=1
         ];
 
         // Use the `set_input` method to set the input data.
-        let input_dataset = DataSet::from_rows(vec![test_data.clone()], vec!["value".to_string()]);
+        let input_dataset = DataSet::from_rows(test_rows, vec!["id".to_string()]);
         <DedupExecutor<MockStorage> as crate::query::executor::base::ResultProcessor<
             MockStorage,
         >>::set_input(&mut executor, ExecutionResult::DataSet(input_dataset));

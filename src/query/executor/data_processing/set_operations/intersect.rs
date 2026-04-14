@@ -197,8 +197,7 @@ mod tests {
 
         if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // There should be 2 common lines: Bob and Charlie.
-            // 2 rows × 2 columns = 4 values
-            assert_eq!(dataset.rows.len(), 4);
+            assert_eq!(dataset.rows.len(), 2);
         } else {
             panic!("Expected DataSet results");
         }
@@ -433,8 +432,9 @@ mod tests {
 
         if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // The common rows should be included, and the duplicate rows from the left dataset should be retained.
-            // 2 rows × 2 columns = 4 values
-            assert_eq!(dataset.rows.len(), 4);
+            // Left has 2 copies of [1, "common"], right has 1 copy
+            // Result should have 2 rows (the duplicates from left)
+            assert_eq!(dataset.rows.len(), 2);
         } else {
             panic!("Expected DataSet results");
         }

@@ -207,8 +207,6 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
 
         let vertices = self.fetch_vertices(vids)?;
 
-        let _expr_context = DefaultExpressionContext::new();
-
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),
             rows: Vec::new(),
@@ -240,53 +238,8 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AppendVerticesExecutor<S> {
-    fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let dataset = self.execute_append_vertices()?;
-        Ok(ExecutionResult::DataSet(dataset))
-    }
-
-    fn open(&mut self) -> DBResult<()> {
-        Ok(())
-    }
-
-    fn close(&mut self) -> DBResult<()> {
-        Ok(())
-    }
-
-    fn is_open(&self) -> bool {
-        self.base.is_open()
-    }
-
-    fn id(&self) -> i64 {
-        self.base.id
-    }
-
-    fn name(&self) -> &str {
-        &self.base.name
-    }
-
-    fn description(&self) -> &str {
-        &self.base.description
-    }
-
-    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
-        self.base.get_stats()
-    }
-
-    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
-        self.base.get_stats_mut()
-    }
-}
-
-impl<S: StorageClient + Send> HasStorage<S> for AppendVerticesExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base
-            .storage
-            .as_ref()
-            .expect("AppendVerticesExecutor storage should be set")
-    }
-}
+impl_executor_with_execute!(AppendVerticesExecutor, execute_append_vertices);
+impl_has_storage!(AppendVerticesExecutor);
 
 #[cfg(test)]
 mod tests {
