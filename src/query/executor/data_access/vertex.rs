@@ -227,6 +227,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                                         crate::core::Value::Geography(_) => true,
                                         crate::core::Value::Duration(_) => true,
                                         crate::core::Value::Vector(_) => true,
+                                        crate::core::Value::DataSet(_) => true,
                                     }
                                 }
                                 Err(e) => {

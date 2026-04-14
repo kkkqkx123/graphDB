@@ -274,25 +274,6 @@ impl<S: StorageClient> AggregateExecutor<S> {
 
         match input_result {
             ExecutionResult::DataSet(dataset) => self.aggregate_dataset(dataset),
-            ExecutionResult::Vertices(vertices) => {
-                // Convert Vertices to DataSet for aggregation
-                let dataset = self.vertices_to_dataset(vertices);
-                self.aggregate_dataset(dataset)
-            }
-            ExecutionResult::Edges(edges) => {
-                // Convert Edges to DataSet for aggregation
-                let dataset = self.edges_to_dataset(edges);
-                self.aggregate_dataset(dataset)
-            }
-            ExecutionResult::Values(values) => {
-                // Convert Values to DataSet for aggregation
-                let mut dataset = crate::query::DataSet::new();
-                dataset.col_names = vec!["value".to_string()];
-                for value in values {
-                    dataset.rows.push(vec![value]);
-                }
-                self.aggregate_dataset(dataset)
-            }
             ExecutionResult::Empty | ExecutionResult::Success => {
                 let dataset = crate::query::DataSet::new();
                 self.aggregate_dataset(dataset)

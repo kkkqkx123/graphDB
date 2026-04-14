@@ -7,7 +7,6 @@ use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::query::DataSet;
-use crate::core::Value;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 use crate::query::executor::base::{ExecutionResult, Executor};
@@ -78,18 +77,6 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
                 self.apply_limits(&mut data_set)?;
                 Ok(data_set)
             }
-            ExecutionResult::Values(values) => {
-                let dataset = self.apply_values_limit(values)?;
-                Ok(dataset)
-            }
-            ExecutionResult::Vertices(vertices) => {
-                let dataset = self.apply_vertices_limit(vertices)?;
-                Ok(dataset)
-            }
-            ExecutionResult::Edges(edges) => {
-                let dataset = self.apply_edges_limit(edges)?;
-                Ok(dataset)
-            }
             ExecutionResult::Empty | ExecutionResult::Success => {
                 Ok(DataSet::new())
             }
@@ -116,81 +103,6 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
         }
 
         Ok(())
-    }
-
-    /// Applying restrictions to a list of values
-    fn apply_values_limit(&self, mut values: Vec<Value>) -> DBResult<DataSet> {
-        // Application offset
-        if self.offset > 0 {
-            if self.offset < values.len() {
-                values.drain(0..self.offset);
-            } else {
-                values.clear();
-            }
-        }
-
-        // Application restrictions
-        if let Some(limit) = self.limit {
-            values.truncate(limit);
-        }
-
-        Ok(DataSet {
-            col_names: vec!["_value".to_string()], // Single-column data
-            rows: values.into_iter().map(|v| vec![v]).collect(),
-        })
-    }
-
-    /// Apply restrictions to the list of vertices.
-    fn apply_vertices_limit(&self, mut vertices: Vec<crate::core::Vertex>) -> DBResult<DataSet> {
-        // Application offset
-        if self.offset > 0 {
-            if self.offset < vertices.len() {
-                vertices.drain(0..self.offset);
-            } else {
-                vertices.clear();
-            }
-        }
-
-        // Application restrictions
-        if let Some(limit) = self.limit {
-            vertices.truncate(limit);
-        }
-
-        // Convert the vertices into a dataset.
-        let rows: Vec<Vec<Value>> = vertices
-            .into_iter()
-            .map(|v| vec![Value::Vertex(Box::new(v))])
-            .collect();
-
-        Ok(DataSet {
-            col_names: vec!["_vertex".to_string()],
-            rows,
-        })
-    }
-
-    /// Apply restrictions to the list of opposite sides.
-    fn apply_edges_limit(&self, mut edges: Vec<crate::core::Edge>) -> DBResult<DataSet> {
-        // Application offset
-        if self.offset > 0 {
-            if self.offset < edges.len() {
-                edges.drain(0..self.offset);
-            } else {
-                edges.clear();
-            }
-        }
-
-        // Application restrictions
-        if let Some(limit) = self.limit {
-            edges.truncate(limit);
-        }
-
-        // Convert the edges into a dataset.
-        let rows: Vec<Vec<Value>> = edges.into_iter().map(|e| vec![Value::Edge(e)]).collect();
-
-        Ok(DataSet {
-            col_names: vec!["_edge".to_string()],
-            rows,
-        })
     }
 }
 
@@ -292,9 +204,12 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for LimitExecutor<S> {
 }
 
 #[cfg(test)]
+use crate::core::Value;
+#[cfg(test)]
+use crate::storage::test_mock::MockStorage;
+#[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::test_mock::MockStorage;
 
     #[test]
     fn test_limit_executor_basic() {
@@ -337,16 +252,20 @@ mod tests {
 
     #[test]
     fn test_limit_executor_only_limit() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
 
         // Create test data
-        let values: Vec<Value> = (1..=10).map(Value::Int).collect();
+        let mut dataset = DataSet::new();
+        dataset.col_names = vec!["_value".to_string()];
+        for i in 1..=10 {
+            dataset.rows.push(vec![Value::Int(i)]);
+        }
 
         // Create a limit executor (only allowing the execution of the LIMIT command 3 times).
         let mut executor = LimitExecutor::with_limit(1, storage, 3);
 
         // Setting the input data
-        ResultProcessor::set_input(&mut executor, ExecutionResult::Values(values));
+        ResultProcessor::set_input(&mut executor, ExecutionResult::DataSet(dataset));
 
         // Enforce the restrictions.
         let result = executor

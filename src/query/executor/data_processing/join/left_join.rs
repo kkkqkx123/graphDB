@@ -512,12 +512,12 @@ mod tests {
 
         executor.base_executor.get_base_mut().context.set_result(
             "left".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
 
         executor.base_executor.get_base_mut().context.set_result(
             "right".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // Establish the connection.
@@ -525,19 +525,15 @@ mod tests {
 
         // Verification results
         match result {
-            ExecutionResult::Values(values) => {
-                if let Some(Value::DataSet(dataset)) = values.first() {
-                    assert_eq!(dataset.rows.len(), 2); // The results for both lines should be filled with NULL.
+            ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.rows.len(), 2); // The results for both lines should be filled with NULL.
 
-                    // The value of “age” in all rows should be NULL.
-                    for row in &dataset.rows {
-                        assert_eq!(row[2], Value::Null(NullType::Null));
-                    }
-                } else {
-                    panic!("Expected DataSet results");
+                // The value of "age" in all rows should be NULL.
+                for row in &dataset.rows {
+                    assert_eq!(row[2], Value::Null(NullType::Null));
                 }
             }
-            _ => panic!("Expected Values results"),
+            _ => panic!("Expected DataSet results"),
         }
     }
 }

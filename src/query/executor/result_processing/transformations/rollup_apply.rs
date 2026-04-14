@@ -396,7 +396,7 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
             .get_result(&self.right_input_var)
             .expect("Context should have right result");
 
-        let left_values = match left_result {
+        let left_values: Vec<Value> = match left_result {
             ExecutionResult::DataSet(dataset) => dataset.rows.into_iter().flat_map(|row| row.into_iter()).collect(),
             _ => {
                 return Err(DBError::Query(
@@ -407,7 +407,7 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
             }
         };
 
-        let right_values = match right_result {
+        let right_values: Vec<Value> = match right_result {
             ExecutionResult::DataSet(dataset) => dataset.rows.into_iter().flat_map(|row| row.into_iter()).collect(),
             _ => {
                 return Err(DBError::Query(
@@ -581,16 +581,24 @@ mod tests {
 
         let left_values = vec![Value::Int(1), Value::Int(2), Value::Int(3)];
         let right_values = vec![Value::Int(10), Value::Int(20)];
+        let left_dataset = DataSet::from_rows(
+            left_values.clone().into_iter().map(|v| vec![v]).collect(),
+            vec!["_value".to_string()],
+        );
+        let right_dataset = DataSet::from_rows(
+            right_values.clone().into_iter().map(|v| vec![v]).collect(),
+            vec!["_value".to_string()],
+        );
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
         context.set_result(
             "left".to_string(),
-            ExecutionResult::Values(left_values.clone()),
+            ExecutionResult::DataSet(left_dataset),
         );
         context.set_result(
             "right".to_string(),
-            ExecutionResult::Values(right_values.clone()),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         let compare_cols: Vec<Expression> = vec![];
@@ -610,11 +618,10 @@ mod tests {
             .execute()
             .expect("Executor should execute successfully");
 
-        if let ExecutionResult::Values(values) = result {
-            assert_eq!(values.len(), 3);
-            assert_eq!(values.len(), 3);
-            for val in &values {
-                match val {
+        if let ExecutionResult::DataSet(dataset) = result {
+            assert_eq!(dataset.rows.len(), 3);
+            for row in &dataset.rows {
+                match &row[0] {
                     Value::List(list) => {
                         assert_eq!(list.len(), 2);
                     }
@@ -622,7 +629,7 @@ mod tests {
                 }
             }
         } else {
-            panic!("Expected Values result");
+            panic!("Expected DataSet result");
         }
     }
 
@@ -642,15 +649,24 @@ mod tests {
             Value::from((2, "A")),
         ];
 
+        let left_dataset = DataSet::from_rows(
+            left_values.clone().into_iter().map(|v| vec![v]).collect(),
+            vec!["_value".to_string()],
+        );
+        let right_dataset = DataSet::from_rows(
+            right_values.clone().into_iter().map(|v| vec![v]).collect(),
+            vec!["_value".to_string()],
+        );
+
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
         context.set_result(
             "left".to_string(),
-            ExecutionResult::Values(left_values.clone()),
+            ExecutionResult::DataSet(left_dataset),
         );
         context.set_result(
             "right".to_string(),
-            ExecutionResult::Values(right_values.clone()),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         let compare_cols = vec![
@@ -677,10 +693,10 @@ mod tests {
             .execute()
             .expect("Executor should execute successfully");
 
-        if let ExecutionResult::Values(values) = result {
-            assert_eq!(values.len(), 3);
+        if let ExecutionResult::DataSet(dataset) = result {
+            assert_eq!(dataset.rows.len(), 3);
         } else {
-            panic!("Expected Values result");
+            panic!("Expected DataSet result");
         }
     }
 
@@ -691,15 +707,24 @@ mod tests {
         let left_values = vec![Value::Int(1), Value::Int(2)];
         let right_values: Vec<Value> = vec![];
 
+        let left_dataset = DataSet::from_rows(
+            left_values.clone().into_iter().map(|v| vec![v]).collect(),
+            vec!["_value".to_string()],
+        );
+        let right_dataset = DataSet::from_rows(
+            right_values.clone().into_iter().map(|v| vec![v]).collect(),
+            vec!["_value".to_string()],
+        );
+
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
         context.set_result(
             "left".to_string(),
-            ExecutionResult::Values(left_values.clone()),
+            ExecutionResult::DataSet(left_dataset),
         );
         context.set_result(
             "right".to_string(),
-            ExecutionResult::Values(right_values.clone()),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         let compare_cols = vec![Expression::variable("_")];
@@ -719,14 +744,14 @@ mod tests {
             .execute()
             .expect("Executor should execute successfully");
 
-        if let ExecutionResult::Values(values) = result {
-            assert_eq!(values.len(), 4);
-            assert_eq!(values[0], Value::Int(1));
-            assert_eq!(values[1], Value::List(List::from(Vec::new())));
-            assert_eq!(values[2], Value::Int(2));
-            assert_eq!(values[3], Value::List(List::from(Vec::new())));
+        if let ExecutionResult::DataSet(dataset) = result {
+            assert_eq!(dataset.rows.len(), 4);
+            assert_eq!(dataset.rows[0][0], Value::Int(1));
+            assert_eq!(dataset.rows[0][1], Value::List(List::from(Vec::new())));
+            assert_eq!(dataset.rows[1][0], Value::Int(2));
+            assert_eq!(dataset.rows[1][1], Value::List(List::from(Vec::new())));
         } else {
-            panic!("Expected Values result");
+            panic!("Expected DataSet result");
         }
     }
 
@@ -737,15 +762,24 @@ mod tests {
         let left_values: Vec<Value> = vec![];
         let right_values = vec![Value::Int(1), Value::Int(2)];
 
+        let left_dataset = DataSet::from_rows(
+            left_values.clone().into_iter().map(|v| vec![v]).collect(),
+            vec!["_value".to_string()],
+        );
+        let right_dataset = DataSet::from_rows(
+            right_values.clone().into_iter().map(|v| vec![v]).collect(),
+            vec!["_value".to_string()],
+        );
+
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
         context.set_result(
             "left".to_string(),
-            ExecutionResult::Values(left_values.clone()),
+            ExecutionResult::DataSet(left_dataset),
         );
         context.set_result(
             "right".to_string(),
-            ExecutionResult::Values(right_values.clone()),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         let compare_cols = vec![Expression::literal(0i64)];
@@ -765,10 +799,10 @@ mod tests {
             .execute()
             .expect("Executor should execute successfully");
 
-        if let ExecutionResult::Values(values) = result {
-            assert!(values.is_empty());
+        if let ExecutionResult::DataSet(dataset) = result {
+            assert!(dataset.rows.is_empty());
         } else {
-            panic!("Expected Values result");
+            panic!("Expected DataSet result");
         }
     }
 }

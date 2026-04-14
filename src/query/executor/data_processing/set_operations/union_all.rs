@@ -252,7 +252,7 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_input".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "empty_right".to_string(),

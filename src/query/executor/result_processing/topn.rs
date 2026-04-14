@@ -1159,21 +1159,9 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for TopNExecutor<S> {
                 let topn_result = self.execute_topn_dataset(dataset)?;
                 Ok(ExecutionResult::DataSet(topn_result))
             }
-            ExecutionResult::Vertices(vertices) => {
-                let topn_result = self.execute_topn_vertices(vertices)?;
-                Ok(ExecutionResult::Vertices(topn_result))
-            }
-            ExecutionResult::Edges(edges) => {
-                let topn_result = self.execute_topn_edges(edges)?;
-                Ok(ExecutionResult::Edges(topn_result))
-            }
-            ExecutionResult::Values(values) => {
-                let topn_result = self.execute_topn_values(values)?;
-                Ok(ExecutionResult::Values(topn_result))
-            }
             _ => Err(DBError::Query(
                 crate::core::error::QueryError::ExecutionError(
-                    "TopN executor expects supported input type".to_string(),
+                    "TopN executor expects DataSet input type".to_string(),
                 ),
             )),
         }
@@ -1312,27 +1300,28 @@ mod tests {
     fn test_topn_executor_with_offset() {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
 
-        // Create test data
         let values: Vec<Value> = (1..=10).map(Value::Int).collect();
 
-        // Create a TopN executor (select 3-5 entries, sorted in ascending order by the numerical value)
+        let input_dataset = DataSet::from_rows(
+            values.iter().map(|v| vec![v.clone()]).collect(),
+            vec!["value".to_string()],
+        );
+
         let mut executor =
             TopNExecutor::new(1, storage, 3, vec!["value".to_string()], true).with_offset(2);
 
-        // Perform the TopN task.
         let result = executor
-            .process(ExecutionResult::Values(values))
+            .process(ExecutionResult::DataSet(input_dataset))
             .expect("TopN executor should process successfully");
 
-        // Verification results
         match result {
-            ExecutionResult::Values(topn_values) => {
-                assert_eq!(topn_values.len(), 3);
-                assert_eq!(topn_values[0], Value::Int(3)); // Skip the first 2 items; take the 3rd to the 5th one.
-                assert_eq!(topn_values[1], Value::Int(4));
-                assert_eq!(topn_values[2], Value::Int(5));
+            ExecutionResult::DataSet(topn_dataset) => {
+                assert_eq!(topn_dataset.rows.len(), 3);
+                assert_eq!(topn_dataset.rows[0][0], Value::Int(3));
+                assert_eq!(topn_dataset.rows[1][0], Value::Int(4));
+                assert_eq!(topn_dataset.rows[2][0], Value::Int(5));
             }
-            _ => panic!("Expected Values result"),
+            _ => panic!("Expected DataSet result"),
         }
     }
 }

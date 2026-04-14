@@ -2,7 +2,6 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::value::list::List;
 use crate::core::{Edge, Expression, NPath, Path, Value, Vertex};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;

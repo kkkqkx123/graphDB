@@ -564,69 +564,9 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
                 let projected_dataset = self.project_dataset(dataset)?;
                 ExecutionResult::DataSet(projected_dataset)
             }
-            ExecutionResult::Vertices(vertices) => {
-                let projected_dataset = self.project_vertices(vertices)?;
-                ExecutionResult::DataSet(projected_dataset)
-            }
-            ExecutionResult::Edges(edges) => {
-                let projected_dataset = self.project_edges(edges)?;
-                ExecutionResult::DataSet(projected_dataset)
-            }
-            ExecutionResult::Values(values) => {
-                // Convert Values to DataSet and apply projection
-                let mut dataset = crate::query::DataSet::new();
-                dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
-
-                for value in values {
-                    dataset.rows.push(vec![value]);
-                }
-                
-                let projected_dataset = self.project_dataset(dataset)?;
-                ExecutionResult::DataSet(projected_dataset)
-            }
-            ExecutionResult::Paths(paths) => {
-                let mut dataset = crate::query::DataSet::new();
-                dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
-
-                for path in paths {
-                    let mut context = DefaultExpressionContext::new();
-                    context.set_variable("path_length".to_string(), Value::Int(path.len() as i64));
-                    context
-                        .set_variable("src".to_string(), Value::String(path.src.vid.to_string()));
-
-                    let mut projected_row = Vec::new();
-                    for column in &self.columns {
-                        let expr = match column.expression.expression() {
-                            Some(meta) => meta.inner().clone(),
-                            None => continue,
-                        };
-
-                        match ExpressionEvaluator::evaluate(&expr, &mut context) {
-                            Ok(value) => projected_row.push(value),
-                            Err(e) => {
-                                return Err(DBError::Expression(
-                                    crate::core::error::ExpressionError::function_error(format!(
-                                        "Failed to evaluate projection expression '{}': {}",
-                                        column.name, e
-                                    )),
-                                ));
-                            }
-                        }
-                    }
-                    dataset.rows.push(projected_row);
-                }
-                ExecutionResult::DataSet(dataset)
-            }
-            ExecutionResult::Count(count) => {
-                let mut dataset = crate::query::DataSet::new();
-                dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
-                dataset.rows.push(vec![Value::Int(count as i64)]);
-                ExecutionResult::DataSet(dataset)
-            }
             ExecutionResult::Success => ExecutionResult::Success,
             ExecutionResult::Empty => ExecutionResult::Empty,
             ExecutionResult::Error(_) => input_result,
-            ExecutionResult::Result(_) => input_result,
         };
 
         Ok(projected_result)

@@ -506,7 +506,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DedupExecutor<S> 
             self.base
                 .input
                 .clone()
-                .unwrap_or(ExecutionResult::Values(Vec::new()))
+                .unwrap_or_else(|| ExecutionResult::DataSet(DataSet::new()))
         };
 
         self.process(input_result)
@@ -568,7 +568,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for DedupExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::test_mock::MockStorage;
+    use crate::storage::MockStorage;
     use std::collections::HashMap;
 
     #[test]
@@ -587,8 +587,11 @@ mod tests {
             Value::Int(3),
             Value::Int(2), // Repeat
         ];
-
-        let input_result = ExecutionResult::Values(test_data);
+        let dataset = DataSet::from_rows(
+            test_data.into_iter().map(|v| vec![v]).collect(),
+            vec!["_value".to_string()],
+        );
+        let input_result = ExecutionResult::DataSet(dataset);
 
         // Use the set_input method of the ResultProcessor trait.
         <DedupExecutor<MockStorage> as crate::query::executor::base::ResultProcessor<
@@ -597,24 +600,24 @@ mod tests {
 
         // Remove duplicates.
         let result = executor
-            .process(ExecutionResult::Values(Vec::new()))
+            .process(ExecutionResult::DataSet(DataSet::new()))
             .expect("Failed to process dedup");
 
         // Verification results
         match result {
-            ExecutionResult::Values(values) => {
-                assert_eq!(values.len(), 3); // The duplicates should be removed to leave only 3 values.
-                let mut sorted_values = values.clone();
-                sorted_values.sort_by(|a, b| match (a, b) {
-                    (Value::Int(a), Value::Int(b)) => a.cmp(b),
+            ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.rows.len(), 3); // The duplicates should be removed to leave only 3 values.
+                let mut values: Vec<Value> = dataset.rows.iter().map(|r| r[0].clone()).collect();
+                values.sort_by(|a, b| match (a, b) {
+                    (Value::Int(a), Value::Int(b)) => a.cmp(&b),
                     _ => std::cmp::Ordering::Equal,
                 });
                 assert_eq!(
-                    sorted_values,
+                    values,
                     vec![Value::Int(1), Value::Int(2), Value::Int(3),]
                 );
             }
-            _ => panic!("Expected Values result"),
+            _ => panic!("Expected DataSet result"),
         }
     }
 
@@ -646,21 +649,22 @@ mod tests {
         ];
 
         // Use the `set_input` method to set the input data.
+        let input_dataset = DataSet::from_rows(vec![test_data.clone()], vec!["value".to_string()]);
         <DedupExecutor<MockStorage> as crate::query::executor::base::ResultProcessor<
             MockStorage,
-        >>::set_input(&mut executor, ExecutionResult::Values(test_data));
+        >>::set_input(&mut executor, ExecutionResult::DataSet(input_dataset));
 
         // Handle deduplication.
         let result = executor
-            .process(ExecutionResult::Values(Vec::new()))
+            .process(ExecutionResult::DataSet(DataSet::new()))
             .expect("Failed to process dedup");
 
         // Verification results
         match result {
-            ExecutionResult::Values(values) => {
-                assert_eq!(values.len(), 2); // The duplication should be removed based on the ID, resulting in two unique values.
+            ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.rows.len(), 2); // The duplication should be removed based on the ID, resulting in two unique values.
             }
-            _ => panic!("Expected Values result"),
+            _ => panic!("Expected DataSet result"),
         }
     }
 }

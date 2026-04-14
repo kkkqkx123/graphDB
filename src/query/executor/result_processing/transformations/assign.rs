@@ -8,6 +8,7 @@ use std::sync::Arc;
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
 use crate::core::Value;
+use crate::query::DataSet;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
@@ -73,21 +74,17 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
             // Set according to the type of the value in the execution context.
             match &value {
                 Value::DataSet(dataset) => {
-                    // If it is a dataset, create a “Values” result.
-                    let values: Vec<Value> = dataset
-                        .rows
-                        .iter()
-                        .flat_map(|row| row.iter().cloned())
-                        .collect();
                     self.base
                         .context
-                        .set_result(var_name.clone(), ExecutionResult::Values(values));
+                        .set_result(var_name.clone(), ExecutionResult::DataSet(dataset.clone()));
                 }
                 _ => {
-                    // The other types are simply set as the result.
                     self.base.context.set_result(
                         var_name.clone(),
-                        ExecutionResult::Values(vec![value.clone()]),
+                        ExecutionResult::DataSet(DataSet::from_rows(
+                            vec![vec![value.clone()]],
+                            vec![var_name.clone()],
+                        )),
                     );
                 }
             }

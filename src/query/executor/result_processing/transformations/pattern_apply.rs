@@ -359,9 +359,17 @@ mod tests {
 
         let left_values = vec![Value::Int(1), Value::Int(2), Value::Int(3)];
         let right_values = vec![Value::Int(2), Value::Int(4)];
+        let left_dataset = DataSet::from_rows(
+            left_values.clone().into_iter().map(|v| vec![v]).collect(),
+            vec!["_value".to_string()],
+        );
+        let right_dataset = DataSet::from_rows(
+            right_values.clone().into_iter().map(|v| vec![v]).collect(),
+            vec!["_value".to_string()],
+        );
 
-        context.set_result("left".to_string(), ExecutionResult::Values(left_values));
-        context.set_result("right".to_string(), ExecutionResult::Values(right_values));
+        context.set_result("left".to_string(), ExecutionResult::DataSet(left_dataset));
+        context.set_result("right".to_string(), ExecutionResult::DataSet(right_dataset));
 
         let key_cols = vec![Expression::variable("_")];
         let config = PatternApplyConfig {
@@ -375,11 +383,11 @@ mod tests {
         let mut executor = PatternApplyExecutor::with_context(1, storage, context, config);
 
         let result = executor.execute().expect("Failed to execute pattern apply");
-        if let ExecutionResult::Values(values) = result {
-            assert_eq!(values.len(), 1);
-            assert_eq!(values[0], Value::Int(2));
+        if let ExecutionResult::DataSet(dataset) = result {
+            assert_eq!(dataset.rows.len(), 1);
+            assert_eq!(dataset.rows[0][0], Value::Int(2));
         } else {
-            panic!("Expected Values result");
+            panic!("Expected DataSet result");
         }
     }
 
@@ -391,9 +399,17 @@ mod tests {
 
         let left_values = vec![Value::Int(1), Value::Int(2), Value::Int(3)];
         let right_values = vec![Value::Int(2), Value::Int(4)];
+        let left_dataset = DataSet::from_rows(
+            left_values.clone().into_iter().map(|v| vec![v]).collect(),
+            vec!["_value".to_string()],
+        );
+        let right_dataset = DataSet::from_rows(
+            right_values.clone().into_iter().map(|v| vec![v]).collect(),
+            vec!["_value".to_string()],
+        );
 
-        context.set_result("left".to_string(), ExecutionResult::Values(left_values));
-        context.set_result("right".to_string(), ExecutionResult::Values(right_values));
+        context.set_result("left".to_string(), ExecutionResult::DataSet(left_dataset));
+        context.set_result("right".to_string(), ExecutionResult::DataSet(right_dataset));
 
         let key_cols = vec![Expression::variable("_")];
         let config = PatternApplyConfig {
@@ -407,12 +423,13 @@ mod tests {
         let mut executor = PatternApplyExecutor::with_context(1, storage, context, config);
 
         let result = executor.execute().expect("Failed to execute pattern apply");
-        if let ExecutionResult::Values(values) = result {
-            assert_eq!(values.len(), 2);
-            assert!(values.contains(&Value::Int(1)));
-            assert!(values.contains(&Value::Int(3)));
+        if let ExecutionResult::DataSet(dataset) = result {
+            assert_eq!(dataset.rows.len(), 2);
+            let result_values: Vec<Value> = dataset.rows.iter().map(|r| r[0].clone()).collect();
+            assert!(result_values.contains(&Value::Int(1)));
+            assert!(result_values.contains(&Value::Int(3)));
         } else {
-            panic!("Expected Values result");
+            panic!("Expected DataSet result");
         }
     }
 
@@ -424,9 +441,17 @@ mod tests {
 
         let left_values = vec![Value::Int(1), Value::Int(2)];
         let right_values = vec![Value::Int(10), Value::Int(20)];
+        let left_dataset = DataSet::from_rows(
+            left_values.clone().into_iter().map(|v| vec![v]).collect(),
+            vec!["_value".to_string()],
+        );
+        let right_dataset = DataSet::from_rows(
+            right_values.clone().into_iter().map(|v| vec![v]).collect(),
+            vec!["_value".to_string()],
+        );
 
-        context.set_result("left".to_string(), ExecutionResult::Values(left_values));
-        context.set_result("right".to_string(), ExecutionResult::Values(right_values));
+        context.set_result("left".to_string(), ExecutionResult::DataSet(left_dataset));
+        context.set_result("right".to_string(), ExecutionResult::DataSet(right_dataset));
 
         let config = PatternApplyConfig {
             left_input_var: "left".to_string(),
@@ -439,10 +464,10 @@ mod tests {
         let mut executor = PatternApplyExecutor::with_context(1, storage, context, config);
 
         let result = executor.execute().expect("Failed to execute pattern apply");
-        if let ExecutionResult::Values(values) = result {
-            assert_eq!(values.len(), 2);
+        if let ExecutionResult::DataSet(dataset) = result {
+            assert_eq!(dataset.rows.len(), 2);
         } else {
-            panic!("Expected Values result");
+            panic!("Expected DataSet result");
         }
     }
 
@@ -454,9 +479,17 @@ mod tests {
 
         let left_values = vec![Value::Int(1), Value::Int(2)];
         let right_values: Vec<Value> = vec![];
+        let left_dataset = DataSet::from_rows(
+            left_values.clone().into_iter().map(|v| vec![v]).collect(),
+            vec!["_value".to_string()],
+        );
+        let right_dataset = DataSet::from_rows(
+            right_values.clone().into_iter().map(|v| vec![v]).collect(),
+            vec!["_value".to_string()],
+        );
 
-        context.set_result("left".to_string(), ExecutionResult::Values(left_values));
-        context.set_result("right".to_string(), ExecutionResult::Values(right_values));
+        context.set_result("left".to_string(), ExecutionResult::DataSet(left_dataset));
+        context.set_result("right".to_string(), ExecutionResult::DataSet(right_dataset));
 
         let config = PatternApplyConfig {
             left_input_var: "left".to_string(),
@@ -469,10 +502,10 @@ mod tests {
         let mut executor = PatternApplyExecutor::with_context(1, storage, context, config);
 
         let result = executor.execute().expect("Failed to execute pattern apply");
-        if let ExecutionResult::Values(values) = result {
-            assert!(values.is_empty());
+        if let ExecutionResult::DataSet(dataset) = result {
+            assert!(dataset.rows.is_empty());
         } else {
-            panic!("Expected Values result");
+            panic!("Expected DataSet result");
         }
     }
 }

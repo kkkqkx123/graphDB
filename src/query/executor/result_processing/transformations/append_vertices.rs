@@ -100,15 +100,13 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
             None
         };
 
-        // Please provide the text you would like to have translated. I will then process it according to the specified type of translation required.
+        // Process the input result based on its type
         match input_result {
             ExecutionResult::DataSet(dataset) => {
                 for row in dataset.rows {
                     for value in row {
-                        // Set the current value to the context of the expression.
                         expr_context.set_variable("_".to_string(), value.clone());
 
-                        // Calculate the source expression to obtain the vertex ID.
                         let vid =
                             ExpressionEvaluator::evaluate(&self.src_expression, &mut expr_context)
                                 .map_err(|e| {
@@ -117,7 +115,6 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
                                     ))
                                 })?;
 
-                        // Check whether there are any duplicates.
                         if let Some(ref mut seen_map) = seen {
                             if !seen_map.contains_key(&vid) {
                                 seen_map.insert(vid.clone(), true);
@@ -126,77 +123,6 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
                         } else {
                             vids.push(vid);
                         }
-                    }
-                }
-            }
-            ExecutionResult::Values(values) => {
-                for value in values {
-                    // Set the current value to the context of the expression.
-                    expr_context.set_variable("_".to_string(), value.clone());
-
-                    // Calculate the source expression to obtain the vertex ID.
-                    let vid =
-                        ExpressionEvaluator::evaluate(&self.src_expression, &mut expr_context)
-                            .map_err(|e| {
-                                DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                    e.to_string(),
-                                ))
-                            })?;
-
-                    // Check whether there are any duplicates.
-                    if let Some(ref mut seen_map) = seen {
-                        if !seen_map.contains_key(&vid) {
-                            seen_map.insert(vid.clone(), true);
-                            vids.push(vid);
-                        }
-                    } else {
-                        vids.push(vid);
-                    }
-                }
-            }
-            ExecutionResult::Vertices(vertices) => {
-                for vertex in vertices {
-                    let vertex_value = Value::Vertex(Box::new(vertex.clone()));
-                    expr_context.set_variable("_".to_string(), vertex_value.clone());
-
-                    let vid =
-                        ExpressionEvaluator::evaluate(&self.src_expression, &mut expr_context)
-                            .map_err(|e| {
-                                DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                    e.to_string(),
-                                ))
-                            })?;
-
-                    if let Some(ref mut seen_map) = seen {
-                        if !seen_map.contains_key(&vid) {
-                            seen_map.insert(vid.clone(), true);
-                            vids.push(vid);
-                        }
-                    } else {
-                        vids.push(vid);
-                    }
-                }
-            }
-            ExecutionResult::Edges(edges) => {
-                for edge in edges {
-                    let edge_value = Value::Edge(edge.clone());
-                    expr_context.set_variable("_".to_string(), edge_value.clone());
-
-                    let vid =
-                        ExpressionEvaluator::evaluate(&self.src_expression, &mut expr_context)
-                            .map_err(|e| {
-                                DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                    e.to_string(),
-                                ))
-                            })?;
-
-                    if let Some(ref mut seen_map) = seen {
-                        if !seen_map.contains_key(&vid) {
-                            seen_map.insert(vid.clone(), true);
-                            vids.push(vid);
-                        }
-                    } else {
-                        vids.push(vid);
                     }
                 }
             }
@@ -383,7 +309,8 @@ mod tests {
             Value::String("vertex2".to_string()),
         ];
 
-        let input_result = ExecutionResult::Values(vids);
+        let input_dataset = DataSet::from_rows(vec![vids], vec!["_".to_string()]);
+        let input_result = ExecutionResult::DataSet(input_dataset);
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
@@ -405,12 +332,13 @@ mod tests {
             .execute()
             .expect("Executor should execute successfully");
 
-        if let ExecutionResult::Values(values) = result {
-            assert_eq!(values.len(), 2);
-            assert!(matches!(values[0], Value::Vertex(_)));
-            assert!(matches!(values[1], Value::Vertex(_)));
-        } else {
-            panic!("Expected Values result");
+        match result {
+            ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.row_count(), 2);
+                assert!(matches!(dataset.rows[0][0], Value::Vertex(_)));
+                assert!(matches!(dataset.rows[1][0], Value::Vertex(_)));
+            }
+            _ => panic!("Expected DataSet result"),
         }
     }
 }

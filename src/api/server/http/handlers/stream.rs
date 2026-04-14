@@ -224,5 +224,6 @@ fn value_to_json(value: crate::core::Value) -> serde_json::Value {
                 .collect::<Vec<_>>();
             serde_json::Value::Array(arr.into_iter().map(serde_json::Value::Number).collect())
         }
+        crate::core::Value::DataSet(ds) => serde_json::json!(ds),
     }
 }

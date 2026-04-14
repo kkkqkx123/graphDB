@@ -43,6 +43,7 @@ pub enum Value {
     Geography(super::geography::GeographyValue),
     Duration(super::date_time::DurationValue),
     Vector(super::vector::VectorValue),
+    DataSet(crate::query::DataSet),
 }
 
 impl Value {
@@ -78,6 +79,7 @@ impl Value {
             Value::Geography(_) => DataType::Geography,
             Value::Duration(_) => DataType::Duration,
             Value::Vector(_) => DataType::Vector,
+            Value::DataSet(_) => DataType::DataSet,
         }
     }
 
@@ -265,6 +267,7 @@ impl Value {
             Value::Geography(g) => std::mem::size_of::<Self>() + g.estimated_size(),
             Value::Duration(d) => std::mem::size_of::<Self>() + d.estimated_size(),
             Value::Vector(v) => std::mem::size_of::<Self>() + v.estimated_size(),
+            Value::DataSet(ds) => std::mem::size_of::<Self>() + ds.estimated_size(),
         }
     }
 }
@@ -338,6 +341,7 @@ impl std::fmt::Display for Value {
             }
             Value::Duration(d) => write!(f, "Duration({:?})", d),
             Value::Vector(v) => write!(f, "{}", v),
+            Value::DataSet(ds) => write!(f, "DataSet({} rows)", ds.row_count()),
         }
     }
 }

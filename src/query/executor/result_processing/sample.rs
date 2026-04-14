@@ -89,32 +89,6 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
                 let sampled_dataset = self.sample_dataset(dataset)?;
                 Ok(ExecutionResult::DataSet(sampled_dataset))
             }
-            ExecutionResult::Values(values) => {
-                let sampled_values = self.sample_values(values)?;
-                let dataset = DataSet::from_rows(
-                    sampled_values.into_iter().map(|v| vec![v]).collect(),
-                    vec!["value".to_string()],
-                );
-                Ok(ExecutionResult::DataSet(dataset))
-            }
-            ExecutionResult::Vertices(vertices) => {
-                let sampled_vertices = self.sample_vertices(vertices)?;
-                let rows: Vec<Vec<Value>> = sampled_vertices
-                    .into_iter()
-                    .map(|v| vec![Value::Vertex(Box::new(v))])
-                    .collect();
-                let dataset = DataSet::from_rows(rows, vec!["vertex".to_string()]);
-                Ok(ExecutionResult::DataSet(dataset))
-            }
-            ExecutionResult::Edges(edges) => {
-                let sampled_edges = self.sample_edges(edges)?;
-                let rows: Vec<Vec<Value>> = sampled_edges
-                    .into_iter()
-                    .map(|e| vec![Value::Edge(e)])
-                    .collect();
-                let dataset = DataSet::from_rows(rows, vec!["edge".to_string()]);
-                Ok(ExecutionResult::DataSet(dataset))
-            }
             ExecutionResult::Empty | ExecutionResult::Success => Ok(input),
             ExecutionResult::Error(msg) => Err(DBError::Query(
                 crate::core::error::QueryError::ExecutionError(msg),
@@ -512,9 +486,12 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for SampleExecutor<S> {
 }
 
 #[cfg(test)]
+use crate::core::Value;
+#[cfg(test)]
+use crate::storage::test_mock::MockStorage;
+#[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::test_mock::MockStorage;
 
     #[test]
     fn test_sample_executor_random() {
@@ -523,7 +500,11 @@ mod tests {
         ));
 
         // Create test data
-        let values: Vec<crate::core::Value> = (1..=100).map(crate::core::Value::Int).collect();
+        let values: Vec<Value> = (1..=100).map(Value::Int).collect();
+        let dataset = DataSet::from_rows(
+            values.into_iter().map(|v| vec![v]).collect(),
+            vec!["_value".to_string()],
+        );
 
         // Create a sampling executor that randomly selects 10 values, using a fixed seed to ensure reproducibility.
         let mut executor = SampleExecutor::new(1, storage, SampleMethod::Random, 10, Some(42));
@@ -531,7 +512,7 @@ mod tests {
         // Setting the input data
         <SampleExecutor<MockStorage> as ResultProcessor<MockStorage>>::set_input(
             &mut executor,
-            ExecutionResult::Values(values),
+            ExecutionResult::DataSet(dataset),
         );
 
         // Perform sampling
@@ -541,19 +522,18 @@ mod tests {
 
         // Verification results
         match result {
-            ExecutionResult::Values(sampled_values) => {
-                assert_eq!(sampled_values.len(), 10);
-                // Verify that all values are valid.
-                for value in &sampled_values {
-                    match value {
-                        crate::core::Value::Int(i) => {
-                            assert!(*i >= 1 && *i <= 100);
+            ExecutionResult::DataSet(sampled_dataset) => {
+                assert_eq!(sampled_dataset.rows.len(), 10);
+                for row in &sampled_dataset.rows {
+                    match row[0] {
+                        Value::Int(i) => {
+                            assert!(i >= 1 && i <= 100);
                         }
                         _ => panic!("Expected Int values"),
                     }
                 }
             }
-            _ => panic!("Expected Values result"),
+            _ => panic!("Expected DataSet result"),
         }
     }
 
@@ -562,7 +542,11 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
 
         // Create test data
-        let values: Vec<crate::core::Value> = (1..=100).map(crate::core::Value::Int).collect();
+        let values: Vec<Value> = (1..=100).map(Value::Int).collect();
+        let dataset = DataSet::from_rows(
+            values.into_iter().map(|v| vec![v]).collect(),
+            vec!["_value".to_string()],
+        );
 
         // Create a sampling executor (sampling 5 values from a reservoir).
         let mut executor = SampleExecutor::new(1, storage, SampleMethod::Reservoir, 5, Some(123));
@@ -570,7 +554,7 @@ mod tests {
         // Set the input data
         <SampleExecutor<MockStorage> as ResultProcessor<MockStorage>>::set_input(
             &mut executor,
-            ExecutionResult::Values(values),
+            ExecutionResult::DataSet(dataset),
         );
 
         // Perform sampling
@@ -580,10 +564,10 @@ mod tests {
 
         // Verification results
         match result {
-            ExecutionResult::Values(sampled_values) => {
-                assert_eq!(sampled_values.len(), 5);
+            ExecutionResult::DataSet(sampled_dataset) => {
+                assert_eq!(sampled_dataset.rows.len(), 5);
             }
-            _ => panic!("Expected Values result"),
+            _ => panic!("Expected DataSet result"),
         }
     }
 }

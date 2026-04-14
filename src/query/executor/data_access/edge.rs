@@ -40,7 +40,7 @@ impl<S: StorageClient> Executor<S> for GetEdgesExecutor<S> {
             Ok(edges) => {
                 let rows: Vec<Vec<Value>> = edges
                     .into_iter()
-                    .map(|e| vec![Value::Edge(Box::new(e))])
+                    .map(|e| vec![Value::Edge(e)])
                     .collect();
                 let dataset = DataSet::from_rows(rows, vec!["edge".to_string()]);
                 Ok(ExecutionResult::DataSet(dataset))
@@ -137,7 +137,7 @@ impl<S: StorageClient> Executor<S> for ScanEdgesExecutor<S> {
             Ok(edges) => {
                 let rows: Vec<Vec<Value>> = edges
                     .into_iter()
-                    .map(|e| vec![Value::Edge(Box::new(e))])
+                    .map(|e| vec![Value::Edge(e)])
                     .collect();
                 let dataset = DataSet::from_rows(rows, vec!["edge".to_string()]);
                 Ok(ExecutionResult::DataSet(dataset))

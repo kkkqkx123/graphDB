@@ -237,11 +237,11 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_no_common".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "right_no_common".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // Perform the INTERSECT operation

@@ -4,7 +4,8 @@
 //! All code in this module is conditionally compiled with `#[cfg(test)]`
 //! to avoid polluting production code.
 
-use graphdb::core::{DataSet, Value};
+use graphdb::core::Value;
+use graphdb::query::DataSet;
 use graphdb::query::planning::plan::ExecutionPlan;
 
 /// Formats a query plan into a human-readable string representation

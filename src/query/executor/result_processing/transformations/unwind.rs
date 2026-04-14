@@ -102,16 +102,13 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
             rows: Vec::new(),
         };
 
-        // Please provide the text you would like to have translated. I will then process it according to the specified type of translation required.
+        // Process the input result based on its type
         match input_result {
-            ExecutionResult::DataSet(dataset) => {
-                // Processing dataset
-                for row in dataset.rows {
+            ExecutionResult::DataSet(input_data) => {
+                for row in input_data.rows {
                     for value in row {
-                        // Set the current line to the context of the expression.
                         expr_context.set_variable("_".to_string(), value.clone());
 
-                        // Calculate the expanded expression.
                         let unwind_value =
                             ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
                                 .map_err(|e| {
@@ -120,19 +117,15 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                                 ))
                             })?;
 
-                        // Extract the list.
                         let list_values = self.extract_list(&unwind_value);
 
-                        // Create a row for each list element.
                         for list_item in list_values {
                             let mut row = Vec::new();
 
-                            // If it does not originate from a pipeline and the input is not empty, retain the original value.
                             if !self.from_pipe {
                                 row.push(value.clone());
                             }
 
-                            // Add the expanded values.
                             row.push(list_item);
 
                             dataset.rows.push(row);
@@ -140,100 +133,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                     }
                 }
             }
-            ExecutionResult::Values(values) => {
-                // Processing a list of values
-                for value in values {
-                    // Set the current line to the context of the expression.
-                    expr_context.set_variable("_".to_string(), value.clone());
-
-                    // Calculate the expanded expression.
-                    let unwind_value =
-                        ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
-                            .map_err(|e| {
-                            DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                e.to_string(),
-                            ))
-                        })?;
-
-                    // Extract the list.
-                    let list_values = self.extract_list(&unwind_value);
-
-                    // Create a row for each list element.
-                    for list_item in list_values {
-                        let mut row = Vec::new();
-
-                        // If it does not originate from a pipeline and the input is not empty, retain the original value.
-                        if !self.from_pipe {
-                            row.push(value.clone());
-                        }
-
-                        // Add the expanded values.
-                        row.push(list_item);
-
-                        dataset.rows.push(row);
-                    }
-                }
-            }
-            ExecutionResult::Vertices(vertices) => {
-                // Processing the list of vertices
-                for vertex in vertices {
-                    let vertex_value = Value::Vertex(Box::new(vertex.clone()));
-                    expr_context.set_variable("_".to_string(), vertex_value.clone());
-
-                    let unwind_value =
-                        ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
-                            .map_err(|e| {
-                            DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                e.to_string(),
-                            ))
-                        })?;
-
-                    let list_values = self.extract_list(&unwind_value);
-
-                    for list_item in list_values {
-                        let mut row = Vec::new();
-
-                        if !self.from_pipe {
-                            row.push(vertex_value.clone());
-                        }
-
-                        row.push(list_item);
-
-                        dataset.rows.push(row);
-                    }
-                }
-            }
-            ExecutionResult::Edges(edges) => {
-                // Processing the edge list
-                for edge in edges {
-                    let edge_value = Value::Edge(edge.clone());
-                    expr_context.set_variable("_".to_string(), edge_value.clone());
-
-                    let unwind_value =
-                        ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
-                            .map_err(|e| {
-                            DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                e.to_string(),
-                            ))
-                        })?;
-
-                    let list_values = self.extract_list(&unwind_value);
-
-                    for list_item in list_values {
-                        let mut row = Vec::new();
-
-                        if !self.from_pipe {
-                            row.push(edge_value.clone());
-                        }
-
-                        row.push(list_item);
-
-                        dataset.rows.push(row);
-                    }
-                }
-            }
             ExecutionResult::Success => {
-                // Handle empty inputs.
                 let empty_value = Value::Empty;
                 expr_context.set_variable("_".to_string(), empty_value.clone());
 
@@ -330,21 +230,22 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
 
-        // Create the input data
         let list_value = Value::List(List::from(vec![
             Value::Int(1),
             Value::Int(2),
             Value::Int(3),
         ]));
 
-        let input_result = ExecutionResult::Values(vec![list_value]);
+        let input_dataset = DataSet::from_rows(
+            vec![vec![list_value]],
+            vec!["value".to_string()],
+        );
+        let input_result = ExecutionResult::DataSet(input_dataset);
 
-        // Create an execution context.
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let context = crate::query::executor::base::ExecutionContext::new(expr_context);
         context.set_result("input".to_string(), input_result);
 
-        // Create the UnwindExecutor
         let unwind_expression = Expression::Variable("_".to_string());
         let mut executor = UnwindExecutor::with_context(
             1,
@@ -356,43 +257,24 @@ mod tests {
             context,
         );
 
-        // Of course! Please provide the text you would like to have translated.
         let result = executor
             .execute()
             .expect("Executor should execute successfully");
 
-        // Test results
-        if let ExecutionResult::Values(values) = result {
-            assert_eq!(values.len(), 6);
-            assert_eq!(
-                values[0],
-                Value::List(List::from(vec![
+        match result {
+            ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.rows.len(), 3);
+                assert_eq!(dataset.rows[0].len(), 2);
+                assert_eq!(dataset.rows[0][0], Value::List(List::from(vec![
                     Value::Int(1),
                     Value::Int(2),
-                    Value::Int(3)
-                ]))
-            );
-            assert_eq!(values[1], Value::Int(1));
-            assert_eq!(
-                values[2],
-                Value::List(List::from(vec![
-                    Value::Int(1),
-                    Value::Int(2),
-                    Value::Int(3)
-                ]))
-            );
-            assert_eq!(values[3], Value::Int(2));
-            assert_eq!(
-                values[4],
-                Value::List(List::from(vec![
-                    Value::Int(1),
-                    Value::Int(2),
-                    Value::Int(3)
-                ]))
-            );
-            assert_eq!(values[5], Value::Int(3));
-        } else {
-            panic!("Expected Values result");
+                    Value::Int(3),
+                ])));
+                assert_eq!(dataset.rows[0][1], Value::Int(1));
+                assert_eq!(dataset.rows[1][1], Value::Int(2));
+                assert_eq!(dataset.rows[2][1], Value::Int(3));
+            }
+            _ => panic!("Expected DataSet result"),
         }
     }
 }

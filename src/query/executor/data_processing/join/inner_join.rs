@@ -734,7 +734,7 @@ mod tests {
 
         executor.base_executor.get_base_mut().context.set_result(
             "left".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
 
         executor.base_executor.get_base_mut().context.set_result(

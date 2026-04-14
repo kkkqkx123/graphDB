@@ -2,6 +2,7 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::core::error::DBResult;
+use crate::query::DataSet;
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::executor::executor_enum::ExecutorEnum;
