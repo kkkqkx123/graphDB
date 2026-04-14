@@ -7,7 +7,6 @@ pub mod iterator;
 pub mod metadata;
 pub mod monitoring;
 pub mod operations;
-pub mod schema;
 pub mod shared_state;
 
 #[cfg(test)]
@@ -40,7 +39,6 @@ pub use index::*;
 pub use iterator::*;
 pub use metadata::*;
 pub use operations::*;
-pub use schema::Schema;
 pub use shared_state::{StorageInner, StorageSharedState};
 
 pub use crate::core::StorageError;

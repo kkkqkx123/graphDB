@@ -3,7 +3,7 @@
 //! Provide operation log based rollback function, support transaction save point rollback
 
 use crate::core::{StorageError, Value};
-use crate::storage::operations::{EdgeWriter, VertexWriter};
+use crate::storage::operations::traits::{EdgeWriter, VertexWriter};
 use crate::transaction::types::OperationLog;
 use bincode::{config::standard, decode_from_slice};
 

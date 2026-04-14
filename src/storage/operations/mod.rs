@@ -1,16 +1,12 @@
-pub mod reader;
-pub mod redb_reader;
-pub mod redb_writer;
+pub mod redb;
 pub mod rollback;
+pub mod traits;
 pub mod write_txn_executor;
-pub mod writer;
 
-pub use reader::{EdgeReader, ScanResult, VertexReader};
-pub use redb_reader::RedbReader;
-pub use redb_writer::RedbWriter;
+pub use redb::{RedbReader, RedbWriter};
 pub use rollback::{
     OperationLogContext, OperationLogRollback, RollbackExecutor, StorageRollbackExecutor,
     StorageWriter,
 };
+pub use traits::{EdgeReader, EdgeWriter, ScanResult, VertexReader, VertexWriter};
 pub use write_txn_executor::WriteTxnExecutor;
-pub use writer::{EdgeWriter, VertexWriter};

@@ -14,7 +14,7 @@ use crate::core::{Edge, EdgeDirection, NullType, RoleType, Value, Vertex};
 #[cfg(test)]
 use crate::storage::api::StorageClient;
 #[cfg(test)]
-use crate::storage::schema::Schema;
+use crate::storage::metadata::Schema;
 #[cfg(test)]
 use std::sync::Arc;
 

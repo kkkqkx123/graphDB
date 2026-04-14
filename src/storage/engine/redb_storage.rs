@@ -7,10 +7,9 @@ use crate::storage::api::StorageClient;
 use crate::storage::entity::{EdgeStorage, UserStorage, VertexStorage};
 use crate::storage::index::{IndexDataManager, RedbIndexDataManager};
 use crate::storage::metadata::{
-    IndexMetadataManager, RedbIndexMetadataManager, RedbSchemaManager, SchemaManager,
+    IndexMetadataManager, RedbIndexMetadataManager, RedbSchemaManager, Schema, SchemaManager,
 };
 use crate::storage::operations::{RedbReader, RedbWriter};
-use crate::storage::schema::Schema;
 use crate::storage::shared_state::{StorageInner, StorageSharedState};
 use crate::sync::SyncManager;
 use crate::transaction::TransactionContext;

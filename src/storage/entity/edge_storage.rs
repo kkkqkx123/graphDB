@@ -1,9 +1,8 @@
 use crate::core::types::{EdgeTypeInfo, InsertEdgeInfo};
 use crate::core::{Edge, EdgeDirection, StorageError, Value};
 use crate::storage::index::{IndexDataManager, RedbIndexDataManager};
-use crate::storage::metadata::{IndexMetadataManager, SchemaManager};
+use crate::storage::metadata::{IndexMetadataManager, Schema, SchemaManager};
 use crate::storage::operations::{EdgeReader, EdgeWriter, VertexReader};
-use crate::storage::schema::Schema;
 use crate::storage::shared_state::{StorageInner, StorageSharedState};
 use std::sync::Arc;
 

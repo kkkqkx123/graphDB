@@ -1,6 +1,6 @@
 use crate::core::types::{EdgeTypeInfo, Index, SpaceInfo, TagInfo};
 use crate::core::StorageError;
-use crate::storage::Schema;
+use crate::storage::metadata::Schema;
 
 pub trait SchemaManager: Send + Sync + std::fmt::Debug {
     fn create_space(&self, space: &SpaceInfo) -> Result<bool, StorageError>;

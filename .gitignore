@@ -7,3 +7,5 @@ default_db_path
 .mypy_cache
 tests/c_api/build
 .translator
+*.exe
+*.db

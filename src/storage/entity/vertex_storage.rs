@@ -1,9 +1,8 @@
 use crate::core::types::{InsertVertexInfo, TagInfo, UpdateInfo, UpdateOp};
 use crate::core::{StorageError, Value, Vertex};
 use crate::storage::index::{IndexDataManager, RedbIndexDataManager};
-use crate::storage::metadata::{IndexMetadataManager, SchemaManager};
+use crate::storage::metadata::{IndexMetadataManager, Schema, SchemaManager};
 use crate::storage::operations::{VertexReader, VertexWriter};
-use crate::storage::schema::Schema;
 use crate::storage::shared_state::{StorageInner, StorageSharedState};
 use crate::sync::coordinator::ChangeType;
 use std::sync::Arc;

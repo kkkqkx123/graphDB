@@ -3,7 +3,7 @@ use crate::core::types::{
     TagInfo, UpdateInfo, UserAlterInfo, UserInfo,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
-use crate::storage::schema::Schema;
+use crate::storage::metadata::Schema;
 
 pub trait StorageClient: Send + Sync + std::fmt::Debug {
     /// Get a reference to self as Any for downcasting
