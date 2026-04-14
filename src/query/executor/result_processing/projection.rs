@@ -573,22 +573,16 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
                 ExecutionResult::DataSet(projected_dataset)
             }
             ExecutionResult::Values(values) => {
-                // If values contains a single DataSet, use it directly instead of wrapping it
-                if values.len() == 1 {
-                    if let Value::DataSet(dataset) = &values[0] {
-                        // Apply projection to the unwrapped dataset
-                        let projected_dataset = self.project_dataset(dataset.clone())?;
-                        return Ok(ExecutionResult::DataSet(projected_dataset));
-                    }
-                }
-
+                // Convert Values to DataSet and apply projection
                 let mut dataset = crate::query::DataSet::new();
                 dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
 
                 for value in values {
                     dataset.rows.push(vec![value]);
                 }
-                ExecutionResult::DataSet(dataset)
+                
+                let projected_dataset = self.project_dataset(dataset)?;
+                ExecutionResult::DataSet(projected_dataset)
             }
             ExecutionResult::Paths(paths) => {
                 let mut dataset = crate::query::DataSet::new();

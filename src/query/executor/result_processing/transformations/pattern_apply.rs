@@ -21,16 +21,23 @@ use crate::storage::StorageClient;
 
 fn execution_result_to_values(result: &ExecutionResult) -> Result<Vec<Value>, DBError> {
     match result {
+        ExecutionResult::DataSet(dataset) => {
+            let values: Vec<Value> = dataset
+                .rows
+                .iter()
+                .flat_map(|row| row.iter().cloned())
+                .collect();
+            Ok(values)
+        }
         ExecutionResult::Values(values) => Ok(values.clone()),
         ExecutionResult::Vertices(vertices) => Ok(vertices
             .iter()
             .map(|v| Value::Vertex(Box::new(v.clone())))
             .collect()),
         ExecutionResult::Edges(edges) => Ok(edges.iter().map(|e| Value::Edge(e.clone())).collect()),
-        _ => Err(DBError::Query(
-            crate::core::error::QueryError::ExecutionError(
-                "Unsupported result type for PatternApply".to_string(),
-            ),
+        ExecutionResult::Empty | ExecutionResult::Success => Ok(Vec::new()),
+        ExecutionResult::Error(msg) => Err(DBError::Query(
+            crate::core::error::QueryError::ExecutionError(msg.clone()),
         )),
     }
 }
@@ -294,14 +301,7 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for PatternApplyExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let dataset = self.execute_pattern_apply()?;
-
-        let values: Vec<Value> = dataset
-            .rows
-            .into_iter()
-            .flat_map(|row| row.into_iter())
-            .collect();
-
-        Ok(ExecutionResult::Values(values))
+        Ok(ExecutionResult::DataSet(dataset))
     }
 
     fn open(&mut self) -> DBResult<()> {

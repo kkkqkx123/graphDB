@@ -3,6 +3,7 @@ use std::time::Instant;
 
 use super::super::base::{BaseExecutor, ExecutorStats};
 use crate::core::vertex_edge_path;
+use crate::core::Value;
 use crate::query::DataSet;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;

@@ -102,6 +102,33 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
 
         // Please provide the text you would like to have translated. I will then process it according to the specified type of translation required.
         match input_result {
+            ExecutionResult::DataSet(dataset) => {
+                for row in dataset.rows {
+                    for value in row {
+                        // Set the current value to the context of the expression.
+                        expr_context.set_variable("_".to_string(), value.clone());
+
+                        // Calculate the source expression to obtain the vertex ID.
+                        let vid =
+                            ExpressionEvaluator::evaluate(&self.src_expression, &mut expr_context)
+                                .map_err(|e| {
+                                    DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                        e.to_string(),
+                                    ))
+                                })?;
+
+                        // Check whether there are any duplicates.
+                        if let Some(ref mut seen_map) = seen {
+                            if !seen_map.contains_key(&vid) {
+                                seen_map.insert(vid.clone(), true);
+                                vids.push(vid);
+                            }
+                        } else {
+                            vids.push(vid);
+                        }
+                    }
+                }
+            }
             ExecutionResult::Values(values) => {
                 for value in values {
                     // Set the current value to the context of the expression.
@@ -173,11 +200,10 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
                     }
                 }
             }
-            _ => {
+            ExecutionResult::Empty | ExecutionResult::Success => {}
+            ExecutionResult::Error(msg) => {
                 return Err(DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(
-                        "Invalid input result type for AppendVertices".to_string(),
-                    ),
+                    crate::core::error::QueryError::ExecutionError(msg),
                 ));
             }
         }
@@ -291,14 +317,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AppendVerticesExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let dataset = self.execute_append_vertices()?;
-
-        let values: Vec<Value> = dataset
-            .rows
-            .into_iter()
-            .flat_map(|row| row.into_iter())
-            .collect();
-
-        Ok(ExecutionResult::Values(values))
+        Ok(ExecutionResult::DataSet(dataset))
     }
 
     fn open(&mut self) -> DBResult<()> {

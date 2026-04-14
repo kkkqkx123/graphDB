@@ -90,10 +90,11 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
                 let dataset = self.apply_edges_limit(edges)?;
                 Ok(dataset)
             }
-            _ => Err(DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "Limit executor expects DataSet, Values, Vertices, or Edges input".to_string(),
-                ),
+            ExecutionResult::Empty | ExecutionResult::Success => {
+                Ok(DataSet::new())
+            }
+            ExecutionResult::Error(msg) => Err(DBError::Query(
+                crate::core::error::QueryError::ExecutionError(msg),
             )),
         }
     }

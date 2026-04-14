@@ -5,7 +5,6 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::value::list::List;
 use crate::core::{Edge, Expression, NPath, Path, Value, Vertex};
 use crate::query::validator::context::ExpressionAnalysisContext;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
@@ -71,7 +70,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
         edge_types: Option<Vec<String>>,
         max_depth: Option<usize>,
         conditions: Option<String>,
-        expr_context: Arc<ExprContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "TraverseExecutor".to_string(), storage, expr_context),

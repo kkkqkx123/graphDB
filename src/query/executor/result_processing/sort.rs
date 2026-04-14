@@ -915,7 +915,8 @@ impl<S: StorageClient + Send + 'static> HasStorage<S> for SortExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::value::{DataSet, Value};
+    use crate::core::Value;
+    use crate::query::DataSet;
     use crate::storage::MockStorage;
 
     fn create_test_dataset() -> DataSet {

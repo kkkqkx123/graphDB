@@ -104,6 +104,42 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
 
         // Please provide the text you would like to have translated. I will then process it according to the specified type of translation required.
         match input_result {
+            ExecutionResult::DataSet(dataset) => {
+                // Processing dataset
+                for row in dataset.rows {
+                    for value in row {
+                        // Set the current line to the context of the expression.
+                        expr_context.set_variable("_".to_string(), value.clone());
+
+                        // Calculate the expanded expression.
+                        let unwind_value =
+                            ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
+                                .map_err(|e| {
+                                DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                    e.to_string(),
+                                ))
+                            })?;
+
+                        // Extract the list.
+                        let list_values = self.extract_list(&unwind_value);
+
+                        // Create a row for each list element.
+                        for list_item in list_values {
+                            let mut row = Vec::new();
+
+                            // If it does not originate from a pipeline and the input is not empty, retain the original value.
+                            if !self.from_pipe {
+                                row.push(value.clone());
+                            }
+
+                            // Add the expanded values.
+                            row.push(list_item);
+
+                            dataset.rows.push(row);
+                        }
+                    }
+                }
+            }
             ExecutionResult::Values(values) => {
                 // Processing a list of values
                 for value in values {
@@ -216,87 +252,12 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                 }
             }
             ExecutionResult::Empty => {}
-            ExecutionResult::Paths(paths) => {
-                // List of processing paths
-                for path in paths {
-                    let path_value = Value::Path(path.clone());
-                    expr_context.set_variable("_".to_string(), path_value.clone());
-
-                    let unwind_value =
-                        ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
-                            .map_err(|e| {
-                            DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                e.to_string(),
-                            ))
-                        })?;
-
-                    let list_values = self.extract_list(&unwind_value);
-
-                    for list_item in list_values {
-                        let mut row = Vec::new();
-
-                        if !self.from_pipe {
-                            row.push(path_value.clone());
-                        }
-
-                        row.push(list_item);
-
-                        dataset.rows.push(row);
-                    }
-                }
-            }
-            ExecutionResult::DataSet(ds) => {
-                // Processing a dataset
-                for row in &ds.rows {
-                    for value in row {
-                        expr_context.set_variable("_".to_string(), value.clone());
-
-                        let unwind_value = ExpressionEvaluator::evaluate(
-                            &self.unwind_expression,
-                            &mut expr_context,
-                        )
-                        .map_err(|e| {
-                            DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                e.to_string(),
-                            ))
-                        })?;
-
-                        let list_values = self.extract_list(&unwind_value);
-
-                        for list_item in list_values {
-                            let mut new_row = Vec::new();
-
-                            if !self.from_pipe {
-                                new_row.push(value.clone());
-                            }
-
-                            new_row.push(list_item);
-
-                            dataset.rows.push(new_row);
-                        }
-                    }
-                }
-            }
-            ExecutionResult::Count(_) => {
-                return Err(DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(
-                        "Cannot unwind count result".to_string(),
-                    ),
-                ));
-            }
             ExecutionResult::Error(e) => {
                 return Err(DBError::Query(
                     crate::core::error::QueryError::ExecutionError(format!(
                         "Error in input result: {}",
                         e
                     )),
-                ));
-            }
-            ExecutionResult::Result(_) => {
-                return Err(DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(
-                        "Cannot unwind Result object".to_string(),
-                    ),
                 ));
             }
         }
@@ -308,9 +269,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for UnwindExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let dataset = self.execute_unwind()?;
-        Ok(ExecutionResult::Values(
-            dataset.rows.into_iter().flatten().collect(),
-        ))
+        Ok(ExecutionResult::DataSet(dataset))
     }
 
     fn open(&mut self) -> DBResult<()> {

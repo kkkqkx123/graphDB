@@ -147,17 +147,34 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
                 })?;
 
             let dataset = match result {
-                ExecutionResult::Values(values) => {
-                    if let Some(Value::DataSet(dataset)) = values.first() {
-                        dataset.clone()
-                    } else {
-                        return Err(QueryError::ExecutionError(format!(
-                            "The input variable {} is not a valid data set",
-                            var
-                        )));
+                ExecutionResult::DataSet(dataset) => dataset.clone(),
+                ExecutionResult::Vertices(vertices) => {
+                    // Convert Vertices to DataSet
+                    let rows: Vec<Vec<Value>> = vertices
+                        .iter()
+                        .map(|v| vec![Value::Vertex(Box::new(v.clone()))])
+                        .collect();
+                    DataSet {
+                        col_names: vec!["_vertex".to_string()],
+                        rows,
                     }
                 }
-                _ => {
+                ExecutionResult::Edges(edges) => {
+                    // Convert Edges to DataSet
+                    let rows: Vec<Vec<Value>> = edges
+                        .iter()
+                        .map(|e| vec![Value::Edge(e.clone())])
+                        .collect();
+                    DataSet {
+                        col_names: vec!["_edge".to_string()],
+                        rows,
+                    }
+                }
+                ExecutionResult::Empty | ExecutionResult::Success => DataSet::new(),
+                ExecutionResult::Error(msg) => {
+                    return Err(QueryError::ExecutionError(msg));
+                }
+                ExecutionResult::Values(_) => {
                     return Err(QueryError::ExecutionError(format!(
                         "The input variable {} is not a valid dataset.",
                         var
@@ -250,17 +267,6 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                 })?;
 
             let left_dataset = match left_result {
-                ExecutionResult::Values(values) => {
-                    if let Some(Value::DataSet(dataset)) = values.first() {
-                        dataset.clone()
-                    } else {
-                        return Err(DBError::Query(
-                            crate::core::error::QueryError::ExecutionError(
-                                "左输入不是有效的数据集".to_string(),
-                            ),
-                        ));
-                    }
-                }
                 ExecutionResult::DataSet(dataset) => dataset.clone(),
                 ExecutionResult::Vertices(vertices) => {
                     // Convert Vertices to DataSet
@@ -268,7 +274,6 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                         .iter()
                         .map(|v| vec![Value::Vertex(Box::new(v.clone()))])
                         .collect();
-                    // Use the column names from the base_executor instead of hardcoding
                     let col_names = if self.base_executor.get_col_names().is_empty() {
                         vec!["_vertex".to_string()]
                     } else {
@@ -276,7 +281,29 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                     };
                     DataSet { col_names, rows }
                 }
-                _ => {
+                ExecutionResult::Edges(edges) => {
+                    // Convert Edges to DataSet
+                    let rows: Vec<Vec<Value>> = edges
+                        .iter()
+                        .map(|e| vec![Value::Edge(e.clone())])
+                        .collect();
+                    let col_names = if self.base_executor.get_col_names().is_empty() {
+                        vec!["_edge".to_string()]
+                    } else {
+                        self.base_executor.get_col_names().to_vec()
+                    };
+                    DataSet { col_names, rows }
+                }
+                ExecutionResult::Empty | ExecutionResult::Success => {
+                    DataSet {
+                        col_names: self.base_executor.get_col_names().clone(),
+                        rows: Vec::new(),
+                    }
+                }
+                ExecutionResult::Error(msg) => {
+                    return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(msg)));
+                }
+                ExecutionResult::Values(_) => {
                     return Err(DBError::Query(
                         crate::core::error::QueryError::ExecutionError(
                             "左输入不是有效的数据集".to_string(),
@@ -286,49 +313,6 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
             };
 
             let right_dataset = match right_result {
-                ExecutionResult::Values(values) => {
-                    if values.is_empty() {
-                        // Return empty dataset with appropriate column names
-                        let col_names = if self.base_executor.get_col_names().is_empty() {
-                            vec!["_empty".to_string()]
-                        } else {
-                            self.base_executor.get_col_names().to_vec()
-                        };
-                        let empty_dataset = DataSet {
-                            col_names,
-                            rows: Vec::new(),
-                        };
-                        return Ok(ExecutionResult::Values(vec![Value::DataSet(empty_dataset)]));
-                    }
-                    if let Some(first) = values.first() {
-                        match first {
-                            Value::DataSet(dataset) => dataset.clone(),
-                            Value::List(_) => {
-                                // Convert List values to DataSet
-                                // Each List represents a path from ExpandAllExecutor
-                                let rows: Vec<Vec<Value>> =
-                                    values.iter().map(|v| vec![v.clone()]).collect();
-                                DataSet {
-                                    col_names: vec!["_path".to_string()],
-                                    rows,
-                                }
-                            }
-                            _ => {
-                                return Err(DBError::Query(
-                                    crate::core::error::QueryError::ExecutionError(
-                                        "右输入不是有效的数据集".to_string(),
-                                    ),
-                                ));
-                            }
-                        }
-                    } else {
-                        return Err(DBError::Query(
-                            crate::core::error::QueryError::ExecutionError(
-                                "右输入不是有效的数据集".to_string(),
-                            ),
-                        ));
-                    }
-                }
                 ExecutionResult::DataSet(dataset) => dataset.clone(),
                 ExecutionResult::Vertices(vertices) => {
                     // Convert Vertices to DataSet
@@ -341,12 +325,34 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                         rows,
                     }
                 }
-                _ => {
+                ExecutionResult::Edges(edges) => {
+                    // Convert Edges to DataSet
+                    let rows: Vec<Vec<Value>> = edges
+                        .iter()
+                        .map(|e| vec![Value::Edge(e.clone())])
+                        .collect();
+                    DataSet {
+                        col_names: vec!["_edge".to_string()],
+                        rows,
+                    }
+                }
+                ExecutionResult::Empty | ExecutionResult::Success => {
+                    DataSet {
+                        col_names: vec!["_empty".to_string()],
+                        rows: Vec::new(),
+                    }
+                }
+                ExecutionResult::Error(msg) => {
+                    return Err(DBError::Query(
+                        crate::core::error::QueryError::ExecutionError(msg),
+                    ));
+                }
+                ExecutionResult::Values(_) => {
                     return Err(DBError::Query(
                         crate::core::error::QueryError::ExecutionError(
                             "右输入不是有效的数据集".to_string(),
                         ),
-                    ))
+                    ));
                 }
             };
 
@@ -358,7 +364,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                 .map_err(DBError::from)?
         };
 
-        Ok(ExecutionResult::Values(vec![Value::DataSet(result)]))
+        Ok(ExecutionResult::DataSet(result))
     }
 
     fn open(&mut self) -> DBResult<()> {

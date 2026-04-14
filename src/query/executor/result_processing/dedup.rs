@@ -10,6 +10,7 @@ use std::sync::Arc;
 use rayon;
 
 use crate::core::{Edge, Value, Vertex};
+use crate::query::DataSet;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor};
@@ -87,21 +88,36 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
         match input {
             ExecutionResult::Values(values) => {
                 let deduped_values = self.dedup_values(values)?;
-                Ok(ExecutionResult::Values(deduped_values))
+                let dataset = DataSet::from_rows(
+                    deduped_values.into_iter().map(|v| vec![v]).collect(),
+                    vec!["value".to_string()],
+                );
+                Ok(ExecutionResult::DataSet(dataset))
             }
             ExecutionResult::Vertices(vertices) => {
                 let deduped_vertices = self.dedup_vertices(vertices)?;
-                Ok(ExecutionResult::Vertices(deduped_vertices))
+                let rows: Vec<Vec<Value>> = deduped_vertices
+                    .into_iter()
+                    .map(|v| vec![Value::Vertex(Box::new(v))])
+                    .collect();
+                let dataset = DataSet::from_rows(rows, vec!["vertex".to_string()]);
+                Ok(ExecutionResult::DataSet(dataset))
             }
             ExecutionResult::Edges(edges) => {
                 let deduped_edges = self.dedup_edges(edges)?;
-                Ok(ExecutionResult::Edges(deduped_edges))
+                let rows: Vec<Vec<Value>> = deduped_edges
+                    .into_iter()
+                    .map(|e| vec![Value::Edge(e)])
+                    .collect();
+                let dataset = DataSet::from_rows(rows, vec!["edge".to_string()]);
+                Ok(ExecutionResult::DataSet(dataset))
             }
             ExecutionResult::DataSet(mut dataset) => {
                 self.dedup_dataset(&mut dataset)?;
                 Ok(ExecutionResult::DataSet(dataset))
             }
-            _ => Ok(input),
+            ExecutionResult::Empty | ExecutionResult::Success => Ok(input),
+            ExecutionResult::Error(msg) => Err(crate::query::QueryError::ExecutionError(msg)),
         }
     }
 

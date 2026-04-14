@@ -218,20 +218,35 @@ impl<S: StorageClient> TopNExecutor<S> {
                 }
                 ExecutionResult::Vertices(vertices) => {
                     let topn_result = self.execute_topn_vertices(vertices)?;
-                    Ok(ExecutionResult::Vertices(topn_result))
+                    let rows: Vec<Vec<Value>> = topn_result
+                        .into_iter()
+                        .map(|v| vec![Value::Vertex(Box::new(v))])
+                        .collect();
+                    let dataset = DataSet::from_rows(rows, vec!["vertex".to_string()]);
+                    Ok(ExecutionResult::DataSet(dataset))
                 }
                 ExecutionResult::Edges(edges) => {
                     let topn_result = self.execute_topn_edges(edges)?;
-                    Ok(ExecutionResult::Edges(topn_result))
+                    let rows: Vec<Vec<Value>> = topn_result
+                        .into_iter()
+                        .map(|e| vec![Value::Edge(e)])
+                        .collect();
+                    let dataset = DataSet::from_rows(rows, vec!["edge".to_string()]);
+                    Ok(ExecutionResult::DataSet(dataset))
                 }
                 ExecutionResult::Values(values) => {
                     let topn_result = self.execute_topn_values(values)?;
-                    Ok(ExecutionResult::Values(topn_result))
+                    let dataset = DataSet::from_rows(
+                        topn_result.into_iter().map(|v| vec![v]).collect(),
+                        vec!["value".to_string()],
+                    );
+                    Ok(ExecutionResult::DataSet(dataset))
                 }
-                _ => Err(DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(
-                        "TopN executor expects supported input type".to_string(),
-                    ),
+                ExecutionResult::Empty | ExecutionResult::Success => {
+                    Ok(ExecutionResult::DataSet(DataSet::new()))
+                }
+                ExecutionResult::Error(msg) => Err(DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(msg),
                 )),
             }
         } else if let Some(ref mut input_exec) = self.input_executor {
@@ -244,20 +259,35 @@ impl<S: StorageClient> TopNExecutor<S> {
                 }
                 ExecutionResult::Vertices(vertices) => {
                     let topn_result = self.execute_topn_vertices(vertices)?;
-                    Ok(ExecutionResult::Vertices(topn_result))
+                    let rows: Vec<Vec<Value>> = topn_result
+                        .into_iter()
+                        .map(|v| vec![Value::Vertex(Box::new(v))])
+                        .collect();
+                    let dataset = DataSet::from_rows(rows, vec!["vertex".to_string()]);
+                    Ok(ExecutionResult::DataSet(dataset))
                 }
                 ExecutionResult::Edges(edges) => {
                     let topn_result = self.execute_topn_edges(edges)?;
-                    Ok(ExecutionResult::Edges(topn_result))
+                    let rows: Vec<Vec<Value>> = topn_result
+                        .into_iter()
+                        .map(|e| vec![Value::Edge(e)])
+                        .collect();
+                    let dataset = DataSet::from_rows(rows, vec!["edge".to_string()]);
+                    Ok(ExecutionResult::DataSet(dataset))
                 }
                 ExecutionResult::Values(values) => {
                     let topn_result = self.execute_topn_values(values)?;
-                    Ok(ExecutionResult::Values(topn_result))
+                    let dataset = DataSet::from_rows(
+                        topn_result.into_iter().map(|v| vec![v]).collect(),
+                        vec!["value".to_string()],
+                    );
+                    Ok(ExecutionResult::DataSet(dataset))
                 }
-                _ => Err(DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(
-                        "TopN executor expects supported input type".to_string(),
-                    ),
+                ExecutionResult::Empty | ExecutionResult::Success => {
+                    Ok(ExecutionResult::DataSet(DataSet::new()))
+                }
+                ExecutionResult::Error(msg) => Err(DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(msg),
                 )),
             }
         } else {

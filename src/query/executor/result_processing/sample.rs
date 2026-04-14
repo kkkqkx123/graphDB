@@ -91,17 +91,34 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
             }
             ExecutionResult::Values(values) => {
                 let sampled_values = self.sample_values(values)?;
-                Ok(ExecutionResult::Values(sampled_values))
+                let dataset = DataSet::from_rows(
+                    sampled_values.into_iter().map(|v| vec![v]).collect(),
+                    vec!["value".to_string()],
+                );
+                Ok(ExecutionResult::DataSet(dataset))
             }
             ExecutionResult::Vertices(vertices) => {
                 let sampled_vertices = self.sample_vertices(vertices)?;
-                Ok(ExecutionResult::Vertices(sampled_vertices))
+                let rows: Vec<Vec<Value>> = sampled_vertices
+                    .into_iter()
+                    .map(|v| vec![Value::Vertex(Box::new(v))])
+                    .collect();
+                let dataset = DataSet::from_rows(rows, vec!["vertex".to_string()]);
+                Ok(ExecutionResult::DataSet(dataset))
             }
             ExecutionResult::Edges(edges) => {
                 let sampled_edges = self.sample_edges(edges)?;
-                Ok(ExecutionResult::Edges(sampled_edges))
+                let rows: Vec<Vec<Value>> = sampled_edges
+                    .into_iter()
+                    .map(|e| vec![Value::Edge(e)])
+                    .collect();
+                let dataset = DataSet::from_rows(rows, vec!["edge".to_string()]);
+                Ok(ExecutionResult::DataSet(dataset))
             }
-            _ => Ok(input),
+            ExecutionResult::Empty | ExecutionResult::Success => Ok(input),
+            ExecutionResult::Error(msg) => Err(DBError::Query(
+                crate::core::error::QueryError::ExecutionError(msg),
+            )),
         }
     }
 

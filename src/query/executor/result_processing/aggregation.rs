@@ -279,10 +279,26 @@ impl<S: StorageClient> AggregateExecutor<S> {
                 let dataset = self.vertices_to_dataset(vertices);
                 self.aggregate_dataset(dataset)
             }
-            _ => Err(crate::core::error::DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "Aggregate executor expects DataSet or Vertices input".to_string(),
-                ),
+            ExecutionResult::Edges(edges) => {
+                // Convert Edges to DataSet for aggregation
+                let dataset = self.edges_to_dataset(edges);
+                self.aggregate_dataset(dataset)
+            }
+            ExecutionResult::Values(values) => {
+                // Convert Values to DataSet for aggregation
+                let mut dataset = crate::query::DataSet::new();
+                dataset.col_names = vec!["value".to_string()];
+                for value in values {
+                    dataset.rows.push(vec![value]);
+                }
+                self.aggregate_dataset(dataset)
+            }
+            ExecutionResult::Empty | ExecutionResult::Success => {
+                let dataset = crate::query::DataSet::new();
+                self.aggregate_dataset(dataset)
+            }
+            ExecutionResult::Error(msg) => Err(crate::core::error::DBError::Query(
+                crate::core::error::QueryError::ExecutionError(msg),
             )),
         }
     }
@@ -306,6 +322,31 @@ impl<S: StorageClient> AggregateExecutor<S> {
 
         for vertex in vertices {
             let row = vec![crate::core::Value::Vertex(Box::new(vertex))];
+            dataset.rows.push(row);
+        }
+
+        dataset
+    }
+
+    /// Convert Edges to a DataSet for aggregation
+    fn edges_to_dataset(
+        &self,
+        edges: Vec<crate::core::Edge>,
+    ) -> crate::query::DataSet {
+        let mut dataset = crate::query::DataSet::new();
+        // Use the first group key as the column name, or default to "edge"
+        let col_name = self
+            .group_keys
+            .first()
+            .and_then(|expr| match expr {
+                Expression::Variable(name) => Some(name.clone()),
+                _ => None,
+            })
+            .unwrap_or_else(|| "edge".to_string());
+        dataset.col_names = vec![col_name];
+
+        for edge in edges {
+            let row = vec![crate::core::Value::Edge(edge)];
             dataset.rows.push(row);
         }
 
