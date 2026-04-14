@@ -539,17 +539,14 @@ impl TestScenario {
     fn extract_props(&self, result: &ExecutionResult) -> HashMap<String, Value> {
         let mut props = HashMap::new();
 
-        match result {
-            ExecutionResult::DataSet(ds) => {
-                if let Some(row) = ds.rows.first() {
-                    for (i, col_name) in ds.col_names.iter().enumerate() {
-                        if let Some(value) = row.get(i) {
-                            props.insert(col_name.clone(), value.clone());
-                        }
+        if let ExecutionResult::DataSet(ds) = result {
+            if let Some(row) = ds.rows.first() {
+                for (i, col_name) in ds.col_names.iter().enumerate() {
+                    if let Some(value) = row.get(i) {
+                        props.insert(col_name.clone(), value.clone());
                     }
                 }
             }
-            _ => {}
         }
 
         props

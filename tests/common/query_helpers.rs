@@ -36,6 +36,7 @@ impl<S: graphdb::storage::StorageClient + 'static> QueryHelper<S> {
     /// Execute a DDL statement (CREATE, ALTER, DROP)
     pub fn exec_ddl(&mut self, query: &str) -> DBResult<()> {
         let result = self.execute(query)?;
+        #[allow(clippy::unreachable)]
         match result {
             ExecutionResult::Success | ExecutionResult::Empty => Ok(()),
             ExecutionResult::Error(msg) => Err(graphdb::core::error::DBError::Query(
@@ -47,6 +48,7 @@ impl<S: graphdb::storage::StorageClient + 'static> QueryHelper<S> {
 
     /// Execute a DML statement (INSERT, UPDATE, DELETE)
     /// Returns the number of affected rows
+    #[allow(unreachable_patterns)]
     pub fn exec_dml(&mut self, query: &str) -> DBResult<usize> {
         let result = self.execute(query)?;
         match result {

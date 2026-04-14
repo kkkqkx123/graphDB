@@ -248,7 +248,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
         }
     }
 
-    fn hash_based_dedup<T, F>(
+    fn _hash_based_dedup<T, F>(
         &mut self,
         items: Vec<T>,
         key_extractor: F,
@@ -321,7 +321,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
     }
 
     /// Extracting keys from values (static method)
-    fn extract_keys_from_value_static(value: &Value, keys: &[String]) -> String {
+    fn _extract_keys_from_value_static(value: &Value, keys: &[String]) -> String {
         match value {
             Value::Map(map) => keys
                 .iter()
@@ -334,7 +334,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
     }
 
     /// Extract keys from the vertices (static method)
-    fn extract_keys_from_vertex_static(vertex: &Vertex, keys: &[String]) -> String {
+    fn _extract_keys_from_vertex_static(vertex: &Vertex, keys: &[String]) -> String {
         let mut key_values = Vec::new();
 
         for key in keys {
@@ -359,7 +359,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
     }
 
     /// Extract keys from the edges (static method)
-    fn extract_keys_from_edge_static(edge: &Edge, keys: &[String]) -> String {
+    fn _extract_keys_from_edge_static(edge: &Edge, keys: &[String]) -> String {
         let mut key_values = Vec::new();
 
         for key in keys {

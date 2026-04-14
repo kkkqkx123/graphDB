@@ -317,7 +317,7 @@ mod tests {
                 for row in &sampled_dataset.rows {
                     match row[0] {
                         Value::Int(i) => {
-                            assert!(i >= 1 && i <= 100);
+                            assert!((1..=100).contains(&i));
                         }
                         _ => panic!("Expected Int values"),
                     }

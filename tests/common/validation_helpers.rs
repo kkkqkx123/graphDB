@@ -163,6 +163,7 @@ impl<S: graphdb::storage::StorageClient + 'static> ValidationHelper<S> {
         let result = self.pipeline.execute_query(&query)?;
 
         let mut schema = Vec::new();
+        #[allow(clippy::single_match)]
         match result {
             ExecutionResult::DataSet(ds) => {
                 for row in &ds.rows {

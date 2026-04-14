@@ -533,7 +533,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     ///
     /// Sort the vertices using sorting keys; complex sorting based on attributes is also supported.
     /// Refer to the TopNExecutor implementation in nebula-graph; use heap sorting for optimization.
-    fn execute_topn_vertices(
+    fn _execute_topn_vertices(
         &self,
         vertices: Vec<crate::core::Vertex>,
     ) -> DBResult<Vec<crate::core::Vertex>> {
@@ -542,7 +542,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         }
 
         let total_size = vertices.len();
-        let heap_size = self.calculate_heap_size(total_size);
+        let heap_size = self._calculate_heap_size(total_size);
 
         if heap_size == 0 {
             return Ok(Vec::new());
@@ -566,7 +566,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         let mut vertices_with_sort_values: Vec<(Vec<Value>, crate::core::Vertex)> = vertices
             .into_iter()
             .map(|vertex| {
-                let sort_values = self.calculate_vertex_sort_values(&vertex)?;
+                let sort_values = self._calculate_vertex_sort_values(&vertex)?;
                 Ok((sort_values, vertex))
             })
             .collect::<DBResult<Vec<_>>>()?;
@@ -575,12 +575,12 @@ impl<S: StorageClient> TopNExecutor<S> {
         if vertices_with_sort_values.len() > heap_size {
             // Use `select_nth_unstable` to select the first `heap_size` elements.
             vertices_with_sort_values
-                .select_nth_unstable_by(heap_size, |a, b| self.compare_sort_values(&a.0, &b.0));
+                .select_nth_unstable_by(heap_size, |a, b| self._compare_sort_values(&a.0, &b.0));
             vertices_with_sort_values.truncate(heap_size);
         }
 
         // 3. Perform a complete sorting of the selected elements.
-        vertices_with_sort_values.sort_by(|a, b| self.compare_sort_values(&a.0, &b.0));
+        vertices_with_sort_values.sort_by(|a, b| self._compare_sort_values(&a.0, &b.0));
 
         // 4. Apply the offset and limit parameters.
         let start = self.offset.min(vertices_with_sort_values.len());
@@ -598,7 +598,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     ///
     /// Sort the edges using the sorting key; complex sorting based on attributes is also supported.
     /// Refer to the TopNExecutor implementation in nebula-graph, and optimize it using heap sorting.
-    fn execute_topn_edges(
+    fn _execute_topn_edges(
         &self,
         edges: Vec<crate::core::Edge>,
     ) -> DBResult<Vec<crate::core::Edge>> {
@@ -607,7 +607,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         }
 
         let total_size = edges.len();
-        let heap_size = self.calculate_heap_size(total_size);
+        let heap_size = self._calculate_heap_size(total_size);
 
         if heap_size == 0 {
             return Ok(Vec::new());
@@ -631,21 +631,20 @@ impl<S: StorageClient> TopNExecutor<S> {
         let mut edges_with_sort_values: Vec<(Vec<Value>, crate::core::Edge)> = edges
             .into_iter()
             .map(|edge| {
-                let sort_values = self.calculate_edge_sort_values(&edge)?;
+                let sort_values = self._calculate_edge_sort_values(&edge)?;
                 Ok((sort_values, edge))
             })
             .collect::<DBResult<Vec<_>>>()?;
 
         // 2. Use the `select_nth_unstable` optimization to optimize TopN queries
         if edges_with_sort_values.len() > heap_size {
-            // Use `select_nth_unstable` to select the first `heap_size` elements.
             edges_with_sort_values
-                .select_nth_unstable_by(heap_size, |a, b| self.compare_sort_values(&a.0, &b.0));
+                .select_nth_unstable_by(heap_size, |a, b| self._compare_sort_values(&a.0, &b.0));
             edges_with_sort_values.truncate(heap_size);
         }
 
         // 3. Perform a complete sorting of the selected elements.
-        edges_with_sort_values.sort_by(|a, b| self.compare_sort_values(&a.0, &b.0));
+        edges_with_sort_values.sort_by(|a, b| self._compare_sort_values(&a.0, &b.0));
 
         // 4. Apply the offset and limit parameters.
         let start = self.offset.min(edges_with_sort_values.len());
@@ -662,13 +661,13 @@ impl<S: StorageClient> TopNExecutor<S> {
     /// Perform a TopN operation on a list of values.
     ///
     /// Sort a list of key-value pairs using a sorting key.
-    fn execute_topn_values(&self, values: Vec<Value>) -> DBResult<Vec<Value>> {
+    fn _execute_topn_values(&self, values: Vec<Value>) -> DBResult<Vec<Value>> {
         if values.is_empty() || self.n == 0 {
             return Ok(Vec::new());
         }
 
         let total_size = values.len();
-        let heap_size = self.calculate_heap_size(total_size);
+        let heap_size = self._calculate_heap_size(total_size);
 
         if heap_size == 0 {
             return Ok(Vec::new());
@@ -681,15 +680,13 @@ impl<S: StorageClient> TopNExecutor<S> {
         let heap_size = self.n + self.offset;
 
         if rows.len() <= heap_size {
-            // If the amount of data is less than or equal to `heap_size`, simply sort it.
-            rows.sort_by(|a, b| self.compare_rows(a, b).unwrap_or(Ordering::Equal));
+            rows.sort_by(|a, b| self._compare_rows(a, b).unwrap_or(Ordering::Equal));
         } else {
-            // Use the TopN algorithm
             rows.select_nth_unstable_by(heap_size, |a, b| {
-                self.compare_rows(a, b).unwrap_or(Ordering::Equal)
+                self._compare_rows(a, b).unwrap_or(Ordering::Equal)
             });
             rows.truncate(heap_size);
-            rows.sort_by(|a, b| self.compare_rows(a, b).unwrap_or(Ordering::Equal));
+            rows.sort_by(|a, b| self._compare_rows(a, b).unwrap_or(Ordering::Equal));
         }
 
         // Apply the `offset` and `limit` parameters.
@@ -705,7 +702,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     }
 
     /// Calculate the size of the heap
-    fn calculate_heap_size(&self, total_size: usize) -> usize {
+    fn _calculate_heap_size(&self, total_size: usize) -> usize {
         if total_size <= self.offset {
             0
         } else if total_size > self.offset + self.n {
@@ -716,11 +713,11 @@ impl<S: StorageClient> TopNExecutor<S> {
     }
 
     /// Calculate the sorting values of the vertices
-    fn calculate_vertex_sort_values(&self, vertex: &crate::core::Vertex) -> DBResult<Vec<Value>> {
+    fn _calculate_vertex_sort_values(&self, vertex: &crate::core::Vertex) -> DBResult<Vec<Value>> {
         let mut sort_values = Vec::with_capacity(self.sort_keys.len());
 
         for sort_key in &self.sort_keys {
-            let value = self.extract_value_from_vertex(vertex, &sort_key.expression)?;
+            let value = self._extract_value_from_vertex(vertex, &sort_key.expression)?;
             sort_values.push(value);
         }
 
@@ -728,11 +725,11 @@ impl<S: StorageClient> TopNExecutor<S> {
     }
 
     /// Calculate the sorting value of the edges
-    fn calculate_edge_sort_values(&self, edge: &crate::core::Edge) -> DBResult<Vec<Value>> {
+    fn _calculate_edge_sort_values(&self, edge: &crate::core::Edge) -> DBResult<Vec<Value>> {
         let mut sort_values = Vec::with_capacity(self.sort_keys.len());
 
         for sort_key in &self.sort_keys {
-            let value = self.extract_value_from_edge(edge, &sort_key.expression)?;
+            let value = self._extract_value_from_edge(edge, &sort_key.expression)?;
             sort_values.push(value);
         }
 
@@ -740,7 +737,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     }
 
     /// Extract values from the vertices.
-    fn extract_value_from_vertex(
+    fn _extract_value_from_vertex(
         &self,
         vertex: &crate::core::Vertex,
         expression: &Expression,
@@ -795,7 +792,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     }
 
     /// Extract values from the edges.
-    fn extract_value_from_edge(
+    fn _extract_value_from_edge(
         &self,
         edge: &crate::core::Edge,
         expression: &Expression,
@@ -856,7 +853,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     }
 
     /// Compare the sorted values
-    fn compare_sort_values(&self, a: &[Value], b: &[Value]) -> Ordering {
+    fn _compare_sort_values(&self, a: &[Value], b: &[Value]) -> Ordering {
         for (idx, (val_a, val_b)) in a.iter().zip(b.iter()).enumerate() {
             let order = if idx < self.sort_keys.len() {
                 &self.sort_keys[idx].order
@@ -882,7 +879,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     }
 
     /// Compare two rows of data (used for sorting value lists)
-    fn compare_rows(&self, a: &[Value], b: &[Value]) -> DBResult<Ordering> {
+    fn _compare_rows(&self, a: &[Value], b: &[Value]) -> DBResult<Ordering> {
         // Create virtual column names
         let col_names: Vec<String> = (0..a.len().max(b.len()))
             .map(|i| format!("col_{}", i))
@@ -892,7 +889,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         let sort_values_a = self.calculate_sort_value(a, &col_names)?;
         let sort_values_b = self.calculate_sort_value(b, &col_names)?;
 
-        Ok(self.compare_sort_values(&sort_values_a, &sort_values_b))
+        Ok(self._compare_sort_values(&sort_values_a, &sort_values_b))
     }
 
     /// Extract the sorted values.

@@ -22,7 +22,7 @@ use crate::query::executor::expression::{DefaultExpressionContext, ExpressionCon
 use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::storage::StorageClient;
 
-fn extract_variable_names(expr: &Expression) -> Vec<String> {
+fn _extract_variable_names(expr: &Expression) -> Vec<String> {
     let mut names = Vec::new();
     fn collect(expr: &Expression, names: &mut Vec<String>) {
         match expr {
@@ -139,7 +139,7 @@ fn extract_variable_names(expr: &Expression) -> Vec<String> {
     names
 }
 
-const INTERNAL_VARIABLES: &[&str] = &[
+const _INTERNAL_VARIABLES: &[&str] = &[
     "_vertex",
     "_edge",
     "id",

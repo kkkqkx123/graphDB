@@ -285,7 +285,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
     }
 
     /// Convert Vertices to a DataSet for aggregation
-    fn vertices_to_dataset(
+    fn _vertices_to_dataset(
         &self,
         vertices: Vec<crate::core::Vertex>,
     ) -> crate::query::DataSet {
@@ -310,7 +310,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
     }
 
     /// Convert Edges to a DataSet for aggregation
-    fn edges_to_dataset(
+    fn _edges_to_dataset(
         &self,
         edges: Vec<crate::core::Edge>,
     ) -> crate::query::DataSet {
