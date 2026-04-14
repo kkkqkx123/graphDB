@@ -148,37 +148,9 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
 
             let dataset = match result {
                 ExecutionResult::DataSet(dataset) => dataset.clone(),
-                ExecutionResult::Vertices(vertices) => {
-                    // Convert Vertices to DataSet
-                    let rows: Vec<Vec<Value>> = vertices
-                        .iter()
-                        .map(|v| vec![Value::Vertex(Box::new(v.clone()))])
-                        .collect();
-                    DataSet {
-                        col_names: vec!["_vertex".to_string()],
-                        rows,
-                    }
-                }
-                ExecutionResult::Edges(edges) => {
-                    // Convert Edges to DataSet
-                    let rows: Vec<Vec<Value>> = edges
-                        .iter()
-                        .map(|e| vec![Value::Edge(e.clone())])
-                        .collect();
-                    DataSet {
-                        col_names: vec!["_edge".to_string()],
-                        rows,
-                    }
-                }
                 ExecutionResult::Empty | ExecutionResult::Success => DataSet::new(),
                 ExecutionResult::Error(msg) => {
                     return Err(QueryError::ExecutionError(msg));
-                }
-                ExecutionResult::Values(_) => {
-                    return Err(QueryError::ExecutionError(format!(
-                        "The input variable {} is not a valid dataset.",
-                        var
-                    )))
                 }
             };
 
@@ -268,32 +240,6 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
 
             let left_dataset = match left_result {
                 ExecutionResult::DataSet(dataset) => dataset.clone(),
-                ExecutionResult::Vertices(vertices) => {
-                    // Convert Vertices to DataSet
-                    let rows: Vec<Vec<Value>> = vertices
-                        .iter()
-                        .map(|v| vec![Value::Vertex(Box::new(v.clone()))])
-                        .collect();
-                    let col_names = if self.base_executor.get_col_names().is_empty() {
-                        vec!["_vertex".to_string()]
-                    } else {
-                        self.base_executor.get_col_names().to_vec()
-                    };
-                    DataSet { col_names, rows }
-                }
-                ExecutionResult::Edges(edges) => {
-                    // Convert Edges to DataSet
-                    let rows: Vec<Vec<Value>> = edges
-                        .iter()
-                        .map(|e| vec![Value::Edge(e.clone())])
-                        .collect();
-                    let col_names = if self.base_executor.get_col_names().is_empty() {
-                        vec!["_edge".to_string()]
-                    } else {
-                        self.base_executor.get_col_names().to_vec()
-                    };
-                    DataSet { col_names, rows }
-                }
                 ExecutionResult::Empty | ExecutionResult::Success => {
                     DataSet {
                         col_names: self.base_executor.get_col_names().clone(),
@@ -303,39 +249,10 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                 ExecutionResult::Error(msg) => {
                     return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(msg)));
                 }
-                ExecutionResult::Values(_) => {
-                    return Err(DBError::Query(
-                        crate::core::error::QueryError::ExecutionError(
-                            "左输入不是有效的数据集".to_string(),
-                        ),
-                    ));
-                }
             };
 
             let right_dataset = match right_result {
                 ExecutionResult::DataSet(dataset) => dataset.clone(),
-                ExecutionResult::Vertices(vertices) => {
-                    // Convert Vertices to DataSet
-                    let rows: Vec<Vec<Value>> = vertices
-                        .iter()
-                        .map(|v| vec![Value::Vertex(Box::new(v.clone()))])
-                        .collect();
-                    DataSet {
-                        col_names: vec!["_vertex".to_string()],
-                        rows,
-                    }
-                }
-                ExecutionResult::Edges(edges) => {
-                    // Convert Edges to DataSet
-                    let rows: Vec<Vec<Value>> = edges
-                        .iter()
-                        .map(|e| vec![Value::Edge(e.clone())])
-                        .collect();
-                    DataSet {
-                        col_names: vec!["_edge".to_string()],
-                        rows,
-                    }
-                }
                 ExecutionResult::Empty | ExecutionResult::Success => {
                     DataSet {
                         col_names: vec!["_empty".to_string()],
@@ -345,13 +262,6 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                 ExecutionResult::Error(msg) => {
                     return Err(DBError::Query(
                         crate::core::error::QueryError::ExecutionError(msg),
-                    ));
-                }
-                ExecutionResult::Values(_) => {
-                    return Err(DBError::Query(
-                        crate::core::error::QueryError::ExecutionError(
-                            "右输入不是有效的数据集".to_string(),
-                        ),
                     ));
                 }
             };
@@ -461,12 +371,12 @@ use crate::core::Value;
 
         executor.base_executor.get_base_mut().context.set_result(
             "left".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
 
         executor.base_executor.get_base_mut().context.set_result(
             "right".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // Establish the connection.
@@ -474,36 +384,32 @@ use crate::core::Value;
 
         // Verification results
         match result {
-            ExecutionResult::Values(values) => {
-                if let Some(Value::DataSet(dataset)) = values.first() {
-                    assert_eq!(dataset.rows.len(), 4); // 2 * 2 = 4
+            ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.rows.len(), 4); // 2 * 2 = 4
 
-                    // Verify the first line.
-                    assert_eq!(
-                        dataset.rows[0],
-                        vec![
-                            Value::Int(1),
-                            Value::String("Alice".to_string()),
-                            Value::Int(25),
-                            Value::String("New York".to_string()),
-                        ]
-                    );
+                // Verify the first line.
+                assert_eq!(
+                    dataset.rows[0],
+                    vec![
+                        Value::Int(1),
+                        Value::String("Alice".to_string()),
+                        Value::Int(25),
+                        Value::String("New York".to_string()),
+                    ]
+                );
 
-                    // Verify the last line.
-                    assert_eq!(
-                        dataset.rows[3],
-                        vec![
-                            Value::Int(2),
-                            Value::String("Bob".to_string()),
-                            Value::Int(30),
-                            Value::String("London".to_string()),
-                        ]
-                    );
-                } else {
-                    panic!("Expected DataSet results");
-                }
+                // Verify the last line.
+                assert_eq!(
+                    dataset.rows[3],
+                    vec![
+                        Value::Int(2),
+                        Value::String("Bob".to_string()),
+                        Value::Int(30),
+                        Value::String("London".to_string()),
+                    ]
+                );
             }
-            _ => panic!("Expected Values results"),
+            _ => panic!("Expected DataSet results"),
         }
     }
 
@@ -535,12 +441,12 @@ use crate::core::Value;
 
         executor.base_executor.get_base_mut().context.set_result(
             "left".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
 
         executor.base_executor.get_base_mut().context.set_result(
             "right".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // Establish the connection.
@@ -548,14 +454,10 @@ use crate::core::Value;
 
         // Validation results
         match result {
-            ExecutionResult::Values(values) => {
-                if let Some(Value::DataSet(dataset)) = values.first() {
-                    assert_eq!(dataset.rows.len(), 0); // Empty result
-                } else {
-                    panic!("Expected DataSet results");
-                }
+            ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.rows.len(), 0); // Empty result
             }
-            _ => panic!("Expected Values results"),
+            _ => panic!("Expected DataSet results"),
         }
     }
 
@@ -603,17 +505,17 @@ use crate::core::Value;
 
         executor.base_executor.get_base_mut().context.set_result(
             "table1".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(table1)]),
+            ExecutionResult::DataSet(table1),
         );
 
         executor.base_executor.get_base_mut().context.set_result(
             "table2".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(table2)]),
+            ExecutionResult::DataSet(table2),
         );
 
         executor.base_executor.get_base_mut().context.set_result(
             "table3".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(table3)]),
+            ExecutionResult::DataSet(table3),
         );
 
         // Establish the connection.
@@ -621,25 +523,21 @@ use crate::core::Value;
 
         // Verification results
         match result {
-            ExecutionResult::Values(values) => {
-                if let Some(Value::DataSet(dataset)) = values.first() {
-                    assert_eq!(dataset.rows.len(), 1); // 1 * 1 * 1 = 1
-                    assert_eq!(
-                        dataset.rows[0],
-                        vec![
-                            Value::Int(1),
-                            Value::Int(2),
-                            Value::Int(3),
-                            Value::Int(4),
-                            Value::Int(5),
-                            Value::Int(6)
-                        ]
-                    );
-                } else {
-                    panic!("Expected DataSet results");
-                }
+            ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.rows.len(), 1); // 1 * 1 * 1 = 1
+                assert_eq!(
+                    dataset.rows[0],
+                    vec![
+                        Value::Int(1),
+                        Value::Int(2),
+                        Value::Int(3),
+                        Value::Int(4),
+                        Value::Int(5),
+                        Value::Int(6)
+                    ]
+                );
             }
-            _ => panic!("Expected Values results"),
+            _ => panic!("Expected DataSet results"),
         }
     }
 }

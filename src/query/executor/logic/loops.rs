@@ -147,112 +147,45 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
             return ExecutionResult::Success;
         }
 
-        let mut all_values = Vec::new();
-        let mut all_vertices = Vec::new();
-        let mut all_edges = Vec::new();
-        let mut all_paths = Vec::new();
         let mut all_datasets = Vec::new();
-        let mut has_success_only = true;
+        let mut has_error = false;
 
         for result in &self.results {
             match result {
-                ExecutionResult::Values(values) => {
-                    all_values.extend(values.clone());
-                    has_success_only = false;
-                }
-                ExecutionResult::Vertices(vertices) => {
-                    all_vertices.extend(vertices.clone());
-                    has_success_only = false;
-                }
-                ExecutionResult::Edges(edges) => {
-                    all_edges.extend(edges.clone());
-                    has_success_only = false;
-                }
-                ExecutionResult::Paths(paths) => {
-                    all_paths.extend(paths.clone());
-                    has_success_only = false;
-                }
                 ExecutionResult::DataSet(dataset) => {
                     all_datasets.push(dataset.clone());
-                    has_success_only = false;
                 }
-                ExecutionResult::Count(count) => {
-                    all_values.push(Value::Int(*count as i64));
-                    has_success_only = false;
-                }
-                ExecutionResult::Success => {}
-                ExecutionResult::Empty => {}
+                ExecutionResult::Success | ExecutionResult::Empty => {}
                 ExecutionResult::Error(_) => {
-                    has_success_only = false;
+                    has_error = true;
                 }
-                ExecutionResult::Result(_) => {
-                    has_success_only = false;
-                }
+                _ => {}
             }
         }
 
-        if has_success_only {
+        if has_error {
+            return ExecutionResult::Error("Loop execution had errors".to_string());
+        }
+
+        if all_datasets.is_empty() {
             return ExecutionResult::Success;
         }
 
-        if !all_values.is_empty()
-            && all_vertices.is_empty()
-            && all_edges.is_empty()
-            && all_paths.is_empty()
-        {
-            ExecutionResult::Values(all_values)
-        } else if !all_vertices.is_empty()
-            && all_values.is_empty()
-            && all_edges.is_empty()
-            && all_paths.is_empty()
-        {
-            ExecutionResult::Vertices(all_vertices)
-        } else if !all_edges.is_empty()
-            && all_values.is_empty()
-            && all_vertices.is_empty()
-            && all_paths.is_empty()
-        {
-            ExecutionResult::Edges(all_edges)
-        } else if !all_paths.is_empty()
-            && all_values.is_empty()
-            && all_vertices.is_empty()
-            && all_edges.is_empty()
-        {
-            ExecutionResult::Paths(all_paths)
-        } else if !all_datasets.is_empty()
-            && all_values.is_empty()
-            && all_vertices.is_empty()
-            && all_edges.is_empty()
-            && all_paths.is_empty()
-        {
-            if all_datasets.len() == 1 {
-                ExecutionResult::DataSet(
-                    all_datasets
-                        .into_iter()
-                        .next()
-                        .expect("Failed to get next dataset"),
-                )
-            } else {
-                ExecutionResult::DataSet(
-                    all_datasets
-                        .first()
-                        .cloned()
-                        .expect("Failed to get first dataset"),
-                )
-            }
+        if all_datasets.len() == 1 {
+            ExecutionResult::DataSet(all_datasets.into_iter().next().expect("Failed to get next dataset"))
         } else {
-            let mut mixed_values = Vec::new();
-            mixed_values.extend(all_values);
-            for vertex in all_vertices {
-                mixed_values.push(Value::Vertex(Box::new(vertex)));
+            let first_dataset = all_datasets.first().cloned().expect("Failed to get first dataset");
+            let mut combined_rows = first_dataset.rows;
+            let mut combined_col_names = first_dataset.col_names;
+
+            for dataset in all_datasets.into_iter().skip(1) {
+                combined_rows.extend(dataset.rows);
             }
-            for edge in all_edges {
-                mixed_values.push(Value::Edge(edge));
-            }
-            for path in all_paths {
-                mixed_values.push(Value::Path(path));
-            }
-            ExecutionResult::Values(mixed_values)
+
+            ExecutionResult::DataSet(DataSet {
+                rows: combined_rows,
+                col_names: combined_col_names,
+            })
         }
     }
 

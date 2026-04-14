@@ -183,11 +183,11 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_input".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "right_input".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // Perform the INTERSECT operation
@@ -196,12 +196,12 @@ mod tests {
         // Verification results
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // There should be 2 common lines: Bob and Charlie.
             // 2 rows × 2 columns = 4 values
-            assert_eq!(values.len(), 4);
+            assert_eq!(dataset.rows.len(), 4);
         } else {
-            panic!("Expected Values results");
+            panic!("Expected DataSet results");
         }
     }
 
@@ -248,9 +248,9 @@ mod tests {
         let result = executor.execute();
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
-            // There shouldn’t be any common lines (or elements) between them.
-            assert_eq!(values.len(), 0);
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
+            // There should not be any common lines (or elements) between them.
+            assert_eq!(dataset.rows.len(), 0);
         }
     }
 
@@ -283,20 +283,20 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "empty_left".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "right_input".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // The INTERSECT operation with the left dataset being empty results in no output (i.e., no results are returned).
         let result = executor.execute();
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // The left dataset is empty; therefore, the intersection should also be empty.
-            assert_eq!(values.len(), 0);
+            assert_eq!(dataset.rows.len(), 0);
         }
     }
 
@@ -329,20 +329,20 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_input".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "empty_right".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // The INTERSECT operation with the right dataset being empty results in no output (i.e., no results are returned).
         let result = executor.execute();
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // The right dataset is empty; therefore, the intersection should also be empty.
-            assert_eq!(values.len(), 0);
+            assert_eq!(dataset.rows.len(), 0);
         }
     }
 
@@ -372,19 +372,19 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "empty_left".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "empty_right".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // Test the INTERSECT operation for two datasets that are both empty.
         let result = executor.execute();
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
-            assert_eq!(values.len(), 0);
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
+            assert_eq!(dataset.rows.len(), 0);
         }
     }
 
@@ -421,23 +421,23 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_dup".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "right_dup".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // Perform the INTERSECT operation
         let result = executor.execute();
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // The common rows should be included, and the duplicate rows from the left dataset should be retained.
             // 2 rows × 2 columns = 4 values
-            assert_eq!(values.len(), 4);
+            assert_eq!(dataset.rows.len(), 4);
         } else {
-            panic!("Expected Values results");
+            panic!("Expected DataSet results");
         }
     }
 
@@ -467,11 +467,11 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_mismatch".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "right_mismatch".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // The execution should fail.

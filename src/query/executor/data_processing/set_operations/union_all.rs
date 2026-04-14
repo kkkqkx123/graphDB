@@ -157,11 +157,11 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_input".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "right_input".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // Perform the UNION ALL operation
@@ -170,11 +170,11 @@ mod tests {
         // Verification results
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // All 8 unique values should be included: 4 values from the left table + 4 values from the right table.
-            assert_eq!(values.len(), 8);
+            assert_eq!(dataset.rows.len(), 8);
         } else {
-            panic!("Expected Values results");
+            panic!("Expected DataSet results");
         }
     }
 
@@ -207,19 +207,19 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "empty_left".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "right_input".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // The UNION ALL operation is being tested on a left dataset that is empty.
         let result = executor.execute();
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
-            assert_eq!(values.len(), 4);
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
+            assert_eq!(dataset.rows.len(), 4);
         }
     }
 
@@ -256,17 +256,17 @@ mod tests {
         );
         executor.set_executor.base_mut().context.set_result(
             "empty_right".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // The UNION ALL operation on the right dataset, which is empty, results in no data being returned.
         let result = executor.execute();
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // Only the content from the left dataset should be included.
             // 2 rows × 2 columns = 4 values
-            assert_eq!(values.len(), 4);
+            assert_eq!(dataset.rows.len(), 4);
         }
     }
 
@@ -296,19 +296,19 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "empty_left".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "empty_right".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // Test the UNION ALL operation when both datasets are empty.
         let result = executor.execute();
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
-            assert_eq!(values.len(), 0);
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
+            assert_eq!(dataset.rows.len(), 0);
         }
     }
 
@@ -338,11 +338,11 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_mismatch".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "right_mismatch".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // The execution should fail.
@@ -391,24 +391,24 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_dup".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "right_dup".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // Perform the UNION ALL operation
         let result = executor.execute();
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // All duplicate rows should be retained.
             // The left dataset contains 2 rows (one of which is repeated), and the right dataset also contains 2 rows. In total, there are 4 rows.
             // 4 rows × 2 columns = 8 values
-            assert_eq!(values.len(), 8);
+            assert_eq!(dataset.rows.len(), 8);
         } else {
-            panic!("Expected Values results");
+            panic!("Expected DataSet results");
         }
     }
 }

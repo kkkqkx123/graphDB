@@ -245,7 +245,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for LeftJoinExecutor<S> {
                 col_names: self.base_executor.get_col_names().clone(),
                 rows: Vec::new(),
             };
-            return Ok(ExecutionResult::Values(vec![Value::DataSet(empty_result)]));
+            return Ok(ExecutionResult::DataSet(empty_result));
         }
 
         if right_dataset.rows.is_empty() {
@@ -261,7 +261,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for LeftJoinExecutor<S> {
                 result.rows.push(new_row);
             }
 
-            return Ok(ExecutionResult::Values(vec![Value::DataSet(result)]));
+            return Ok(ExecutionResult::DataSet(result));
         }
 
         let result = if self.use_multi_key {
@@ -270,7 +270,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for LeftJoinExecutor<S> {
             self.execute_single_key_join(&left_dataset, &right_dataset)?
         };
 
-        Ok(ExecutionResult::Values(vec![Value::DataSet(result)]))
+        Ok(ExecutionResult::DataSet(result))
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -428,12 +428,12 @@ mod tests {
 
         executor.base_executor.get_base_mut().context.set_result(
             "left".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
 
         executor.base_executor.get_base_mut().context.set_result(
             "right".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // Establish the connection.
@@ -441,9 +441,8 @@ mod tests {
 
         // Verification results
         match result {
-            ExecutionResult::Values(values) => {
-                if let Some(Value::DataSet(dataset)) = values.first() {
-                    assert_eq!(dataset.rows.len(), 3); // Three lines of results (including those that did not match)
+            ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.rows.len(), 3); // Three lines of results (including those that did not match)
 
                     // First line: Alice matches
                     assert_eq!(
@@ -469,11 +468,8 @@ mod tests {
                     assert_eq!(dataset.rows[2][0], Value::Int(3));
                     assert_eq!(dataset.rows[2][1], Value::String("Charlie".to_string()));
                     assert_eq!(dataset.rows[2][2], Value::Null(NullType::Null));
-                } else {
-                    panic!("Expected DataSet results");
-                }
             }
-            _ => panic!("Expected Values results"),
+            _ => panic!("Expected DataSet results"),
         }
     }
 

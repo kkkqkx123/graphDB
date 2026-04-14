@@ -216,32 +216,6 @@ impl<S: StorageClient> TopNExecutor<S> {
                     let topn_result = self.execute_topn_dataset(dataset)?;
                     Ok(ExecutionResult::DataSet(topn_result))
                 }
-                ExecutionResult::Vertices(vertices) => {
-                    let topn_result = self.execute_topn_vertices(vertices)?;
-                    let rows: Vec<Vec<Value>> = topn_result
-                        .into_iter()
-                        .map(|v| vec![Value::Vertex(Box::new(v))])
-                        .collect();
-                    let dataset = DataSet::from_rows(rows, vec!["vertex".to_string()]);
-                    Ok(ExecutionResult::DataSet(dataset))
-                }
-                ExecutionResult::Edges(edges) => {
-                    let topn_result = self.execute_topn_edges(edges)?;
-                    let rows: Vec<Vec<Value>> = topn_result
-                        .into_iter()
-                        .map(|e| vec![Value::Edge(e)])
-                        .collect();
-                    let dataset = DataSet::from_rows(rows, vec!["edge".to_string()]);
-                    Ok(ExecutionResult::DataSet(dataset))
-                }
-                ExecutionResult::Values(values) => {
-                    let topn_result = self.execute_topn_values(values)?;
-                    let dataset = DataSet::from_rows(
-                        topn_result.into_iter().map(|v| vec![v]).collect(),
-                        vec!["value".to_string()],
-                    );
-                    Ok(ExecutionResult::DataSet(dataset))
-                }
                 ExecutionResult::Empty | ExecutionResult::Success => {
                     Ok(ExecutionResult::DataSet(DataSet::new()))
                 }
@@ -256,32 +230,6 @@ impl<S: StorageClient> TopNExecutor<S> {
                 ExecutionResult::DataSet(dataset) => {
                     let topn_result = self.execute_topn_dataset(dataset)?;
                     Ok(ExecutionResult::DataSet(topn_result))
-                }
-                ExecutionResult::Vertices(vertices) => {
-                    let topn_result = self.execute_topn_vertices(vertices)?;
-                    let rows: Vec<Vec<Value>> = topn_result
-                        .into_iter()
-                        .map(|v| vec![Value::Vertex(Box::new(v))])
-                        .collect();
-                    let dataset = DataSet::from_rows(rows, vec!["vertex".to_string()]);
-                    Ok(ExecutionResult::DataSet(dataset))
-                }
-                ExecutionResult::Edges(edges) => {
-                    let topn_result = self.execute_topn_edges(edges)?;
-                    let rows: Vec<Vec<Value>> = topn_result
-                        .into_iter()
-                        .map(|e| vec![Value::Edge(e)])
-                        .collect();
-                    let dataset = DataSet::from_rows(rows, vec!["edge".to_string()]);
-                    Ok(ExecutionResult::DataSet(dataset))
-                }
-                ExecutionResult::Values(values) => {
-                    let topn_result = self.execute_topn_values(values)?;
-                    let dataset = DataSet::from_rows(
-                        topn_result.into_iter().map(|v| vec![v]).collect(),
-                        vec!["value".to_string()],
-                    );
-                    Ok(ExecutionResult::DataSet(dataset))
                 }
                 ExecutionResult::Empty | ExecutionResult::Success => {
                     Ok(ExecutionResult::DataSet(DataSet::new()))

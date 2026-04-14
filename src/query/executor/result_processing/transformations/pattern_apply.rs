@@ -29,12 +29,6 @@ fn execution_result_to_values(result: &ExecutionResult) -> Result<Vec<Value>, DB
                 .collect();
             Ok(values)
         }
-        ExecutionResult::Values(values) => Ok(values.clone()),
-        ExecutionResult::Vertices(vertices) => Ok(vertices
-            .iter()
-            .map(|v| Value::Vertex(Box::new(v.clone())))
-            .collect()),
-        ExecutionResult::Edges(edges) => Ok(edges.iter().map(|e| Value::Edge(e.clone())).collect()),
         ExecutionResult::Empty | ExecutionResult::Success => Ok(Vec::new()),
         ExecutionResult::Error(msg) => Err(DBError::Query(
             crate::core::error::QueryError::ExecutionError(msg.clone()),

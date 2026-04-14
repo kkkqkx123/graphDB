@@ -397,15 +397,7 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
             .expect("Context should have right result");
 
         let left_values = match left_result {
-            ExecutionResult::Values(values) => values.clone(),
-            ExecutionResult::Vertices(vertices) => vertices
-                .iter()
-                .map(|v| Value::Vertex(Box::new(v.clone())))
-                .collect::<Vec<_>>(),
-            ExecutionResult::Edges(edges) => edges
-                .iter()
-                .map(|e| Value::Edge(e.clone()))
-                .collect::<Vec<_>>(),
+            ExecutionResult::DataSet(dataset) => dataset.rows.into_iter().flat_map(|row| row.into_iter()).collect(),
             _ => {
                 return Err(DBError::Query(
                     crate::core::error::QueryError::ExecutionError(
@@ -416,15 +408,7 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
         };
 
         let right_values = match right_result {
-            ExecutionResult::Values(values) => values.clone(),
-            ExecutionResult::Vertices(vertices) => vertices
-                .iter()
-                .map(|v| Value::Vertex(Box::new(v.clone())))
-                .collect::<Vec<_>>(),
-            ExecutionResult::Edges(edges) => edges
-                .iter()
-                .map(|e| Value::Edge(e.clone()))
-                .collect::<Vec<_>>(),
+            ExecutionResult::DataSet(dataset) => dataset.rows.into_iter().flat_map(|row| row.into_iter()).collect(),
             _ => {
                 return Err(DBError::Query(
                     crate::core::error::QueryError::ExecutionError(
@@ -484,14 +468,7 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for RollUpApplyExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let dataset = self.execute_rollup_apply()?;
-
-        let values: Vec<Value> = dataset
-            .rows
-            .into_iter()
-            .flat_map(|row| row.into_iter())
-            .collect();
-
-        Ok(ExecutionResult::Values(values))
+        Ok(ExecutionResult::DataSet(dataset))
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -554,18 +531,24 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
 
-        let left_values = vec![Value::Int(1), Value::Int(2)];
-        let right_values = vec![Value::Int(1), Value::Int(1), Value::Int(2)];
+        let left_dataset = DataSet::from_rows(
+            vec![vec![Value::Int(1)], vec![Value::Int(2)]],
+            vec!["key".to_string()],
+        );
+        let right_dataset = DataSet::from_rows(
+            vec![vec![Value::Int(1)], vec![Value::Int(1)], vec![Value::Int(2)]],
+            vec!["key".to_string()],
+        );
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
         context.set_result(
             "left".to_string(),
-            ExecutionResult::Values(left_values.clone()),
+            ExecutionResult::DataSet(left_dataset),
         );
         context.set_result(
             "right".to_string(),
-            ExecutionResult::Values(right_values.clone()),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         let compare_cols = vec![Expression::variable("_")];
@@ -585,10 +568,10 @@ mod tests {
             .execute()
             .expect("Executor should execute successfully");
 
-        if let ExecutionResult::Values(values) = result {
-            assert_eq!(values.len(), 4);
+        if let ExecutionResult::DataSet(dataset) = result {
+            assert_eq!(dataset.rows.len(), 4);
         } else {
-            panic!("Expected Values result");
+            panic!("Expected DataSet result");
         }
     }
 

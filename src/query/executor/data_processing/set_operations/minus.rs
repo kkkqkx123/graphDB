@@ -192,11 +192,11 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_input".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "right_input".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // Perform the MINUS operation
@@ -205,12 +205,12 @@ mod tests {
         // Verification results
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // Only Alice and Charlie should be included (Bob and David are excluded).
             // 2 rows × 2 columns = 4 values
-            assert_eq!(values.len(), 4);
+            assert_eq!(dataset.rows.len(), 4);
         } else {
-            panic!("Expected Values results");
+            panic!("Expected DataSet results");
         }
     }
 
@@ -246,21 +246,21 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_no_overlap".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "right_no_overlap".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // Perform the MINUS operation
         let result = executor.execute();
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // There is no overlap; therefore, the entire left dataset should be returned.
             // 2 rows × 2 columns = 4 values
-            assert_eq!(values.len(), 4);
+            assert_eq!(dataset.rows.len(), 4);
         }
     }
 
@@ -296,20 +296,20 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_all_overlap".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "right_all_overlap".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // Perform the MINUS operation
         let result = executor.execute();
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // The overlap is complete; therefore, the result should be empty.
-            assert_eq!(values.len(), 0);
+            assert_eq!(dataset.rows.len(), 0);
         }
     }
 
@@ -342,20 +342,20 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "empty_left".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "right_input".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // The test for the MINUS case where the left dataset is empty is completed.
         let result = executor.execute();
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // The left dataset is empty; therefore, the result should also be empty.
-            assert_eq!(values.len(), 0);
+            assert_eq!(dataset.rows.len(), 0);
         }
     }
 
@@ -388,21 +388,21 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_input".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "empty_right".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // The test for the MINUS case where the right dataset is empty is completed.
         let result = executor.execute();
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
             // The right dataset is empty; therefore, the entire left dataset should be returned.
             // 2 rows × 2 columns = 4 values
-            assert_eq!(values.len(), 4);
+            assert_eq!(dataset.rows.len(), 4);
         }
     }
 
@@ -432,19 +432,19 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "empty_left".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "empty_right".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // Testing the MINUS case where both datasets are empty.
         let result = executor.execute();
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
-            assert_eq!(values.len(), 0);
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
+            assert_eq!(dataset.rows.len(), 0);
         }
     }
 
@@ -482,23 +482,23 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_dup".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "right_dup".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // Perform the MINUS operation
         let result = executor.execute();
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
-            // Only unique rows should be included; the terms “common” and “another” should be excluded.
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
+            // Only unique rows should be included; the terms "common" and "another" should be excluded.
             // 1 row × 2 columns = 2 values
-            assert_eq!(values.len(), 2);
+            assert_eq!(dataset.rows.len(), 2);
         } else {
-            panic!("Expected Values results");
+            panic!("Expected DataSet results");
         }
     }
 
@@ -528,11 +528,11 @@ mod tests {
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_mismatch".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "right_mismatch".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // The execution should fail.

@@ -60,13 +60,13 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ArgumentExecutor<S> {
 
         // Obtain the variable values from the execution context.
         if let Some(var_value) = self.base.context.get_variable(&self.var) {
-            // Wrap the variable value in an ExecutionResult.
-            Ok(ExecutionResult::Values(vec![var_value.clone()]))
+            Ok(ExecutionResult::DataSet(DataSet::from_rows(
+                vec![vec![var_value.clone()]],
+                vec!["value".to_string()],
+            )))
         } else if let Some(result) = self.base.context.get_result(&self.var) {
-            // If the variable is stored in an intermediate result, return the cloned result.
             Ok(result.clone())
         } else {
-            // The variable does not exist; an error is returned.
             Err(crate::core::error::DBError::Internal(format!(
                 "Variable '{}' is not defined",
                 self.var
@@ -334,12 +334,12 @@ mod tests {
         executor.close().expect("Failed to close executor");
 
         match result {
-            ExecutionResult::Values(values) => {
-                assert_eq!(values.len(), 1);
-                assert_eq!(values[0], Value::String("test_value".to_string()));
+            ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.rows.len(), 1);
+                assert_eq!(dataset.rows[0][0], Value::String("test_value".to_string()));
             }
             _ => panic!(
-                "Expecting to return Values results, but getting {:?}",
+                "Expecting to return DataSet results, but getting {:?}",
                 result
             ),
         }
@@ -355,7 +355,10 @@ mod tests {
             ArgumentExecutor::<MockStorage>::new(1, storage, "my_result", expr_context);
 
         // Set intermediate results
-        let test_result = ExecutionResult::Values(vec![Value::Int(42)]);
+        let test_result = ExecutionResult::DataSet(DataSet::from_rows(
+            vec![vec![Value::Int(42)]],
+            vec!["value".to_string()],
+        ));
         executor.set_result("my_result".to_string(), test_result.clone());
 
         // Execute and verify the result.
@@ -364,12 +367,12 @@ mod tests {
         executor.close().expect("Failed to close executor");
 
         match result {
-            ExecutionResult::Values(values) => {
-                assert_eq!(values.len(), 1);
-                assert_eq!(values[0], Value::Int(42));
+            ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.rows.len(), 1);
+                assert_eq!(dataset.rows[0][0], Value::Int(42));
             }
             _ => panic!(
-                "Expecting to return Values results, but getting {:?}",
+                "Expecting to return DataSet results, but getting {:?}",
                 result
             ),
         }

@@ -405,7 +405,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for InnerJoinExecutor<S> {
                 col_names: self.base_executor.get_col_names().clone(),
                 rows: Vec::new(),
             };
-            return Ok(ExecutionResult::Values(vec![Value::DataSet(empty_result)]));
+            return Ok(ExecutionResult::DataSet(empty_result));
         }
 
         let result = if self.use_multi_key {
@@ -420,7 +420,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for InnerJoinExecutor<S> {
             .get_stats_mut()
             .add_row(result.rows.len());
 
-        Ok(ExecutionResult::Values(vec![Value::DataSet(result)]))
+        Ok(ExecutionResult::DataSet(result))
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -594,31 +594,27 @@ mod tests {
 
         executor.base_executor.get_base_mut().context.set_result(
             "left".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
 
         executor.base_executor.get_base_mut().context.set_result(
             "right".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         let result = executor.execute().expect("执行失败");
 
         match result {
-            ExecutionResult::Values(values) => {
-                if let Some(Value::DataSet(dataset)) = values.first() {
-                    assert_eq!(dataset.rows.len(), 2);
-                    assert_eq!(dataset.rows[0][0], Value::Int(1));
-                    assert_eq!(dataset.rows[0][1], Value::String("Alice".to_string()));
-                    assert_eq!(dataset.rows[0][2], Value::Int(25));
-                    assert_eq!(dataset.rows[1][0], Value::Int(2));
-                    assert_eq!(dataset.rows[1][1], Value::String("Bob".to_string()));
-                    assert_eq!(dataset.rows[1][2], Value::Int(30));
-                } else {
-                    panic!("Expected DataSet results");
-                }
+            ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.rows.len(), 2);
+                assert_eq!(dataset.rows[0][0], Value::Int(1));
+                assert_eq!(dataset.rows[0][1], Value::String("Alice".to_string()));
+                assert_eq!(dataset.rows[0][2], Value::Int(25));
+                assert_eq!(dataset.rows[1][0], Value::Int(2));
+                assert_eq!(dataset.rows[1][1], Value::String("Bob".to_string()));
+                assert_eq!(dataset.rows[1][2], Value::Int(30));
             }
-            _ => panic!("Expected Values results"),
+            _ => panic!("Expected DataSet results"),
         }
     }
 
@@ -682,29 +678,25 @@ mod tests {
 
         executor.base_executor.get_base_mut().context.set_result(
             "left".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
 
         executor.base_executor.get_base_mut().context.set_result(
             "right".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         let result = executor.execute().expect("执行失败");
 
         match result {
-            ExecutionResult::Values(values) => {
-                if let Some(Value::DataSet(dataset)) = values.first() {
-                    assert_eq!(dataset.rows.len(), 2);
-                    assert_eq!(dataset.rows[0][2], Value::String("Alice".to_string()));
-                    assert_eq!(dataset.rows[0][3], Value::Int(25));
-                    assert_eq!(dataset.rows[1][2], Value::String("Bob".to_string()));
-                    assert_eq!(dataset.rows[1][3], Value::Int(30));
-                } else {
-                    panic!("Expected result from the DataSet");
-                }
+            ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.rows.len(), 2);
+                assert_eq!(dataset.rows[0][2], Value::String("Alice".to_string()));
+                assert_eq!(dataset.rows[0][3], Value::Int(25));
+                assert_eq!(dataset.rows[1][2], Value::String("Bob".to_string()));
+                assert_eq!(dataset.rows[1][3], Value::Int(30));
             }
-            _ => panic!("Expected Values results"),
+            _ => panic!("Expected DataSet results"),
         }
     }
 
@@ -747,20 +739,16 @@ mod tests {
 
         executor.base_executor.get_base_mut().context.set_result(
             "right".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         let result = executor.execute().expect("执行失败");
 
         match result {
-            ExecutionResult::Values(values) => {
-                if let Some(Value::DataSet(dataset)) = values.first() {
-                    assert_eq!(dataset.rows.len(), 0);
-                } else {
-                    panic!("Expected DataSet results");
-                }
+            ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.rows.len(), 0);
             }
-            _ => panic!("Expected Values results"),
+            _ => panic!("Expected DataSet results"),
         }
     }
 
@@ -790,25 +778,21 @@ mod tests {
 
         executor.base_executor.get_base_mut().context.set_result(
             "left".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
 
         executor.base_executor.get_base_mut().context.set_result(
             "right".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         let result = executor.execute().expect("执行失败");
 
         match result {
-            ExecutionResult::Values(values) => {
-                if let Some(Value::DataSet(dataset)) = values.first() {
-                    assert_eq!(dataset.rows.len(), 2);
-                } else {
-                    panic!("Expected DataSet results");
-                }
+            ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.rows.len(), 2);
             }
-            _ => panic!("Expected Values results"),
+            _ => panic!("Expected DataSet results"),
         }
     }
 }
