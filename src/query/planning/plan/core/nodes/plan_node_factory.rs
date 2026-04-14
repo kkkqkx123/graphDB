@@ -8,8 +8,8 @@ use crate::query::planning::plan::core::nodes::access::graph_scan_node::{
 use crate::query::planning::plan::core::nodes::control_flow::control_flow_node::{
     ArgumentNode, LoopNode, PassThroughNode, SelectNode,
 };
-use crate::query::planning::plan::core::nodes::data_processing::aggregate_node::AggregateNode;
-use crate::query::planning::plan::core::nodes::data_processing::data_processing_node::{
+use crate::query::planning::plan::core::nodes::graph_operations::aggregate_node::AggregateNode;
+use crate::query::planning::plan::core::nodes::graph_operations::graph_operations_node::{
     DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode,
 };
 
@@ -249,7 +249,7 @@ impl PlanNodeFactory {
         input: PlanNodeEnum,
         minus_input: PlanNodeEnum,
     ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
-        use crate::query::planning::plan::core::nodes::data_processing::set_operations_node::MinusNode;
+        use crate::query::planning::plan::core::nodes::graph_operations::set_operations_node::MinusNode;
         let minus_node = MinusNode::new(input, minus_input)?;
         Ok(PlanNodeEnum::Minus(minus_node))
     }
@@ -259,7 +259,7 @@ impl PlanNodeFactory {
         input: PlanNodeEnum,
         intersect_input: PlanNodeEnum,
     ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
-        use crate::query::planning::plan::core::nodes::data_processing::set_operations_node::IntersectNode;
+        use crate::query::planning::plan::core::nodes::graph_operations::set_operations_node::IntersectNode;
         let intersect_node = IntersectNode::new(input, intersect_input)?;
         Ok(PlanNodeEnum::Intersect(intersect_node))
     }

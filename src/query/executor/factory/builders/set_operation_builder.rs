@@ -4,7 +4,7 @@
 
 use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
-use crate::query::executor::data_processing::set_operations::{
+use crate::query::executor::relational_algebra::set_operations::{
     IntersectExecutor, MinusExecutor, UnionExecutor,
 };
 use crate::query::executor::base::ExecutorEnum;

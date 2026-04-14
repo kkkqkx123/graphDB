@@ -7,7 +7,7 @@ use crate::core::types::ContextualExpression;
 use crate::query::DataSet;
 use crate::core::{Expression, Value};
 use crate::query::executor::base::{ExecutionResult, Executor, JoinConfigWithDesc};
-use crate::query::executor::data_processing::join::{
+use crate::query::executor::relational_algebra::join::{
     base_join::BaseJoinExecutor,
     hash_table::{build_hash_table, extract_key_values, JoinKey},
 };

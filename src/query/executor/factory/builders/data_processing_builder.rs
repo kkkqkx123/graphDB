@@ -5,10 +5,11 @@
 use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::base::ExecutorEnum;
+use crate::query::executor::relational_algebra::{
+    AggregateExecutor, AggregateFunctionSpec, FilterExecutor, ProjectExecutor, ProjectionColumn,
+};
 use crate::query::executor::result_processing::{
-    AggregateExecutor, AggregateFunctionSpec, DedupExecutor, FilterExecutor, LimitExecutor,
-    ProjectExecutor, ProjectionColumn, SampleExecutor, SampleMethod, SortExecutor, SortKey,
-    TopNExecutor,
+    DedupExecutor, LimitExecutor, SampleExecutor, SampleMethod, SortExecutor, SortKey, TopNExecutor,
 };
 use crate::query::planning::plan::core::nodes::{
     AggregateNode, DedupNode, FilterNode, LimitNode, ProjectNode, SampleNode, SortNode, TopNNode,
@@ -186,7 +187,7 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
                 // AggregateFunction 的 name() 返回函数名
                 let func_name = agg_func.name().to_string();
                 AggregateFunctionSpec::new(
-                    crate::query::executor::result_processing::AggregateFunction::Count(None),
+                    crate::core::types::operators::AggregateFunction::Count(None),
                 )
                 .with_field(func_name)
             })

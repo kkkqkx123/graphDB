@@ -10,7 +10,7 @@ use crate::query::DataSet;
 use crate::core::Value;
 use crate::query::executor::base::JoinConfig;
 use crate::query::executor::base::{ExecutionResult, Executor};
-use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
+use crate::query::executor::relational_algebra::join::base_join::BaseJoinExecutor;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryError;
 use crate::storage::StorageClient;

@@ -4,11 +4,11 @@ mod tests {
     use crate::core::{Edge, Value, Vertex};
     use crate::query::executor::base::EdgeDirection;
     use crate::query::executor::base::Executor;
-    use crate::query::executor::data_processing::graph_traversal::algorithms::{
+    use crate::query::executor::graph_operations::graph_traversal::algorithms::{
         EdgeWeightConfig, HeuristicFunction, ShortestPathAlgorithmType,
     };
-    use crate::query::executor::data_processing::graph_traversal::factory::GraphTraversalExecutorFactory;
-    use crate::query::executor::data_processing::graph_traversal::traits::GraphTraversalExecutor;
+    use crate::query::executor::graph_operations::graph_traversal::factory::GraphTraversalExecutorFactory;
+    use crate::query::executor::graph_operations::graph_traversal::traits::GraphTraversalExecutor;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::{MockStorage, StorageClient};
     use parking_lot::Mutex;

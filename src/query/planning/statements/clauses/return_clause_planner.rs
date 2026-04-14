@@ -6,7 +6,7 @@ use crate::core::types::expr::expression_utils::generate_default_alias_from_cont
 use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
-use crate::query::planning::plan::core::nodes::data_processing::data_processing_node::DedupNode;
+use crate::query::planning::plan::core::nodes::graph_operations::graph_operations_node::DedupNode;
 use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
 use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::PlannerError;

@@ -16,7 +16,7 @@ use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::expression_parser::ExpressionParser;
 use crate::query::optimizer::cost::selectivity::SelectivityEstimator;
 use crate::query::optimizer::cost::CostCalculator;
-use crate::query::planning::plan::core::nodes::data_processing::UnwindNode;
+use crate::query::planning::plan::core::nodes::graph_operations::UnwindNode;
 use crate::query::planning::plan::PlanNodeEnum;
 
 /// Data processing node estimator
@@ -141,7 +141,7 @@ mod tests {
     use crate::core::{Expression, Value};
     use crate::query::optimizer::cost::config::CostModelConfig;
     use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
-    use crate::query::planning::plan::core::nodes::data_processing::data_processing_node::*;
+    use crate::query::planning::plan::core::nodes::graph_operations::graph_operations_node::*;
     use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
     use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
     use crate::query::validator::context::ExpressionAnalysisContext;

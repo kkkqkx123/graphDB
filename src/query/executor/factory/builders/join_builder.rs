@@ -4,7 +4,7 @@
 
 use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
-use crate::query::executor::data_processing::{
+use crate::query::executor::relational_algebra::join::{
     CrossJoinExecutor, FullOuterJoinExecutor, HashInnerJoinExecutor, HashLeftJoinExecutor,
     InnerJoinConfig, InnerJoinExecutor, LeftJoinConfig, LeftJoinExecutor,
 };
@@ -152,7 +152,7 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         let probe_keys: Vec<crate::core::types::ContextualExpression> = node.probe_keys().to_vec();
 
         let config =
-            crate::query::executor::data_processing::join::full_outer_join::FullOuterJoinConfig {
+            crate::query::executor::relational_algebra::join::full_outer_join::FullOuterJoinConfig {
                 hash_keys,
                 probe_keys,
                 left_var,

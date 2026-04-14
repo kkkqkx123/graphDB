@@ -123,7 +123,7 @@ mod tests {
     use super::*;
     use crate::query::planning::plan::core::nodes::access::graph_scan_node::GetVerticesNode;
     use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
-    use crate::query::planning::plan::core::nodes::data_processing::data_processing_node::DedupNode;
+    use crate::query::planning::plan::core::nodes::graph_operations::graph_operations_node::DedupNode;
 
     #[test]
     fn test_rule_name() {

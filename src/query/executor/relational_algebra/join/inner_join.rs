@@ -11,7 +11,7 @@ use crate::core::types::ContextualExpression;
 use crate::query::DataSet;
 use crate::core::{Expression, Value};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage, JoinConfig};
-use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
+use crate::query::executor::relational_algebra::join::base_join::BaseJoinExecutor;
 use crate::query::executor::expression::evaluation_context::row_context::RowExpressionContext;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::validator::context::ExpressionAnalysisContext;

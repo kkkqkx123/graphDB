@@ -4,11 +4,12 @@ pub mod base;
 pub mod control_flow;
 pub mod data_access;
 pub mod data_modification;
-pub mod data_processing;
 pub mod explain;
 pub mod expression;
 pub mod factory;
+pub mod graph_operations;
 pub mod macros;
+pub mod relational_algebra;
 pub mod result_processing;
 pub mod utils;
 
@@ -27,9 +28,16 @@ pub use data_access::{
 
 // Re-export result processing executors
 pub use result_processing::{
-    AggregateExecutor, AggregateFunction, DedupExecutor, DedupStrategy, FilterExecutor,
-    GroupAggregateState, GroupByExecutor, HavingExecutor, LimitExecutor, ProjectExecutor,
-    SampleExecutor, SampleMethod, SortExecutor, SortKey, SortOrder, TopNExecutor,
+    DedupExecutor, DedupStrategy, LimitExecutor, SampleExecutor, SampleMethod, SortExecutor,
+    SortKey, SortOrder, TopNExecutor,
+};
+
+// Re-export relational algebra executors
+pub use relational_algebra::{
+    AggregateExecutor, AggregateFunctionSpec, CrossJoinExecutor, FilterExecutor,
+    FullOuterJoinExecutor, GroupAggregateState, GroupByExecutor, HashInnerJoinExecutor,
+    HashLeftJoinExecutor, HavingExecutor, InnerJoinExecutor, IntersectExecutor, LeftJoinExecutor,
+    MinusExecutor, ProjectExecutor, ProjectionColumn, SetExecutor, UnionAllExecutor, UnionExecutor,
 };
 
 // Re-export transformations (Data conversion executors)
@@ -59,7 +67,7 @@ pub use admin::{
 pub use utils::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
 
 // Re-export graph traversal executors (graph traversal executor)
-pub use data_processing::graph_traversal::algorithms::BFSShortestExecutor;
+pub use crate::query::executor::graph_operations::graph_traversal::algorithms::BFSShortestExecutor;
 
 // Re-export explain/profile executors
 pub use explain::{

@@ -140,8 +140,8 @@ mod tests {
     use crate::core::types::operators::AggregateFunction;
     use crate::query::optimizer::cost::config::CostModelConfig;
     use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
-    use crate::query::planning::plan::core::nodes::data_processing::aggregate_node::AggregateNode;
-    use crate::query::planning::plan::core::nodes::data_processing::data_processing_node::DedupNode;
+    use crate::query::planning::plan::core::nodes::graph_operations::aggregate_node::AggregateNode;
+    use crate::query::planning::plan::core::nodes::graph_operations::graph_operations_node::DedupNode;
     use crate::query::planning::plan::core::nodes::operation::sample_node::SampleNode;
     use crate::query::planning::plan::core::nodes::operation::sort_node::*;
     use std::sync::Arc;

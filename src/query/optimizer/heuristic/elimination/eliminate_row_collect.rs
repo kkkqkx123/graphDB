@@ -31,7 +31,7 @@ use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::{EliminationRule, RewriteRule};
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planning::plan::core::nodes::data_processing::data_processing_node::DataCollectNode;
+use crate::query::planning::plan::core::nodes::graph_operations::graph_operations_node::DataCollectNode;
 use crate::query::planning::plan::PlanNodeEnum;
 
 /// Rules for eliminating redundant data collection operations

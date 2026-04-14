@@ -2,7 +2,7 @@ pub mod access;
 pub mod base;
 pub mod control_flow;
 pub mod data_modification;
-pub mod data_processing;
+pub mod graph_operations;
 pub mod join;
 pub mod management;
 pub mod operation;
@@ -23,7 +23,7 @@ pub use data_modification::{
     InsertEdgesNode, InsertVerticesNode, TagInsertSpec, UpdateEdgesNode, UpdateNode,
     UpdateTargetType, UpdateVerticesNode, VertexDeleteInfo, VertexInsertInfo, VertexUpdateInfo,
 };
-pub use data_processing::{
+pub use graph_operations::{
     AggregateNode, AssignNode, DataCollectNode, DedupNode, IntersectNode, MaterializeNode,
     MinusNode, PatternApplyNode, RemoveNode, RollUpApplyNode, UnionNode, UnwindNode,
 };

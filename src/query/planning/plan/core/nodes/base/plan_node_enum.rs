@@ -58,12 +58,12 @@ pub use crate::query::planning::plan::core::nodes::control_flow::control_flow_no
     ArgumentNode, LoopNode, PassThroughNode, SelectNode,
 };
 pub use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
-pub use crate::query::planning::plan::core::nodes::data_processing::aggregate_node::AggregateNode;
-pub use crate::query::planning::plan::core::nodes::data_processing::data_processing_node::{
+pub use crate::query::planning::plan::core::nodes::graph_operations::aggregate_node::AggregateNode;
+pub use crate::query::planning::plan::core::nodes::graph_operations::graph_operations_node::{
     AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode, RemoveNode,
     RollUpApplyNode, UnionNode, UnwindNode,
 };
-pub use crate::query::planning::plan::core::nodes::data_processing::set_operations_node::{
+pub use crate::query::planning::plan::core::nodes::graph_operations::set_operations_node::{
     IntersectNode, MinusNode,
 };
 pub use crate::query::planning::plan::core::nodes::join::join_node::{

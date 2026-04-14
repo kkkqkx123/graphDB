@@ -20,12 +20,12 @@ use crate::query::planning::plan::core::nodes::control_flow::control_flow_node::
     ArgumentNode, LoopNode, PassThroughNode, SelectNode,
 };
 use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
-use crate::query::planning::plan::core::nodes::data_processing::aggregate_node::AggregateNode;
-use crate::query::planning::plan::core::nodes::data_processing::data_processing_node::{
+use crate::query::planning::plan::core::nodes::graph_operations::aggregate_node::AggregateNode;
+use crate::query::planning::plan::core::nodes::graph_operations::graph_operations_node::{
     AssignNode, DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode,
     UnwindNode,
 };
-use crate::query::planning::plan::core::nodes::data_processing::set_operations_node::{
+use crate::query::planning::plan::core::nodes::graph_operations::set_operations_node::{
     IntersectNode, MinusNode,
 };
 use crate::query::planning::plan::core::nodes::join::join_node::{

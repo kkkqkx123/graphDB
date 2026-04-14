@@ -1,10 +1,10 @@
 use super::*;
-use crate::query::executor::data_processing::graph_traversal::algorithms::ShortestPathAlgorithmType;
-use crate::query::executor::data_processing::graph_traversal::expand::ExpandExecutor;
-use crate::query::executor::data_processing::graph_traversal::expand_all::ExpandAllExecutor;
-use crate::query::executor::data_processing::graph_traversal::shortest_path::ShortestPathExecutor;
-use crate::query::executor::data_processing::graph_traversal::traits::TraversalStats;
-use crate::query::executor::data_processing::graph_traversal::traverse::TraverseExecutor;
+use crate::query::executor::graph_operations::graph_traversal::algorithms::ShortestPathAlgorithmType;
+use crate::query::executor::graph_operations::graph_traversal::expand::ExpandExecutor;
+use crate::query::executor::graph_operations::graph_traversal::expand_all::ExpandAllExecutor;
+use crate::query::executor::graph_operations::graph_traversal::shortest_path::ShortestPathExecutor;
+use crate::query::executor::graph_operations::graph_traversal::traits::TraversalStats;
+use crate::query::executor::graph_operations::graph_traversal::traverse::TraverseExecutor;
 
 /// Macro definition: Implements general statistical information for executors that have access to node statistics.
 macro_rules! impl_graph_traversal_executor_with_stats {

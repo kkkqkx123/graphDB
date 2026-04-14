@@ -6,9 +6,9 @@ use crate::core::error::QueryError;
 use crate::query::executor::base::{
     AppendVerticesConfig, ExecutionContext, ExecutorConfig, PatternApplyConfig, RollupApplyConfig,
 };
-use crate::query::executor::data_processing::MaterializeExecutor;
+use crate::query::executor::graph_operations::MaterializeExecutor;
 use crate::query::executor::base::ExecutorEnum;
-use crate::query::executor::result_processing::{
+use crate::query::executor::result_processing::transformations::{
     AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor,
     UnwindExecutor,
 };

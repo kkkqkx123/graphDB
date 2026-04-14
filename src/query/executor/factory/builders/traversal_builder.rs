@@ -7,9 +7,9 @@ use crate::core::types::EdgeDirection;
 use crate::query::executor::base::{
     AllPathsConfig, ExecutionContext, ExecutorConfig, MultiShortestPathConfig, ShortestPathConfig,
 };
-use crate::query::executor::data_processing::graph_traversal::algorithms::bfs_shortest::BfsShortestPathConfig;
-use crate::query::executor::data_processing::graph_traversal::algorithms::MultiShortestPathExecutor;
-use crate::query::executor::data_processing::graph_traversal::{
+use crate::query::executor::graph_operations::graph_traversal::algorithms::bfs_shortest::BfsShortestPathConfig;
+use crate::query::executor::graph_operations::graph_traversal::algorithms::MultiShortestPathExecutor;
+use crate::query::executor::graph_operations::graph_traversal::{
     AllPathsExecutor, ExpandAllExecutor, ExpandExecutor, ShortestPathExecutor, TraverseExecutor,
 };
 use crate::query::executor::base::ExecutorEnum;
@@ -143,7 +143,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::data_processing::graph_traversal::algorithms::ShortestPathAlgorithmType;
+        use crate::query::executor::graph_operations::graph_traversal::algorithms::ShortestPathAlgorithmType;
 
         let start_vertex_ids = node.start_vertex_ids().to_vec();
         let end_vertex_ids = node.end_vertex_ids().to_vec();
@@ -169,7 +169,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::core::Value;
-        use crate::query::executor::data_processing::graph_traversal::algorithms::BFSShortestExecutor;
+        use crate::query::executor::graph_operations::graph_traversal::algorithms::BFSShortestExecutor;
 
         // BFSShortestExecutor::new parameters: id, storage, steps, edge_types, with_cycle, max_depth, single_shortest, limit, start_vertex, end_vertex, expr_context
         let executor = BFSShortestExecutor::new(

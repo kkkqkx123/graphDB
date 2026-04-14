@@ -5,7 +5,7 @@
 use crate::core::types::ContextualExpression;
 use crate::query::parser::ast::Stmt;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
-use crate::query::planning::plan::core::nodes::data_processing::data_processing_node::UnwindNode;
+use crate::query::planning::plan::core::nodes::graph_operations::graph_operations_node::UnwindNode;
 use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::PlannerError;
 use crate::query::planning::statements::statement_planner::ClausePlanner;

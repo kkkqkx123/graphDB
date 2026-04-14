@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use crate::query::executor::base::{ExecutorConfig, ShortestPathConfig};
-use crate::query::executor::data_processing::graph_traversal::algorithms::ShortestPathAlgorithmType;
-use crate::query::executor::data_processing::graph_traversal::expand::ExpandExecutor;
-use crate::query::executor::data_processing::graph_traversal::expand_all::ExpandAllExecutor;
-use crate::query::executor::data_processing::graph_traversal::shortest_path::ShortestPathExecutor;
-use crate::query::executor::data_processing::graph_traversal::traverse::TraverseExecutor;
+use crate::query::executor::graph_operations::graph_traversal::algorithms::ShortestPathAlgorithmType;
+use crate::query::executor::graph_operations::graph_traversal::expand::ExpandExecutor;
+use crate::query::executor::graph_operations::graph_traversal::expand_all::ExpandAllExecutor;
+use crate::query::executor::graph_operations::graph_traversal::shortest_path::ShortestPathExecutor;
+use crate::query::executor::graph_operations::graph_traversal::traverse::TraverseExecutor;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use parking_lot::Mutex;
 

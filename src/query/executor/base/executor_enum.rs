@@ -31,28 +31,30 @@ use crate::query::executor::data_access::{
     ScanVerticesExecutor, VectorLookupExecutor, VectorMatchExecutor, VectorSearchExecutor,
 };
 use crate::query::executor::data_modification::{DeleteExecutor, InsertExecutor, RemoveExecutor, UpdateExecutor};
-use crate::query::executor::data_processing::graph_traversal::algorithms::BFSShortestExecutor;
-use crate::query::executor::data_processing::graph_traversal::{
+use crate::query::executor::graph_operations::graph_traversal::algorithms::BFSShortestExecutor;
+use crate::query::executor::graph_operations::graph_traversal::{
     algorithms::MultiShortestPathExecutor, AllPathsExecutor, ExpandAllExecutor, ExpandExecutor,
     ShortestPathExecutor, TraverseExecutor,
 };
-use crate::query::executor::data_processing::join::{
+use crate::query::executor::relational_algebra::join::{
     CrossJoinExecutor, FullOuterJoinExecutor, HashInnerJoinExecutor, HashLeftJoinExecutor,
     InnerJoinExecutor, LeftJoinExecutor,
 };
-use crate::query::executor::data_processing::set_operations::{
+use crate::query::executor::relational_algebra::set_operations::{
     IntersectExecutor, MinusExecutor, UnionAllExecutor, UnionExecutor,
 };
-use crate::query::executor::data_processing::MaterializeExecutor;
+use crate::query::executor::graph_operations::MaterializeExecutor;
 use crate::query::executor::control_flow::{ForLoopExecutor, LoopExecutor, SelectExecutor, WhileLoopExecutor};
 use crate::query::executor::utils::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
 use crate::query::executor::result_processing::transformations::{
     AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor,
     UnwindExecutor,
 };
+use crate::query::executor::relational_algebra::{
+    AggregateExecutor, FilterExecutor, GroupByExecutor, HavingExecutor, ProjectExecutor,
+};
 use crate::query::executor::result_processing::{
-    AggregateExecutor, DedupExecutor, FilterExecutor, GroupByExecutor, HavingExecutor,
-    LimitExecutor, ProjectExecutor, SampleExecutor, SortExecutor, TopNExecutor,
+    DedupExecutor, LimitExecutor, SampleExecutor, SortExecutor, TopNExecutor,
 };
 
 /// Executor enumeration
