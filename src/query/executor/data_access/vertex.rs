@@ -132,7 +132,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                         Ok(Some(vertex)) => {
                             let include_vertex =
                                 if let Some(ref tag_filter_expression) = self.tag_filter {
-                                    crate::query::executor::tag_filter::TagFilterProcessor
+                                    crate::query::executor::utils::tag_filter::TagFilterProcessor
                                     ::process_tag_filter(tag_filter_expression, &vertex)
                                 } else {
                                     true
@@ -180,7 +180,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                     .into_iter()
                     .filter(|vertex| {
                         if let Some(ref tag_filter_expression) = self.tag_filter {
-                            crate::query::executor::tag_filter::TagFilterProcessor
+                            crate::query::executor::utils::tag_filter::TagFilterProcessor
                                 ::process_tag_filter(tag_filter_expression, vertex)
                         } else {
                             true
@@ -343,7 +343,7 @@ impl<S: StorageClient> ScanVerticesExecutor<S> {
             .into_iter()
             .filter(|vertex| {
                 if let Some(ref tag_filter_expression) = self.tag_filter {
-                    crate::query::executor::tag_filter::TagFilterProcessor
+                    crate::query::executor::utils::tag_filter::TagFilterProcessor
                         ::process_tag_filter(tag_filter_expression, vertex)
                 } else {
                     true

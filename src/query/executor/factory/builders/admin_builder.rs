@@ -21,7 +21,7 @@ use crate::query::executor::admin::{
     ShowTagIndexesExecutor, ShowTagsExecutor, SwitchSpaceExecutor,
 };
 use crate::query::executor::base::ExecutionContext;
-use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::planning::plan::core::nodes::{
     AlterEdgeNode, AlterSpaceNode, AlterTagNode, AlterUserNode, ChangePasswordNode, ClearSpaceNode,
     CreateEdgeIndexNode, CreateEdgeNode, CreateSpaceNode, CreateTagIndexNode, CreateTagNode,

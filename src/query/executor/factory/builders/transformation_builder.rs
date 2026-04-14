@@ -7,7 +7,7 @@ use crate::query::executor::base::{
     AppendVerticesConfig, ExecutionContext, ExecutorConfig, PatternApplyConfig, RollupApplyConfig,
 };
 use crate::query::executor::data_processing::MaterializeExecutor;
-use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::result_processing::{
     AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor,
     UnwindExecutor,

@@ -7,7 +7,7 @@ use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::data_processing::set_operations::{
     IntersectExecutor, MinusExecutor, UnionExecutor,
 };
-use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::planning::plan::core::nodes::{IntersectNode, MinusNode, UnionNode};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;

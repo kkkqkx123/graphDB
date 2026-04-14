@@ -14,7 +14,7 @@ use crate::query::executor::base::{
     Executor as BaseExecutorTrait, ExecutorStats, HasStorage, InputExecutor,
     MultiShortestPathConfig,
 };
-use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::executor::base::ExecutorEnum;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 

@@ -9,11 +9,13 @@
 //! - executor_base.rs     - Basic executor implementation
 //! - result_processor.rs  - Result processor
 //! - config.rs            - Executor configuration structure
+//! - executor_enum.rs     - Executor enumeration
 
 pub mod config;
 pub mod execution_context;
 pub mod execution_result;
 pub mod executor_base;
+pub mod executor_enum;
 pub mod executor_stats;
 pub mod result_processor;
 
@@ -27,6 +29,7 @@ pub use execution_result::{DBResult, ExecutionResult, IntoExecutionResult};
 pub use executor_base::{
     BaseExecutor, ChainableExecutor, Executor, HasInput, HasStorage, InputExecutor, StartExecutor,
 };
+pub use executor_enum::ExecutorEnum;
 pub use executor_stats::ExecutorStats;
 pub use result_processor::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 

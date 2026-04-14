@@ -13,7 +13,7 @@ use crate::query::executor::base::{BaseExecutor, ExecutorStats};
 use crate::query::executor::base::{
     DBResult, ExecutionResult, Executor, HasStorage, InputExecutor,
 };
-use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::expression::evaluation_context::DefaultExpressionContext;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::validator::context::ExpressionAnalysisContext;

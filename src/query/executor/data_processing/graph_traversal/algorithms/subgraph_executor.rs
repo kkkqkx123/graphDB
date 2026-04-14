@@ -13,7 +13,7 @@ use crate::query::executor::base::{
     BaseExecutor, DBResult as ExecDBResult, EdgeDirection, ExecutionResult,
     Executor as BaseExecutorTrait, ExecutorStats, HasStorage, InputExecutor,
 };
-use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;

@@ -4,9 +4,9 @@
 
 use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
-use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::executor::logic::{LoopExecutor, SelectExecutor};
-use crate::query::executor::pipeline_executors::{
+use crate::query::executor::base::ExecutorEnum;
+use crate::query::executor::control_flow::{LoopExecutor, SelectExecutor};
+use crate::query::executor::utils::{
     ArgumentExecutor, DataCollectExecutor, PassThroughExecutor,
 };
 use crate::query::planning::plan::core::nodes::{

@@ -14,8 +14,8 @@ use crate::query::DataSet;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor};
-use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::executor::recursion_detector::ParallelConfig;
+use crate::query::executor::base::ExecutorEnum;
+use crate::query::executor::utils::recursion_detector::ParallelConfig;
 use crate::storage::iterator::Row;
 use crate::storage::StorageClient;
 
@@ -601,3 +601,4 @@ mod tests {
         }
     }
 }
+

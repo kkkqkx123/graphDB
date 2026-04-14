@@ -8,7 +8,7 @@ use std::fmt::{Debug, Formatter};
 
 use crate::storage::StorageClient;
 
-use super::admin::{
+use crate::query::executor::admin::{
     AlterEdgeExecutor, AlterFulltextIndexExecutor, AlterSpaceExecutor, AlterTagExecutor,
     AlterUserExecutor, AnalyzeExecutor, ChangePasswordExecutor, ClearSpaceExecutor,
     CreateEdgeExecutor, CreateEdgeIndexExecutor, CreateFulltextIndexExecutor, CreateSpaceExecutor,
@@ -21,36 +21,36 @@ use super::admin::{
     ShowFulltextIndexExecutor, ShowSpacesExecutor, ShowStatsExecutor, ShowTagIndexesExecutor,
     ShowTagsExecutor, SwitchSpaceExecutor,
 };
-use super::base::{
+use crate::query::executor::base::{
     BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, InputExecutor, StartExecutor,
 };
-use super::data_access::{
+use crate::query::executor::data_access::{
     CreateVectorIndexExecutor, DropVectorIndexExecutor, FulltextScanExecutor,
     FulltextSearchExecutor, GetEdgesExecutor, GetNeighborsExecutor, GetPropExecutor,
     GetVerticesExecutor, IndexScanExecutor, MatchFulltextExecutor, ScanEdgesExecutor,
     ScanVerticesExecutor, VectorLookupExecutor, VectorMatchExecutor, VectorSearchExecutor,
 };
-use super::data_modification::{DeleteExecutor, InsertExecutor, RemoveExecutor, UpdateExecutor};
-use super::data_processing::graph_traversal::algorithms::BFSShortestExecutor;
-use super::data_processing::graph_traversal::{
+use crate::query::executor::data_modification::{DeleteExecutor, InsertExecutor, RemoveExecutor, UpdateExecutor};
+use crate::query::executor::data_processing::graph_traversal::algorithms::BFSShortestExecutor;
+use crate::query::executor::data_processing::graph_traversal::{
     algorithms::MultiShortestPathExecutor, AllPathsExecutor, ExpandAllExecutor, ExpandExecutor,
     ShortestPathExecutor, TraverseExecutor,
 };
-use super::data_processing::join::{
+use crate::query::executor::data_processing::join::{
     CrossJoinExecutor, FullOuterJoinExecutor, HashInnerJoinExecutor, HashLeftJoinExecutor,
     InnerJoinExecutor, LeftJoinExecutor,
 };
-use super::data_processing::set_operations::{
+use crate::query::executor::data_processing::set_operations::{
     IntersectExecutor, MinusExecutor, UnionAllExecutor, UnionExecutor,
 };
-use super::data_processing::MaterializeExecutor;
-use super::logic::{ForLoopExecutor, LoopExecutor, SelectExecutor, WhileLoopExecutor};
-use super::pipeline_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
-use super::result_processing::transformations::{
+use crate::query::executor::data_processing::MaterializeExecutor;
+use crate::query::executor::control_flow::{ForLoopExecutor, LoopExecutor, SelectExecutor, WhileLoopExecutor};
+use crate::query::executor::utils::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
+use crate::query::executor::result_processing::transformations::{
     AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor,
     UnwindExecutor,
 };
-use super::result_processing::{
+use crate::query::executor::result_processing::{
     AggregateExecutor, DedupExecutor, FilterExecutor, GroupByExecutor, HavingExecutor,
     LimitExecutor, ProjectExecutor, SampleExecutor, SortExecutor, TopNExecutor,
 };
@@ -387,7 +387,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
 }
 
 pub trait ChainableExecutor<S: StorageClient + Send + 'static>:
-    super::base::Executor<S> + InputExecutor<S>
+    Executor<S> + InputExecutor<S>
 {
     fn into_executor_enum(self) -> ExecutorEnum<S>
     where

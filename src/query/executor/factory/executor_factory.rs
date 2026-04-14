@@ -5,13 +5,13 @@
 
 use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
-use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::factory::builders::{
     AdminBuilder, ControlFlowBuilder, DataAccessBuilder, DataModificationBuilder,
     DataProcessingBuilder, FulltextSearchBuilder, JoinBuilder, SetOperationBuilder,
     TransformationBuilder, TraversalBuilder, VectorSearchBuilder,
 };
-use crate::query::executor::recursion_detector::{
+use crate::query::executor::utils::recursion_detector::{
     ExecutorSafetyConfig, PlanValidator, RecursionDetector,
 };
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
@@ -518,7 +518,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             .expression()
             .map(|meta| meta.inner().clone());
 
-        use crate::query::executor::logic::LoopExecutor;
+        use crate::query::executor::control_flow::LoopExecutor;
         let executor = LoopExecutor::new(
             node.id(),
             storage,
@@ -587,7 +587,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             }
         };
 
-        use crate::query::executor::logic::SelectExecutor;
+        use crate::query::executor::control_flow::SelectExecutor;
         let executor = SelectExecutor::new(
             node.id(),
             storage,

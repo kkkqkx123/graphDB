@@ -5,7 +5,7 @@
 use crate::core::error::QueryError;
 use crate::query::executor::base::{ExecutionContext, ExecutionResult, Executor, InputExecutor};
 use crate::query::executor::factory::ExecutorFactory;
-use crate::query::executor::object_pool::ThreadSafeExecutorPool;
+use crate::query::executor::utils::object_pool::ThreadSafeExecutorPool;
 use crate::query::planning::plan::ExecutionPlan;
 use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::validator::context::ExpressionAnalysisContext;

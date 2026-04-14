@@ -8,7 +8,7 @@ use crate::query::executor::data_processing::{
     CrossJoinExecutor, FullOuterJoinExecutor, HashInnerJoinExecutor, HashLeftJoinExecutor,
     InnerJoinConfig, InnerJoinExecutor, LeftJoinConfig, LeftJoinExecutor,
 };
-use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::JoinNode;
 use crate::query::planning::plan::core::nodes::{
     CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode,

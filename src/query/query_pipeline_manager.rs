@@ -26,7 +26,7 @@ use crate::core::{ErrorInfo, ErrorType, QueryMetrics, QueryPhase, QueryProfile, 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor};
 use crate::query::executor::explain::{ExplainExecutor, ExplainMode, ProfileExecutor};
 use crate::query::executor::factory::ExecutorFactory;
-use crate::query::executor::object_pool::{ObjectPoolConfig, ThreadSafeExecutorPool};
+use crate::query::executor::utils::object_pool::{ObjectPoolConfig, ThreadSafeExecutorPool};
 use crate::query::metadata::{CachedMetadataProvider, MetadataContext, MetadataProvider};
 use crate::query::optimizer::OptimizerEngine;
 use crate::query::parser::ast::stmt::{ExplainStmt, ProfileStmt};
@@ -174,7 +174,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     }
 
     /// Obtain object pool statistics.
-    pub fn object_pool_stats(&self) -> crate::query::executor::object_pool::PoolStats {
+    pub fn object_pool_stats(&self) -> crate::query::executor::utils::object_pool::PoolStats {
         self.object_pool.stats()
     }
 

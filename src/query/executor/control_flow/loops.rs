@@ -14,11 +14,11 @@ use crate::query::DataSet;
 use crate::query::executor::base::{
     BaseExecutor, ExecutionResult, Executor, ExecutorConfig, HasStorage, LoopConfig,
 };
-use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::DefaultExpressionContext;
-use crate::query::executor::recursion_detector::{
+use crate::query::executor::utils::recursion_detector::{
     ExecutorSafetyConfig, ExecutorSafetyValidator, RecursionDetector,
 };
 use crate::query::validator::context::ExpressionAnalysisContext;

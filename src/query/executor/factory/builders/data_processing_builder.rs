@@ -4,7 +4,7 @@
 
 use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
-use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::result_processing::{
     AggregateExecutor, AggregateFunctionSpec, DedupExecutor, FilterExecutor, LimitExecutor,
     ProjectExecutor, ProjectionColumn, SampleExecutor, SampleMethod, SortExecutor, SortKey,

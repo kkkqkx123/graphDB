@@ -1,6 +1,6 @@
-//! Logical Control Actuator Module
+//! Control Flow Executor Module
 //!
-//! Include all actuators related to logical control, including:
+//! Include all actuators related to control flow, including:
 //! LoopExecutor (General Loop Control)
 //! WhileLoopExecutor (conditional loop)
 //! ForLoopExecutor (counting loop)

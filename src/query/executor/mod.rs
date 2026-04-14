@@ -1,29 +1,23 @@
 // Re-export all executor modules
 pub mod admin;
 pub mod base;
+pub mod control_flow;
 pub mod data_access;
 pub mod data_modification;
 pub mod data_processing;
-pub mod executor_enum;
 pub mod explain;
 pub mod expression;
 pub mod factory;
-pub mod logic;
 pub mod macros;
-pub mod object_pool;
-pub mod pipeline_executors;
-pub mod recursion_detector;
 pub mod result_processing;
-pub mod tag_filter;
+pub mod utils;
 
 // Re-export from the base module: The basic types are uniformly exported from the base module.
 pub use base::{
-    BaseExecutor, BaseResultProcessor, ExecutionContext, ExecutionResult, Executor, ExecutorStats,
-    HasInput, HasStorage, InputExecutor, ResultProcessor, ResultProcessorContext, StartExecutor,
+    BaseExecutor, BaseResultProcessor, ExecutionContext, ExecutionResult, Executor, ExecutorEnum,
+    ExecutorStats, HasInput, HasStorage, InputExecutor, ResultProcessor, ResultProcessorContext,
+    StartExecutor,
 };
-
-// Re-export ExecutorEnum (Executor Enumeration)
-pub use executor_enum::ExecutorEnum;
 
 // Re-export data access executors
 pub use data_access::{
@@ -44,8 +38,8 @@ pub use result_processing::transformations::{
     UnwindExecutor,
 };
 
-// Re-export logic executors
-pub use logic::{ForLoopExecutor, LoopExecutor, WhileLoopExecutor};
+// Re-export control flow executors
+pub use control_flow::{ForLoopExecutor, LoopExecutor, WhileLoopExecutor};
 
 // Re-export core execution states
 pub use crate::query::core::{ExecutorState, LoopExecutionState, QueryExecutionState, RowStatus};
@@ -61,8 +55,8 @@ pub use admin::{
     ShowEdgesExecutor, ShowSpacesExecutor, ShowTagIndexesExecutor, ShowTagsExecutor,
 };
 
-// Re-export pipeline executors
-pub use pipeline_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
+// Re-export utility executors
+pub use utils::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
 
 // Re-export graph traversal executors (graph traversal executor)
 pub use data_processing::graph_traversal::algorithms::BFSShortestExecutor;

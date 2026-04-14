@@ -12,7 +12,7 @@ use crate::query::executor::data_processing::graph_traversal::algorithms::MultiS
 use crate::query::executor::data_processing::graph_traversal::{
     AllPathsExecutor, ExpandAllExecutor, ExpandExecutor, ShortestPathExecutor, TraverseExecutor,
 };
-use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
     MultipleInputNode, PlanNode,
 };

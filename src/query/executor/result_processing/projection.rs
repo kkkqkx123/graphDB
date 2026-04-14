@@ -15,11 +15,11 @@ use crate::core::Value;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::Executor;
 use crate::query::executor::base::InputExecutor;
-use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::DefaultExpressionContext;
-use crate::query::executor::recursion_detector::ParallelConfig;
+use crate::query::executor::utils::recursion_detector::ParallelConfig;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::ExecutionResult;
 use crate::storage::StorageClient;
@@ -551,3 +551,4 @@ mod tests {
         assert_eq!(projected_dataset.rows[2], vec![Value::Int(33)]);
     }
 }
+

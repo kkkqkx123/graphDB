@@ -24,7 +24,7 @@ use crate::query::DataSet;
 use crate::query::executor::base::{
     AllPathsConfig, BaseExecutor, EdgeDirection, ExecutionResult, Executor, ExecutorStats,
 };
-use crate::query::executor::recursion_detector::ParallelConfig;
+use crate::query::executor::utils::recursion_detector::ParallelConfig;
 use crate::storage::StorageClient;
 
 /// Auxiliary structure for removing duplicates from self-loop edges
