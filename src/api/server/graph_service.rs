@@ -299,36 +299,6 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             return ExecutionResult::Empty;
         }
 
-        // If there is only one column named "vertex", return Vertices
-        if result.columns.len() == 1 && result.columns[0] == "vertex" {
-            let vertices: Vec<crate::core::Vertex> = result
-                .rows
-                .into_iter()
-                .filter_map(|row| {
-                    row.get("vertex").and_then(|v| match v {
-                        crate::core::Value::Vertex(v) => Some(*v.clone()),
-                        _ => None,
-                    })
-                })
-                .collect();
-            return ExecutionResult::Vertices(vertices);
-        }
-
-        // If there is only one column named "edge", return Edges
-        if result.columns.len() == 1 && result.columns[0] == "edge" {
-            let edges: Vec<crate::core::Edge> = result
-                .rows
-                .into_iter()
-                .filter_map(|row| {
-                    row.get("edge").and_then(|v| match v {
-                        crate::core::Value::Edge(e) => Some(e.clone()),
-                        _ => None,
-                    })
-                })
-                .collect();
-            return ExecutionResult::Edges(edges);
-        }
-
         // General case: return DataSet
         let rows: Vec<Vec<crate::core::Value>> = result
             .rows

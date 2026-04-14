@@ -146,23 +146,6 @@ fn execution_result_to_stream_data(
     result: ExecutionResult,
 ) -> (Vec<serde_json::Value>, Vec<String>) {
     match result {
-        ExecutionResult::Values(values) => {
-            let rows: Vec<serde_json::Value> = values
-                .into_iter()
-                .map(|v| json!({"value": value_to_json(v)}))
-                .collect();
-            (rows, vec!["value".to_string()])
-        }
-        ExecutionResult::Vertices(vertices) => {
-            let rows: Vec<serde_json::Value> =
-                vertices.into_iter().map(|v| json!({"vertex": v})).collect();
-            (rows, vec!["vertex".to_string()])
-        }
-        ExecutionResult::Edges(edges) => {
-            let rows: Vec<serde_json::Value> =
-                edges.into_iter().map(|e| json!({"edge": e})).collect();
-            (rows, vec!["edge".to_string()])
-        }
         ExecutionResult::DataSet(dataset) => {
             let columns = dataset.col_names.clone();
             let rows: Vec<serde_json::Value> = dataset
@@ -182,16 +165,6 @@ fn execution_result_to_stream_data(
                 .collect();
             (rows, columns)
         }
-        ExecutionResult::Paths(paths) => {
-            let rows: Vec<serde_json::Value> =
-                paths.into_iter().map(|p| json!({"path": p})).collect();
-            (rows, vec!["path".to_string()])
-        }
-        ExecutionResult::Count(count) => (vec![json!({"count": count})], vec!["count".to_string()]),
-        ExecutionResult::Result(core_result) => (
-            vec![json!({"result": core_result.row_count()})],
-            vec!["result".to_string()],
-        ),
         ExecutionResult::Empty | ExecutionResult::Success => (vec![], vec![]),
         ExecutionResult::Error(msg) => (vec![json!({"error": msg})], vec!["error".to_string()]),
     }
@@ -240,7 +213,6 @@ fn value_to_json(value: crate::core::Value) -> serde_json::Value {
         }
         crate::core::Value::Geography(g) => serde_json::json!(g),
         crate::core::Value::Duration(d) => serde_json::Value::String(d.to_string()),
-        crate::core::Value::DataSet(ds) => serde_json::json!(ds),
         crate::core::Value::Vector(v) => {
             // Convert vector to JSON array of f64 values
             let arr = v

@@ -127,88 +127,24 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
             })?;
 
         let left_dataset = match left_result {
-            ExecutionResult::Values(values) => {
-                // Check whether the “Values” contain a “DataSet”.
-                if values.len() == 1 {
-                    if let Value::DataSet(dataset) = &values[0] {
-                        dataset.clone()
-                    } else {
-                        // Each value should be displayed on a separate line.
-                        DataSet {
-                            col_names: vec![],
-                            rows: vec![values.clone()],
-                        }
-                    }
-                } else {
-                    // Multiple values, with each value appearing on a separate line.
-                    DataSet {
-                        col_names: vec![],
-                        rows: values.iter().map(|v| vec![v.clone()]).collect(),
-                    }
-                }
-            }
             ExecutionResult::DataSet(dataset) => dataset.clone(),
-            ExecutionResult::Vertices(vertices) => {
-                // Convert Vertices to DataSet
-                let rows: Vec<Vec<Value>> = vertices
-                    .iter()
-                    .map(|v| vec![Value::Vertex(Box::new(v.clone()))])
-                    .collect();
-                // For Vertices input, use a default column name
-                // The actual column name will be set by the caller based on the join side
-                DataSet {
-                    col_names: vec!["_vertex".to_string()],
-                    rows,
-                }
-            }
             _ => {
                 return Err(QueryError::ExecutionError(
-                    "左输入不是有效的数据集".to_string(),
+                    "Left input must be a DataSet".to_string(),
                 ))
             }
         };
 
+
         let right_dataset = match right_result {
-            ExecutionResult::Values(values) => {
-                // Check whether the “Values” contain a “DataSet”.
-                if values.len() == 1 {
-                    if let Value::DataSet(dataset) = &values[0] {
-                        dataset.clone()
-                    } else {
-                        // Each value should be displayed on a separate line.
-                        DataSet {
-                            col_names: vec![],
-                            rows: vec![values.clone()],
-                        }
-                    }
-                } else {
-                    // Multiple values, with each value appearing on a separate line.
-                    DataSet {
-                        col_names: vec![],
-                        rows: values.iter().map(|v| vec![v.clone()]).collect(),
-                    }
-                }
-            }
             ExecutionResult::DataSet(dataset) => dataset.clone(),
-            ExecutionResult::Vertices(vertices) => {
-                // Convert Vertices to DataSet
-                let rows: Vec<Vec<Value>> = vertices
-                    .iter()
-                    .map(|v| vec![Value::Vertex(Box::new(v.clone()))])
-                    .collect();
-                // For Vertices input, use a default column name
-                // The actual column name will be set by the caller based on the join side
-                DataSet {
-                    col_names: vec!["_vertex".to_string()],
-                    rows,
-                }
-            }
             _ => {
                 return Err(QueryError::ExecutionError(
-                    "右输入不是有效的数据集".to_string(),
+                    "Right input must be a DataSet".to_string(),
                 ))
             }
         };
+
 
         Ok((left_dataset, right_dataset))
     }

@@ -7,6 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use crate::core::{Edge, EdgeDirection, Path, Value, Vertex};
+use crate::query::DataSet;
 use crate::query::executor::base::{BaseExecutor, ExecutorConfig};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
@@ -466,9 +467,8 @@ impl<S: StorageClient + 'static> Executor<S> for BFSShortestExecutor<S> {
             .map(|p| vec![Value::Path(p)])
             .collect();
 
-        Ok(ExecutionResult::Values(
-            rows.into_iter().flatten().collect(),
-        ))
+        let dataset = DataSet::from_rows(rows, vec!["path".to_string()]);
+        Ok(ExecutionResult::DataSet(dataset))
     }
 
     fn open(&mut self) -> DBResult<()> {

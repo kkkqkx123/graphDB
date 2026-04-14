@@ -3,6 +3,7 @@ use std::time::Instant;
 
 use super::super::base::{BaseExecutor, EdgeDirection, ExecutorStats};
 use crate::core::Value;
+use crate::query::DataSet;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
@@ -45,7 +46,13 @@ impl<S: StorageClient + 'static> Executor<S> for GetNeighborsExecutor<S> {
         let elapsed = start.elapsed();
         self.base.get_stats_mut().add_total_time(elapsed);
         match result {
-            Ok(values) => Ok(ExecutionResult::Values(values)),
+            Ok(values) => {
+                let dataset = DataSet::from_rows(
+                    values.into_iter().map(|v| vec![v]).collect(),
+                    vec!["value".to_string()],
+                );
+                Ok(ExecutionResult::DataSet(dataset))
+            }
             Err(e) => Err(e),
         }
     }

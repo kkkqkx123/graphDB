@@ -56,19 +56,7 @@ impl<S: StorageClient> SetExecutor<S> {
     /// Obtain the left input dataset
     pub fn get_left_input_data(&self) -> Result<DataSet, QueryError> {
         match self.base.context.get_result(&self.left_input_var) {
-            Some(ExecutionResult::Values(values)) => {
-                // Check whether the “Values” contain a “DataSet”.
-                if values.len() == 1 {
-                    if let Value::DataSet(dataset) = &values[0] {
-                        return Ok(dataset.clone());
-                    }
-                }
-                // If it’s not a DataSet, try converting the Values to a DataSet.
-                Ok(DataSet {
-                    col_names: self.col_names.clone(),
-                    rows: vec![values.clone()],
-                })
-            }
+            Some(ExecutionResult::DataSet(dataset)) => Ok(dataset.clone()),
             Some(_result) => {
                 // Results of other types need to be converted into a DataSet.
                 Err(QueryError::ExecutionError(format!(
@@ -86,19 +74,7 @@ impl<S: StorageClient> SetExecutor<S> {
     /// Obtain the right input dataset
     pub fn get_right_input_data(&self) -> Result<DataSet, QueryError> {
         match self.base.context.get_result(&self.right_input_var) {
-            Some(ExecutionResult::Values(values)) => {
-                // Check whether the “Values” contain a “DataSet”.
-                if values.len() == 1 {
-                    if let Value::DataSet(dataset) = &values[0] {
-                        return Ok(dataset.clone());
-                    }
-                }
-                // If it’s not a DataSet, try converting the Values to a DataSet.
-                Ok(DataSet {
-                    col_names: self.col_names.clone(),
-                    rows: vec![values.clone()],
-                })
-            }
+            Some(ExecutionResult::DataSet(dataset)) => Ok(dataset.clone()),
             Some(_result) => {
                 // Results of other types need to be converted into a DataSet.
                 Err(QueryError::ExecutionError(format!(

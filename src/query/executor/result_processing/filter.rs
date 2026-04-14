@@ -223,24 +223,6 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
                 self.apply_filter(&mut dataset)?;
                 Ok(ExecutionResult::DataSet(dataset))
             }
-            ExecutionResult::Values(values) => {
-                let filtered_values = self.filter_values(values)?;
-                // If filtered_values contains a single DataSet, unwrap it to avoid nesting
-                if filtered_values.len() == 1 {
-                    if let Value::DataSet(dataset) = &filtered_values[0] {
-                        return Ok(ExecutionResult::DataSet(dataset.clone()));
-                    }
-                }
-                Ok(ExecutionResult::Values(filtered_values))
-            }
-            ExecutionResult::Vertices(vertices) => {
-                let filtered_vertices = self.filter_vertices(vertices)?;
-                Ok(ExecutionResult::Vertices(filtered_vertices))
-            }
-            ExecutionResult::Edges(edges) => {
-                let filtered_edges = self.filter_edges(edges)?;
-                Ok(ExecutionResult::Edges(filtered_edges))
-            }
             _ => Ok(input),
         }
     }
@@ -364,13 +346,6 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
 
     /// List of filter values
     fn filter_values(&self, values: Vec<crate::core::Value>) -> DBResult<Vec<crate::core::Value>> {
-        if values.len() == 1 {
-            if let crate::core::Value::DataSet(mut dataset) = values[0].clone() {
-                self.apply_filter(&mut dataset)?;
-                return Ok(vec![crate::core::Value::DataSet(dataset)]);
-            }
-        }
-
         let mut filtered_values = Vec::new();
 
         for value in values {

@@ -4,6 +4,7 @@ use std::time::Instant;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
+use crate::query::DataSet;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::executor::executor_enum::ExecutorEnum;
@@ -209,7 +210,12 @@ impl<S: StorageClient> ExpandExecutor<S> {
             }
         }
 
-        ExecutionResult::Vertices(vertices)
+        let rows: Vec<Vec<Value>> = vertices
+            .into_iter()
+            .map(|v| vec![Value::Vertex(Box::new(v))])
+            .collect();
+        let dataset = DataSet::from_rows(rows, vec!["vertex".to_string()]);
+        ExecutionResult::DataSet(dataset)
     }
 }
 
@@ -232,27 +238,15 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandExecutor<S> {
             input_exec.execute()?
         } else {
             // If no actuator is specified, return an empty result.
-            ExecutionResult::Vertices(Vec::new())
+            ExecutionResult::DataSet(DataSet::new())
         };
 
         // Extract the input node.
         let input_nodes = match input_result {
-            ExecutionResult::Vertices(vertices) => vertices.into_iter().map(|v| *v.vid).collect(),
-            ExecutionResult::Edges(edges) => {
-                let mut nodes = Vec::new();
-                let mut visited = HashSet::new();
-                for edge in edges {
-                    if visited.insert(edge.src.clone()) {
-                        nodes.push(*edge.src);
-                    }
-                    if visited.insert(edge.dst.clone()) {
-                        nodes.push(*edge.dst);
-                    }
-                }
-                nodes
-            }
-            ExecutionResult::Values(values) => values
+            ExecutionResult::DataSet(dataset) => dataset
+                .rows
                 .into_iter()
+                .flat_map(|row| row.into_iter())
                 .filter_map(|v| match v {
                     Value::Vertex(vertex) => Some(*vertex.vid),
                     _ => None,

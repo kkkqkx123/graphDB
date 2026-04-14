@@ -5,8 +5,8 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::value::list::List;
 use crate::core::{Edge, Expression, NPath, Path, Value, Vertex};
 use crate::query::validator::context::ExpressionAnalysisContext;
-use ExpressionAnalysisContext as ExprContext;
-
+use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::query::DataSet;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::executor::executor_enum::ExecutorEnum;
@@ -301,24 +301,12 @@ impl<S: StorageClient> TraverseExecutor<S> {
 
         if self.generate_path {
             // Return path result
-            let mut path_values = Vec::new();
-
-            for path in &completed_paths {
-                let mut path_value = Vec::new();
-
-                // Add a starting node
-                path_value.push(Value::Vertex(path.src.clone()));
-
-                // Add the edges and nodes for each step.
-                for step in &path.steps {
-                    path_value.push(Value::Edge((*step.edge).clone()));
-                    path_value.push(Value::Vertex(step.dst.clone()));
-                }
-
-                path_values.push(Value::List(List::from(path_value)));
-            }
-
-            ExecutionResult::Values(path_values)
+            let rows: Vec<Vec<Value>> = completed_paths
+                .into_iter()
+                .map(|p| vec![Value::Path(p)])
+                .collect();
+            let dataset = DataSet::from_rows(rows, vec!["path".to_string()]);
+            ExecutionResult::DataSet(dataset)
         } else {
             // Return the vertex results.
             let mut vertices = Vec::new();
@@ -340,7 +328,12 @@ impl<S: StorageClient> TraverseExecutor<S> {
                 }
             }
 
-            ExecutionResult::Vertices(vertices)
+            let rows: Vec<Vec<Value>> = vertices
+                .into_iter()
+                .map(|v| vec![Value::Vertex(Box::new(v))])
+                .collect();
+            let dataset = DataSet::from_rows(rows, vec!["vertex".to_string()]);
+            ExecutionResult::DataSet(dataset)
         }
     }
 }
@@ -362,55 +355,25 @@ impl<S: StorageClient + Send + 'static> Executor<S> for TraverseExecutor<S> {
             input_exec.execute()?
         } else {
             // If no actuator is specified, return an empty result.
-            ExecutionResult::Vertices(Vec::new())
+            ExecutionResult::DataSet(DataSet::new())
         };
 
         // Extract the input nodes.
         let input_nodes = match input_result {
-            ExecutionResult::Vertices(vertices) => vertices,
-            ExecutionResult::Edges(edges) => {
-                // Extract nodes from the edges.
-                let mut nodes = Vec::new();
-                let mut visited = HashSet::new();
-                for edge in edges {
-                    let storage = self.get_storage().lock();
-                    if let Ok(Some(src_vertex)) = storage.get_vertex("default", &edge.src) {
-                        if visited.insert(src_vertex.vid.clone()) {
-                            nodes.push(src_vertex);
-                        }
-                    }
-                    if let Ok(Some(dst_vertex)) = storage.get_vertex("default", &edge.dst) {
-                        if visited.insert(dst_vertex.vid.clone()) {
-                            nodes.push(dst_vertex);
-                        }
-                    }
-                }
-                nodes
-            }
-            ExecutionResult::Values(values) => {
-                // Extract nodes from the values.
-                let mut vertices = Vec::new();
-                let storage = self.get_storage().lock();
-                for value in values {
-                    match value {
-                        Value::Vertex(vertex) => vertices.push(*vertex),
-                        Value::String(id_str) => {
-                            // Try to obtain the node by using the string as the node ID.
-                            let node_id = Value::String(id_str);
-                            if let Ok(Some(vertex)) = storage.get_vertex("default", &node_id) {
-                                vertices.push(vertex);
-                            }
-                        }
-                        _ => continue,
-                    }
-                }
-                vertices
-            }
+            ExecutionResult::DataSet(dataset) => dataset
+                .rows
+                .into_iter()
+                .flat_map(|row| row.into_iter())
+                .filter_map(|v| match v {
+                    Value::Vertex(vertex) => Some(*vertex),
+                    _ => None,
+                })
+                .collect(),
             _ => Vec::new(),
         };
 
         if input_nodes.is_empty() {
-            return Ok(ExecutionResult::Vertices(Vec::new()));
+            return Ok(ExecutionResult::DataSet(DataSet::new()));
         }
 
         // Initialize the traversal

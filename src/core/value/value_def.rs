@@ -42,7 +42,6 @@ pub enum Value {
     Set(std::collections::HashSet<Value>),
     Geography(super::geography::GeographyValue),
     Duration(super::date_time::DurationValue),
-    DataSet(super::dataset::DataSet),
     Vector(super::vector::VectorValue),
 }
 
@@ -78,7 +77,6 @@ impl Value {
             Value::Set(_) => DataType::Set,
             Value::Geography(_) => DataType::Geography,
             Value::Duration(_) => DataType::Duration,
-            Value::DataSet(_) => DataType::DataSet,
             Value::Vector(_) => DataType::Vector,
         }
     }
@@ -266,7 +264,6 @@ impl Value {
             }
             Value::Geography(g) => std::mem::size_of::<Self>() + g.estimated_size(),
             Value::Duration(d) => std::mem::size_of::<Self>() + d.estimated_size(),
-            Value::DataSet(d) => std::mem::size_of::<Self>() + d.estimated_size(),
             Value::Vector(v) => std::mem::size_of::<Self>() + v.estimated_size(),
         }
     }
@@ -340,7 +337,6 @@ impl std::fmt::Display for Value {
                 write!(f, "Geography(lat: {}, lon: {})", g.latitude, g.longitude)
             }
             Value::Duration(d) => write!(f, "Duration({:?})", d),
-            Value::DataSet(ds) => write!(f, "DataSet({:?})", ds),
             Value::Vector(v) => write!(f, "{}", v),
         }
     }

@@ -38,69 +38,6 @@ pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
 /// Converting ExecutionResult to QueryResponse
 fn execution_result_to_response(result: ExecutionResult) -> QueryResponse {
     match result {
-        ExecutionResult::Values(values) => {
-            let rows: Vec<std::collections::HashMap<String, serde_json::Value>> = values
-                .into_iter()
-                .map(|v| {
-                    let mut map = std::collections::HashMap::new();
-                    map.insert("value".to_string(), value_to_json(v));
-                    map
-                })
-                .collect();
-            let row_count = rows.len();
-
-            QueryResponse::success(
-                QueryData::new(vec!["value".to_string()], rows),
-                QueryMetadata {
-                    execution_time_ms: 0,
-                    rows_scanned: 0,
-                    rows_returned: row_count,
-                    space_id: None,
-                },
-            )
-        }
-        ExecutionResult::Vertices(vertices) => {
-            let rows: Vec<std::collections::HashMap<String, serde_json::Value>> = vertices
-                .into_iter()
-                .map(|v| {
-                    let mut map = std::collections::HashMap::new();
-                    map.insert("vertex".to_string(), serde_json::json!(v));
-                    map
-                })
-                .collect();
-            let row_count = rows.len();
-
-            QueryResponse::success(
-                QueryData::new(vec!["vertex".to_string()], rows),
-                QueryMetadata {
-                    execution_time_ms: 0,
-                    rows_scanned: 0,
-                    rows_returned: row_count,
-                    space_id: None,
-                },
-            )
-        }
-        ExecutionResult::Edges(edges) => {
-            let rows: Vec<std::collections::HashMap<String, serde_json::Value>> = edges
-                .into_iter()
-                .map(|e| {
-                    let mut map = std::collections::HashMap::new();
-                    map.insert("edge".to_string(), serde_json::json!(e));
-                    map
-                })
-                .collect();
-            let row_count = rows.len();
-
-            QueryResponse::success(
-                QueryData::new(vec!["edge".to_string()], rows),
-                QueryMetadata {
-                    execution_time_ms: 0,
-                    rows_scanned: 0,
-                    rows_returned: row_count,
-                    space_id: None,
-                },
-            )
-        }
         ExecutionResult::DataSet(dataset) => {
             let columns: Vec<String> = dataset.col_names.clone();
             let rows: Vec<std::collections::HashMap<String, serde_json::Value>> = dataset
@@ -128,18 +65,6 @@ fn execution_result_to_response(result: ExecutionResult) -> QueryResponse {
                 },
             )
         }
-        ExecutionResult::Result(core_result) => {
-            let row_count = core_result.row_count();
-            QueryResponse::success(
-                QueryData::empty(),
-                QueryMetadata {
-                    execution_time_ms: 0,
-                    rows_scanned: 0,
-                    rows_returned: row_count,
-                    space_id: None,
-                },
-            )
-        }
         ExecutionResult::Empty | ExecutionResult::Success => QueryResponse::success(
             QueryData::empty(),
             QueryMetadata {
@@ -151,43 +76,6 @@ fn execution_result_to_response(result: ExecutionResult) -> QueryResponse {
         ),
         ExecutionResult::Error(msg) => {
             QueryResponse::error("EXECUTION_ERROR".to_string(), msg, None)
-        }
-        ExecutionResult::Count(count) => {
-            let mut rows = Vec::new();
-            let mut map = std::collections::HashMap::new();
-            map.insert("count".to_string(), serde_json::json!(count));
-            rows.push(map);
-
-            QueryResponse::success(
-                QueryData::new(vec!["count".to_string()], rows),
-                QueryMetadata {
-                    execution_time_ms: 0,
-                    rows_scanned: 0,
-                    rows_returned: 1,
-                    space_id: None,
-                },
-            )
-        }
-        ExecutionResult::Paths(paths) => {
-            let rows: Vec<std::collections::HashMap<String, serde_json::Value>> = paths
-                .into_iter()
-                .map(|p| {
-                    let mut map = std::collections::HashMap::new();
-                    map.insert("path".to_string(), serde_json::json!(p));
-                    map
-                })
-                .collect();
-            let row_count = rows.len();
-
-            QueryResponse::success(
-                QueryData::new(vec!["path".to_string()], rows),
-                QueryMetadata {
-                    execution_time_ms: 0,
-                    rows_scanned: 0,
-                    rows_returned: row_count,
-                    space_id: None,
-                },
-            )
         }
     }
 }
@@ -235,7 +123,6 @@ fn value_to_json(value: crate::core::Value) -> serde_json::Value {
         }
         crate::core::Value::Geography(g) => serde_json::json!(g),
         crate::core::Value::Duration(d) => serde_json::Value::String(d.to_string()),
-        crate::core::Value::DataSet(ds) => serde_json::json!(ds),
         crate::core::Value::Vector(v) => {
             // Convert vector to JSON array of f64 values
             let arr = v

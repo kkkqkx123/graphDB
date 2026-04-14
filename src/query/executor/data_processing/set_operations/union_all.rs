@@ -73,13 +73,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for UnionAllExecutor<S> {
             ))
         })?;
 
-        let values: Vec<Value> = dataset
-            .rows
-            .into_iter()
-            .flat_map(|row| row.into_iter())
-            .collect();
-
-        Ok(ExecutionResult::Values(values))
+        Ok(ExecutionResult::DataSet(dataset))
     }
 
     fn open(&mut self) -> DBResult<()> {

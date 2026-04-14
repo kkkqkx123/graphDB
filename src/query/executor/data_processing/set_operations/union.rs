@@ -83,13 +83,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for UnionExecutor<S> {
             ))
         })?;
 
-        let values: Vec<Value> = dataset
-            .rows
-            .into_iter()
-            .flat_map(|row| row.into_iter())
-            .collect();
-
-        Ok(ExecutionResult::Values(values))
+        Ok(ExecutionResult::DataSet(dataset))
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -171,11 +165,11 @@ use crate::core::Value;
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_input".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "right_input".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // Perform the UNION operation
@@ -184,12 +178,11 @@ use crate::core::Value;
         // Verification results
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
-            // There should be 3 unique values (after deduplication).
-            // 1, Alice, 2, Bob, 3, Charlie
-            assert_eq!(values.len(), 6); // 3 rows × 2 columns
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
+            // There should be 3 unique rows (after deduplication).
+            assert_eq!(dataset.row_count(), 3);
         } else {
-            panic!("Expected Values results");
+            panic!("Expected DataSet result");
         }
     }
 
@@ -219,19 +212,19 @@ use crate::core::Value;
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "empty_left".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "empty_right".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // Testing the UNION operation on an empty dataset
         let result = executor.execute();
         assert!(result.is_ok());
 
-        if let Ok(ExecutionResult::Values(values)) = result {
-            assert_eq!(values.len(), 0);
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
+            assert_eq!(dataset.row_count(), 0);
         }
     }
 
@@ -261,11 +254,11 @@ use crate::core::Value;
         // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_mismatch".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+            ExecutionResult::DataSet(left_dataset),
         );
         executor.set_executor.base_mut().context.set_result(
             "right_mismatch".to_string(),
-            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+            ExecutionResult::DataSet(right_dataset),
         );
 
         // The execution should fail.

@@ -5,7 +5,8 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::core::{Edge, Vertex};
+use crate::core::{Edge, Vertex, Value};
+use crate::query::DataSet;
 use crate::query::executor::base::{BaseExecutor, ExecutorStats};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -115,7 +116,13 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for InsertExecutor<S>
         let elapsed = start.elapsed();
         self.base.get_stats_mut().add_total_time(elapsed);
         match result {
-            Ok(count) => Ok(ExecutionResult::Count(count)),
+            Ok(count) => {
+                let dataset = DataSet::from_rows(
+                    vec![vec![Value::Int(count as i64)]],
+                    vec!["count".to_string()],
+                );
+                Ok(ExecutionResult::DataSet(dataset))
+            }
             Err(e) => Err(e),
         }
     }

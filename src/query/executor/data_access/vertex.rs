@@ -3,6 +3,7 @@ use std::time::Instant;
 
 use super::super::base::{BaseExecutor, ExecutorStats};
 use crate::core::{vertex_edge_path, Value};
+use crate::query::DataSet;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -67,7 +68,14 @@ impl<S: StorageClient + 'static> Executor<S> for GetVerticesExecutor<S> {
         self.base.get_stats_mut().add_total_time(elapsed);
 
         match result {
-            Ok(vertices) => Ok(ExecutionResult::Vertices(vertices)),
+            Ok(vertices) => {
+                let rows: Vec<Vec<Value>> = vertices
+                    .into_iter()
+                    .map(|v| vec![Value::Vertex(Box::new(v))])
+                    .collect();
+                let dataset = DataSet::from_rows(rows, vec!["vertex".to_string()]);
+                Ok(ExecutionResult::DataSet(dataset))
+            }
             Err(e) => Err(e),
         }
     }
@@ -218,7 +226,6 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                                         crate::core::Value::DateTime(_) => true,
                                         crate::core::Value::Geography(_) => true,
                                         crate::core::Value::Duration(_) => true,
-                                        crate::core::Value::DataSet(ds) => !ds.rows.is_empty(),
                                         crate::core::Value::Vector(_) => true,
                                     }
                                 }
@@ -276,7 +283,14 @@ impl<S: StorageClient> Executor<S> for ScanVerticesExecutor<S> {
         let elapsed = start.elapsed();
         self.base.get_stats_mut().add_total_time(elapsed);
         match result {
-            Ok(vertices) => Ok(ExecutionResult::Vertices(vertices)),
+            Ok(vertices) => {
+                let rows: Vec<Vec<Value>> = vertices
+                    .into_iter()
+                    .map(|v| vec![Value::Vertex(Box::new(v))])
+                    .collect();
+                let dataset = DataSet::from_rows(rows, vec!["vertex".to_string()]);
+                Ok(ExecutionResult::DataSet(dataset))
+            }
             Err(e) => Err(e),
         }
     }

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::core::error::DBResult;
 use crate::core::{Edge, NPath, Path, Value, Vertex};
 use crate::query::validator::context::ExpressionAnalysisContext;
-
+use crate::query::DataSet;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::executor::executor_enum::ExecutorEnum;
@@ -315,86 +315,23 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
             self.base
                 .context
                 .get_result(input_var)
-                .unwrap_or_else(|| ExecutionResult::Vertices(Vec::new()))
+                .unwrap_or_else(|| ExecutionResult::DataSet(DataSet::new()))
         } else {
             // If no actuator is specified, return an empty result.
-            ExecutionResult::Vertices(Vec::new())
+            ExecutionResult::DataSet(DataSet::new())
         };
 
         // Extract the input node.
         let mut input_nodes = match input_result {
-            ExecutionResult::Vertices(vertices) => vertices,
-            ExecutionResult::Edges(edges) => {
-                // Extract nodes from the edges.
-                let mut nodes = Vec::new();
-                let storage = self.get_storage().lock();
-                let mut visited = HashSet::new();
-                for edge in edges {
-                    if let Ok(Some(src_vertex)) = storage.get_vertex("default", &edge.src) {
-                        if visited.insert(src_vertex.vid.clone()) {
-                            nodes.push(src_vertex);
-                        }
-                    }
-                    if let Ok(Some(dst_vertex)) = storage.get_vertex("default", &edge.dst) {
-                        if visited.insert(dst_vertex.vid.clone()) {
-                            nodes.push(dst_vertex);
-                        }
-                    }
-                }
-                nodes.into_iter().collect()
-            }
-            ExecutionResult::Values(values) => {
-                // Extract nodes from the values.
-                let mut vertices = Vec::new();
-                let storage = self.get_storage().lock();
-                for value in values {
-                    match value {
-                        Value::Vertex(vertex) => vertices.push(*vertex),
-                        Value::String(id_str) => {
-                            // Try to obtain the node by using the string as the node ID.
-                            let node_id = Value::String(id_str);
-                            if let Ok(Some(vertex)) = storage.get_vertex("default", &node_id) {
-                                vertices.push(vertex);
-                            }
-                        }
-                        Value::DataSet(dataset) => {
-                            // Extract vertices from DataSet rows
-                            for row in &dataset.rows {
-                                for value in row {
-                                    if let Value::Vertex(vertex) = value {
-                                        vertices.push(*vertex.clone());
-                                    }
-                                }
-                            }
-                        }
-                        _ => continue,
-                    }
-                }
-                vertices
-            }
-            ExecutionResult::DataSet(dataset) => {
-                // Extract vertices from DataSet rows
-                // Use input_var to determine which column to use as input vertices
-                let mut vertices = Vec::new();
-
-                // Find the column index for input_var
-                let col_idx = if let Some(ref input_var) = self.input_var {
-                    dataset
-                        .col_names
-                        .iter()
-                        .position(|c| c == input_var)
-                        .unwrap_or(0)
-                } else {
-                    0 // Default to first column ("src")
-                };
-
-                for row in &dataset.rows {
-                    if let Some(Value::Vertex(vertex)) = row.get(col_idx) {
-                        vertices.push(*vertex.clone());
-                    }
-                }
-                vertices
-            }
+            ExecutionResult::DataSet(dataset) => dataset
+                .rows
+                .into_iter()
+                .flat_map(|row| row.into_iter())
+                .filter_map(|v| match v {
+                    Value::Vertex(vertex) => Some(*vertex),
+                    _ => None,
+                })
+                .collect(),
             _ => Vec::new(),
         };
 

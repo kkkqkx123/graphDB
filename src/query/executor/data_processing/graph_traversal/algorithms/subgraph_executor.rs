@@ -8,6 +8,7 @@ use std::time::Instant;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Path, Value, Vertex};
+use crate::query::DataSet;
 use crate::query::executor::base::{
     BaseExecutor, DBResult as ExecDBResult, EdgeDirection, ExecutionResult,
     Executor as BaseExecutorTrait, ExecutorStats, HasStorage, InputExecutor,
@@ -375,7 +376,12 @@ impl<S: StorageClient + Send + 'static> BaseExecutorTrait<S> for SubgraphExecuto
         })?;
 
         let paths = result.to_paths();
-        Ok(ExecutionResult::Paths(paths))
+        let rows: Vec<Vec<Value>> = paths
+            .into_iter()
+            .map(|p| vec![Value::Path(p)])
+            .collect();
+        let dataset = DataSet::from_rows(rows, vec!["path".to_string()]);
+        Ok(ExecutionResult::DataSet(dataset))
     }
 
     fn open(&mut self) -> ExecDBResult<()> {

@@ -7,6 +7,7 @@ use std::time::Instant;
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::Value;
+use crate::query::DataSet;
 use crate::query::executor::base::{BaseExecutor, ExecutorStats};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::executor::expression::evaluation_context::DefaultExpressionContext;
@@ -67,7 +68,13 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DeleteExecutor<S>
         let elapsed = start.elapsed();
         self.base.get_stats_mut().add_total_time(elapsed);
         match result {
-            Ok(count) => Ok(ExecutionResult::Count(count)),
+            Ok(count) => {
+                let dataset = DataSet::from_rows(
+                    vec![vec![Value::Int(count as i64)]],
+                    vec!["count".to_string()],
+                );
+                Ok(ExecutionResult::DataSet(dataset))
+            }
             Err(e) => Err(e),
         }
     }

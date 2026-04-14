@@ -3,6 +3,7 @@ use std::time::Instant;
 
 use super::super::base::{BaseExecutor, ExecutorStats};
 use crate::core::vertex_edge_path;
+use crate::query::DataSet;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -35,7 +36,14 @@ impl<S: StorageClient> Executor<S> for GetEdgesExecutor<S> {
         let elapsed = start.elapsed();
         self.base.get_stats_mut().add_total_time(elapsed);
         match result {
-            Ok(edges) => Ok(ExecutionResult::Edges(edges)),
+            Ok(edges) => {
+                let rows: Vec<Vec<Value>> = edges
+                    .into_iter()
+                    .map(|e| vec![Value::Edge(Box::new(e))])
+                    .collect();
+                let dataset = DataSet::from_rows(rows, vec!["edge".to_string()]);
+                Ok(ExecutionResult::DataSet(dataset))
+            }
             Err(e) => Err(e),
         }
     }
@@ -125,7 +133,14 @@ impl<S: StorageClient> Executor<S> for ScanEdgesExecutor<S> {
         let elapsed = start.elapsed();
         self.base.get_stats_mut().add_total_time(elapsed);
         match result {
-            Ok(edges) => Ok(ExecutionResult::Edges(edges)),
+            Ok(edges) => {
+                let rows: Vec<Vec<Value>> = edges
+                    .into_iter()
+                    .map(|e| vec![Value::Edge(Box::new(e))])
+                    .collect();
+                let dataset = DataSet::from_rows(rows, vec!["edge".to_string()]);
+                Ok(ExecutionResult::DataSet(dataset))
+            }
             Err(e) => Err(e),
         }
     }

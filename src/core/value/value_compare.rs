@@ -1,4 +1,3 @@
-use super::dataset::DataSet;
 use super::date_time::{DateTimeValue, DateValue, DurationValue, TimeValue};
 use super::geography::GeographyValue;
 use super::list::List;
@@ -109,7 +108,6 @@ impl Ord for Value {
             (Value::Set(a), Value::Set(b)) => Self::cmp_set(a, b),
             (Value::Geography(a), Value::Geography(b)) => Self::cmp_geography(a, b),
             (Value::Duration(a), Value::Duration(b)) => Self::cmp_duration(a, b),
-            (Value::DataSet(a), Value::DataSet(b)) => Self::cmp_dataset(a, b),
 
             // Comparison between integer types: comparison after conversion to i64
             (Value::Int(a), Value::Int8(b)) => a.cmp(&(*b as i64)),
@@ -462,29 +460,10 @@ impl Value {
         }
     }
 
-    // Data Set Comparison Auxiliary Functions
-    fn cmp_dataset(a: &DataSet, b: &DataSet) -> CmpOrdering {
-        // Compare columns first
-        match Self::cmp_string_list(&a.col_names, &b.col_names) {
-            CmpOrdering::Equal => {
-                // Compare Row Data
-                let min_len = a.rows.len().min(b.rows.len());
-                for i in 0..min_len {
-                    match Self::cmp_value_list(&a.rows[i], &b.rows[i]) {
-                        CmpOrdering::Equal => continue,
-                        ord => return ord,
-                    }
-                }
-                a.rows.len().cmp(&b.rows.len())
-            }
-            ord => ord,
-        }
-    }
-
     // Type Priority Comparison Helper Functions
     fn cmp_by_type_priority(a: &Value, b: &Value) -> CmpOrdering {
         // Type priority: Empty < Null < Bool < Int < Float < String < Date < Time < DateTime < Duration <
-        //             Vertex < Edge < Path < List < Map < Set < Geography < DataSet
+        //             Vertex < Edge < Path < List < Map < Set < Geography
         let type_a = a.get_type();
         let type_b = b.get_type();
 

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use super::super::base::{BaseExecutor, EdgeDirection, ExecutorStats, PathConfig};
 use crate::core::{Path, Step, Value};
+use crate::query::DataSet;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
@@ -45,7 +46,7 @@ impl<S: StorageClient> Executor<S> for AllPathsExecutor<S> {
             if let Some(vertex) = storage.get_vertex("default", &self.start_vertex)? {
                 vertex
             } else {
-                return Ok(ExecutionResult::Values(vec![]));
+                return Ok(ExecutionResult::DataSet(DataSet::new()));
             };
 
         let mut current_paths: Vec<Path> = vec![Path {
@@ -88,13 +89,18 @@ impl<S: StorageClient> Executor<S> for AllPathsExecutor<S> {
             }
 
             current_paths = next_paths;
-            if current_paths.is_empty() {
-                break;
-            }
+        if current_paths.is_empty() {
+            break;
         }
-
-        Ok(ExecutionResult::Paths(all_paths))
     }
+
+    let rows: Vec<Vec<Value>> = all_paths
+        .into_iter()
+        .map(|path| vec![Value::Path(path)])
+        .collect();
+    let dataset = DataSet::from_rows(rows, vec!["path".to_string()]);
+    Ok(ExecutionResult::DataSet(dataset))
+}
 
     fn open(&mut self) -> DBResult<()> {
         Ok(())

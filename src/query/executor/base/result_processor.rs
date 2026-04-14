@@ -69,15 +69,9 @@ pub trait ResultProcessor<S: StorageClient> {
     fn validate_input(&self, input: &ExecutionResult) -> DBResult<()> {
         match input {
             ExecutionResult::DataSet(_) => Ok(()),
-            ExecutionResult::Values(_) => Ok(()),
-            ExecutionResult::Vertices(_) => Ok(()),
-            ExecutionResult::Edges(_) => Ok(()),
-            ExecutionResult::Paths(_) => Ok(()),
-            ExecutionResult::Count(_) => Ok(()),
             ExecutionResult::Success => Ok(()),
             ExecutionResult::Empty => Ok(()),
             ExecutionResult::Error(_) => Ok(()),
-            ExecutionResult::Result(_) => Ok(()),
         }
     }
 }

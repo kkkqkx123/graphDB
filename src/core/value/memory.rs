@@ -60,9 +60,6 @@ impl MemoryEstimatable for Value {
             // Geography type
             Value::Geography(g) => base_size + std::mem::size_of_val(g),
 
-            // DataSet type
-            Value::DataSet(d) => base_size + std::mem::size_of_val(d),
-
             // Vector type
             Value::Vector(v) => base_size + v.estimated_size(),
         }
