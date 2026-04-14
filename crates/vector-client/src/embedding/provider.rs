@@ -1,4 +1,4 @@
-//! Embedding provider trait
+//! Embedding provider trait and types
 
 use async_trait::async_trait;
 
@@ -9,8 +9,10 @@ use super::error::EmbeddingError;
 pub enum ProviderType {
     /// HTTP-based provider (OpenAI compatible)
     Http,
-    /// Local library provider
-    Local,
+    /// llama.cpp local library
+    LlamaCpp,
+    /// Other local library (candle, ort, etc.)
+    LocalLibrary,
 }
 
 /// Embedding provider trait

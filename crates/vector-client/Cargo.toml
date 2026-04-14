@@ -11,6 +11,7 @@ path = "src/lib.rs"
 [features]
 default = ["qdrant"]
 qdrant = ["qdrant-client"]
+llama_cpp = ["llama-cpp-2"]
 
 [dependencies]
 async-trait = "0.1"
@@ -26,6 +27,7 @@ chrono = { version = "0.4.38", features = ["serde"] }
 dashmap = "6.1"
 
 qdrant-client = { version = "1.17", optional = true }
+llama-cpp-2 = { version = "0.1", optional = true }
 
 [dev-dependencies]
 tokio-test = "0.4"

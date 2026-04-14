@@ -9,16 +9,19 @@ mod error;
 mod preprocessor;
 mod provider;
 mod service;
+mod providers;
 
 pub use config::EmbeddingConfig;
 pub use error::EmbeddingError;
 pub use preprocessor::{
-    ChainedPreprocessor, NomicPreprocessor, NomicTaskType, NoopPreprocessor, Preprocessor,
+    ChainedPreprocessor, NomicPreprocessor, NomicTaskType, NoopPreprocessor, Preprocessor, PreprocessorConfig,
     PrefixPreprocessor, StellaPreprocessor, StellaTaskType, TemplatePreprocessor,
 };
 pub use provider::{EmbeddingProvider, ProviderType};
 pub use service::EmbeddingService;
 
-pub mod providers {
-    pub use super::service::OpenAICompatibleProvider;
-}
+// Re-export providers for advanced usage
+pub use providers::OpenAICompatibleProvider;
+
+#[cfg(feature = "llama_cpp")]
+pub use providers::LlamaCppProvider;

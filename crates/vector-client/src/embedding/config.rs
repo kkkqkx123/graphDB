@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::error::EmbeddingError;
+use super::preprocessor::PreprocessorConfig;
 
 /// Embedding service configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -10,6 +11,7 @@ pub struct EmbeddingConfig {
     /// API endpoint URL
     pub base_url: String,
     /// API key (optional for some providers)
+    #[serde(default)]
     pub api_key: Option<String>,
     /// Model name to use
     pub model: String,
@@ -18,6 +20,9 @@ pub struct EmbeddingConfig {
     pub timeout_secs: u64,
     /// Expected vector dimension (optional, will be auto-detected if not set)
     pub dimension: Option<usize>,
+    /// Preprocessor configuration for text transformation
+    #[serde(default)]
+    pub preprocessor: PreprocessorConfig,
 }
 
 fn default_timeout() -> u64 {
@@ -33,6 +38,7 @@ impl EmbeddingConfig {
             model: model.into(),
             timeout_secs: default_timeout(),
             dimension: None,
+            preprocessor: PreprocessorConfig::default(),
         }
     }
 
@@ -51,6 +57,12 @@ impl EmbeddingConfig {
     /// Set dimension
     pub fn with_dimension(mut self, dimension: usize) -> Self {
         self.dimension = Some(dimension);
+        self
+    }
+
+    /// Set preprocessor
+    pub fn with_preprocessor(mut self, preprocessor: PreprocessorConfig) -> Self {
+        self.preprocessor = preprocessor;
         self
     }
 
@@ -81,6 +93,7 @@ impl Default for EmbeddingConfig {
             model: "all-minilm".to_string(),
             timeout_secs: default_timeout(),
             dimension: None,
+            preprocessor: PreprocessorConfig::default(),
         }
     }
 }

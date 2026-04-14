@@ -52,7 +52,10 @@ inversearch-service = { path = "crates/inversearch", default-features = false, f
 tantivy = "0.24"
 
 # Vector search engine
-vector-client = { path = "crates/vector-client" }
+vector-client = { path = "crates/vector-client", features = ["qdrant"] }
+
+# To enable llama-cpp with Vulkan GPU acceleration, use:
+# vector-client = { path = "crates/vector-client", features = ["qdrant", "llama_cpp"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

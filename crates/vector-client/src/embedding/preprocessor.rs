@@ -1,5 +1,28 @@
 //! Text preprocessor for embeddings
 
+use serde::{Deserialize, Serialize};
+
+/// Preprocessor configuration
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum PreprocessorConfig {
+    /// No preprocessing (default)
+    #[default]
+    None,
+    /// Simple prefix
+    Prefix { prefix: String },
+    /// Template with {text} placeholder
+    Template { template: String },
+    /// Nomic-Embed task type
+    Nomic {
+        task_type: NomicTaskType,
+    },
+    /// Stella task type
+    Stella {
+        task_type: StellaTaskType,
+    },
+}
+
 /// Text preprocessor trait
 pub trait Preprocessor: Send + Sync {
     /// Preprocess a single text
@@ -62,7 +85,8 @@ impl Preprocessor for TemplatePreprocessor {
 }
 
 /// Nomic task type
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum NomicTaskType {
     SearchQuery,
     SearchDocument,
@@ -98,7 +122,8 @@ impl Preprocessor for NomicPreprocessor {
 }
 
 /// Stella task type
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub enum StellaTaskType {
     S2PQuery,
     S2SDocument,
