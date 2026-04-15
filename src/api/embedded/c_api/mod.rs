@@ -12,6 +12,7 @@ pub mod query;
 pub mod result;
 pub mod session;
 pub mod statistics;
+pub mod telemetry;
 pub mod transaction;
 pub mod types;
 pub mod value;

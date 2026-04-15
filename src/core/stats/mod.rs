@@ -37,7 +37,9 @@ pub mod utils;
 
 // Re-export common types
 pub use aggregated_stats::{AggregatedQueryStats, AggregatedStatsManager, QueryPattern};
-pub use error_stats::{ErrorInfo, ErrorStatsManager, ErrorSummary, ErrorType, QueryPhase};
+pub use error_stats::{
+    ErrorInfo, ErrorStatsManager, ErrorSummary, ErrorType, QueryPhase, RecentError,
+};
 pub use global_metrics::{metrics, GlobalMetrics};
 pub use latency_histogram::LatencyHistogram;
 pub use manager::{MetricType, MetricValue, StatsManager};

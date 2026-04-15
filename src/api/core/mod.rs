@@ -8,6 +8,7 @@ pub mod error;
 pub mod query_api;
 pub mod schema_api;
 pub mod sync_api;
+pub mod telemetry;
 pub mod transaction_api;
 pub mod types;
 pub mod vector_api;

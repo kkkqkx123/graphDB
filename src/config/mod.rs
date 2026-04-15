@@ -240,26 +240,26 @@ impl SlowQueryLogConfig {
         if self.log_file_path.is_empty() {
             return Err("Slow query log file path cannot be empty".to_string());
         }
-        
+
         if self.threshold_ms == 0 {
             return Err("Slow query threshold must be greater than 0".to_string());
         }
-        
+
         if self.max_file_size_mb == 0 {
             return Err("Max file size must be greater than 0".to_string());
         }
-        
+
         if self.max_files == 0 {
             return Err("Max files must be greater than 0".to_string());
         }
-        
+
         if self.buffer_size == 0 {
             return Err("Buffer size must be greater than 0".to_string());
         }
-        
+
         Ok(())
     }
-    
+
     /// Convert to SlowQueryConfig
     pub fn to_slow_query_config(&self) -> crate::core::stats::SlowQueryConfig {
         crate::core::stats::SlowQueryConfig {

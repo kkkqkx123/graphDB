@@ -2,13 +2,17 @@
 //!
 //! Provide functions for error type identification, error stage determination, and error statistics.
 
-use std::collections::HashMap;
+use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Number of variants in the ErrorType enum (used for determining the array size)
 const ERROR_TYPE_COUNT: usize = 11;
 /// Number of variants in the QueryPhase enumeration (used for determining the array size)
 const QUERY_PHASE_COUNT: usize = 5;
+/// Maximum number of recent errors to keep
+const MAX_RECENT_ERRORS: usize = 100;
 
 /// Convert ErrorType to an array index.
 pub fn error_type_to_index(error_type: ErrorType) -> usize {
@@ -69,7 +73,7 @@ pub fn index_to_query_phase(index: usize) -> Option<QueryPhase> {
 }
 
 /// Query Execution Phase
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum QueryPhase {
     Parse,
     Validate,
@@ -91,7 +95,7 @@ impl std::fmt::Display for QueryPhase {
 }
 
 /// Error type
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ErrorType {
     ParseError,
     ValidationError,
@@ -133,6 +137,31 @@ pub struct ErrorInfo {
     pub error_details: Option<String>,
 }
 
+/// Recent error record with timestamp and query context
+#[derive(Debug, Clone)]
+pub struct RecentError {
+    pub timestamp: u64,
+    pub error_type: ErrorType,
+    pub error_phase: QueryPhase,
+    pub message: String,
+    pub query_text: Option<String>,
+}
+
+impl RecentError {
+    pub fn new(error_info: &ErrorInfo, query_text: Option<String>) -> Self {
+        Self {
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
+            error_type: error_info.error_type,
+            error_phase: error_info.error_phase,
+            message: error_info.error_message.clone(),
+            query_text,
+        }
+    }
+}
+
 impl ErrorInfo {
     pub fn new(
         error_type: ErrorType,
@@ -165,6 +194,7 @@ pub struct ErrorSummary {
 pub struct ErrorStatsManager {
     error_counts: [AtomicU64; ERROR_TYPE_COUNT],
     error_by_phase: [AtomicU64; QUERY_PHASE_COUNT],
+    recent_errors: Mutex<VecDeque<RecentError>>,
 }
 
 impl ErrorStatsManager {
@@ -172,6 +202,7 @@ impl ErrorStatsManager {
         Self {
             error_counts: std::array::from_fn(|_| AtomicU64::new(0)),
             error_by_phase: std::array::from_fn(|_| AtomicU64::new(0)),
+            recent_errors: Mutex::new(VecDeque::with_capacity(MAX_RECENT_ERRORS)),
         }
     }
 
@@ -182,7 +213,20 @@ impl ErrorStatsManager {
         let phase_index = query_phase_to_index(phase);
         self.error_by_phase[phase_index].fetch_add(1, Ordering::Relaxed);
 
-        log::warn!("查询错误: type={}, phase={}", error_type, phase);
+        log::warn!("查询错误：type={}, phase={}", error_type, phase);
+    }
+
+    pub fn record_error_with_context(&self, error_info: &ErrorInfo, query_text: Option<String>) {
+        self.record_error(error_info.error_type, error_info.error_phase);
+
+        let mut recent = self.recent_errors.lock();
+        let error = RecentError::new(error_info, query_text);
+        recent.push_back(error);
+
+        // Keep only the most recent errors
+        while recent.len() > MAX_RECENT_ERRORS {
+            recent.pop_front();
+        }
     }
 
     pub fn get_error_count(&self, error_type: ErrorType) -> u64 {
@@ -241,6 +285,11 @@ impl ErrorStatsManager {
             errors_by_phase: self.get_all_error_counts_by_phase(),
         }
     }
+
+    pub fn get_recent_errors(&self, limit: usize) -> Vec<RecentError> {
+        let recent = self.recent_errors.lock();
+        recent.iter().rev().take(limit).cloned().collect()
+    }
 }
 
 impl Default for ErrorStatsManager {
@@ -293,5 +342,22 @@ mod tests {
 
         stats.reset_error_counts();
         assert_eq!(stats.get_error_count(ErrorType::ParseError), 0);
+    }
+
+    #[test]
+    fn test_recent_errors() {
+        let stats = ErrorStatsManager::new();
+
+        let error1 = ErrorInfo::new(ErrorType::ParseError, QueryPhase::Parse, "Error 1");
+        let error2 = ErrorInfo::new(ErrorType::ExecutionError, QueryPhase::Execute, "Error 2");
+
+        stats.record_error_with_context(&error1, Some("SELECT * FROM t1".to_string()));
+        stats.record_error_with_context(&error2, Some("INSERT INTO t2 VALUES (1)".to_string()));
+
+        let recent = stats.get_recent_errors(10);
+        assert_eq!(recent.len(), 2);
+        assert_eq!(recent[0].error_type, ErrorType::ExecutionError);
+        assert_eq!(recent[1].error_type, ErrorType::ParseError);
+        assert!(recent[0].query_text.is_some());
     }
 }

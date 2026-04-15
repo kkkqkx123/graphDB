@@ -2,16 +2,16 @@
 //!
 //! Independent slow query log file with async writing and log rotation.
 
-use std::sync::mpsc;
-use std::thread;
+use chrono::Local;
+use metrics::{counter, histogram};
+use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 use std::fs::{self, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use parking_lot::Mutex;
-use chrono::Local;
-use metrics::{counter, histogram};
-use serde::{Deserialize, Serialize};
+use std::sync::mpsc;
+use std::thread;
 
 use super::profile::{QueryProfile, QueryStatus};
 use super::utils::micros_to_millis;
@@ -66,7 +66,7 @@ impl Drop for SlowQueryLogger {
         // Drop the sender to signal the writer thread to exit
         // Take the sender first to ensure it's dropped before joining
         let _ = self.tx.take();
-        
+
         // Wait for the writer thread to finish
         let mut handle_guard = self.writer_handle.lock();
         if let Some(handle) = handle_guard.take() {
@@ -117,13 +117,12 @@ impl SlowQueryLogger {
         let duration_secs = profile.total_duration_us as f64 / 1_000_000.0;
         counter!("graphdb_slow_query_total").increment(1);
         histogram!("graphdb_slow_query_duration_seconds").record(duration_secs);
-        
+
         // Report by query type
         if let Some(query_type) = self.extract_query_type(&profile.query_text) {
-            counter!("graphdb_slow_query_by_type_total", "type" => query_type)
-                .increment(1);
+            counter!("graphdb_slow_query_by_type_total", "type" => query_type).increment(1);
         }
-        
+
         // Report by status
         let status_str = match profile.status {
             QueryStatus::Success => "success",
@@ -137,12 +136,13 @@ impl SlowQueryLogger {
             if let Some(ref error_info) = profile.error_info {
                 let error_type_str = error_info.error_type.to_string();
                 let error_phase_str = error_info.error_phase.to_string();
-                
-                counter!("graphdb_slow_query_error_total", 
+
+                counter!("graphdb_slow_query_error_total",
                     "type" => error_type_str.clone(),
                     "phase" => error_phase_str.clone()
-                ).increment(1);
-                
+                )
+                .increment(1);
+
                 // Also record to global metrics
                 crate::core::stats::global_metrics::metrics()
                     .record_slow_query_error(&error_type_str, &error_phase_str);
@@ -168,7 +168,7 @@ impl SlowQueryLogger {
     fn extract_query_type(&self, query_text: &str) -> Option<String> {
         let query_text = query_text.trim();
         let first_word = query_text.split_whitespace().next()?.to_uppercase();
-        
+
         // Handle special query types
         match first_word.as_str() {
             "MATCH" | "OPTIONAL" => Some("MATCH".to_string()),
@@ -220,8 +220,11 @@ impl SlowQueryLogger {
         log.push_str(&format!("  trace_id: {}\n", profile.trace_id));
         log.push_str(&format!("  session_id: {}\n", profile.session_id));
         log.push_str(&format!("  query_text: {}\n", profile.query_text));
-        log.push_str(&format!("  duration: {}ms\n", micros_to_millis(profile.total_duration_us)));
-        
+        log.push_str(&format!(
+            "  duration: {}ms\n",
+            micros_to_millis(profile.total_duration_us)
+        ));
+
         let status_str = match profile.status {
             QueryStatus::Success => "success",
             QueryStatus::Failed => "failed",
@@ -237,9 +240,15 @@ impl SlowQueryLogger {
         // Stage statistics
         log.push_str("  stages:\n");
         log.push_str(&format!("    parse: {}ms\n", profile.stages.parse_ms()));
-        log.push_str(&format!("    validate: {}ms\n", profile.stages.validate_ms()));
+        log.push_str(&format!(
+            "    validate: {}ms\n",
+            profile.stages.validate_ms()
+        ));
         log.push_str(&format!("    plan: {}ms\n", profile.stages.plan_ms()));
-        log.push_str(&format!("    optimize: {}ms\n", profile.stages.optimize_ms()));
+        log.push_str(&format!(
+            "    optimize: {}ms\n",
+            profile.stages.optimize_ms()
+        ));
         log.push_str(&format!("    execute: {}ms\n", profile.stages.execute_ms()));
 
         log.push_str(&format!("  result_count: {}\n", profile.result_count));
@@ -316,7 +325,8 @@ impl SlowQueryLogger {
             status: match profile.status {
                 QueryStatus::Success => "success",
                 QueryStatus::Failed => "failed",
-            }.to_string(),
+            }
+            .to_string(),
             stages: StageStats {
                 parse_ms: profile.stages.parse_ms(),
                 validate_ms: profile.stages.validate_ms(),
@@ -325,13 +335,15 @@ impl SlowQueryLogger {
                 execute_ms: profile.stages.execute_ms(),
             },
             result_count: profile.result_count,
-            executor_stats: profile.executor_stats.iter().map(|stat| {
-                ExecutorStatOutput {
+            executor_stats: profile
+                .executor_stats
+                .iter()
+                .map(|stat| ExecutorStatOutput {
                     executor_type: stat.executor_type.clone(),
                     duration_ms: stat.duration_ms(),
                     rows_processed: stat.rows_processed(),
-                }
-            }).collect(),
+                })
+                .collect(),
             error_info,
         };
 
@@ -351,7 +363,7 @@ impl SlowQueryLogger {
                     .create(true)
                     .append(true)
                     .open(&config.log_file_path)
-                    .expect("Failed to open slow query log file")
+                    .expect("Failed to open slow query log file"),
             );
 
             let mut lines_written = 0;
@@ -363,12 +375,13 @@ impl SlowQueryLogger {
                         let current_size = file_size.load(Ordering::Relaxed);
 
                         // Check if rotation is needed
-                        if current_size + bytes.len() as u64 > config.max_file_size_mb * 1024 * 1024 {
+                        if current_size + bytes.len() as u64 > config.max_file_size_mb * 1024 * 1024
+                        {
                             // Perform log rotation
                             if let Err(e) = Self::rotate_logs(&config) {
                                 eprintln!("Failed to rotate slow query log: {}", e);
                             }
-                            
+
                             // Reopen new file
                             writer = BufWriter::new(
                                 OpenOptions::new()
@@ -376,7 +389,7 @@ impl SlowQueryLogger {
                                     .write(true)
                                     .truncate(true)
                                     .open(&config.log_file_path)
-                                    .expect("Failed to open new slow query log file")
+                                    .expect("Failed to open new slow query log file"),
                             );
                             file_size.store(0, Ordering::Relaxed);
                         }
@@ -385,9 +398,9 @@ impl SlowQueryLogger {
                         if let Err(e) = writer.write_all(bytes) {
                             eprintln!("Failed to write slow query log: {}", e);
                         }
-                        
+
                         lines_written += 1;
-                        
+
                         // Periodic flush
                         if lines_written % 10 == 0 {
                             let _ = writer.flush();
@@ -410,7 +423,7 @@ impl SlowQueryLogger {
     /// Rotate log files
     fn rotate_logs(config: &SlowQueryConfig) -> std::io::Result<()> {
         let base_path = Path::new(&config.log_file_path);
-        
+
         // Delete oldest file
         let oldest_path = format!("{}.{}", base_path.display(), config.max_files);
         if Path::new(&oldest_path).exists() {
@@ -424,9 +437,9 @@ impl SlowQueryLogger {
             } else {
                 PathBuf::from(format!("{}.{}", base_path.display(), i))
             };
-            
+
             let new_path = PathBuf::from(format!("{}.{}", base_path.display(), i + 1));
-            
+
             if old_path.exists() {
                 fs::rename(&old_path, &new_path)?;
             }
@@ -454,11 +467,11 @@ mod tests {
             json_format: false,
             ..Default::default()
         };
-        
+
         let logger = SlowQueryLogger::new(config).unwrap();
         let mut profile = QueryProfile::new(123, "MATCH (n) RETURN n".to_string());
         profile.total_duration_us = 2000000; // 2000ms
-        
+
         logger.log(&profile);
         // Log should be written asynchronously
     }
@@ -470,11 +483,11 @@ mod tests {
             json_format: false,
             ..Default::default()
         };
-        
+
         let logger = SlowQueryLogger::new(config).unwrap();
         let mut profile = QueryProfile::new(123, "MATCH (n) RETURN n".to_string());
         profile.total_duration_us = 2000000;
-        
+
         logger.log(&profile);
     }
 
@@ -485,11 +498,11 @@ mod tests {
             json_format: true,
             ..Default::default()
         };
-        
+
         let logger = SlowQueryLogger::new(config).unwrap();
         let mut profile = QueryProfile::new(123, "MATCH (n) RETURN n".to_string());
         profile.total_duration_us = 2000000;
-        
+
         logger.log(&profile);
     }
 }

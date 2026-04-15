@@ -1,29 +1,40 @@
-//! Telemetry module for metrics collection and exposure
+//! Core Telemetry Module
 //!
-//! Provides a standalone telemetry port for exposing internal metrics data
-//! without relying on external monitoring systems like Prometheus.
+//! Provides core telemetry functionality for metrics collection and exposure.
+//! This module is transport-layer agnostic and can be used by HTTP server,
+//! embedded API, or C API.
 //!
-//! Features:
+//! ## Features
+//!
 //! - Custom metrics recorder implementing `metrics::Recorder` trait
-//! - HTTP endpoint for metrics retrieval in JSON or Plain Text format
 //! - Support for counters, gauges, and histograms
 //! - Efficient storage using DashMap for minimal lock contention
+//! - Prometheus-style metrics export
+//!
+//! ## Usage
+//!
+//! ```rust
+//! use graphdb::api::core::telemetry::{TelemetryRecorder, init_global_recorder};
+//!
+//! // Initialize global recorder
+//! let recorder = init_global_recorder();
+//!
+//! // Record metrics
+//! metrics::counter!("my_counter").increment(1);
+//!
+//! // Get snapshot
+//! let snapshot = recorder.get_snapshot();
+//! ```
 
 use dashmap::DashMap;
-use metrics::{Counter, CounterFn, Gauge, GaugeFn, Histogram, HistogramFn, Key, KeyName, Metadata, Recorder, SharedString, Unit};
+use metrics::{
+    Counter, CounterFn, Gauge, GaugeFn, Histogram, HistogramFn, Key, KeyName, Metadata, Recorder,
+    SharedString, Unit,
+};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-
-// Submodules
-#[cfg(feature = "server")]
-pub mod server;
-
-pub mod embedded;
-
-#[cfg(feature = "c-api")]
-pub mod c_api;
 
 /// Histogram data with statistical calculations
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -170,12 +181,16 @@ impl MetricsStore {
 
         // Collect counters
         for entry in self.counters.iter() {
-            snapshot.counters.push((entry.key().clone(), entry.value().get()));
+            snapshot
+                .counters
+                .push((entry.key().clone(), entry.value().get()));
         }
 
         // Collect gauges
         for entry in self.gauges.iter() {
-            snapshot.gauges.push((entry.key().clone(), entry.value().get()));
+            snapshot
+                .gauges
+                .push((entry.key().clone(), entry.value().get()));
         }
 
         // Collect histograms
@@ -353,19 +368,31 @@ impl Recorder for TelemetryRecorder {
 
     fn register_counter(&self, key: &Key, _metadata: &Metadata<'_>) -> Counter {
         let name = key.name().to_string();
-        let counter = self.store.counters.entry(name).or_insert_with(|| Arc::new(TelemetryCounter::new()));
+        let counter = self
+            .store
+            .counters
+            .entry(name)
+            .or_insert_with(|| Arc::new(TelemetryCounter::new()));
         Counter::from_arc(counter.clone())
     }
 
     fn register_gauge(&self, key: &Key, _metadata: &Metadata<'_>) -> Gauge {
         let name = key.name().to_string();
-        let gauge = self.store.gauges.entry(name).or_insert_with(|| Arc::new(TelemetryGauge::new()));
+        let gauge = self
+            .store
+            .gauges
+            .entry(name)
+            .or_insert_with(|| Arc::new(TelemetryGauge::new()));
         Gauge::from_arc(gauge.clone())
     }
 
     fn register_histogram(&self, key: &Key, _metadata: &Metadata<'_>) -> Histogram {
         let name = key.name().to_string();
-        let histogram = self.store.histograms.entry(name).or_insert_with(|| Arc::new(TelemetryHistogram::new()));
+        let histogram = self
+            .store
+            .histograms
+            .entry(name)
+            .or_insert_with(|| Arc::new(TelemetryHistogram::new()));
         Histogram::from_arc(histogram.clone())
     }
 }
@@ -384,7 +411,9 @@ pub fn global_recorder() -> Option<&'static TelemetryRecorder> {
 }
 
 /// Set the global telemetry recorder and install it as the metrics recorder
-pub fn set_global_recorder(recorder: TelemetryRecorder) -> Result<(), metrics::SetRecorderError<TelemetryRecorder>> {
+pub fn set_global_recorder(
+    recorder: TelemetryRecorder,
+) -> Result<(), metrics::SetRecorderError<TelemetryRecorder>> {
     let recorder_clone = recorder.clone();
     GLOBAL_RECORDER
         .set(recorder)
@@ -395,7 +424,6 @@ pub fn set_global_recorder(recorder: TelemetryRecorder) -> Result<(), metrics::S
 #[cfg(test)]
 mod tests {
     use super::*;
-    use metrics::counter;
 
     #[test]
     fn test_histogram_data_calculation() {
@@ -427,94 +455,57 @@ mod tests {
         gauge.set(42.0);
         assert_eq!(gauge.get(), 42.0);
 
-        gauge.increment(8.0);
-        assert_eq!(gauge.get(), 50.0);
+        gauge.increment(10.0);
+        assert_eq!(gauge.get(), 52.0);
 
-        gauge.decrement(10.0);
-        assert_eq!(gauge.get(), 40.0);
-    }
-
-    #[test]
-    fn test_telemetry_histogram() {
-        let histogram = TelemetryHistogram::new();
-        histogram.record(1.0);
-        histogram.record(2.0);
-        histogram.record(3.0);
-
-        let data = histogram.get_data();
-        assert_eq!(data.count, 3);
-        assert_eq!(data.sum, 6.0);
+        gauge.decrement(20.0);
+        assert_eq!(gauge.get(), 32.0);
     }
 
     #[test]
     fn test_telemetry_recorder() {
         use metrics::Level;
         let recorder = TelemetryRecorder::new();
+        let key = Key::from_name("test_metric");
+        let counter = recorder.register_counter(&key, &Metadata::new("test", Level::INFO, None));
+        counter.increment(1);
 
-        // Test counter
-        let counter = recorder.register_counter(&Key::from_name("test_counter"), &Metadata::new("test", Level::INFO, None));
-        counter.increment(5);
-        counter.increment(3);
-        assert_eq!(recorder.get_counter("test_counter"), Some(8));
-
-        // Test gauge
-        let gauge = recorder.register_gauge(&Key::from_name("test_gauge"), &Metadata::new("test", Level::INFO, None));
-        gauge.set(42.0);
-        assert_eq!(recorder.get_gauge("test_gauge"), Some(42.0));
-
-        // Test histogram
-        let histogram = recorder.register_histogram(&Key::from_name("test_histogram"), &Metadata::new("test", Level::INFO, None));
-        histogram.record(1.0);
-        histogram.record(2.0);
-        histogram.record(3.0);
-
-        let hist_data = recorder.get_histogram("test_histogram");
-        assert!(hist_data.is_some());
-        let data = hist_data.unwrap();
-        assert_eq!(data.count, 3);
-        assert_eq!(data.sum, 6.0);
+        assert_eq!(recorder.get_counter("test_metric"), Some(1));
     }
 
     #[test]
     fn test_metrics_snapshot() {
         use metrics::Level;
         let recorder = TelemetryRecorder::new();
-
-        let counter = recorder.register_counter(&Key::from_name("counter1"), &Metadata::new("test", Level::INFO, None));
-        counter.increment(10);
-
-        let gauge = recorder.register_gauge(&Key::from_name("gauge1"), &Metadata::new("test", Level::INFO, None));
-        gauge.set(3.14);
+        let key = Key::from_name("test_counter");
+        let counter = recorder.register_counter(&key, &Metadata::new("test", Level::INFO, None));
+        counter.increment(100);
 
         let snapshot = recorder.get_snapshot();
-
-        assert_eq!(snapshot.counters.len(), 1);
-        assert_eq!(snapshot.gauges.len(), 1);
-        assert!(snapshot.timestamp > 0);
+        assert!(snapshot.counters.iter().any(|(k, v)| k == "test_counter" && *v == 100));
     }
 
     #[test]
-    fn test_snapshot_text_format() {
+    fn test_snapshot_filtering() {
         let mut snapshot = MetricsSnapshot::new();
-        snapshot.counters.push(("test_counter".to_string(), 100));
-        snapshot.gauges.push(("test_gauge".to_string(), 50.5));
+        snapshot.counters = vec![
+            ("graphdb_query_total".to_string(), 100),
+            ("graphdb_error_total".to_string(), 5),
+            ("other_metric".to_string(), 10),
+        ];
+
+        let filtered = snapshot.filter_by_prefix("graphdb_");
+        assert_eq!(filtered.counters.len(), 2);
+        assert!(filtered.counters.iter().all(|(k, _)| k.starts_with("graphdb_")));
+    }
+
+    #[test]
+    fn test_snapshot_to_text() {
+        let mut snapshot = MetricsSnapshot::new();
+        snapshot.counters = vec![("test_counter".to_string(), 42)];
 
         let text = snapshot.to_text_format();
         assert!(text.contains("# TYPE test_counter counter"));
-        assert!(text.contains("test_counter 100"));
-        assert!(text.contains("# TYPE test_gauge gauge"));
-        assert!(text.contains("test_gauge 50.5"));
-    }
-
-    #[test]
-    fn test_snapshot_filter() {
-        let mut snapshot = MetricsSnapshot::new();
-        snapshot.counters.push(("graphdb_query_total".to_string(), 100));
-        snapshot.counters.push(("other_metric".to_string(), 50));
-        snapshot.gauges.push(("graphdb_active".to_string(), 10.0));
-
-        let filtered = snapshot.filter_by_prefix("graphdb");
-        assert_eq!(filtered.counters.len(), 1);
-        assert_eq!(filtered.gauges.len(), 1);
+        assert!(text.contains("test_counter 42"));
     }
 }

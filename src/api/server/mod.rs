@@ -9,6 +9,7 @@ pub mod graph_service;
 pub mod http;
 pub mod permission;
 pub mod session;
+pub mod telemetry_server;
 pub mod web;
 
 pub use auth::{Authenticator, PasswordAuthenticator};

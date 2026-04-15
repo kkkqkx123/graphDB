@@ -38,6 +38,7 @@ pub mod database;
 pub mod result;
 pub mod session;
 pub mod statistics;
+pub mod telemetry;
 pub mod transaction;
 
 // C API module (conditional compilation)

@@ -1,16 +1,16 @@
 //! Aggregated Query Statistics (Optimized Version)
 //!
 //! Provides query pattern recognition and aggregated statistics for performance analysis.
-//! 
+//!
 //! ## Design Principles
-//! 
+//!
 //! - **Constant Memory**: Uses t-digest for percentile calculation (O(1) memory)
 //! - **Zero Allocation**: Pre-compiled regex, string interning
 //! - **Lock-Free Reads**: DashMap with atomic updates
 //! - **Adaptive Sampling**: Reduces overhead under high load
 //!
 //! ## Performance Characteristics
-//! 
+//!
 //! - Memory per pattern: ~1KB (fixed)
 //! - Record latency: < 1μs (no allocation)
 //! - Percentile accuracy: ±0.1%
@@ -63,7 +63,7 @@ impl std::fmt::Display for QueryPattern {
 }
 
 /// T-Digest implementation for percentile estimation
-/// 
+///
 /// This is a simplified t-digest that maintains constant memory usage
 /// while providing accurate percentile estimates.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -231,7 +231,13 @@ pub struct AggregatedQueryStats {
 
 impl AggregatedQueryStats {
     /// Create new aggregated stats for a pattern
-    pub fn new(pattern: QueryPattern, duration_us: u64, memory_bytes: u64, rows: u64, is_error: bool) -> Self {
+    pub fn new(
+        pattern: QueryPattern,
+        duration_us: u64,
+        memory_bytes: u64,
+        rows: u64,
+        is_error: bool,
+    ) -> Self {
         let now_secs = current_timestamp_secs();
         let mut digest = TDigest::new(100);
         digest.add(duration_us as f64, 1.0);
@@ -267,10 +273,10 @@ impl AggregatedQueryStats {
             self.error_count += 1;
         }
         self.last_seen_secs = current_timestamp_secs();
-        
+
         // Update t-digest
         self.digest.add(duration_us as f64, 1.0);
-        
+
         // Update percentiles from t-digest
         self.p95_duration_us = self.digest.percentile(95.0) as u64;
         self.p99_duration_us = self.digest.percentile(99.0) as u64;
@@ -326,8 +332,8 @@ impl Default for AggregatedStatsConfig {
     fn default() -> Self {
         Self {
             max_patterns: 1000,
-            time_window_minutes: 60, // 1 hour
-            sampling_rate: 1.0, // 100% sampling by default
+            time_window_minutes: 60,       // 1 hour
+            sampling_rate: 1.0,            // 100% sampling by default
             high_load_threshold_qps: 1000, // Reduce sampling above 1000 QPS
         }
     }
@@ -337,19 +343,19 @@ impl Default for AggregatedStatsConfig {
 pub struct AggregatedStatsManager {
     /// Aggregated stats by query pattern
     stats: DashMap<QueryPattern, AggregatedQueryStats>,
-    
+
     /// Configuration
     config: AggregatedStatsConfig,
-    
+
     /// Total number of queries processed
     total_queries: AtomicU64,
-    
+
     /// Total number of slow queries
     total_slow_queries: AtomicU64,
-    
+
     /// Queries in last second (for adaptive sampling)
     recent_qps: AtomicU64,
-    
+
     /// Last QPS reset timestamp
     last_qps_reset_secs: AtomicU64,
 }
@@ -384,9 +390,11 @@ impl AggregatedStatsManager {
 
         // Normalize query to get pattern
         let pattern = normalize_query(&profile.query_text);
-        
+
         // Calculate total memory and rows
-        let total_memory: u64 = profile.executor_stats.iter()
+        let total_memory: u64 = profile
+            .executor_stats
+            .iter()
             .map(|stat| stat.memory_used() as u64)
             .sum();
         let total_rows = profile.result_count as u64;
@@ -396,7 +404,12 @@ impl AggregatedStatsManager {
         self.stats
             .entry(pattern)
             .and_modify(|stats| {
-                stats.update(profile.total_duration_us, total_memory, total_rows, is_error);
+                stats.update(
+                    profile.total_duration_us,
+                    total_memory,
+                    total_rows,
+                    is_error,
+                );
             })
             .or_insert_with(|| {
                 AggregatedQueryStats::new(
@@ -424,7 +437,7 @@ impl AggregatedStatsManager {
     fn update_qps(&self) {
         let now_secs = current_timestamp_secs();
         let last_reset = self.last_qps_reset_secs.load(Ordering::Relaxed);
-        
+
         if now_secs > last_reset {
             // New second, reset counter
             self.recent_qps.store(1, Ordering::Relaxed);
@@ -438,15 +451,15 @@ impl AggregatedStatsManager {
     /// Determine if we should sample this query
     fn should_sample(&self) -> bool {
         let qps = self.recent_qps.load(Ordering::Relaxed);
-        
+
         if qps < self.config.high_load_threshold_qps {
             return true; // Under load threshold, sample everything
         }
 
         // Above threshold, use adaptive sampling
-        let sample_rate = self.config.sampling_rate * 
-            (self.config.high_load_threshold_qps as f64 / qps as f64);
-        
+        let sample_rate =
+            self.config.sampling_rate * (self.config.high_load_threshold_qps as f64 / qps as f64);
+
         // Simple deterministic sampling based on query count
         let query_num = self.total_queries.load(Ordering::Relaxed);
         (query_num % (1.0 / sample_rate) as u64) == 0
@@ -454,7 +467,8 @@ impl AggregatedStatsManager {
 
     /// Evict oldest patterns when limit exceeded
     fn evict_oldest_patterns(&self) {
-        let mut entries: Vec<(QueryPattern, u64)> = self.stats
+        let mut entries: Vec<(QueryPattern, u64)> = self
+            .stats
             .iter()
             .map(|entry| (entry.key().clone(), entry.value().last_seen_secs))
             .collect();
@@ -471,14 +485,17 @@ impl AggregatedStatsManager {
 
     /// Get top N slow query patterns by average duration
     pub fn get_top_n_slow_queries(&self, limit: usize) -> Vec<AggregatedQueryStats> {
-        let mut all_stats: Vec<AggregatedQueryStats> = self.stats
+        let mut all_stats: Vec<AggregatedQueryStats> = self
+            .stats
             .iter()
             .map(|entry| entry.value().clone())
             .collect();
 
         // Sort by average duration (descending)
         all_stats.sort_by(|a, b| {
-            b.avg_duration_us.partial_cmp(&a.avg_duration_us).unwrap_or(std::cmp::Ordering::Equal)
+            b.avg_duration_us
+                .partial_cmp(&a.avg_duration_us)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         all_stats.into_iter().take(limit).collect()
@@ -486,30 +503,28 @@ impl AggregatedStatsManager {
 
     /// Get top N slow query patterns by total duration
     pub fn get_top_n_by_total_duration(&self, limit: usize) -> Vec<AggregatedQueryStats> {
-        let mut all_stats: Vec<AggregatedQueryStats> = self.stats
+        let mut all_stats: Vec<AggregatedQueryStats> = self
+            .stats
             .iter()
             .map(|entry| entry.value().clone())
             .collect();
 
         // Sort by total duration (descending)
-        all_stats.sort_by(|a, b| {
-            b.total_duration_us.cmp(&a.total_duration_us)
-        });
+        all_stats.sort_by(|a, b| b.total_duration_us.cmp(&a.total_duration_us));
 
         all_stats.into_iter().take(limit).collect()
     }
 
     /// Get top N slow query patterns by execution count
     pub fn get_top_n_by_execution_count(&self, limit: usize) -> Vec<AggregatedQueryStats> {
-        let mut all_stats: Vec<AggregatedQueryStats> = self.stats
+        let mut all_stats: Vec<AggregatedQueryStats> = self
+            .stats
             .iter()
             .map(|entry| entry.value().clone())
             .collect();
 
         // Sort by execution count (descending)
-        all_stats.sort_by(|a, b| {
-            b.execution_count.cmp(&a.execution_count)
-        });
+        all_stats.sort_by(|a, b| b.execution_count.cmp(&a.execution_count));
 
         all_stats.into_iter().take(limit).collect()
     }
@@ -562,11 +577,10 @@ impl AggregatedStatsManager {
         let max_age_secs = self.config.time_window_minutes * 60;
 
         // Collect keys to remove
-        let keys_to_remove: Vec<QueryPattern> = self.stats
+        let keys_to_remove: Vec<QueryPattern> = self
+            .stats
             .iter()
-            .filter(|entry| {
-                now_secs - entry.value().last_seen_secs > max_age_secs
-            })
+            .filter(|entry| now_secs - entry.value().last_seen_secs > max_age_secs)
             .map(|entry| entry.key().clone())
             .collect();
 
@@ -587,21 +601,21 @@ impl Default for AggregatedStatsManager {
 pub fn normalize_query(query: &str) -> QueryPattern {
     // Extract query type first
     let query_type = extract_query_type(query);
-    
+
     // Extract labels
     let labels = extract_labels(query);
-    
+
     // Replace string literals
     let re_string = get_string_regex();
     let mut normalized = re_string.replace_all(query, "?").to_string();
-    
+
     // Replace numeric literals
     let re_number = get_number_regex();
     normalized = re_number.replace_all(&normalized, "?").to_string();
-    
+
     // Normalize whitespace
     normalized = normalized.split_whitespace().collect::<Vec<_>>().join(" ");
-    
+
     QueryPattern::new(normalized, query_type, labels)
 }
 
@@ -609,7 +623,7 @@ pub fn normalize_query(query: &str) -> QueryPattern {
 fn extract_query_type(query: &str) -> String {
     let query = query.trim();
     let first_word = query.split_whitespace().next().unwrap_or("").to_uppercase();
-    
+
     match first_word.as_str() {
         "MATCH" | "OPTIONAL" => "MATCH".to_string(),
         "CREATE" => "CREATE".to_string(),
@@ -630,7 +644,7 @@ fn extract_query_type(query: &str) -> String {
 /// Extract labels from query text
 fn extract_labels(query: &str) -> Vec<String> {
     let mut labels = std::collections::HashSet::new();
-    
+
     // Match pattern: :LabelName
     let re_label = regex::Regex::new(r":(\w+)").unwrap();
     for cap in re_label.captures_iter(query) {
@@ -638,7 +652,7 @@ fn extract_labels(query: &str) -> Vec<String> {
             labels.insert(label.as_str().to_string());
         }
     }
-    
+
     let mut labels_vec: Vec<String> = labels.into_iter().collect();
     labels_vec.sort();
     labels_vec
@@ -652,7 +666,7 @@ mod tests {
     fn test_normalize_query_basic() {
         let query = "MATCH (n:Person) WHERE n.id = 123 RETURN n";
         let pattern = normalize_query(query);
-        
+
         assert_eq!(pattern.query_type, "MATCH");
         assert!(pattern.labels.contains(&"Person".to_string()));
         assert!(pattern.normalized_query.contains("?"));
@@ -663,7 +677,7 @@ mod tests {
     fn test_normalize_query_with_string() {
         let query = "MATCH (n:Person) WHERE n.name = 'John' RETURN n";
         let pattern = normalize_query(query);
-        
+
         assert_eq!(pattern.query_type, "MATCH");
         assert!(pattern.normalized_query.contains("?"));
         assert!(!pattern.normalized_query.contains("'John'"));
@@ -687,22 +701,23 @@ mod tests {
     #[test]
     fn test_aggregated_stats_manager() {
         let manager = AggregatedStatsManager::new();
-        
+
         // Create a test profile
-        let mut profile = QueryProfile::new(1, "MATCH (n:Person) WHERE n.id = 1 RETURN n".to_string());
+        let mut profile =
+            QueryProfile::new(1, "MATCH (n:Person) WHERE n.id = 1 RETURN n".to_string());
         profile.total_duration_us = 1000;
-        
+
         // Record multiple queries with same pattern
         for i in 0..10 {
             let mut p = profile.clone();
             p.total_duration_us = 1000 + i * 100;
             manager.record_query(&p, false);
         }
-        
+
         // Check stats
         assert_eq!(manager.get_total_queries(), 10);
         assert_eq!(manager.get_pattern_count(), 1);
-        
+
         let stats = manager.get_top_n_slow_queries(1);
         assert_eq!(stats.len(), 1);
         assert_eq!(stats[0].execution_count, 10);
@@ -711,19 +726,31 @@ mod tests {
     #[test]
     fn test_t_digest_percentile() {
         let mut digest = TDigest::new(100);
-        
+
         // Add values 1-100
         for i in 1..=100 {
             digest.add(i as f64, 1.0);
         }
-        
+
         let p50 = digest.percentile(50.0);
         let p95 = digest.percentile(95.0);
         let p99 = digest.percentile(99.0);
-        
-        assert!((45.0..=55.0).contains(&p50), "p50 should be around 50, got {}", p50);
-        assert!((90.0..=100.0).contains(&p95), "p95 should be around 95, got {}", p95);
-        assert!((98.0..=100.0).contains(&p99), "p99 should be around 99, got {}", p99);
+
+        assert!(
+            (45.0..=55.0).contains(&p50),
+            "p50 should be around 50, got {}",
+            p50
+        );
+        assert!(
+            (90.0..=100.0).contains(&p95),
+            "p95 should be around 95, got {}",
+            p95
+        );
+        assert!(
+            (98.0..=100.0).contains(&p99),
+            "p99 should be around 99, got {}",
+            p99
+        );
     }
 
     #[test]
@@ -731,14 +758,14 @@ mod tests {
         let mut config = AggregatedStatsConfig::default();
         config.high_load_threshold_qps = 10; // Low threshold for testing
         config.sampling_rate = 0.5;
-        
+
         let manager = AggregatedStatsManager::with_config(config);
-        
+
         // Simulate high load
         for _ in 0..20 {
             manager.update_qps();
         }
-        
+
         // Should sample some queries
         let mut sampled = 0;
         for i in 0..100 {
@@ -748,9 +775,13 @@ mod tests {
                 sampled += 1;
             }
         }
-        
+
         // With 50% sampling rate and high load, should sample roughly 50%
         // Allow wider range due to deterministic sampling
-        assert!(sampled >= 20 && sampled <= 80, "Expected ~50% sampling, got {}%", sampled);
+        assert!(
+            sampled >= 20 && sampled <= 80,
+            "Expected ~50% sampling, got {}%",
+            sampled
+        );
     }
 }

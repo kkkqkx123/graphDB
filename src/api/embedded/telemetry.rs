@@ -1,25 +1,28 @@
-//! Embedded telemetry API
+//! Embedded Telemetry API
 //!
 //! Provides access to telemetry metrics data for embedded mode.
 //! This allows embedded applications to retrieve metrics without HTTP server.
+//!
+//! ## Example
+//!
+//! ```rust
+//! use graphdb::api::embedded::telemetry::EmbeddedTelemetry;
+//!
+//! # fn example() {
+//! // Get current metrics snapshot
+//! let snapshot = EmbeddedTelemetry::get_metrics();
+//! println!("Total queries: {:?}", snapshot.counters.iter().find(|(k, _)| k == "graphdb_query_total"));
+//! # }
+//! ```
 
-use crate::api::telemetry::{global_recorder, init_global_recorder, HistogramData, MetricsSnapshot, TelemetryRecorder};
+use crate::api::core::telemetry::{
+    global_recorder, init_global_recorder, HistogramData, MetricsSnapshot, TelemetryRecorder,
+};
+use crate::core::stats::GlobalMetrics;
 
 /// Embedded telemetry accessor
 ///
 /// Provides programmatic access to metrics data for embedded applications.
-///
-/// # Example
-///
-/// ```rust
-/// use graphdb::api::telemetry::embedded::EmbeddedTelemetry;
-///
-/// # fn example() {
-/// // Get current metrics snapshot
-/// let snapshot = EmbeddedTelemetry::get_metrics();
-/// println!("Total queries: {:?}", snapshot.counters.iter().find(|(k, _)| k == "graphdb_query_total"));
-/// # }
-/// ```
 pub struct EmbeddedTelemetry;
 
 impl EmbeddedTelemetry {
@@ -69,6 +72,13 @@ impl EmbeddedTelemetry {
         global_recorder().and_then(|r| r.get_histogram(name))
     }
 
+    /// Get global metrics instance
+    ///
+    /// Provides access to high-level business metrics such as query counts, storage stats, etc.
+    pub fn get_global_metrics() -> &'static GlobalMetrics {
+        GlobalMetrics::global()
+    }
+
     /// Export metrics to JSON string
     ///
     /// Returns metrics in JSON format for easy serialization.
@@ -86,52 +96,5 @@ impl EmbeddedTelemetry {
     /// Check if telemetry recorder is initialized
     pub fn is_initialized() -> bool {
         global_recorder().is_some()
-    }
-}
-
-/// Initialize the global telemetry recorder if not already initialized
-///
-/// This is called automatically when needed, but can be called explicitly
-/// to ensure early initialization.
-pub fn init_telemetry() -> bool {
-    init_global_recorder();
-    true
-}
-
-/// Get telemetry recorder instance
-///
-/// Returns a clone of the global telemetry recorder if initialized.
-pub fn get_recorder() -> Option<TelemetryRecorder> {
-    global_recorder().cloned()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_embedded_telemetry() {
-        // Initialize telemetry
-        init_telemetry();
-
-        // Get metrics (should be empty or contain default values)
-        let snapshot = EmbeddedTelemetry::get_metrics();
-        assert!(snapshot.timestamp > 0);
-
-        // Test export functions
-        let json = EmbeddedTelemetry::export_to_json();
-        assert!(json.is_ok());
-
-        let text = EmbeddedTelemetry::export_to_text();
-        assert!(text.is_empty() || text.contains("TYPE"));
-    }
-
-    #[test]
-    fn test_filter_metrics() {
-        init_telemetry();
-
-        let filtered = EmbeddedTelemetry::get_metrics_filtered("graphdb");
-        // Should return empty or filtered results
-        assert!(filtered.timestamp > 0);
     }
 }

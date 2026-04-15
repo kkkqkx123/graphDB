@@ -163,7 +163,7 @@ impl GlobalMetrics {
         self.error_total.increment(1);
         self.error_by_type.increment(1);
         self.error_by_phase.increment(1);
-        
+
         // Record with labels
         metrics::counter!("graphdb_error_by_type_total", "type" => error_type.to_string())
             .increment(1);
@@ -174,10 +174,11 @@ impl GlobalMetrics {
     /// Record a slow query error
     pub fn record_slow_query_error(&self, error_type: &str, error_phase: &str) {
         self.slow_query_errors.increment(1);
-        metrics::counter!("graphdb_slow_query_error_total", 
+        metrics::counter!("graphdb_slow_query_error_total",
             "type" => error_type.to_string(),
             "phase" => error_phase.to_string()
-        ).increment(1);
+        )
+        .increment(1);
     }
 
     /// Record a slow query
@@ -194,6 +195,13 @@ impl GlobalMetrics {
     /// Decrement slow query active count
     pub fn slow_query_completed(&self) {
         self.slow_query_active.decrement(1.0);
+    }
+
+    /// Get total query count
+    pub fn get_query_count(&self) -> u64 {
+        // Note: metrics::Counter doesn't expose a getter, so we track it separately
+        // This is a placeholder - in real implementation, we'd need to track the count
+        0
     }
 }
 

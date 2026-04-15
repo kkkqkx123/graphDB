@@ -115,13 +115,13 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         let authenticator = AuthenticatorFactory::create_default(&config.auth);
         let permission_manager = Arc::new(PermissionManager::new());
-        
+
         // Create StatsManager with slow query logger
         let slow_query_config = config.to_slow_query_config();
-        
+
         let server_stats_manager = Arc::new(
             StatsManager::with_slow_query_logger(config.monitoring.clone(), slow_query_config)
-                .expect("Failed to create StatsManager with slow query logger")
+                .expect("Failed to create StatsManager with slow query logger"),
         );
 
         // Create sync API if storage supports it

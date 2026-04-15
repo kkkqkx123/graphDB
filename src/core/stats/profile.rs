@@ -169,7 +169,10 @@ impl QueryProfile {
     }
 
     pub fn total_executor_time_us(&self) -> u64 {
-        self.executor_stats.iter().map(|s| s.stats.exec_time_us).sum()
+        self.executor_stats
+            .iter()
+            .map(|s| s.stats.exec_time_us)
+            .sum()
     }
 
     pub fn total_executor_time_ms(&self) -> f64 {

@@ -2,12 +2,22 @@
 //!
 //! Provides C interface for accessing telemetry metrics data
 
+use crate::api::core::telemetry::init_global_recorder;
 use crate::api::embedded::c_api::error::graphdb_error_code_t;
-use crate::api::embedded::c_api::types::{
-    graphdb_string_t, GRAPHDB_FREE_STRING,
-};
-use crate::api::telemetry::embedded::{EmbeddedTelemetry, init_telemetry};
+use crate::api::embedded::c_api::types::GRAPHDB_FREE_STRING;
+use crate::api::embedded::telemetry::EmbeddedTelemetry;
+use crate::core::stats::GlobalMetrics;
 use std::ffi::{c_char, c_int, CStr, CString};
+
+/// Initialize telemetry system
+///
+/// # Returns
+/// - Success: GRAPHDB_OK
+#[no_mangle]
+pub extern "C" fn graphdb_telemetry_init() -> c_int {
+    init_global_recorder();
+    graphdb_error_code_t::GRAPHDB_OK as c_int
+}
 
 /// Get all metrics in JSON format
 ///
@@ -140,6 +150,70 @@ pub unsafe extern "C" fn graphdb_telemetry_get_gauge(
     }
 }
 
+/// Get global query count
+///
+/// # Returns
+/// - Total query count
+#[no_mangle]
+pub extern "C" fn graphdb_global_metrics_query_count() -> u64 {
+    GlobalMetrics::global().get_query_count()
+}
+
+/// Get global storage stats
+///
+/// # Arguments
+/// - `out_used_bytes`: Output parameter for used storage bytes
+/// - `out_total_bytes`: Output parameter for total storage bytes
+///
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code if pointers are null
+///
+/// # Safety
+/// - `out_used_bytes` and `out_total_bytes` must be valid pointers
+#[no_mangle]
+pub unsafe extern "C" fn graphdb_global_metrics_storage_stats(
+    out_used_bytes: *mut u64,
+    out_total_bytes: *mut u64,
+) -> c_int {
+    if out_used_bytes.is_null() || out_total_bytes.is_null() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    let stats = GlobalMetrics::global().get_storage_stats();
+    *out_used_bytes = stats.used_bytes as u64;
+    *out_total_bytes = stats.total_bytes as u64;
+    graphdb_error_code_t::GRAPHDB_OK as c_int
+}
+
+/// Get recent slow queries count
+///
+/// # Arguments
+/// - `limit`: Maximum number of slow queries to retrieve
+///
+/// # Returns
+/// - Number of slow queries available
+#[no_mangle]
+pub extern "C" fn graphdb_stats_manager_slow_query_count(_limit: usize) -> usize {
+    // Note: This would require access to StatsManager instance
+    // For now, return 0 as placeholder
+    0
+}
+
+/// Get recent errors count
+///
+/// # Arguments
+/// - `limit`: Maximum number of errors to retrieve
+///
+/// # Returns
+/// - Number of errors available
+#[no_mangle]
+pub extern "C" fn graphdb_stats_manager_error_count(_limit: usize) -> usize {
+    // Note: This would require access to StatsManager instance
+    // For now, return 0 as placeholder
+    0
+}
+
 /// Check if telemetry is initialized
 ///
 /// # Returns
@@ -152,16 +226,6 @@ pub extern "C" fn graphdb_telemetry_is_initialized() -> c_int {
     } else {
         0
     }
-}
-
-/// Initialize telemetry system
-///
-/// # Returns
-/// - Success: GRAPHDB_OK
-#[no_mangle]
-pub extern "C" fn graphdb_telemetry_init() -> c_int {
-    init_telemetry();
-    graphdb_error_code_t::GRAPHDB_OK as c_int
 }
 
 /// Get filtered metrics in JSON format

@@ -9,13 +9,13 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
+use super::aggregated_stats::AggregatedStatsManager;
 use super::error_stats::{ErrorInfo, ErrorStatsManager, ErrorType, QueryPhase};
 use super::latency_histogram::LatencyHistogram;
 use super::metrics::QueryMetrics;
 use super::profile::QueryProfile;
 use super::slow_query_logger::{SlowQueryConfig, SlowQueryLogger};
 use super::utils::micros_to_millis;
-use super::aggregated_stats::AggregatedStatsManager;
 
 /// Space metrics type alias
 type SpaceMetrics = Arc<DashMap<MetricType, Arc<MetricValue>>>;
@@ -151,7 +151,7 @@ impl StatsManager {
     ) -> Result<Self, std::io::Error> {
         let cache_size = config.memory_cache_size;
         let logger = Arc::new(SlowQueryLogger::new(slow_query_config)?);
-        
+
         Ok(Self {
             metrics: Arc::new(DashMap::new()),
             space_metrics: Arc::new(DashMap::new()),
@@ -441,12 +441,10 @@ impl StatsManager {
 
     pub fn record_error(&self, error_type: ErrorType, phase: QueryPhase) {
         self.error_stats.record_error(error_type, phase);
-        
+
         // Record to global metrics
-        crate::core::stats::global_metrics::metrics().record_error(
-            &error_type.to_string(),
-            &phase.to_string()
-        );
+        crate::core::stats::global_metrics::metrics()
+            .record_error(&error_type.to_string(), &phase.to_string());
     }
 
     pub fn get_error_count(&self, error_type: ErrorType) -> u64 {
@@ -477,6 +475,10 @@ impl StatsManager {
 
     pub fn get_error_summary(&self) -> super::error_stats::ErrorSummary {
         self.error_stats.get_error_summary()
+    }
+
+    pub fn get_recent_errors(&self, limit: usize) -> Vec<super::error_stats::RecentError> {
+        self.error_stats.get_recent_errors(limit)
     }
 
     pub fn record_query_metrics(&self, metrics: &QueryMetrics) {
@@ -554,22 +556,34 @@ impl StatsManager {
     }
 
     /// Get top N slow query patterns by average duration
-    pub fn get_top_n_slow_query_patterns(&self, limit: usize) -> Vec<super::aggregated_stats::AggregatedQueryStats> {
+    pub fn get_top_n_slow_query_patterns(
+        &self,
+        limit: usize,
+    ) -> Vec<super::aggregated_stats::AggregatedQueryStats> {
         self.aggregated_stats.get_top_n_slow_queries(limit)
     }
 
     /// Get top N slow query patterns by total duration
-    pub fn get_top_n_patterns_by_total_duration(&self, limit: usize) -> Vec<super::aggregated_stats::AggregatedQueryStats> {
+    pub fn get_top_n_patterns_by_total_duration(
+        &self,
+        limit: usize,
+    ) -> Vec<super::aggregated_stats::AggregatedQueryStats> {
         self.aggregated_stats.get_top_n_by_total_duration(limit)
     }
 
     /// Get top N slow query patterns by execution count
-    pub fn get_top_n_patterns_by_execution_count(&self, limit: usize) -> Vec<super::aggregated_stats::AggregatedQueryStats> {
+    pub fn get_top_n_patterns_by_execution_count(
+        &self,
+        limit: usize,
+    ) -> Vec<super::aggregated_stats::AggregatedQueryStats> {
         self.aggregated_stats.get_top_n_by_execution_count(limit)
     }
 
     /// Get statistics for a specific query pattern
-    pub fn get_pattern_stats(&self, normalized_query: &str) -> Option<super::aggregated_stats::AggregatedQueryStats> {
+    pub fn get_pattern_stats(
+        &self,
+        normalized_query: &str,
+    ) -> Option<super::aggregated_stats::AggregatedQueryStats> {
         self.aggregated_stats.get_pattern_stats(normalized_query)
     }
 
@@ -797,18 +811,20 @@ mod tests {
     #[test]
     fn test_aggregated_stats_integration() {
         let stats = StatsManager::new();
-        
+
         // Create test profiles
-        let mut profile1 = QueryProfile::new(1, "MATCH (n:Person) WHERE n.id = 1 RETURN n".to_string());
+        let mut profile1 =
+            QueryProfile::new(1, "MATCH (n:Person) WHERE n.id = 1 RETURN n".to_string());
         profile1.total_duration_us = 1000;
-        
-        let mut profile2 = QueryProfile::new(2, "MATCH (n:Person) WHERE n.id = 2 RETURN n".to_string());
+
+        let mut profile2 =
+            QueryProfile::new(2, "MATCH (n:Person) WHERE n.id = 2 RETURN n".to_string());
         profile2.total_duration_us = 2000;
-        
+
         // Record queries
         stats.record_aggregated_query(&profile1, false);
         stats.record_aggregated_query(&profile2, false);
-        
+
         // Verify stats
         assert_eq!(stats.get_total_aggregated_queries(), 2);
         assert_eq!(stats.get_pattern_count(), 1); // Same pattern
@@ -823,14 +839,15 @@ mod tests {
             slow_query_threshold_ms: 1000,
         };
         let stats = StatsManager::with_config(config);
-        
+
         // Create a slow query profile
-        let mut profile = QueryProfile::new(1, "MATCH (n:Person) WHERE n.id = 1 RETURN n".to_string());
+        let mut profile =
+            QueryProfile::new(1, "MATCH (n:Person) WHERE n.id = 1 RETURN n".to_string());
         profile.total_duration_us = 2_000_000; // 2000ms
-        
+
         // This should trigger aggregated recording via write_slow_query_log
         stats.record_query_profile(profile.clone());
-        
+
         // Verify aggregated stats were recorded
         assert_eq!(stats.get_total_aggregated_queries(), 1);
         assert_eq!(stats.get_total_aggregated_slow_queries(), 1);
@@ -839,17 +856,15 @@ mod tests {
     #[test]
     fn test_get_top_n_slow_query_patterns() {
         let stats = StatsManager::new();
-        
+
         // Record multiple queries with different patterns
         for i in 0..10 {
-            let mut profile = QueryProfile::new(
-                i,
-                format!("MATCH (n:Person) WHERE n.id = {} RETURN n", i)
-            );
+            let mut profile =
+                QueryProfile::new(i, format!("MATCH (n:Person) WHERE n.id = {} RETURN n", i));
             profile.total_duration_us = 1000 + (i * 100) as u64;
             stats.record_aggregated_query(&profile, false);
         }
-        
+
         // Get top 5 patterns
         let top_patterns = stats.get_top_n_slow_query_patterns(5);
         assert_eq!(top_patterns.len(), 1); // All same pattern
@@ -859,14 +874,14 @@ mod tests {
     #[test]
     fn test_clear_aggregated_stats() {
         let stats = StatsManager::new();
-        
+
         let profile = QueryProfile::new(1, "MATCH (n) RETURN n".to_string());
         stats.record_aggregated_query(&profile, false);
-        
+
         assert_eq!(stats.get_total_aggregated_queries(), 1);
-        
+
         stats.clear_aggregated_stats();
-        
+
         assert_eq!(stats.get_total_aggregated_queries(), 0);
         assert_eq!(stats.get_pattern_count(), 0);
     }

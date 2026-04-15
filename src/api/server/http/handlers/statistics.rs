@@ -64,9 +64,11 @@ pub async fn queries<S: StorageClient + Clone + Send + Sync + 'static>(
     Query(params): Query<QueryStatsParams>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let stats_manager = state.server.get_stats_manager();
+    let global_metrics = crate::core::stats::GlobalMetrics::global();
 
-    // Get the total number of queries.
+    // Get the total number of queries from both sources
     let total_queries = stats_manager.get_value(MetricType::NumQueries).unwrap_or(0);
+    let global_query_total = global_metrics.get_query_count();
 
     // Obtain the list of slow queries.
     let slow_queries = stats_manager
@@ -117,6 +119,7 @@ pub async fn queries<S: StorageClient + Clone + Send + Sync + 'static>(
 
     Ok(JsonResponse(serde_json::json!({
         "total_queries": total_queries,
+        "global_query_total": global_query_total,
         "slow_queries": slow_queries,
         "query_types": {
             "MATCH": match_queries,
@@ -140,6 +143,7 @@ pub async fn database<S: StorageClient + Clone + Send + Sync + 'static>(
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let stats_manager = state.server.get_stats_manager();
     let storage = state.server.get_storage();
+    let global_metrics = crate::core::stats::GlobalMetrics::global();
 
     // Using `spawn_blocking` in an asynchronous context to acquire a storage lock
     let storage_stats = {
@@ -152,7 +156,7 @@ pub async fn database<S: StorageClient + Clone + Send + Sync + 'static>(
         .map_err(|e| HttpError::internal(format!("Failed to get storage statistics: {:?}", e)))?
     };
 
-    // Obtain statistics related to the query.
+    // Obtain statistics related to the query from both sources
     let total_queries = stats_manager.get_value(MetricType::NumQueries).unwrap_or(0);
     let active_queries = stats_manager
         .get_value(MetricType::NumActiveQueries)
@@ -207,6 +211,7 @@ pub async fn database<S: StorageClient + Clone + Send + Sync + 'static>(
         },
         "performance": {
             "total_queries": total_queries,
+            "global_query_total": global_metrics.get_query_count(),
             "active_queries": active_queries,
             "query_cache_size": cache_size,
             "queries_per_second": qps,
