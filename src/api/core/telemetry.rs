@@ -482,7 +482,10 @@ mod tests {
         counter.increment(100);
 
         let snapshot = recorder.get_snapshot();
-        assert!(snapshot.counters.iter().any(|(k, v)| k == "test_counter" && *v == 100));
+        assert!(snapshot
+            .counters
+            .iter()
+            .any(|(k, v)| k == "test_counter" && *v == 100));
     }
 
     #[test]
@@ -496,7 +499,10 @@ mod tests {
 
         let filtered = snapshot.filter_by_prefix("graphdb_");
         assert_eq!(filtered.counters.len(), 2);
-        assert!(filtered.counters.iter().all(|(k, _)| k.starts_with("graphdb_")));
+        assert!(filtered
+            .counters
+            .iter()
+            .all(|(k, _)| k.starts_with("graphdb_")));
     }
 
     #[test]

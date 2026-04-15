@@ -168,8 +168,9 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
 
     // Create Tokio runtime for async initialization
     // Initialize telemetry recorder and set as global
-    let telemetry_recorder = Arc::new(crate::api::telemetry::TelemetryRecorder::new());
-    if let Err(e) = crate::api::telemetry::set_global_recorder((*telemetry_recorder).clone()) {
+    let telemetry_recorder = Arc::new(crate::api::core::telemetry::TelemetryRecorder::new());
+    if let Err(e) = crate::api::core::telemetry::set_global_recorder((*telemetry_recorder).clone())
+    {
         let _ = output::print_error(&format!("Failed to set global telemetry recorder: {}", e));
     } else {
         let _ = output::print_success("Telemetry recorder initialized");
@@ -178,26 +179,26 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
     let rt = tokio::runtime::Runtime::new()?;
     rt.block_on(async {
         // Start telemetry server if enabled
-    let _telemetry_handle = if config.telemetry.enabled {
-        let telemetry_config = crate::api::telemetry::TelemetryConfig {
-            bind_address: config.telemetry.bind_address.clone(),
-            port: config.telemetry.port,
-            max_histogram_entries: config.telemetry.max_histogram_entries,
-            cleanup_interval_secs: config.telemetry.cleanup_interval_secs,
+        let _telemetry_handle = if config.telemetry.enabled {
+            let telemetry_config = crate::api::server::telemetry_server::TelemetryConfig {
+                bind_address: config.telemetry.bind_address.clone(),
+                port: config.telemetry.port,
+                max_histogram_entries: config.telemetry.max_histogram_entries,
+                cleanup_interval_secs: config.telemetry.cleanup_interval_secs,
+            };
+            let telemetry_server = crate::api::server::telemetry_server::TelemetryServer::new(
+                telemetry_config,
+                telemetry_recorder.clone(),
+            );
+            let _ = output::print_info(&format!(
+                "Starting telemetry server on {}:{}",
+                config.telemetry.bind_address, config.telemetry.port
+            ));
+            Some(telemetry_server.spawn())
+        } else {
+            let _ = output::print_info("Telemetry server disabled");
+            None
         };
-        let telemetry_server = crate::api::telemetry::TelemetryServer::new(
-            telemetry_config,
-            telemetry_recorder.clone(),
-        );
-        let _ = output::print_info(&format!(
-            "Starting telemetry server on {}:{}",
-            config.telemetry.bind_address, config.telemetry.port
-        ));
-        Some(telemetry_server.spawn())
-    } else {
-        let _ = output::print_info("Telemetry server disabled");
-        None
-    };
 
         let graph_service =
             GraphService::<SyncStorage<DefaultStorage>>::new_with_transaction_manager(
@@ -339,6 +340,76 @@ pub async fn start_http_server<S: crate::storage::StorageClient + Clone + Send +
     serve(listener, app)
         .with_graceful_shutdown(async_shutdown_signal())
         .await?;
+
+    Ok(())
+}
+
+/// Start both HTTP and gRPC servers concurrently.
+#[cfg(all(feature = "server", feature = "grpc"))]
+pub async fn start_http_and_grpc_servers<
+    S: crate::storage::StorageClient + Clone + Send + Sync + 'static,
+>(
+    http_server: Arc<HttpServer<S>>,
+    config: &Config,
+) -> DBResult<()> {
+    use axum::serve;
+    use tokio::net::TcpListener;
+
+    let http_state = crate::api::server::http::AppState::new(http_server.clone());
+
+    // Create WebState for web management APIs
+    let storage_path = format!("{}/metadata.db", config.storage_path());
+    let web_router =
+        match crate::api::server::web::WebState::new(&storage_path, http_state.clone()).await {
+            Ok(web_state) => Some(crate::api::server::web::create_router(web_state)),
+            Err(e) => {
+                log::warn!(
+                    "Failed to initialize web management: {}, continuing without it",
+                    e
+                );
+                None
+            }
+        };
+
+    let http_app = crate::api::server::http::router::create_router(http_state.clone(), web_router);
+
+    // Setup gRPC address
+    let grpc_addr = format!("{}:{}", config.host(), config.grpc_port())
+        .parse::<std::net::SocketAddr>()
+        .map_err(|e| crate::core::error::DBError::Internal(e.to_string()))?;
+
+    // Setup HTTP address
+    let http_addr = format!("{}:{}", config.host(), config.port());
+
+    info!("HTTP server listening on {}", http_addr);
+    info!("gRPC server listening on {}", grpc_addr);
+
+    // Clone state for gRPC server
+    let grpc_state = http_state.clone();
+    let grpc_config = config.clone();
+
+    // Start HTTP server
+    let http_future = async move {
+        let http_listener = TcpListener::bind(&http_addr).await?;
+        serve(http_listener, http_app)
+            .with_graceful_shutdown(async_shutdown_signal())
+            .await?;
+        Ok::<(), crate::core::error::DBError>(())
+    };
+
+    // Start gRPC server
+    let grpc_future = async move {
+        crate::api::server::grpc::run_server(grpc_state, grpc_config, grpc_addr)
+            .await
+            .map_err(|e| crate::core::error::DBError::Internal(e.to_string()))?;
+        Ok::<(), crate::core::error::DBError>(())
+    };
+
+    // Run both servers concurrently
+    tokio::select! {
+        result = http_future => result?,
+        result = grpc_future => result?,
+    }
 
     Ok(())
 }

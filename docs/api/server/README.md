@@ -7,6 +7,7 @@
 | 文档 | 描述 |
 |------|------|
 | [api_implementation_plan.md](./api_implementation_plan.md) | Server API 分阶段实现方案 |
+| [grpc_implementation_plan.md](./grpc_implementation_plan.md) | gRPC 端口实现方案 |
 
 ## 快速导航
 

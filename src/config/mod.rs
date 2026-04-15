@@ -13,10 +13,19 @@ pub struct DatabaseConfig {
     pub host: String,
     /// Port
     pub port: u16,
+    /// gRPC port
+    #[serde(default = "DatabaseConfig::default_grpc_port")]
+    pub grpc_port: u16,
     /// Storage path
     pub storage_path: String,
     /// Maximum connections
     pub max_connections: usize,
+}
+
+impl DatabaseConfig {
+    fn default_grpc_port() -> u16 {
+        9669 // Default gRPC port for GraphDB
+    }
 }
 
 impl Default for DatabaseConfig {
@@ -24,6 +33,7 @@ impl Default for DatabaseConfig {
         Self {
             host: "127.0.0.1".to_string(),
             port: 9758,
+            grpc_port: Self::default_grpc_port(),
             storage_path: "data/graphdb".to_string(),
             max_connections: 10,
         }
@@ -410,6 +420,11 @@ impl Config {
     /// Get port
     pub fn port(&self) -> u16 {
         self.database.port
+    }
+
+    /// Get gRPC port
+    pub fn grpc_port(&self) -> u16 {
+        self.database.grpc_port
     }
 
     /// Get storage path
