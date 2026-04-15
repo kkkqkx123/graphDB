@@ -8,6 +8,8 @@
 //! - `profile`: detailed query profile (for monitoring and analysis)
 //! - `error_stats`: error statistics
 //! - `manager`: unified manager
+//! - `latency_histogram`: latency percentile calculations
+//! - `global_metrics`: Prometheus-style global metrics
 //!
 //! ## QueryMetrics vs QueryProfile
 //!
@@ -24,6 +26,8 @@
 //! - Usage scenarios: performance analysis, problem diagnosis, monitoring alarms
 
 pub mod error_stats;
+pub mod global_metrics;
+pub mod latency_histogram;
 pub mod manager;
 pub mod metrics;
 pub mod profile;
@@ -31,7 +35,12 @@ pub mod utils;
 
 // Re-export common types
 pub use error_stats::{ErrorInfo, ErrorStatsManager, ErrorSummary, ErrorType, QueryPhase};
+pub use global_metrics::{metrics, GlobalMetrics};
+pub use latency_histogram::LatencyHistogram;
 pub use manager::{MetricType, MetricValue, StatsManager};
 pub use metrics::QueryMetrics;
 pub use profile::{ExecutorStat, QueryProfile, QueryStatus, StageMetrics};
-pub use utils::{calculate_average, calculate_cache_hit_rate, duration_to_micros, format_duration, micros_to_millis, CacheMetrics};
+pub use utils::{
+    calculate_average, calculate_cache_hit_rate, duration_to_micros, format_duration,
+    micros_to_millis, CacheMetrics,
+};

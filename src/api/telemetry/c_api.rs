@@ -1,0 +1,206 @@
+//! C API Telemetry Module
+//!
+//! Provides C interface for accessing telemetry metrics data
+
+use crate::api::embedded::c_api::error::graphdb_error_code_t;
+use crate::api::embedded::c_api::types::{
+    graphdb_string_t, GRAPHDB_FREE_STRING,
+};
+use crate::api::telemetry::embedded::{EmbeddedTelemetry, init_telemetry};
+use std::ffi::{c_char, c_int, CStr, CString};
+
+/// Get all metrics in JSON format
+///
+/// # Arguments
+/// - `out_json`: Output parameter for JSON string (must be freed with graphdb_free_string)
+///
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `out_json` must be a valid pointer to store the result
+/// - The returned string must be freed using `graphdb_free_string`
+#[no_mangle]
+pub unsafe extern "C" fn graphdb_telemetry_get_json(out_json: *mut *mut c_char) -> c_int {
+    if out_json.is_null() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    let snapshot = EmbeddedTelemetry::get_metrics();
+    match serde_json::to_string_pretty(&snapshot) {
+        Ok(json) => match CString::new(json) {
+            Ok(cstr) => {
+                *out_json = cstr.into_raw();
+                graphdb_error_code_t::GRAPHDB_OK as c_int
+            }
+            Err(_) => graphdb_error_code_t::GRAPHDB_NOMEM as c_int,
+        },
+        Err(_) => graphdb_error_code_t::GRAPHDB_ERROR as c_int,
+    }
+}
+
+/// Get metrics in Prometheus text format
+///
+/// # Arguments
+/// - `out_text`: Output parameter for text string (must be freed with graphdb_free_string)
+///
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `out_text` must be a valid pointer to store the result
+/// - The returned string must be freed using `graphdb_free_string`
+#[no_mangle]
+pub unsafe extern "C" fn graphdb_telemetry_get_text(out_text: *mut *mut c_char) -> c_int {
+    if out_text.is_null() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    let text = EmbeddedTelemetry::export_to_text();
+    match CString::new(text) {
+        Ok(cstr) => {
+            *out_text = cstr.into_raw();
+            graphdb_error_code_t::GRAPHDB_OK as c_int
+        }
+        Err(_) => graphdb_error_code_t::GRAPHDB_NOMEM as c_int,
+    }
+}
+
+/// Get a specific counter value
+///
+/// # Arguments
+/// - `name`: Counter name (null-terminated string)
+/// - `out_value`: Output parameter for counter value
+///
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code (GRAPHDB_NOTFOUND if counter doesn't exist)
+///
+/// # Safety
+/// - `name` must be a valid null-terminated string
+/// - `out_value` must be a valid pointer to store the result
+#[no_mangle]
+pub unsafe extern "C" fn graphdb_telemetry_get_counter(
+    name: *const c_char,
+    out_value: *mut u64,
+) -> c_int {
+    if name.is_null() || out_value.is_null() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s,
+        Err(_) => return graphdb_error_code_t::GRAPHDB_INVALID as c_int,
+    };
+
+    match EmbeddedTelemetry::get_counter(name_str) {
+        Some(value) => {
+            *out_value = value;
+            graphdb_error_code_t::GRAPHDB_OK as c_int
+        }
+        None => graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
+    }
+}
+
+/// Get a specific gauge value
+///
+/// # Arguments
+/// - `name`: Gauge name (null-terminated string)
+/// - `out_value`: Output parameter for gauge value
+///
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code (GRAPHDB_NOTFOUND if gauge doesn't exist)
+///
+/// # Safety
+/// - `name` must be a valid null-terminated string
+/// - `out_value` must be a valid pointer to store the result
+#[no_mangle]
+pub unsafe extern "C" fn graphdb_telemetry_get_gauge(
+    name: *const c_char,
+    out_value: *mut f64,
+) -> c_int {
+    if name.is_null() || out_value.is_null() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s,
+        Err(_) => return graphdb_error_code_t::GRAPHDB_INVALID as c_int,
+    };
+
+    match EmbeddedTelemetry::get_gauge(name_str) {
+        Some(value) => {
+            *out_value = value;
+            graphdb_error_code_t::GRAPHDB_OK as c_int
+        }
+        None => graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
+    }
+}
+
+/// Check if telemetry is initialized
+///
+/// # Returns
+/// - 1 if initialized
+/// - 0 if not initialized
+#[no_mangle]
+pub extern "C" fn graphdb_telemetry_is_initialized() -> c_int {
+    if EmbeddedTelemetry::is_initialized() {
+        1
+    } else {
+        0
+    }
+}
+
+/// Initialize telemetry system
+///
+/// # Returns
+/// - Success: GRAPHDB_OK
+#[no_mangle]
+pub extern "C" fn graphdb_telemetry_init() -> c_int {
+    init_telemetry();
+    graphdb_error_code_t::GRAPHDB_OK as c_int
+}
+
+/// Get filtered metrics in JSON format
+///
+/// # Arguments
+/// - `prefix`: Metric name prefix filter (null-terminated string)
+/// - `out_json`: Output parameter for JSON string (must be freed with graphdb_free_string)
+///
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `prefix` must be a valid null-terminated string
+/// - `out_json` must be a valid pointer to store the result
+/// - The returned string must be freed using `graphdb_free_string`
+#[no_mangle]
+pub unsafe extern "C" fn graphdb_telemetry_get_filtered_json(
+    prefix: *const c_char,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    if prefix.is_null() || out_json.is_null() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    let prefix_str = match CStr::from_ptr(prefix).to_str() {
+        Ok(s) => s,
+        Err(_) => return graphdb_error_code_t::GRAPHDB_INVALID as c_int,
+    };
+
+    let snapshot = EmbeddedTelemetry::get_metrics_filtered(prefix_str);
+    match serde_json::to_string_pretty(&snapshot) {
+        Ok(json) => match CString::new(json) {
+            Ok(cstr) => {
+                *out_json = cstr.into_raw();
+                graphdb_error_code_t::GRAPHDB_OK as c_int
+            }
+            Err(_) => graphdb_error_code_t::GRAPHDB_NOMEM as c_int,
+        },
+        Err(_) => graphdb_error_code_t::GRAPHDB_ERROR as c_int,
+    }
+}

@@ -99,15 +99,15 @@ async fn list_vertices_by_tag<S: StorageClient + Clone + Send + Sync + 'static>(
             );
 
             let total = match graph_service.execute(session_id, &count_query) {
-                Ok(crate::query::executor::ExecutionResult::DataSet(ds)) => {
-                    ds.rows.first()
-                        .and_then(|row| row.first())
-                        .and_then(|val| match val {
-                            Value::Int64(c) => Some(*c),
-                            _ => None,
-                        })
-                        .unwrap_or(0)
-                }
+                Ok(crate::query::executor::ExecutionResult::DataSet(ds)) => ds
+                    .rows
+                    .first()
+                    .and_then(|row| row.first())
+                    .and_then(|val| match val {
+                        Value::Int64(c) => Some(*c),
+                        _ => None,
+                    })
+                    .unwrap_or(0),
                 _ => 0,
             };
 
@@ -126,12 +126,12 @@ async fn list_vertices_by_tag<S: StorageClient + Clone + Send + Sync + 'static>(
                 Ok(exec_result) => {
                     // Convert ExecutionResult to JSON values
                     let rows: Vec<serde_json::Value> = match exec_result {
-                        crate::query::executor::ExecutionResult::DataSet(ds) => {
-                            ds.rows.iter()
-                                .filter_map(|row| row.first())
-                                .map(|val| serde_json::json!({"vertex": val}))
-                                .collect()
-                        },
+                        crate::query::executor::ExecutionResult::DataSet(ds) => ds
+                            .rows
+                            .iter()
+                            .filter_map(|row| row.first())
+                            .map(|val| serde_json::json!({"vertex": val}))
+                            .collect(),
                         _ => vec![],
                     };
 
@@ -185,15 +185,15 @@ async fn list_edges_by_type<S: StorageClient + Clone + Send + Sync + 'static>(
             );
 
             let total = match graph_service.execute(session_id, &count_query) {
-                Ok(crate::query::executor::ExecutionResult::DataSet(ds)) => {
-                    ds.rows.first()
-                        .and_then(|row| row.first())
-                        .and_then(|val| match val {
-                            Value::Int64(c) => Some(*c),
-                            _ => None,
-                        })
-                        .unwrap_or(0)
-                }
+                Ok(crate::query::executor::ExecutionResult::DataSet(ds)) => ds
+                    .rows
+                    .first()
+                    .and_then(|row| row.first())
+                    .and_then(|val| match val {
+                        Value::Int64(c) => Some(*c),
+                        _ => None,
+                    })
+                    .unwrap_or(0),
                 _ => 0,
             };
 
@@ -212,12 +212,12 @@ async fn list_edges_by_type<S: StorageClient + Clone + Send + Sync + 'static>(
                 Ok(exec_result) => {
                     // Convert ExecutionResult to JSON values
                     let rows: Vec<serde_json::Value> = match exec_result {
-                        crate::query::executor::ExecutionResult::DataSet(ds) => {
-                            ds.rows.iter()
-                                .filter_map(|row| row.first())
-                                .map(|val| serde_json::json!({"edge": val}))
-                                .collect()
-                        },
+                        crate::query::executor::ExecutionResult::DataSet(ds) => ds
+                            .rows
+                            .iter()
+                            .filter_map(|row| row.first())
+                            .map(|val| serde_json::json!({"edge": val}))
+                            .collect(),
                         _ => vec![],
                     };
 

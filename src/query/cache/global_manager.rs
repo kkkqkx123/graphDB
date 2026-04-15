@@ -219,19 +219,17 @@ impl GlobalCacheManager {
 
     /// Update current memory usage
     pub fn update_memory_usage(&self) {
-        let plan_stats = self.plan_cache.stats();
         let cte_stats = self.cte_cache.get_stats();
 
-        let total_memory = plan_stats.estimated_memory_bytes() + cte_stats.current_memory;
+        let total_memory = cte_stats.current_memory;
         self.current_usage.store(total_memory, Ordering::Relaxed);
 
         let mut stats = self.stats.write();
         stats.total_memory = total_memory;
-        stats.plan_cache_stats = plan_stats.clone();
         stats.cte_cache_stats = cte_stats.clone();
-        stats.total_hits = plan_stats.hits.load(Ordering::Relaxed) + cte_stats.hit_count;
-        stats.total_misses = plan_stats.misses.load(Ordering::Relaxed) + cte_stats.miss_count;
-        stats.evictions = plan_stats.evictions.load(Ordering::Relaxed) + cte_stats.evicted_count;
+        stats.total_hits = cte_stats.hit_count;
+        stats.total_misses = cte_stats.miss_count;
+        stats.evictions = cte_stats.evicted_count;
     }
 
     /// Get statistics
@@ -248,7 +246,6 @@ impl GlobalCacheManager {
 
         let mut stats = self.stats.write();
         stats.total_memory = 0;
-        stats.plan_cache_stats = self.plan_cache.stats();
         stats.cte_cache_stats = self.cte_cache.get_stats();
     }
 

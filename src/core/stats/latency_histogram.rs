@@ -148,15 +148,27 @@ mod tests {
 
         // P50 should be around 50
         let p50 = histogram.p50();
-        assert!(p50 >= 49 && p50 <= 51, "P50 should be around 50, got {}", p50);
+        assert!(
+            p50 >= 49 && p50 <= 51,
+            "P50 should be around 50, got {}",
+            p50
+        );
 
         // P95 should be around 95
         let p95 = histogram.p95();
-        assert!(p95 >= 94 && p95 <= 96, "P95 should be around 95, got {}", p95);
+        assert!(
+            p95 >= 94 && p95 <= 96,
+            "P95 should be around 95, got {}",
+            p95
+        );
 
         // P99 should be around 99
         let p99 = histogram.p99();
-        assert!(p99 >= 98 && p99 <= 100, "P99 should be around 99, got {}", p99);
+        assert!(
+            p99 >= 98 && p99 <= 100,
+            "P99 should be around 99, got {}",
+            p99
+        );
     }
 
     #[test]

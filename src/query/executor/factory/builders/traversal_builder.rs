@@ -4,6 +4,7 @@
 
 use crate::core::error::QueryError;
 use crate::core::types::EdgeDirection;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::{
     AllPathsConfig, ExecutionContext, ExecutorConfig, MultiShortestPathConfig, ShortestPathConfig,
 };
@@ -12,7 +13,6 @@ use crate::query::executor::graph_operations::graph_traversal::algorithms::Multi
 use crate::query::executor::graph_operations::graph_traversal::{
     AllPathsExecutor, ExpandAllExecutor, ExpandExecutor, ShortestPathExecutor, TraverseExecutor,
 };
-use crate::query::executor::base::ExecutorEnum;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
     MultipleInputNode, PlanNode,
 };

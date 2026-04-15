@@ -8,7 +8,6 @@ use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::value::list::List;
-use crate::query::DataSet;
 use crate::core::{Expression, Path, Value};
 use crate::query::executor::base::{
     BaseExecutor, ExecutionResult, Executor, ExecutorConfig, RollupApplyConfig,
@@ -16,6 +15,7 @@ use crate::query::executor::base::{
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::DefaultExpressionContext;
+use crate::query::DataSet;
 use crate::storage::StorageClient;
 
 /// RollUpApply executor
@@ -397,7 +397,11 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
             .expect("Context should have right result");
 
         let left_values: Vec<Value> = match left_result {
-            ExecutionResult::DataSet(dataset) => dataset.rows.into_iter().flat_map(|row| row.into_iter()).collect(),
+            ExecutionResult::DataSet(dataset) => dataset
+                .rows
+                .into_iter()
+                .flat_map(|row| row.into_iter())
+                .collect(),
             _ => {
                 return Err(DBError::Query(
                     crate::core::error::QueryError::ExecutionError(
@@ -408,7 +412,11 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
         };
 
         let right_values: Vec<Value> = match right_result {
-            ExecutionResult::DataSet(dataset) => dataset.rows.into_iter().flat_map(|row| row.into_iter()).collect(),
+            ExecutionResult::DataSet(dataset) => dataset
+                .rows
+                .into_iter()
+                .flat_map(|row| row.into_iter())
+                .collect(),
             _ => {
                 return Err(DBError::Query(
                     crate::core::error::QueryError::ExecutionError(
@@ -489,20 +497,18 @@ mod tests {
             vec!["key".to_string()],
         );
         let right_dataset = DataSet::from_rows(
-            vec![vec![Value::Int(1)], vec![Value::Int(1)], vec![Value::Int(2)]],
+            vec![
+                vec![Value::Int(1)],
+                vec![Value::Int(1)],
+                vec![Value::Int(2)],
+            ],
             vec!["key".to_string()],
         );
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
-        context.set_result(
-            "left".to_string(),
-            ExecutionResult::DataSet(left_dataset),
-        );
-        context.set_result(
-            "right".to_string(),
-            ExecutionResult::DataSet(right_dataset),
-        );
+        context.set_result("left".to_string(), ExecutionResult::DataSet(left_dataset));
+        context.set_result("right".to_string(), ExecutionResult::DataSet(right_dataset));
 
         let compare_cols = vec![Expression::variable("_")];
         let collect_col = Expression::variable("_");
@@ -546,14 +552,8 @@ mod tests {
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
-        context.set_result(
-            "left".to_string(),
-            ExecutionResult::DataSet(left_dataset),
-        );
-        context.set_result(
-            "right".to_string(),
-            ExecutionResult::DataSet(right_dataset),
-        );
+        context.set_result("left".to_string(), ExecutionResult::DataSet(left_dataset));
+        context.set_result("right".to_string(), ExecutionResult::DataSet(right_dataset));
 
         let compare_cols: Vec<Expression> = vec![];
         let collect_col = Expression::Variable("_".to_string());
@@ -614,14 +614,8 @@ mod tests {
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
-        context.set_result(
-            "left".to_string(),
-            ExecutionResult::DataSet(left_dataset),
-        );
-        context.set_result(
-            "right".to_string(),
-            ExecutionResult::DataSet(right_dataset),
-        );
+        context.set_result("left".to_string(), ExecutionResult::DataSet(left_dataset));
+        context.set_result("right".to_string(), ExecutionResult::DataSet(right_dataset));
 
         let compare_cols = vec![
             Expression::subscript(Expression::variable("_"), Expression::literal(0i64)),
@@ -672,14 +666,8 @@ mod tests {
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
-        context.set_result(
-            "left".to_string(),
-            ExecutionResult::DataSet(left_dataset),
-        );
-        context.set_result(
-            "right".to_string(),
-            ExecutionResult::DataSet(right_dataset),
-        );
+        context.set_result("left".to_string(), ExecutionResult::DataSet(left_dataset));
+        context.set_result("right".to_string(), ExecutionResult::DataSet(right_dataset));
 
         let compare_cols = vec![Expression::variable("_")];
         let collect_col = Expression::Variable("_".to_string());
@@ -729,14 +717,8 @@ mod tests {
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
-        context.set_result(
-            "left".to_string(),
-            ExecutionResult::DataSet(left_dataset),
-        );
-        context.set_result(
-            "right".to_string(),
-            ExecutionResult::DataSet(right_dataset),
-        );
+        context.set_result("left".to_string(), ExecutionResult::DataSet(left_dataset));
+        context.set_result("right".to_string(), ExecutionResult::DataSet(right_dataset));
 
         let compare_cols = vec![Expression::literal(0i64)];
         let collect_col = Expression::Variable("_".to_string());

@@ -178,7 +178,9 @@ async fn get_neighbors<S: StorageClient + Clone + Send + Sync + 'static>(
                         .into_iter()
                         .flat_map(|row| row.into_iter())
                         .filter_map(|v| match v {
-                            crate::core::Value::Vertex(vertex) => Some(serde_json::json!({"vertex": vertex})),
+                            crate::core::Value::Vertex(vertex) => {
+                                Some(serde_json::json!({"vertex": vertex}))
+                            }
                             _ => None,
                         })
                         .collect(),

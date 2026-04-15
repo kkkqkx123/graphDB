@@ -11,8 +11,8 @@ use crate::core::Value;
 use crate::query::executor::expression::functions::{CustomFunction, FunctionRegistry};
 use crate::search::FulltextIndexManager;
 use crate::storage::StorageClient;
-use crate::sync::SyncManager;
 use crate::sync::vector_sync::SearchOptions;
+use crate::sync::SyncManager;
 use crate::transaction::TransactionManager;
 use crate::transaction::TransactionOptions;
 use parking_lot::Mutex;
@@ -555,15 +555,14 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
             .space_id
             .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
 
-        let sync_manager = self
-            .db
-            .sync_manager
-            .as_ref()
-            .ok_or_else(|| CoreError::InvalidParameter("Sync manager not available".to_string()))?;
+        let sync_manager =
+            self.db.sync_manager.as_ref().ok_or_else(|| {
+                CoreError::InvalidParameter("Sync manager not available".to_string())
+            })?;
 
-        let coordinator = sync_manager
-            .vector_coordinator()
-            .ok_or_else(|| CoreError::InvalidParameter("Vector coordinator not available".to_string()))?;
+        let coordinator = sync_manager.vector_coordinator().ok_or_else(|| {
+            CoreError::InvalidParameter("Vector coordinator not available".to_string())
+        })?;
 
         let options = SearchOptions::new(space_id, tag_name, field_name, query_vector, limit);
         let results = coordinator
@@ -606,15 +605,14 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
             .space_id
             .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
 
-        let sync_manager = self
-            .db
-            .sync_manager
-            .as_ref()
-            .ok_or_else(|| CoreError::InvalidParameter("Sync manager not available".to_string()))?;
+        let sync_manager =
+            self.db.sync_manager.as_ref().ok_or_else(|| {
+                CoreError::InvalidParameter("Sync manager not available".to_string())
+            })?;
 
-        let coordinator = sync_manager
-            .vector_coordinator()
-            .ok_or_else(|| CoreError::InvalidParameter("Vector coordinator not available".to_string()))?;
+        let coordinator = sync_manager.vector_coordinator().ok_or_else(|| {
+            CoreError::InvalidParameter("Vector coordinator not available".to_string())
+        })?;
 
         let options = SearchOptions::new(space_id, tag_name, field_name, query_vector, limit)
             .with_threshold(threshold);
@@ -656,15 +654,14 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
             .space_id
             .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
 
-        let sync_manager = self
-            .db
-            .sync_manager
-            .as_ref()
-            .ok_or_else(|| CoreError::InvalidParameter("Sync manager not available".to_string()))?;
+        let sync_manager =
+            self.db.sync_manager.as_ref().ok_or_else(|| {
+                CoreError::InvalidParameter("Sync manager not available".to_string())
+            })?;
 
-        let coordinator = sync_manager
-            .vector_coordinator()
-            .ok_or_else(|| CoreError::InvalidParameter("Vector coordinator not available".to_string()))?;
+        let coordinator = sync_manager.vector_coordinator().ok_or_else(|| {
+            CoreError::InvalidParameter("Vector coordinator not available".to_string())
+        })?;
 
         coordinator
             .create_vector_index(space_id, tag_name, field_name, vector_size, distance)
@@ -681,24 +678,19 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// # Return
     /// - Returns () on success
     /// - Return error on failure
-    pub async fn drop_vector_index(
-        &self,
-        tag_name: &str,
-        field_name: &str,
-    ) -> CoreResult<()> {
+    pub async fn drop_vector_index(&self, tag_name: &str, field_name: &str) -> CoreResult<()> {
         let space_id = self
             .space_id
             .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
 
-        let sync_manager = self
-            .db
-            .sync_manager
-            .as_ref()
-            .ok_or_else(|| CoreError::InvalidParameter("Sync manager not available".to_string()))?;
+        let sync_manager =
+            self.db.sync_manager.as_ref().ok_or_else(|| {
+                CoreError::InvalidParameter("Sync manager not available".to_string())
+            })?;
 
-        let coordinator = sync_manager
-            .vector_coordinator()
-            .ok_or_else(|| CoreError::InvalidParameter("Vector coordinator not available".to_string()))?;
+        let coordinator = sync_manager.vector_coordinator().ok_or_else(|| {
+            CoreError::InvalidParameter("Vector coordinator not available".to_string())
+        })?;
 
         coordinator
             .drop_vector_index(space_id, tag_name, field_name)

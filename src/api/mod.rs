@@ -18,8 +18,13 @@ pub mod server;
 #[cfg(feature = "embedded")]
 pub mod embedded;
 
+/// Telemetry module for metrics collection and exposure
+pub mod telemetry;
+
 // Convenient export options
-pub use core::{CoreError, CoreResult, QueryApi, SchemaApi, SyncApi, VectorApi, VectorSearchResult};
+pub use core::{
+    CoreError, CoreResult, QueryApi, SchemaApi, SyncApi, VectorApi, VectorSearchResult,
+};
 
 #[cfg(feature = "server")]
 pub use server::{session, HttpServer};
@@ -165,8 +170,36 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
     let _ = output::print_success("Transaction manager initialized");
 
     // Create Tokio runtime for async initialization
+    // Initialize telemetry recorder and set as global
+    let telemetry_recorder = Arc::new(crate::api::telemetry::TelemetryRecorder::new());
+    if let Err(e) = crate::api::telemetry::set_global_recorder((*telemetry_recorder).clone()) {
+        let _ = output::print_error(&format!("Failed to set global telemetry recorder: {}", e));
+    } else {
+        let _ = output::print_success("Telemetry recorder initialized");
+    }
+
     let rt = tokio::runtime::Runtime::new()?;
     rt.block_on(async {
+        // Start telemetry server if enabled
+        let _telemetry_handle = if config.telemetry.enabled {
+            let telemetry_config = crate::api::telemetry::server::TelemetryConfig {
+                bind_address: config.telemetry.bind_address.clone(),
+                port: config.telemetry.port,
+                max_histogram_entries: config.telemetry.max_histogram_entries,
+                cleanup_interval_secs: config.telemetry.cleanup_interval_secs,
+            };
+            let telemetry_server =
+                crate::api::telemetry::server::TelemetryServer::new(telemetry_config, telemetry_recorder.clone());
+            let _ = output::print_info(&format!(
+                "Starting telemetry server on {}:{}",
+                config.telemetry.bind_address, config.telemetry.port
+            ));
+            Some(telemetry_server.spawn())
+        } else {
+            let _ = output::print_info("Telemetry server disabled");
+            None
+        };
+
         let graph_service =
             GraphService::<SyncStorage<DefaultStorage>>::new_with_transaction_manager(
                 config.clone(),

@@ -21,9 +21,7 @@ use graphdb::storage::{RedbStorage, StorageClient};
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-fn get_storage(
-    storage: &Arc<Mutex<RedbStorage>>,
-) -> parking_lot::MutexGuard<'_, RedbStorage> {
+fn get_storage(storage: &Arc<Mutex<RedbStorage>>) -> parking_lot::MutexGuard<'_, RedbStorage> {
     storage.lock()
 }
 

@@ -181,10 +181,7 @@ mod tests {
                 last_insert_vertex_id: 0,
                 last_insert_edge_id: 0,
             };
-            assert_eq!(
-                graphdb_session_get_statistics(session_ptr, &mut stats),
-                0
-            );
+            assert_eq!(graphdb_session_get_statistics(session_ptr, &mut stats), 0);
             assert_eq!(stats.last_changes, 0);
             assert_eq!(stats.total_changes, 0);
 

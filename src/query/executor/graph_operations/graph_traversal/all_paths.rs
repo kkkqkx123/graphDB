@@ -20,11 +20,11 @@ use rayon::prelude::*;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, NPath, Path, Value};
-use crate::query::DataSet;
 use crate::query::executor::base::{
     AllPathsConfig, BaseExecutor, EdgeDirection, ExecutionResult, Executor, ExecutorStats,
 };
 use crate::query::executor::utils::recursion_detector::ParallelConfig;
+use crate::query::DataSet;
 use crate::storage::StorageClient;
 
 /// Auxiliary structure for removing duplicates from self-loop edges
@@ -618,10 +618,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AllPathsExecutor<
             .get_stats_mut()
             .add_stat("paths_found".to_string(), paths.len().to_string());
 
-        let rows: Vec<Vec<Value>> = paths
-            .into_iter()
-            .map(|p| vec![Value::Path(p)])
-            .collect();
+        let rows: Vec<Vec<Value>> = paths.into_iter().map(|p| vec![Value::Path(p)]).collect();
         let dataset = DataSet::from_rows(rows, vec!["path".to_string()]);
         Ok(ExecutionResult::DataSet(dataset))
     }

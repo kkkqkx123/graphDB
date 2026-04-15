@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use super::super::base::{BaseExecutor, EdgeDirection, ExecutorStats, PathConfig};
 use crate::core::{Path, Step, Value};
-use crate::query::DataSet;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::query::DataSet;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
@@ -89,18 +89,18 @@ impl<S: StorageClient> Executor<S> for AllPathsExecutor<S> {
             }
 
             current_paths = next_paths;
-        if current_paths.is_empty() {
-            break;
+            if current_paths.is_empty() {
+                break;
+            }
         }
-    }
 
-    let rows: Vec<Vec<Value>> = all_paths
-        .into_iter()
-        .map(|path| vec![Value::Path(path)])
-        .collect();
-    let dataset = DataSet::from_rows(rows, vec!["path".to_string()]);
-    Ok(ExecutionResult::DataSet(dataset))
-}
+        let rows: Vec<Vec<Value>> = all_paths
+            .into_iter()
+            .map(|path| vec![Value::Path(path)])
+            .collect();
+        let dataset = DataSet::from_rows(rows, vec!["path".to_string()]);
+        Ok(ExecutionResult::DataSet(dataset))
+    }
 
     fn open(&mut self) -> DBResult<()> {
         Ok(())

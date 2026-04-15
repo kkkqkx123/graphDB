@@ -186,9 +186,9 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
             .map(|agg_func| {
                 // AggregateFunction 的 name() 返回函数名
                 let func_name = agg_func.name().to_string();
-                AggregateFunctionSpec::new(
-                    crate::core::types::operators::AggregateFunction::Count(None),
-                )
+                AggregateFunctionSpec::new(crate::core::types::operators::AggregateFunction::Count(
+                    None,
+                ))
                 .with_field(func_name)
             })
             .collect();

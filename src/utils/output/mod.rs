@@ -41,14 +41,13 @@ pub use manager::{
 // JSON formatter (Phase 2)
 mod json;
 pub use json::{
-    print_json, print_json_compact, print_json_to, to_json_string, to_json_string_compact, JsonFormatter,
+    print_json, print_json_compact, print_json_to, to_json_string, to_json_string_compact,
+    JsonFormatter,
 };
 
 // Table formatter (Phase 2)
 mod table;
-pub use table::{
-    print_table, print_table_to, TableFormatter,
-};
+pub use table::{print_table, print_table_to, TableFormatter};
 
 // Configuration (Phase 3)
 mod config;

@@ -51,8 +51,6 @@ pub fn knows_edge_type_info() -> EdgeTypeInfo {
 }
 
 /// Helper function to get storage guard from Arc<Mutex<RedbStorage>>
-pub fn get_storage(
-    storage: &Arc<Mutex<RedbStorage>>,
-) -> MutexGuard<'_, RedbStorage> {
+pub fn get_storage(storage: &Arc<Mutex<RedbStorage>>) -> MutexGuard<'_, RedbStorage> {
     storage.lock()
 }

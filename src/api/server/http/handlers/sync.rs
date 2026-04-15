@@ -1,7 +1,4 @@
-use axum::{
-    extract::State,
-    response::Json as JsonResponse,
-};
+use axum::{extract::State, response::Json as JsonResponse};
 use serde::Serialize;
 
 use crate::api::server::http::{error::HttpError, state::AppState};
@@ -37,5 +34,3 @@ pub async fn status<S: StorageClient + Clone + Send + Sync + 'static>(
         }))
     }
 }
-
-

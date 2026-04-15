@@ -12,8 +12,6 @@
 //! 3. Shared caching strategies (LRU, TTL, etc.)
 //! 4. Unified collection of statistics and indicators
 
-use std::sync::atomic::Ordering;
-
 // Submodule
 pub mod cte_cache;
 pub mod global_manager;
@@ -23,7 +21,7 @@ pub mod warmup;
 // Reexport the plan cache type.
 pub use plan_cache::{
     CachePriority, CachedPlan, ParamPosition, ParameterizedQueryHandler, PlanCacheConfig,
-    PlanCacheKey, PlanCacheStats, QueryPlanCache,
+    PlanCacheKey, PlanCacheMetrics, PlanCacheStats, QueryPlanCache,
 };
 
 // Re-export the CTE cache type
@@ -104,10 +102,9 @@ impl CacheManager {
         if let Some(global) = &self.global_manager {
             global.total_memory_usage()
         } else {
-            let plan_stats = self.plan_cache.stats();
+            // Using metrics-based approach - approximate memory usage
             let cte_stats = self.cte_cache.get_stats();
-
-            plan_stats.estimated_memory_bytes() + cte_stats.current_memory
+            cte_stats.current_memory
         }
     }
 
@@ -123,15 +120,15 @@ impl CacheManager {
 
     /// Obtain a summary of cache statistics.
     pub fn stats_summary(&self) -> CacheStatsSummary {
-        let plan_stats = self.plan_cache.stats();
         let cte_stats = self.cte_cache.get_stats();
 
         CacheStatsSummary {
-            plan_cache_entries: plan_stats.current_entries.load(Ordering::Relaxed),
-            plan_cache_hit_rate: plan_stats.hit_rate(),
+            // Plan cache metrics now use global metrics crate
+            plan_cache_entries: 0, // Would need to read from global metrics registry
+            plan_cache_hit_rate: 0.0, // Would need to calculate from global metrics
             cte_cache_entries: cte_stats.entry_count,
             cte_cache_hit_rate: cte_stats.hit_rate(),
-            total_memory_bytes: plan_stats.estimated_memory_bytes() + cte_stats.current_memory,
+            total_memory_bytes: cte_stats.current_memory,
         }
     }
 

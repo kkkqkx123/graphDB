@@ -161,9 +161,7 @@ impl FulltextStorage {
         for tag in &vertex.tags {
             for field_name in changed_fields {
                 if let Some(Value::String(text)) = tag.properties.get(field_name) {
-                    if let Some(engine) =
-                        self.manager.get_engine(space_id, &tag.name, field_name)
-                    {
+                    if let Some(engine) = self.manager.get_engine(space_id, &tag.name, field_name) {
                         // Delete old document first
                         engine.delete(&doc_id).await.ok();
                         // Index new content

@@ -6,9 +6,9 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor};
-use crate::query::executor::base::ExecutorEnum;
 use crate::storage::StorageClient;
 
 /// Physical state

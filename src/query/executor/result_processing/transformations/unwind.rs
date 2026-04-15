@@ -6,7 +6,6 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
-use crate::query::DataSet;
 use crate::core::{Expression, Value};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::{ExecutionResult, Executor};
@@ -15,6 +14,7 @@ use crate::query::executor::expression::{
     DefaultExpressionContext, ExpressionContext as EvalContext,
 };
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::query::DataSet;
 use crate::storage::StorageClient;
 
 /// Unwind Actuator
@@ -103,13 +103,15 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                     for value in row {
                         expr_context.set_variable("_".to_string(), value.clone());
 
-                        let unwind_value =
-                            ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
-                                .map_err(|e| {
-                                DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                    e.to_string(),
-                                ))
-                            })?;
+                        let unwind_value = ExpressionEvaluator::evaluate(
+                            &self.unwind_expression,
+                            &mut expr_context,
+                        )
+                        .map_err(|e| {
+                            DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                e.to_string(),
+                            ))
+                        })?;
 
                         let list_values = self.extract_list(&unwind_value);
 
@@ -183,10 +185,7 @@ mod tests {
             Value::Int(3),
         ]));
 
-        let input_dataset = DataSet::from_rows(
-            vec![vec![list_value]],
-            vec!["value".to_string()],
-        );
+        let input_dataset = DataSet::from_rows(vec![vec![list_value]], vec!["value".to_string()]);
         let input_result = ExecutionResult::DataSet(input_dataset);
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -212,11 +211,14 @@ mod tests {
             ExecutionResult::DataSet(dataset) => {
                 assert_eq!(dataset.rows.len(), 3);
                 assert_eq!(dataset.rows[0].len(), 2);
-                assert_eq!(dataset.rows[0][0], Value::List(List::from(vec![
-                    Value::Int(1),
-                    Value::Int(2),
-                    Value::Int(3),
-                ])));
+                assert_eq!(
+                    dataset.rows[0][0],
+                    Value::List(List::from(vec![
+                        Value::Int(1),
+                        Value::Int(2),
+                        Value::Int(3),
+                    ]))
+                );
                 assert_eq!(dataset.rows[0][1], Value::Int(1));
                 assert_eq!(dataset.rows[1][1], Value::Int(2));
                 assert_eq!(dataset.rows[2][1], Value::Int(3));

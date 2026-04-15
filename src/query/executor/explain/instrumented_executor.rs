@@ -6,8 +6,8 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::query::executor::base::{DBResult, ExecutionResult, Executor, ExecutorStats};
 use crate::query::executor::base::ExecutorEnum;
+use crate::query::executor::base::{DBResult, ExecutionResult, Executor, ExecutorStats};
 use crate::storage::StorageClient;
 
 use super::execution_stats_context::ExecutionStatsContext;
@@ -78,7 +78,8 @@ impl<S: StorageClient + Send + 'static> Executor<S> for InstrumentedExecutor<S> 
         }
 
         self.collect_inner_stats();
-        self.context.record_startup_time(self.node_id, self.startup_time_us);
+        self.context
+            .record_startup_time(self.node_id, self.startup_time_us);
         self.context
             .on_node_complete(self.node_id, self.stats.clone());
 

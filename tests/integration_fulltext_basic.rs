@@ -31,7 +31,10 @@ async fn test_create_fulltext_index() {
     let index_id = result.unwrap();
 
     // Verify index_id format
-    assert_eq!(index_id, "1_Article_content", "Index ID format should be correct");
+    assert_eq!(
+        index_id, "1_Article_content",
+        "Index ID format should be correct"
+    );
 
     // Verify index exists
     assert!(
@@ -66,12 +69,12 @@ async fn test_create_duplicate_index() {
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
         .await;
 
+    assert!(result2.is_err(), "Duplicate index creation should fail");
     assert!(
-        result2.is_err(),
-        "Duplicate index creation should fail"
-    );
-    assert!(
-        matches!(result2.unwrap_err(), graphdb::search::SearchError::IndexAlreadyExists(_)),
+        matches!(
+            result2.unwrap_err(),
+            graphdb::search::SearchError::IndexAlreadyExists(_)
+        ),
         "Should return IndexAlreadyExists error"
     );
 }
@@ -186,8 +189,7 @@ async fn test_index_and_search() {
         .expect("Search should succeed");
 
     // Verify results
-    assert_search_result_contains(&results, "doc_1")
-        .expect("Search should return doc_1");
+    assert_search_result_contains(&results, "doc_1").expect("Search should return doc_1");
     assert_eq!(results.len(), 1, "Should return 1 result");
 }
 
@@ -252,7 +254,10 @@ async fn test_update_document() {
 
     // Delete old document first
     if let Some(engine) = ctx.manager.get_engine(1, "Article", "content") {
-        engine.delete("doc_1").await.expect("Failed to delete old document");
+        engine
+            .delete("doc_1")
+            .await
+            .expect("Failed to delete old document");
     }
 
     // Insert document with new content
@@ -268,16 +273,14 @@ async fn test_update_document() {
         .search(1, "Article", "content", "Old", 10)
         .await
         .expect("Search should succeed");
-    assert_search_result_not_contains(&old_results, "doc_1")
-        .expect("Should not find old content");
+    assert_search_result_not_contains(&old_results, "doc_1").expect("Should not find old content");
 
     // Search for new content - should find
     let new_results = ctx
         .search(1, "Article", "content", "New", 10)
         .await
         .expect("Search should succeed");
-    assert_search_result_contains(&new_results, "doc_1")
-        .expect("Should find new content");
+    assert_search_result_contains(&new_results, "doc_1").expect("Should find new content");
 }
 
 /// TC-FT-009: Delete Document
@@ -352,7 +355,10 @@ async fn test_batch_delete() {
     if let Some(engine) = ctx.manager.get_engine(1, "Article", "content") {
         let ids: Vec<String> = (0..5).map(|i| format!("doc_{}", i)).collect();
         let ids_ref: Vec<&str> = ids.iter().map(|s| s.as_str()).collect();
-        engine.delete_batch(ids_ref).await.expect("Failed to batch delete");
+        engine
+            .delete_batch(ids_ref)
+            .await
+            .expect("Failed to batch delete");
     }
 
     // Commit

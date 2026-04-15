@@ -9,10 +9,10 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-use crate::query::executor::base::ExecutorEnum;
 use super::execution_context::ExecutionContext;
 use super::execution_result::{DBResult, ExecutionResult};
 use super::executor_stats::ExecutorStats;
+use crate::query::executor::base::ExecutorEnum;
 
 /// A unified Executor trait
 ///

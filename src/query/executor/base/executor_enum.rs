@@ -24,18 +24,24 @@ use crate::query::executor::admin::{
 use crate::query::executor::base::{
     BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, InputExecutor, StartExecutor,
 };
+use crate::query::executor::control_flow::{
+    ForLoopExecutor, LoopExecutor, SelectExecutor, WhileLoopExecutor,
+};
 use crate::query::executor::data_access::{
     CreateVectorIndexExecutor, DropVectorIndexExecutor, FulltextScanExecutor,
     FulltextSearchExecutor, GetEdgesExecutor, GetNeighborsExecutor, GetPropExecutor,
     GetVerticesExecutor, IndexScanExecutor, MatchFulltextExecutor, ScanEdgesExecutor,
     ScanVerticesExecutor, VectorLookupExecutor, VectorMatchExecutor, VectorSearchExecutor,
 };
-use crate::query::executor::data_modification::{DeleteExecutor, InsertExecutor, RemoveExecutor, UpdateExecutor};
+use crate::query::executor::data_modification::{
+    DeleteExecutor, InsertExecutor, RemoveExecutor, UpdateExecutor,
+};
 use crate::query::executor::graph_operations::graph_traversal::algorithms::BFSShortestExecutor;
 use crate::query::executor::graph_operations::graph_traversal::{
     algorithms::MultiShortestPathExecutor, AllPathsExecutor, ExpandAllExecutor, ExpandExecutor,
     ShortestPathExecutor, TraverseExecutor,
 };
+use crate::query::executor::graph_operations::MaterializeExecutor;
 use crate::query::executor::relational_algebra::join::{
     CrossJoinExecutor, FullOuterJoinExecutor, HashInnerJoinExecutor, HashLeftJoinExecutor,
     InnerJoinExecutor, LeftJoinExecutor,
@@ -43,19 +49,17 @@ use crate::query::executor::relational_algebra::join::{
 use crate::query::executor::relational_algebra::set_operations::{
     IntersectExecutor, MinusExecutor, UnionAllExecutor, UnionExecutor,
 };
-use crate::query::executor::graph_operations::MaterializeExecutor;
-use crate::query::executor::control_flow::{ForLoopExecutor, LoopExecutor, SelectExecutor, WhileLoopExecutor};
-use crate::query::executor::utils::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
+use crate::query::executor::relational_algebra::{
+    AggregateExecutor, FilterExecutor, GroupByExecutor, HavingExecutor, ProjectExecutor,
+};
 use crate::query::executor::result_processing::transformations::{
     AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor,
     UnwindExecutor,
 };
-use crate::query::executor::relational_algebra::{
-    AggregateExecutor, FilterExecutor, GroupByExecutor, HavingExecutor, ProjectExecutor,
-};
 use crate::query::executor::result_processing::{
     DedupExecutor, LimitExecutor, SampleExecutor, SortExecutor, TopNExecutor,
 };
+use crate::query::executor::utils::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
 
 /// Executor enumeration
 ///

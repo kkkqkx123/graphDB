@@ -6,13 +6,13 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::query::DataSet;
 use crate::core::{Expression, Value};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, JoinConfig, JoinConfigWithDesc};
+use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::relational_algebra::join::hash_table::JoinKey;
 use crate::query::executor::relational_algebra::join::join_key_evaluator::JoinKeyEvaluator;
-use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::query::DataSet;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 use ExpressionAnalysisContext as ExpressionContextStruct;
@@ -135,7 +135,6 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
             }
         };
 
-
         let right_dataset = match right_result {
             ExecutionResult::DataSet(dataset) => dataset.clone(),
             _ => {
@@ -144,7 +143,6 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
                 ))
             }
         };
-
 
         Ok((left_dataset, right_dataset))
     }

@@ -156,14 +156,14 @@ pub async fn get_index_info<S: StorageClient + Clone + Send + Sync + 'static>(
     if let Some(vector_api) = vector_api {
         match vector_api.get_index_info(space_id, &tag_name, &field_name) {
             Ok(Some(info)) => Ok(JsonResponse(VectorIndexDetailsResponse {
-            collection_name: format!("space_{}_{}_{}", space_id, tag_name, field_name),
-            status: "green".to_string(),
-            vectors_count: info.vector_count,
-            points_count: 0,
-            indexed_vectors_count: 0,
-            vector_size: info.config.vector_size,
-            distance: format!("{:?}", info.config.distance),
-        })),
+                collection_name: format!("space_{}_{}_{}", space_id, tag_name, field_name),
+                status: "green".to_string(),
+                vectors_count: info.vector_count,
+                points_count: 0,
+                indexed_vectors_count: 0,
+                vector_size: info.config.vector_size,
+                distance: format!("{:?}", info.config.distance),
+            })),
             Ok(None) => Err(HttpError::NotFound("Vector index not found".to_string())),
             Err(e) => Err(HttpError::InternalError(e.to_string())),
         }
@@ -208,15 +208,15 @@ pub async fn search<S: StorageClient + Clone + Send + Sync + 'static>(
             request.query_vector,
             request.limit,
         );
-        
+
         if let Some(threshold) = request.threshold {
             options = options.with_threshold(threshold);
         }
-        
+
         if let Some(filter) = request.filter {
             options = options.with_filter(filter);
         }
-        
+
         let results = vector_api
             .search_with_options(options)
             .await
@@ -256,7 +256,9 @@ pub async fn get_vector<S: StorageClient + Clone + Send + Sync + 'static>(
         let point = vector_api
             .get_vector(space_id, &tag_name, &field_name, &point_id)
             .await
-            .map_err(|e: crate::api::core::error::CoreError| HttpError::InternalError(e.to_string()))?;
+            .map_err(|e: crate::api::core::error::CoreError| {
+                HttpError::InternalError(e.to_string())
+            })?;
 
         match point {
             Some(p) => Ok(JsonResponse(serde_json::json!({
@@ -291,7 +293,9 @@ pub async fn count<S: StorageClient + Clone + Send + Sync + 'static>(
         let count = vector_api
             .count(space_id, &tag_name, &field_name)
             .await
-            .map_err(|e: crate::api::core::error::CoreError| HttpError::InternalError(e.to_string()))?;
+            .map_err(|e: crate::api::core::error::CoreError| {
+                HttpError::InternalError(e.to_string())
+            })?;
 
         Ok(JsonResponse(serde_json::json!({
             "success": true,

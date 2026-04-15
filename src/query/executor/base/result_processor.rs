@@ -6,8 +6,8 @@
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
-use crate::query::DataSet;
 use crate::query::executor::base::ExecutionResult;
+use crate::query::DataSet;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 

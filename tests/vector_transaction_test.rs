@@ -86,8 +86,11 @@ async fn test_vector_transaction_buffer_cleanup() {
 #[tokio::test]
 async fn test_vector_sync_coordinator_with_buffer() {
     // Create a mock vector manager (using disabled config)
-    let vector_manager =
-        Arc::new(VectorManager::new(VectorClientConfig::disabled()).await.unwrap());
+    let vector_manager = Arc::new(
+        VectorManager::new(VectorClientConfig::disabled())
+            .await
+            .unwrap(),
+    );
 
     // Create coordinator with transaction buffer
     let coordinator = VectorSyncCoordinator::with_transaction_buffer(
@@ -135,8 +138,11 @@ async fn test_vector_sync_coordinator_with_buffer() {
 #[tokio::test]
 async fn test_vector_sync_coordinator_rollback() {
     // Create a mock vector manager
-    let vector_manager =
-        Arc::new(VectorManager::new(VectorClientConfig::disabled()).await.unwrap());
+    let vector_manager = Arc::new(
+        VectorManager::new(VectorClientConfig::disabled())
+            .await
+            .unwrap(),
+    );
 
     // Create coordinator with transaction buffer
     let coordinator = VectorSyncCoordinator::with_transaction_buffer(

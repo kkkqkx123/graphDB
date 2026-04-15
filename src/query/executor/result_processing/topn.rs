@@ -13,15 +13,15 @@ use rayon::prelude::*;
 use crate::core::error::{DBError, DBResult};
 use crate::core::types::OrderDirection;
 use crate::core::Expression;
-use crate::query::DataSet;
 use crate::core::Value;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 use crate::query::executor::base::{ExecutionResult, Executor};
-use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::utils::recursion_detector::ParallelConfig;
+use crate::query::DataSet;
 use crate::storage::StorageClient;
 
 /// Sorting column definition
@@ -1322,4 +1322,3 @@ mod tests {
         }
     }
 }
-

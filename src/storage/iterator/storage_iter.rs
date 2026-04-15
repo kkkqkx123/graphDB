@@ -45,7 +45,7 @@ impl From<IterError> for StorageError {
     }
 }
 
-/// Iterator statistics
+/// Iterator statistics using metrics crate
 #[derive(Debug, Clone, Default)]
 pub struct IterStats {
     pub items_scanned: u64,
@@ -61,22 +61,27 @@ impl IterStats {
     }
 
     pub fn record_scan(&mut self) {
+        metrics::counter!("graphdb_storage_iter_items_scanned_total").increment(1);
         self.items_scanned += 1;
     }
 
     pub fn record_return(&mut self) {
+        metrics::counter!("graphdb_storage_iter_items_returned_total").increment(1);
         self.items_returned += 1;
     }
 
     pub fn record_seek(&mut self) {
+        metrics::counter!("graphdb_storage_iter_seek_operations_total").increment(1);
         self.seek_operations += 1;
     }
 
     pub fn record_cache_hit(&mut self) {
+        metrics::counter!("graphdb_storage_iter_cache_hits_total").increment(1);
         self.cache_hits += 1;
     }
 
     pub fn record_cache_miss(&mut self) {
+        metrics::counter!("graphdb_storage_iter_cache_misses_total").increment(1);
         self.cache_misses += 1;
     }
 }

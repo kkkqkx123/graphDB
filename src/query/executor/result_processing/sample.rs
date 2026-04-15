@@ -9,11 +9,11 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
-use crate::query::DataSet;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 use crate::query::executor::base::{ExecutionResult, Executor};
-use crate::query::executor::base::ExecutorEnum;
+use crate::query::DataSet;
 use crate::storage::StorageClient;
 
 /// Sampling method

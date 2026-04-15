@@ -89,7 +89,10 @@ async fn test_vertex_insert_auto_sync() {
     if results.iter().any(|r| r.doc_id == expected_doc_id) {
         // Success
     } else {
-        panic!("Should find synced document with doc_id={:?}", expected_doc_id);
+        panic!(
+            "Should find synced document with doc_id={:?}",
+            expected_doc_id
+        );
     }
 }
 
@@ -121,7 +124,10 @@ async fn test_vertex_update_auto_sync() {
 
     // Update vertex - delete old content first, then insert new content
     if let Some(engine) = ctx.fulltext_ctx.manager.get_engine(1, "Article", "content") {
-        engine.delete("1").await.expect("Failed to delete old content");
+        engine
+            .delete("1")
+            .await
+            .expect("Failed to delete old content");
     }
 
     let update_props = create_test_properties("New Content");
@@ -325,9 +331,7 @@ async fn test_concurrent_transaction_buffers() {
         .expect("Failed to create index");
 
     // Simulate concurrent vertex inserts
-    let vertex_ids: Vec<graphdb::core::Value> = (1..=6)
-        .map(graphdb::core::Value::Int)
-        .collect();
+    let vertex_ids: Vec<graphdb::core::Value> = (1..=6).map(graphdb::core::Value::Int).collect();
 
     // Insert first batch (TX1)
     for (idx, vertex_id) in vertex_ids.iter().take(3).enumerate() {

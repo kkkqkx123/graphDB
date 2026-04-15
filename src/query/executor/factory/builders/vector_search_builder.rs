@@ -9,11 +9,11 @@ use parking_lot::Mutex;
 
 use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::data_access::{
     CreateVectorIndexExecutor, DropVectorIndexExecutor, VectorLookupExecutor, VectorMatchExecutor,
     VectorSearchExecutor,
 };
-use crate::query::executor::base::ExecutorEnum;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::query::planning::plan::core::nodes::search::vector::data_access::{
     VectorLookupNode, VectorMatchNode, VectorSearchNode,

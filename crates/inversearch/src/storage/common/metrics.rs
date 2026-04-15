@@ -1,26 +1,23 @@
-//! 存储性能指标
+//! Storage performance metrics
 //!
-//! 提供存储操作性能统计功能
+//! Provides storage operation performance statistics
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
-/// 存储性能指标
 #[derive(Debug, Clone, Default)]
 pub struct StorageMetrics {
     pub operation_count: usize,
-    pub average_latency: usize, // 微秒
+    pub average_latency: usize,
     pub memory_usage: usize,
     pub error_count: usize,
 }
 
 impl StorageMetrics {
-    /// 创建空的指标
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// 重置所有指标
     pub fn reset(&mut self) {
         self.operation_count = 0;
         self.average_latency = 0;
@@ -29,9 +26,6 @@ impl StorageMetrics {
     }
 }
 
-/// 操作计时器
-///
-/// 用于测量操作执行时间并更新指标
 pub struct OperationTimer {
     start: Instant,
     operation_count: AtomicUsize,
@@ -39,7 +33,6 @@ pub struct OperationTimer {
 }
 
 impl OperationTimer {
-    /// 创建新的计时器
     pub fn new(operation_count: &AtomicUsize, total_latency: &AtomicUsize) -> Self {
         Self {
             start: Instant::now(),
@@ -48,24 +41,20 @@ impl OperationTimer {
         }
     }
 
-    /// 记录操作完成
-    ///
-    /// 计算延迟并更新指标
     pub fn record_completion(&self) {
         let latency = self.start.elapsed().as_micros() as usize;
+        metrics::counter!("inversearch_storage_operations_total").increment(1);
+        metrics::histogram!("inversearch_storage_latency_micros")
+            .record(latency as f64);
         self.operation_count.fetch_add(1, Ordering::Relaxed);
         self.total_latency.fetch_add(latency, Ordering::Relaxed);
     }
 
-    /// 获取当前延迟（微秒）
     pub fn elapsed_micros(&self) -> u128 {
         self.start.elapsed().as_micros()
     }
 }
 
-/// 指标收集器
-///
-/// 用于收集和计算性能指标
 #[derive(Debug)]
 pub struct MetricsCollector {
     operation_count: AtomicUsize,
@@ -74,7 +63,6 @@ pub struct MetricsCollector {
 }
 
 impl MetricsCollector {
-    /// 创建新的指标收集器
     pub fn new() -> Self {
         Self {
             operation_count: AtomicUsize::new(0),
@@ -83,34 +71,32 @@ impl MetricsCollector {
         }
     }
 
-    /// 开始计时
     pub fn start_timer(&self) -> Instant {
         Instant::now()
     }
 
-    /// 记录操作完成
     pub fn record_operation(&self, start: Instant) {
         let latency = start.elapsed().as_micros() as usize;
+        metrics::counter!("inversearch_storage_operations_total").increment(1);
+        metrics::histogram!("inversearch_storage_latency_micros")
+            .record(latency as f64);
         self.operation_count.fetch_add(1, Ordering::Relaxed);
         self.total_latency.fetch_add(latency, Ordering::Relaxed);
     }
 
-    /// 记录错误
     pub fn record_error(&self) {
+        metrics::counter!("inversearch_storage_errors_total").increment(1);
         self.error_count.fetch_add(1, Ordering::Relaxed);
     }
 
-    /// 获取操作计数
     pub fn get_operation_count(&self) -> usize {
         self.operation_count.load(Ordering::Relaxed)
     }
 
-    /// 获取总延迟（微秒）
     pub fn get_total_latency(&self) -> usize {
         self.total_latency.load(Ordering::Relaxed)
     }
 
-    /// 获取平均延迟（微秒）
     pub fn get_average_latency(&self) -> usize {
         let count = self.get_operation_count();
         if count > 0 {
@@ -120,13 +106,13 @@ impl MetricsCollector {
         }
     }
 
-    /// 获取错误计数
     pub fn get_error_count(&self) -> usize {
         self.error_count.load(Ordering::Relaxed)
     }
 
-    /// 获取当前指标
     pub fn get_metrics(&self, memory_usage: usize) -> StorageMetrics {
+        metrics::gauge!("inversearch_storage_memory_usage")
+            .set(memory_usage as f64);
         StorageMetrics {
             operation_count: self.get_operation_count(),
             average_latency: self.get_average_latency(),
@@ -135,7 +121,6 @@ impl MetricsCollector {
         }
     }
 
-    /// 重置所有指标
     pub fn reset(&self) {
         self.operation_count.store(0, Ordering::Relaxed);
         self.total_latency.store(0, Ordering::Relaxed);

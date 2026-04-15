@@ -10,7 +10,9 @@ pub struct StdoutWriter {
 impl StdoutWriter {
     /// Create a new stdout writer
     pub fn new() -> Self {
-        Self { stdout: io::stdout() }
+        Self {
+            stdout: io::stdout(),
+        }
     }
 }
 
@@ -38,7 +40,9 @@ pub struct StderrWriter {
 impl StderrWriter {
     /// Create a new stderr writer
     pub fn new() -> Self {
-        Self { stderr: io::stderr() }
+        Self {
+            stderr: io::stderr(),
+        }
     }
 }
 
@@ -76,10 +80,7 @@ impl FileWriter {
         use std::fs::OpenOptions;
 
         let file = if append {
-            OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(path)?
+            OpenOptions::new().create(true).append(true).open(path)?
         } else {
             OpenOptions::new()
                 .create(true)
@@ -157,7 +158,9 @@ mod tests {
     #[test]
     fn test_multi_writer() {
         let stdout = StdoutWriter::new();
-        let file = FileWriter::new(std::fs::File::create(std::env::temp_dir().join("test_multi.log")).unwrap());
+        let file = FileWriter::new(
+            std::fs::File::create(std::env::temp_dir().join("test_multi.log")).unwrap(),
+        );
 
         let mut multi = MultiWriter::with_stdout_and_file(stdout, file);
         multi.write_all(b"hello").unwrap();
@@ -165,7 +168,7 @@ mod tests {
 
         // Note: We can't easily verify the content without interior mutability
         // This test mainly checks that it compiles and runs without panic
-        
+
         // Clean up
         let _ = std::fs::remove_file(std::env::temp_dir().join("test_multi.log"));
     }

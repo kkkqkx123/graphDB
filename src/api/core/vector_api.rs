@@ -6,11 +6,10 @@ use crate::api::core::error::{CoreError, CoreResult};
 use crate::api::core::types::VectorSearchResult;
 use crate::sync::vector_sync::{SearchOptions, VectorIndexLocation, VectorSyncCoordinator};
 use std::sync::Arc;
-use vector_client::{
-    CollectionConfig, DistanceMetric, SearchQuery, VectorManager, VectorPoint,
-    VectorClientError,
-};
 use vector_client::manager::IndexMetadata;
+use vector_client::{
+    CollectionConfig, DistanceMetric, SearchQuery, VectorClientError, VectorManager, VectorPoint,
+};
 
 /// Vector Index API – Core Layer
 pub struct VectorApi {
@@ -185,12 +184,9 @@ impl VectorApi {
         &self,
         options: SearchOptions,
     ) -> CoreResult<Vec<VectorSearchResult>> {
-        let collection_name = VectorIndexLocation::new(
-            options.space_id,
-            &options.tag_name,
-            &options.field_name,
-        )
-        .to_collection_name();
+        let collection_name =
+            VectorIndexLocation::new(options.space_id, &options.tag_name, &options.field_name)
+                .to_collection_name();
 
         let mut query = SearchQuery::new(options.query_vector, options.limit);
 
@@ -235,12 +231,7 @@ impl VectorApi {
     }
 
     /// Get vector index count
-    pub async fn count(
-        &self,
-        space_id: u64,
-        tag_name: &str,
-        field_name: &str,
-    ) -> CoreResult<u64> {
+    pub async fn count(&self, space_id: u64, tag_name: &str, field_name: &str) -> CoreResult<u64> {
         let collection_name = format!("space_{}_{}_{}", space_id, tag_name, field_name);
         self.vector_manager
             .count(&collection_name)

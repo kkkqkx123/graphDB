@@ -8,15 +8,15 @@ use std::time::Instant;
 use crate::core::error::DBError;
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::{Expression, Value};
-use crate::query::DataSet;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::{BaseExecutor, ExecutorStats};
 use crate::query::executor::base::{
     DBResult, ExecutionResult, Executor, HasStorage, InputExecutor,
 };
-use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::expression::evaluation_context::DefaultExpressionContext;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::query::DataSet;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
@@ -72,10 +72,8 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for RemoveExecutor<S>
         self.base.get_stats_mut().add_total_time(elapsed);
         match result {
             Ok(count) => {
-                let dataset = DataSet::from_rows(
-                    vec![vec![Value::Int(count)]],
-                    vec!["count".to_string()],
-                );
+                let dataset =
+                    DataSet::from_rows(vec![vec![Value::Int(count)]], vec!["count".to_string()]);
                 Ok(ExecutionResult::DataSet(dataset))
             }
             Err(e) => Err(e),

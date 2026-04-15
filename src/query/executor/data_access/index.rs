@@ -2,10 +2,10 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use super::super::base::{BaseExecutor, ExecutorStats};
-use crate::query::DataSet;
 use crate::core::Value;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::query::DataSet;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
@@ -46,10 +46,7 @@ impl<S: StorageClient> Executor<S> for LookupIndexExecutor<S> {
         self.base.get_stats_mut().add_total_time(elapsed);
         match result {
             Ok(values) => {
-                let rows = values
-                    .into_iter()
-                    .map(|v| vec![v])
-                    .collect();
+                let rows = values.into_iter().map(|v| vec![v]).collect();
                 let dataset = DataSet::from_rows(rows, vec!["value".to_string()]);
                 Ok(ExecutionResult::DataSet(dataset))
             }

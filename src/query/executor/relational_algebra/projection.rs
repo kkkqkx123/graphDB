@@ -14,8 +14,8 @@ use crate::core::Expression;
 use crate::core::Value;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::Executor;
-use crate::query::executor::base::InputExecutor;
 use crate::query::executor::base::ExecutorEnum;
+use crate::query::executor::base::InputExecutor;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::DefaultExpressionContext;
@@ -281,10 +281,7 @@ impl<S: StorageClient> ProjectExecutor<S> {
     /// Choose the processing method based on the amount of data:
     /// The amount of data is less than single_thread_limit: The processing is done using a single thread.
     /// Large amount of data: Parallel processing using Rayon technology
-    fn project_dataset(
-        &self,
-        dataset: crate::query::DataSet,
-    ) -> DBResult<crate::query::DataSet> {
+    fn project_dataset(&self, dataset: crate::query::DataSet) -> DBResult<crate::query::DataSet> {
         let mut result_dataset = crate::query::DataSet::new();
 
         // Set new column names
@@ -551,4 +548,3 @@ mod tests {
         assert_eq!(projected_dataset.rows[2], vec![Value::Int(33)]);
     }
 }
-

@@ -7,7 +7,6 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::core::error::DBResult as ExecutorDBResult;
-use crate::query::DataSet;
 use crate::core::Value;
 use crate::query::core::NodeType;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, ExecutorStats};
@@ -15,6 +14,7 @@ use crate::query::executor::factory::ExecutorFactory;
 use crate::query::parser::ast::stmt::ExplainFormat;
 use crate::query::planning::plan::explain::{DescribeVisitor, PlanDescription, ProfilingStats};
 use crate::query::planning::plan::ExecutionPlan;
+use crate::query::DataSet;
 use crate::storage::StorageClient;
 
 use super::execution_stats_context::ExecutionStatsContext;
@@ -121,7 +121,10 @@ impl<S: StorageClient + Send + 'static> ProfileExecutor<S> {
                             "startup_time_ms".to_string(),
                             format!("{:.3}", stats.startup_time_us as f64 / 1000.0),
                         );
-                        map.insert("memory_used".to_string(), format!("{}", stats.memory_used()));
+                        map.insert(
+                            "memory_used".to_string(),
+                            format!("{}", stats.memory_used()),
+                        );
                         map.insert(
                             "cache_hit_rate".to_string(),
                             format!("{:.2}%", stats.cache_hit_rate() * 100.0),

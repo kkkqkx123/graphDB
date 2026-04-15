@@ -13,10 +13,10 @@ use crate::query::executor::admin::{
     DescribeFulltextIndexExecutor, DropFulltextIndexExecutor, ShowFulltextIndexExecutor,
 };
 use crate::query::executor::base::ExecutionContext;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::data_access::{
     FulltextScanConfig, FulltextScanExecutor, FulltextSearchExecutor, MatchFulltextExecutor,
 };
-use crate::query::executor::base::ExecutorEnum;
 use crate::query::parser::ast::SearchStatement;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::query::planning::plan::core::nodes::search::fulltext::data_access::FulltextSearchNode;

@@ -6,12 +6,12 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
-use crate::query::DataSet;
 use crate::core::Value;
 use crate::query::executor::base::JoinConfig;
 use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::relational_algebra::join::base_join::BaseJoinExecutor;
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::query::DataSet;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 use ExpressionAnalysisContext as ExpressionContextStruct;
@@ -240,25 +240,23 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
 
             let left_dataset = match left_result {
                 ExecutionResult::DataSet(dataset) => dataset.clone(),
-                ExecutionResult::Empty | ExecutionResult::Success => {
-                    DataSet {
-                        col_names: self.base_executor.get_col_names().clone(),
-                        rows: Vec::new(),
-                    }
-                }
+                ExecutionResult::Empty | ExecutionResult::Success => DataSet {
+                    col_names: self.base_executor.get_col_names().clone(),
+                    rows: Vec::new(),
+                },
                 ExecutionResult::Error(msg) => {
-                    return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(msg)));
+                    return Err(DBError::Query(
+                        crate::core::error::QueryError::ExecutionError(msg),
+                    ));
                 }
             };
 
             let right_dataset = match right_result {
                 ExecutionResult::DataSet(dataset) => dataset.clone(),
-                ExecutionResult::Empty | ExecutionResult::Success => {
-                    DataSet {
-                        col_names: vec!["_empty".to_string()],
-                        rows: Vec::new(),
-                    }
-                }
+                ExecutionResult::Empty | ExecutionResult::Success => DataSet {
+                    col_names: vec!["_empty".to_string()],
+                    rows: Vec::new(),
+                },
                 ExecutionResult::Error(msg) => {
                     return Err(DBError::Query(
                         crate::core::error::QueryError::ExecutionError(msg),
@@ -325,8 +323,8 @@ impl<S: StorageClient + Send + 'static> crate::query::executor::base::HasStorage
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use crate::core::Value;
     use crate::query::DataSet;
-use crate::core::Value;
     use crate::storage::test_mock::MockStorage;
     use ExpressionAnalysisContext;
 
@@ -369,15 +367,17 @@ use crate::core::Value;
             ],
         };
 
-        executor.base_executor.get_base_mut().context.set_result(
-            "left".to_string(),
-            ExecutionResult::DataSet(left_dataset),
-        );
+        executor
+            .base_executor
+            .get_base_mut()
+            .context
+            .set_result("left".to_string(), ExecutionResult::DataSet(left_dataset));
 
-        executor.base_executor.get_base_mut().context.set_result(
-            "right".to_string(),
-            ExecutionResult::DataSet(right_dataset),
-        );
+        executor
+            .base_executor
+            .get_base_mut()
+            .context
+            .set_result("right".to_string(), ExecutionResult::DataSet(right_dataset));
 
         // Establish the connection.
         let result = executor.execute().expect("Failed to execute");
@@ -439,15 +439,17 @@ use crate::core::Value;
             rows: Vec::new(), // Empty right-hand table
         };
 
-        executor.base_executor.get_base_mut().context.set_result(
-            "left".to_string(),
-            ExecutionResult::DataSet(left_dataset),
-        );
+        executor
+            .base_executor
+            .get_base_mut()
+            .context
+            .set_result("left".to_string(), ExecutionResult::DataSet(left_dataset));
 
-        executor.base_executor.get_base_mut().context.set_result(
-            "right".to_string(),
-            ExecutionResult::DataSet(right_dataset),
-        );
+        executor
+            .base_executor
+            .get_base_mut()
+            .context
+            .set_result("right".to_string(), ExecutionResult::DataSet(right_dataset));
 
         // Establish the connection.
         let result = executor.execute().expect("Failed to execute");
@@ -503,20 +505,23 @@ use crate::core::Value;
             rows: vec![vec![Value::Int(4), Value::Int(5), Value::Int(6)]],
         };
 
-        executor.base_executor.get_base_mut().context.set_result(
-            "table1".to_string(),
-            ExecutionResult::DataSet(table1),
-        );
+        executor
+            .base_executor
+            .get_base_mut()
+            .context
+            .set_result("table1".to_string(), ExecutionResult::DataSet(table1));
 
-        executor.base_executor.get_base_mut().context.set_result(
-            "table2".to_string(),
-            ExecutionResult::DataSet(table2),
-        );
+        executor
+            .base_executor
+            .get_base_mut()
+            .context
+            .set_result("table2".to_string(), ExecutionResult::DataSet(table2));
 
-        executor.base_executor.get_base_mut().context.set_result(
-            "table3".to_string(),
-            ExecutionResult::DataSet(table3),
-        );
+        executor
+            .base_executor
+            .get_base_mut()
+            .context
+            .set_result("table3".to_string(), ExecutionResult::DataSet(table3));
 
         // Establish the connection.
         let result = executor.execute().expect("Failed to execute");

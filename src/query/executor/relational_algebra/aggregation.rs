@@ -20,16 +20,16 @@ use std::sync::Arc;
 use crate::core::types::operators::AggregateFunction;
 use crate::core::value::{NullType, Value};
 use crate::core::Expression;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, ExecutorStats};
-use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::DefaultExpressionContext;
-use crate::query::executor::utils::recursion_detector::ParallelConfig;
 use crate::query::executor::result_processing::agg_data::AggData;
 use crate::query::executor::result_processing::agg_function_manager::AggFunctionManager;
+use crate::query::executor::utils::recursion_detector::ParallelConfig;
 use crate::storage::StorageClient;
 
 /// Aggregation function specifications
@@ -285,10 +285,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
     }
 
     /// Convert Vertices to a DataSet for aggregation
-    fn _vertices_to_dataset(
-        &self,
-        vertices: Vec<crate::core::Vertex>,
-    ) -> crate::query::DataSet {
+    fn _vertices_to_dataset(&self, vertices: Vec<crate::core::Vertex>) -> crate::query::DataSet {
         let mut dataset = crate::query::DataSet::new();
         // Use the first group key as the column name, or default to "vertex"
         let col_name = self
@@ -310,10 +307,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
     }
 
     /// Convert Edges to a DataSet for aggregation
-    fn _edges_to_dataset(
-        &self,
-        edges: Vec<crate::core::Edge>,
-    ) -> crate::query::DataSet {
+    fn _edges_to_dataset(&self, edges: Vec<crate::core::Edge>) -> crate::query::DataSet {
         let mut dataset = crate::query::DataSet::new();
         // Use the first group key as the column name, or default to "edge"
         let col_name = self
@@ -359,10 +353,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
     }
 
     /// 处理 COUNT(*) 特殊情况
-    fn handle_count_star(
-        &self,
-        dataset: crate::query::DataSet,
-    ) -> DBResult<crate::query::DataSet> {
+    fn handle_count_star(&self, dataset: crate::query::DataSet) -> DBResult<crate::query::DataSet> {
         let mut result_dataset = crate::query::DataSet::new();
         result_dataset.col_names.push("count".to_string());
         result_dataset
@@ -1151,4 +1142,3 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for HavingExecutor<S> {
         self.input_executor.as_deref()
     }
 }
-

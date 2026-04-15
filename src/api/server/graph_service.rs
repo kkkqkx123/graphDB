@@ -4,9 +4,9 @@ use crate::api::server::permission::PermissionManager;
 use crate::api::server::session::{ClientSession, GraphSessionManager, SpaceInfo};
 use crate::config::Config;
 use crate::core::error::{SessionError, SessionResult};
-use crate::query::DataSet;
 use crate::core::{MetricType, Permission, StatsManager};
 use crate::query::executor::ExecutionResult;
+use crate::query::DataSet;
 use crate::storage::StorageClient;
 use crate::transaction::TransactionManager;
 use log::{info, warn};
@@ -117,9 +117,9 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let server_stats_manager = Arc::new(StatsManager::new());
 
         // Create sync API if storage supports it
-        let sync_api = storage.get_sync_manager().map(|sync_manager| {
-            Arc::new(SyncApi::new(sync_manager))
-        });
+        let sync_api = storage
+            .get_sync_manager()
+            .map(|sync_manager| Arc::new(SyncApi::new(sync_manager)));
 
         Arc::new(Self {
             session_manager,

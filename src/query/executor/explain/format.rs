@@ -310,14 +310,21 @@ fn truncate_or_pad(s: &str, width: usize) -> String {
 }
 
 /// Format plan description using output module's table formatter
-pub fn format_plan_with_output_table(plan_desc: &PlanDescription) -> crate::utils::output::Result<String> {
+pub fn format_plan_with_output_table(
+    plan_desc: &PlanDescription,
+) -> crate::utils::output::Result<String> {
     use crate::utils::output::TableFormatter;
 
     let mut formatter = TableFormatter::new();
 
     // Set headers
     formatter.set_headers(&[
-        "id", "name", "deps", "profiling_data", "operator_info", "output_var",
+        "id",
+        "name",
+        "deps",
+        "profiling_data",
+        "operator_info",
+        "output_var",
     ]);
 
     // Add rows
@@ -367,21 +374,17 @@ pub fn format_plan_with_output_table(plan_desc: &PlanDescription) -> crate::util
             node.output_var.clone()
         };
 
-        formatter.add_row(&[
-            &id,
-            &node.name,
-            &deps,
-            &profile,
-            &info,
-            &output_var_str,
-        ]);
+        formatter.add_row(&[&id, &node.name, &deps, &profile, &info, &output_var_str]);
     }
 
     formatter.render_to_string()
 }
 
 /// Format plan description as JSON using output module
-pub fn format_plan_as_json(plan_desc: &PlanDescription, pretty: bool) -> crate::utils::output::Result<String> {
+pub fn format_plan_as_json(
+    plan_desc: &PlanDescription,
+    pretty: bool,
+) -> crate::utils::output::Result<String> {
     use serde::Serialize;
 
     #[derive(Serialize)]

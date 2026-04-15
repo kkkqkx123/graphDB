@@ -198,6 +198,36 @@ impl Default for MonitoringConfig {
     }
 }
 
+/// Telemetry configuration
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct TelemetryConfig {
+    /// Whether to enable telemetry server
+    pub enabled: bool,
+    /// Bind address
+    pub bind_address: String,
+    /// Port number
+    pub port: u16,
+    /// Default output format (json or text)
+    pub format: String,
+    /// Maximum histogram entries before cleanup
+    pub max_histogram_entries: usize,
+    /// Cleanup interval in seconds
+    pub cleanup_interval_secs: u64,
+}
+
+impl Default for TelemetryConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            bind_address: "0.0.0.0".to_string(),
+            port: 9090,
+            format: "json".to_string(),
+            max_histogram_entries: 10000,
+            cleanup_interval_secs: 60,
+        }
+    }
+}
+
 /// Global configuration
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Config {
@@ -217,6 +247,9 @@ pub struct Config {
     /// Monitoring configuration
     #[serde(default)]
     pub monitoring: MonitoringConfig,
+    /// Telemetry configuration
+    #[serde(default)]
+    pub telemetry: TelemetryConfig,
     /// Vector search configuration
     #[serde(default)]
     pub vector: VectorClientConfig,

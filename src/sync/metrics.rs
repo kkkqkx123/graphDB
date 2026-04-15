@@ -6,159 +6,276 @@ use std::fmt;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::time::Duration;
 
-/// Sync system metrics
+/// Sync system metrics using metrics crate
 #[derive(Debug, Default)]
 pub struct SyncMetrics {
-    /// Total number of transactions committed
-    pub transactions_committed: AtomicU64,
-    /// Total number of transactions rolled back
-    pub transactions_rolled_back: AtomicU64,
-    /// Total number of index operations
-    pub index_operations_total: AtomicU64,
-    /// Number of index operations by type (insert, update, delete)
-    pub index_operations_insert: AtomicU64,
-    pub index_operations_update: AtomicU64,
-    pub index_operations_delete: AtomicU64,
-    /// Number of retry attempts
-    pub retry_attempts_total: AtomicU64,
-    /// Number of successful retries
-    pub retry_successes: AtomicU64,
-    /// Number of failed retries (exhausted)
-    pub retry_failures: AtomicU64,
-    /// Number of operations in dead letter queue
-    pub dead_letter_queue_size: AtomicUsize,
-    /// Current number of active transactions
-    pub active_transactions: AtomicUsize,
-    /// Total processing time (in milliseconds)
-    pub total_processing_time_ms: AtomicU64,
-    /// Number of compensation attempts
-    pub compensation_attempts_total: AtomicU64,
-    /// Number of successful compensations
-    pub compensation_successes: AtomicU64,
-    /// Number of failed compensations
-    pub compensation_failures: AtomicU64,
-    /// Last error message
-    last_error: parking_lot::Mutex<Option<String>>,
+    // Internal counters maintained for get_stats() compatibility
+    // The actual metrics are recorded via global metrics crate
+    #[allow(dead_code)]
+    internal_counters: SyncInternalCounters,
+}
+
+#[derive(Debug, Default)]
+struct SyncInternalCounters {
+    transactions_committed: AtomicU64,
+    transactions_rolled_back: AtomicU64,
+    index_operations_total: AtomicU64,
+    index_operations_insert: AtomicU64,
+    index_operations_update: AtomicU64,
+    index_operations_delete: AtomicU64,
+    retry_attempts_total: AtomicU64,
+    retry_successes: AtomicU64,
+    retry_failures: AtomicU64,
+    dead_letter_queue_size: AtomicUsize,
+    active_transactions: AtomicUsize,
+    total_processing_time_ms: AtomicU64,
+    compensation_attempts_total: AtomicU64,
+    compensation_successes: AtomicU64,
+    compensation_failures: AtomicU64,
 }
 
 impl SyncMetrics {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            internal_counters: SyncInternalCounters::default(),
+        }
     }
 
     pub fn record_transaction_commit(&self) {
-        self.transactions_committed.fetch_add(1, Ordering::Relaxed);
+        metrics::counter!("graphdb_sync_transactions_committed_total").increment(1);
+        self.internal_counters
+            .transactions_committed
+            .fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn record_transaction_rollback(&self) {
-        self.transactions_rolled_back
+        metrics::counter!("graphdb_sync_transactions_rolled_back_total").increment(1);
+        self.internal_counters
+            .transactions_rolled_back
             .fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn record_index_operation(&self, operation_type: &str) {
-        self.index_operations_total.fetch_add(1, Ordering::Relaxed);
+        metrics::counter!("graphdb_sync_index_operations_total").increment(1);
+        self.internal_counters
+            .index_operations_total
+            .fetch_add(1, Ordering::Relaxed);
         match operation_type {
-            "insert" => self.index_operations_insert.fetch_add(1, Ordering::Relaxed),
-            "update" => self.index_operations_update.fetch_add(1, Ordering::Relaxed),
-            "delete" => self.index_operations_delete.fetch_add(1, Ordering::Relaxed),
-            _ => return,
+            "insert" => {
+                metrics::counter!("graphdb_sync_index_operations_insert_total").increment(1);
+                self.internal_counters
+                    .index_operations_insert
+                    .fetch_add(1, Ordering::Relaxed);
+            }
+            "update" => {
+                metrics::counter!("graphdb_sync_index_operations_update_total").increment(1);
+                self.internal_counters
+                    .index_operations_update
+                    .fetch_add(1, Ordering::Relaxed);
+            }
+            "delete" => {
+                metrics::counter!("graphdb_sync_index_operations_delete_total").increment(1);
+                self.internal_counters
+                    .index_operations_delete
+                    .fetch_add(1, Ordering::Relaxed);
+            }
+            _ => {}
         };
     }
 
     pub fn record_retry_attempt(&self) {
-        self.retry_attempts_total.fetch_add(1, Ordering::Relaxed);
+        metrics::counter!("graphdb_sync_retry_attempts_total").increment(1);
+        self.internal_counters
+            .retry_attempts_total
+            .fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn record_retry_success(&self) {
-        self.retry_successes.fetch_add(1, Ordering::Relaxed);
+        metrics::counter!("graphdb_sync_retry_successes_total").increment(1);
+        self.internal_counters
+            .retry_successes
+            .fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn record_retry_failure(&self) {
-        self.retry_failures.fetch_add(1, Ordering::Relaxed);
+        metrics::counter!("graphdb_sync_retry_failures_total").increment(1);
+        self.internal_counters
+            .retry_failures
+            .fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn record_dead_letter(&self) {
-        self.dead_letter_queue_size.fetch_add(1, Ordering::Relaxed);
+        metrics::gauge!("graphdb_sync_dead_letter_queue_size").increment(1.0);
+        self.internal_counters
+            .dead_letter_queue_size
+            .fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn remove_dead_letter(&self) {
-        self.dead_letter_queue_size.fetch_sub(1, Ordering::Relaxed);
+        metrics::gauge!("graphdb_sync_dead_letter_queue_size").decrement(1.0);
+        self.internal_counters
+            .dead_letter_queue_size
+            .fetch_sub(1, Ordering::Relaxed);
     }
 
     pub fn record_compensation_attempt(&self, count: usize) {
-        self.compensation_attempts_total
+        metrics::counter!("graphdb_sync_compensation_attempts_total").increment(count as u64);
+        self.internal_counters
+            .compensation_attempts_total
             .fetch_add(count as u64, Ordering::Relaxed);
     }
 
     pub fn record_compensation_success(&self, count: usize) {
-        self.compensation_successes
+        metrics::counter!("graphdb_sync_compensation_successes_total").increment(count as u64);
+        self.internal_counters
+            .compensation_successes
             .fetch_add(count as u64, Ordering::Relaxed);
     }
 
     pub fn record_compensation_failure(&self, count: usize) {
-        self.compensation_failures
+        metrics::counter!("graphdb_sync_compensation_failures_total").increment(count as u64);
+        self.internal_counters
+            .compensation_failures
             .fetch_add(count as u64, Ordering::Relaxed);
     }
 
     pub fn record_active_transaction_start(&self) {
-        self.active_transactions.fetch_add(1, Ordering::Relaxed);
+        metrics::gauge!("graphdb_sync_active_transactions").increment(1.0);
+        self.internal_counters
+            .active_transactions
+            .fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn record_active_transaction_end(&self) {
-        self.active_transactions.fetch_sub(1, Ordering::Relaxed);
+        metrics::gauge!("graphdb_sync_active_transactions").decrement(1.0);
+        self.internal_counters
+            .active_transactions
+            .fetch_sub(1, Ordering::Relaxed);
     }
 
     pub fn record_processing_time(&self, duration: Duration) {
         let ms = duration.as_millis() as u64;
-        self.total_processing_time_ms
+        metrics::histogram!("graphdb_sync_processing_time_ms").record(ms as f64);
+        self.internal_counters
+            .total_processing_time_ms
             .fetch_add(ms, Ordering::Relaxed);
     }
 
-    pub fn record_error(&self, error: impl Into<String>) {
-        *self.last_error.lock() = Some(error.into());
-    }
-
-    pub fn get_last_error(&self) -> Option<String> {
-        self.last_error.lock().clone()
+    pub fn record_error(&self, _error: impl Into<String>) {
+        metrics::counter!("graphdb_sync_errors_total").increment(1);
     }
 
     pub fn get_stats(&self) -> SyncStats {
         SyncStats {
-            transactions_committed: self.transactions_committed.load(Ordering::Relaxed),
-            transactions_rolled_back: self.transactions_rolled_back.load(Ordering::Relaxed),
-            index_operations_total: self.index_operations_total.load(Ordering::Relaxed),
-            index_operations_insert: self.index_operations_insert.load(Ordering::Relaxed),
-            index_operations_update: self.index_operations_update.load(Ordering::Relaxed),
-            index_operations_delete: self.index_operations_delete.load(Ordering::Relaxed),
-            retry_attempts_total: self.retry_attempts_total.load(Ordering::Relaxed),
-            retry_successes: self.retry_successes.load(Ordering::Relaxed),
-            retry_failures: self.retry_failures.load(Ordering::Relaxed),
-            dead_letter_queue_size: self.dead_letter_queue_size.load(Ordering::Relaxed),
-            active_transactions: self.active_transactions.load(Ordering::Relaxed),
-            total_processing_time_ms: self.total_processing_time_ms.load(Ordering::Relaxed),
-            compensation_attempts_total: self.compensation_attempts_total.load(Ordering::Relaxed),
-            compensation_successes: self.compensation_successes.load(Ordering::Relaxed),
-            compensation_failures: self.compensation_failures.load(Ordering::Relaxed),
+            transactions_committed: self
+                .internal_counters
+                .transactions_committed
+                .load(Ordering::Relaxed),
+            transactions_rolled_back: self
+                .internal_counters
+                .transactions_rolled_back
+                .load(Ordering::Relaxed),
+            index_operations_total: self
+                .internal_counters
+                .index_operations_total
+                .load(Ordering::Relaxed),
+            index_operations_insert: self
+                .internal_counters
+                .index_operations_insert
+                .load(Ordering::Relaxed),
+            index_operations_update: self
+                .internal_counters
+                .index_operations_update
+                .load(Ordering::Relaxed),
+            index_operations_delete: self
+                .internal_counters
+                .index_operations_delete
+                .load(Ordering::Relaxed),
+            retry_attempts_total: self
+                .internal_counters
+                .retry_attempts_total
+                .load(Ordering::Relaxed),
+            retry_successes: self
+                .internal_counters
+                .retry_successes
+                .load(Ordering::Relaxed),
+            retry_failures: self
+                .internal_counters
+                .retry_failures
+                .load(Ordering::Relaxed),
+            dead_letter_queue_size: self
+                .internal_counters
+                .dead_letter_queue_size
+                .load(Ordering::Relaxed),
+            active_transactions: self
+                .internal_counters
+                .active_transactions
+                .load(Ordering::Relaxed),
+            total_processing_time_ms: self
+                .internal_counters
+                .total_processing_time_ms
+                .load(Ordering::Relaxed),
+            compensation_attempts_total: self
+                .internal_counters
+                .compensation_attempts_total
+                .load(Ordering::Relaxed),
+            compensation_successes: self
+                .internal_counters
+                .compensation_successes
+                .load(Ordering::Relaxed),
+            compensation_failures: self
+                .internal_counters
+                .compensation_failures
+                .load(Ordering::Relaxed),
         }
     }
 
     pub fn reset(&self) {
-        self.transactions_committed.store(0, Ordering::Relaxed);
-        self.transactions_rolled_back.store(0, Ordering::Relaxed);
-        self.index_operations_total.store(0, Ordering::Relaxed);
-        self.index_operations_insert.store(0, Ordering::Relaxed);
-        self.index_operations_update.store(0, Ordering::Relaxed);
-        self.index_operations_delete.store(0, Ordering::Relaxed);
-        self.retry_attempts_total.store(0, Ordering::Relaxed);
-        self.retry_successes.store(0, Ordering::Relaxed);
-        self.retry_failures.store(0, Ordering::Relaxed);
-        self.dead_letter_queue_size.store(0, Ordering::Relaxed);
-        self.active_transactions.store(0, Ordering::Relaxed);
-        self.total_processing_time_ms.store(0, Ordering::Relaxed);
-        self.compensation_attempts_total.store(0, Ordering::Relaxed);
-        self.compensation_successes.store(0, Ordering::Relaxed);
-        self.compensation_failures.store(0, Ordering::Relaxed);
-        *self.last_error.lock() = None;
+        self.internal_counters
+            .transactions_committed
+            .store(0, Ordering::Relaxed);
+        self.internal_counters
+            .transactions_rolled_back
+            .store(0, Ordering::Relaxed);
+        self.internal_counters
+            .index_operations_total
+            .store(0, Ordering::Relaxed);
+        self.internal_counters
+            .index_operations_insert
+            .store(0, Ordering::Relaxed);
+        self.internal_counters
+            .index_operations_update
+            .store(0, Ordering::Relaxed);
+        self.internal_counters
+            .index_operations_delete
+            .store(0, Ordering::Relaxed);
+        self.internal_counters
+            .retry_attempts_total
+            .store(0, Ordering::Relaxed);
+        self.internal_counters
+            .retry_successes
+            .store(0, Ordering::Relaxed);
+        self.internal_counters
+            .retry_failures
+            .store(0, Ordering::Relaxed);
+        self.internal_counters
+            .dead_letter_queue_size
+            .store(0, Ordering::Relaxed);
+        self.internal_counters
+            .active_transactions
+            .store(0, Ordering::Relaxed);
+        self.internal_counters
+            .total_processing_time_ms
+            .store(0, Ordering::Relaxed);
+        self.internal_counters
+            .compensation_attempts_total
+            .store(0, Ordering::Relaxed);
+        self.internal_counters
+            .compensation_successes
+            .store(0, Ordering::Relaxed);
+        self.internal_counters
+            .compensation_failures
+            .store(0, Ordering::Relaxed);
     }
 }
 

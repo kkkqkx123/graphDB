@@ -29,6 +29,14 @@ pub struct ExecutorStats {
     pub cache_hits: usize,
     /// Number of cache misses
     pub cache_misses: usize,
+    /// I/O read operations count
+    pub io_reads: usize,
+    /// I/O read bytes
+    pub io_read_bytes: usize,
+    /// I/O write operations count
+    pub io_writes: usize,
+    /// I/O write bytes
+    pub io_write_bytes: usize,
     /// Other statistical information
     pub other_stats: HashMap<String, String>,
 }
@@ -91,6 +99,28 @@ impl ExecutorStats {
         self.cache_misses += 1;
     }
 
+    /// Record I/O read operation
+    pub fn record_io_read(&mut self, bytes: usize) {
+        self.io_reads += 1;
+        self.io_read_bytes += bytes;
+    }
+
+    /// Record I/O write operation
+    pub fn record_io_write(&mut self, bytes: usize) {
+        self.io_writes += 1;
+        self.io_write_bytes += bytes;
+    }
+
+    /// Get total I/O operations
+    pub fn total_io_ops(&self) -> usize {
+        self.io_reads + self.io_writes
+    }
+
+    /// Get total I/O bytes
+    pub fn total_io_bytes(&self) -> usize {
+        self.io_read_bytes + self.io_write_bytes
+    }
+
     /// Calculating Cache Hit Ratio
     pub fn cache_hit_rate(&self) -> f64 {
         let total = self.cache_hits + self.cache_misses;
@@ -144,7 +174,8 @@ impl ExecutorStats {
         format!(
             "rows: {}, exec_time: {}us, total_time: {}us, memory_peak: {}B, \
              memory_current: {}B, batches: {}, cache_hits: {}, cache_misses: {}, \
-             cache_hit_rate: {:.2}%, throughput: {:.2} rows/sec",
+             cache_hit_rate: {:.2}%, throughput: {:.2} rows/sec, \
+             io_reads: {}, io_read_bytes: {}, io_writes: {}, io_write_bytes: {}",
             self.num_rows,
             self.exec_time_us,
             self.total_time_us,
@@ -154,7 +185,11 @@ impl ExecutorStats {
             self.cache_hits,
             self.cache_misses,
             self.cache_hit_rate() * 100.0,
-            self.throughput_rows_per_sec()
+            self.throughput_rows_per_sec(),
+            self.io_reads,
+            self.io_read_bytes,
+            self.io_writes,
+            self.io_write_bytes
         )
     }
 }

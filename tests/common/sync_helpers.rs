@@ -6,8 +6,8 @@ use graphdb::core::types::{DataType, PropertyDef, SpaceInfo, TagInfo};
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Value, Vertex};
 use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager, SyncConfig};
-use graphdb::storage::StorageClient;
 use graphdb::storage::RedbStorage;
+use graphdb::storage::StorageClient;
 use graphdb::sync::batch::BatchConfig;
 use graphdb::sync::coordinator::{ChangeType, SyncCoordinator};
 use graphdb::sync::manager::SyncManager;
@@ -230,7 +230,13 @@ impl SyncTestHarness {
                 if !properties.is_empty() {
                     self.sync_manager
                         .sync_coordinator()
-                        .on_vertex_change(space_id, tag_name, &vertex.vid, &properties, ChangeType::Insert)
+                        .on_vertex_change(
+                            space_id,
+                            tag_name,
+                            &vertex.vid,
+                            &properties,
+                            ChangeType::Insert,
+                        )
                         .await?;
                 }
             }
@@ -309,7 +315,13 @@ impl SyncTestHarness {
                     if !properties.is_empty() {
                         self.sync_manager
                             .sync_coordinator()
-                            .on_vertex_change(space_id, tag_name, &vertex.vid, &properties, ChangeType::Insert)
+                            .on_vertex_change(
+                                space_id,
+                                tag_name,
+                                &vertex.vid,
+                                &properties,
+                                ChangeType::Insert,
+                            )
                             .await?;
                     }
                 }

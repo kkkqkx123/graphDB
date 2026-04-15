@@ -6,8 +6,8 @@ use crate::core::error::QueryError;
 use crate::core::vertex_edge_path::Tag;
 use crate::core::{Edge, Value, Vertex};
 use crate::query::executor::base::ExecutionContext;
-use crate::query::executor::data_modification::{InsertExecutor, RemoveExecutor, RemoveItem};
 use crate::query::executor::base::ExecutorEnum;
+use crate::query::executor::data_modification::{InsertExecutor, RemoveExecutor, RemoveItem};
 use crate::query::planning::plan::core::nodes::{
     DeleteEdgesNode, DeleteVerticesNode, InsertEdgesNode, InsertVerticesNode, RemoveNode,
     UpdateEdgesNode, UpdateNode, UpdateTargetType, UpdateVerticesNode,

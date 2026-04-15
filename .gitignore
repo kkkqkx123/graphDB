@@ -9,3 +9,4 @@ tests/c_api/build
 .translator
 *.exe
 *.db
+Cargo.lock

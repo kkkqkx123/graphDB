@@ -137,7 +137,10 @@ impl<S: StorageClient + Send + 'static> ExplainExecutor<S> {
                             "startup_time_ms".to_string(),
                             format!("{:.3}", stats.startup_time_us as f64 / 1000.0),
                         );
-                        map.insert("memory_used".to_string(), format!("{}", stats.memory_used()));
+                        map.insert(
+                            "memory_used".to_string(),
+                            format!("{}", stats.memory_used()),
+                        );
                         map.insert(
                             "cache_hit_rate".to_string(),
                             format!("{:.2}%", stats.cache_hit_rate() * 100.0),

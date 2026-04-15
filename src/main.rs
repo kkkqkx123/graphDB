@@ -26,7 +26,10 @@ mod server_main {
 
         match cli {
             Cli::Serve { config } => {
-                let _ = output::print_info(&format!("Starting GraphDB service with config: {}", config));
+                let _ = output::print_info(&format!(
+                    "Starting GraphDB service with config: {}",
+                    config
+                ));
                 let _ = output::print_info(&format!("Process ID: {}", std::process::id()));
 
                 // Load configuration
@@ -43,7 +46,8 @@ mod server_main {
 
                 // Initialize logging system
                 if let Err(e) = logging::init(&cfg) {
-                    let _ = output::print_error(&format!("Failed to initialize logging system: {}", e));
+                    let _ =
+                        output::print_error(&format!("Failed to initialize logging system: {}", e));
                 }
 
                 // Initialize and start service
@@ -60,7 +64,8 @@ mod server_main {
                 // Use default configuration to initialize logging
                 let cfg = Config::default();
                 if let Err(e) = logging::init(&cfg) {
-                    let _ = output::print_error(&format!("Failed to initialize logging system: {}", e));
+                    let _ =
+                        output::print_error(&format!("Failed to initialize logging system: {}", e));
                 }
 
                 // Execute query directly using tokio runtime

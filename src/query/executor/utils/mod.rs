@@ -11,7 +11,7 @@ pub mod tag_filter;
 pub use object_pool::{ObjectPoolConfig, PoolPriority, ThreadSafeExecutorPool, TypePoolConfig};
 pub use pipeline_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
 pub use recursion_detector::{
-    ExecutorSafetyConfig, ExecutorSafetyValidator, ExecutorValidator, ParallelConfig, PlanValidator,
-    RecursionDetector,
+    ExecutorSafetyConfig, ExecutorSafetyValidator, ExecutorValidator, ParallelConfig,
+    PlanValidator, RecursionDetector,
 };
 pub use tag_filter::TagFilterProcessor;

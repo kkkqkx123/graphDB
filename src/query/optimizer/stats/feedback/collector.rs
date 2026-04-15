@@ -6,6 +6,13 @@ use parking_lot::RwLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
+/// Internal counters for ExecutionFeedbackCollector (maintained for backward compatibility)
+#[derive(Debug, Default)]
+struct InternalCounters {
+    actual_rows: AtomicU64,
+    execution_time_us: AtomicU64,
+}
+
 /// Feedback collection tool
 ///
 /// A lightweight collector used for collecting actual statistical information about the execution of queries.
@@ -23,67 +30,52 @@ use std::time::Instant;
 /// ```
 #[derive(Debug)]
 pub struct ExecutionFeedbackCollector {
-    /// Actual number of output lines (atomic counter)
-    actual_rows: AtomicU64,
-    /// Execution time (in microseconds)
-    execution_time_us: AtomicU64,
-    /// Start time
+    counters: InternalCounters,
     start_time: RwLock<Option<Instant>>,
 }
 
 impl ExecutionFeedbackCollector {
-    /// Create a new feedback collector.
     pub fn new() -> Self {
         Self {
-            actual_rows: AtomicU64::new(0),
-            execution_time_us: AtomicU64::new(0),
+            counters: InternalCounters::default(),
             start_time: RwLock::new(None),
         }
     }
 
-    /// Start collecting
-    ///
-    /// Record the current time as the start time.
     pub fn start(&self) {
         *self.start_time.write() = Some(Instant::now());
     }
 
-    /// Record the number of output lines.
-    ///
-    /// Increment the count of output lines on an atomic basis (i.e., without any intermediate updates or delays).
     pub fn record_rows(&self, rows: u64) {
-        self.actual_rows.fetch_add(rows, Ordering::Relaxed);
+        metrics::histogram!("graphdb_optimizer_feedback_rows").record(rows as f64);
+        self.counters.actual_rows.fetch_add(rows, Ordering::Relaxed);
     }
 
-    /// End the data collection process and return the execution time (in microseconds).
-    ///
-    /// Calculate the elapsed time from the start to the current moment, and store the execution time.
     pub fn finish(&self) -> u64 {
         let elapsed = self
             .start_time
             .read()
             .map(|start| start.elapsed().as_micros() as u64)
             .unwrap_or(0);
-        self.execution_time_us.store(elapsed, Ordering::Relaxed);
+        metrics::histogram!("graphdb_optimizer_feedback_duration_seconds")
+            .record(elapsed as f64 / 1_000_000.0);
+        self.counters
+            .execution_time_us
+            .store(elapsed, Ordering::Relaxed);
         elapsed
     }
 
-    /// Get the actual number of output lines.
     pub fn get_actual_rows(&self) -> u64 {
-        self.actual_rows.load(Ordering::Relaxed)
+        self.counters.actual_rows.load(Ordering::Relaxed)
     }
 
-    /// Obtain the execution time (in microseconds).
     pub fn get_execution_time_us(&self) -> u64 {
-        self.execution_time_us.load(Ordering::Relaxed)
+        self.counters.execution_time_us.load(Ordering::Relaxed)
     }
 
-    /// Reset the collector.
-    ///
-    /// Clear all collected data and restore the system to its initial state.
     pub fn reset(&self) {
-        self.actual_rows.store(0, Ordering::Relaxed);
-        self.execution_time_us.store(0, Ordering::Relaxed);
+        self.counters.actual_rows.store(0, Ordering::Relaxed);
+        self.counters.execution_time_us.store(0, Ordering::Relaxed);
         *self.start_time.write() = None;
     }
 }

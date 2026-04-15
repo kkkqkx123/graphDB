@@ -3,9 +3,9 @@ use std::time::Instant;
 
 use super::super::base::{BaseExecutor, ExecutorStats};
 use crate::core::Value;
-use crate::query::DataSet;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::query::DataSet;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 

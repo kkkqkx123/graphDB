@@ -8,8 +8,8 @@ use std::time::Instant;
 
 use parking_lot::Mutex;
 
-use crate::query::executor::base::ExecutorStats;
 use crate::core::stats::utils::micros_to_millis;
+use crate::query::executor::base::ExecutorStats;
 
 /// Node-level execution statistics
 #[derive(Debug, Clone)]
@@ -46,6 +46,30 @@ impl NodeExecutionStats {
 
     pub fn memory_used(&self) -> usize {
         self.executor_stats.memory_peak
+    }
+
+    pub fn io_reads(&self) -> usize {
+        self.executor_stats.io_reads
+    }
+
+    pub fn io_read_bytes(&self) -> usize {
+        self.executor_stats.io_read_bytes
+    }
+
+    pub fn io_writes(&self) -> usize {
+        self.executor_stats.io_writes
+    }
+
+    pub fn io_write_bytes(&self) -> usize {
+        self.executor_stats.io_write_bytes
+    }
+
+    pub fn total_io_ops(&self) -> usize {
+        self.executor_stats.total_io_ops()
+    }
+
+    pub fn total_io_bytes(&self) -> usize {
+        self.executor_stats.total_io_bytes()
     }
 }
 

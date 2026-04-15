@@ -4,10 +4,10 @@
 
 use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::relational_algebra::set_operations::{
     IntersectExecutor, MinusExecutor, UnionExecutor,
 };
-use crate::query::executor::base::ExecutorEnum;
 use crate::query::planning::plan::core::nodes::{IntersectNode, MinusNode, UnionNode};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;

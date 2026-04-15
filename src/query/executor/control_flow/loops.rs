@@ -10,11 +10,10 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
 use crate::core::Value;
 use crate::query::core::LoopExecutionState;
-use crate::query::DataSet;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::{
     BaseExecutor, ExecutionResult, Executor, ExecutorConfig, HasStorage, LoopConfig,
 };
-use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::DefaultExpressionContext;
@@ -22,6 +21,7 @@ use crate::query::executor::utils::recursion_detector::{
     ExecutorSafetyConfig, ExecutorSafetyValidator, RecursionDetector,
 };
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::query::DataSet;
 use crate::storage::StorageClient;
 
 // Use new type aliases (LoopState is an alias for LoopExecutionState, for backward compatibility).
@@ -172,9 +172,17 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
         }
 
         if all_datasets.len() == 1 {
-            ExecutionResult::DataSet(all_datasets.into_iter().next().expect("Failed to get next dataset"))
+            ExecutionResult::DataSet(
+                all_datasets
+                    .into_iter()
+                    .next()
+                    .expect("Failed to get next dataset"),
+            )
         } else {
-            let first_dataset = all_datasets.first().cloned().expect("Failed to get first dataset");
+            let first_dataset = all_datasets
+                .first()
+                .cloned()
+                .expect("Failed to get first dataset");
             let mut combined_rows = first_dataset.rows;
             let combined_col_names = first_dataset.col_names;
 

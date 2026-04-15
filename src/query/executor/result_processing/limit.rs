@@ -6,11 +6,11 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
-use crate::query::DataSet;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 use crate::query::executor::base::{ExecutionResult, Executor};
-use crate::query::executor::base::ExecutorEnum;
+use crate::query::DataSet;
 use crate::storage::StorageClient;
 
 /// Limiting actuators – Implementing the LIMIT and OFFSET functions
@@ -77,9 +77,7 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
                 self.apply_limits(&mut data_set)?;
                 Ok(data_set)
             }
-            ExecutionResult::Empty | ExecutionResult::Success => {
-                Ok(DataSet::new())
-            }
+            ExecutionResult::Empty | ExecutionResult::Success => Ok(DataSet::new()),
             ExecutionResult::Error(msg) => Err(DBError::Query(
                 crate::core::error::QueryError::ExecutionError(msg),
             )),
@@ -252,7 +250,9 @@ mod tests {
 
     #[test]
     fn test_limit_executor_only_limit() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
 
         // Create test data
         let mut dataset = DataSet::new();
@@ -284,4 +284,3 @@ mod tests {
         }
     }
 }
-

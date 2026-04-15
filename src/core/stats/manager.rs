@@ -9,6 +9,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use super::error_stats::{ErrorInfo, ErrorStatsManager, ErrorType, QueryPhase};
+use super::latency_histogram::LatencyHistogram;
 use super::metrics::QueryMetrics;
 use super::profile::QueryProfile;
 
@@ -112,6 +113,7 @@ pub struct StatsManager {
     space_metrics: Arc<DashMap<String, SpaceMetrics>>,
     last_query_metrics: Arc<Mutex<Option<QueryMetrics>>>,
     query_profiles: Arc<Mutex<VecDeque<QueryProfile>>>,
+    query_latency_histogram: Arc<Mutex<LatencyHistogram>>,
     config: crate::config::MonitoringConfig,
     error_stats: ErrorStatsManager,
 }
@@ -128,6 +130,7 @@ impl StatsManager {
             space_metrics: Arc::new(DashMap::new()),
             last_query_metrics: Arc::new(Mutex::new(None)),
             query_profiles: Arc::new(Mutex::new(VecDeque::with_capacity(cache_size))),
+            query_latency_histogram: Arc::new(Mutex::new(LatencyHistogram::new(10000))),
             config,
             error_stats: ErrorStatsManager::new(),
         }
@@ -389,6 +392,12 @@ impl StatsManager {
         *last_metrics = Some(metrics.clone());
         drop(last_metrics);
 
+        // Record latency histogram
+        {
+            let mut histogram = self.query_latency_histogram.lock();
+            histogram.record_micros(metrics.total_time_us);
+        }
+
         let updates = [
             (MetricType::QueryParseTimeUs, metrics.parse_time_us),
             (MetricType::QueryValidateTimeUs, metrics.validate_time_us),
@@ -413,6 +422,29 @@ impl StatsManager {
                 .or_insert_with(|| Arc::new(MetricValue::new(0)));
             metric.set(value);
         }
+    }
+
+    /// Get latency percentiles (avg, p50, p95, p99) in microseconds
+    pub fn get_latency_percentiles(&self) -> (u64, u64, u64, u64) {
+        let histogram = self.query_latency_histogram.lock();
+        (
+            histogram.avg(),
+            histogram.p50(),
+            histogram.p95(),
+            histogram.p99(),
+        )
+    }
+
+    /// Get latency histogram report
+    pub fn get_latency_report(&self) -> String {
+        let histogram = self.query_latency_histogram.lock();
+        histogram.report()
+    }
+
+    /// Clear latency histogram
+    pub fn clear_latency_histogram(&self) {
+        let mut histogram = self.query_latency_histogram.lock();
+        histogram.clear();
     }
 
     pub fn get_last_query_metrics(&self) -> Option<QueryMetrics> {

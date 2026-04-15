@@ -21,8 +21,7 @@ pub use projection::{ProjectExecutor, ProjectionColumn};
 
 // Re-export aggregation executors
 pub use aggregation::{
-    AggregateExecutor, AggregateFunctionSpec, GroupAggregateState, GroupByExecutor,
-    HavingExecutor,
+    AggregateExecutor, AggregateFunctionSpec, GroupAggregateState, GroupByExecutor, HavingExecutor,
 };
 
 // Re-export join executors

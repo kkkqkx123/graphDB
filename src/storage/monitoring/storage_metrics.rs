@@ -18,6 +18,14 @@ pub struct StorageMetricsSnapshot {
     pub cache_hits: u64,
     /// Number of cache misses
     pub cache_misses: u64,
+    /// I/O read operations count
+    pub io_reads: u64,
+    /// I/O read bytes
+    pub io_read_bytes: u64,
+    /// I/O write operations count
+    pub io_writes: u64,
+    /// I/O write bytes
+    pub io_write_bytes: u64,
     /// Count of each type of operation
     pub operation_counts: HashMap<String, u64>,
 }
@@ -58,6 +66,14 @@ pub struct StorageMetricsCollector {
     cache_hits: AtomicU64,
     /// Number of cache misses
     cache_misses: AtomicU64,
+    /// I/O read operations count
+    io_reads: AtomicU64,
+    /// I/O read bytes
+    io_read_bytes: AtomicU64,
+    /// I/O write operations count
+    io_writes: AtomicU64,
+    /// I/O write bytes
+    io_write_bytes: AtomicU64,
     /// Count of each operation type
     operation_counts: dashmap::DashMap<String, AtomicU64>,
 }
@@ -69,6 +85,10 @@ impl StorageMetricsCollector {
             items_returned: AtomicU64::new(0),
             cache_hits: AtomicU64::new(0),
             cache_misses: AtomicU64::new(0),
+            io_reads: AtomicU64::new(0),
+            io_read_bytes: AtomicU64::new(0),
+            io_writes: AtomicU64::new(0),
+            io_write_bytes: AtomicU64::new(0),
             operation_counts: dashmap::DashMap::new(),
         }
     }
@@ -93,6 +113,18 @@ impl StorageMetricsCollector {
         self.cache_misses.fetch_add(1, Ordering::Relaxed);
     }
 
+    /// Record I/O read operation
+    pub fn record_io_read(&self, bytes: u64) {
+        self.io_reads.fetch_add(1, Ordering::Relaxed);
+        self.io_read_bytes.fetch_add(bytes, Ordering::Relaxed);
+    }
+
+    /// Record I/O write operation
+    pub fn record_io_write(&self, bytes: u64) {
+        self.io_writes.fetch_add(1, Ordering::Relaxed);
+        self.io_write_bytes.fetch_add(bytes, Ordering::Relaxed);
+    }
+
     /// Record the operation
     pub fn record_operation(&self, operation: &str) {
         let counter = self
@@ -114,6 +146,10 @@ impl StorageMetricsCollector {
             items_returned: self.items_returned.load(Ordering::Relaxed),
             cache_hits: self.cache_hits.load(Ordering::Relaxed),
             cache_misses: self.cache_misses.load(Ordering::Relaxed),
+            io_reads: self.io_reads.load(Ordering::Relaxed),
+            io_read_bytes: self.io_read_bytes.load(Ordering::Relaxed),
+            io_writes: self.io_writes.load(Ordering::Relaxed),
+            io_write_bytes: self.io_write_bytes.load(Ordering::Relaxed),
             operation_counts,
         }
     }
@@ -124,6 +160,10 @@ impl StorageMetricsCollector {
         self.items_returned.store(0, Ordering::Relaxed);
         self.cache_hits.store(0, Ordering::Relaxed);
         self.cache_misses.store(0, Ordering::Relaxed);
+        self.io_reads.store(0, Ordering::Relaxed);
+        self.io_read_bytes.store(0, Ordering::Relaxed);
+        self.io_writes.store(0, Ordering::Relaxed);
+        self.io_write_bytes.store(0, Ordering::Relaxed);
         self.operation_counts.clear();
     }
 }

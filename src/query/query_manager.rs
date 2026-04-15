@@ -84,7 +84,40 @@ impl QueryInfo {
     }
 }
 
-/// Query statistics
+/// Query statistics using metrics crate
+#[derive(Debug, Clone, Default)]
+pub struct QueryMetrics {
+    // Metrics are registered globally, this struct just tracks them
+}
+
+impl QueryMetrics {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    pub fn record_query_start(&self) {
+        metrics::counter!("graphdb_queries_total").increment(1);
+        metrics::gauge!("graphdb_queries_running").increment(1.0);
+    }
+
+    pub fn record_query_finish(&self, duration_ms: u64) {
+        metrics::gauge!("graphdb_queries_running").decrement(1.0);
+        metrics::counter!("graphdb_queries_finished_total").increment(1);
+        metrics::histogram!("graphdb_queries_duration_seconds").record(duration_ms as f64 / 1000.0);
+    }
+
+    pub fn record_query_failure(&self) {
+        metrics::gauge!("graphdb_queries_running").decrement(1.0);
+        metrics::counter!("graphdb_queries_failed_total").increment(1);
+    }
+
+    pub fn record_query_killed(&self) {
+        metrics::gauge!("graphdb_queries_running").decrement(1.0);
+        metrics::counter!("graphdb_queries_killed_total").increment(1);
+    }
+}
+
+/// Legacy query statistics (for backward compatibility)
 #[derive(Debug, Clone, Default)]
 pub struct QueryStats {
     pub total_queries: u64,
@@ -99,6 +132,7 @@ pub struct QueryStats {
 pub struct QueryManager {
     queries: DashMap<i64, QueryInfo>,
     next_query_id: AtomicI64,
+    metrics: QueryMetrics,
 }
 
 impl QueryManager {
@@ -106,7 +140,20 @@ impl QueryManager {
         Self {
             queries: DashMap::new(),
             next_query_id: AtomicI64::new(1),
+            metrics: QueryMetrics::new(),
         }
+    }
+
+    pub fn with_metrics(metrics: QueryMetrics) -> Self {
+        Self {
+            queries: DashMap::new(),
+            next_query_id: AtomicI64::new(1),
+            metrics,
+        }
+    }
+
+    pub fn metrics(&self) -> &QueryMetrics {
+        &self.metrics
     }
 
     /// Generate a new query ID.
@@ -132,6 +179,7 @@ impl QueryManager {
         );
 
         self.queries.insert(query_id, query_info);
+        self.metrics.record_query_start();
 
         info!(
             "Query registered: id={}, session_id={}, query={}",
@@ -145,6 +193,8 @@ impl QueryManager {
     pub fn finish_query(&self, query_id: i64) -> ManagerResult<()> {
         if let Some(mut query) = self.queries.get_mut(&query_id) {
             query.finish();
+            self.metrics
+                .record_query_finish(query.duration_ms.unwrap_or(0) as u64);
             info!(
                 "Query finished: id={}, duration={}ms",
                 query_id,
@@ -163,6 +213,7 @@ impl QueryManager {
     pub fn fail_query(&self, query_id: i64) -> ManagerResult<()> {
         if let Some(mut query) = self.queries.get_mut(&query_id) {
             query.fail();
+            self.metrics.record_query_failure();
             warn!(
                 "Query failed: id={}, duration={}ms",
                 query_id,
@@ -181,6 +232,7 @@ impl QueryManager {
     pub fn kill_query(&self, query_id: i64) -> ManagerResult<()> {
         if let Some(mut query) = self.queries.get_mut(&query_id) {
             query.kill();
+            self.metrics.record_query_killed();
             warn!("Query killed: id={}", query_id);
             Ok(())
         } else {

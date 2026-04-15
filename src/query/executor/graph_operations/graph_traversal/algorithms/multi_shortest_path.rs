@@ -8,13 +8,13 @@ use std::time::Instant;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Path, Step, Value, Vertex};
-use crate::query::DataSet;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::{
     BaseExecutor, DBResult as ExecDBResult, EdgeDirection, ExecutionResult,
     Executor as BaseExecutorTrait, ExecutorStats, HasStorage, InputExecutor,
     MultiShortestPathConfig,
 };
-use crate::query::executor::base::ExecutorEnum;
+use crate::query::DataSet;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
@@ -517,10 +517,7 @@ impl<S: StorageClient + Send + 'static> BaseExecutorTrait<S> for MultiShortestPa
             ))
         })?;
 
-        let rows: Vec<Vec<Value>> = paths
-            .into_iter()
-            .map(|p| vec![Value::Path(p)])
-            .collect();
+        let rows: Vec<Vec<Value>> = paths.into_iter().map(|p| vec![Value::Path(p)]).collect();
         let dataset = DataSet::from_rows(rows, vec!["path".to_string()]);
         Ok(ExecutionResult::DataSet(dataset))
     }

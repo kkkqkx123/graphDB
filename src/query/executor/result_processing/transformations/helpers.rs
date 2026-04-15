@@ -8,18 +8,18 @@ pub fn get_input_result(
     context: &crate::query::executor::base::ExecutionContext,
     var_name: &str,
 ) -> DBResult<ExecutionResult> {
-    context
-        .get_result(var_name)
-        .ok_or_else(|| {
-            DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
-                "Input variable '{}' not found",
-                var_name
-            )))
-        })
+    context.get_result(var_name).ok_or_else(|| {
+        DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+            "Input variable '{}' not found",
+            var_name
+        )))
+    })
 }
 
 /// Helper function to convert ExecutionResult to Vec<Value>
-pub fn execution_result_to_values(result: &ExecutionResult) -> Result<Vec<crate::core::Value>, DBError> {
+pub fn execution_result_to_values(
+    result: &ExecutionResult,
+) -> Result<Vec<crate::core::Value>, DBError> {
     match result {
         ExecutionResult::DataSet(dataset) => {
             let values: Vec<crate::core::Value> = dataset
@@ -46,7 +46,7 @@ pub fn require_input_result(
             crate::core::error::QueryError::ExecutionError(format!(
                 "Input variable '{}' not found",
                 var_name
-            ))
+            )),
         ))
     } else {
         Ok(())

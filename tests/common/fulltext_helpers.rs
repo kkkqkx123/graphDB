@@ -4,10 +4,10 @@
 
 #![allow(dead_code)]
 
-use graphdb::search::{
-    EngineType, FulltextConfig, FulltextIndexManager, SearchResult, SearchError,
-};
 use graphdb::core::Value;
+use graphdb::search::{
+    EngineType, FulltextConfig, FulltextIndexManager, SearchError, SearchResult,
+};
 use std::sync::Arc;
 use tempfile::TempDir;
 
@@ -34,13 +34,9 @@ impl FulltextTestContext {
             max_result_cache: 1000,
             result_cache_ttl_secs: 60,
         };
-        let manager = Arc::new(
-            FulltextIndexManager::new(config).expect("Failed to create manager"),
-        );
-        Self {
-            manager,
-            temp_dir,
-        }
+        let manager =
+            Arc::new(FulltextIndexManager::new(config).expect("Failed to create manager"));
+        Self { manager, temp_dir }
     }
 
     /// Create test index
@@ -145,7 +141,9 @@ impl FulltextTestContext {
         tag_name: &str,
         field_name: &str,
     ) -> Result<(), SearchError> {
-        self.manager.drop_index(space_id, tag_name, field_name).await
+        self.manager
+            .drop_index(space_id, tag_name, field_name)
+            .await
     }
 
     /// Get index stats
@@ -237,7 +235,10 @@ pub fn assert_search_result_not_contains(
 }
 
 /// Assert search result count
-pub fn assert_search_result_count(results: &[SearchResult], expected_count: usize) -> Result<(), String> {
+pub fn assert_search_result_count(
+    results: &[SearchResult],
+    expected_count: usize,
+) -> Result<(), String> {
     if results.len() == expected_count {
         Ok(())
     } else {

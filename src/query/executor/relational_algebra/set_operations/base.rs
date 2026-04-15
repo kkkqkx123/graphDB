@@ -7,10 +7,10 @@ use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use crate::query::DataSet;
 use crate::core::Value;
 use crate::query::executor::{BaseExecutor, ExecutionResult};
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::query::DataSet;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 
@@ -250,8 +250,7 @@ mod tests {
             vec![Value::Int(1), Value::String("a".to_string())], // Duplicate rows
         ];
 
-        let row_set =
-            SetExecutor::<crate::storage::DefaultStorage>::create_row_set(&rows);
+        let row_set = SetExecutor::<crate::storage::DefaultStorage>::create_row_set(&rows);
         assert_eq!(row_set.len(), 2); // There should only be 2 unique hash values.
     }
 
@@ -280,9 +279,7 @@ mod tests {
             rows: vec![vec![Value::Int(2), Value::String("Bob".to_string())]],
         };
 
-        let result = SetExecutor::<crate::storage::DefaultStorage>::concat_datasets(
-            left, right,
-        );
+        let result = SetExecutor::<crate::storage::DefaultStorage>::concat_datasets(left, right);
         assert_eq!(result.rows.len(), 2);
         assert_eq!(result.col_names.len(), 2);
     }

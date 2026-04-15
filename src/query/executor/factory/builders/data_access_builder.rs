@@ -3,12 +3,12 @@
 //! Responsible for creating executors for different data access types (ScanVertices, ScanEdges, GetVertices, GetNeighbors, IndexScan, GetEdges)
 
 use crate::core::error::QueryError;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::{ExecutionContext, ExecutorConfig, IndexScanConfig};
 use crate::query::executor::data_access::{
     GetEdgesExecutor, GetNeighborsExecutor, GetVerticesExecutor, GetVerticesParams,
     IndexScanExecutor, ScanEdgesExecutor,
 };
-use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::factory::param_parsing::{parse_edge_direction, parse_vertex_ids};
 use crate::query::planning::plan::core::nodes::access::IndexScanNode;
 use crate::query::planning::plan::core::nodes::{

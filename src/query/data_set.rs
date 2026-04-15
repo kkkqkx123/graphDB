@@ -373,7 +373,7 @@ mod tests {
     fn test_dataset_estimated_size() {
         let mut dataset = DataSet::with_columns(vec!["id".to_string()]);
         dataset.add_row(vec![Value::Int(1)]);
-        
+
         let size = dataset.estimated_size();
         assert!(size > 0);
     }

@@ -202,11 +202,7 @@ mod tests {
         stats.exec_time_us = 100_000;
         stats.num_rows = 50;
         stats.memory_peak = 1024;
-        let stat = ExecutorStat::from_executor(
-            "ScanVerticesExecutor".to_string(),
-            1,
-            stats,
-        );
+        let stat = ExecutorStat::from_executor("ScanVerticesExecutor".to_string(), 1, stats);
         profile.add_executor_stat(stat);
         assert_eq!(profile.executor_stats.len(), 1);
         assert!((profile.total_executor_time_ms() - 100.0).abs() < 0.001);
@@ -227,11 +223,7 @@ mod tests {
         stats.num_rows = 100;
         stats.memory_peak = 2048;
 
-        let stat = ExecutorStat::from_executor(
-            "TestExecutor".to_string(),
-            1,
-            stats,
-        );
+        let stat = ExecutorStat::from_executor("TestExecutor".to_string(), 1, stats);
 
         assert!((stat.duration_ms() - 1.5).abs() < 0.001);
         assert_eq!(stat.rows_processed(), 100);

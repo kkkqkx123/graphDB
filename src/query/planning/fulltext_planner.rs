@@ -530,9 +530,7 @@ mod tests {
     use super::*;
     use crate::core::types::span::Span;
     use crate::core::types::FulltextEngineType;
-    use crate::query::parser::ast::fulltext::{
-        IndexFieldDef, IndexOptions,
-    };
+    use crate::query::parser::ast::fulltext::{IndexFieldDef, IndexOptions};
 
     #[test]
     fn test_fulltext_search_planner_new() {

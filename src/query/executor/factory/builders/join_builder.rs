@@ -4,11 +4,11 @@
 
 use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::relational_algebra::join::{
     CrossJoinExecutor, FullOuterJoinExecutor, HashInnerJoinExecutor, HashLeftJoinExecutor,
     InnerJoinConfig, InnerJoinExecutor, LeftJoinConfig, LeftJoinExecutor,
 };
-use crate::query::executor::base::ExecutorEnum;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::JoinNode;
 use crate::query::planning::plan::core::nodes::{
     CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode,

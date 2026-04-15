@@ -7,7 +7,6 @@ use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::types::ContextualExpression;
-use crate::query::DataSet;
 use crate::core::{Expression, NullType, Value};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage, JoinConfig};
 use crate::query::executor::relational_algebra::join::{
@@ -15,6 +14,7 @@ use crate::query::executor::relational_algebra::join::{
     hash_table::{build_hash_table, extract_key_values, JoinKey},
 };
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::query::DataSet;
 use crate::storage::StorageClient;
 use ExpressionAnalysisContext as ExpressionContextStruct;
 
@@ -426,15 +426,17 @@ mod tests {
             ],
         };
 
-        executor.base_executor.get_base_mut().context.set_result(
-            "left".to_string(),
-            ExecutionResult::DataSet(left_dataset),
-        );
+        executor
+            .base_executor
+            .get_base_mut()
+            .context
+            .set_result("left".to_string(), ExecutionResult::DataSet(left_dataset));
 
-        executor.base_executor.get_base_mut().context.set_result(
-            "right".to_string(),
-            ExecutionResult::DataSet(right_dataset),
-        );
+        executor
+            .base_executor
+            .get_base_mut()
+            .context
+            .set_result("right".to_string(), ExecutionResult::DataSet(right_dataset));
 
         // Establish the connection.
         let result = executor.execute().expect("Failed to execute");
@@ -444,30 +446,30 @@ mod tests {
             ExecutionResult::DataSet(dataset) => {
                 assert_eq!(dataset.rows.len(), 3); // Three lines of results (including those that did not match)
 
-                    // First line: Alice matches
-                    assert_eq!(
-                        dataset.rows[0],
-                        vec![
-                            Value::Int(1),
-                            Value::String("Alice".to_string()),
-                            Value::Int(25),
-                        ]
-                    );
+                // First line: Alice matches
+                assert_eq!(
+                    dataset.rows[0],
+                    vec![
+                        Value::Int(1),
+                        Value::String("Alice".to_string()),
+                        Value::Int(25),
+                    ]
+                );
 
-                    // Second line: Bob matches.
-                    assert_eq!(
-                        dataset.rows[1],
-                        vec![
-                            Value::Int(2),
-                            Value::String("Bob".to_string()),
-                            Value::Int(30),
-                        ]
-                    );
+                // Second line: Bob matches.
+                assert_eq!(
+                    dataset.rows[1],
+                    vec![
+                        Value::Int(2),
+                        Value::String("Bob".to_string()),
+                        Value::Int(30),
+                    ]
+                );
 
-                    // Third line: Charlie was not matched; the value for “age” is NULL.
-                    assert_eq!(dataset.rows[2][0], Value::Int(3));
-                    assert_eq!(dataset.rows[2][1], Value::String("Charlie".to_string()));
-                    assert_eq!(dataset.rows[2][2], Value::Null(NullType::Null));
+                // Third line: Charlie was not matched; the value for “age” is NULL.
+                assert_eq!(dataset.rows[2][0], Value::Int(3));
+                assert_eq!(dataset.rows[2][1], Value::String("Charlie".to_string()));
+                assert_eq!(dataset.rows[2][2], Value::Null(NullType::Null));
             }
             _ => panic!("Expected DataSet results"),
         }
@@ -510,15 +512,17 @@ mod tests {
             rows: Vec::new(), // Empty right-hand table
         };
 
-        executor.base_executor.get_base_mut().context.set_result(
-            "left".to_string(),
-            ExecutionResult::DataSet(left_dataset),
-        );
+        executor
+            .base_executor
+            .get_base_mut()
+            .context
+            .set_result("left".to_string(), ExecutionResult::DataSet(left_dataset));
 
-        executor.base_executor.get_base_mut().context.set_result(
-            "right".to_string(),
-            ExecutionResult::DataSet(right_dataset),
-        );
+        executor
+            .base_executor
+            .get_base_mut()
+            .context
+            .set_result("right".to_string(), ExecutionResult::DataSet(right_dataset));
 
         // Establish the connection.
         let result = executor.execute().expect("Failed to execute");

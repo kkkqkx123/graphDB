@@ -91,7 +91,8 @@ impl TableFormatter {
             return Ok(());
         }
 
-        let total_width = self.column_widths.iter().sum::<usize>() + self.column_widths.len() * 3 + 1;
+        let total_width =
+            self.column_widths.iter().sum::<usize>() + self.column_widths.len() * 3 + 1;
 
         // Top border
         writeln!(writer, "{}", "-".repeat(total_width))?;

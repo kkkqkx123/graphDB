@@ -24,14 +24,9 @@ async fn test_search_non_existent_index() {
     let ctx = FulltextTestContext::new();
 
     // Try to search without creating index
-    let result = ctx
-        .search(1, "Article", "content", "Hello", 10)
-        .await;
+    let result = ctx.search(1, "Article", "content", "Hello", 10).await;
 
-    assert!(
-        result.is_err(),
-        "Search on non-existent index should fail"
-    );
+    assert!(result.is_err(), "Search on non-existent index should fail");
     assert!(
         matches!(
             result.unwrap_err(),
@@ -97,8 +92,7 @@ async fn test_index_very_long_content() {
         .await
         .expect("Search should succeed");
 
-    assert_search_result_count(&results, 1)
-        .expect("Should find document with long content");
+    assert_search_result_count(&results, 1).expect("Should find document with long content");
     assert!(
         results[0].doc_id == graphdb::core::Value::String("doc_1".to_string()),
         "Should return the correct document"
@@ -110,8 +104,7 @@ async fn test_index_very_long_content() {
         .await
         .expect("Search should succeed");
 
-    assert_search_result_count(&results2, 1)
-        .expect("Should find document with long content");
+    assert_search_result_count(&results2, 1).expect("Should find document with long content");
 }
 
 /// TC-FT-029: Index Unicode Content
@@ -139,8 +132,7 @@ async fn test_index_unicode_content() {
         .await
         .expect("Search should succeed");
 
-    assert_search_result_count(&results_en, 1)
-        .expect("Should find document with English words");
+    assert_search_result_count(&results_en, 1).expect("Should find document with English words");
 
     // Search for Chinese characters (if supported by tokenizer)
     let results_cn = ctx
@@ -150,7 +142,10 @@ async fn test_index_unicode_content() {
 
     // Note: Depending on tokenizer, Chinese may or may not be indexed
     // This test verifies the system doesn't crash with Unicode
-    assert!(results_cn.len() <= 1, "Should handle Chinese search gracefully");
+    assert!(
+        results_cn.len() <= 1,
+        "Should handle Chinese search gracefully"
+    );
 }
 
 /// TC-FT-030: Special Query Characters
@@ -290,8 +285,7 @@ async fn test_multi_space_isolation() {
         .await
         .expect("Search should succeed");
 
-    assert_search_result_count(&results_space_1, 1)
-        .expect("Space 1 should have 1 result");
+    assert_search_result_count(&results_space_1, 1).expect("Space 1 should have 1 result");
     assert!(
         results_space_1[0].doc_id == graphdb::core::Value::String("doc_1".to_string()),
         "Space 1 should return doc_1"
@@ -303,8 +297,7 @@ async fn test_multi_space_isolation() {
         .await
         .expect("Search should succeed");
 
-    assert_search_result_count(&results_space_2, 1)
-        .expect("Space 2 should have 1 result");
+    assert_search_result_count(&results_space_2, 1).expect("Space 2 should have 1 result");
     assert!(
         results_space_2[0].doc_id == graphdb::core::Value::String("doc_2".to_string()),
         "Space 2 should return doc_2"
@@ -353,14 +346,9 @@ async fn test_memory_limit() {
             .map(|(id, content)| (id.as_str(), content.as_str()))
             .collect();
 
-        ctx.insert_test_docs(
-            1,
-            &format!("Tag{}", i),
-            &format!("field{}", i),
-            docs_ref,
-        )
-        .await
-        .unwrap_or_else(|_| panic!("Failed to insert docs for index {}", i));
+        ctx.insert_test_docs(1, &format!("Tag{}", i), &format!("field{}", i), docs_ref)
+            .await
+            .unwrap_or_else(|_| panic!("Failed to insert docs for index {}", i));
     }
 
     // Commit all
@@ -369,7 +357,13 @@ async fn test_memory_limit() {
     // Verify all indexes are working
     for i in 0..num_indexes {
         let results = ctx
-            .search(1, &format!("Tag{}", i), &format!("field{}", i), "document", 200)
+            .search(
+                1,
+                &format!("Tag{}", i),
+                &format!("field{}", i),
+                "document",
+                200,
+            )
             .await
             .unwrap_or_else(|_| panic!("Search should succeed for index {}", i));
 
@@ -391,10 +385,7 @@ async fn test_memory_limit() {
 
         // Memory usage should be reasonable (this is a basic check)
         // In production, you would add more sophisticated memory monitoring
-        assert!(
-            stats.index_size > 0,
-            "Index should have non-zero size"
-        );
+        assert!(stats.index_size > 0, "Index should have non-zero size");
     }
 
     // Verify system is still responsive after creating many indexes

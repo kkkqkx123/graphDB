@@ -8,7 +8,6 @@ use std::sync::Arc;
 use crate::core::error::DBError;
 use crate::core::value::list::List;
 use crate::core::value::null::NullType;
-use crate::query::DataSet;
 use crate::core::Value;
 use crate::query::executor::base::{
     BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, HasStorage,
@@ -17,6 +16,7 @@ use crate::query::parser::ast::vector::{VectorQueryExpr, VectorQueryType};
 use crate::query::planning::plan::core::nodes::search::vector::data_access::{
     OutputField, VectorLookupNode, VectorMatchNode, VectorSearchNode,
 };
+use crate::query::DataSet;
 use crate::storage::StorageClient;
 use crate::sync::vector_sync::{SearchOptions, VectorSyncCoordinator};
 use parking_lot::Mutex;

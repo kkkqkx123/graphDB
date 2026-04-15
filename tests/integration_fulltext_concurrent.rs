@@ -259,7 +259,7 @@ async fn test_concurrent_updates_same_document() {
             if let Some(engine) = ctx_clone.manager.get_engine(1, "Article", "content") {
                 let _ = engine.delete("doc_1").await;
             }
-            
+
             ctx_clone
                 .insert_test_doc(
                     1,

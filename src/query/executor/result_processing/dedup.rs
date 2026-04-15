@@ -10,12 +10,12 @@ use std::sync::Arc;
 use rayon;
 
 use crate::core::{Edge, Value, Vertex};
-use crate::query::DataSet;
+use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor};
-use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::utils::recursion_detector::ParallelConfig;
+use crate::query::DataSet;
 use crate::storage::iterator::Row;
 use crate::storage::StorageClient;
 
@@ -554,10 +554,7 @@ mod tests {
                     (Value::Int(a), Value::Int(b)) => a.cmp(b),
                     _ => std::cmp::Ordering::Equal,
                 });
-                assert_eq!(
-                    values,
-                    vec![Value::Int(1), Value::Int(2), Value::Int(3),]
-                );
+                assert_eq!(values, vec![Value::Int(1), Value::Int(2), Value::Int(3),]);
             }
             _ => panic!("Expected DataSet result"),
         }
@@ -601,4 +598,3 @@ mod tests {
         }
     }
 }
-

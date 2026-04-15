@@ -162,9 +162,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         &self.plan_cache
     }
 
-    /// Obtain statistics on the query plan cache
-    pub fn plan_cache_stats(&self) -> crate::query::planning::PlanCacheStats {
-        self.plan_cache.stats()
+    /// Obtain metrics on the query plan cache
+    pub fn plan_cache_metrics(&self) -> std::sync::Arc<crate::query::cache::PlanCacheMetrics> {
+        self.plan_cache.metrics()
     }
 
     /// Clear query plan cache.

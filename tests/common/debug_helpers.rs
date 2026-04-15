@@ -5,8 +5,8 @@
 //! to avoid polluting production code.
 
 use graphdb::core::Value;
-use graphdb::query::DataSet;
 use graphdb::query::planning::plan::ExecutionPlan;
+use graphdb::query::DataSet;
 
 /// Formats a query plan into a human-readable string representation
 pub fn format_query_plan(plan: &ExecutionPlan) -> String {
