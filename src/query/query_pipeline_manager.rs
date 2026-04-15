@@ -363,7 +363,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                     QueryPhase::Parse,
                     e.to_string(),
                 ));
-                profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+                profile.total_duration_us = total_start.elapsed().as_micros() as u64;
                 self.stats_manager.record_query_profile(profile.clone());
                 return Err(e);
             }
@@ -381,7 +381,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                     QueryPhase::Validate,
                     e.to_string(),
                 ));
-                profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+                profile.total_duration_us = total_start.elapsed().as_micros() as u64;
                 self.stats_manager.record_query_profile(profile.clone());
                 return Err(e);
             }
@@ -397,13 +397,13 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         match validated.ast.stmt() {
             crate::query::parser::ast::Stmt::Explain(explain_stmt) => {
                 let result = self.execute_explain(explain_stmt, query_context)?;
-                profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+                profile.total_duration_us = total_start.elapsed().as_micros() as u64;
                 metrics.record_total_time(total_start.elapsed());
                 return Ok((result, metrics, profile));
             }
             crate::query::parser::ast::Stmt::Profile(profile_stmt) => {
                 let result = self.execute_profile(profile_stmt, query_context)?;
-                profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+                profile.total_duration_us = total_start.elapsed().as_micros() as u64;
                 metrics.record_total_time(total_start.elapsed());
                 return Ok((result, metrics, profile));
             }
@@ -425,7 +425,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                     QueryPhase::Plan,
                     e.to_string(),
                 ));
-                profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+                profile.total_duration_us = total_start.elapsed().as_micros() as u64;
                 self.stats_manager.record_query_profile(profile.clone());
                 return Err(e);
             }
@@ -445,7 +445,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                     QueryPhase::Optimize,
                     e.to_string(),
                 ));
-                profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+                profile.total_duration_us = total_start.elapsed().as_micros() as u64;
                 self.stats_manager.record_query_profile(profile.clone());
                 return Err(e);
             }
@@ -467,13 +467,13 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                     QueryPhase::Execute,
                     e.to_string(),
                 ));
-                profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+                profile.total_duration_us = total_start.elapsed().as_micros() as u64;
                 self.stats_manager.record_query_profile(profile.clone());
                 return Err(e);
             }
         };
 
-        profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+        profile.total_duration_us = total_start.elapsed().as_micros() as u64;
         metrics.record_total_time(total_start.elapsed());
 
         self.stats_manager.record_query_metrics(&metrics);

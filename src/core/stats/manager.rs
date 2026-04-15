@@ -12,6 +12,7 @@ use super::error_stats::{ErrorInfo, ErrorStatsManager, ErrorType, QueryPhase};
 use super::latency_histogram::LatencyHistogram;
 use super::metrics::QueryMetrics;
 use super::profile::QueryProfile;
+use super::utils::micros_to_millis;
 
 /// Space metrics type alias
 type SpaceMetrics = Arc<DashMap<MetricType, Arc<MetricValue>>>;
@@ -141,7 +142,7 @@ impl StatsManager {
             return;
         }
 
-        if profile.total_duration_ms >= self.config.slow_query_threshold_ms {
+        if profile.total_duration_us >= self.config.slow_query_threshold_ms * 1000 {
             self.write_slow_query_log(&profile);
         }
 
@@ -187,7 +188,7 @@ impl StatsManager {
              执行器详情: {}{}",
             profile.trace_id,
             profile.session_id,
-            profile.total_duration_ms,
+            micros_to_millis(profile.total_duration_us),
             match profile.status {
                 super::profile::QueryStatus::Success => "success",
                 super::profile::QueryStatus::Failed => "failed",
@@ -215,7 +216,7 @@ impl StatsManager {
         let profiles = self.query_profiles.lock();
         profiles
             .iter()
-            .filter(|p| p.total_duration_ms >= self.config.slow_query_threshold_ms)
+            .filter(|p| p.total_duration_us >= self.config.slow_query_threshold_ms * 1000)
             .rev()
             .take(limit)
             .cloned()
@@ -574,7 +575,7 @@ mod tests {
         let stats = StatsManager::with_config(config);
 
         let mut profile = QueryProfile::new(123, "MATCH (n) RETURN n".to_string());
-        profile.total_duration_ms = 500;
+        profile.total_duration_us = 500;
         profile.result_count = 10;
 
         stats.record_query_profile(profile.clone());
@@ -596,11 +597,11 @@ mod tests {
         let stats = StatsManager::with_config(config);
 
         let mut slow_profile = QueryProfile::new(1, "MATCH (n) RETURN n".to_string());
-        slow_profile.total_duration_ms = 2000;
+        slow_profile.total_duration_us = 2_000_000; // 2000ms in microseconds
         stats.record_query_profile(slow_profile);
 
         let mut fast_profile = QueryProfile::new(2, "MATCH (n) RETURN n LIMIT 1".to_string());
-        fast_profile.total_duration_ms = 100;
+        fast_profile.total_duration_us = 100_000; // 100ms in microseconds
         stats.record_query_profile(fast_profile);
 
         let slow_queries = stats.get_slow_queries(10);

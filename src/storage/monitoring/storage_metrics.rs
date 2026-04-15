@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::core::stats::CacheMetrics;
+use crate::core::stats::CacheStats;
 
 /// Storage metric snapshot
 #[derive(Debug, Clone, Default)]
@@ -14,30 +14,10 @@ pub struct StorageMetricsSnapshot {
     pub items_scanned: u64,
     /// Number of items returned
     pub items_returned: u64,
-    /// Number of cache hits
-    pub cache_hits: u64,
-    /// Number of cache misses
-    pub cache_misses: u64,
-    /// I/O read operations count
-    pub io_reads: u64,
-    /// I/O read bytes
-    pub io_read_bytes: u64,
-    /// I/O write operations count
-    pub io_writes: u64,
-    /// I/O write bytes
-    pub io_write_bytes: u64,
+    /// Cache hit rate (calculated)
+    pub cache_hit_rate: f64,
     /// Count of each type of operation
     pub operation_counts: HashMap<String, u64>,
-}
-
-impl CacheMetrics for StorageMetricsSnapshot {
-    fn cache_hits(&self) -> u64 {
-        self.cache_hits
-    }
-
-    fn cache_misses(&self) -> u64 {
-        self.cache_misses
-    }
 }
 
 impl StorageMetricsSnapshot {
@@ -62,18 +42,8 @@ pub struct StorageMetricsCollector {
     items_scanned: AtomicU64,
     /// Number of items returned
     items_returned: AtomicU64,
-    /// Number of cache hits
-    cache_hits: AtomicU64,
-    /// Number of cache misses
-    cache_misses: AtomicU64,
-    /// I/O read operations count
-    io_reads: AtomicU64,
-    /// I/O read bytes
-    io_read_bytes: AtomicU64,
-    /// I/O write operations count
-    io_writes: AtomicU64,
-    /// I/O write bytes
-    io_write_bytes: AtomicU64,
+    /// Cache statistics using unified CacheStats
+    cache_stats: CacheStats,
     /// Count of each operation type
     operation_counts: dashmap::DashMap<String, AtomicU64>,
 }
@@ -83,12 +53,7 @@ impl StorageMetricsCollector {
         Self {
             items_scanned: AtomicU64::new(0),
             items_returned: AtomicU64::new(0),
-            cache_hits: AtomicU64::new(0),
-            cache_misses: AtomicU64::new(0),
-            io_reads: AtomicU64::new(0),
-            io_read_bytes: AtomicU64::new(0),
-            io_writes: AtomicU64::new(0),
-            io_write_bytes: AtomicU64::new(0),
+            cache_stats: CacheStats::new(),
             operation_counts: dashmap::DashMap::new(),
         }
     }
@@ -105,24 +70,12 @@ impl StorageMetricsCollector {
 
     /// Record of cache hits
     pub fn record_cache_hit(&self) {
-        self.cache_hits.fetch_add(1, Ordering::Relaxed);
+        self.cache_stats.record_hit();
     }
 
     /// Record of a cache miss.
     pub fn record_cache_miss(&self) {
-        self.cache_misses.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Record I/O read operation
-    pub fn record_io_read(&self, bytes: u64) {
-        self.io_reads.fetch_add(1, Ordering::Relaxed);
-        self.io_read_bytes.fetch_add(bytes, Ordering::Relaxed);
-    }
-
-    /// Record I/O write operation
-    pub fn record_io_write(&self, bytes: u64) {
-        self.io_writes.fetch_add(1, Ordering::Relaxed);
-        self.io_write_bytes.fetch_add(bytes, Ordering::Relaxed);
+        self.cache_stats.record_miss();
     }
 
     /// Record the operation
@@ -144,12 +97,7 @@ impl StorageMetricsCollector {
         StorageMetricsSnapshot {
             items_scanned: self.items_scanned.load(Ordering::Relaxed),
             items_returned: self.items_returned.load(Ordering::Relaxed),
-            cache_hits: self.cache_hits.load(Ordering::Relaxed),
-            cache_misses: self.cache_misses.load(Ordering::Relaxed),
-            io_reads: self.io_reads.load(Ordering::Relaxed),
-            io_read_bytes: self.io_read_bytes.load(Ordering::Relaxed),
-            io_writes: self.io_writes.load(Ordering::Relaxed),
-            io_write_bytes: self.io_write_bytes.load(Ordering::Relaxed),
+            cache_hit_rate: self.cache_stats.hit_rate(),
             operation_counts,
         }
     }
@@ -158,13 +106,13 @@ impl StorageMetricsCollector {
     pub fn reset(&self) {
         self.items_scanned.store(0, Ordering::Relaxed);
         self.items_returned.store(0, Ordering::Relaxed);
-        self.cache_hits.store(0, Ordering::Relaxed);
-        self.cache_misses.store(0, Ordering::Relaxed);
-        self.io_reads.store(0, Ordering::Relaxed);
-        self.io_read_bytes.store(0, Ordering::Relaxed);
-        self.io_writes.store(0, Ordering::Relaxed);
-        self.io_write_bytes.store(0, Ordering::Relaxed);
+        self.cache_stats.reset();
         self.operation_counts.clear();
+    }
+
+    /// Get cache hit rate
+    pub fn cache_hit_rate(&self) -> f64 {
+        self.cache_stats.hit_rate()
     }
 }
 
@@ -194,10 +142,8 @@ mod tests {
 
         assert_eq!(snapshot.items_scanned, 100);
         assert_eq!(snapshot.items_returned, 50);
-        assert_eq!(snapshot.cache_hits, 2);
-        assert_eq!(snapshot.cache_misses, 1);
+        assert!((snapshot.cache_hit_rate - 0.666).abs() < 0.01);
         assert_eq!(snapshot.operation_counts.get("scan_vertices"), Some(&2));
-        assert!((snapshot.cache_hit_rate() - 0.666).abs() < 0.01);
         assert_eq!(snapshot.scan_efficiency(), 0.5);
     }
 
@@ -212,6 +158,6 @@ mod tests {
 
         let snapshot = collector.snapshot();
         assert_eq!(snapshot.items_scanned, 0);
-        assert_eq!(snapshot.cache_hits, 0);
+        assert_eq!(snapshot.cache_hit_rate, 0.0);
     }
 }

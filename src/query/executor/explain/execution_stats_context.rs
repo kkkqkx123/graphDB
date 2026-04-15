@@ -40,36 +40,14 @@ impl NodeExecutionStats {
         micros_to_millis(self.executor_stats.exec_time_us)
     }
 
-    pub fn cache_hit_rate(&self) -> f64 {
-        self.executor_stats.cache_hit_rate()
-    }
-
     pub fn memory_used(&self) -> usize {
         self.executor_stats.memory_peak
     }
 
-    pub fn io_reads(&self) -> usize {
-        self.executor_stats.io_reads
-    }
-
-    pub fn io_read_bytes(&self) -> usize {
-        self.executor_stats.io_read_bytes
-    }
-
-    pub fn io_writes(&self) -> usize {
-        self.executor_stats.io_writes
-    }
-
-    pub fn io_write_bytes(&self) -> usize {
-        self.executor_stats.io_write_bytes
-    }
-
-    pub fn total_io_ops(&self) -> usize {
-        self.executor_stats.total_io_ops()
-    }
-
-    pub fn total_io_bytes(&self) -> usize {
-        self.executor_stats.total_io_bytes()
+    pub fn cache_hit_rate(&self) -> f64 {
+        // Cache statistics removed in phase 1 of metrics migration
+        // See docs/stat/metrics_migration_plan.md for details
+        0.0
     }
 }
 
@@ -82,11 +60,21 @@ impl Default for NodeExecutionStats {
 /// Global execution statistics
 #[derive(Debug, Clone, Default)]
 pub struct GlobalExecutionStats {
-    pub planning_time_ms: f64,
-    pub execution_time_ms: f64,
+    pub planning_time_us: u64,
+    pub execution_time_us: u64,
     pub total_rows: usize,
     pub peak_memory: usize,
     pub cache_hit_rate: f64,
+}
+
+impl GlobalExecutionStats {
+    pub fn planning_time_ms(&self) -> f64 {
+        micros_to_millis(self.planning_time_us)
+    }
+
+    pub fn execution_time_ms(&self) -> f64 {
+        micros_to_millis(self.execution_time_us)
+    }
 }
 
 /// Execution statistics context
@@ -110,7 +98,7 @@ impl ExecutionStatsContext {
 
     pub fn with_planning_time(planning_time_ms: f64) -> Self {
         let ctx = Self::new();
-        ctx.global_stats.lock().planning_time_ms = planning_time_ms;
+        ctx.global_stats.lock().planning_time_us = (planning_time_ms * 1000.0) as u64;
         ctx
     }
 
@@ -152,8 +140,8 @@ impl ExecutionStatsContext {
         }
     }
 
-    pub fn record_global_execution_time(&self, time_ms: f64) {
-        self.global_stats.lock().execution_time_ms = time_ms;
+    pub fn record_global_execution_time(&self, time_us: u64) {
+        self.global_stats.lock().execution_time_us = time_us;
     }
 
     pub fn collect_stats(&self) -> HashMap<i64, NodeExecutionStats> {
@@ -196,18 +184,5 @@ mod tests {
         let collected = ctx.collect_stats();
         assert_eq!(collected.get(&1).unwrap().actual_rows(), 100);
         assert!((collected.get(&1).unwrap().actual_time_ms() - 5.5).abs() < 0.001);
-    }
-
-    #[test]
-    fn test_node_execution_stats_cache_rate() {
-        let mut exec_stats = ExecutorStats::default();
-        exec_stats.cache_hits = 90;
-        exec_stats.cache_misses = 10;
-        let stats = NodeExecutionStats {
-            node_id: 0,
-            executor_stats: exec_stats,
-            startup_time_us: 0,
-        };
-        assert!((stats.cache_hit_rate() - 0.9).abs() < 0.001);
     }
 }

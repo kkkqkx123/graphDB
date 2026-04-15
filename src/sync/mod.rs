@@ -30,7 +30,7 @@ pub use coordinator::{
 pub use dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
 pub use external_index::{ExternalIndexClient, IndexData, IndexOperation};
 pub use manager::{SyncError, SyncManager};
-pub use metrics::{SyncMetrics, SyncStats};
+pub use metrics::SyncMetrics;
 pub use persistence::{FailedTask, PersistenceError, SyncPersistence, SyncState};
 pub use queue::{AsyncQueue, DeadLetterItem, QueueConfig, QueueError, QueueHandler, QueueResult};
 pub use recovery::{RecoveryConfig, RecoveryError, RecoveryManager, RecoveryResult};

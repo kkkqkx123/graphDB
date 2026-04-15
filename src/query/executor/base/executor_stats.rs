@@ -6,8 +6,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
 
-use crate::core::stats::CacheMetrics;
-
 /// Actuator statistics
 ///
 /// Record statistics during actuator execution for performance analysis and query optimization.
@@ -25,30 +23,8 @@ pub struct ExecutorStats {
     pub memory_current: usize,
     /// Number of batch operations
     pub batch_count: usize,
-    /// Cache hits
-    pub cache_hits: usize,
-    /// Number of cache misses
-    pub cache_misses: usize,
-    /// I/O read operations count
-    pub io_reads: usize,
-    /// I/O read bytes
-    pub io_read_bytes: usize,
-    /// I/O write operations count
-    pub io_writes: usize,
-    /// I/O write bytes
-    pub io_write_bytes: usize,
     /// Other statistical information
     pub other_stats: HashMap<String, String>,
-}
-
-impl CacheMetrics for ExecutorStats {
-    fn cache_hits(&self) -> u64 {
-        self.cache_hits as u64
-    }
-
-    fn cache_misses(&self) -> u64 {
-        self.cache_misses as u64
-    }
 }
 
 impl ExecutorStats {
@@ -87,48 +63,6 @@ impl ExecutorStats {
     /// Increase the number of batch operations
     pub fn add_batch(&mut self, count: usize) {
         self.batch_count += count;
-    }
-
-    /// Logging Cache Hits
-    pub fn record_cache_hit(&mut self) {
-        self.cache_hits += 1;
-    }
-
-    /// Record cache misses
-    pub fn record_cache_miss(&mut self) {
-        self.cache_misses += 1;
-    }
-
-    /// Record I/O read operation
-    pub fn record_io_read(&mut self, bytes: usize) {
-        self.io_reads += 1;
-        self.io_read_bytes += bytes;
-    }
-
-    /// Record I/O write operation
-    pub fn record_io_write(&mut self, bytes: usize) {
-        self.io_writes += 1;
-        self.io_write_bytes += bytes;
-    }
-
-    /// Get total I/O operations
-    pub fn total_io_ops(&self) -> usize {
-        self.io_reads + self.io_writes
-    }
-
-    /// Get total I/O bytes
-    pub fn total_io_bytes(&self) -> usize {
-        self.io_read_bytes + self.io_write_bytes
-    }
-
-    /// Calculating Cache Hit Ratio
-    pub fn cache_hit_rate(&self) -> f64 {
-        let total = self.cache_hits + self.cache_misses;
-        if total > 0 {
-            self.cache_hits as f64 / total as f64
-        } else {
-            0.0
-        }
     }
 
     /// Adding customized statistics
@@ -173,23 +107,14 @@ impl ExecutorStats {
     pub fn to_formatted_string(&self) -> String {
         format!(
             "rows: {}, exec_time: {}us, total_time: {}us, memory_peak: {}B, \
-             memory_current: {}B, batches: {}, cache_hits: {}, cache_misses: {}, \
-             cache_hit_rate: {:.2}%, throughput: {:.2} rows/sec, \
-             io_reads: {}, io_read_bytes: {}, io_writes: {}, io_write_bytes: {}",
+             memory_current: {}B, batches: {}, throughput: {:.2} rows/sec",
             self.num_rows,
             self.exec_time_us,
             self.total_time_us,
             self.memory_peak,
             self.memory_current,
             self.batch_count,
-            self.cache_hits,
-            self.cache_misses,
-            self.cache_hit_rate() * 100.0,
-            self.throughput_rows_per_sec(),
-            self.io_reads,
-            self.io_read_bytes,
-            self.io_writes,
-            self.io_write_bytes
+            self.throughput_rows_per_sec()
         )
     }
 }

@@ -47,8 +47,8 @@ impl<S: StorageClient + Send + 'static> InstrumentedExecutor<S> {
     fn collect_inner_stats(&mut self) {
         let inner_stats = self.inner.stats();
         self.stats.memory_peak = inner_stats.memory_peak;
-        self.stats.cache_hits = inner_stats.cache_hits;
-        self.stats.cache_misses = inner_stats.cache_misses;
+        // Cache stats are now handled internally by CacheStats
+        // No need to copy cache_hits and cache_misses
     }
 }
 

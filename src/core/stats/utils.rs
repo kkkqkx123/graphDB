@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 pub fn calculate_cache_hit_rate(hits: u64, misses: u64) -> f64 {
@@ -9,12 +10,76 @@ pub fn calculate_cache_hit_rate(hits: u64, misses: u64) -> f64 {
     }
 }
 
-pub trait CacheMetrics {
-    fn cache_hits(&self) -> u64;
-    fn cache_misses(&self) -> u64;
+#[derive(Debug, Default)]
+pub struct CacheStats {
+    hits: AtomicU64,
+    misses: AtomicU64,
+}
 
-    fn cache_hit_rate(&self) -> f64 {
-        calculate_cache_hit_rate(self.cache_hits(), self.cache_misses())
+impl CacheStats {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn record_hit(&self) {
+        self.hits.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn record_miss(&self) {
+        self.misses.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn record_hits(&self, count: u64) {
+        self.hits.fetch_add(count, Ordering::Relaxed);
+    }
+
+    pub fn record_misses(&self, count: u64) {
+        self.misses.fetch_add(count, Ordering::Relaxed);
+    }
+
+    pub fn hits(&self) -> u64 {
+        self.hits.load(Ordering::Relaxed)
+    }
+
+    pub fn misses(&self) -> u64 {
+        self.misses.load(Ordering::Relaxed)
+    }
+
+    pub fn total(&self) -> u64 {
+        self.hits() + self.misses()
+    }
+
+    pub fn hit_rate(&self) -> f64 {
+        calculate_cache_hit_rate(self.hits(), self.misses())
+    }
+
+    pub fn reset(&self) {
+        self.hits.store(0, Ordering::Relaxed);
+        self.misses.store(0, Ordering::Relaxed);
+    }
+}
+
+pub trait TimeConversion {
+    fn as_micros(&self) -> u64;
+
+    fn as_millis_f64(&self) -> f64 {
+        self.as_micros() as f64 / 1000.0
+    }
+
+    fn as_seconds_f64(&self) -> f64 {
+        self.as_micros() as f64 / 1_000_000.0
+    }
+}
+
+impl TimeConversion for Duration {
+    fn as_micros(&self) -> u64 {
+        self.as_micros() as u64
+    }
+}
+
+impl TimeConversion for u64 {
+    fn as_micros(&self) -> u64 {
+        *self
     }
 }
 

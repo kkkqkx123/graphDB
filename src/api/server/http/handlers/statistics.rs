@@ -31,9 +31,10 @@ pub async fn session<S: StorageClient + Clone + Send + Sync + 'static>(
     let avg_execution_time_ms = if total_queries > 0 {
         session_queries
             .iter()
-            .map(|q| q.total_duration_ms)
+            .map(|q| q.total_duration_us)
             .sum::<u64>() as f64
             / total_queries as f64
+            / 1000.0
     } else {
         0.0
     };
@@ -76,7 +77,7 @@ pub async fn queries<S: StorageClient + Clone + Send + Sync + 'static>(
                 "trace_id": profile.trace_id,
                 "session_id": profile.session_id,
                 "query": profile.query_text,
-                "duration_ms": profile.total_duration_ms,
+                "duration_ms": profile.total_duration_us as f64 / 1000.0,
                 "status": match profile.status {
                     crate::core::stats::QueryStatus::Success => "success",
                     crate::core::stats::QueryStatus::Failed => "failed",
@@ -167,9 +168,10 @@ pub async fn database<S: StorageClient + Clone + Send + Sync + 'static>(
     } else {
         recent_queries
             .iter()
-            .map(|q| q.total_duration_ms)
+            .map(|q| q.total_duration_us)
             .sum::<u64>() as f64
             / recent_queries.len() as f64
+            / 1000.0
     };
 
     // Calculate the QPS (based on the time span of the last 100 queries)

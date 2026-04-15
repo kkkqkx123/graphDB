@@ -42,5 +42,5 @@ pub use metrics::QueryMetrics;
 pub use profile::{ExecutorStat, QueryProfile, QueryStatus, StageMetrics};
 pub use utils::{
     calculate_average, calculate_cache_hit_rate, duration_to_micros, format_duration,
-    micros_to_millis, CacheMetrics,
+    micros_to_millis, CacheStats, TimeConversion,
 };

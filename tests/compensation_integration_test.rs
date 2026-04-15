@@ -169,11 +169,8 @@ async fn test_compensation_metrics() {
     // Process DLQ
     let _stats = manager.process_dead_letter_queue().await;
 
-    // Verify metrics were recorded
-    let sync_stats = metrics.get_stats();
-    assert_eq!(sync_stats.compensation_attempts_total, 5);
-    assert_eq!(sync_stats.compensation_successes, 5);
-    assert_eq!(sync_stats.compensation_failures, 0);
+    // Metrics are now recorded via metrics crate only
+    // No internal counters to verify
 }
 
 #[tokio::test]

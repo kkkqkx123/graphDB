@@ -1,6 +1,6 @@
 //! Querying image data and executing executor statistics
 //!
-//! Query profiles for detailed monitoring and analysis, with millisecond-level accuracy.
+//! Query profiles for detailed monitoring and analysis, with microsecond-level accuracy.
 
 use std::time::Instant;
 
@@ -95,17 +95,17 @@ pub enum QueryStatus {
 
 /// Query the image
 ///
-/// Query profiles for detailed monitoring and analysis, with millisecond-level accuracy.
+/// Query profiles for detailed monitoring and analysis, with microsecond-level accuracy.
 /// Differences from QueryMetrics:
-/// QueryProfile: Provides detailed monitoring data for internal analysis and logging (in milliseconds).
-/// QueryMetrics: A lightweight component designed to provide results to the client in a very short time (within milliseconds).
+/// QueryProfile: Provides detailed monitoring data for internal analysis and logging (in microseconds).
+/// QueryMetrics: A lightweight component designed to provide results to the client in a very short time (within microseconds).
 #[derive(Debug, Clone)]
 pub struct QueryProfile {
     pub trace_id: String,
     pub session_id: i64,
     pub query_text: String,
     pub start_time: Instant,
-    pub total_duration_ms: u64,
+    pub total_duration_us: u64,
     pub stages: StageMetrics,
     pub executor_stats: Vec<ExecutorStat>,
     pub result_count: usize,
@@ -121,7 +121,7 @@ impl QueryProfile {
             session_id,
             query_text,
             start_time: Instant::now(),
-            total_duration_ms: 0,
+            total_duration_us: 0,
             stages: StageMetrics::default(),
             executor_stats: Vec::new(),
             result_count: 0,
@@ -168,8 +168,12 @@ impl QueryProfile {
         self.stages = StageMetrics::from_query_metrics(&metrics);
     }
 
+    pub fn total_executor_time_us(&self) -> u64 {
+        self.executor_stats.iter().map(|s| s.stats.exec_time_us).sum()
+    }
+
     pub fn total_executor_time_ms(&self) -> f64 {
-        self.executor_stats.iter().map(|s| s.duration_ms()).sum()
+        micros_to_millis(self.total_executor_time_us())
     }
 }
 
@@ -205,6 +209,7 @@ mod tests {
         let stat = ExecutorStat::from_executor("ScanVerticesExecutor".to_string(), 1, stats);
         profile.add_executor_stat(stat);
         assert_eq!(profile.executor_stats.len(), 1);
+        assert_eq!(profile.total_executor_time_us(), 100_000);
         assert!((profile.total_executor_time_ms() - 100.0).abs() < 0.001);
     }
 

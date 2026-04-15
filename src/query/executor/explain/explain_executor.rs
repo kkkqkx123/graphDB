@@ -196,7 +196,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExplainExecutor<S> {
 
                 let output = self.format_output(&plan_desc)?;
 
-                let planning_time = stats_context.get_global_stats().planning_time_ms;
+                let planning_time = stats_context.get_global_stats().planning_time_ms();
                 let total_time = planning_time + execution_time_ms;
 
                 let full_output = format!(
