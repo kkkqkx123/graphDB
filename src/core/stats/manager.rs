@@ -158,9 +158,9 @@ impl StatsManager {
                     "{}[id={}, {}ms, rows={}, mem={}]",
                     stat.executor_type,
                     stat.executor_id,
-                    stat.duration_ms,
-                    stat.rows_processed,
-                    stat.memory_used
+                    stat.duration_ms(),
+                    stat.rows_processed(),
+                    stat.memory_used()
                 )
             })
             .collect();
@@ -190,11 +190,11 @@ impl StatsManager {
                 super::profile::QueryStatus::Failed => "failed",
             },
             profile.query_text,
-            profile.stages.parse_ms,
-            profile.stages.validate_ms,
-            profile.stages.plan_ms,
-            profile.stages.optimize_ms,
-            profile.stages.execute_ms,
+            profile.stages.parse_ms(),
+            profile.stages.validate_ms(),
+            profile.stages.plan_ms(),
+            profile.stages.optimize_ms(),
+            profile.stages.execute_ms(),
             profile.result_count,
             profile.executor_stats.len(),
             profile.total_executor_time_ms(),
@@ -244,8 +244,8 @@ impl StatsManager {
                 let entry = stats
                     .entry(exec_stat.executor_type.clone())
                     .or_insert((0, 0, 0));
-                entry.0 += exec_stat.duration_ms;
-                entry.1 += exec_stat.rows_processed as u64;
+                entry.0 += exec_stat.duration_ms() as u64;
+                entry.1 += exec_stat.rows_processed() as u64;
                 entry.2 += 1;
             }
         }

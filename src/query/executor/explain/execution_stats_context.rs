@@ -8,36 +8,50 @@ use std::time::Instant;
 
 use parking_lot::Mutex;
 
+use crate::query::executor::base::ExecutorStats;
+use crate::core::stats::utils::micros_to_millis;
+
 /// Node-level execution statistics
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct NodeExecutionStats {
     pub node_id: i64,
-    pub actual_rows: usize,
-    pub actual_time_ms: f64,
-    pub startup_time_ms: f64,
-    pub total_time_ms: f64,
-    pub memory_used: usize,
-    pub cache_hits: usize,
-    pub cache_misses: usize,
-    pub io_reads: usize,
-    pub io_read_bytes: usize,
+    pub executor_stats: ExecutorStats,
+    pub startup_time_us: u64,
 }
 
 impl NodeExecutionStats {
     pub fn new(node_id: i64) -> Self {
         Self {
             node_id,
-            ..Default::default()
+            executor_stats: ExecutorStats::default(),
+            startup_time_us: 0,
         }
     }
 
+    pub fn actual_rows(&self) -> usize {
+        self.executor_stats.num_rows
+    }
+
+    pub fn actual_time_us(&self) -> u64 {
+        self.executor_stats.exec_time_us
+    }
+
+    pub fn actual_time_ms(&self) -> f64 {
+        micros_to_millis(self.executor_stats.exec_time_us)
+    }
+
     pub fn cache_hit_rate(&self) -> f64 {
-        let total = self.cache_hits + self.cache_misses;
-        if total > 0 {
-            self.cache_hits as f64 / total as f64
-        } else {
-            0.0
-        }
+        self.executor_stats.cache_hit_rate()
+    }
+
+    pub fn memory_used(&self) -> usize {
+        self.executor_stats.memory_peak
+    }
+}
+
+impl Default for NodeExecutionStats {
+    fn default() -> Self {
+        Self::new(0)
     }
 }
 
@@ -83,22 +97,34 @@ impl ExecutionStatsContext {
             .or_insert_with(|| NodeExecutionStats::new(node_id));
     }
 
-    pub fn on_node_complete(&self, node_id: i64, node_stats: NodeExecutionStats) {
+    pub fn on_node_complete(&self, node_id: i64, executor_stats: ExecutorStats) {
         let mut stats = self.node_stats.lock();
+        let node_stats = NodeExecutionStats {
+            node_id,
+            executor_stats,
+            startup_time_us: 0,
+        };
         stats.insert(node_id, node_stats);
     }
 
     pub fn record_node_rows(&self, node_id: i64, rows: usize) {
         let mut stats = self.node_stats.lock();
         if let Some(s) = stats.get_mut(&node_id) {
-            s.actual_rows = rows;
+            s.executor_stats.num_rows = rows;
         }
     }
 
-    pub fn record_node_time(&self, node_id: i64, time_ms: f64) {
+    pub fn record_node_time(&self, node_id: i64, time_us: u64) {
         let mut stats = self.node_stats.lock();
         if let Some(s) = stats.get_mut(&node_id) {
-            s.actual_time_ms = time_ms;
+            s.executor_stats.exec_time_us = time_us;
+        }
+    }
+
+    pub fn record_startup_time(&self, node_id: i64, startup_time_us: u64) {
+        let mut stats = self.node_stats.lock();
+        if let Some(s) = stats.get_mut(&node_id) {
+            s.startup_time_us = startup_time_us;
         }
     }
 
@@ -138,25 +164,25 @@ mod tests {
         let ctx = ExecutionStatsContext::new();
 
         ctx.on_node_start(1);
-        let stats = NodeExecutionStats {
-            node_id: 1,
-            actual_rows: 100,
-            actual_time_ms: 5.5,
-            ..Default::default()
-        };
-        ctx.on_node_complete(1, stats);
+        let mut exec_stats = ExecutorStats::default();
+        exec_stats.num_rows = 100;
+        exec_stats.exec_time_us = 5500;
+        ctx.on_node_complete(1, exec_stats);
 
         let collected = ctx.collect_stats();
-        assert_eq!(collected.get(&1).unwrap().actual_rows, 100);
-        assert_eq!(collected.get(&1).unwrap().actual_time_ms, 5.5);
+        assert_eq!(collected.get(&1).unwrap().actual_rows(), 100);
+        assert!((collected.get(&1).unwrap().actual_time_ms() - 5.5).abs() < 0.001);
     }
 
     #[test]
     fn test_node_execution_stats_cache_rate() {
+        let mut exec_stats = ExecutorStats::default();
+        exec_stats.cache_hits = 90;
+        exec_stats.cache_misses = 10;
         let stats = NodeExecutionStats {
-            cache_hits: 90,
-            cache_misses: 10,
-            ..Default::default()
+            node_id: 0,
+            executor_stats: exec_stats,
+            startup_time_us: 0,
         };
         assert!((stats.cache_hit_rate() - 0.9).abs() < 0.001);
     }

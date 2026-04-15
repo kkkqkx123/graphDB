@@ -27,9 +27,11 @@ pub mod error_stats;
 pub mod manager;
 pub mod metrics;
 pub mod profile;
+pub mod utils;
 
 // Re-export common types
 pub use error_stats::{ErrorInfo, ErrorStatsManager, ErrorSummary, ErrorType, QueryPhase};
 pub use manager::{MetricType, MetricValue, StatsManager};
 pub use metrics::QueryMetrics;
 pub use profile::{ExecutorStat, QueryProfile, QueryStatus, StageMetrics};
+pub use utils::{calculate_average, calculate_cache_hit_rate, duration_to_micros, format_duration, micros_to_millis, CacheMetrics};

@@ -1,6 +1,8 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
+use crate::core::stats::CacheMetrics;
+
 /// Fulltext search metrics
 pub struct FulltextMetrics {
     /// Index operation counter
@@ -17,6 +19,16 @@ pub struct FulltextMetrics {
     cache_hits: AtomicU64,
     /// Cache miss counter
     cache_misses: AtomicU64,
+}
+
+impl CacheMetrics for FulltextMetrics {
+    fn cache_hits(&self) -> u64 {
+        self.cache_hits.load(Ordering::Relaxed)
+    }
+
+    fn cache_misses(&self) -> u64 {
+        self.cache_misses.load(Ordering::Relaxed)
+    }
 }
 
 impl FulltextMetrics {
@@ -89,28 +101,6 @@ impl FulltextMetrics {
     /// Get current queue size
     pub fn queue_size(&self) -> u64 {
         self.queue_size.load(Ordering::Relaxed)
-    }
-
-    /// Get cache hit count
-    pub fn cache_hits(&self) -> u64 {
-        self.cache_hits.load(Ordering::Relaxed)
-    }
-
-    /// Get cache miss count
-    pub fn cache_misses(&self) -> u64 {
-        self.cache_misses.load(Ordering::Relaxed)
-    }
-
-    /// Get cache hit rate (0.0 - 1.0)
-    pub fn cache_hit_rate(&self) -> f64 {
-        let hits = self.cache_hits.load(Ordering::Relaxed);
-        let misses = self.cache_misses.load(Ordering::Relaxed);
-        let total = hits + misses;
-        if total == 0 {
-            0.0
-        } else {
-            hits as f64 / total as f64
-        }
     }
 
     /// Get all metrics as a formatted string

@@ -352,12 +352,12 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let parse_start = Instant::now();
         let parser_result = match self.parse_into_context(query_text) {
             Ok(result) => {
-                profile.stages.parse_ms = parse_start.elapsed().as_millis() as u64;
+                profile.stages.parse_us = parse_start.elapsed().as_micros() as u64;
                 metrics.record_parse_time(parse_start.elapsed());
                 result
             }
             Err(e) => {
-                profile.stages.parse_ms = parse_start.elapsed().as_millis() as u64;
+                profile.stages.parse_us = parse_start.elapsed().as_micros() as u64;
                 profile.mark_failed_with_info(ErrorInfo::new(
                     ErrorType::ParseError,
                     QueryPhase::Parse,
@@ -375,7 +375,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         {
             Ok(info) => info,
             Err(e) => {
-                profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;
+                profile.stages.validate_us = validate_start.elapsed().as_micros() as u64;
                 profile.mark_failed_with_info(ErrorInfo::new(
                     ErrorType::ValidationError,
                     QueryPhase::Validate,
@@ -387,7 +387,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             }
         };
 
-        profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;
+        profile.stages.validate_us = validate_start.elapsed().as_micros() as u64;
         metrics.record_validate_time(validate_start.elapsed());
 
         // Create a verified statement (using Arc<Ast> to share ownership).
@@ -413,13 +413,13 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let plan_start = Instant::now();
         let execution_plan = match self.generate_execution_plan(query_context.clone(), &validated) {
             Ok(plan) => {
-                profile.stages.plan_ms = plan_start.elapsed().as_millis() as u64;
+                profile.stages.plan_us = plan_start.elapsed().as_micros() as u64;
                 metrics.set_plan_node_count(plan.node_count());
                 metrics.record_plan_time(plan_start.elapsed());
                 plan
             }
             Err(e) => {
-                profile.stages.plan_ms = plan_start.elapsed().as_millis() as u64;
+                profile.stages.plan_us = plan_start.elapsed().as_micros() as u64;
                 profile.mark_failed_with_info(ErrorInfo::new(
                     ErrorType::PlanningError,
                     QueryPhase::Plan,
@@ -434,12 +434,12 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let optimize_start = Instant::now();
         let optimized_plan = match self.optimize_execution_plan(execution_plan) {
             Ok(plan) => {
-                profile.stages.optimize_ms = optimize_start.elapsed().as_millis() as u64;
+                profile.stages.optimize_us = optimize_start.elapsed().as_micros() as u64;
                 metrics.record_optimize_time(optimize_start.elapsed());
                 plan
             }
             Err(e) => {
-                profile.stages.optimize_ms = optimize_start.elapsed().as_millis() as u64;
+                profile.stages.optimize_us = optimize_start.elapsed().as_micros() as u64;
                 profile.mark_failed_with_info(ErrorInfo::new(
                     ErrorType::OptimizationError,
                     QueryPhase::Optimize,
@@ -454,14 +454,14 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let execute_start = Instant::now();
         let result = match self.execute_plan(query_context, optimized_plan) {
             Ok(result) => {
-                profile.stages.execute_ms = execute_start.elapsed().as_millis() as u64;
+                profile.stages.execute_us = execute_start.elapsed().as_micros() as u64;
                 profile.result_count = result.count();
                 metrics.set_result_row_count(result.count());
                 metrics.record_execute_time(execute_start.elapsed());
                 result
             }
             Err(e) => {
-                profile.stages.execute_ms = execute_start.elapsed().as_millis() as u64;
+                profile.stages.execute_us = execute_start.elapsed().as_micros() as u64;
                 profile.mark_failed_with_info(ErrorInfo::new(
                     ErrorType::ExecutionError,
                     QueryPhase::Execute,

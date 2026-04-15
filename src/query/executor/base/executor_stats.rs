@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
 
+use crate::core::stats::CacheMetrics;
+
 /// Actuator statistics
 ///
 /// Record statistics during actuator execution for performance analysis and query optimization.
@@ -29,6 +31,16 @@ pub struct ExecutorStats {
     pub cache_misses: usize,
     /// Other statistical information
     pub other_stats: HashMap<String, String>,
+}
+
+impl CacheMetrics for ExecutorStats {
+    fn cache_hits(&self) -> u64 {
+        self.cache_hits as u64
+    }
+
+    fn cache_misses(&self) -> u64 {
+        self.cache_misses as u64
+    }
 }
 
 impl ExecutorStats {

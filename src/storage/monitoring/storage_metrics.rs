@@ -5,6 +5,8 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::core::stats::CacheMetrics;
+
 /// Storage metric snapshot
 #[derive(Debug, Clone, Default)]
 pub struct StorageMetricsSnapshot {
@@ -20,19 +22,19 @@ pub struct StorageMetricsSnapshot {
     pub operation_counts: HashMap<String, u64>,
 }
 
+impl CacheMetrics for StorageMetricsSnapshot {
+    fn cache_hits(&self) -> u64 {
+        self.cache_hits
+    }
+
+    fn cache_misses(&self) -> u64 {
+        self.cache_misses
+    }
+}
+
 impl StorageMetricsSnapshot {
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Calculating the cache hit rate
-    pub fn cache_hit_rate(&self) -> f64 {
-        let total = self.cache_hits + self.cache_misses;
-        if total > 0 {
-            self.cache_hits as f64 / total as f64
-        } else {
-            0.0
-        }
     }
 
     /// Calculate the scanning efficiency (number of results returned / number of scans performed)

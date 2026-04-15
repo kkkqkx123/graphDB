@@ -281,6 +281,7 @@ impl Default for SimpleFeedbackCollector {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::executor::base::ExecutorStats;
 
     #[test]
     fn test_execution_feedback_collector() {
@@ -309,9 +310,36 @@ mod tests {
     #[test]
     fn test_collector_without_start() {
         let collector = ExecutionFeedbackCollector::new();
-        // Finish directly without calling “start”.
         let time = collector.finish();
         assert_eq!(time, 0);
         assert_eq!(collector.get_execution_time_us(), 0);
+    }
+
+    #[test]
+    fn test_simple_collector_record_feedback() {
+        let simple_collector = SimpleFeedbackCollector::new();
+        let mut stats = ExecutorStats::new();
+        stats.add_row(1000);
+
+        simple_collector.record_feedback("scan_pattern", 800, stats.num_rows as u64);
+
+        let feedback = simple_collector.get_feedback("scan_pattern");
+        assert!(feedback.is_some());
+        assert_eq!(feedback.unwrap().actual_rows, 1000);
+    }
+
+    #[test]
+    fn test_simple_collector_with_collector_feedback() {
+        let simple_collector = SimpleFeedbackCollector::new();
+        let collector = ExecutionFeedbackCollector::new();
+        collector.start();
+        collector.record_rows(750);
+        collector.finish();
+
+        simple_collector.record_feedback("join_pattern", 600, collector.get_actual_rows());
+
+        let feedback = simple_collector.get_feedback("join_pattern");
+        assert!(feedback.is_some());
+        assert_eq!(feedback.unwrap().actual_rows, 750);
     }
 }

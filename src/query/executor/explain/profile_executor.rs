@@ -112,16 +112,16 @@ impl<S: StorageClient + Send + 'static> ProfileExecutor<S> {
         for (node_id, stats) in node_stats {
             if let Some(node_desc) = plan_desc.get_node_desc_mut(*node_id) {
                 let profiling = ProfilingStats {
-                    rows: stats.actual_rows as i64,
-                    exec_duration_in_us: (stats.actual_time_ms * 1000.0) as i64,
-                    total_duration_in_us: (stats.total_time_ms * 1000.0) as i64,
+                    rows: stats.actual_rows() as i64,
+                    exec_duration_in_us: stats.actual_time_us() as i64,
+                    total_duration_in_us: stats.executor_stats.total_time_us as i64,
                     other_stats: {
                         let mut map = std::collections::HashMap::new();
                         map.insert(
                             "startup_time_ms".to_string(),
-                            format!("{:.3}", stats.startup_time_ms),
+                            format!("{:.3}", stats.startup_time_us as f64 / 1000.0),
                         );
-                        map.insert("memory_used".to_string(), format!("{}", stats.memory_used));
+                        map.insert("memory_used".to_string(), format!("{}", stats.memory_used()));
                         map.insert(
                             "cache_hit_rate".to_string(),
                             format!("{:.2}%", stats.cache_hit_rate() * 100.0),

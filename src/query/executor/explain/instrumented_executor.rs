@@ -10,7 +10,7 @@ use crate::query::executor::base::{DBResult, ExecutionResult, Executor, Executor
 use crate::query::executor::base::ExecutorEnum;
 use crate::storage::StorageClient;
 
-use super::execution_stats_context::{ExecutionStatsContext, NodeExecutionStats};
+use super::execution_stats_context::ExecutionStatsContext;
 
 /// Instrumented executor wrapper
 ///
@@ -20,10 +20,10 @@ pub struct InstrumentedExecutor<S: StorageClient + Send + 'static> {
     inner: ExecutorEnum<S>,
     node_id: i64,
     node_name: String,
-    stats: NodeExecutionStats,
+    stats: ExecutorStats,
     context: Arc<ExecutionStatsContext>,
     first_row_time: Option<Instant>,
-    row_count: usize,
+    startup_time_us: u64,
 }
 
 impl<S: StorageClient + Send + 'static> InstrumentedExecutor<S> {
@@ -37,16 +37,16 @@ impl<S: StorageClient + Send + 'static> InstrumentedExecutor<S> {
             inner,
             node_id,
             node_name,
-            stats: NodeExecutionStats::new(node_id),
+            stats: ExecutorStats::default(),
             context,
             first_row_time: None,
-            row_count: 0,
+            startup_time_us: 0,
         }
     }
 
     fn collect_inner_stats(&mut self) {
         let inner_stats = self.inner.stats();
-        self.stats.memory_used = inner_stats.memory_peak;
+        self.stats.memory_peak = inner_stats.memory_peak;
         self.stats.cache_hits = inner_stats.cache_hits;
         self.stats.cache_misses = inner_stats.cache_misses;
     }
@@ -61,24 +61,24 @@ impl<S: StorageClient + Send + 'static> Executor<S> for InstrumentedExecutor<S> 
         let result = self.inner.execute();
 
         let elapsed = start.elapsed();
-        self.stats.actual_time_ms = elapsed.as_micros() as f64 / 1000.0;
+        self.stats.exec_time_us = elapsed.as_micros() as u64;
 
         if let Ok(exec_result) = &result {
-            self.row_count = exec_result.count();
-            self.stats.actual_rows = self.row_count;
+            let row_count = exec_result.count();
+            self.stats.num_rows = row_count;
 
-            if self.first_row_time.is_none() && self.row_count > 0 {
+            if self.first_row_time.is_none() && row_count > 0 {
                 self.first_row_time = Some(Instant::now());
-                self.stats.startup_time_ms = self
+                self.startup_time_us = self
                     .first_row_time
                     .unwrap()
                     .duration_since(start)
-                    .as_micros() as f64
-                    / 1000.0;
+                    .as_micros() as u64;
             }
         }
 
         self.collect_inner_stats();
+        self.context.record_startup_time(self.node_id, self.startup_time_us);
         self.context
             .on_node_complete(self.node_id, self.stats.clone());
 
@@ -122,7 +122,6 @@ impl<S: StorageClient + Send + 'static> Executor<S> for InstrumentedExecutor<S> 
 pub struct InstrumentedExecutorFactory;
 
 impl InstrumentedExecutorFactory {
-    /// Wrap an executor with instrumentation
     pub fn wrap<S: StorageClient + Send + 'static>(
         executor: ExecutorEnum<S>,
         node_id: i64,

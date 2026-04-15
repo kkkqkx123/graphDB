@@ -5,15 +5,55 @@
 use std::time::Instant;
 
 use super::error_stats::{ErrorInfo, ErrorType, QueryPhase};
+use super::utils::micros_to_millis;
+use crate::query::executor::base::ExecutorStats;
 
-/// Statistics during the query execution phase (in milliseconds)
+/// Statistics during the query execution phase (in microseconds)
 #[derive(Debug, Clone, Default)]
 pub struct StageMetrics {
-    pub parse_ms: u64,
-    pub validate_ms: u64,
-    pub plan_ms: u64,
-    pub optimize_ms: u64,
-    pub execute_ms: u64,
+    pub parse_us: u64,
+    pub validate_us: u64,
+    pub plan_us: u64,
+    pub optimize_us: u64,
+    pub execute_us: u64,
+}
+
+impl StageMetrics {
+    pub fn from_query_metrics(metrics: &crate::core::stats::QueryMetrics) -> Self {
+        Self {
+            parse_us: metrics.parse_time_us,
+            validate_us: metrics.validate_time_us,
+            plan_us: metrics.plan_time_us,
+            optimize_us: metrics.optimize_time_us,
+            execute_us: metrics.execute_time_us,
+        }
+    }
+
+    pub fn total_ms(&self) -> f64 {
+        (self.parse_us + self.validate_us + self.plan_us + self.optimize_us + self.execute_us)
+            as f64
+            / 1000.0
+    }
+
+    pub fn parse_ms(&self) -> f64 {
+        micros_to_millis(self.parse_us)
+    }
+
+    pub fn validate_ms(&self) -> f64 {
+        micros_to_millis(self.validate_us)
+    }
+
+    pub fn plan_ms(&self) -> f64 {
+        micros_to_millis(self.plan_us)
+    }
+
+    pub fn optimize_ms(&self) -> f64 {
+        micros_to_millis(self.optimize_us)
+    }
+
+    pub fn execute_ms(&self) -> f64 {
+        micros_to_millis(self.execute_us)
+    }
 }
 
 /// Actuator statistics
@@ -21,9 +61,29 @@ pub struct StageMetrics {
 pub struct ExecutorStat {
     pub executor_type: String,
     pub executor_id: i64,
-    pub duration_ms: u64,
-    pub rows_processed: usize,
-    pub memory_used: usize,
+    pub stats: ExecutorStats,
+}
+
+impl ExecutorStat {
+    pub fn from_executor(executor_type: String, executor_id: i64, stats: ExecutorStats) -> Self {
+        Self {
+            executor_type,
+            executor_id,
+            stats,
+        }
+    }
+
+    pub fn duration_ms(&self) -> f64 {
+        micros_to_millis(self.stats.exec_time_us)
+    }
+
+    pub fn rows_processed(&self) -> usize {
+        self.stats.num_rows
+    }
+
+    pub fn memory_used(&self) -> usize {
+        self.stats.memory_peak
+    }
 }
 
 /// Query status
@@ -94,14 +154,29 @@ impl QueryProfile {
         self.executor_stats.push(stat);
     }
 
-    pub fn total_executor_time_ms(&self) -> u64 {
-        self.executor_stats.iter().map(|s| s.duration_ms).sum()
+    pub fn add_executor_stats_from(
+        &mut self,
+        executor_type: String,
+        executor_id: i64,
+        stats: ExecutorStats,
+    ) {
+        let stat = ExecutorStat::from_executor(executor_type, executor_id, stats);
+        self.executor_stats.push(stat);
+    }
+
+    pub fn set_stage_metrics(&mut self, metrics: crate::core::stats::QueryMetrics) {
+        self.stages = StageMetrics::from_query_metrics(&metrics);
+    }
+
+    pub fn total_executor_time_ms(&self) -> f64 {
+        self.executor_stats.iter().map(|s| s.duration_ms()).sum()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::executor::base::ExecutorStats;
 
     #[test]
     fn test_query_profile_creation() {
@@ -123,22 +198,57 @@ mod tests {
     #[test]
     fn test_query_profile_add_executor_stat() {
         let mut profile = QueryProfile::new(123, "MATCH (n) RETURN n".to_string());
-        let stat = ExecutorStat {
-            executor_type: "ScanVerticesExecutor".to_string(),
-            executor_id: 1,
-            duration_ms: 100,
-            rows_processed: 50,
-            memory_used: 1024,
-        };
+        let mut stats = ExecutorStats::default();
+        stats.exec_time_us = 100_000;
+        stats.num_rows = 50;
+        stats.memory_peak = 1024;
+        let stat = ExecutorStat::from_executor(
+            "ScanVerticesExecutor".to_string(),
+            1,
+            stats,
+        );
         profile.add_executor_stat(stat);
         assert_eq!(profile.executor_stats.len(), 1);
-        assert_eq!(profile.total_executor_time_ms(), 100);
+        assert!((profile.total_executor_time_ms() - 100.0).abs() < 0.001);
     }
 
     #[test]
     fn test_stage_metrics_default() {
         let metrics = StageMetrics::default();
-        assert_eq!(metrics.parse_ms, 0);
-        assert_eq!(metrics.execute_ms, 0);
+        assert_eq!(metrics.parse_us, 0);
+        assert_eq!(metrics.execute_us, 0);
+        assert!((metrics.total_ms() - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_executor_stat_from_executor() {
+        let mut stats = ExecutorStats::default();
+        stats.exec_time_us = 1500;
+        stats.num_rows = 100;
+        stats.memory_peak = 2048;
+
+        let stat = ExecutorStat::from_executor(
+            "TestExecutor".to_string(),
+            1,
+            stats,
+        );
+
+        assert!((stat.duration_ms() - 1.5).abs() < 0.001);
+        assert_eq!(stat.rows_processed(), 100);
+        assert_eq!(stat.memory_used(), 2048);
+    }
+
+    #[test]
+    fn test_stage_metrics_from_query_metrics() {
+        let mut metrics = crate::core::stats::QueryMetrics::default();
+        metrics.parse_time_us = 100;
+        metrics.execute_time_us = 500;
+
+        let stages = StageMetrics::from_query_metrics(&metrics);
+
+        assert_eq!(stages.parse_us, 100);
+        assert_eq!(stages.execute_us, 500);
+        assert!((stages.parse_ms() - 0.1).abs() < 0.001);
+        assert!((stages.execute_ms() - 0.5).abs() < 0.001);
     }
 }
