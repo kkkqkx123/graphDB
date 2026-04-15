@@ -44,6 +44,14 @@ pub struct GlobalMetrics {
 
     // Error metrics
     error_total: Counter,
+    error_by_type: Counter,
+    error_by_phase: Counter,
+
+    // Slow query metrics
+    slow_query_total: Counter,
+    slow_query_duration: Histogram,
+    slow_query_active: Gauge,
+    slow_query_errors: Counter,
 }
 
 impl GlobalMetrics {
@@ -73,6 +81,13 @@ impl GlobalMetrics {
             executor_memory_used: gauge!("graphdb_executor_memory_used_bytes"),
 
             error_total: counter!("graphdb_error_total"),
+            error_by_type: counter!("graphdb_error_by_type_total"),
+            error_by_phase: counter!("graphdb_error_by_phase_total"),
+
+            slow_query_total: counter!("graphdb_slow_query_total"),
+            slow_query_duration: histogram!("graphdb_slow_query_duration_seconds"),
+            slow_query_active: gauge!("graphdb_slow_query_active"),
+            slow_query_errors: counter!("graphdb_slow_query_errors_total"),
         }
     }
 
@@ -144,11 +159,41 @@ impl GlobalMetrics {
     }
 
     /// Record an error
-    pub fn record_error(&self, error_type: &str) {
+    pub fn record_error(&self, error_type: &str, error_phase: &str) {
         self.error_total.increment(1);
-        // Also increment a labeled counter for error type
+        self.error_by_type.increment(1);
+        self.error_by_phase.increment(1);
+        
+        // Record with labels
         metrics::counter!("graphdb_error_by_type_total", "type" => error_type.to_string())
             .increment(1);
+        metrics::counter!("graphdb_error_by_phase_total", "phase" => error_phase.to_string())
+            .increment(1);
+    }
+
+    /// Record a slow query error
+    pub fn record_slow_query_error(&self, error_type: &str, error_phase: &str) {
+        self.slow_query_errors.increment(1);
+        metrics::counter!("graphdb_slow_query_error_total", 
+            "type" => error_type.to_string(),
+            "phase" => error_phase.to_string()
+        ).increment(1);
+    }
+
+    /// Record a slow query
+    pub fn record_slow_query(&self, duration_secs: f64) {
+        self.slow_query_total.increment(1);
+        self.slow_query_duration.record(duration_secs);
+    }
+
+    /// Increment slow query active count
+    pub fn slow_query_started(&self) {
+        self.slow_query_active.increment(1.0);
+    }
+
+    /// Decrement slow query active count
+    pub fn slow_query_completed(&self) {
+        self.slow_query_active.decrement(1.0);
     }
 }
 
@@ -228,8 +273,8 @@ mod tests {
     #[test]
     fn test_error_metrics() {
         let metrics = GlobalMetrics::new();
-        metrics.record_error("parse_error");
-        metrics.record_error("execution_error");
+        metrics.record_error("parse_error", "parse");
+        metrics.record_error("execution_error", "execute");
         // Verify no panic
     }
 }

@@ -4,7 +4,8 @@ use crate::api::server::permission::PermissionManager;
 use crate::api::server::session::{ClientSession, GraphSessionManager, SpaceInfo};
 use crate::config::Config;
 use crate::core::error::{SessionError, SessionResult};
-use crate::core::{MetricType, Permission, StatsManager};
+use crate::core::stats::StatsManager;
+use crate::core::{MetricType, Permission};
 use crate::query::executor::ExecutionResult;
 use crate::query::DataSet;
 use crate::storage::StorageClient;
@@ -114,7 +115,14 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         let authenticator = AuthenticatorFactory::create_default(&config.auth);
         let permission_manager = Arc::new(PermissionManager::new());
-        let server_stats_manager = Arc::new(StatsManager::new());
+        
+        // Create StatsManager with slow query logger
+        let slow_query_config = config.to_slow_query_config();
+        
+        let server_stats_manager = Arc::new(
+            StatsManager::with_slow_query_logger(config.monitoring.clone(), slow_query_config)
+                .expect("Failed to create StatsManager with slow query logger")
+        );
 
         // Create sync API if storage supports it
         let sync_api = storage

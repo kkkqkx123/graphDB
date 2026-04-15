@@ -25,21 +25,25 @@
 //! - Contents: execution time, actuator statistics, error messages, slow query logs
 //! - Usage scenarios: performance analysis, problem diagnosis, monitoring alarms
 
+pub mod aggregated_stats;
 pub mod error_stats;
 pub mod global_metrics;
 pub mod latency_histogram;
 pub mod manager;
 pub mod metrics;
 pub mod profile;
+pub mod slow_query_logger;
 pub mod utils;
 
 // Re-export common types
+pub use aggregated_stats::{AggregatedQueryStats, AggregatedStatsManager, QueryPattern};
 pub use error_stats::{ErrorInfo, ErrorStatsManager, ErrorSummary, ErrorType, QueryPhase};
 pub use global_metrics::{metrics, GlobalMetrics};
 pub use latency_histogram::LatencyHistogram;
 pub use manager::{MetricType, MetricValue, StatsManager};
 pub use metrics::QueryMetrics;
 pub use profile::{ExecutorStat, QueryProfile, QueryStatus, StageMetrics};
+pub use slow_query_logger::{SlowQueryConfig, SlowQueryLogger};
 pub use utils::{
     calculate_average, calculate_cache_hit_rate, duration_to_micros, format_duration,
     micros_to_millis, CacheStats, TimeConversion,

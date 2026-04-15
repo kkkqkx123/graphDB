@@ -4,6 +4,7 @@
 
 use dashmap::DashMap;
 use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -12,7 +13,9 @@ use super::error_stats::{ErrorInfo, ErrorStatsManager, ErrorType, QueryPhase};
 use super::latency_histogram::LatencyHistogram;
 use super::metrics::QueryMetrics;
 use super::profile::QueryProfile;
+use super::slow_query_logger::{SlowQueryConfig, SlowQueryLogger};
 use super::utils::micros_to_millis;
+use super::aggregated_stats::AggregatedStatsManager;
 
 /// Space metrics type alias
 type SpaceMetrics = Arc<DashMap<MetricType, Arc<MetricValue>>>;
@@ -117,6 +120,8 @@ pub struct StatsManager {
     query_latency_histogram: Arc<Mutex<LatencyHistogram>>,
     config: crate::config::MonitoringConfig,
     error_stats: ErrorStatsManager,
+    slow_query_logger: Option<Arc<SlowQueryLogger>>,
+    aggregated_stats: AggregatedStatsManager,
 }
 
 impl StatsManager {
@@ -134,7 +139,30 @@ impl StatsManager {
             query_latency_histogram: Arc::new(Mutex::new(LatencyHistogram::new(10000))),
             config,
             error_stats: ErrorStatsManager::new(),
+            slow_query_logger: None,
+            aggregated_stats: AggregatedStatsManager::new(),
         }
+    }
+
+    /// Create StatsManager with slow query logger
+    pub fn with_slow_query_logger(
+        config: crate::config::MonitoringConfig,
+        slow_query_config: SlowQueryConfig,
+    ) -> Result<Self, std::io::Error> {
+        let cache_size = config.memory_cache_size;
+        let logger = Arc::new(SlowQueryLogger::new(slow_query_config)?);
+        
+        Ok(Self {
+            metrics: Arc::new(DashMap::new()),
+            space_metrics: Arc::new(DashMap::new()),
+            last_query_metrics: Arc::new(Mutex::new(None)),
+            query_profiles: Arc::new(Mutex::new(VecDeque::with_capacity(cache_size))),
+            query_latency_histogram: Arc::new(Mutex::new(LatencyHistogram::new(10000))),
+            config,
+            error_stats: ErrorStatsManager::new(),
+            slow_query_logger: Some(logger),
+            aggregated_stats: AggregatedStatsManager::new(),
+        })
     }
 
     pub fn record_query_profile(&self, profile: QueryProfile) {
@@ -154,6 +182,21 @@ impl StatsManager {
     }
 
     fn write_slow_query_log(&self, profile: &QueryProfile) {
+        // Record to global metrics
+        let duration_secs = profile.total_duration_us as f64 / 1_000_000.0;
+        crate::core::stats::global_metrics::metrics().record_slow_query(duration_secs);
+
+        // Record to aggregated stats
+        self.aggregated_stats.record_query(profile, true);
+
+        if let Some(ref logger) = self.slow_query_logger {
+            logger.log(profile);
+        } else {
+            self.write_slow_query_log_fallback(profile);
+        }
+    }
+
+    fn write_slow_query_log_fallback(&self, profile: &QueryProfile) {
         let executor_summary: Vec<String> = profile
             .executor_stats
             .iter()
@@ -223,6 +266,48 @@ impl StatsManager {
             .collect()
     }
 
+    /// Get slow query statistics
+    pub fn get_slow_query_stats(&self) -> SlowQueryStats {
+        let profiles = self.query_profiles.lock();
+        let slow_queries: Vec<&QueryProfile> = profiles
+            .iter()
+            .filter(|p| p.total_duration_us >= self.config.slow_query_threshold_ms * 1000)
+            .collect();
+
+        let total = slow_queries.len() as u64;
+        let durations: Vec<f64> = slow_queries
+            .iter()
+            .map(|p| p.total_duration_us as f64 / 1_000_000.0)
+            .collect();
+
+        let (min, max, avg) = if durations.is_empty() {
+            (0.0, 0.0, 0.0)
+        } else {
+            let min = durations.iter().cloned().fold(f64::INFINITY, f64::min);
+            let max = durations.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+            let avg = durations.iter().sum::<f64>() / durations.len() as f64;
+            (min, max, avg)
+        };
+
+        SlowQueryStats {
+            total,
+            min_duration_secs: min,
+            max_duration_secs: max,
+            avg_duration_secs: avg,
+        }
+    }
+}
+
+/// Slow query statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SlowQueryStats {
+    pub total: u64,
+    pub min_duration_secs: f64,
+    pub max_duration_secs: f64,
+    pub avg_duration_secs: f64,
+}
+
+impl StatsManager {
     pub fn get_query_profile(&self, trace_id: &str) -> Option<QueryProfile> {
         let profiles = self.query_profiles.lock();
         profiles.iter().find(|p| p.trace_id == trace_id).cloned()
@@ -356,6 +441,12 @@ impl StatsManager {
 
     pub fn record_error(&self, error_type: ErrorType, phase: QueryPhase) {
         self.error_stats.record_error(error_type, phase);
+        
+        // Record to global metrics
+        crate::core::stats::global_metrics::metrics().record_error(
+            &error_type.to_string(),
+            &phase.to_string()
+        );
     }
 
     pub fn get_error_count(&self, error_type: ErrorType) -> u64 {
@@ -455,6 +546,66 @@ impl StatsManager {
 
     pub fn get_query_metrics(&self) -> Option<QueryMetrics> {
         self.get_last_query_metrics()
+    }
+
+    /// Record aggregated query statistics
+    pub fn record_aggregated_query(&self, profile: &QueryProfile, is_slow: bool) {
+        self.aggregated_stats.record_query(profile, is_slow);
+    }
+
+    /// Get top N slow query patterns by average duration
+    pub fn get_top_n_slow_query_patterns(&self, limit: usize) -> Vec<super::aggregated_stats::AggregatedQueryStats> {
+        self.aggregated_stats.get_top_n_slow_queries(limit)
+    }
+
+    /// Get top N slow query patterns by total duration
+    pub fn get_top_n_patterns_by_total_duration(&self, limit: usize) -> Vec<super::aggregated_stats::AggregatedQueryStats> {
+        self.aggregated_stats.get_top_n_by_total_duration(limit)
+    }
+
+    /// Get top N slow query patterns by execution count
+    pub fn get_top_n_patterns_by_execution_count(&self, limit: usize) -> Vec<super::aggregated_stats::AggregatedQueryStats> {
+        self.aggregated_stats.get_top_n_by_execution_count(limit)
+    }
+
+    /// Get statistics for a specific query pattern
+    pub fn get_pattern_stats(&self, normalized_query: &str) -> Option<super::aggregated_stats::AggregatedQueryStats> {
+        self.aggregated_stats.get_pattern_stats(normalized_query)
+    }
+
+    /// Get all aggregated statistics
+    pub fn get_all_aggregated_stats(&self) -> Vec<super::aggregated_stats::AggregatedQueryStats> {
+        self.aggregated_stats.get_all_stats()
+    }
+
+    /// Get total number of queries processed
+    pub fn get_total_aggregated_queries(&self) -> u64 {
+        self.aggregated_stats.get_total_queries()
+    }
+
+    /// Get total number of slow queries
+    pub fn get_total_aggregated_slow_queries(&self) -> u64 {
+        self.aggregated_stats.get_total_slow_queries()
+    }
+
+    /// Get current queries per second
+    pub fn get_current_qps(&self) -> u64 {
+        self.aggregated_stats.get_current_qps()
+    }
+
+    /// Get number of query patterns
+    pub fn get_pattern_count(&self) -> usize {
+        self.aggregated_stats.get_pattern_count()
+    }
+
+    /// Clear all aggregated statistics
+    pub fn clear_aggregated_stats(&self) {
+        self.aggregated_stats.clear();
+    }
+
+    /// Cleanup expired aggregated statistics
+    pub fn cleanup_aggregated_stats(&self) {
+        self.aggregated_stats.cleanup();
     }
 }
 
@@ -641,5 +792,82 @@ mod tests {
         stats.record_query_profile(profile);
 
         assert_eq!(stats.query_cache_size(), 0);
+    }
+
+    #[test]
+    fn test_aggregated_stats_integration() {
+        let stats = StatsManager::new();
+        
+        // Create test profiles
+        let mut profile1 = QueryProfile::new(1, "MATCH (n:Person) WHERE n.id = 1 RETURN n".to_string());
+        profile1.total_duration_us = 1000;
+        
+        let mut profile2 = QueryProfile::new(2, "MATCH (n:Person) WHERE n.id = 2 RETURN n".to_string());
+        profile2.total_duration_us = 2000;
+        
+        // Record queries
+        stats.record_aggregated_query(&profile1, false);
+        stats.record_aggregated_query(&profile2, false);
+        
+        // Verify stats
+        assert_eq!(stats.get_total_aggregated_queries(), 2);
+        assert_eq!(stats.get_pattern_count(), 1); // Same pattern
+        assert_eq!(stats.get_current_qps(), 2);
+    }
+
+    #[test]
+    fn test_slow_query_aggregated_recording() {
+        let config = crate::config::MonitoringConfig {
+            enabled: true,
+            memory_cache_size: 10,
+            slow_query_threshold_ms: 1000,
+        };
+        let stats = StatsManager::with_config(config);
+        
+        // Create a slow query profile
+        let mut profile = QueryProfile::new(1, "MATCH (n:Person) WHERE n.id = 1 RETURN n".to_string());
+        profile.total_duration_us = 2_000_000; // 2000ms
+        
+        // This should trigger aggregated recording via write_slow_query_log
+        stats.record_query_profile(profile.clone());
+        
+        // Verify aggregated stats were recorded
+        assert_eq!(stats.get_total_aggregated_queries(), 1);
+        assert_eq!(stats.get_total_aggregated_slow_queries(), 1);
+    }
+
+    #[test]
+    fn test_get_top_n_slow_query_patterns() {
+        let stats = StatsManager::new();
+        
+        // Record multiple queries with different patterns
+        for i in 0..10 {
+            let mut profile = QueryProfile::new(
+                i,
+                format!("MATCH (n:Person) WHERE n.id = {} RETURN n", i)
+            );
+            profile.total_duration_us = 1000 + (i * 100) as u64;
+            stats.record_aggregated_query(&profile, false);
+        }
+        
+        // Get top 5 patterns
+        let top_patterns = stats.get_top_n_slow_query_patterns(5);
+        assert_eq!(top_patterns.len(), 1); // All same pattern
+        assert_eq!(top_patterns[0].execution_count, 10);
+    }
+
+    #[test]
+    fn test_clear_aggregated_stats() {
+        let stats = StatsManager::new();
+        
+        let profile = QueryProfile::new(1, "MATCH (n) RETURN n".to_string());
+        stats.record_aggregated_query(&profile, false);
+        
+        assert_eq!(stats.get_total_aggregated_queries(), 1);
+        
+        stats.clear_aggregated_stats();
+        
+        assert_eq!(stats.get_total_aggregated_queries(), 0);
+        assert_eq!(stats.get_pattern_count(), 0);
     }
 }

@@ -57,6 +57,10 @@ pub fn create_telemetry_router(recorder: Arc<TelemetryRecorder>) -> Router {
     Router::new()
         .route("/metrics", get(metrics_handler))
         .route("/health", get(health_handler))
+        .route("/metrics/slow_queries", get(slow_queries_handler))
+        .route("/metrics/slow_queries/stats", get(slow_query_stats_handler))
+        .route("/metrics/errors", get(errors_handler))
+        .route("/metrics/errors/summary", get(error_summary_handler))
         .with_state(state)
 }
 
@@ -92,6 +96,72 @@ async fn health_handler() -> Response {
         "service": "graphdb-telemetry",
     });
     Json(health).into_response()
+}
+
+/// Slow queries endpoint handler
+async fn slow_queries_handler(
+    Query(query): Query<SlowQueriesQuery>,
+) -> Response {
+    let limit = query.limit.unwrap_or(100);
+    
+    // Get stats manager from GraphService
+    // Note: This requires GraphService to expose a method to get recent slow queries
+    // For now, return empty response
+    let queries = serde_json::json!({
+        "message": "Slow queries endpoint - implementation requires GraphService integration",
+        "limit": limit,
+        "queries": Vec::<String>::new()
+    });
+    
+    Json(queries).into_response()
+}
+
+/// Slow query stats endpoint handler
+async fn slow_query_stats_handler() -> Response {
+    // Return basic stats
+    let stats = serde_json::json!({
+        "slow_query_total": 0,
+        "slow_query_duration_seconds": {
+            "note": "Available via /metrics endpoint with filter=graphdb_slow_query"
+        },
+        "message": "Use /metrics?filter=graphdb_slow_query for detailed metrics"
+    });
+    
+    Json(stats).into_response()
+}
+
+/// Query parameters for slow queries endpoint
+#[derive(Debug, Deserialize, Default)]
+pub struct SlowQueriesQuery {
+    /// Maximum number of slow queries to return (default: 100)
+    pub limit: Option<usize>,
+}
+
+/// Error statistics endpoint handler
+async fn errors_handler() -> Response {
+    // Get stats manager from GraphService
+    // For now, return placeholder response
+    let errors = serde_json::json!({
+        "message": "Error statistics endpoint - requires GraphService integration",
+        "by_type": {},
+        "by_phase": {}
+    });
+    
+    Json(errors).into_response()
+}
+
+/// Error summary endpoint handler
+async fn error_summary_handler() -> Response {
+    // Get stats manager from GraphService
+    // For now, return placeholder response
+    let summary = serde_json::json!({
+        "message": "Error summary endpoint - requires GraphService integration",
+        "total_errors": 0,
+        "errors_by_type": {},
+        "errors_by_phase": {}
+    });
+    
+    Json(summary).into_response()
 }
 
 /// Telemetry server configuration
