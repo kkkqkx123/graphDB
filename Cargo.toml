@@ -107,8 +107,8 @@ server = [
     "dep:async-trait",
 ]
 
-# gRPC API
-grpc = ["dep:tonic", "dep:prost", "dep:tonic-build", "dep:prost-build"]
+# gRPC API (requires server feature)
+grpc = ["server", "dep:tonic", "dep:prost", "dep:tonic-build", "dep:prost-build"]
 
 [dev-dependencies]
 tokio-test = "0.4.4"

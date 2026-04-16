@@ -45,7 +45,7 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
             txn_manager: txn_manager.clone(),
             txn_api: TransactionApi::new(txn_manager),
             schema_api: SchemaApi::new(storage.clone()),
-            auth_service: PasswordAuthenticator::new_default(config.auth.clone()),
+            auth_service: PasswordAuthenticator::new_default(config.server.auth.clone()),
             batch_manager: Arc::new(BatchManager::new(storage.clone())),
             storage: storage.clone(),
             config: config.clone(),

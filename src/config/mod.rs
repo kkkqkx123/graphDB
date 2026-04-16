@@ -1,363 +1,166 @@
+//! Configuration Management
+//!
+//! Unified configuration management for different usage patterns.
+//!
+//! # Module Structure
+//!
+//! The configuration system is organized into three main modules:
+//!
+//! - **common**: Configuration shared across all usage patterns (database, storage, logging, etc.)
+//! - **server**: Server-specific configuration (gRPC, HTTP, auth, telemetry, etc.) - requires `server` feature
+//! - **embedded**: Embedded-specific configuration (runtime settings) - requires `embedded` feature
+//!
+//! # Usage
+//!
+//! ## Server Mode
+//!
+//! ```rust,no_run
+//! use graphdb::config::Config;
+//!
+//! // Load from file
+//! let config = Config::load("config.toml").expect("Failed to load config");
+//!
+//! // Or create default
+//! let config = Config::default();
+//! ```
+//!
+//! ## Embedded Mode
+//!
+//! ```rust
+//! use graphdb::config::{Config, EmbeddedConfig};
+//!
+//! let mut config = Config::default();
+//! config.embedded.runtime.cache_size_mb = 128;
+//! ```
+
+pub mod common;
+pub mod embedded;
+pub mod server;
+
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+pub use common::*;
+pub use embedded::*;
+pub use server::*;
+
+// Re-export commonly used types for backward compatibility
+pub use common::database::DatabaseConfig;
+pub use common::log::LogConfig;
+pub use common::monitoring::{MonitoringConfig, SlowQueryLogConfig};
+pub use common::optimizer::{OptimizerConfig, OptimizerRulesConfig};
+pub use common::storage::{CompressionAlgorithm, QueryResourceConfig, StorageConfig, StorageEngine};
+pub use common::transaction::TransactionConfig;
+
+#[cfg(feature = "server")]
+pub use server::auth::AuthConfig;
+#[cfg(feature = "server")]
+pub use server::bootstrap::BootstrapConfig;
+#[cfg(feature = "server")]
+pub use server::connection_pool::ConnectionPoolConfig;
+#[cfg(feature = "server")]
+pub use server::grpc::GrpcConfig;
+#[cfg(feature = "server")]
+pub use server::http::HttpServerConfig;
+#[cfg(feature = "server")]
+pub use server::security::{AuditConfig, PasswordPolicyConfig, SecurityConfig, SslConfig};
+#[cfg(feature = "server")]
+pub use server::telemetry::TelemetryConfig;
+
 use crate::search::config::FulltextConfig;
 use vector_client::VectorClientConfig;
 
-/// Database configuration
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct DatabaseConfig {
-    /// Host address
-    pub host: String,
-    /// Port
-    pub port: u16,
-    /// gRPC port
-    #[serde(default = "DatabaseConfig::default_grpc_port")]
-    pub grpc_port: u16,
-    /// Storage path
-    pub storage_path: String,
-    /// Maximum connections
-    pub max_connections: usize,
-}
-
-impl DatabaseConfig {
-    fn default_grpc_port() -> u16 {
-        9669 // Default gRPC port for GraphDB
-    }
-}
-
-impl Default for DatabaseConfig {
-    fn default() -> Self {
-        Self {
-            host: "127.0.0.1".to_string(),
-            port: 9758,
-            grpc_port: Self::default_grpc_port(),
-            storage_path: "data/graphdb".to_string(),
-            max_connections: 10,
-        }
-    }
-}
-
-/// Transaction configuration
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct TransactionConfig {
-    /// Default transaction timeout (seconds)
-    pub default_timeout: u64,
-    /// Maximum concurrent transactions
-    pub max_concurrent_transactions: usize,
-}
-
-impl Default for TransactionConfig {
-    fn default() -> Self {
-        Self {
-            default_timeout: 30,
-            max_concurrent_transactions: 1000,
-        }
-    }
-}
-
-/// Log configuration
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct LogConfig {
-    /// Log level
-    pub level: String,
-    /// Log directory
-    pub dir: String,
-    /// Log file name
-    pub file: String,
-    /// Maximum size of a single log file (bytes)
-    pub max_file_size: u64,
-    /// Maximum number of log files
-    pub max_files: usize,
-}
-
-impl Default for LogConfig {
-    fn default() -> Self {
-        Self {
-            level: "info".to_string(),
-            dir: "logs".to_string(),
-            file: "graphdb".to_string(),
-            max_file_size: 100 * 1024 * 1024, // 100MB
-            max_files: 5,
-        }
-    }
-}
-
-/// Authorization configuration
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct AuthConfig {
-    /// Whether to enable authorization
-    pub enable_authorize: bool,
-    /// Maximum failed login attempts (0 means unlimited)
-    pub failed_login_attempts: u32,
-    /// Session idle timeout (seconds)
-    pub session_idle_timeout_secs: u64,
-    /// Whether to force changing the default password (on first login)
-    pub force_change_default_password: bool,
-    /// Default username
-    pub default_username: String,
-    /// Default password (used only on first start or in single-user mode)
-    pub default_password: String,
-}
-
-impl Default for AuthConfig {
-    fn default() -> Self {
-        Self {
-            enable_authorize: true,
-            failed_login_attempts: 5,
-            session_idle_timeout_secs: 3600,
-            force_change_default_password: true,
-            default_username: "root".to_string(),
-            default_password: "root".to_string(),
-        }
-    }
-}
-
-/// Bootstrap configuration
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct BootstrapConfig {
-    /// Whether to automatically create the default Space
-    pub auto_create_default_space: bool,
-    /// Default Space name
-    pub default_space_name: String,
-    /// Single-user mode (skip authentication, always use the default user)
-    pub single_user_mode: bool,
-}
-
-impl Default for BootstrapConfig {
-    fn default() -> Self {
-        Self {
-            auto_create_default_space: true,
-            default_space_name: "default".to_string(),
-            single_user_mode: false,
-        }
-    }
-}
-
-/// Optimizer rules configuration
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct OptimizerRulesConfig {
-    /// Disabled rules
-    #[serde(default)]
-    pub disabled_rules: Vec<String>,
-    /// Enabled rules
-    #[serde(default)]
-    pub enabled_rules: Vec<String>,
-}
-
-/// Optimizer configuration
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct OptimizerConfig {
-    /// Maximum iteration rounds
-    pub max_iteration_rounds: usize,
-    /// Maximum exploration rounds
-    pub max_exploration_rounds: usize,
-    /// Whether to enable cost model
-    pub enable_cost_model: bool,
-    /// Whether to enable multi-plan
-    pub enable_multi_plan: bool,
-    /// Whether to enable property pruning
-    pub enable_property_pruning: bool,
-    /// Whether to enable adaptive iteration
-    pub enable_adaptive_iteration: bool,
-    /// Stable threshold
-    pub stable_threshold: usize,
-    /// Minimum iteration rounds
-    pub min_iteration_rounds: usize,
-    /// Rules configuration
-    #[serde(default)]
-    pub rules: OptimizerRulesConfig,
-}
-
-impl Default for OptimizerConfig {
-    fn default() -> Self {
-        Self {
-            max_iteration_rounds: 5,
-            max_exploration_rounds: 128,
-            enable_cost_model: true,
-            enable_multi_plan: true,
-            enable_property_pruning: true,
-            enable_adaptive_iteration: true,
-            stable_threshold: 2,
-            min_iteration_rounds: 1,
-            rules: OptimizerRulesConfig::default(),
-        }
-    }
-}
-
-/// Monitoring configuration
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct MonitoringConfig {
-    /// Whether to enable monitoring
-    pub enabled: bool,
-    /// Memory cache size (retains the most recent N queries)
-    pub memory_cache_size: usize,
-    /// Slow query threshold (milliseconds)
-    pub slow_query_threshold_ms: u64,
-}
-
-impl Default for MonitoringConfig {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            memory_cache_size: 1000,
-            slow_query_threshold_ms: 1000,
-        }
-    }
-}
-
-/// Slow query log configuration
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct SlowQueryLogConfig {
-    /// Whether to enable slow query logging
-    pub enabled: bool,
-    /// Slow query threshold in milliseconds
-    pub threshold_ms: u64,
-    /// Log file path
-    pub log_file_path: String,
-    /// Maximum file size in MB before rotation
-    pub max_file_size_mb: u64,
-    /// Maximum number of log files to keep
-    pub max_files: u32,
-    /// Whether to use verbose format
-    pub verbose_format: bool,
-    /// Async write buffer size
-    pub buffer_size: usize,
-    /// Whether to use JSON format
-    pub json_format: bool,
-}
-
-impl Default for SlowQueryLogConfig {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            threshold_ms: 1000,
-            log_file_path: "logs/slow_query.log".to_string(),
-            max_file_size_mb: 100,
-            max_files: 5,
-            verbose_format: false,
-            buffer_size: 100,
-            json_format: false,
-        }
-    }
-}
-
-impl SlowQueryLogConfig {
-    /// Validate the configuration
-    pub fn validate(&self) -> Result<(), String> {
-        if self.log_file_path.is_empty() {
-            return Err("Slow query log file path cannot be empty".to_string());
-        }
-
-        if self.threshold_ms == 0 {
-            return Err("Slow query threshold must be greater than 0".to_string());
-        }
-
-        if self.max_file_size_mb == 0 {
-            return Err("Max file size must be greater than 0".to_string());
-        }
-
-        if self.max_files == 0 {
-            return Err("Max files must be greater than 0".to_string());
-        }
-
-        if self.buffer_size == 0 {
-            return Err("Buffer size must be greater than 0".to_string());
-        }
-
-        Ok(())
-    }
-
-    /// Convert to SlowQueryConfig
-    pub fn to_slow_query_config(&self) -> crate::core::stats::SlowQueryConfig {
-        crate::core::stats::SlowQueryConfig {
-            enabled: self.enabled,
-            threshold_ms: self.threshold_ms,
-            log_file_path: self.log_file_path.clone(),
-            max_file_size_mb: self.max_file_size_mb,
-            max_files: self.max_files,
-            verbose_format: self.verbose_format,
-            buffer_size: self.buffer_size,
-            json_format: self.json_format,
-        }
-    }
-}
-
-/// Telemetry configuration
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct TelemetryConfig {
-    /// Whether to enable telemetry server
-    pub enabled: bool,
-    /// Bind address
-    pub bind_address: String,
-    /// Port number
-    pub port: u16,
-    /// Default output format (json or text)
-    pub format: String,
-    /// Maximum histogram entries before cleanup
-    pub max_histogram_entries: usize,
-    /// Cleanup interval in seconds
-    pub cleanup_interval_secs: u64,
-}
-
-impl Default for TelemetryConfig {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            bind_address: "0.0.0.0".to_string(),
-            port: 9090,
-            format: "json".to_string(),
-            max_histogram_entries: 10000,
-            cleanup_interval_secs: 60,
-        }
-    }
-}
-
-/// Global configuration
+/// Global configuration aggregator
+///
+/// This is the main configuration structure that combines all configuration sections.
+/// Use [`Config::default()`] to create a default configuration, or [`Config::load()`] to load from a file.
+///
+/// # Examples
+///
+/// ```rust
+/// use graphdb::config::Config;
+///
+/// // Create default configuration
+/// let config = Config::default();
+///
+/// // Access configuration sections
+/// println!("Database port: {}", config.common.database.port);
+/// #[cfg(feature = "server")]
+/// println!("gRPC enabled: {}", config.server.grpc.enabled);
+/// ```
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Config {
-    /// Database configuration
-    pub database: DatabaseConfig,
-    /// Transaction configuration
+    /// Common configuration (always available)
+    #[serde(flatten)]
+    pub common: CommonConfig,
+
+    /// Server-specific configuration (only available with `server` feature)
+    #[cfg(feature = "server")]
     #[serde(default)]
-    pub transaction: TransactionConfig,
-    /// Log configuration
-    pub log: LogConfig,
-    /// Authorization configuration
-    pub auth: AuthConfig,
-    /// Bootstrap configuration
-    pub bootstrap: BootstrapConfig,
-    /// Optimizer configuration
-    pub optimizer: OptimizerConfig,
-    /// Monitoring configuration
+    pub server: ServerConfig,
+
+    /// Embedded-specific configuration (only available with `embedded` feature)
+    #[cfg(feature = "embedded")]
     #[serde(default)]
-    pub monitoring: MonitoringConfig,
-    /// Slow query log configuration
-    #[serde(default)]
-    pub slow_query_log: SlowQueryLogConfig,
-    /// Telemetry configuration
-    #[serde(default)]
-    pub telemetry: TelemetryConfig,
+    pub embedded: EmbeddedConfig,
+
     /// Vector search configuration
     #[serde(default)]
     pub vector: VectorClientConfig,
+
     /// Fulltext search configuration
     #[serde(default)]
     pub fulltext: FulltextConfig,
 }
 
 impl Config {
+    /// Create a new configuration with default values
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// Load configuration from file
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the configuration file (TOML format)
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Config)` - Successfully loaded configuration
+    /// * `Err(Box<dyn Error>)` - Error reading or parsing the file
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use graphdb::config::Config;
+    ///
+    /// let config = Config::load("config.toml").expect("Failed to load config");
+    /// ```
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
         let content = fs::read_to_string(path)?;
         let mut config: Config = toml::from_str(&content)?;
-        config.database.storage_path = Config::resolve_storage_path(&config.database.storage_path)?;
+        config.common.database.storage_path =
+            Config::resolve_storage_path(&config.common.database.storage_path)?;
         Ok(config)
     }
 
     /// Save configuration to file
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to save the configuration file (TOML format)
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use graphdb::config::Config;
+    ///
+    /// let config = Config::default();
+    /// config.save("config.toml").expect("Failed to save config");
+    /// ```
     pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
         let content = toml::to_string_pretty(self)?;
         fs::write(path, content)?;
@@ -397,64 +200,118 @@ impl Config {
         Err("Failed to get executable path".into())
     }
 
+    /// Validate all configurations
+    pub fn validate(&self) -> Result<(), String> {
+        self.common.validate()?;
+        #[cfg(feature = "server")]
+        self.server.validate()?;
+        #[cfg(feature = "embedded")]
+        self.embedded.validate()?;
+        Ok(())
+    }
+
+    // ========== Convenience Methods ==========
+
     /// Get log level
     pub fn log_level(&self) -> &str {
-        &self.log.level
+        &self.common.log.level
     }
 
     /// Get log directory
     pub fn log_dir(&self) -> &str {
-        &self.log.dir
+        &self.common.log.dir
     }
 
     /// Get log file name
     pub fn log_file(&self) -> &str {
-        &self.log.file
+        &self.common.log.file
     }
 
     /// Get host address
     pub fn host(&self) -> &str {
-        &self.database.host
+        &self.common.database.host
     }
 
     /// Get port
     pub fn port(&self) -> u16 {
-        self.database.port
+        self.common.database.port
     }
 
-    /// Get gRPC port
+    /// Get gRPC port (server mode only)
+    #[cfg(feature = "server")]
     pub fn grpc_port(&self) -> u16 {
-        self.database.grpc_port
+        self.server.grpc.port
+    }
+
+    /// Get gRPC configuration (server mode only)
+    #[cfg(feature = "server")]
+    pub fn grpc(&self) -> &GrpcConfig {
+        &self.server.grpc
+    }
+
+    /// Check if gRPC is enabled (server mode only)
+    #[cfg(feature = "server")]
+    pub fn grpc_enabled(&self) -> bool {
+        self.server.grpc.enabled
     }
 
     /// Get storage path
     pub fn storage_path(&self) -> &str {
-        &self.database.storage_path
+        &self.common.database.storage_path
     }
 
     /// Get maximum connections
     pub fn max_connections(&self) -> usize {
-        self.database.max_connections
+        self.common.database.max_connections
     }
 
     /// Get transaction timeout
     pub fn transaction_timeout(&self) -> u64 {
-        self.transaction.default_timeout
+        self.common.transaction.default_timeout
     }
 
     /// Get maximum concurrent transactions
     pub fn max_concurrent_transactions(&self) -> usize {
-        self.transaction.max_concurrent_transactions
+        self.common.transaction.max_concurrent_transactions
     }
 
     /// Get slow query log configuration
     pub fn slow_query_log(&self) -> &SlowQueryLogConfig {
-        &self.slow_query_log
+        &self.common.monitoring.slow_query_log
     }
 
     /// Get slow query config for StatsManager
     pub fn to_slow_query_config(&self) -> crate::core::stats::SlowQueryConfig {
-        self.slow_query_log.to_slow_query_config()
+        self.common.monitoring.slow_query_log.to_slow_query_config()
+    }
+
+    /// Get storage configuration
+    pub fn storage(&self) -> &StorageConfig {
+        &self.common.storage
+    }
+
+    /// Get query resource configuration
+    pub fn query_resource(&self) -> &QueryResourceConfig {
+        &self.common.query_resource
+    }
+}
+
+// ========== Backward Compatibility Field Access ==========
+//
+// These implementations provide backward compatibility by allowing
+// direct field access like `config.database` instead of `config.common.database`
+
+impl std::ops::Deref for Config {
+    type Target = CommonConfig;
+
+    fn deref(&self) -> &Self::Target {
+        &self.common
+    }
+}
+
+impl std::ops::DerefMut for Config {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.common
     }
 }
 
@@ -467,12 +324,14 @@ mod tests {
     #[test]
     fn test_config_default() {
         let config = Config::default();
-        assert_eq!(config.database.host, "127.0.0.1");
-        assert_eq!(config.database.port, 9758);
-        assert_eq!(config.log.level, "info");
-        assert!(config.auth.enable_authorize);
-        assert!(config.bootstrap.auto_create_default_space);
-        assert_eq!(config.optimizer.max_iteration_rounds, 5);
+        assert_eq!(config.common.database.host, "127.0.0.1");
+        assert_eq!(config.common.database.port, 9758);
+        assert_eq!(config.common.log.level, "info");
+        assert_eq!(config.common.optimizer.max_iteration_rounds, 5);
+        #[cfg(feature = "server")]
+        assert_eq!(config.server.grpc.port, 9669);
+        #[cfg(feature = "server")]
+        assert!(config.server.grpc.enabled);
     }
 
     #[test]
@@ -488,9 +347,9 @@ mod tests {
 
         let loaded_config =
             Config::load(temp_file.path()).expect("Failed to load config from temporary file");
-        assert_eq!(config.database.host, loaded_config.database.host);
-        assert_eq!(config.database.port, loaded_config.database.port);
-        assert_eq!(config.log.level, loaded_config.log.level);
+        assert_eq!(config.common.database.host, loaded_config.common.database.host);
+        assert_eq!(config.common.database.port, loaded_config.common.database.port);
+        assert_eq!(config.common.log.level, loaded_config.common.log.level);
     }
 
     #[test]
@@ -513,32 +372,14 @@ file = "graphdb"
 max_file_size = 104857600
 max_files = 10
 
-[auth]
-enable_authorize = false
-failed_login_attempts = 3
-session_idle_timeout_secs = 1800
-force_change_default_password = false
-default_username = "admin"
-default_password = "admin123"
+[storage]
+engine = "redb"
+compression = "lz4"
+compression_level = 5
 
-[bootstrap]
-auto_create_default_space = false
-default_space_name = "myspace"
-single_user_mode = true
-
-[optimizer]
-max_iteration_rounds = 10
-max_exploration_rounds = 256
-enable_cost_model = false
-enable_multi_plan = false
-enable_property_pruning = false
-enable_adaptive_iteration = false
-stable_threshold = 5
-min_iteration_rounds = 2
-
-[optimizer.rules]
-disabled_rules = ["FilterPushDownRule", "PredicatePushDownRule"]
-enabled_rules = ["RemoveUselessNodeRule"]
+[query_resource]
+max_concurrent_queries = 50
+max_memory_per_query = 1073741824
 "#;
 
         let mut temp_file = NamedTempFile::new().expect("Failed to create temporary file");
@@ -548,17 +389,47 @@ enabled_rules = ["RemoveUselessNodeRule"]
 
         let config = Config::load(temp_file.path()).expect("Failed to load config");
 
-        assert_eq!(config.database.host, "0.0.0.0");
-        assert_eq!(config.database.port, 8080);
-        assert_eq!(config.transaction.default_timeout, 60);
-        assert_eq!(config.transaction.max_concurrent_transactions, 500);
-        assert_eq!(config.log.level, "debug");
-        assert!(!config.auth.enable_authorize);
-        assert_eq!(config.auth.default_username, "admin");
-        assert!(config.bootstrap.single_user_mode);
-        assert_eq!(config.optimizer.max_iteration_rounds, 10);
-        assert!(!config.optimizer.enable_cost_model);
-        assert_eq!(config.optimizer.rules.disabled_rules.len(), 2);
-        assert_eq!(config.optimizer.rules.enabled_rules.len(), 1);
+        assert_eq!(config.common.database.host, "0.0.0.0");
+        assert_eq!(config.common.database.port, 8080);
+        assert_eq!(config.common.transaction.default_timeout, 60);
+        assert_eq!(config.common.transaction.max_concurrent_transactions, 500);
+        assert_eq!(config.common.log.level, "debug");
+        assert_eq!(config.common.storage.compression, CompressionAlgorithm::Lz4);
+        assert_eq!(config.common.storage.compression_level, 5);
+        assert_eq!(config.common.query_resource.max_concurrent_queries, 50);
+    }
+
+    #[test]
+    fn test_config_validate() {
+        let config = Config::default();
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_backward_compatibility() {
+        let config = Config::default();
+        // Test Deref implementation
+        assert_eq!(config.database.host, "127.0.0.1");
+        assert_eq!(config.port(), 9758);
+        assert_eq!(config.storage_path(), "data/graphdb");
+    }
+
+    #[cfg(feature = "server")]
+    #[test]
+    fn test_server_config() {
+        let config = Config::default();
+        assert!(config.server.grpc.enabled);
+        assert!(config.server.http.enabled);
+        assert!(config.server.auth.enable_authorize);
+        assert_eq!(config.server.grpc.port, 9669);
+        assert_eq!(config.server.http.port, 9758);
+    }
+
+    #[cfg(feature = "embedded")]
+    #[test]
+    fn test_embedded_config() {
+        let config = Config::default();
+        assert!(config.embedded.runtime.is_memory());
+        assert_eq!(config.embedded.runtime.cache_size_mb, 64);
     }
 }

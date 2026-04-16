@@ -18,48 +18,48 @@ pub async fn get<S: StorageClient + Clone + Send + Sync + 'static>(
 
     Ok(JsonResponse(serde_json::json!({
         "database": {
-            "host": config.database.host,
-            "port": config.database.port,
-            "storage_path": config.database.storage_path,
-            "max_connections": config.database.max_connections,
+            "host": config.common.database.host,
+            "port": config.common.database.port,
+            "storage_path": config.common.database.storage_path,
+            "max_connections": config.common.database.max_connections,
         },
         "transaction": {
-            "default_timeout": config.transaction.default_timeout,
-            "max_concurrent_transactions": config.transaction.max_concurrent_transactions,
+            "default_timeout": config.common.transaction.default_timeout,
+            "max_concurrent_transactions": config.common.transaction.max_concurrent_transactions,
         },
         "log": {
-            "level": config.log.level,
-            "dir": config.log.dir,
-            "file": config.log.file,
-            "max_file_size": config.log.max_file_size,
-            "max_files": config.log.max_files,
+            "level": config.common.log.level,
+            "dir": config.common.log.dir,
+            "file": config.common.log.file,
+            "max_file_size": config.common.log.max_file_size,
+            "max_files": config.common.log.max_files,
         },
         "auth": {
-            "enable_authorize": config.auth.enable_authorize,
-            "failed_login_attempts": config.auth.failed_login_attempts,
-            "session_idle_timeout_secs": config.auth.session_idle_timeout_secs,
-            "force_change_default_password": config.auth.force_change_default_password,
-            "default_username": config.auth.default_username,
+            "enable_authorize": config.server.auth.enable_authorize,
+            "failed_login_attempts": config.server.auth.failed_login_attempts,
+            "session_idle_timeout_secs": config.server.auth.session_idle_timeout_secs,
+            "force_change_default_password": config.server.auth.force_change_default_password,
+            "default_username": config.server.auth.default_username,
         },
         "bootstrap": {
-            "auto_create_default_space": config.bootstrap.auto_create_default_space,
-            "default_space_name": config.bootstrap.default_space_name,
-            "single_user_mode": config.bootstrap.single_user_mode,
+            "auto_create_default_space": config.server.bootstrap.auto_create_default_space,
+            "default_space_name": config.server.bootstrap.default_space_name,
+            "single_user_mode": config.server.bootstrap.single_user_mode,
         },
         "optimizer": {
-            "max_iteration_rounds": config.optimizer.max_iteration_rounds,
-            "max_exploration_rounds": config.optimizer.max_exploration_rounds,
-            "enable_cost_model": config.optimizer.enable_cost_model,
-            "enable_multi_plan": config.optimizer.enable_multi_plan,
-            "enable_property_pruning": config.optimizer.enable_property_pruning,
-            "enable_adaptive_iteration": config.optimizer.enable_adaptive_iteration,
-            "stable_threshold": config.optimizer.stable_threshold,
-            "min_iteration_rounds": config.optimizer.min_iteration_rounds,
+            "max_iteration_rounds": config.common.optimizer.max_iteration_rounds,
+            "max_exploration_rounds": config.common.optimizer.max_exploration_rounds,
+            "enable_cost_model": config.common.optimizer.enable_cost_model,
+            "enable_multi_plan": config.common.optimizer.enable_multi_plan,
+            "enable_property_pruning": config.common.optimizer.enable_property_pruning,
+            "enable_adaptive_iteration": config.common.optimizer.enable_adaptive_iteration,
+            "stable_threshold": config.common.optimizer.stable_threshold,
+            "min_iteration_rounds": config.common.optimizer.min_iteration_rounds,
         },
         "monitoring": {
-            "enabled": config.monitoring.enabled,
-            "memory_cache_size": config.monitoring.memory_cache_size,
-            "slow_query_threshold_ms": config.monitoring.slow_query_threshold_ms,
+            "enabled": config.common.monitoring.enabled,
+            "memory_cache_size": config.common.monitoring.memory_cache_size,
+            "slow_query_threshold_ms": config.common.monitoring.slow_query_threshold_ms,
         },
     })))
 }
@@ -157,65 +157,65 @@ pub struct UpdateConfigRequest {
 fn get_config_value(config: &crate::config::Config, section: &str, key: &str) -> serde_json::Value {
     match section {
         "database" => match key {
-            "host" => serde_json::json!(config.database.host),
-            "port" => serde_json::json!(config.database.port),
-            "storage_path" => serde_json::json!(config.database.storage_path),
-            "max_connections" => serde_json::json!(config.database.max_connections),
+            "host" => serde_json::json!(config.common.database.host),
+            "port" => serde_json::json!(config.common.database.port),
+            "storage_path" => serde_json::json!(config.common.database.storage_path),
+            "max_connections" => serde_json::json!(config.common.database.max_connections),
             _ => serde_json::Value::Null,
         },
         "transaction" => match key {
-            "default_timeout" => serde_json::json!(config.transaction.default_timeout),
+            "default_timeout" => serde_json::json!(config.common.transaction.default_timeout),
             "max_concurrent_transactions" => {
-                serde_json::json!(config.transaction.max_concurrent_transactions)
+                serde_json::json!(config.common.transaction.max_concurrent_transactions)
             }
             _ => serde_json::Value::Null,
         },
         "log" => match key {
-            "level" => serde_json::json!(config.log.level),
-            "dir" => serde_json::json!(config.log.dir),
-            "file" => serde_json::json!(config.log.file),
-            "max_file_size" => serde_json::json!(config.log.max_file_size),
-            "max_files" => serde_json::json!(config.log.max_files),
+            "level" => serde_json::json!(config.common.log.level),
+            "dir" => serde_json::json!(config.common.log.dir),
+            "file" => serde_json::json!(config.common.log.file),
+            "max_file_size" => serde_json::json!(config.common.log.max_file_size),
+            "max_files" => serde_json::json!(config.common.log.max_files),
             _ => serde_json::Value::Null,
         },
         "auth" => match key {
-            "enable_authorize" => serde_json::json!(config.auth.enable_authorize),
-            "failed_login_attempts" => serde_json::json!(config.auth.failed_login_attempts),
-            "session_idle_timeout_secs" => serde_json::json!(config.auth.session_idle_timeout_secs),
+            "enable_authorize" => serde_json::json!(config.server.auth.enable_authorize),
+            "failed_login_attempts" => serde_json::json!(config.server.auth.failed_login_attempts),
+            "session_idle_timeout_secs" => serde_json::json!(config.server.auth.session_idle_timeout_secs),
             "force_change_default_password" => {
-                serde_json::json!(config.auth.force_change_default_password)
+                serde_json::json!(config.server.auth.force_change_default_password)
             }
-            "default_username" => serde_json::json!(config.auth.default_username),
+            "default_username" => serde_json::json!(config.server.auth.default_username),
             _ => serde_json::Value::Null,
         },
         "bootstrap" => match key {
             "auto_create_default_space" => {
-                serde_json::json!(config.bootstrap.auto_create_default_space)
+                serde_json::json!(config.server.bootstrap.auto_create_default_space)
             }
-            "default_space_name" => serde_json::json!(config.bootstrap.default_space_name),
-            "single_user_mode" => serde_json::json!(config.bootstrap.single_user_mode),
+            "default_space_name" => serde_json::json!(config.server.bootstrap.default_space_name),
+            "single_user_mode" => serde_json::json!(config.server.bootstrap.single_user_mode),
             _ => serde_json::Value::Null,
         },
         "optimizer" => match key {
-            "max_iteration_rounds" => serde_json::json!(config.optimizer.max_iteration_rounds),
-            "max_exploration_rounds" => serde_json::json!(config.optimizer.max_exploration_rounds),
-            "enable_cost_model" => serde_json::json!(config.optimizer.enable_cost_model),
-            "enable_multi_plan" => serde_json::json!(config.optimizer.enable_multi_plan),
+            "max_iteration_rounds" => serde_json::json!(config.common.optimizer.max_iteration_rounds),
+            "max_exploration_rounds" => serde_json::json!(config.common.optimizer.max_exploration_rounds),
+            "enable_cost_model" => serde_json::json!(config.common.optimizer.enable_cost_model),
+            "enable_multi_plan" => serde_json::json!(config.common.optimizer.enable_multi_plan),
             "enable_property_pruning" => {
-                serde_json::json!(config.optimizer.enable_property_pruning)
+                serde_json::json!(config.common.optimizer.enable_property_pruning)
             }
             "enable_adaptive_iteration" => {
-                serde_json::json!(config.optimizer.enable_adaptive_iteration)
+                serde_json::json!(config.common.optimizer.enable_adaptive_iteration)
             }
-            "stable_threshold" => serde_json::json!(config.optimizer.stable_threshold),
-            "min_iteration_rounds" => serde_json::json!(config.optimizer.min_iteration_rounds),
+            "stable_threshold" => serde_json::json!(config.common.optimizer.stable_threshold),
+            "min_iteration_rounds" => serde_json::json!(config.common.optimizer.min_iteration_rounds),
             _ => serde_json::Value::Null,
         },
         "monitoring" => match key {
-            "enabled" => serde_json::json!(config.monitoring.enabled),
-            "memory_cache_size" => serde_json::json!(config.monitoring.memory_cache_size),
+            "enabled" => serde_json::json!(config.common.monitoring.enabled),
+            "memory_cache_size" => serde_json::json!(config.common.monitoring.memory_cache_size),
             "slow_query_threshold_ms" => {
-                serde_json::json!(config.monitoring.slow_query_threshold_ms)
+                serde_json::json!(config.common.monitoring.slow_query_threshold_ms)
             }
             _ => serde_json::Value::Null,
         },

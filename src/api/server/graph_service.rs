@@ -113,7 +113,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             )
         };
 
-        let authenticator = AuthenticatorFactory::create_default(&config.auth);
+        let authenticator = AuthenticatorFactory::create_default(&config.server.auth);
         let permission_manager = Arc::new(PermissionManager::new());
 
         // Create StatsManager with slow query logger

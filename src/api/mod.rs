@@ -179,12 +179,12 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
     let rt = tokio::runtime::Runtime::new()?;
     rt.block_on(async {
         // Start telemetry server if enabled
-        let _telemetry_handle = if config.telemetry.enabled {
+        let _telemetry_handle = if config.server.telemetry.enabled {
             let telemetry_config = crate::api::server::telemetry_server::TelemetryConfig {
-                bind_address: config.telemetry.bind_address.clone(),
-                port: config.telemetry.port,
-                max_histogram_entries: config.telemetry.max_histogram_entries,
-                cleanup_interval_secs: config.telemetry.cleanup_interval_secs,
+                bind_address: config.server.telemetry.bind_address.clone(),
+                port: config.server.telemetry.port,
+                max_histogram_entries: config.server.telemetry.max_histogram_entries,
+                cleanup_interval_secs: config.server.telemetry.cleanup_interval_secs,
             };
             let telemetry_server = crate::api::server::telemetry_server::TelemetryServer::new(
                 telemetry_config,
@@ -192,7 +192,7 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
             );
             let _ = output::print_info(&format!(
                 "Starting telemetry server on {}:{}",
-                config.telemetry.bind_address, config.telemetry.port
+                config.server.telemetry.bind_address, config.server.telemetry.port
             ));
             Some(telemetry_server.spawn())
         } else {
