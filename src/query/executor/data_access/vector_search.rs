@@ -84,7 +84,7 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
                                 .iter()
                                 .map(|v| {
                                     if let crate::core::Value::Float(f) = v {
-                                        Ok(*f as f32)
+                                        Ok(*f)
                                     } else {
                                         Err(DBError::Validation(format!(
                                             "Parameter {} contains non-float value",
@@ -439,7 +439,7 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
                                 .iter()
                                 .map(|v| {
                                     if let crate::core::Value::Float(f) = v {
-                                        Ok(*f as f32)
+                                        Ok(*f)
                                     } else {
                                         Err(DBError::Validation(format!(
                                             "Parameter {} contains non-float value",
@@ -664,7 +664,7 @@ impl<S: StorageClient> VectorMatchExecutor<S> {
                                 .iter()
                                 .map(|v| {
                                     if let crate::core::Value::Float(f) = v {
-                                        Ok(*f as f32)
+                                        Ok(*f)
                                     } else {
                                         Err(DBError::Validation(format!(
                                             "Parameter {} contains non-float value",

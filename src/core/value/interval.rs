@@ -153,11 +153,11 @@ impl IntervalValue {
         let mut days = 0i32;
         let mut microseconds = 0i64;
 
-        let mut chars = s[1..].chars().peekable();
+        let chars = s[1..].chars().peekable();
         let mut num_str = String::new();
         let mut in_time_part = false;
 
-        while let Some(c) = chars.next() {
+        for c in chars {
             match c {
                 'T' => {
                     in_time_part = true;

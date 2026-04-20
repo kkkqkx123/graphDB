@@ -193,7 +193,7 @@ impl Hash for Value {
                 // Creating a hash from a bitwise representation of a floating point number
                 if f.is_nan() {
                     // All NaN values should hash to the same value
-                    (0x7fc00000u32 as u32).hash(state);
+                    0x7fc00000_u32.hash(state);
                 } else if *f == 0.0 {
                     // Ensure +0.0 and -0.0 hash to the same value
                     0.0_f32.to_bits().hash(state);
@@ -206,7 +206,7 @@ impl Hash for Value {
                 // Creating a hash from a bitwise representation of a floating point number
                 if f.is_nan() {
                     // All NaN values should hash to the same value
-                    (0x7ff8000000000000u64 as u64).hash(state);
+                    0x7ff8000000000000_u64.hash(state);
                 } else if *f == 0.0 {
                     // Ensure +0.0 and -0.0 hash to the same value
                     0.0_f64.to_bits().hash(state);

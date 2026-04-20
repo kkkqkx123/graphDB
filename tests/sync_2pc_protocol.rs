@@ -131,7 +131,7 @@ fn test_2pc_full_protocol() {
     // Verify all operations are committed
     for i in 0..10 {
         harness
-            .assert_vertex_exists("test_space", &Value::Int((i + 1) as i32))
+            .assert_vertex_exists("test_space", &Value::Int(i + 1))
             .expect("Vertex should exist");
     }
 

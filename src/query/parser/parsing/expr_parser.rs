@@ -337,7 +337,7 @@ impl<'a> ExprParser<'a> {
                         let mut vector_data = Vec::with_capacity(elements.len());
                         for elem in elements {
                             if let Expression::Literal(Value::Float(f)) = elem {
-                                vector_data.push(f as f32);
+                                vector_data.push(f);
                             } else if let Expression::Literal(Value::Int(i)) = elem {
                                 vector_data.push(i as f32);
                             } else {

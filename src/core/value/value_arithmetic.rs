@@ -309,7 +309,7 @@ impl Value {
             (SmallInt(a), Double(b)) => Ok(Double((*a as f64).powf(*b))),
             (Double(a), SmallInt(b)) => Ok(Double(a.powi(*b as i32))),
             (Int(a), Double(b)) => Ok(Double((*a as f64).powf(*b))),
-            (Double(a), Int(b)) => Ok(Double(a.powi(*b as i32))),
+            (Double(a), Int(b)) => Ok(Double(a.powi(*b))),
             (BigInt(a), Double(b)) => Ok(Double((*a as f64).powf(*b))),
             (Double(a), BigInt(b)) => Ok(Double(a.powi(*b as i32))),
             _ => Err("Cannot perform power operation on these value types".to_string()),

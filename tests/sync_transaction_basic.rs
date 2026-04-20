@@ -237,7 +237,7 @@ fn test_transaction_batch_vertex_insert_sync() {
     // Verify all vertices exist
     for i in 0..100 {
         harness
-            .assert_vertex_exists("test_space", &Value::Int((i + 1) as i32))
+            .assert_vertex_exists("test_space", &Value::Int(i + 1))
             .expect("Vertex should exist");
     }
 
