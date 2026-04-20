@@ -152,7 +152,7 @@ pub unsafe extern "C" fn graphdb_get_int(
     match handle.inner.get(row as usize) {
         Some(row_data) => match row_data.get(col_str) {
             Some(crate::core::Value::Int(i)) => {
-                *value = *i;
+                *value = *i as i64;
                 graphdb_error_code_t::GRAPHDB_OK as c_int
             }
             Some(_) => graphdb_error_code_t::GRAPHDB_MISMATCH as c_int,
@@ -348,7 +348,7 @@ pub unsafe extern "C" fn graphdb_get_int_by_index(
     match handle.inner.get(row as usize) {
         Some(row_data) => match row_data.get(col_name) {
             Some(crate::core::Value::Int(i)) => {
-                *value = *i;
+                *value = *i as i64;
                 graphdb_error_code_t::GRAPHDB_OK as c_int
             }
             Some(_) => graphdb_error_code_t::GRAPHDB_MISMATCH as c_int,
@@ -527,7 +527,7 @@ pub unsafe extern "C" fn graphdb_get_float_by_index(
     match handle.inner.get(row as usize) {
         Some(row_data) => match row_data.get(col_name) {
             Some(crate::core::Value::Float(f)) => {
-                *value = *f;
+                *value = *f as f64;
                 graphdb_error_code_t::GRAPHDB_OK as c_int
             }
             Some(_) => graphdb_error_code_t::GRAPHDB_MISMATCH as c_int,

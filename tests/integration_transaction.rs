@@ -197,7 +197,7 @@ fn test_transaction_property_types() {
                 ("int_val", Value::Int(42)),
                 ("string_val", Value::String("test".into())),
                 ("bool_val", Value::Bool(true)),
-                ("float_val", Value::Float(std::f64::consts::PI)),
+                ("float_val", Value::Float(std::f64::consts::PI as f32)),
             ]),
         );
 }

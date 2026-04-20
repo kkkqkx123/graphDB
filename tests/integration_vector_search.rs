@@ -93,7 +93,7 @@ fn create_test_vertex_with_vector(
     vector: Vec<f32>,
 ) -> Vertex {
     let mut props = HashMap::new();
-    let list_values: Vec<Value> = vector.iter().map(|&v| Value::Float(v as f64)).collect();
+    let list_values: Vec<Value> = vector.iter().map(|&v| Value::Float(v)).collect();
     props.insert(
         field_name.to_string(),
         Value::List(Box::new(graphdb::core::List {
@@ -101,7 +101,7 @@ fn create_test_vertex_with_vector(
         })),
     );
     let tag = Tag::new(tag_name.to_string(), props);
-    Vertex::new(Value::Int(vid), vec![tag])
+    Vertex::new(Value::Int(vid as i32), vec![tag])
 }
 
 // ==================== VectorManager Basic Tests ====================

@@ -735,7 +735,7 @@ fn test_row_get_int() {
 #[test]
 fn test_row_get_float() {
     let mut values = HashMap::new();
-    values.insert("score".to_string(), Value::Float(2.5_f64));
+    values.insert("score".to_string(), Value::Float(2.5_f32));
     let core_row = graphdb::api::core::Row { values };
     let row = Row::from_core(core_row);
 

@@ -23,8 +23,8 @@ pub unsafe fn graphdb_value_to_core(value: *const graphdb_value_t) -> Value {
     match val.type_ {
         graphdb_value_type_t::GRAPHDB_NULL => Value::Null(crate::core::NullType::Null),
         graphdb_value_type_t::GRAPHDB_BOOL => Value::Bool(val.data.boolean),
-        graphdb_value_type_t::GRAPHDB_INT => Value::Int(val.data.integer),
-        graphdb_value_type_t::GRAPHDB_FLOAT => Value::Float(val.data.floating),
+        graphdb_value_type_t::GRAPHDB_INT => Value::Int(val.data.integer as i32),
+        graphdb_value_type_t::GRAPHDB_FLOAT => Value::Float(val.data.floating as f32),
         graphdb_value_type_t::GRAPHDB_STRING => {
             let s = &val.data.string;
             let bytes = std::slice::from_raw_parts(s.data as *const u8, s.len);
@@ -49,11 +49,11 @@ pub fn core_value_to_graphdb(value: &Value) -> graphdb_value_t {
         },
         Value::Int(i) => graphdb_value_t {
             type_: graphdb_value_type_t::GRAPHDB_INT,
-            data: graphdb_value_data_t { integer: *i },
+            data: graphdb_value_data_t { integer: *i as i64 },
         },
         Value::Float(f) => graphdb_value_t {
             type_: graphdb_value_type_t::GRAPHDB_FLOAT,
-            data: graphdb_value_data_t { floating: *f },
+            data: graphdb_value_data_t { floating: *f as f64 },
         },
         Value::String(s) => {
             let string_t = graphdb_string_t {

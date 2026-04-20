@@ -12,9 +12,9 @@ use std::collections::HashMap;
 pub fn create_simple_vertex(vid: i64, _tag_name: &str, name: &str, age: i64) -> Vertex {
     let mut props = HashMap::new();
     props.insert("name".to_string(), Value::String(name.to_string()));
-    props.insert("age".to_string(), Value::Int(age));
+    props.insert("age".to_string(), Value::Int(age as i32));
     let tag = Tag::new("Person".to_string(), props);
-    create_vertex(Value::Int(vid), vec![tag])
+    create_vertex(Value::Int(vid as i32), vec![tag])
 }
 
 /// create a vertex

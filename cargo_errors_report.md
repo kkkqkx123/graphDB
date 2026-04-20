@@ -3,11 +3,11 @@
 ## Summary
 
 - **Total Errors**: 0
-- **Total Warnings**: 3
-- **Total Issues**: 3
+- **Total Warnings**: 10
+- **Total Issues**: 10
 - **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 3
-- **Files with Issues**: 3
+- **Unique Warning Patterns**: 5
+- **Files with Issues**: 7
 
 ## Error Statistics
 
@@ -15,34 +15,57 @@
 
 ## Warning Statistics
 
-**Total Warnings**: 3
+**Total Warnings**: 10
 
 ### Warning Type Breakdown
 
-- **warning**: 3 warnings
+- **warning**: 10 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\core\stats\aggregated_stats.rs`: 1 warnings
-- `tests\integration_core.rs`: 1 warnings
-- `src\config\server\security.rs`: 1 warnings
+- `src\query\executor\data_access\vector_search.rs`: 3 warnings
+- `src\core\value\value_compare.rs`: 2 warnings
+- `tests\sync_2pc_protocol.rs`: 1 warnings
+- `tests\sync_transaction_basic.rs`: 1 warnings
+- `src\query\parser\parsing\expr_parser.rs`: 1 warnings
+- `src\core\value\value_arithmetic.rs`: 1 warnings
+- `src\core\value\interval.rs`: 1 warnings
 
 ## Detailed Warning Categorization
 
-### warning: `Box::new(_)` of default value: help: try: `Box::default()`
+### warning: casting to the same type is unnecessary (`f32` -> `f32`)
 
-**Total Occurrences**: 3  
-**Unique Files**: 3
+**Total Occurrences**: 10  
+**Unique Files**: 7
 
-#### `tests\integration_core.rs`: 1 occurrences
+#### `src\query\executor\data_access\vector_search.rs`: 3 occurrences
 
-- Line 330: `Box::new(_)` of default value: help: try: `Box::default()`
+- Line 87: casting to the same type is unnecessary (`f32` -> `f32`)
+- Line 442: casting to the same type is unnecessary (`f32` -> `f32`)
+- Line 667: casting to the same type is unnecessary (`f32` -> `f32`)
 
-#### `src\config\server\security.rs`: 1 occurrences
+#### `src\core\value\value_compare.rs`: 2 occurrences
 
-- Line 171: this `impl` can be derived
+- Line 196: casting integer literal to `u32` is unnecessary
+- Line 209: casting integer literal to `u64` is unnecessary
 
-#### `src\core\stats\aggregated_stats.rs`: 1 occurrences
+#### `src\core\value\value_arithmetic.rs`: 1 occurrences
 
-- Line 784: manual `RangeInclusive::contains` implementation: help: use: `(20..=80).contains(&sampled)`
+- Line 312: casting to the same type is unnecessary (`i32` -> `i32`)
+
+#### `src\query\parser\parsing\expr_parser.rs`: 1 occurrences
+
+- Line 340: casting to the same type is unnecessary (`f32` -> `f32`)
+
+#### `tests\sync_2pc_protocol.rs`: 1 occurrences
+
+- Line 134: casting to the same type is unnecessary (`i32` -> `i32`)
+
+#### `tests\sync_transaction_basic.rs`: 1 occurrences
+
+- Line 240: casting to the same type is unnecessary (`i32` -> `i32`)
+
+#### `src\core\value\interval.rs`: 1 occurrences
+
+- Line 160: this loop could be written as a `for` loop
 

@@ -13,7 +13,7 @@ use std::sync::Arc;
 /// Create test image space information
 pub fn create_test_space(name: &str) -> SpaceInfo {
     SpaceInfo::new(name.to_string())
-        .with_vid_type(DataType::Int64)
+        .with_vid_type(DataType::BigInt)
         .with_comment(Some("测试空间".to_string()))
 }
 
@@ -41,7 +41,7 @@ pub fn create_edge_type_info(name: &str, properties: Vec<(&str, DataType)>) -> E
 pub fn person_tag_info() -> TagInfo {
     create_tag_info(
         "Person",
-        vec![("name", DataType::String), ("age", DataType::Int64)],
+        vec![("name", DataType::String), ("age", DataType::BigInt)],
     )
 }
 

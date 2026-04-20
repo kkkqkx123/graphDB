@@ -208,20 +208,20 @@ impl TransactionTestData {
     pub fn person(name: &str, age: i64) -> HashMap<&'static str, Value> {
         HashMap::from([
             ("name", Value::String(name.into())),
-            ("age", Value::Int(age)),
+            ("age", Value::Int(age as i32)),
         ])
     }
 
     /// Create an account vertex value map
     pub fn account(id: i64, balance: i64) -> HashMap<&'static str, Value> {
-        HashMap::from([("id", Value::Int(id)), ("balance", Value::Int(balance))])
+        HashMap::from([("id", Value::Int(id as i32)), ("balance", Value::Int(balance as i32))])
     }
 
     /// Create a product vertex value map
     pub fn product(name: &str, price: i64) -> HashMap<&'static str, Value> {
         HashMap::from([
             ("name", Value::String(name.into())),
-            ("price", Value::Int(price)),
+            ("price", Value::Int(price as i32)),
         ])
     }
 }

@@ -12,7 +12,7 @@ mod common;
 use graphdb::core::types::expr::Expression;
 use graphdb::core::types::DataType;
 use graphdb::core::value::{
-    DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue, Value,
+    DateTimeValue, DateValue, GeographyValue, NullType, TimeValue, Value,
 };
 use graphdb::query::executor::expression::evaluation_context::DefaultExpressionContext;
 use graphdb::query::executor::expression::functions::FunctionRegistry;
@@ -62,7 +62,7 @@ fn test_value_type_checking() {
     assert_eq!(Value::Null(NullType::Null).get_type(), DataType::Null);
     assert_eq!(Value::Bool(true).get_type(), DataType::Bool);
     assert_eq!(Value::Int(42).get_type(), DataType::Int);
-    assert_eq!(Value::Float(1.5_f64).get_type(), DataType::Float);
+    assert_eq!(Value::Float(1.5_f32).get_type(), DataType::Float);
     assert_eq!(
         Value::String("test".to_string()).get_type(),
         DataType::String
@@ -70,7 +70,7 @@ fn test_value_type_checking() {
 
     // Numeric type checking
     assert!(Value::Int(42).is_numeric());
-    assert!(Value::Float(1.5_f64).is_numeric());
+    assert!(Value::Float(1.5_f32).is_numeric());
     assert!(!Value::String("42".to_string()).is_numeric());
     assert!(!Value::Bool(true).is_numeric());
 
@@ -126,17 +126,17 @@ fn test_value_integer_conversion() {
     assert_eq!(Value::Int(-100).to_int(), Value::Int(-100));
 
     // Floating point conversion (truncation)
-    assert_eq!(Value::Float(2.7_f64).to_int(), Value::Int(2));
+    assert_eq!(Value::Float(2.7_f32).to_int(), Value::Int(2));
     assert_eq!(Value::Float(-2.9).to_int(), Value::Int(-2));
 
     // Boundary value processing
-    assert_eq!(Value::Float(f64::NAN).to_int(), Value::Null(NullType::Null));
+    assert_eq!(Value::Float(f32::NAN).to_int(), Value::Null(NullType::Null));
     assert_eq!(
-        Value::Float(f64::INFINITY).to_int(),
+        Value::Float(f32::INFINITY).to_int(),
         Value::Null(NullType::Null)
     );
     assert_eq!(
-        Value::Float(f64::NEG_INFINITY).to_int(),
+        Value::Float(f32::NEG_INFINITY).to_int(),
         Value::Null(NullType::Null)
     );
 
@@ -156,7 +156,7 @@ fn test_value_integer_conversion() {
 #[test]
 fn test_value_float_conversion() {
     // Floating point numbers are returned directly
-    assert_eq!(Value::Float(1.5_f64).to_float(), Value::Float(1.5_f64));
+    assert_eq!(Value::Float(1.5_f32).to_float(), Value::Float(1.5_f32));
 
     // integer conversion
     assert_eq!(Value::Int(42).to_float(), Value::Float(42.0));
@@ -164,7 +164,7 @@ fn test_value_float_conversion() {
     // string parsing
     assert_eq!(
         Value::String("1.5".to_string()).to_float(),
-        Value::Float(1.5_f64)
+        Value::Float(1.5_f32)
     );
     assert_eq!(
         Value::String("-2.5".to_string()).to_float(),
@@ -270,8 +270,8 @@ fn test_value_comparison() {
     assert_eq!(Value::Int(10), Value::Int(10));
 
     // Floating Point Comparison (with NaN Handling)
-    assert!(Value::Float(3.5_f64) > Value::Float(2.0));
-    assert_eq!(Value::Float(f64::NAN), Value::Float(f64::NAN));
+    assert!(Value::Float(3.5_f32) > Value::Float(2.0));
+    assert_eq!(Value::Float(f32::NAN), Value::Float(f32::NAN));
 
     // string comparison
     assert!(Value::String("b".to_string()) > Value::String("a".to_string()));
@@ -295,8 +295,8 @@ fn test_value_unary_operations() {
         Value::Int(-42)
     );
     assert_eq!(
-        Value::Float(2.5_f64).neg().expect("浮点数取反应该成功"),
-        Value::Float(-2.5_f64)
+        Value::Float(2.5_f32).neg().expect("浮点数取反应该成功"),
+        Value::Float(-2.5_f32)
     );
     assert!(Value::String("test".to_string()).neg().is_err());
 
@@ -306,15 +306,15 @@ fn test_value_unary_operations() {
         Value::Int(42)
     );
     assert_eq!(
-        Value::Float(-2.5_f64).abs().expect("浮点数绝对值应该成功"),
-        Value::Float(2.5_f64)
+        Value::Float(-2.5_f32).abs().expect("浮点数绝对值应该成功"),
+        Value::Float(2.5_f32)
     );
     assert!(Value::String("test".to_string()).abs().is_err());
 
     // lengths
     assert_eq!(
         Value::String("hello".to_string())
-            .length()
+            .len()
             .expect("字符串长度计算应该成功"),
         Value::Int(5)
     );
@@ -322,13 +322,13 @@ fn test_value_unary_operations() {
         Value::List(Box::new(graphdb::core::List {
             values: vec![Value::Int(1), Value::Int(2)]
         }))
-        .length()
+        .len()
         .expect("列表长度计算应该成功"),
         Value::Int(2)
     );
     assert_eq!(
         Value::Map(Box::<std::collections::HashMap<_, _>>::default())
-            .length()
+            .len()
             .expect("映射长度计算应该成功"),
         Value::Int(0)
     );
@@ -376,13 +376,48 @@ fn test_value_complex_types() {
     assert_eq!(geo.latitude, 39.9042);
     assert_eq!(geo.longitude, 116.4074);
 
-    // DurationValue
-    let duration = DurationValue {
-        seconds: 3600,
-        microseconds: 0,
-        months: 0,
-    };
-    assert_eq!(duration.seconds, 3600);
+    // IntervalValue
+    use graphdb::core::value::IntervalValue;
+    let interval = IntervalValue::new(14, 3, 4_500_000_000);
+    assert_eq!(interval.months, 14);
+    assert_eq!(interval.days, 3);
+    assert_eq!(interval.microseconds, 4_500_000_000);
+
+    // Interval from years
+    let iv_years = IntervalValue::from_years(2);
+    assert_eq!(iv_years.months, 24);
+
+    // Interval from days
+    let iv_days = IntervalValue::from_days(5);
+    assert_eq!(iv_days.days, 5);
+
+    // Interval parsing - ISO 8601
+    let iv_iso = IntervalValue::parse("P1Y2M3DT4H5M6S").unwrap();
+    assert_eq!(iv_iso.months, 14);
+    assert_eq!(iv_iso.days, 3);
+
+    // Interval parsing - PostgreSQL format
+    let iv_pg = IntervalValue::parse("1 year 2 months 3 days").unwrap();
+    assert_eq!(iv_pg.months, 14);
+    assert_eq!(iv_pg.days, 3);
+
+    // Interval arithmetic
+    let iv1 = IntervalValue::from_days(3);
+    let iv2 = IntervalValue::from_hours(12);
+    let iv_sum = iv1 + iv2;
+    assert_eq!(iv_sum.days, 3);
+    assert_eq!(iv_sum.microseconds, 12 * 3_600_000_000);
+
+    // Interval negation
+    let iv_neg = -IntervalValue::from_days(5);
+    assert_eq!(iv_neg.days, -5);
+
+    // Interval to ISO 8601 string
+    let iv_str = IntervalValue::new(14, 3, 4 * 3_600_000_000 + 5 * 60_000_000 + 6 * 1_000_000);
+    assert_eq!(iv_str.to_iso8601(), "P1Y2M3DT4H5M6S");
+
+    // Interval to PostgreSQL string
+    assert_eq!(iv_str.to_postgresql(), "1 year 2 mons 3 days 04:05:06");
 
     // DataSet
     let mut dataset = DataSet::new();
@@ -405,8 +440,8 @@ fn test_value_hash_and_equality() {
     assert_eq!(value1.hash_value(), value2.hash_value());
 
     // Testing floating point hashes (including special values)
-    let nan1 = Value::Float(f64::NAN);
-    let nan2 = Value::Float(f64::NAN);
+    let nan1 = Value::Float(f32::NAN);
+    let nan2 = Value::Float(f32::NAN);
     assert_eq!(nan1.hash_value(), nan2.hash_value());
 
     let pos_zero = Value::Float(0.0);
@@ -430,11 +465,9 @@ fn test_datatype_variants() {
         DataType::Empty,
         DataType::Null,
         DataType::Bool,
+        DataType::SmallInt,
         DataType::Int,
-        DataType::Int8,
-        DataType::Int16,
-        DataType::Int32,
-        DataType::Int64,
+        DataType::BigInt,
         DataType::Float,
         DataType::Double,
         DataType::String,
@@ -448,7 +481,6 @@ fn test_datatype_variants() {
         DataType::Map,
         DataType::Set,
         DataType::Geography,
-        DataType::Duration,
         DataType::DataSet,
         DataType::FixedString(100),
         DataType::VID,
@@ -795,9 +827,9 @@ fn test_function_registry_builtins() {
     assert_eq!(result, Value::Int(42));
 
     let result = registry
-        .execute("abs", &[Value::Float(-2.5_f64)])
+        .execute("abs", &[Value::Float(-2.5_f32)])
         .expect("abs函数执行应该成功");
-    assert_eq!(result, Value::Float(2.5_f64));
+    assert_eq!(result, Value::Float(2.5_f32));
 
     // Testing the string function
     let result = registry
@@ -963,13 +995,13 @@ fn test_list_operations() {
         values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
     }));
 
-    assert_eq!(list.length().expect("列表长度计算应该成功"), Value::Int(3));
+    assert_eq!(list.len().expect("列表长度计算应该成功"), Value::Int(3));
     assert_eq!(list.get_type(), DataType::List);
 
     // Empty list
     let empty_list = Value::List(Box::new(graphdb::core::List { values: vec![] }));
     assert_eq!(
-        empty_list.length().expect("空列表长度计算应该成功"),
+        empty_list.len().expect("空列表长度计算应该成功"),
         Value::Int(0)
     );
 }
@@ -985,7 +1017,7 @@ fn test_map_operations() {
     let map_value = Value::Map(Box::new(map));
 
     assert_eq!(
-        map_value.length().expect("映射长度计算应该成功"),
+        map_value.len().expect("映射长度计算应该成功"),
         Value::Int(2)
     );
     assert_eq!(map_value.get_type(), DataType::Map);

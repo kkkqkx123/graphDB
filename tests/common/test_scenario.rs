@@ -407,8 +407,8 @@ impl TestScenario {
             .as_ref()
             .map(|s| s.space_name.clone())
             .unwrap_or_default();
-        let src_val = Value::Int(src);
-        let dst_val = Value::Int(dst);
+        let src_val = Value::Int(src as i32);
+        let dst_val = Value::Int(dst as i32);
         let found = {
             let storage_guard = self.storage.lock();
             let edges = storage_guard
@@ -433,8 +433,8 @@ impl TestScenario {
             .as_ref()
             .map(|s| s.space_name.clone())
             .unwrap_or_default();
-        let src_val = Value::Int(src);
-        let dst_val = Value::Int(dst);
+        let src_val = Value::Int(src as i32);
+        let dst_val = Value::Int(dst as i32);
         let found = {
             let storage_guard = self.storage.lock();
             let edges = storage_guard

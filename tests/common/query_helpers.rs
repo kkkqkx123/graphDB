@@ -105,11 +105,7 @@ pub trait FromValue: Sized {
 impl FromValue for i64 {
     fn from_value(value: &Value) -> DBResult<Self> {
         match value {
-            Value::Int(i) => Ok(*i),
-            Value::Int64(i) => Ok(*i),
-            Value::Int32(i) => Ok(*i as i64),
-            Value::Int16(i) => Ok(*i as i64),
-            Value::Int8(i) => Ok(*i as i64),
+            Value::Int(i) => Ok(*i as i64),
             _ => Err(graphdb::core::error::DBError::Validation(format!(
                 "Expected Int, got {:?}",
                 value
@@ -133,7 +129,7 @@ impl FromValue for String {
 impl FromValue for f64 {
     fn from_value(value: &Value) -> DBResult<Self> {
         match value {
-            Value::Float(f) => Ok(*f),
+            Value::Float(f) => Ok(*f as f64),
             _ => Err(graphdb::core::error::DBError::Validation(format!(
                 "Expected Float, got {:?}",
                 value

@@ -96,7 +96,7 @@ impl SyncTestHarness {
 
     /// Create test space
     pub fn create_space(&mut self, space_name: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let space_info = SpaceInfo::new(space_name.to_string()).with_vid_type(DataType::Int64);
+        let space_info = SpaceInfo::new(space_name.to_string()).with_vid_type(DataType::BigInt);
         self.storage.create_space(&space_info)?;
         Ok(())
     }
@@ -455,7 +455,7 @@ pub fn create_test_vertex(vid: i64, tag_name: &str, props: Vec<(&str, Value)>) -
         properties.insert(k.to_string(), v);
     }
     let tag = Tag::new(tag_name.to_string(), properties);
-    Vertex::new(Value::Int(vid), vec![tag])
+    Vertex::new(Value::Int(vid as i32), vec![tag])
 }
 
 /// Helper function to create test vertex with vector
@@ -477,7 +477,7 @@ pub fn create_test_vertex_with_vector(
     properties.insert(vector_prop.0.to_string(), Value::Vector(vector_value));
 
     let tag = Tag::new(tag_name.to_string(), properties);
-    Vertex::new(Value::Int(vid), vec![tag])
+    Vertex::new(Value::Int(vid as i32), vec![tag])
 }
 
 /// Helper function to generate random vector

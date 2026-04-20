@@ -173,8 +173,8 @@ unsafe fn convert_c_value_to_rust(c_value: &graphdb_value_t) -> Value {
     match c_value.type_ {
         graphdb_value_type_t::GRAPHDB_NULL => Value::Null(crate::core::value::NullType::Null),
         graphdb_value_type_t::GRAPHDB_BOOL => Value::Bool(c_value.data.boolean),
-        graphdb_value_type_t::GRAPHDB_INT => Value::Int(c_value.data.integer),
-        graphdb_value_type_t::GRAPHDB_FLOAT => Value::Float(c_value.data.floating),
+        graphdb_value_type_t::GRAPHDB_INT => Value::Int(c_value.data.integer as i32),
+        graphdb_value_type_t::GRAPHDB_FLOAT => Value::Float(c_value.data.floating as f32),
         graphdb_value_type_t::GRAPHDB_STRING => {
             if c_value.data.string.data.is_null() || c_value.data.string.len == 0 {
                 Value::String(String::new())

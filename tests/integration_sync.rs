@@ -92,7 +92,7 @@ fn create_test_vertex(vid: i64, tag_name: &str, content: &str) -> Vertex {
     let mut props = HashMap::new();
     props.insert("content".to_string(), Value::String(content.to_string()));
     let tag = Tag::new(tag_name.to_string(), props);
-    Vertex::new(Value::Int(vid), vec![tag])
+    Vertex::new(Value::Int(vid as i32), vec![tag])
 }
 
 // ==================== Basic Sync Tests ====================

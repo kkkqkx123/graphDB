@@ -131,7 +131,7 @@ fn test_2pc_full_protocol() {
     // Verify all operations are committed
     for i in 0..10 {
         harness
-            .assert_vertex_exists("test_space", &Value::Int((i + 1) as i64))
+            .assert_vertex_exists("test_space", &Value::Int((i + 1) as i32))
             .expect("Vertex should exist");
     }
 
@@ -380,7 +380,7 @@ fn test_concurrent_transactions_sync() {
 
             // Verify vertex exists
             harness
-                .assert_vertex_exists("test_space", &Value::Int(i * 10 + 1))
+                .assert_vertex_exists("test_space", &Value::Int((i * 10 + 1) as i32))
                 .expect("Vertex should exist");
 
             // Verify index is synced
@@ -455,7 +455,7 @@ fn test_concurrent_index_updates_same_space() {
 
             // Verify vertex exists
             harness
-                .assert_vertex_exists("test_space", &Value::Int(i + 1))
+                .assert_vertex_exists("test_space", &Value::Int((i + 1) as i32))
                 .expect("Vertex should exist");
 
             // Verify index is synced

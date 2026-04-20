@@ -25,7 +25,7 @@ fn create_test_vertex(vid: i64, tags: Vec<(&str, HashMap<&str, Value>)>) -> Vert
             Tag::new(name.to_string(), props)
         })
         .collect();
-    Vertex::new(Value::Int(vid), tags)
+    Vertex::new(Value::Int(vid as i32), tags)
 }
 
 /// Create edges for testing purposes.
@@ -39,8 +39,8 @@ fn create_test_edge(
     let props: HashMap<String, Value> =
         props.into_iter().map(|(k, v)| (k.to_string(), v)).collect();
     Edge::new(
-        Value::Int(src),
-        Value::Int(dst),
+        Value::Int(src as i32),
+        Value::Int(dst as i32),
         edge_type.to_string(),
         rank,
         props,
@@ -396,7 +396,7 @@ fn test_asin_function() {
     assert!(result.is_ok());
 
     if let Value::Float(val) = result.expect("asin函数应该成功") {
-        assert!((val - std::f64::consts::PI / 6.0).abs() < 1e-10);
+        assert!((val - std::f32::consts::PI / 6.0).abs() < 1e-6);
     } else {
         panic!("The expectation is to receive a value of the floating-point type.");
     }
@@ -410,7 +410,7 @@ fn test_acos_function() {
     assert!(result.is_ok());
 
     if let Value::Float(val) = result.expect("acos函数应该成功") {
-        assert!((val - std::f64::consts::PI / 3.0).abs() < 1e-10);
+        assert!((val - std::f32::consts::PI / 3.0).abs() < 1e-6);
     } else {
         panic!("The expectation is to receive a value of the floating-point type.");
     }
@@ -424,7 +424,7 @@ fn test_atan_function() {
     assert!(result.is_ok());
 
     if let Value::Float(val) = result.expect("atan函数应该成功") {
-        assert!((val - std::f64::consts::PI / 4.0).abs() < 1e-10);
+        assert!((val - std::f32::consts::PI / 4.0).abs() < 1e-6);
     } else {
         panic!("The expectation is to receive a value of the floating-point type.");
     }
@@ -810,7 +810,7 @@ fn test_sign_function() {
     assert_eq!(result.expect("sign函数应该成功"), Value::Int(0));
 
     // Floating-point number
-    let result = registry.execute("sign", &[Value::Float(-2.5_f64)]);
+    let result = registry.execute("sign", &[Value::Float(-2.5_f32)]);
     assert!(result.is_ok());
     assert_eq!(result.expect("sign函数应该成功"), Value::Int(-1));
 }
@@ -874,7 +874,7 @@ fn test_e_function() {
     assert!(result.is_ok());
     assert_eq!(
         result.expect("e函数应该成功"),
-        Value::Float(std::f64::consts::E)
+        Value::Float(std::f32::consts::E)
     );
 }
 
@@ -886,7 +886,7 @@ fn test_pi_function() {
     assert!(result.is_ok());
     assert_eq!(
         result.expect("pi函数应该成功"),
-        Value::Float(std::f64::consts::PI)
+        Value::Float(std::f32::consts::PI)
     );
 }
 
@@ -916,7 +916,7 @@ fn test_radians_function() {
     assert!(result.is_ok());
     assert_eq!(
         result.expect("radians函数应该成功"),
-        Value::Float(std::f64::consts::PI)
+        Value::Float(std::f32::consts::PI)
     );
 }
 

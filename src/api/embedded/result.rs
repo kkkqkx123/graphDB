@@ -199,7 +199,7 @@ impl Row {
     /// Get i64 integer value
     pub fn get_int(&self, column: &str) -> Option<i64> {
         self.get(column).and_then(|v| match v {
-            Value::Int(i) => Some(*i),
+            Value::Int(i) => Some(*i as i64),
             _ => None,
         })
     }
@@ -207,7 +207,7 @@ impl Row {
     /// Get f64 floating point value
     pub fn get_float(&self, column: &str) -> Option<f64> {
         self.get(column).and_then(|v| match v {
-            Value::Float(f) => Some(*f),
+            Value::Float(f) => Some(*f as f64),
             _ => None,
         })
     }
