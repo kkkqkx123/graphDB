@@ -92,7 +92,8 @@ impl FieldDef {
             DataType::Map => 8,
             DataType::Blob => 8,
             DataType::Geography => 8,
-            DataType::Duration => 16,
+            DataType::Uuid => 16,
+            DataType::Interval => 16,
             _ => 8,
         }
     }

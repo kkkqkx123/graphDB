@@ -33,7 +33,7 @@ pub mod value_def;
 pub mod vector;
 
 // Re-export all public types
-pub use date_time::{DateTimeValue, DateValue, DurationValue, TimeValue};
+pub use date_time::{DateTimeValue, DateValue, TimeValue};
 pub use decimal128::Decimal128Value;
 pub use geography::GeographyValue;
 pub use interval::{IntervalError, IntervalValue};

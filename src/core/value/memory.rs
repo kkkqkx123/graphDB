@@ -33,7 +33,7 @@ impl MemoryEstimatable for Value {
             Value::Decimal128(d) => base_size + std::mem::size_of_val(d),
 
             // DateTime types
-            Value::Date(_) | Value::Time(_) | Value::DateTime(_) | Value::Duration(_) => base_size,
+            Value::Date(_) | Value::Time(_) | Value::DateTime(_) => base_size,
 
             // Graph types
             Value::Vertex(v) => base_size + std::mem::size_of_val(v.as_ref()),

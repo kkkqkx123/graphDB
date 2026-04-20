@@ -3,7 +3,7 @@
 use crate::core::{
     types::DataType,
     value::{
-        date_time::{DateTimeValue, DateValue, DurationValue, TimeValue},
+        date_time::{DateTimeValue, DateValue, TimeValue},
         decimal128::Decimal128Value,
         geography::GeographyValue,
         interval::IntervalValue,
@@ -56,7 +56,6 @@ pub enum Value {
     Map(Box<HashMap<String, Value>>),
     Set(Box<HashSet<Value>>),
     Geography(GeographyValue),
-    Duration(DurationValue),
     Vector(VectorValue),
     DataSet(Box<DataSet>),
 
@@ -96,7 +95,6 @@ impl Value {
             Value::Map(_) => DataType::Map,
             Value::Set(_) => DataType::Set,
             Value::Geography(_) => DataType::Geography,
-            Value::Duration(_) => DataType::Duration,
             Value::Vector(_) => DataType::Vector,
             Value::DataSet(_) => DataType::DataSet,
             Value::Json(_) => DataType::Json,
@@ -281,7 +279,6 @@ impl Value {
                 size
             }
             Value::Geography(g) => std::mem::size_of::<Self>() + g.estimated_size(),
-            Value::Duration(d) => std::mem::size_of::<Self>() + d.estimated_size(),
             Value::Vector(v) => std::mem::size_of::<Self>() + v.estimated_size(),
             Value::DataSet(ds) => std::mem::size_of::<Self>() + ds.estimated_size(),
             Value::Json(j) => std::mem::size_of::<Self>() + j.estimated_size(),
@@ -399,7 +396,6 @@ impl std::fmt::Display for Value {
                 write!(f, "}}")
             }
             Value::Geography(g) => write!(f, "Geography(lat: {}, lon: {})", g.latitude, g.longitude),
-            Value::Duration(d) => write!(f, "Duration({:?})", d),
             Value::Vector(v) => write!(f, "{}", v),
             Value::DataSet(ds) => write!(f, "DataSet({} rows)", ds.row_count()),
             Value::Json(j) => write!(f, "Json({})", j.as_str()),

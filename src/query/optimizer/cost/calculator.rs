@@ -696,7 +696,6 @@ impl CostCalculator {
             | Value::Set(_)
             | Value::Decimal128(_)
             | Value::Geography(_)
-            | Value::Duration(_)
             | Value::Date(_)
             | Value::Time(_)
             | Value::DateTime(_) => self.config.complex_type_cost_factor,

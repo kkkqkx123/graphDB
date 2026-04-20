@@ -1,7 +1,7 @@
 use crate::core::{
     types::DataType,
     value::{
-        date_time::{DateTimeValue, DateValue, DurationValue, TimeValue},
+        date_time::{DateTimeValue, DateValue, TimeValue},
         interval::IntervalValue,
         list::List,
         null::NullType,
@@ -147,10 +147,6 @@ impl Value {
             Value::DateTime(dt) => Ok(format!(
                 "{}-{:02}-{:02} {:02}:{:02}:{:02}.{:06}",
                 dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.sec, dt.microsec
-            )),
-            Value::Duration(d) => Ok(format!(
-                "{} seconds {} microseconds {} months",
-                d.seconds, d.microseconds, d.months
             )),
             Value::Uuid(u) => Ok(u.to_hyphenated_string()),
             Value::Interval(i) => Ok(i.to_postgresql()),
@@ -301,46 +297,19 @@ impl Value {
         }
     }
 
-    /// Convert to duration
-    pub fn to_duration(&self) -> Value {
+    /// Convert to interval
+    pub fn to_interval(&self) -> Value {
         match self {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
-            Value::Duration(d) => Value::Duration(d.clone()),
-            Value::SmallInt(i) => Value::Duration(DurationValue {
-                seconds: *i as i64,
-                microseconds: 0,
-                months: 0,
-            }),
-            Value::Int(i) => Value::Duration(DurationValue {
-                seconds: *i as i64,
-                microseconds: 0,
-                months: 0,
-            }),
-            Value::BigInt(i) => Value::Duration(DurationValue {
-                seconds: *i,
-                microseconds: 0,
-                months: 0,
-            }),
-            Value::Float(f) => {
-                let seconds = f.floor() as i64;
-                let microseconds = ((f - seconds as f32) * 1_000_000.0) as i32;
-                Value::Duration(DurationValue {
-                    seconds,
-                    microseconds,
-                    months: 0,
-                })
-            }
-            Value::Double(f) => {
-                let seconds = f.floor() as i64;
-                let microseconds = ((f - seconds as f64) * 1_000_000.0) as i32;
-                Value::Duration(DurationValue {
-                    seconds,
-                    microseconds,
-                    months: 0,
-                })
-            }
-            Value::String(s) => Self::parse_duration_string(s),
-            Value::FixedString { data, .. } => Self::parse_duration_string(data),
+            Value::Interval(i) => Value::Interval(*i),
+            Value::String(s) => match IntervalValue::parse(s) {
+                Ok(i) => Value::Interval(i),
+                Err(_) => Value::Null(NullType::BadData),
+            },
+            Value::FixedString { data, .. } => match IntervalValue::parse(data) {
+                Ok(i) => Value::Interval(i),
+                Err(_) => Value::Null(NullType::BadData),
+            },
             _ => Value::Null(NullType::BadData),
         }
     }
@@ -404,45 +373,6 @@ impl Value {
         Value::Null(NullType::BadData)
     }
 
-    fn parse_duration_string(s: &str) -> Value {
-        use regex::Regex;
-
-        let re = match Regex::new(r"(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?") {
-            Ok(re) => re,
-            Err(_) => return Value::Null(NullType::BadData),
-        };
-        let caps = re.captures(s);
-
-        if let Some(caps) = caps {
-            let days = caps
-                .get(1)
-                .and_then(|m| m.as_str().parse().ok())
-                .unwrap_or(0);
-            let hours = caps
-                .get(2)
-                .and_then(|m| m.as_str().parse().ok())
-                .unwrap_or(0);
-            let minutes = caps
-                .get(3)
-                .and_then(|m| m.as_str().parse().ok())
-                .unwrap_or(0);
-            let seconds = caps
-                .get(4)
-                .and_then(|m| m.as_str().parse().ok())
-                .unwrap_or(0);
-
-            let total_seconds = days * 86400 + hours * 3600 + minutes * 60 + seconds;
-
-            return Value::Duration(DurationValue {
-                seconds: total_seconds,
-                microseconds: 0,
-                months: 0,
-            });
-        }
-
-        Value::Null(NullType::BadData)
-    }
-
     fn days_to_date(days: i64) -> DateValue {
         let epoch = match chrono::NaiveDate::from_ymd_opt(1970, 1, 1) {
             Some(date) => date,
@@ -481,7 +411,6 @@ impl Value {
             DataType::Date => Ok(self.to_date()),
             DataType::Time => Ok(self.to_time()),
             DataType::DateTime => Ok(self.to_datetime()),
-            DataType::Duration => Ok(self.to_duration()),
             DataType::Uuid => Ok(self.to_uuid()),
             DataType::Interval => Ok(self.to_interval()),
             _ => Err(format!("Cannot implicitly cast to {:?}", target_type)),
@@ -688,27 +617,6 @@ impl Value {
         }
     }
 
-    /// Convert to Interval
-    pub fn to_interval(&self) -> Value {
-        match self {
-            Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
-            Value::Interval(i) => Value::Interval(*i),
-            Value::String(s) => match IntervalValue::parse(s) {
-                Ok(i) => Value::Interval(i),
-                Err(_) => Value::Null(NullType::BadData),
-            },
-            Value::FixedString { data, .. } => match IntervalValue::parse(data) {
-                Ok(i) => Value::Interval(i),
-                Err(_) => Value::Null(NullType::BadData),
-            },
-            Value::Duration(d) => Value::Interval(IntervalValue::new(
-                d.months,
-                (d.seconds / 86400) as i32,
-                (d.seconds % 86400) * 1_000_000 + d.microseconds as i64,
-            )),
-            _ => Value::Null(NullType::BadData),
-        }
-    }
 }
 
 impl From<&str> for Value {

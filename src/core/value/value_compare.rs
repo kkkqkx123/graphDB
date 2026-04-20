@@ -1,6 +1,6 @@
 use crate::core::{
     value::{
-        date_time::{DateTimeValue, DateValue, DurationValue, TimeValue},
+        date_time::{DateTimeValue, DateValue, TimeValue},
         geography::GeographyValue,
         interval::IntervalValue,
         list::List,
@@ -39,7 +39,6 @@ impl PartialEq for Value {
             (Value::Map(a), Value::Map(b)) => a == b,
             (Value::Set(a), Value::Set(b)) => a == b,
             (Value::Geography(a), Value::Geography(b)) => a == b,
-            (Value::Duration(a), Value::Duration(b)) => a == b,
             (Value::Json(a), Value::Json(b)) => a == b,
             (Value::JsonB(a), Value::JsonB(b)) => a == b,
             // JSON and JSONB can be compared
@@ -115,7 +114,6 @@ impl Ord for Value {
             (Value::Map(a), Value::Map(b)) => Self::cmp_map(a, b),
             (Value::Set(a), Value::Set(b)) => Self::cmp_set(a, b),
             (Value::Geography(a), Value::Geography(b)) => Self::cmp_geography(a, b),
-            (Value::Duration(a), Value::Duration(b)) => Self::cmp_duration(a, b),
             (Value::Json(a), Value::Json(b)) => {
                 match (a.to_value(), b.to_value()) {
                     (Ok(a_val), Ok(b_val)) => Self::cmp_json_values(&a_val, &b_val),
@@ -278,32 +276,28 @@ impl Hash for Value {
                 21u8.hash(state);
                 g.hash(state);
             }
-            Value::Duration(d) => {
-                22u8.hash(state);
-                d.hash(state);
-            }
             Value::Json(j) => {
-                23u8.hash(state);
+                22u8.hash(state);
                 j.hash(state);
             }
             Value::JsonB(j) => {
-                24u8.hash(state);
+                23u8.hash(state);
                 j.hash(state);
             }
             Value::DataSet(ds) => {
-                25u8.hash(state);
+                24u8.hash(state);
                 ds.hash(state);
             }
             Value::Vector(v) => {
-                26u8.hash(state);
+                25u8.hash(state);
                 v.hash(state);
             }
             Value::Uuid(u) => {
-                27u8.hash(state);
+                26u8.hash(state);
                 u.hash(state);
             }
             Value::Interval(i) => {
-                28u8.hash(state);
+                27u8.hash(state);
                 i.hash(state);
             }
         }
@@ -481,14 +475,6 @@ impl Value {
         }
     }
 
-    // Duration Comparison Helper Functions
-    fn cmp_duration(a: &DurationValue, b: &DurationValue) -> CmpOrdering {
-        match a.seconds.cmp(&b.seconds) {
-            CmpOrdering::Equal => a.microseconds.cmp(&b.microseconds),
-            ord => ord,
-        }
-    }
-
     // Interval Comparison Helper Functions
     fn cmp_interval(a: &IntervalValue, b: &IntervalValue) -> CmpOrdering {
         match a.months.cmp(&b.months) {
@@ -595,13 +581,12 @@ impl Value {
             Value::Map(_) => 19,
             Value::Set(_) => 20,
             Value::Geography(_) => 21,
-            Value::Duration(_) => 22,
-            Value::Json(_) => 23,
-            Value::JsonB(_) => 24,
-            Value::DataSet(_) => 25,
-            Value::Vector(_) => 26,
-            Value::Uuid(_) => 27,
-            Value::Interval(_) => 28,
+            Value::Json(_) => 22,
+            Value::JsonB(_) => 23,
+            Value::DataSet(_) => 24,
+            Value::Vector(_) => 25,
+            Value::Uuid(_) => 26,
+            Value::Interval(_) => 27,
         }
     }
 }

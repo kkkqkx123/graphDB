@@ -61,7 +61,8 @@ impl Expression {
             Value::Date(_) => DataType::Date,
             Value::Time(_) => DataType::Time,
             Value::DateTime(_) => DataType::DateTime,
-            Value::Duration(_) => DataType::Duration,
+            Value::Uuid(_) => DataType::Uuid,
+            Value::Interval(_) => DataType::Interval,
             Value::Empty => DataType::Empty,
             _ => DataType::Empty,
         }

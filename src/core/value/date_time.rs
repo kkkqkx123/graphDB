@@ -1,7 +1,8 @@
 //! Date and Time Type Module
 //!
-//! This module defines types for dates, times, date-times, and durations, as well as the related operations.
+//! This module defines types for dates, times, date-times, and intervals, as well as the related operations.
 
+use crate::core::value::interval::IntervalValue;
 use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
@@ -15,27 +16,25 @@ pub struct DateValue {
 }
 
 impl DateValue {
-    /// Add a duration
-    pub fn add_duration(&mut self, duration: &DurationValue) {
-        if duration.months != 0 {
-            self.add_months(duration.months);
+    /// Add an interval
+    pub fn add_interval(&mut self, interval: &IntervalValue) {
+        if interval.months != 0 {
+            self.add_months(interval.months);
         }
 
-        let total_days = duration.seconds / 86400;
-        if total_days != 0 {
-            self.add_days(total_days);
+        if interval.days != 0 {
+            self.add_days(interval.days as i64);
         }
     }
 
-    /// Subtract the duration.
-    pub fn sub_duration(&mut self, duration: &DurationValue) {
-        if duration.months != 0 {
-            self.add_months(-duration.months);
+    /// Subtract the interval.
+    pub fn sub_interval(&mut self, interval: &IntervalValue) {
+        if interval.months != 0 {
+            self.add_months(-interval.months);
         }
 
-        let total_days = duration.seconds / 86400;
-        if total_days != 0 {
-            self.add_days(-total_days);
+        if interval.days != 0 {
+            self.add_days(-(interval.days as i64));
         }
     }
 
@@ -155,9 +154,9 @@ pub struct TimeValue {
 }
 
 impl TimeValue {
-    /// Add duration
-    pub fn add_duration(&mut self, duration: &DurationValue) {
-        let total_microseconds = duration.seconds * 1_000_000 + duration.microseconds as i64;
+    /// Add interval
+    pub fn add_interval(&mut self, interval: &IntervalValue) {
+        let total_microseconds = interval.microseconds;
         let mut new_microseconds = self.microsec as i64 + total_microseconds;
 
         while new_microseconds >= 86_400_000_000 {
@@ -185,14 +184,10 @@ impl TimeValue {
         self.sec = (total_time % 60) as u32;
     }
 
-    /// Subtract duration
-    pub fn sub_duration(&mut self, duration: &DurationValue) {
-        let neg_duration = DurationValue {
-            seconds: -duration.seconds,
-            microseconds: -duration.microseconds,
-            months: 0,
-        };
-        self.add_duration(&neg_duration);
+    /// Subtract interval
+    pub fn sub_interval(&mut self, interval: &IntervalValue) {
+        let neg_interval = interval.neg();
+        self.add_interval(&neg_interval);
     }
 }
 
@@ -222,14 +217,14 @@ pub struct DateTimeValue {
 }
 
 impl DateTimeValue {
-    /// Add duration
-    pub fn add_duration(&mut self, duration: &DurationValue) {
+    /// Add interval
+    pub fn add_interval(&mut self, interval: &IntervalValue) {
         let mut date = DateValue {
             year: self.year,
             month: self.month,
             day: self.day,
         };
-        date.add_duration(duration);
+        date.add_interval(interval);
 
         let mut time = TimeValue {
             hour: self.hour,
@@ -237,7 +232,7 @@ impl DateTimeValue {
             sec: self.sec,
             microsec: self.microsec,
         };
-        time.add_duration(duration);
+        time.add_interval(interval);
 
         self.year = date.year;
         self.month = date.month;
@@ -248,14 +243,14 @@ impl DateTimeValue {
         self.microsec = time.microsec;
     }
 
-    /// Subtract duration
-    pub fn sub_duration(&mut self, duration: &DurationValue) {
+    /// Subtract interval
+    pub fn sub_interval(&mut self, interval: &IntervalValue) {
         let mut date = DateValue {
             year: self.year,
             month: self.month,
             day: self.day,
         };
-        date.sub_duration(duration);
+        date.sub_interval(interval);
 
         let mut time = TimeValue {
             hour: self.hour,
@@ -263,7 +258,7 @@ impl DateTimeValue {
             sec: self.sec,
             microsec: self.microsec,
         };
-        time.sub_duration(duration);
+        time.sub_interval(interval);
 
         self.year = date.year;
         self.month = date.month;
@@ -303,44 +298,5 @@ impl std::fmt::Display for DateTimeValue {
             "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
             self.year, self.month, self.day, self.hour, self.minute, self.sec
         )
-    }
-}
-
-/// The simple duration indicates…
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode, Default)]
-pub struct DurationValue {
-    pub seconds: i64,
-    pub microseconds: i32,
-    pub months: i32,
-}
-
-impl DurationValue {
-    /// Estimate the memory usage of the duration value
-    pub fn estimated_size(&self) -> usize {
-        std::mem::size_of::<Self>()
-    }
-}
-
-impl std::fmt::Display for DurationValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let total_seconds = self.seconds;
-        let days = total_seconds / 86400;
-        let hours = (total_seconds % 86400) / 3600;
-        let minutes = (total_seconds % 3600) / 60;
-        let seconds = total_seconds % 60;
-
-        if self.months != 0 {
-            write!(f, "{}M", self.months)?;
-        }
-        if days != 0 {
-            write!(f, "{}d", days)?;
-        }
-        if hours != 0 || minutes != 0 || seconds != 0 || self.microseconds != 0 {
-            write!(f, "{:02}:{:02}:{:02}", hours, minutes, seconds)?;
-            if self.microseconds != 0 {
-                write!(f, ".{:06}", self.microseconds.abs())?;
-            }
-        }
-        Ok(())
     }
 }
