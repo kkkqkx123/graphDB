@@ -65,6 +65,12 @@ impl MemoryEstimatable for Value {
             // JSON types
             Value::Json(j) => base_size + j.estimated_size(),
             Value::JsonB(j) => base_size + j.estimated_size(),
+
+            // UUID type (fixed size, 16 bytes)
+            Value::Uuid(_) => base_size,
+
+            // Interval type (fixed size)
+            Value::Interval(_) => base_size,
         }
     }
 }

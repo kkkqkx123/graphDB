@@ -230,5 +230,7 @@ fn value_to_json(value: crate::core::Value) -> serde_json::Value {
             // JSONB is already parsed, convert back to serde_json::Value
             j.as_value().clone()
         }
+        crate::core::Value::Uuid(u) => serde_json::Value::String(u.to_hyphenated_string()),
+        crate::core::Value::Interval(i) => serde_json::Value::String(i.to_postgresql()),
     }
 }

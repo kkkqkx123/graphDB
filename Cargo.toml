@@ -110,6 +110,9 @@ server = [
 # gRPC API (requires server feature)
 grpc = ["server", "dep:tonic", "dep:prost", "dep:tonic-build", "dep:prost-build"]
 
+# UUID generation support
+uuid-gen = []
+
 [dev-dependencies]
 tokio-test = "0.4.4"
 tempfile = "3.23.0"

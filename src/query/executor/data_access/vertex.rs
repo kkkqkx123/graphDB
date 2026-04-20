@@ -225,6 +225,8 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                                         crate::core::Value::DataSet(_) => true,
                                         crate::core::Value::Json(_) => true,
                                         crate::core::Value::JsonB(_) => true,
+                                        crate::core::Value::Uuid(_) => true,
+                                        crate::core::Value::Interval(_) => true,
                                     }
                                 }
                                 Err(e) => {

@@ -6,9 +6,11 @@ use crate::core::{
         date_time::{DateTimeValue, DateValue, DurationValue, TimeValue},
         decimal128::Decimal128Value,
         geography::GeographyValue,
+        interval::IntervalValue,
         json::{Json, JsonB, JsonError},
         list::List,
         null::NullType,
+        uuid::UuidValue,
         vector::VectorValue,
     },
     vertex_edge_path::{Edge, Path, Vertex},
@@ -62,6 +64,10 @@ pub enum Value {
     Json(Box<Json>),
     /// JSONB type (binary format)
     JsonB(Box<JsonB>),
+    /// UUID type (16 bytes binary)
+    Uuid(UuidValue),
+    /// Interval type (PostgreSQL compatible)
+    Interval(IntervalValue),
 }
 
 impl Value {
@@ -95,6 +101,8 @@ impl Value {
             Value::DataSet(_) => DataType::DataSet,
             Value::Json(_) => DataType::Json,
             Value::JsonB(_) => DataType::JsonB,
+            Value::Uuid(_) => DataType::Uuid,
+            Value::Interval(_) => DataType::Interval,
         }
     }
 
@@ -278,6 +286,8 @@ impl Value {
             Value::DataSet(ds) => std::mem::size_of::<Self>() + ds.estimated_size(),
             Value::Json(j) => std::mem::size_of::<Self>() + j.estimated_size(),
             Value::JsonB(j) => std::mem::size_of::<Self>() + j.estimated_size(),
+            Value::Uuid(_) => std::mem::size_of::<Self>(),
+            Value::Interval(_) => std::mem::size_of::<Self>(),
         }
     }
 
@@ -394,6 +404,8 @@ impl std::fmt::Display for Value {
             Value::DataSet(ds) => write!(f, "DataSet({} rows)", ds.row_count()),
             Value::Json(j) => write!(f, "Json({})", j.as_str()),
             Value::JsonB(j) => write!(f, "JsonB({})", j.to_json_string()),
+            Value::Uuid(u) => write!(f, "Uuid({})", u),
+            Value::Interval(i) => write!(f, "Interval({})", i),
         }
     }
 }

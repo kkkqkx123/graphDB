@@ -68,6 +68,8 @@ impl TypeUtils {
             DataType::VectorSparse(_) => 182,
             DataType::Json => 190,
             DataType::JsonB => 191,
+            DataType::Uuid => 200,
+            DataType::Interval => 210,
         }
     }
 
@@ -345,6 +347,8 @@ impl TypeUtils {
             DataType::VectorSparse(dim) => format!("vector_sparse({})", dim),
             DataType::Json => "json".to_string(),
             DataType::JsonB => "jsonb".to_string(),
+            DataType::Uuid => "uuid".to_string(),
+            DataType::Interval => "interval".to_string(),
         }
     }
 

@@ -2,8 +2,10 @@ use crate::core::{
     types::DataType,
     value::{
         date_time::{DateTimeValue, DateValue, DurationValue, TimeValue},
+        interval::IntervalValue,
         list::List,
         null::NullType,
+        uuid::UuidValue,
         Value,
     },
 };
@@ -150,6 +152,8 @@ impl Value {
                 "{} seconds {} microseconds {} months",
                 d.seconds, d.microseconds, d.months
             )),
+            Value::Uuid(u) => Ok(u.to_hyphenated_string()),
+            Value::Interval(i) => Ok(i.to_postgresql()),
             Value::List(list) => {
                 let items: Result<Vec<String>, _> = list
                     .iter()
@@ -478,6 +482,8 @@ impl Value {
             DataType::Time => Ok(self.to_time()),
             DataType::DateTime => Ok(self.to_datetime()),
             DataType::Duration => Ok(self.to_duration()),
+            DataType::Uuid => Ok(self.to_uuid()),
+            DataType::Interval => Ok(self.to_interval()),
             _ => Err(format!("Cannot implicitly cast to {:?}", target_type)),
         }
     }
@@ -645,6 +651,63 @@ impl From<f64> for Value {
 impl From<String> for Value {
     fn from(value: String) -> Self {
         Value::String(value)
+    }
+}
+
+impl From<UuidValue> for Value {
+    fn from(value: UuidValue) -> Self {
+        Value::Uuid(value)
+    }
+}
+
+impl From<IntervalValue> for Value {
+    fn from(value: IntervalValue) -> Self {
+        Value::Interval(value)
+    }
+}
+
+impl Value {
+    /// Convert to UUID
+    pub fn to_uuid(&self) -> Value {
+        match self {
+            Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
+            Value::Uuid(u) => Value::Uuid(*u),
+            Value::String(s) => match UuidValue::parse_str(s) {
+                Ok(u) => Value::Uuid(u),
+                Err(_) => Value::Null(NullType::BadData),
+            },
+            Value::FixedString { data, .. } => match UuidValue::parse_str(data) {
+                Ok(u) => Value::Uuid(u),
+                Err(_) => Value::Null(NullType::BadData),
+            },
+            Value::Blob(b) => match UuidValue::from_slice(b) {
+                Ok(u) => Value::Uuid(u),
+                Err(_) => Value::Null(NullType::BadData),
+            },
+            _ => Value::Null(NullType::BadData),
+        }
+    }
+
+    /// Convert to Interval
+    pub fn to_interval(&self) -> Value {
+        match self {
+            Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
+            Value::Interval(i) => Value::Interval(*i),
+            Value::String(s) => match IntervalValue::parse(s) {
+                Ok(i) => Value::Interval(i),
+                Err(_) => Value::Null(NullType::BadData),
+            },
+            Value::FixedString { data, .. } => match IntervalValue::parse(data) {
+                Ok(i) => Value::Interval(i),
+                Err(_) => Value::Null(NullType::BadData),
+            },
+            Value::Duration(d) => Value::Interval(IntervalValue::new(
+                d.months,
+                (d.seconds / 86400) as i32,
+                (d.seconds % 86400) * 1_000_000 + d.microseconds as i64,
+            )),
+            _ => Value::Null(NullType::BadData),
+        }
     }
 }
 

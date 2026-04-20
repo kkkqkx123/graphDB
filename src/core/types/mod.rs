@@ -60,6 +60,10 @@ pub enum DataType {
     Json,
     /// JSONB binary type
     JsonB,
+    /// UUID type
+    Uuid,
+    /// Interval type
+    Interval,
 }
 
 impl std::fmt::Display for DataType {
@@ -96,6 +100,8 @@ impl std::fmt::Display for DataType {
             DataType::VectorSparse(n) => write!(f, "VECTOR_SPARSE({})", n),
             DataType::Json => write!(f, "JSON"),
             DataType::JsonB => write!(f, "JSONB"),
+            DataType::Uuid => write!(f, "UUID"),
+            DataType::Interval => write!(f, "INTERVAL"),
         }
     }
 }

@@ -2,6 +2,7 @@ use crate::core::{
     value::{
         date_time::{DateTimeValue, DateValue, DurationValue, TimeValue},
         geography::GeographyValue,
+        interval::IntervalValue,
         list::List,
         null::NullType,
         Value,
@@ -48,6 +49,8 @@ impl PartialEq for Value {
             (Value::JsonB(a), Value::Json(b)) => {
                 Some(a.as_value().clone()) == b.to_value().ok()
             }
+            (Value::Uuid(a), Value::Uuid(b)) => a == b,
+            (Value::Interval(a), Value::Interval(b)) => a == b,
 
             // Cross-type integer comparisons: promote to i64
             (Value::SmallInt(a), Value::Int(b)) => *a as i64 == *b as i64,
@@ -129,6 +132,8 @@ impl Ord for Value {
                 Ok(b_val) => Self::cmp_json_values(a.as_value(), &b_val),
                 _ => CmpOrdering::Equal,
             },
+            (Value::Uuid(a), Value::Uuid(b)) => a.cmp(b),
+            (Value::Interval(a), Value::Interval(b)) => Self::cmp_interval(a, b),
 
             // Cross-type integer comparisons: promote to i64
             (Value::SmallInt(a), Value::Int(b)) => (*a as i64).cmp(&(*b as i64)),
@@ -292,6 +297,14 @@ impl Hash for Value {
             Value::Vector(v) => {
                 26u8.hash(state);
                 v.hash(state);
+            }
+            Value::Uuid(u) => {
+                27u8.hash(state);
+                u.hash(state);
+            }
+            Value::Interval(i) => {
+                28u8.hash(state);
+                i.hash(state);
             }
         }
     }
@@ -476,6 +489,17 @@ impl Value {
         }
     }
 
+    // Interval Comparison Helper Functions
+    fn cmp_interval(a: &IntervalValue, b: &IntervalValue) -> CmpOrdering {
+        match a.months.cmp(&b.months) {
+            CmpOrdering::Equal => match a.days.cmp(&b.days) {
+                CmpOrdering::Equal => a.microseconds.cmp(&b.microseconds),
+                ord => ord,
+            },
+            ord => ord,
+        }
+    }
+
     // JSON value comparison helper functions
     fn cmp_json_values(a: &serde_json::Value, b: &serde_json::Value) -> CmpOrdering {
         use serde_json::Value as JsonValue;
@@ -576,6 +600,8 @@ impl Value {
             Value::JsonB(_) => 24,
             Value::DataSet(_) => 25,
             Value::Vector(_) => 26,
+            Value::Uuid(_) => 27,
+            Value::Interval(_) => 28,
         }
     }
 }

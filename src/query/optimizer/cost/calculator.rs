@@ -714,6 +714,12 @@ impl CostCalculator {
 
             // JSON types
             Value::Json(_) | Value::JsonB(_) => self.config.complex_type_cost_factor * 1.2,
+
+            // UUID type (fixed size, 16 bytes)
+            Value::Uuid(_) => self.config.fixed_type_cost_factor,
+
+            // Interval type
+            Value::Interval(_) => self.config.fixed_type_cost_factor,
         }
     }
 

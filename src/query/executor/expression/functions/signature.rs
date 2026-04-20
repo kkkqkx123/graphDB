@@ -34,6 +34,8 @@ pub enum ValueType {
     Vector,
     Json,
     JsonB,
+    Uuid,
+    Interval,
     Empty,
     Any,
 }
@@ -67,6 +69,8 @@ impl ValueType {
             Value::Vector(_) => ValueType::Vector,
             Value::Json(_) => ValueType::Json,
             Value::JsonB(_) => ValueType::JsonB,
+            Value::Uuid(_) => ValueType::Uuid,
+            Value::Interval(_) => ValueType::Interval,
             Value::Empty => ValueType::Empty,
         }
     }
@@ -125,6 +129,8 @@ impl fmt::Display for ValueType {
             ValueType::Vector => write!(f, "VECTOR"),
             ValueType::Json => write!(f, "JSON"),
             ValueType::JsonB => write!(f, "JSONB"),
+            ValueType::Uuid => write!(f, "UUID"),
+            ValueType::Interval => write!(f, "INTERVAL"),
             ValueType::Empty => write!(f, "EMPTY"),
             ValueType::Any => write!(f, "ANY"),
         }
