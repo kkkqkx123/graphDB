@@ -216,10 +216,10 @@ fn execute_split(args: &[Value]) -> Result<Value, ExpressionError> {
                 .split(delimiter)
                 .map(|p| Value::String(p.to_string()))
                 .collect();
-            Ok(Value::List(List { values: parts }))
+            Ok(Value::list(List { values: parts }))
         }
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("split函数需要字符串类型")),
+        _ => Err(ExpressionError::type_error("split requires string type")),
     }
 }
 

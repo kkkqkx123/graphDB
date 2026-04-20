@@ -495,14 +495,14 @@ impl SchemaValidator {
                     .iter()
                     .map(|e| self.evaluate_expression_internal(e))
                     .collect();
-                Ok(Value::List(crate::core::value::List { values: values? }))
+                Ok(Value::list(crate::core::value::List { values: values? }))
             }
             Expression::Map(map) => {
                 let mut result = std::collections::HashMap::new();
                 for (k, v) in map {
                     result.insert(k.clone(), self.evaluate_expression_internal(v)?);
                 }
-                Ok(Value::Map(result))
+                Ok(Value::map(result))
             }
             _ => Err(CoreValidationError::new(
                 format!("Unable to evaluate expression: {:?}", expr),

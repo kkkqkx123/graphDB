@@ -123,7 +123,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
         // Check the edge filtering conditions.
         if let Some(ref e_filter) = self.e_filter {
             let mut context = DefaultExpressionContext::new();
-            context.set_variable("edge".to_string(), Value::Edge(edge.clone()));
+            context.set_variable("edge".to_string(), Value::edge(edge.clone()));
             context.set_variable(
                 "vertex".to_string(),
                 Value::Vertex(Box::new(vertex.clone())),
@@ -163,7 +163,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
         // Check the general filtering criteria.
         if let Some(ref filter) = self.filter {
             let mut context = DefaultExpressionContext::new();
-            context.set_variable("edge".to_string(), Value::Edge(edge.clone()));
+            context.set_variable("edge".to_string(), Value::edge(edge.clone()));
             context.set_variable(
                 "vertex".to_string(),
                 Value::Vertex(Box::new(vertex.clone())),
@@ -301,7 +301,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
             // Return path result
             let rows: Vec<Vec<Value>> = completed_paths
                 .into_iter()
-                .map(|p| vec![Value::Path(p)])
+                .map(|p| vec![Value::path(p)])
                 .collect();
             let dataset = DataSet::from_rows(rows, vec!["path".to_string()]);
             ExecutionResult::DataSet(dataset)

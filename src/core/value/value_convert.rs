@@ -1,8 +1,12 @@
-use super::date_time::{DateTimeValue, DateValue, DurationValue, TimeValue};
-use super::list::List;
-use super::null::NullType;
-use super::Value;
-use crate::core::types::DataType;
+use crate::core::{
+    types::DataType,
+    value::{
+        date_time::{DateTimeValue, DateValue, DurationValue, TimeValue},
+        list::List,
+        null::NullType,
+        Value,
+    },
+};
 use chrono::{Datelike, Timelike};
 
 impl Value {
@@ -54,7 +58,7 @@ impl Value {
     /// Convert to an integer.
     ///
     /// Refer to the design of Nebula-Graph:
-    /// - 空值和 Null 返回 Null
+    /// - Empty and Null values return Null
     /// - Integers are returned directly.
     /// - Floating-point numbers are truncated to integers; in the event of an overflow, the boundary values are returned.
     /// - String parsing to an integer; if the conversion fails, return Null.
@@ -103,8 +107,8 @@ impl Value {
 
     /// Convert to a floating-point number
     ///
-    /// 参考 Nebula-Graph 设计：
-    /// - 空值和 Null 返回 Null
+    /// Refer to the design of Nebula-Graph:
+    /// - Empty and Null values return Null
     /// - The floating-point number is returned directly.
     /// - Converting integers to floating-point numbers
     /// - String parsing to a floating-point number; if the parsing fails, return Null.
@@ -174,7 +178,7 @@ impl Value {
                 dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.sec, dt.microsec
             )),
             Value::Duration(d) => Ok(format!(
-                "{}秒 {}微秒 {}月",
+                "{} seconds {} microseconds {} months",
                 d.seconds, d.microseconds, d.months
             )),
             Value::List(list) => {
@@ -191,7 +195,7 @@ impl Value {
                     .collect();
                 items.map(|items_str| format!("{{{}}}", items_str.join(", ")))
             }
-            _ => Err(format!("无法将 {:?} 转换为字符串", self)),
+            _ => Err(format!("Cannot convert {:?} to string", self)),
         }
     }
 
@@ -199,12 +203,14 @@ impl Value {
     pub fn to_list(&self) -> Value {
         match self {
             Value::List(list) => Value::List(list.clone()),
-            Value::Set(set) => Value::List(List::from(set.iter().cloned().collect::<Vec<_>>())),
+            Value::Set(set) => {
+                Value::List(Box::new(List::from(set.iter().cloned().collect::<Vec<_>>())))}
+            ,
             _ => Value::Null(NullType::BadData),
         }
     }
 
-    /// Translate the following text into a map:
+    /// Convert to a map:
     pub fn to_map(&self) -> Value {
         match self {
             Value::Map(map) => Value::Map(map.clone()),
@@ -216,7 +222,7 @@ impl Value {
     pub fn to_set(&self) -> Value {
         match self {
             Value::Set(set) => Value::Set(set.clone()),
-            Value::List(list) => Value::Set(list.iter().cloned().collect()),
+            Value::List(list) => Value::Set(Box::new(list.iter().cloned().collect())),
             _ => Value::Null(NullType::BadData),
         }
     }
@@ -238,7 +244,7 @@ impl Value {
         }
     }
 
-    /// Translate “Convert to time”
+    /// Convert to time
     pub fn to_time(&self) -> Value {
         match self {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
@@ -459,7 +465,7 @@ impl Value {
             DataType::Time => Ok(self.to_time()),
             DataType::DateTime => Ok(self.to_datetime()),
             DataType::Duration => Ok(self.to_duration()),
-            _ => Err(format!("无法隐式转换为 {:?}", target_type)),
+            _ => Err(format!("Cannot implicitly cast to {:?}", target_type)),
         }
     }
 
@@ -606,25 +612,25 @@ impl From<NullType> for Value {
 
 impl From<Vec<Value>> for Value {
     fn from(value: Vec<Value>) -> Self {
-        Value::List(List::from(value))
+        Value::list(List::from(value))
     }
 }
 
 impl From<std::collections::HashMap<String, Value>> for Value {
     fn from(value: std::collections::HashMap<String, Value>) -> Self {
-        Value::Map(value)
+        Value::map(value)
     }
 }
 
 impl From<std::collections::HashSet<Value>> for Value {
     fn from(value: std::collections::HashSet<Value>) -> Self {
-        Value::Set(value)
+        Value::set(value)
     }
 }
 
 impl From<(i64, &str)> for Value {
     fn from(value: (i64, &str)) -> Self {
-        Value::List(List::from(vec![
+        Value::list(List::from(vec![
             Value::Int(value.0),
             Value::String(value.1.to_string()),
         ]))
@@ -633,7 +639,7 @@ impl From<(i64, &str)> for Value {
 
 impl From<(i64, String)> for Value {
     fn from(value: (i64, String)) -> Self {
-        Value::List(List::from(vec![
+        Value::list(List::from(vec![
             Value::Int(value.0),
             Value::String(value.1),
         ]))

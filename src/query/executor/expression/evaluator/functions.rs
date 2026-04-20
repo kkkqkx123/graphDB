@@ -70,20 +70,20 @@ impl FunctionEvaluator {
                 if distinct {
                     let unique_values: std::collections::HashSet<_> =
                         args.iter().cloned().collect();
-                    Ok(Value::List(List::from(
+                    Ok(Value::list(List::from(
                         unique_values.into_iter().collect::<Vec<_>>(),
                     )))
                 } else {
-                    Ok(Value::List(List::from(args.to_vec())))
+                    Ok(Value::list(List::from(args.to_vec())))
                 }
             }
             AggregateFunction::CollectSet(_) => {
                 let unique_values: std::collections::HashSet<_> = args.iter().cloned().collect();
-                Ok(Value::Set(unique_values))
+                Ok(Value::set(unique_values))
             }
             AggregateFunction::Distinct(_) => {
                 let unique_values: std::collections::HashSet<_> = args.iter().cloned().collect();
-                Ok(Value::Set(unique_values))
+                Ok(Value::set(unique_values))
             }
             AggregateFunction::Percentile(_, _) => {
                 if args.len() < 2 {
@@ -113,7 +113,7 @@ impl FunctionEvaluator {
                 }
 
                 let mut numeric_values = Vec::new();
-                for value in values {
+                for value in values.iter() {
                     match value {
                         Value::Int(v) => numeric_values.push(*v as f64),
                         Value::Float(v) => numeric_values.push(*v),
@@ -157,7 +157,7 @@ impl FunctionEvaluator {
                 }
 
                 let mut numeric_values = Vec::new();
-                for value in values {
+                for value in values.iter() {
                     match value {
                         Value::Int(v) => numeric_values.push(*v as f64),
                         Value::Float(v) => numeric_values.push(*v),
@@ -195,7 +195,7 @@ impl FunctionEvaluator {
                 }
 
                 let mut result = i64::MAX;
-                for value in values {
+                for value in values.iter() {
                     match value {
                         Value::Int(v) => result &= v,
                         _ => {
@@ -223,7 +223,7 @@ impl FunctionEvaluator {
                 }
 
                 let mut result = 0i64;
-                for value in values {
+                for value in values.iter() {
                     match value {
                         Value::Int(v) => result |= v,
                         _ => {

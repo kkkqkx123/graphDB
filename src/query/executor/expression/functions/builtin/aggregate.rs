@@ -185,15 +185,15 @@ impl AggregateExpression {
                     Ok(Value::Float(0.0))
                 }
             }
-            AggregateFunction::Collect(_) => Ok(Value::List(List::from(state.values.clone()))),
-            AggregateFunction::CollectSet(_) => Ok(Value::Set(
+            AggregateFunction::Collect(_) => Ok(Value::list(List::from(state.values.clone()))),
+            AggregateFunction::CollectSet(_) => Ok(Value::set(
                 state
                     .values
                     .iter()
                     .cloned()
                     .collect::<std::collections::HashSet<_>>(),
             )),
-            AggregateFunction::Distinct(_) => Ok(Value::Set(
+            AggregateFunction::Distinct(_) => Ok(Value::set(
                 state
                     .values
                     .iter()

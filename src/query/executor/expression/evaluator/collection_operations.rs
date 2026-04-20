@@ -126,7 +126,7 @@ impl CollectionOperationEvaluator {
                     .unwrap_or(list.len());
 
                 if start_idx <= end_idx && end_idx <= list.len() {
-                    Ok(Value::List(List::from(list[start_idx..end_idx].to_vec())))
+                    Ok(Value::list(List::from(list[start_idx..end_idx].to_vec())))
                 } else {
                     Err(ExpressionError::index_out_of_bounds(
                         start_idx as isize,

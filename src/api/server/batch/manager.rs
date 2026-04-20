@@ -266,7 +266,7 @@ fn json_to_value(json: serde_json::Value) -> Option<Value> {
         serde_json::Value::String(s) => Some(Value::String(s)),
         serde_json::Value::Array(arr) => {
             let values: Vec<Value> = arr.into_iter().filter_map(json_to_value).collect();
-            Some(Value::List(crate::core::value::List::from(values)))
+            Some(Value::list(crate::core::value::List::from(values)))
         }
         serde_json::Value::Object(_) => None, // Object types are not supported
     }

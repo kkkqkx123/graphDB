@@ -229,7 +229,7 @@ impl FulltextFunction {
             .map(|f| Value::String(f.clone()))
             .collect();
 
-        Ok(Value::List(crate::core::value::list::List {
+        Ok(Value::list(crate::core::value::list::List {
             values: fields,
         }))
     }

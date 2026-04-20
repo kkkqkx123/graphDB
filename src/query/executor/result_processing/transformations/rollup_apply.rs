@@ -104,8 +104,8 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
             match value {
                 Value::Edge(edge) => {
                     path.add_step(crate::core::vertex_edge_path::Step::new_with_edge(
-                        crate::core::vertex_edge_path::Vertex::with_vid(edge.dst().clone()),
-                        edge.clone(),
+                        crate::core::vertex_edge_path::Vertex::with_vid((*edge.dst()).clone()),
+                        (**edge).clone(),
                     ));
                 }
                 Value::Vertex(vertex) => {
@@ -276,9 +276,9 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
 
             if self.path_mode {
                 let path = self.build_path(&hash_table.values)?;
-                row.push(Value::Path(path));
+                row.push(Value::path(path));
             } else {
-                row.push(Value::List(hash_table.clone()));
+                row.push(Value::list(hash_table.clone()));
             }
             dataset.rows.push(row);
         }
@@ -324,9 +324,9 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
 
             if self.path_mode {
                 let path = self.build_path(&vals.values)?;
-                row.push(Value::Path(path));
+                row.push(Value::path(path));
             } else {
-                row.push(Value::List(vals));
+                row.push(Value::list(vals));
             }
             dataset.rows.push(row);
         }
@@ -374,9 +374,9 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
 
             if self.path_mode {
                 let path = self.build_path(&vals.values)?;
-                row.push(Value::Path(path));
+                row.push(Value::path(path));
             } else {
-                row.push(Value::List(vals));
+                row.push(Value::list(vals));
             }
             dataset.rows.push(row);
         }
@@ -693,9 +693,9 @@ mod tests {
             // Each row should have an empty list for the collected values
             assert_eq!(dataset.rows.len(), 2);
             assert_eq!(dataset.rows[0][0], Value::Int(1));
-            assert_eq!(dataset.rows[0][1], Value::List(List::from(Vec::new())));
+            assert_eq!(dataset.rows[0][1], Value::list(List::from(Vec::new())));
             assert_eq!(dataset.rows[1][0], Value::Int(2));
-            assert_eq!(dataset.rows[1][1], Value::List(List::from(Vec::new())));
+            assert_eq!(dataset.rows[1][1], Value::list(List::from(Vec::new())));
         } else {
             panic!("Expected DataSet result");
         }

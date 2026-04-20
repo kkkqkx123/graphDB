@@ -70,7 +70,7 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
                 Value::DataSet(dataset) => {
                     self.base
                         .context
-                        .set_result(var_name.clone(), ExecutionResult::DataSet(dataset.clone()));
+                        .set_result(var_name.clone(), ExecutionResult::DataSet((**dataset).clone()));
                 }
                 _ => {
                     self.base.context.set_result(

@@ -48,7 +48,7 @@ impl TagFilterProcessor {
             .iter()
             .map(|tag| Value::String(tag.name.clone()))
             .collect();
-        context.set_variable("tags".to_string(), Value::List(List::from(tag_names)));
+        context.set_variable("tags".to_string(), Value::list(List::from(tag_names)));
 
         // Number of tags added
         let tag_count = vertex.tags.len() as i64;

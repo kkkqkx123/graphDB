@@ -464,7 +464,7 @@ impl<S: StorageClient + 'static> Executor<S> for BFSShortestExecutor<S> {
             .current_paths
             .clone()
             .into_iter()
-            .map(|p| vec![Value::Path(p)])
+            .map(|p| vec![Value::path(p)])
             .collect();
 
         let dataset = DataSet::from_rows(rows, vec!["path".to_string()]);

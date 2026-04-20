@@ -2,9 +2,10 @@
 //!
 //! This module provides memory estimation for the Value enum and related types.
 
-use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
-
-use super::Value;
+use crate::{
+    core::value::Value,
+    query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable,
+};
 
 impl MemoryEstimatable for Value {
     fn estimate_memory(&self) -> usize {
@@ -41,8 +42,8 @@ impl MemoryEstimatable for Value {
 
             // Graph types
             Value::Vertex(v) => base_size + std::mem::size_of_val(v.as_ref()),
-            Value::Edge(e) => base_size + std::mem::size_of_val(e),
-            Value::Path(p) => base_size + std::mem::size_of_val(p),
+            Value::Edge(e) => base_size + std::mem::size_of_val(e.as_ref()),
+            Value::Path(p) => base_size + std::mem::size_of_val(p.as_ref()),
 
             // Collection types (recursive)
             Value::List(list) => {
@@ -64,7 +65,7 @@ impl MemoryEstimatable for Value {
             Value::Vector(v) => base_size + v.estimated_size(),
 
             // DataSet type
-            Value::DataSet(ds) => base_size + ds.estimated_size(),
+            Value::DataSet(ds) => base_size + ds.as_ref().estimated_size(),
         }
     }
 }

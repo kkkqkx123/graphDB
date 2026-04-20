@@ -405,8 +405,8 @@ impl TypeUtils {
             DataType::UInt64 => Some(Value::UInt64(0)),
             DataType::Float => Some(Value::Float(0.0)),
             DataType::String => Some(Value::String(String::new())),
-            DataType::List => Some(Value::List(List::from(Vec::new()))),
-            DataType::Map => Some(Value::Map(std::collections::HashMap::new())),
+            DataType::List => Some(Value::list(List::from(Vec::new()))),
+            DataType::Map => Some(Value::map(std::collections::HashMap::new())),
             _ => None,
         }
     }

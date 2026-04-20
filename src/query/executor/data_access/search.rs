@@ -342,7 +342,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                             .get_edge(&space_name, &src, &dst, schema_name, rank)
                             .map_err(DBError::Storage)?
                         {
-                            results.push(Value::Edge(edge));
+                            results.push(Value::edge(edge));
                         }
                     }
                 }
@@ -426,7 +426,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                             }
                         }
                     }
-                    Value::Map(props)
+                    Value::map(props)
                 }
                 Value::Edge(edge) => {
                     let mut props = std::collections::HashMap::new();
@@ -458,7 +458,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                             }
                         }
                     }
-                    Value::Map(props)
+                    Value::map(props)
                 }
                 _ => entity,
             })

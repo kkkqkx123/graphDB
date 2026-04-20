@@ -93,33 +93,33 @@ impl Geography {
         if wkt.starts_with("POINT") {
             Self::parse_point_wkt(wkt)
         } else {
-            Err("不支持的 WKT 格式，目前只支持 POINT".to_string())
+            Err("Unsupported WKT format, only POINT is supported".to_string())
         }
     }
 
     fn parse_point_wkt(wkt: &str) -> Result<Self, String> {
         let re = Regex::new(r"POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)")
-            .map_err(|_| "无效的正则表达式".to_string())?;
+            .map_err(|_| "Invalid regular expression".to_string())?;
 
         if let Some(caps) = re.captures(wkt) {
             let lon = caps
                 .get(1)
-                .ok_or("缺少经度坐标")?
+                .ok_or("Missing longitude coordinate")?
                 .as_str()
                 .parse::<f64>()
-                .map_err(|_| "无效的经度格式")?;
+                .map_err(|_| "Invalid longitude format")?;
             let lat = caps
                 .get(2)
-                .ok_or("缺少纬度坐标")?
+                .ok_or("Missing latitude coordinate")?
                 .as_str()
                 .parse::<f64>()
-                .map_err(|_| "无效的纬度格式")?;
+                .map_err(|_| "Invalid latitude format")?;
             return Ok(Geography::Point(GeographyValue {
                 latitude: lat,
                 longitude: lon,
             }));
         }
 
-        Err("无效的 POINT WKT 格式".to_string())
+        Err("Invalid POINT WKT format".to_string())
     }
 }

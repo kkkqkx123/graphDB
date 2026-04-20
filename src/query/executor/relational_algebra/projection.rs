@@ -249,7 +249,7 @@ impl<S: StorageClient> ProjectExecutor<S> {
             }
         }
         for (table, map) in table_maps {
-            context.set_variable(table, Value::Map(map));
+            context.set_variable(table, Value::map(map));
         }
 
         // Evaluate each projected column.
@@ -356,7 +356,7 @@ impl<S: StorageClient> ProjectExecutor<S> {
                                 }
                             }
                             for (table, map) in table_maps {
-                                context.set_variable(table, Value::Map(map));
+                                context.set_variable(table, Value::map(map));
                             }
 
                             // Evaluate each projected column.

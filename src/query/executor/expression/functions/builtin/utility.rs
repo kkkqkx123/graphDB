@@ -141,14 +141,14 @@ fn json_to_value(json: &JsonValue) -> Value {
         JsonValue::String(s) => Value::String(s.clone()),
         JsonValue::Array(arr) => {
             let values: Vec<Value> = arr.iter().map(json_to_value).collect();
-            Value::List(List { values })
+            Value::list(List { values })
         }
         JsonValue::Object(obj) => {
             let map: std::collections::HashMap<String, Value> = obj
                 .iter()
                 .map(|(k, v)| (k.clone(), json_to_value(v)))
                 .collect();
-            Value::Map(map)
+            Value::map(map)
         }
     }
 }

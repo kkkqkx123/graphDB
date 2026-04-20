@@ -85,7 +85,7 @@ impl ContainerFunction {
 
 fn execute_head(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("head函数需要1个参数"));
+        return Err(ExpressionError::type_error("head requires 1 argument"));
     }
     match &args[0] {
         Value::List(list) => Ok(list
@@ -94,13 +94,13 @@ fn execute_head(args: &[Value]) -> Result<Value, ExpressionError> {
             .cloned()
             .unwrap_or(Value::Null(NullType::Null))),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("head函数需要列表类型")),
+        _ => Err(ExpressionError::type_error("head requires a list type")),
     }
 }
 
 fn execute_last(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("last函数需要1个参数"));
+        return Err(ExpressionError::type_error("last requires 1 argument"));
     }
     match &args[0] {
         Value::List(list) => Ok(list
@@ -109,32 +109,32 @@ fn execute_last(args: &[Value]) -> Result<Value, ExpressionError> {
             .cloned()
             .unwrap_or(Value::Null(NullType::Null))),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("last函数需要列表类型")),
+        _ => Err(ExpressionError::type_error("last requires a list type")),
     }
 }
 
 fn execute_tail(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("tail函数需要1个参数"));
+        return Err(ExpressionError::type_error("tail requires 1 argument"));
     }
     match &args[0] {
         Value::List(list) => {
             if list.values.is_empty() {
-                Ok(Value::List(List { values: vec![] }))
+                Ok(Value::list(List { values: vec![] }))
             } else {
-                Ok(Value::List(List {
+                Ok(Value::list(List {
                     values: list.values[1..].to_vec(),
                 }))
             }
         }
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("tail函数需要列表类型")),
+        _ => Err(ExpressionError::type_error("tail requires a list type")),
     }
 }
 
 fn execute_size(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("size函数需要1个参数"));
+        return Err(ExpressionError::type_error("size requires 1 argument"));
     }
     match &args[0] {
         Value::String(s) => Ok(Value::Int(s.len() as i64)),
@@ -143,19 +143,19 @@ fn execute_size(args: &[Value]) -> Result<Value, ExpressionError> {
         Value::Set(set) => Ok(Value::Int(set.len() as i64)),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
         _ => Err(ExpressionError::type_error(
-            "size函数需要字符串、列表、映射或集合类型",
+            "size requires string, list, map or set type",
         )),
     }
 }
 
 fn execute_range(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() < 2 || args.len() > 3 {
-        return Err(ExpressionError::type_error("range函数需要2或3个参数"));
+        return Err(ExpressionError::type_error("range requires 2 or 3 arguments"));
     }
     let start = match &args[0] {
         Value::Int(i) => *i,
         Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-        _ => return Err(ExpressionError::type_error("range函数需要整数参数")),
+        _ => return Err(ExpressionError::type_error("range requires integer arguments")),
     };
     let end = match &args[1] {
         Value::Int(i) => *i,
@@ -166,7 +166,7 @@ fn execute_range(args: &[Value]) -> Result<Value, ExpressionError> {
         match &args[2] {
             Value::Int(i) => *i,
             Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-            _ => return Err(ExpressionError::type_error("range函数的step需要整数")),
+            _ => return Err(ExpressionError::type_error("range step must be an integer")),
         }
     } else {
         1
@@ -175,7 +175,7 @@ fn execute_range(args: &[Value]) -> Result<Value, ExpressionError> {
     if step == 0 {
         return Err(ExpressionError::new(
             crate::core::error::ExpressionErrorType::InvalidOperation,
-            "range函数的step不能为0".to_string(),
+            "range step cannot be 0".to_string(),
         ));
     }
 
@@ -194,12 +194,12 @@ fn execute_range(args: &[Value]) -> Result<Value, ExpressionError> {
         }
     }
 
-    Ok(Value::List(List { values: result }))
+    Ok(Value::list(List { values: result }))
 }
 
 fn execute_keys(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("keys函数需要1个参数"));
+        return Err(ExpressionError::type_error("keys requires 1 argument"));
     }
     let mut keys: BTreeSet<String> = BTreeSet::new();
 
@@ -227,41 +227,41 @@ fn execute_keys(args: &[Value]) -> Result<Value, ExpressionError> {
         Value::Null(_) => return Ok(Value::Null(NullType::Null)),
         _ => {
             return Err(ExpressionError::type_error(
-                "keys函数需要顶点、边或映射类型",
+                "keys requires vertex, edge or map type",
             ))
         }
     }
 
     let result: Vec<Value> = keys.into_iter().map(Value::String).collect();
-    Ok(Value::List(List { values: result }))
+    Ok(Value::list(List { values: result }))
 }
 
 fn execute_reverse_list(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("reverse函数需要1个参数"));
+        return Err(ExpressionError::type_error("reverse requires 1 argument"));
     }
     match &args[0] {
         Value::List(list) => {
             let mut reversed = list.values.clone();
             reversed.reverse();
-            Ok(Value::List(List { values: reversed }))
+            Ok(Value::list(List { values: reversed }))
         }
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("reverse函数需要列表类型")),
+        _ => Err(ExpressionError::type_error("reverse requires a list type")),
     }
 }
 
 fn execute_toset(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("toset函数需要1个参数"));
+        return Err(ExpressionError::type_error("toset requires 1 argument"));
     }
     match &args[0] {
         Value::List(list) => {
             let set: std::collections::HashSet<Value> = list.values.iter().cloned().collect();
-            Ok(Value::Set(set))
+            Ok(Value::set(set))
         }
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("toset函数需要列表类型")),
+        _ => Err(ExpressionError::type_error("toset requires a list type")),
     }
 }
 
@@ -271,46 +271,46 @@ mod tests {
 
     #[test]
     fn test_head_function() {
-        let list = Value::List(List {
+        let list = Value::list(List {
             values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
         });
         let result = ContainerFunction::Head
             .execute(&[list])
-            .expect("head函数执行应该成功");
+            .expect("head function should succeed");
         assert_eq!(result, Value::Int(1));
     }
 
     #[test]
     fn test_head_empty_list() {
-        let list = Value::List(List { values: vec![] });
+        let list = Value::list(List { values: vec![] });
         let result = ContainerFunction::Head
             .execute(&[list])
-            .expect("head函数执行应该成功");
+            .expect("head function should succeed");
         assert_eq!(result, Value::Null(NullType::Null));
     }
 
     #[test]
     fn test_last_function() {
-        let list = Value::List(List {
+        let list = Value::list(List {
             values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
         });
         let result = ContainerFunction::Last
             .execute(&[list])
-            .expect("last函数执行应该成功");
+            .expect("last function should succeed");
         assert_eq!(result, Value::Int(3));
     }
 
     #[test]
     fn test_tail_function() {
-        let list = Value::List(List {
+        let list = Value::list(List {
             values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
         });
         let result = ContainerFunction::Tail
             .execute(&[list])
-            .expect("tail函数执行应该成功");
+            .expect("tail function should succeed");
         assert_eq!(
             result,
-            Value::List(List {
+            Value::list(List {
                 values: vec![Value::Int(2), Value::Int(3)]
             })
         );
@@ -320,18 +320,18 @@ mod tests {
     fn test_size_string() {
         let result = ContainerFunction::Size
             .execute(&[Value::String("hello".to_string())])
-            .expect("size函数执行应该成功");
+            .expect("size function should succeed");
         assert_eq!(result, Value::Int(5));
     }
 
     #[test]
     fn test_size_list() {
-        let list = Value::List(List {
+        let list = Value::list(List {
             values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
         });
         let result = ContainerFunction::Size
             .execute(&[list])
-            .expect("size函数执行应该成功");
+            .expect("size function should succeed");
         assert_eq!(result, Value::Int(3));
     }
 
@@ -339,10 +339,10 @@ mod tests {
     fn test_range_basic() {
         let result = ContainerFunction::Range
             .execute(&[Value::Int(1), Value::Int(5)])
-            .expect("range函数执行应该成功");
+            .expect("range function should succeed");
         assert_eq!(
             result,
-            Value::List(List {
+            Value::list(List {
                 values: vec![
                     Value::Int(1),
                     Value::Int(2),
@@ -358,10 +358,10 @@ mod tests {
     fn test_range_with_step() {
         let result = ContainerFunction::Range
             .execute(&[Value::Int(0), Value::Int(10), Value::Int(2)])
-            .expect("range函数执行应该成功");
+            .expect("range function should succeed");
         assert_eq!(
             result,
-            Value::List(List {
+            Value::list(List {
                 values: vec![
                     Value::Int(0),
                     Value::Int(2),
@@ -381,25 +381,25 @@ mod tests {
         assert_eq!(
             ContainerFunction::Head
                 .execute(std::slice::from_ref(&null_value))
-                .expect("head函数应该处理NULL"),
+                .expect("head should handle NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(
             ContainerFunction::Last
                 .execute(std::slice::from_ref(&null_value))
-                .expect("last函数应该处理NULL"),
+                .expect("last should handle NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(
             ContainerFunction::Tail
                 .execute(std::slice::from_ref(&null_value))
-                .expect("tail函数应该处理NULL"),
+                .expect("tail should handle NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(
             ContainerFunction::Size
                 .execute(std::slice::from_ref(&null_value))
-                .expect("size函数应该处理NULL"),
+                .expect("size should handle NULL"),
             Value::Null(NullType::Null)
         );
     }

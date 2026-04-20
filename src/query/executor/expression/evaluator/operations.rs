@@ -281,11 +281,11 @@ impl BinaryOperationEvaluator {
                 if l.iter().any(|item| item.is_null()) || r.iter().any(|item| item.is_null()) {
                     return Ok(Value::Null(crate::core::value::NullType::Null));
                 }
-                let mut result = l.clone();
-                result.extend(r.clone());
-                Ok(Value::List(result))
+                let mut result = (**l).clone();
+                result.extend(r.iter().cloned());
+                Ok(Value::list(result))
             }
-            _ => Err(ExpressionError::type_error("UNION操作需要列表值")),
+            _ => Err(ExpressionError::type_error("UNION requires list values")),
         }
     }
 
@@ -301,9 +301,9 @@ impl BinaryOperationEvaluator {
                 }
                 let result: Vec<Value> =
                     l.iter().filter(|item| r.contains(item)).cloned().collect();
-                Ok(Value::List(List::from(result)))
+                Ok(Value::list(List::from(result)))
             }
-            _ => Err(ExpressionError::type_error("INTERSECT操作需要列表值")),
+            _ => Err(ExpressionError::type_error("INTERSECT requires list values")),
         }
     }
 
@@ -319,9 +319,9 @@ impl BinaryOperationEvaluator {
                 }
                 let result: Vec<Value> =
                     l.iter().filter(|item| !r.contains(item)).cloned().collect();
-                Ok(Value::List(List::from(result)))
+                Ok(Value::list(List::from(result)))
             }
-            _ => Err(ExpressionError::type_error("EXCEPT操作需要列表值")),
+            _ => Err(ExpressionError::type_error("EXCEPT requires list values")),
         }
     }
 }

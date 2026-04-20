@@ -1,7 +1,7 @@
 //! Value Calculation Module
 //!
 //! This module provides methods for arithmetic, logical, and bitwise operations on values.
-use super::Value;
+use crate::core::value::Value;
 
 impl Value {
     /// Addition operation
@@ -26,7 +26,7 @@ impl Value {
             (FixedString { data: a, .. }, FixedString { data: b, .. }) => {
                 Ok(String(format!("{}{}", a, b)))
             }
-            _ => Err("无法对这些类型的值进行加法运算".to_string()),
+            _ => Err("Cannot perform addition on these value types".to_string()),
         }
     }
 
@@ -46,7 +46,7 @@ impl Value {
             (Float(a), Float(b)) => Ok(Float(a - b)),
             (Int(a), Float(b)) => Ok(Float(*a as f64 - b)),
             (Float(a), Int(b)) => Ok(Float(a - *b as f64)),
-            _ => Err("无法对这些值进行减法运算".to_string()),
+            _ => Err("Cannot perform subtraction on these value types".to_string()),
         }
     }
 
@@ -66,7 +66,7 @@ impl Value {
             (Float(a), Float(b)) => Ok(Float(a * b)),
             (Int(a), Float(b)) => Ok(Float(*a as f64 * b)),
             (Float(a), Int(b)) => Ok(Float(a * *b as f64)),
-            _ => Err("无法对这些类型的值进行乘法运算".to_string()),
+            _ => Err("Cannot perform multiplication on these value types".to_string()),
         }
     }
 
@@ -76,7 +76,7 @@ impl Value {
         match (self, other) {
             (Int(a), Int(b)) => {
                 if *b == 0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(Int(a / b))
                 }
@@ -158,7 +158,7 @@ impl Value {
                     Ok(Float(a / *b as f64))
                 }
             }
-            _ => Err("无法对这些类型的值进行除法运算".to_string()),
+            _ => Err("Cannot perform division on these value types".to_string()),
         }
     }
 
@@ -229,7 +229,7 @@ impl Value {
                     Ok(UInt64(a % b))
                 }
             }
-            _ => Err("只能对整数类型进行取模运算".to_string()),
+            _ => Err("Modulo operation is only supported for integer types".to_string()),
         }
     }
 
@@ -239,7 +239,7 @@ impl Value {
         match (self, other) {
             (Int(a), Int(b)) => {
                 if *b < 0 {
-                    Err("负指数不支持整数幂运算".to_string())
+                    Err("Negative exponent not supported for integer power operation".to_string())
                 } else {
                     Ok(Int(a.pow(*b as u32)))
                 }
@@ -279,7 +279,7 @@ impl Value {
             (Float(a), Float(b)) => Ok(Float(a.powf(*b))),
             (Int(a), Float(b)) => Ok(Float((*a as f64).powf(*b))),
             (Float(a), Int(b)) => Ok(Float(a.powi(*b as i32))),
-            _ => Err("无法对这些类型的值进行幂运算".to_string()),
+            _ => Err("Cannot perform power operation on these value types".to_string()),
         }
     }
 
@@ -293,7 +293,7 @@ impl Value {
             Int32(a) => Ok(Int32(-a)),
             Int64(a) => Ok(Int64(-a)),
             Float(a) => Ok(Float(-a)),
-            _ => Err("只能对数值类型进行取负运算".to_string()),
+            _ => Err("Negation is only supported for numeric types".to_string()),
         }
     }
 
@@ -302,7 +302,7 @@ impl Value {
         use Value::*;
         match (self, other) {
             (Bool(a), Bool(b)) => Ok(Bool(*a && *b)),
-            _ => Err("只能对布尔类型进行逻辑与运算".to_string()),
+            _ => Err("Logical AND is only supported for boolean types".to_string()),
         }
     }
 
@@ -311,7 +311,7 @@ impl Value {
         use Value::*;
         match (self, other) {
             (Bool(a), Bool(b)) => Ok(Bool(*a || *b)),
-            _ => Err("只能对布尔类型进行逻辑或运算".to_string()),
+            _ => Err("Logical OR is only supported for boolean types".to_string()),
         }
     }
 
@@ -320,7 +320,7 @@ impl Value {
         use Value::*;
         match self {
             Bool(a) => Ok(Bool(!a)),
-            _ => Err("只能对布尔类型进行逻辑非运算".to_string()),
+            _ => Err("Logical NOT is only supported for boolean types".to_string()),
         }
     }
 
@@ -337,7 +337,7 @@ impl Value {
             (UInt16(a), UInt16(b)) => Ok(UInt16(a & b)),
             (UInt32(a), UInt32(b)) => Ok(UInt32(a & b)),
             (UInt64(a), UInt64(b)) => Ok(UInt64(a & b)),
-            _ => Err("只能对整数类型进行位与运算".to_string()),
+            _ => Err("Bitwise AND is only supported for integer types".to_string()),
         }
     }
 
@@ -354,7 +354,7 @@ impl Value {
             (UInt16(a), UInt16(b)) => Ok(UInt16(a | b)),
             (UInt32(a), UInt32(b)) => Ok(UInt32(a | b)),
             (UInt64(a), UInt64(b)) => Ok(UInt64(a | b)),
-            _ => Err("只能对整数类型进行位或运算".to_string()),
+            _ => Err("Bitwise OR is only supported for integer types".to_string()),
         }
     }
 
@@ -371,7 +371,7 @@ impl Value {
             (UInt16(a), UInt16(b)) => Ok(UInt16(a ^ b)),
             (UInt32(a), UInt32(b)) => Ok(UInt32(a ^ b)),
             (UInt64(a), UInt64(b)) => Ok(UInt64(a ^ b)),
-            _ => Err("只能对整数类型进行位异或运算".to_string()),
+            _ => Err("Bitwise XOR is only supported for integer types".to_string()),
         }
     }
 
@@ -381,9 +381,9 @@ impl Value {
         match (self, other) {
             (Int(a), Int(b)) => {
                 if *b < 0 {
-                    Err("左移位数不能为负数".to_string())
+                    Err("Left shift count cannot be negative".to_string())
                 } else if *b >= 64 {
-                    Err("左移位数超出范围".to_string())
+                    Err("Left shift count out of range".to_string())
                 } else {
                     Ok(Int(a << *b as u32))
                 }
@@ -452,7 +452,7 @@ impl Value {
                     Ok(UInt64(a << *b as u32))
                 }
             }
-            _ => Err("只能对整数类型进行位左移运算".to_string()),
+            _ => Err("Bitwise left shift is only supported for integer types".to_string()),
         }
     }
 
@@ -462,9 +462,9 @@ impl Value {
         match (self, other) {
             (Int(a), Int(b)) => {
                 if *b < 0 {
-                    Err("右移位数不能为负数".to_string())
+                    Err("Right shift count cannot be negative".to_string())
                 } else if *b >= 64 {
-                    Err("右移位数超出范围".to_string())
+                    Err("Right shift count out of range".to_string())
                 } else {
                     Ok(Int(a >> *b as u32))
                 }
@@ -533,7 +533,7 @@ impl Value {
                     Ok(UInt64(a >> *b as u32))
                 }
             }
-            _ => Err("只能对整数类型进行位右移运算".to_string()),
+            _ => Err("Bitwise right shift is only supported for integer types".to_string()),
         }
     }
 
@@ -550,7 +550,7 @@ impl Value {
             UInt16(a) => Ok(UInt16(!a)),
             UInt32(a) => Ok(UInt32(!a)),
             UInt64(a) => Ok(UInt64(!a)),
-            _ => Err("只能对整数类型进行位取反运算".to_string()),
+            _ => Err("Bitwise NOT is only supported for integer types".to_string()),
         }
     }
 
@@ -565,7 +565,7 @@ impl Value {
             Int64(a) => Ok(Int64(a.abs())),
             UInt8(_) | UInt16(_) | UInt32(_) | UInt64(_) => Ok(self.clone()),
             Float(a) => Ok(Float(a.abs())),
-            _ => Err("只能对数值类型进行绝对值运算".to_string()),
+            _ => Err("Absolute value is only supported for numeric types".to_string()),
         }
     }
 
@@ -578,7 +578,7 @@ impl Value {
             List(l) => Ok(Int(l.values.len() as i64)),
             Map(m) => Ok(Int(m.len() as i64)),
             Set(s) => Ok(Int(s.len() as i64)),
-            _ => Err("只能对字符串、列表、映射或集合类型进行长度运算".to_string()),
+            _ => Err("Length operation is only supported for string, list, map, or set types".to_string()),
         }
     }
 }

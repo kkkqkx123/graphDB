@@ -96,7 +96,7 @@ impl<S: StorageClient> Executor<S> for AllPathsExecutor<S> {
 
         let rows: Vec<Vec<Value>> = all_paths
             .into_iter()
-            .map(|path| vec![Value::Path(path)])
+            .map(|path| vec![Value::path(path)])
             .collect();
         let dataset = DataSet::from_rows(rows, vec!["path".to_string()]);
         Ok(ExecutionResult::DataSet(dataset))

@@ -180,7 +180,7 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
 
-        let list_value = Value::List(List::from(vec![
+        let list_value = Value::list(List::from(vec![
             Value::Int(1),
             Value::Int(2),
             Value::Int(3),
@@ -214,7 +214,7 @@ mod tests {
                 assert_eq!(dataset.rows[0].len(), 2);
                 assert_eq!(
                     dataset.rows[0][0],
-                    Value::List(List::from(vec![
+                    Value::list(List::from(vec![
                         Value::Int(1),
                         Value::Int(2),
                         Value::Int(3),

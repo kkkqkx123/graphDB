@@ -59,28 +59,28 @@ fn execute_nodes(args: &[Value]) -> Result<Value, ExpressionError> {
             for step in &path.steps {
                 result.push(Value::Vertex(Box::new((*step.dst).clone())));
             }
-            Ok(Value::List(List { values: result }))
+            Ok(Value::list(List { values: result }))
         }
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("nodes函数需要路径类型")),
+        _ => Err(ExpressionError::type_error("nodes requires a path type")),
     }
 }
 
 fn execute_relationships(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("relationships函数需要1个参数"));
+        return Err(ExpressionError::type_error("relationships requires 1 argument"));
     }
     match &args[0] {
         Value::Path(path) => {
             let result: Vec<Value> = path
                 .steps
                 .iter()
-                .map(|step| Value::Edge((*step.edge).clone()))
+                .map(|step| Value::edge((*step.edge).clone()))
                 .collect();
-            Ok(Value::List(List { values: result }))
+            Ok(Value::list(List { values: result }))
         }
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("relationships函数需要路径类型")),
+        _ => Err(ExpressionError::type_error("relationships requires a path type")),
     }
 }
 

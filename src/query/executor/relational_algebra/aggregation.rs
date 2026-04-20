@@ -321,7 +321,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
         dataset.col_names = vec![col_name];
 
         for edge in edges {
-            let row = vec![crate::core::Value::Edge(edge)];
+            let row = vec![crate::core::Value::edge(edge)];
             dataset.rows.push(row);
         }
 

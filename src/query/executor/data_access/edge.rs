@@ -39,7 +39,7 @@ impl<S: StorageClient> Executor<S> for GetEdgesExecutor<S> {
         match result {
             Ok(edges) => {
                 let rows: Vec<Vec<Value>> =
-                    edges.into_iter().map(|e| vec![Value::Edge(e)]).collect();
+                    edges.into_iter().map(|e| vec![Value::edge(e)]).collect();
                 let dataset = DataSet::from_rows(rows, vec!["edge".to_string()]);
                 Ok(ExecutionResult::DataSet(dataset))
             }
@@ -134,7 +134,7 @@ impl<S: StorageClient> Executor<S> for ScanEdgesExecutor<S> {
         match result {
             Ok(edges) => {
                 let rows: Vec<Vec<Value>> =
-                    edges.into_iter().map(|e| vec![Value::Edge(e)]).collect();
+                    edges.into_iter().map(|e| vec![Value::edge(e)]).collect();
                 let dataset = DataSet::from_rows(rows, vec!["edge".to_string()]);
                 Ok(ExecutionResult::DataSet(dataset))
             }
@@ -194,7 +194,7 @@ impl<S: StorageClient> ScanEdgesExecutor<S> {
         if let Some(ref filter_expr) = self.filter {
             let mut context = crate::query::executor::expression::DefaultExpressionContext::new();
             edges.retain(|edge| {
-                context.set_variable("edge".to_string(), crate::core::Value::Edge(edge.clone()));
+                context.set_variable("edge".to_string(), crate::core::Value::edge(edge.clone()));
                 match crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator::evaluate(filter_expr, &mut context) {
                     Ok(value) => match value {
                         crate::core::Value::Bool(b) => b,

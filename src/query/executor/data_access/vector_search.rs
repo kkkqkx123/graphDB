@@ -273,9 +273,8 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
             "vector" => {
                 // Return vector if requested
                 if let Some(vec) = &result.vector {
-                    // Convert Vec<f32> to Value::List
                     let values: Vec<Value> = vec.iter().map(|&v| Value::Float(v as f64)).collect();
-                    Ok(Value::List(List::from(values)))
+                    Ok(Value::list(List::from(values)))
                 } else {
                     Ok(Value::Null(NullType::Null))
                 }
@@ -311,14 +310,14 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
             serde_json::Value::Array(arr) => {
                 let vec: DBResult<Vec<Value>> =
                     arr.iter().map(|v| self.json_value_to_value(v)).collect();
-                Ok(Value::List(List::from(vec?)))
+                Ok(Value::list(List::from(vec?)))
             }
             serde_json::Value::Object(obj) => {
                 let map: DBResult<HashMap<String, Value>> = obj
                     .iter()
                     .map(|(k, v)| self.json_value_to_value(v).map(|val| (k.clone(), val)))
                     .collect();
-                Ok(Value::Map(map?))
+                Ok(Value::map(map?))
             }
         }
     }
@@ -545,14 +544,14 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
             serde_json::Value::Array(arr) => {
                 let vec: DBResult<Vec<Value>> =
                     arr.iter().map(|v| self.json_value_to_value(v)).collect();
-                Ok(Value::List(List::from(vec?)))
+                Ok(Value::list(List::from(vec?)))
             }
             serde_json::Value::Object(obj) => {
                 let map: DBResult<HashMap<String, Value>> = obj
                     .iter()
                     .map(|(k, v)| self.json_value_to_value(v).map(|val| (k.clone(), val)))
                     .collect();
-                Ok(Value::Map(map?))
+                Ok(Value::map(map?))
             }
         }
     }

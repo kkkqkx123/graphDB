@@ -115,10 +115,10 @@ fn execute_tags(args: &[Value]) -> Result<Value, ExpressionError> {
                 .iter()
                 .map(|tag| Value::String(tag.name.clone()))
                 .collect();
-            Ok(Value::List(List { values: tags }))
+            Ok(Value::list(List { values: tags }))
         }
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("tags函数需要顶点类型")),
+        _ => Err(ExpressionError::type_error("tags requires vertex type")),
     }
 }
 
@@ -128,7 +128,7 @@ fn execute_labels(args: &[Value]) -> Result<Value, ExpressionError> {
 
 fn execute_properties(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("properties函数需要1个参数"));
+        return Err(ExpressionError::type_error("properties requires 1 argument"));
     }
     match &args[0] {
         Value::Vertex(v) => {
@@ -137,13 +137,13 @@ fn execute_properties(args: &[Value]) -> Result<Value, ExpressionError> {
                 props.extend(tag.properties.clone());
             }
             props.extend(v.properties.clone());
-            Ok(Value::Map(props))
+            Ok(Value::map(props))
         }
-        Value::Edge(e) => Ok(Value::Map(e.props.clone())),
-        Value::Map(m) => Ok(Value::Map(m.clone())),
+        Value::Edge(e) => Ok(Value::map(e.props.clone())),
+        Value::Map(m) => Ok(Value::map((**m).clone())),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
         _ => Err(ExpressionError::type_error(
-            "properties函数需要顶点、边或映射类型",
+            "properties requires vertex, edge or map type",
         )),
     }
 }

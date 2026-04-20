@@ -257,7 +257,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                 for step in &path.steps {
                     let row = vec![
                         Value::Vertex(path.src.clone()),
-                        Value::Edge((*step.edge).clone()),
+                        Value::edge((*step.edge).clone()),
                         Value::Vertex(Box::new((*step.dst).clone())),
                     ];
                     dataset.rows.push(row);
@@ -277,7 +277,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                 if let Some(last_step) = path.steps.last() {
                     let row = vec![
                         Value::Vertex(path.src.clone()),
-                        Value::Edge((*last_step.edge).clone()),
+                        Value::edge((*last_step.edge).clone()),
                         Value::Vertex(Box::new((*last_step.dst).clone())),
                     ];
                     dataset.rows.push(row);

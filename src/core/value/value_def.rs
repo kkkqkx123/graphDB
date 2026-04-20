@@ -1,16 +1,31 @@
 //! Value Type Definition - Core Enum and Basic Methods
 
-use crate::core::types::DataType;
+use crate::core::{
+    types::DataType,
+    value::{
+        date_time::{DateTimeValue, DateValue, DurationValue, TimeValue},
+        decimal128::Decimal128Value,
+        geography::GeographyValue,
+        list::List,
+        null::NullType,
+        vector::VectorValue,
+    },
+    vertex_edge_path::{Edge, Path, Vertex},
+};
+use crate::query::DataSet;
 use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
-use std::hash::Hash;
+use std::{
+    collections::{HashMap, HashSet},
+    hash::Hash,
+};
 
 /// Indicates values that can be stored in node/edge attributes
 /// Following Nebula's Value type design pattern
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub enum Value {
     Empty,
-    Null(super::null::NullType),
+    Null(NullType),
     Bool(bool),
     Int(i64),
     Int8(i8),
@@ -22,7 +37,7 @@ pub enum Value {
     UInt32(u32),
     UInt64(u64),
     Float(f64),
-    Decimal128(super::decimal128::Decimal128Value),
+    Decimal128(Decimal128Value),
     String(String),
     /// Fixed-length strings for optimized storage of short strings
     FixedString {
@@ -31,19 +46,19 @@ pub enum Value {
     },
     /// Binary data
     Blob(Vec<u8>),
-    Date(super::date_time::DateValue),
-    Time(super::date_time::TimeValue),
-    DateTime(super::date_time::DateTimeValue),
-    Vertex(Box<crate::core::vertex_edge_path::Vertex>),
-    Edge(crate::core::vertex_edge_path::Edge),
-    Path(crate::core::vertex_edge_path::Path),
-    List(super::list::List),
-    Map(std::collections::HashMap<String, Value>),
-    Set(std::collections::HashSet<Value>),
-    Geography(super::geography::GeographyValue),
-    Duration(super::date_time::DurationValue),
-    Vector(super::vector::VectorValue),
-    DataSet(crate::query::DataSet),
+    Date(DateValue),
+    Time(TimeValue),
+    DateTime(DateTimeValue),
+    Vertex(Box<Vertex>),
+    Edge(Box<Edge>),
+    Path(Box<Path>),
+    List(Box<List>),
+    Map(Box<HashMap<String, Value>>),
+    Set(Box<HashSet<Value>>),
+    Geography(GeographyValue),
+    Duration(DurationValue),
+    Vector(VectorValue),
+    DataSet(Box<DataSet>),
 }
 
 impl Value {
@@ -250,7 +265,7 @@ impl Value {
                 let mut size = std::mem::size_of::<Self>();
                 size +=
                     m.capacity() * (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
-                for (k, v) in m {
+                for (k, v) in m.as_ref() {
                     size += k.capacity();
                     size += v.estimated_size();
                 }
@@ -259,7 +274,7 @@ impl Value {
             Value::Set(s) => {
                 let mut size = std::mem::size_of::<Self>();
                 size += s.capacity() * std::mem::size_of::<Value>();
-                for v in s {
+                for v in s.as_ref() {
                     size += v.estimated_size();
                 }
                 size
@@ -269,6 +284,38 @@ impl Value {
             Value::Vector(v) => std::mem::size_of::<Self>() + v.estimated_size(),
             Value::DataSet(ds) => std::mem::size_of::<Self>() + ds.estimated_size(),
         }
+    }
+}
+
+impl Value {
+    /// Create a new List value (wraps in Box)
+    pub fn list(list: List) -> Self {
+        Value::List(Box::new(list))
+    }
+
+    /// Create a new Map value (wraps in Box)
+    pub fn map(map: HashMap<String, Value>) -> Self {
+        Value::Map(Box::new(map))
+    }
+
+    /// Create a new Set value (wraps in Box)
+    pub fn set(set: HashSet<Value>) -> Self {
+        Value::Set(Box::new(set))
+    }
+
+    /// Create a new Edge value (wraps in Box)
+    pub fn edge(edge: Edge) -> Self {
+        Value::Edge(Box::new(edge))
+    }
+
+    /// Create a new Path value (wraps in Box)
+    pub fn path(path: Path) -> Self {
+        Value::Path(Box::new(path))
+    }
+
+    /// Create a new DataSet value (wraps in Box)
+    pub fn dataset(dataset: DataSet) -> Self {
+        Value::DataSet(Box::new(dataset))
     }
 }
 
@@ -308,7 +355,7 @@ impl std::fmt::Display for Value {
             Value::Path(p) => write!(f, "Path({:?})", p),
             Value::List(list) => {
                 write!(f, "[")?;
-                for (i, item) in list.values.iter().enumerate() {
+                for (i, item) in list.iter().enumerate() {
                     if i > 0 {
                         write!(f, ", ")?;
                     }

@@ -618,7 +618,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AllPathsExecutor<
             .get_stats_mut()
             .add_stat("paths_found".to_string(), paths.len().to_string());
 
-        let rows: Vec<Vec<Value>> = paths.into_iter().map(|p| vec![Value::Path(p)]).collect();
+        let rows: Vec<Vec<Value>> = paths.into_iter().map(|p| vec![Value::path(p)]).collect();
         let dataset = DataSet::from_rows(rows, vec!["path".to_string()]);
         Ok(ExecutionResult::DataSet(dataset))
     }

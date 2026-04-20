@@ -395,7 +395,7 @@ impl<S: StorageClient> Executor<S> for FulltextSearchExecutor<S> {
                                     .iter()
                                     .map(|f| Value::String(f.clone()))
                                     .collect();
-                                Value::List(crate::core::value::list::List { values: fields })
+                                Value::list(crate::core::value::list::List { values: fields })
                             }
                             YieldExpression::Snippet(field_name, max_len) => {
                                 if let Some(tag) = vertex.tags.first() {

@@ -1,12 +1,18 @@
-use super::date_time::{DateTimeValue, DateValue, DurationValue, TimeValue};
-use super::geography::GeographyValue;
-use super::list::List;
-use super::null::NullType;
-use super::Value;
-use crate::core::DataType;
-use std::cmp::Ordering as CmpOrdering;
-use std::collections::HashMap;
-use std::hash::Hash;
+use crate::core::{
+    types::DataType,
+    value::{
+        date_time::{DateTimeValue, DateValue, DurationValue, TimeValue},
+        geography::GeographyValue,
+        list::List,
+        null::NullType,
+        Value,
+    },
+};
+use std::{
+    cmp::Ordering as CmpOrdering,
+    collections::HashMap,
+    hash::Hash,
+};
 
 // Manual implementation of PartialEq to handle f64 comparisons correctly
 impl PartialEq for Value {
@@ -193,7 +199,7 @@ impl Hash for Value {
                     // All NaN values should hash to the same value
                     (0x7ff80000u32 as u64).hash(state);
                 } else if *f == 0.0 {
-                    // 确保+0.0和-0.0哈希到相同的值
+                    // Ensure +0.0 and -0.0 hash to the same value
                     0.0_f64.to_bits().hash(state);
                 } else {
                     f.to_bits().hash(state);

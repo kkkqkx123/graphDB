@@ -278,7 +278,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
                 }
             }
             for (table, map) in table_maps {
-                context.set_variable(table, crate::core::Value::Map(map));
+                context.set_variable(table, crate::core::Value::map(map));
             }
 
             // Set the `row` variable (which contains the entire row of data)
@@ -294,7 +294,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
                     }
                 })
                 .collect();
-            context.set_variable("row".to_string(), crate::core::Value::Map(row_map));
+            context.set_variable("row".to_string(), crate::core::Value::map(row_map));
 
             let condition_result = ExpressionEvaluator::evaluate(&self.condition, &mut context)
                 .map_err(|e| {

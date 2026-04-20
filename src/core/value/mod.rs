@@ -4,16 +4,16 @@
 //!
 //! ## Module Structure
 //!
-//! - `null` - NullType 定义
-//! - `value` - Value 枚举定义及基础方法
-//! - `value_compare` - 比较逻辑 (PartialEq, Eq, Ord, Hash)
-//! - `value_arithmetic` - 算术/逻辑/位运算
-//! - `value_convert` - 类型转换
-//! - `list` - 列表类型
-//! - `date_time` - 日期时间类型
-//! - `decimal128` - Decimal128 高精度数值
-//! - `geography` - 地理空间类型
-//! - `memory` - 内存估算
+//! - `null` - NullType definition
+//! - `value` - Value enum definition and basic methods
+//! - `value_compare` - Comparison logic (PartialEq, Eq, Ord, Hash)
+//! - `value_arithmetic` - Arithmetic/logical/bitwise operations
+//! - `value_convert` - Type conversion
+//! - `list` - List type
+//! - `date_time` - Date and time types
+//! - `decimal128` - Decimal128 high-precision numeric
+//! - `geography` - Geospatial types
+//! - `memory` - Memory estimation
 
 #[allow(non_snake_case)]
 pub mod date_time;

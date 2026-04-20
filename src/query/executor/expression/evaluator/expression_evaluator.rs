@@ -157,7 +157,7 @@ impl ExpressionEvaluator {
                     .iter()
                     .map(|elem| Self::evaluate_recursive(elem, context))
                     .collect();
-                element_values.map(|vals| Value::List(List::from(vals)))
+                element_values.map(|vals| Value::list(List::from(vals)))
             }
 
             // Vector literal – Direct evaluation
@@ -170,7 +170,7 @@ impl ExpressionEvaluator {
                     let value = Self::evaluate_recursive(value_expression, context)?;
                     map_values.insert(key.clone(), value);
                 }
-                Ok(Value::Map(map_values))
+                Ok(Value::map(map_values))
             }
 
             // Subscript access
@@ -208,7 +208,7 @@ impl ExpressionEvaluator {
                     .iter()
                     .map(|elem| Self::evaluate_recursive(elem, context))
                     .collect();
-                element_values.map(|vals| Value::List(List::from(vals)))
+                element_values.map(|vals| Value::list(List::from(vals)))
             }
 
             // Attribute access

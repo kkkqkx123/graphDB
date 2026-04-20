@@ -328,7 +328,7 @@ impl AggFunctionManager {
                     return Ok(());
                 }
                 if res.is_null() {
-                    *res = Value::List(List::from(Vec::new()));
+                    *res = Value::list(List::from(Vec::new()));
                 }
                 if val.is_null() || val.is_empty() {
                     return Ok(());
@@ -351,7 +351,7 @@ impl AggFunctionManager {
                     return Ok(());
                 }
                 if res.is_null() {
-                    *res = Value::Set(std::collections::HashSet::new());
+                    *res = Value::set(std::collections::HashSet::new());
                 }
                 if val.is_null() || val.is_empty() {
                     return Ok(());

@@ -110,7 +110,7 @@ impl PropIndexSeek {
                         .expect("property_name should exist")
                         .clone(),
                     op: PredicateOp::In,
-                    value: Value::List(List {
+                    value: Value::list(List {
                         values: collector.values().to_vec(),
                     }),
                 });
