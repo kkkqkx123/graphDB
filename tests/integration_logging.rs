@@ -21,40 +21,45 @@ use vector_client::config::VectorClientConfig;
 fn test_log_config_defaults() {
     let config = Config::default();
 
-    assert_eq!(config.log.level, "info");
-    assert_eq!(config.log.dir, "logs");
-    assert_eq!(config.log.file, "graphdb");
-    assert_eq!(config.log.max_file_size, 100 * 1024 * 1024); // 100MB
-    assert_eq!(config.log.max_files, 5);
+    assert_eq!(config.common.log.level, "info");
+    assert_eq!(config.common.log.dir, "logs");
+    assert_eq!(config.common.log.file, "graphdb");
+    assert_eq!(config.common.log.max_file_size, 100 * 1024 * 1024); // 100MB
+    assert_eq!(config.common.log.max_files, 5);
 }
 
 /// Test Log Configuration Serialization and Deserialization
 #[test]
 fn test_log_config_serialization() {
     let config = Config {
-        database: graphdb::config::DatabaseConfig {
-            host: "127.0.0.1".to_string(),
-            port: 9758,
-            storage_path: "data/graphdb".to_string(),
-            max_connections: 10,
+        common: graphdb::config::CommonConfig {
+            database: graphdb::config::DatabaseConfig {
+                host: "127.0.0.1".to_string(),
+                port: 9758,
+                storage_path: "data/graphdb".to_string(),
+                max_connections: 10,
+            },
+            transaction: graphdb::config::TransactionConfig {
+                default_timeout: 30,
+                max_concurrent_transactions: 1000,
+            },
+            log: graphdb::config::LogConfig {
+                level: "debug".to_string(),
+                dir: "test_logs".to_string(),
+                file: "test_graphdb".to_string(),
+                max_file_size: 50 * 1024 * 1024,
+                max_files: 3,
+            },
+            storage: graphdb::config::StorageConfig::default(),
+            optimizer: graphdb::config::OptimizerConfig::default(),
+            monitoring: graphdb::config::MonitoringConfig::default(),
+            query_resource: graphdb::config::QueryResourceConfig::default(),
         },
-        transaction: graphdb::config::TransactionConfig {
-            default_timeout: 30,
-            max_concurrent_transactions: 1000,
-        },
-        log: graphdb::config::LogConfig {
-            level: "debug".to_string(),
-            dir: "test_logs".to_string(),
-            file: "test_graphdb".to_string(),
-            max_file_size: 50 * 1024 * 1024,
-            max_files: 3,
-        },
-        auth: graphdb::config::AuthConfig::default(),
-        bootstrap: graphdb::config::BootstrapConfig::default(),
-        optimizer: graphdb::config::OptimizerConfig::default(),
-        monitoring: graphdb::config::MonitoringConfig::default(),
+        #[cfg(feature = "server")]
+        server: graphdb::config::ServerConfig::default(),
         vector: VectorClientConfig::default(),
         fulltext: FulltextConfig::default(),
+        embedded: graphdb::config::EmbeddedConfig::default(),
     };
 
     // Serialization to TOML
@@ -69,11 +74,11 @@ fn test_log_config_serialization() {
 
     // deserialization
     let loaded_config: Config = toml::from_str(&toml_str).expect("反序列化配置失败");
-    assert_eq!(loaded_config.log.level, "debug");
-    assert_eq!(loaded_config.log.dir, "test_logs");
-    assert_eq!(loaded_config.log.file, "test_graphdb");
-    assert_eq!(loaded_config.log.max_file_size, 52428800);
-    assert_eq!(loaded_config.log.max_files, 3);
+    assert_eq!(loaded_config.common.log.level, "debug");
+    assert_eq!(loaded_config.common.log.dir, "test_logs");
+    assert_eq!(loaded_config.common.log.file, "test_graphdb");
+    assert_eq!(loaded_config.common.log.max_file_size, 52428800);
+    assert_eq!(loaded_config.common.log.max_files, 3);
 }
 
 /// Test Log Directory Creation
@@ -161,11 +166,11 @@ min_iteration_rounds = 1
     let config = Config::load(&config_path).expect("加载配置失败");
 
     // Verify Logging Configuration
-    assert_eq!(config.log.level, "debug");
-    assert_eq!(config.log.dir, "custom_logs");
-    assert_eq!(config.log.file, "custom_graphdb");
-    assert_eq!(config.log.max_file_size, 52428800);
-    assert_eq!(config.log.max_files, 3);
+    assert_eq!(config.common.log.level, "debug");
+    assert_eq!(config.common.log.dir, "custom_logs");
+    assert_eq!(config.common.log.file, "custom_graphdb");
+    assert_eq!(config.common.log.max_file_size, 52428800);
+    assert_eq!(config.common.log.max_files, 3);
 
     // clear up
     let _ = fs::remove_dir_all(&temp_dir);
@@ -251,25 +256,21 @@ fn test_flexi_logger_integration() {
         // So let's just verify that the configuration can be loaded correctly
 
         let config = Config {
-            database: graphdb::config::DatabaseConfig::default(),
-            transaction: graphdb::config::TransactionConfig::default(),
-            log: graphdb::config::LogConfig {
-                level: "warn".to_string(),
-                dir: test_dir.to_string_lossy().to_string(),
-                file: "level_test".to_string(),
-                ..graphdb::config::LogConfig::default()
+            common: graphdb::config::CommonConfig {
+                log: graphdb::config::LogConfig {
+                    level: "warn".to_string(),
+                    dir: test_dir.to_string_lossy().to_string(),
+                    file: "level_test".to_string(),
+                    ..Default::default()
+                },
+                ..Default::default()
             },
-            auth: graphdb::config::AuthConfig::default(),
-            bootstrap: graphdb::config::BootstrapConfig::default(),
-            optimizer: graphdb::config::OptimizerConfig::default(),
-            monitoring: graphdb::config::MonitoringConfig::default(),
-            vector: VectorClientConfig::default(),
-            fulltext: FulltextConfig::default(),
+            ..Default::default()
         };
 
         // Verify that the configuration is correct
-        assert_eq!(config.log.level, "warn");
-        assert!(config.log.dir.contains("level_filter"));
+        assert_eq!(config.common.log.level, "warn");
+        assert!(config.common.log.dir.contains("level_filter"));
     }
 
     // ========== Test 3: Log Rotation Configuration Validation ==========
@@ -278,39 +279,35 @@ fn test_flexi_logger_integration() {
         fs::create_dir_all(&test_dir).expect("创建测试目录失败");
 
         let config = Config {
-            database: graphdb::config::DatabaseConfig::default(),
-            transaction: graphdb::config::TransactionConfig::default(),
-            log: graphdb::config::LogConfig {
-                level: "info".to_string(),
-                dir: test_dir.to_string_lossy().to_string(),
-                file: "rotation_test".to_string(),
-                max_file_size: 10 * 1024 * 1024,
-                max_files: 3,
+            common: graphdb::config::CommonConfig {
+                log: graphdb::config::LogConfig {
+                    level: "info".to_string(),
+                    dir: test_dir.to_string_lossy().to_string(),
+                    file: "rotation_test".to_string(),
+                    max_file_size: 10 * 1024 * 1024,
+                    max_files: 3,
+                },
+                ..Default::default()
             },
-            auth: graphdb::config::AuthConfig::default(),
-            bootstrap: graphdb::config::BootstrapConfig::default(),
-            optimizer: graphdb::config::OptimizerConfig::default(),
-            monitoring: graphdb::config::MonitoringConfig::default(),
-            vector: VectorClientConfig::default(),
-            fulltext: FulltextConfig::default(),
+            ..Default::default()
         };
 
         // Verifying Rotation Configuration
-        assert_eq!(config.log.max_file_size, 10 * 1024 * 1024);
-        assert_eq!(config.log.max_files, 3);
+        assert_eq!(config.common.log.max_file_size, 10 * 1024 * 1024);
+        assert_eq!(config.common.log.max_files, 3);
 
         // Verify that the rotation configuration of flexi_logger can be built correctly
         let file_spec = FileSpec::default()
-            .basename(&config.log.file)
-            .directory(&config.log.dir);
+            .basename(&config.common.log.file)
+            .directory(&config.common.log.dir);
 
-        let _logger_builder = Logger::try_with_str(&config.log.level)
+        let _logger_builder = Logger::try_with_str(&config.common.log.level)
             .expect("创建 logger 失败")
             .log_to_file(file_spec)
             .rotate(
-                Criterion::Size(config.log.max_file_size),
+                Criterion::Size(config.common.log.max_file_size),
                 Naming::Numbers,
-                Cleanup::KeepLogFiles(config.log.max_files),
+                Cleanup::KeepLogFiles(config.common.log.max_files),
             );
         // Note: You don't actually start the logger, because the global logger already exists.
     }
@@ -321,28 +318,24 @@ fn test_flexi_logger_integration() {
         fs::create_dir_all(&test_dir).expect("创建测试目录失败");
 
         let config = Config {
-            database: graphdb::config::DatabaseConfig::default(),
-            transaction: graphdb::config::TransactionConfig::default(),
-            log: graphdb::config::LogConfig {
-                level: "debug".to_string(),
-                dir: test_dir.to_string_lossy().to_string(),
-                file: "async_test".to_string(),
-                ..graphdb::config::LogConfig::default()
+            common: graphdb::config::CommonConfig {
+                log: graphdb::config::LogConfig {
+                    level: "debug".to_string(),
+                    dir: test_dir.to_string_lossy().to_string(),
+                    file: "async_test".to_string(),
+                    ..Default::default()
+                },
+                ..Default::default()
             },
-            auth: graphdb::config::AuthConfig::default(),
-            bootstrap: graphdb::config::BootstrapConfig::default(),
-            optimizer: graphdb::config::OptimizerConfig::default(),
-            monitoring: graphdb::config::MonitoringConfig::default(),
-            vector: VectorClientConfig::default(),
-            fulltext: FulltextConfig::default(),
+            ..Default::default()
         };
 
         // Verify that the asynchronous configuration can be built correctly
         let file_spec = FileSpec::default()
-            .basename(&config.log.file)
-            .directory(&config.log.dir);
+            .basename(&config.common.log.file)
+            .directory(&config.common.log.dir);
 
-        let _logger_builder = Logger::try_with_str(&config.log.level)
+        let _logger_builder = Logger::try_with_str(&config.common.log.level)
             .expect("创建 logger 失败")
             .log_to_file(file_spec)
             .write_mode(WriteMode::Async);
@@ -356,38 +349,34 @@ fn test_flexi_logger_integration() {
 
         let max_files = 2;
         let config = Config {
-            database: graphdb::config::DatabaseConfig::default(),
-            transaction: graphdb::config::TransactionConfig::default(),
-            log: graphdb::config::LogConfig {
-                level: "info".to_string(),
-                dir: test_dir.to_string_lossy().to_string(),
-                file: "cleanup_test".to_string(),
-                max_file_size: 1024 * 1024,
-                max_files,
+            common: graphdb::config::CommonConfig {
+                log: graphdb::config::LogConfig {
+                    level: "info".to_string(),
+                    dir: test_dir.to_string_lossy().to_string(),
+                    file: "cleanup_test".to_string(),
+                    max_file_size: 1024 * 1024,
+                    max_files,
+                },
+                ..Default::default()
             },
-            auth: graphdb::config::AuthConfig::default(),
-            bootstrap: graphdb::config::BootstrapConfig::default(),
-            optimizer: graphdb::config::OptimizerConfig::default(),
-            monitoring: graphdb::config::MonitoringConfig::default(),
-            vector: VectorClientConfig::default(),
-            fulltext: FulltextConfig::default(),
+            ..Default::default()
         };
 
         // Verify Cleanup Configuration
-        assert_eq!(config.log.max_files, max_files);
+        assert_eq!(config.common.log.max_files, max_files);
 
         // Verify that the flexi_logger cleanup configuration can be built correctly
         let file_spec = FileSpec::default()
-            .basename(&config.log.file)
-            .directory(&config.log.dir);
+            .basename(&config.common.log.file)
+            .directory(&config.common.log.dir);
 
-        let _logger_builder = Logger::try_with_str(&config.log.level)
+        let _logger_builder = Logger::try_with_str(&config.common.log.level)
             .expect("创建 logger 失败")
             .log_to_file(file_spec)
             .rotate(
-                Criterion::Size(config.log.max_file_size),
+                Criterion::Size(config.common.log.max_file_size),
                 Naming::Numbers,
-                Cleanup::KeepLogFiles(config.log.max_files),
+                Cleanup::KeepLogFiles(config.common.log.max_files),
             );
         // Note: You don't actually start the logger, because the global logger already exists.
     }
@@ -402,27 +391,27 @@ fn test_log_file_path_resolution() {
     let config = Config::default();
 
     // Verify the combination of the log directory and file name.
-    let expected_log_path = format!("{}/{}.log", config.log.dir, config.log.file);
+    let expected_log_path = format!("{}/{}.log", config.common.log.dir, config.common.log.file);
     assert_eq!(expected_log_path, "logs/graphdb.log");
 
     // Testing the custom configuration
     let custom_config = Config {
-        database: graphdb::config::DatabaseConfig::default(),
-        transaction: graphdb::config::TransactionConfig::default(),
-        log: graphdb::config::LogConfig {
-            dir: "/var/log/graphdb".to_string(),
-            file: "app".to_string(),
-            ..graphdb::config::LogConfig::default()
+        common: graphdb::config::CommonConfig {
+            log: graphdb::config::LogConfig {
+                dir: "/var/log/graphdb".to_string(),
+                file: "app".to_string(),
+                ..Default::default()
+            },
+            ..Default::default()
         },
-        auth: graphdb::config::AuthConfig::default(),
-        bootstrap: graphdb::config::BootstrapConfig::default(),
-        optimizer: graphdb::config::OptimizerConfig::default(),
-        monitoring: graphdb::config::MonitoringConfig::default(),
+        #[cfg(feature = "server")]
+        server: graphdb::config::ServerConfig::default(),
         vector: VectorClientConfig::default(),
         fulltext: FulltextConfig::default(),
+        embedded: graphdb::config::EmbeddedConfig::default(),
     };
 
-    let custom_path = format!("{}/{}.log", custom_config.log.dir, custom_config.log.file);
+    let custom_path = format!("{}/{}.log", custom_config.common.log.dir, custom_config.common.log.file);
     assert_eq!(custom_path, "/var/log/graphdb/app.log");
 }
 
@@ -431,41 +420,33 @@ fn test_log_file_path_resolution() {
 fn test_log_file_size_config() {
     // The default value for the test is 100MB.
     let config = Config::default();
-    assert_eq!(config.log.max_file_size, 100 * 1024 * 1024);
+    assert_eq!(config.common.log.max_file_size, 100 * 1024 * 1024);
 
     // Testing custom sizes
     let custom_config = Config {
-        database: graphdb::config::DatabaseConfig::default(),
-        transaction: graphdb::config::TransactionConfig::default(),
-        log: graphdb::config::LogConfig {
-            max_file_size: 500 * 1024 * 1024,
-            ..graphdb::config::LogConfig::default()
+        common: graphdb::config::CommonConfig {
+            log: graphdb::config::LogConfig {
+                max_file_size: 500 * 1024 * 1024,
+                ..Default::default()
+            },
+            ..Default::default()
         },
-        auth: graphdb::config::AuthConfig::default(),
-        bootstrap: graphdb::config::BootstrapConfig::default(),
-        optimizer: graphdb::config::OptimizerConfig::default(),
-        monitoring: graphdb::config::MonitoringConfig::default(),
-        vector: VectorClientConfig::default(),
-        fulltext: FulltextConfig::default(),
+        ..Default::default()
     };
-    assert_eq!(custom_config.log.max_file_size, 500 * 1024 * 1024);
+    assert_eq!(custom_config.common.log.max_file_size, 500 * 1024 * 1024);
 
     // Testing the configuration of small files (for testing purposes)
     let small_config = Config {
-        database: graphdb::config::DatabaseConfig::default(),
-        transaction: graphdb::config::TransactionConfig::default(),
-        log: graphdb::config::LogConfig {
-            max_file_size: 1024,
-            ..graphdb::config::LogConfig::default()
+        common: graphdb::config::CommonConfig {
+            log: graphdb::config::LogConfig {
+                max_file_size: 1024,
+                ..Default::default()
+            },
+            ..Default::default()
         },
-        auth: graphdb::config::AuthConfig::default(),
-        bootstrap: graphdb::config::BootstrapConfig::default(),
-        optimizer: graphdb::config::OptimizerConfig::default(),
-        monitoring: graphdb::config::MonitoringConfig::default(),
-        vector: VectorClientConfig::default(),
-        fulltext: FulltextConfig::default(),
+        ..Default::default()
     };
-    assert_eq!(small_config.log.max_file_size, 1024);
+    assert_eq!(small_config.common.log.max_file_size, 1024);
 }
 
 /// Verification of test log level configuration
@@ -475,20 +456,16 @@ fn test_log_level_validation() {
 
     for level in valid_levels {
         let config = Config {
-            database: graphdb::config::DatabaseConfig::default(),
-            transaction: graphdb::config::TransactionConfig::default(),
-            log: graphdb::config::LogConfig {
-                level: level.to_string(),
-                ..graphdb::config::LogConfig::default()
+            common: graphdb::config::CommonConfig {
+                log: graphdb::config::LogConfig {
+                    level: level.to_string(),
+                    ..Default::default()
+                },
+                ..Default::default()
             },
-            auth: graphdb::config::AuthConfig::default(),
-            bootstrap: graphdb::config::BootstrapConfig::default(),
-            optimizer: graphdb::config::OptimizerConfig::default(),
-            monitoring: graphdb::config::MonitoringConfig::default(),
-            vector: VectorClientConfig::default(),
-            fulltext: FulltextConfig::default(),
+            ..Default::default()
         };
-        assert_eq!(config.log.level, level);
+        assert_eq!(config.common.log.level, level);
     }
 }
 

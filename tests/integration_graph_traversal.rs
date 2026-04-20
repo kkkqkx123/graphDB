@@ -13,7 +13,7 @@ use common::TestStorage;
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Edge, Path, Step, Value, Vertex};
 use graphdb::query::executor::base::{EdgeDirection as ExecEdgeDirection, Executor};
-use graphdb::query::executor::data_processing::graph_traversal::algorithms::{
+use graphdb::query::executor::graph_operations::graph_traversal::algorithms::{
     AlgorithmContext, AlgorithmStats, MultiShortestPathExecutor, SubgraphConfig, SubgraphExecutor,
 };
 use graphdb::query::validator::context::ExpressionAnalysisContext;
@@ -429,7 +429,7 @@ fn test_algorithm_context_with_loop_and_other_options() {
 
 #[test]
 fn test_expand_executor_with_loop() {
-    use graphdb::query::executor::data_processing::graph_traversal::ExpandExecutor;
+    use graphdb::query::executor::graph_operations::graph_traversal::ExpandExecutor;
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
@@ -460,7 +460,7 @@ fn test_expand_executor_with_loop() {
 
 #[test]
 fn test_all_paths_executor_with_loop() {
-    use graphdb::query::executor::data_processing::graph_traversal::AllPathsExecutor;
+    use graphdb::query::executor::graph_operations::graph_traversal::AllPathsExecutor;
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
@@ -505,10 +505,10 @@ fn test_all_paths_executor_with_loop() {
 
 #[test]
 fn test_weighted_shortest_path_executor_creation() {
-    use graphdb::query::executor::data_processing::graph_traversal::algorithms::{
+    use graphdb::query::executor::graph_operations::graph_traversal::algorithms::{
         EdgeWeightConfig, ShortestPathAlgorithmType,
     };
-    use graphdb::query::executor::data_processing::graph_traversal::ShortestPathExecutor;
+    use graphdb::query::executor::graph_operations::graph_traversal::ShortestPathExecutor;
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
@@ -535,10 +535,10 @@ fn test_weighted_shortest_path_executor_creation() {
 
 #[test]
 fn test_weighted_shortest_path_with_ranking() {
-    use graphdb::query::executor::data_processing::graph_traversal::algorithms::{
+    use graphdb::query::executor::graph_operations::graph_traversal::algorithms::{
         EdgeWeightConfig, ShortestPathAlgorithmType,
     };
-    use graphdb::query::executor::data_processing::graph_traversal::ShortestPathExecutor;
+    use graphdb::query::executor::graph_operations::graph_traversal::ShortestPathExecutor;
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
@@ -564,10 +564,10 @@ fn test_weighted_shortest_path_with_ranking() {
 
 #[test]
 fn test_weighted_shortest_path_astar() {
-    use graphdb::query::executor::data_processing::graph_traversal::algorithms::{
+    use graphdb::query::executor::graph_operations::graph_traversal::algorithms::{
         EdgeWeightConfig, HeuristicFunction, ShortestPathAlgorithmType,
     };
-    use graphdb::query::executor::data_processing::graph_traversal::ShortestPathExecutor;
+    use graphdb::query::executor::graph_operations::graph_traversal::ShortestPathExecutor;
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();

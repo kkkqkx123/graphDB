@@ -702,7 +702,7 @@ fn create_test_config() -> Config {
             storage: graphdb::config::StorageConfig::default(),
             optimizer: graphdb::config::OptimizerConfig::default(),
             monitoring: graphdb::config::MonitoringConfig::default(),
-
+            query_resource: graphdb::config::QueryResourceConfig::default(),
         },
         #[cfg(feature = "server")]
         server: graphdb::config::ServerConfig {
@@ -723,7 +723,7 @@ async fn test_graph_service_creation() {
     let db_path = temp_dir.path().join("graphdb_test");
 
     let mut config = create_test_config();
-    config.common.database.storage_path = db_path.to_string_lossy().to_string();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
 
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
 

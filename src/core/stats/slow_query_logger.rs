@@ -57,7 +57,9 @@ pub struct SlowQueryLogger {
     config: SlowQueryConfig,
     tx: Option<mpsc::Sender<String>>,
     writer_handle: Mutex<Option<thread::JoinHandle<()>>>,
+    #[allow(dead_code)]
     current_file_size: AtomicU64,
+    #[allow(dead_code)]
     current_file_path: Mutex<PathBuf>,
 }
 

@@ -11,8 +11,10 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
 use crate::core::{List, Value};
 use crate::query::executor::base::{
-    BaseExecutor, ExecutionResult, Executor, ExecutorConfig, PatternApplyConfig,
+    BaseExecutor, ExecutionResult, ExecutorConfig, PatternApplyConfig,
 };
+#[cfg(test)]
+use crate::query::executor::base::Executor;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::DefaultExpressionContext;
