@@ -19,7 +19,7 @@ pub mod user;
 // Full-text search types
 pub mod fulltext_query;
 
-use oxicoide::{Decode, Encode};
+use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]

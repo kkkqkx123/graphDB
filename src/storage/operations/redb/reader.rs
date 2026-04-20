@@ -2,7 +2,7 @@ use crate::core::{Edge, EdgeDirection, StorageError, Value, Vertex};
 use crate::storage::engine::{ByteKey, EDGES_TABLE, NODES_TABLE};
 use crate::storage::operations::traits::{EdgeReader, ScanResult, VertexReader};
 use crate::transaction::TransactionContext;
-use oxicoide::{decode_from_slice, encode_to_vec};
+use oxicode::{decode_from_slice, encode_to_vec};
 use lru::LruCache;
 use parking_lot::Mutex;
 use redb::{Database, ReadableTable};
@@ -59,7 +59,6 @@ impl RedbReader {
     pub fn invalidate_edge_cache(&self, src: &Value, dst: &Value, edge_type: &str) {
         if let Ok(key) = encode_to_vec(
             &(src.clone(), dst.clone(), edge_type.to_string()),
-            standard(),
         ) {
             let mut cache = self.edge_cache.lock();
             cache.pop(&key);

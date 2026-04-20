@@ -457,7 +457,7 @@ impl EdgeStorage {
         src: &Value,
         dst: &Value,
     ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
-        use oxicoide::encode_to_vec;
+        use oxicode::encode_to_vec;
 
         if let Some(edge) = self
             .inner
@@ -488,7 +488,7 @@ impl EdgeStorage {
         space: &str,
         edge_type: &str,
     ) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
-        use oxicoide::encode_to_vec;
+        use oxicode::encode_to_vec;
 
         let mut results = Vec::new();
         let edge_type_info = self

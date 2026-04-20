@@ -600,7 +600,7 @@ impl VertexStorage {
         tag: &str,
         id: &Value,
     ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
-        use oxicoide::encode_to_vec;
+        use oxicode::encode_to_vec;
 
         if let Some(vertex) = self.inner.reader.lock().get_vertex(space, id)? {
             let tag_info = self
@@ -623,7 +623,7 @@ impl VertexStorage {
         space: &str,
         tag: &str,
     ) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
-        use oxicoide::encode_to_vec;
+        use oxicode::encode_to_vec;
 
         let mut results = Vec::new();
         let tag_info = self

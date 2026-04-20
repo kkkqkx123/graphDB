@@ -4,10 +4,10 @@
 #[macro_export]
 macro_rules! impl_has_storage {
     ($executor:ident) => {
-        impl<S: StorageClient + Send + 'static> crate::query::executor::base::HasStorage<S>
-            for $executor<S>
+        impl<S: $crate::storage::StorageClient + Send + 'static>
+            $crate::query::executor::base::HasStorage<S> for $executor<S>
         {
-            fn get_storage(&self) -> &Arc<Mutex<S>> {
+            fn get_storage(&self) -> &std::sync::Arc<parking_lot::Mutex<S>> {
                 self.base
                     .storage
                     .as_ref()
@@ -21,16 +21,18 @@ macro_rules! impl_has_storage {
 #[macro_export]
 macro_rules! impl_executor_basic_methods {
     ($executor:ident) => {
-        impl<S: StorageClient + Send + Sync + 'static> Executor<S> for $executor<S> {
-            fn execute(&mut self) -> DBResult<ExecutionResult> {
+        impl<S: $crate::storage::StorageClient + Send + Sync + 'static> $crate::query::executor::base::Executor<S>
+            for $executor<S>
+        {
+            fn execute(&mut self) -> $crate::core::error::DBResult<$crate::query::executor::base::ExecutionResult> {
                 unimplemented!("execute method must be implemented separately")
             }
 
-            fn open(&mut self) -> DBResult<()> {
+            fn open(&mut self) -> $crate::core::error::DBResult<()> {
                 Ok(())
             }
 
-            fn close(&mut self) -> DBResult<()> {
+            fn close(&mut self) -> $crate::core::error::DBResult<()> {
                 Ok(())
             }
 
@@ -50,11 +52,11 @@ macro_rules! impl_executor_basic_methods {
                 &self.base.description
             }
 
-            fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
+            fn stats(&self) -> &$crate::query::executor::base::ExecutorStats {
                 self.base.get_stats()
             }
 
-            fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
+            fn stats_mut(&mut self) -> &mut $crate::query::executor::base::ExecutorStats {
                 self.base.get_stats_mut()
             }
         }
@@ -65,17 +67,19 @@ macro_rules! impl_executor_basic_methods {
 #[macro_export]
 macro_rules! impl_executor_with_execute {
     ($executor:ident, $execute_method:ident) => {
-        impl<S: StorageClient + Send + Sync + 'static> Executor<S> for $executor<S> {
-            fn execute(&mut self) -> DBResult<ExecutionResult> {
+        impl<S: $crate::storage::StorageClient + Send + Sync + 'static> $crate::query::executor::base::Executor<S>
+            for $executor<S>
+        {
+            fn execute(&mut self) -> $crate::core::error::DBResult<$crate::query::executor::base::ExecutionResult> {
                 let dataset = self.$execute_method()?;
-                Ok(ExecutionResult::DataSet(dataset))
+                Ok($crate::query::executor::base::ExecutionResult::DataSet(dataset))
             }
 
-            fn open(&mut self) -> DBResult<()> {
+            fn open(&mut self) -> $crate::core::error::DBResult<()> {
                 Ok(())
             }
 
-            fn close(&mut self) -> DBResult<()> {
+            fn close(&mut self) -> $crate::core::error::DBResult<()> {
                 Ok(())
             }
 
@@ -95,11 +99,11 @@ macro_rules! impl_executor_with_execute {
                 &self.base.description
             }
 
-            fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
+            fn stats(&self) -> &$crate::query::executor::base::ExecutorStats {
                 self.base.get_stats()
             }
 
-            fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
+            fn stats_mut(&mut self) -> &mut $crate::query::executor::base::ExecutorStats {
                 self.base.get_stats_mut()
             }
         }

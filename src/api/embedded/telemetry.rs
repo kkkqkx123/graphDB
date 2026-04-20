@@ -15,9 +15,7 @@
 //! # }
 //! ```
 
-use crate::api::core::telemetry::{
-    global_recorder, init_global_recorder, HistogramData, MetricsSnapshot, TelemetryRecorder,
-};
+use crate::api::core::telemetry::{global_recorder, HistogramData, MetricsSnapshot};
 use crate::core::stats::GlobalMetrics;
 
 /// Embedded telemetry accessor

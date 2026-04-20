@@ -3,7 +3,7 @@
 //! This module defines the DataSet type and its associated operations.
 //! DataSet is the core data structure for query result representation and data passing.
 
-use oxicoide::{Decode, Encode};
+use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::Hash;

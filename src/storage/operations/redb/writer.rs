@@ -4,7 +4,7 @@ use crate::storage::operations::traits::{EdgeWriter, VertexWriter};
 use crate::transaction::types::OperationLog;
 use crate::transaction::TransactionContext;
 use crate::utils::id_gen::generate_id;
-use oxicoide::{decode_from_slice, encode_to_vec};
+use oxicode::{decode_from_slice, encode_to_vec};
 use redb::{Database, ReadableTable};
 use std::sync::Arc;
 

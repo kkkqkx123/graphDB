@@ -5,7 +5,7 @@
 use crate::core::{StorageError, Value};
 use crate::storage::operations::traits::{EdgeWriter, VertexWriter};
 use crate::transaction::types::OperationLog;
-use oxicoide::decode_from_slice;
+use oxicode::decode_from_slice;
 
 /// Operation logging context trait
 ///
@@ -332,7 +332,7 @@ mod tests {
     use crate::core::vertex_edge_path::Tag;
     use crate::core::{Edge, Vertex};
 
-    use oxicoide::encode_to_vec;
+    use oxicode::encode_to_vec;
     use std::cell::RefCell;
     use std::collections::HashMap;
 

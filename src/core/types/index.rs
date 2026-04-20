@@ -4,7 +4,7 @@
 
 use super::property_trait::PropertyTypeTrait;
 use crate::core::Value;
-use oxicoide::{Decode, Encode};
+use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]

@@ -2,7 +2,7 @@
 //!
 //! Nebula-Graph-compatible null value type definition.
 
-use oxicoide::{Decode, Encode};
+use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 

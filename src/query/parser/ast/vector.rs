@@ -5,7 +5,7 @@
 
 use crate::core::types::span::Span;
 use crate::core::Value;
-use oxicoide::{Decode, Encode};
+use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 // ============================================================================

@@ -3,7 +3,7 @@
 //! This module provides vector types for efficient storage and manipulation of vector data.
 //! Vector types are essential for vector similarity search and embedding operations.
 
-use oxicoide::{Decode, Encode};
+use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 

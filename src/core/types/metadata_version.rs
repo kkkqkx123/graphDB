@@ -1,7 +1,7 @@
 //! Metadata version management type
 
 use crate::core::types::{EdgeTypeInfo, TagInfo};
-use oxicoide::{Decode, Encode};
+use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]

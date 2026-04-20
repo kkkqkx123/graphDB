@@ -1,7 +1,7 @@
 //! Data Modification Type Definition
 
 use crate::core::Value;
-use oxicoide::{Decode, Encode};
+use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]

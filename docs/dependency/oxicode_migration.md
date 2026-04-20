@@ -10,6 +10,7 @@ This document describes the migration from `bincode` to `oxicode` for binary ser
 ## Why Migrate?
 
 OxiCode is the spiritual successor to bincode, offering:
+
 - 100% binary compatibility with bincode format
 - Modern Rust practices and patterns
 - No `unwrap()` policy with comprehensive error handling
@@ -21,19 +22,19 @@ OxiCode is the spiritual successor to bincode, offering:
 
 ### Import Changes
 
-| bincode | oxicoide |
-|---------|----------|
-| `use bincode::{encode_to_vec, decode_from_slice};` | `use oxicoide::{encode_to_vec, decode_from_slice};` |
-| `use bincode::{Decode, Encode};` | `use oxicoide::{Decode, Encode};` |
-| `use bincode::config::standard;` | Not needed (OxiCode uses standard config by default) |
+| bincode                                            | oxicode                                              |
+| -------------------------------------------------- | ---------------------------------------------------- |
+| `use bincode::{encode_to_vec, decode_from_slice};` | `use oxicode::{encode_to_vec, decode_from_slice};`   |
+| `use bincode::{Decode, Encode};`                   | `use oxicode::{Decode, Encode};`                     |
+| `use bincode::config::standard;`                   | Not needed (OxiCode uses standard config by default) |
 
 ### Function Changes
 
-| bincode | oxicoide |
-|---------|----------|
-| `encode_to_vec(value, standard())` | `encode_to_vec(&value)` |
-| `decode_from_slice(bytes, standard())` | `decode_from_slice(bytes)` |
-| Returns `(value, bytes_consumed)` | Returns `Result<value, Error>` |
+| bincode                                | oxicode                        |
+| -------------------------------------- | ------------------------------ |
+| `encode_to_vec(value, standard())`     | `encode_to_vec(&value)`        |
+| `decode_from_slice(bytes, standard())` | `decode_from_slice(bytes)`     |
+| Returns `(value, bytes_consumed)`      | Returns `Result<value, Error>` |
 
 ### Key Differences
 
@@ -45,30 +46,30 @@ OxiCode is the spiritual successor to bincode, offering:
 
 ### Main Project (src/)
 
-| File | Changes |
-|------|---------|
-| `src/transaction/context.rs` | Import and function changes |
-| `src/storage/operations/redb/reader.rs` | Import and function changes |
-| `src/storage/operations/redb/writer.rs` | Import and function changes |
-| `src/storage/operations/rollback.rs` | Import and function changes |
-| `src/storage/metadata/redb_index_metadata_manager.rs` | Import and function changes |
-| `src/storage/metadata/redb_schema_manager.rs` | Import and function changes |
-| `src/storage/metadata/redb_extended_schema.rs` | Import and function changes |
-| `src/storage/entity/vertex_storage.rs` | Import and function changes |
-| `src/storage/entity/edge_storage.rs` | Import and function changes |
-| `src/storage/index/index_key_codec.rs` | Import and function changes |
-| `src/query/parser/ast/fulltext.rs` | Import changes (Decode, Encode derives) |
-| `src/query/parser/ast/vector.rs` | Import changes (Decode, Encode derives) |
-| `src/core/value/*.rs` | Import changes (Decode, Encode derives) |
-| `src/core/types/*.rs` | Import changes (Decode, Encode derives) |
-| `src/query/data_set.rs` | Import changes |
+| File                                                  | Changes                                 |
+| ----------------------------------------------------- | --------------------------------------- |
+| `src/transaction/context.rs`                          | Import and function changes             |
+| `src/storage/operations/redb/reader.rs`               | Import and function changes             |
+| `src/storage/operations/redb/writer.rs`               | Import and function changes             |
+| `src/storage/operations/rollback.rs`                  | Import and function changes             |
+| `src/storage/metadata/redb_index_metadata_manager.rs` | Import and function changes             |
+| `src/storage/metadata/redb_schema_manager.rs`         | Import and function changes             |
+| `src/storage/metadata/redb_extended_schema.rs`        | Import and function changes             |
+| `src/storage/entity/vertex_storage.rs`                | Import and function changes             |
+| `src/storage/entity/edge_storage.rs`                  | Import and function changes             |
+| `src/storage/index/index_key_codec.rs`                | Import and function changes             |
+| `src/query/parser/ast/fulltext.rs`                    | Import changes (Decode, Encode derives) |
+| `src/query/parser/ast/vector.rs`                      | Import changes (Decode, Encode derives) |
+| `src/core/value/*.rs`                                 | Import changes (Decode, Encode derives) |
+| `src/core/types/*.rs`                                 | Import changes (Decode, Encode derives) |
+| `src/query/data_set.rs`                               | Import changes                          |
 
 ### Crates
 
-| Crate | File | Changes |
-|-------|------|---------|
-| `crates/inversearch` | `Cargo.toml` | Replace `bincode` with `oxicode` |
-| `crates/inversearch` | `src/serialize/*.rs` | Import and function changes |
+| Crate                | File                 | Changes                          |
+| -------------------- | -------------------- | -------------------------------- |
+| `crates/inversearch` | `Cargo.toml`         | Replace `bincode` with `oxicode` |
+| `crates/inversearch` | `src/serialize/*.rs` | Import and function changes      |
 
 ## Migration Steps
 
@@ -76,17 +77,17 @@ OxiCode is the spiritual successor to bincode, offering:
 
 ```diff
 - bincode = "1.3"
-+ oxicoide = "0.2.1"
++ oxicode = "0.2.1"
 ```
 
 ### Step 2: Update Imports
 
 ```diff
 - use bincode::{encode_to_vec, decode_from_slice};
-+ use oxicoide::{encode_to_vec, decode_from_slice};
++ use oxicode::{encode_to_vec, decode_from_slice};
 
 - use bincode::{Decode, Encode};
-+ use oxicoide::{Decode, Encode};
++ use oxicode::{Decode, Encode};
 
 - use bincode::config::standard;
 + // Not needed - standard config is default
@@ -113,7 +114,7 @@ OxiCode uses `oxicode::Error` instead of bincode's tuple-based returns:
 let result: Result<(T, usize), _> = decode_from_slice(bytes, standard());
 
 // After (oxicode)
-let result: Result<T, oxicoide::Error> = decode_from_slice(bytes);
+let result: Result<T, oxicode::Error> = decode_from_slice(bytes);
 ```
 
 ## Compatibility Mode
@@ -121,7 +122,7 @@ let result: Result<T, oxicoide::Error> = decode_from_slice(bytes);
 For backward compatibility with existing data, use the legacy configuration:
 
 ```rust
-use oxicoide::config::legacy;
+use oxicode::config::legacy;
 
 let bytes = encode_to_vec(&value, legacy());
 let value = decode_from_slice::<T, _>(&bytes, legacy())?;

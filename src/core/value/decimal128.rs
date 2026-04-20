@@ -21,14 +21,10 @@
 //! Decimal128 operations are slower than native floating-point numbers, but provide accurate decimal calculations.
 //! For scenarios where high precision is not required, the Float type is recommended.
 
-use oxicoide::Encode;
 use dec::Decimal128;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
-
-#[allow(unused_imports)]
-use oxicoide::Decode;
 
 /// Decimal128 Value Wrapper
 ///
@@ -68,31 +64,35 @@ impl<'de> Deserialize<'de> for Decimal128Value {
     }
 }
 
-impl Encode for Decimal128Value {
-    fn encode<E: oxicoide::enc::Encoder>(
+impl oxicode::Encode for Decimal128Value {
+    fn encode<E: oxicode::enc::Encoder>(
         &self,
         encoder: &mut E,
-    ) -> Result<(), oxicoide::error::EncodeError> {
-        let s = self.to_string();
-        s.encode(encoder)
+    ) -> Result<(), oxicode::Error> {
+        let bytes = self.inner.to_ne_bytes();
+        oxicode::Encode::encode(&bytes, encoder)
     }
 }
 
-impl<C> oxicoide::Decode<C> for Decimal128Value {
-    fn decode<D: oxicoide::de::Decoder>(
+impl oxicode::Decode for Decimal128Value {
+    fn decode<D: oxicode::de::Decoder<Context = ()>>(
         decoder: &mut D,
-    ) -> Result<Self, oxicoide::error::DecodeError> {
-        let s: String = oxicoide::Decode::decode(decoder)?;
-        Self::from_str(&s).map_err(oxicode::error::DecodeError::OtherString)
+    ) -> Result<Self, oxicode::Error> {
+        let bytes: [u8; 16] = oxicode::Decode::decode(decoder)?;
+        Ok(Self {
+            inner: Decimal128::from_ne_bytes(bytes),
+        })
     }
 }
 
-impl<'de, C> oxicoide::BorrowDecode<'de, C> for Decimal128Value {
-    fn borrow_decode<D: oxicoide::de::BorrowDecoder<'de>>(
+impl<'de> oxicode::BorrowDecode<'de> for Decimal128Value {
+    fn borrow_decode<D: oxicode::de::BorrowDecoder<'de, Context = ()>>(
         decoder: &mut D,
-    ) -> Result<Self, oxicoide::error::DecodeError> {
-        let s: String = oxicoide::BorrowDecode::borrow_decode(decoder)?;
-        Self::from_str(&s).map_err(oxicode::error::DecodeError::OtherString)
+    ) -> Result<Self, oxicode::Error> {
+        let bytes: [u8; 16] = oxicode::Decode::decode(decoder)?;
+        Ok(Self {
+            inner: Decimal128::from_ne_bytes(bytes),
+        })
     }
 }
 

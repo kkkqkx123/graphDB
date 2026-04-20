@@ -681,27 +681,37 @@ fn test_query_metrics() {
 
 fn create_test_config() -> Config {
     Config {
-        database: graphdb::config::DatabaseConfig {
-            host: "127.0.0.1".to_string(),
-            port: 9669,
-            storage_path: "/tmp/graphdb_test".to_string(),
-            max_connections: 10,
+        common: graphdb::config::CommonConfig {
+            database: graphdb::config::DatabaseConfig {
+                host: "127.0.0.1".to_string(),
+                port: 9669,
+                storage_path: "/tmp/graphdb_test".to_string(),
+                max_connections: 10,
+            },
+            transaction: graphdb::config::TransactionConfig {
+                default_timeout: 30,
+                max_concurrent_transactions: 1000,
+            },
+            log: graphdb::config::LogConfig {
+                level: "info".to_string(),
+                dir: "logs".to_string(),
+                file: "test".to_string(),
+                max_file_size: 100 * 1024 * 1024,
+                max_files: 5,
+            },
+            storage: graphdb::config::StorageConfig::default(),
+            optimizer: graphdb::config::OptimizerConfig::default(),
+            monitoring: graphdb::config::MonitoringConfig::default(),
+
         },
-        transaction: graphdb::config::TransactionConfig {
-            default_timeout: 30,
-            max_concurrent_transactions: 1000,
+        #[cfg(feature = "server")]
+        server: graphdb::config::ServerConfig {
+            auth: graphdb::config::AuthConfig::default(),
+            bootstrap: graphdb::config::BootstrapConfig::default(),
+            ..Default::default()
         },
-        log: graphdb::config::LogConfig {
-            level: "info".to_string(),
-            dir: "logs".to_string(),
-            file: "test".to_string(),
-            max_file_size: 100 * 1024 * 1024,
-            max_files: 5,
-        },
-        auth: graphdb::config::AuthConfig::default(),
-        bootstrap: graphdb::config::BootstrapConfig::default(),
-        optimizer: graphdb::config::OptimizerConfig::default(),
-        monitoring: graphdb::config::MonitoringConfig::default(),
+        #[cfg(feature = "embedded")]
+        embedded: graphdb::config::EmbeddedConfig::default(),
         fulltext: FulltextConfig::default(),
         vector: vector_client::config::VectorClientConfig::default(),
     }
@@ -713,7 +723,7 @@ async fn test_graph_service_creation() {
     let db_path = temp_dir.path().join("graphdb_test");
 
     let mut config = create_test_config();
-    config.database.storage_path = db_path.to_string_lossy().to_string();
+    config.common.database.storage_path = db_path.to_string_lossy().to_string();
 
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
 

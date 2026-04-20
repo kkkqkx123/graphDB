@@ -5,7 +5,7 @@
 
 use crate::core::{StorageError, Value};
 use crate::storage::engine::ByteKey;
-use oxicoide::{decode_from_slice, encode_to_vec};
+use oxicode::{decode_from_slice, encode_to_vec};
 
 /// Index key type identifier
 pub const KEY_TYPE_VERTEX_REVERSE: u8 = 0x01;

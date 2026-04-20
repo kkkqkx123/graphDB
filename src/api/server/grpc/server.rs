@@ -68,10 +68,8 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
 
     async fn login(
         &self,
-        request: Request<LoginRequest>,
+        _request: Request<LoginRequest>,
     ) -> Result<Response<LoginResponse>, Status> {
-        let req = request.into_inner();
-
         // TODO: Implement authentication logic
         // This should integrate with the existing auth service
 
@@ -84,10 +82,8 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
 
     async fn logout(
         &self,
-        request: Request<LogoutRequest>,
+        _request: Request<LogoutRequest>,
     ) -> Result<Response<LogoutResponse>, Status> {
-        let req = request.into_inner();
-
         // TODO: Implement logout logic
 
         Ok(Response::new(LogoutResponse {
@@ -98,10 +94,8 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
 
     async fn create_session(
         &self,
-        request: Request<CreateSessionRequest>,
+        _request: Request<CreateSessionRequest>,
     ) -> Result<Response<CreateSessionResponse>, Status> {
-        let req = request.into_inner();
-
         // TODO: Implement session creation logic
 
         Ok(Response::new(CreateSessionResponse {
@@ -116,13 +110,13 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
         &self,
         request: Request<GetSessionRequest>,
     ) -> Result<Response<GetSessionResponse>, Status> {
-        let req = request.into_inner();
+        let session_id = request.into_inner().session_id;
 
         // TODO: Implement session retrieval logic
 
         Ok(Response::new(GetSessionResponse {
             exists: true,
-            session_id: req.session_id,
+            session_id,
             username: "user".to_string(),
             space_id: 0,
             created_at: 0,
@@ -132,10 +126,8 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
 
     async fn close_session(
         &self,
-        request: Request<CloseSessionRequest>,
+        _request: Request<CloseSessionRequest>,
     ) -> Result<Response<CloseSessionResponse>, Status> {
-        let req = request.into_inner();
-
         // TODO: Implement session close logic
 
         Ok(Response::new(CloseSessionResponse {
@@ -146,10 +138,8 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
 
     async fn execute_query(
         &self,
-        request: Request<ExecuteQueryRequest>,
+        _request: Request<ExecuteQueryRequest>,
     ) -> Result<Response<ExecuteQueryResponse>, Status> {
-        let req = request.into_inner();
-
         // TODO: Implement query execution logic
         // This should integrate with the existing QueryApi
 
@@ -163,10 +153,8 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
 
     async fn validate_query(
         &self,
-        request: Request<ValidateQueryRequest>,
+        _request: Request<ValidateQueryRequest>,
     ) -> Result<Response<ValidateQueryResponse>, Status> {
-        let req = request.into_inner();
-
         // TODO: Implement query validation logic
 
         Ok(Response::new(ValidateQueryResponse {
@@ -178,7 +166,7 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
 
     async fn execute_query_stream(
         &self,
-        request: Request<ExecuteQueryRequest>,
+        _request: Request<ExecuteQueryRequest>,
     ) -> Result<Response<Self::ExecuteQueryStreamStream>, Status> {
         // TODO: Implement streaming query execution
         unimplemented!("Streaming query not yet implemented")
@@ -186,10 +174,8 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
 
     async fn begin_transaction(
         &self,
-        request: Request<BeginTransactionRequest>,
+        _request: Request<BeginTransactionRequest>,
     ) -> Result<Response<BeginTransactionResponse>, Status> {
-        let req = request.into_inner();
-
         // TODO: Implement transaction begin logic
 
         Ok(Response::new(BeginTransactionResponse {
@@ -201,10 +187,8 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
 
     async fn commit_transaction(
         &self,
-        request: Request<CommitTransactionRequest>,
+        _request: Request<CommitTransactionRequest>,
     ) -> Result<Response<CommitTransactionResponse>, Status> {
-        let req = request.into_inner();
-
         // TODO: Implement transaction commit logic
 
         Ok(Response::new(CommitTransactionResponse {
@@ -215,10 +199,8 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
 
     async fn rollback_transaction(
         &self,
-        request: Request<RollbackTransactionRequest>,
+        _request: Request<RollbackTransactionRequest>,
     ) -> Result<Response<RollbackTransactionResponse>, Status> {
-        let req = request.into_inner();
-
         // TODO: Implement transaction rollback logic
 
         Ok(Response::new(RollbackTransactionResponse {
@@ -230,28 +212,28 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
     // Schema Management - Space
     async fn create_space(
         &self,
-        request: Request<CreateSpaceRequest>,
+        _request: Request<CreateSpaceRequest>,
     ) -> Result<Response<CreateSpaceResponse>, Status> {
         unimplemented!("CreateSpace not yet implemented")
     }
 
     async fn get_space(
         &self,
-        request: Request<GetSpaceRequest>,
+        _request: Request<GetSpaceRequest>,
     ) -> Result<Response<GetSpaceResponse>, Status> {
         unimplemented!("GetSpace not yet implemented")
     }
 
     async fn drop_space(
         &self,
-        request: Request<DropSpaceRequest>,
+        _request: Request<DropSpaceRequest>,
     ) -> Result<Response<DropSpaceResponse>, Status> {
         unimplemented!("DropSpace not yet implemented")
     }
 
     async fn list_spaces(
         &self,
-        request: Request<ListSpacesRequest>,
+        _request: Request<ListSpacesRequest>,
     ) -> Result<Response<ListSpacesResponse>, Status> {
         unimplemented!("ListSpaces not yet implemented")
     }
@@ -259,28 +241,28 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
     // Schema Management - Tag
     async fn create_tag(
         &self,
-        request: Request<CreateTagRequest>,
+        _request: Request<CreateTagRequest>,
     ) -> Result<Response<CreateTagResponse>, Status> {
         unimplemented!("CreateTag not yet implemented")
     }
 
     async fn get_tag(
         &self,
-        request: Request<GetTagRequest>,
+        _request: Request<GetTagRequest>,
     ) -> Result<Response<GetTagResponse>, Status> {
         unimplemented!("GetTag not yet implemented")
     }
 
     async fn list_tags(
         &self,
-        request: Request<ListTagsRequest>,
+        _request: Request<ListTagsRequest>,
     ) -> Result<Response<ListTagsResponse>, Status> {
         unimplemented!("ListTags not yet implemented")
     }
 
     async fn drop_tag(
         &self,
-        request: Request<DropTagRequest>,
+        _request: Request<DropTagRequest>,
     ) -> Result<Response<DropTagResponse>, Status> {
         unimplemented!("DropTag not yet implemented")
     }
@@ -288,28 +270,28 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
     // Schema Management - Edge Type
     async fn create_edge_type(
         &self,
-        request: Request<CreateEdgeTypeRequest>,
+        _request: Request<CreateEdgeTypeRequest>,
     ) -> Result<Response<CreateEdgeTypeResponse>, Status> {
         unimplemented!("CreateEdgeType not yet implemented")
     }
 
     async fn get_edge_type(
         &self,
-        request: Request<GetEdgeTypeRequest>,
+        _request: Request<GetEdgeTypeRequest>,
     ) -> Result<Response<GetEdgeTypeResponse>, Status> {
         unimplemented!("GetEdgeType not yet implemented")
     }
 
     async fn list_edge_types(
         &self,
-        request: Request<ListEdgeTypesRequest>,
+        _request: Request<ListEdgeTypesRequest>,
     ) -> Result<Response<ListEdgeTypesResponse>, Status> {
         unimplemented!("ListEdgeTypes not yet implemented")
     }
 
     async fn drop_edge_type(
         &self,
-        request: Request<DropEdgeTypeRequest>,
+        _request: Request<DropEdgeTypeRequest>,
     ) -> Result<Response<DropEdgeTypeResponse>, Status> {
         unimplemented!("DropEdgeType not yet implemented")
     }
@@ -317,35 +299,35 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
     // Batch Operations
     async fn create_batch(
         &self,
-        request: Request<CreateBatchRequest>,
+        _request: Request<CreateBatchRequest>,
     ) -> Result<Response<CreateBatchResponse>, Status> {
         unimplemented!("CreateBatch not yet implemented")
     }
 
     async fn add_batch_items(
         &self,
-        request: Request<AddBatchItemsRequest>,
+        _request: Request<AddBatchItemsRequest>,
     ) -> Result<Response<AddBatchItemsResponse>, Status> {
         unimplemented!("AddBatchItems not yet implemented")
     }
 
     async fn execute_batch(
         &self,
-        request: Request<ExecuteBatchRequest>,
+        _request: Request<ExecuteBatchRequest>,
     ) -> Result<Response<ExecuteBatchResponse>, Status> {
         unimplemented!("ExecuteBatch not yet implemented")
     }
 
     async fn get_batch_status(
         &self,
-        request: Request<GetBatchStatusRequest>,
+        _request: Request<GetBatchStatusRequest>,
     ) -> Result<Response<GetBatchStatusResponse>, Status> {
         unimplemented!("GetBatchStatus not yet implemented")
     }
 
     async fn cancel_batch(
         &self,
-        request: Request<CancelBatchRequest>,
+        _request: Request<CancelBatchRequest>,
     ) -> Result<Response<CancelBatchResponse>, Status> {
         unimplemented!("CancelBatch not yet implemented")
     }
@@ -353,28 +335,28 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
     // Statistics
     async fn get_session_statistics(
         &self,
-        request: Request<GetSessionStatisticsRequest>,
+        _request: Request<GetSessionStatisticsRequest>,
     ) -> Result<Response<GetSessionStatisticsResponse>, Status> {
         unimplemented!("GetSessionStatistics not yet implemented")
     }
 
     async fn get_query_statistics(
         &self,
-        request: Request<GetQueryStatisticsRequest>,
+        _request: Request<GetQueryStatisticsRequest>,
     ) -> Result<Response<GetQueryStatisticsResponse>, Status> {
         unimplemented!("GetQueryStatistics not yet implemented")
     }
 
     async fn get_database_statistics(
         &self,
-        request: Request<GetDatabaseStatisticsRequest>,
+        _request: Request<GetDatabaseStatisticsRequest>,
     ) -> Result<Response<GetDatabaseStatisticsResponse>, Status> {
         unimplemented!("GetDatabaseStatistics not yet implemented")
     }
 
     async fn get_system_statistics(
         &self,
-        request: Request<GetSystemStatisticsRequest>,
+        _request: Request<GetSystemStatisticsRequest>,
     ) -> Result<Response<GetSystemStatisticsResponse>, Status> {
         unimplemented!("GetSystemStatistics not yet implemented")
     }
@@ -382,21 +364,21 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
     // Configuration
     async fn get_config(
         &self,
-        request: Request<GetConfigRequest>,
+        _request: Request<GetConfigRequest>,
     ) -> Result<Response<GetConfigResponse>, Status> {
         unimplemented!("GetConfig not yet implemented")
     }
 
     async fn update_config(
         &self,
-        request: Request<UpdateConfigRequest>,
+        _request: Request<UpdateConfigRequest>,
     ) -> Result<Response<UpdateConfigResponse>, Status> {
         unimplemented!("UpdateConfig not yet implemented")
     }
 
     async fn reset_config(
         &self,
-        request: Request<ResetConfigRequest>,
+        _request: Request<ResetConfigRequest>,
     ) -> Result<Response<ResetConfigResponse>, Status> {
         unimplemented!("ResetConfig not yet implemented")
     }
@@ -404,28 +386,28 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
     // Custom Functions
     async fn register_function(
         &self,
-        request: Request<RegisterFunctionRequest>,
+        _request: Request<RegisterFunctionRequest>,
     ) -> Result<Response<RegisterFunctionResponse>, Status> {
         unimplemented!("RegisterFunction not yet implemented")
     }
 
     async fn unregister_function(
         &self,
-        request: Request<UnregisterFunctionRequest>,
+        _request: Request<UnregisterFunctionRequest>,
     ) -> Result<Response<UnregisterFunctionResponse>, Status> {
         unimplemented!("UnregisterFunction not yet implemented")
     }
 
     async fn list_functions(
         &self,
-        request: Request<ListFunctionsRequest>,
+        _request: Request<ListFunctionsRequest>,
     ) -> Result<Response<ListFunctionsResponse>, Status> {
         unimplemented!("ListFunctions not yet implemented")
     }
 
     async fn get_function_info(
         &self,
-        request: Request<GetFunctionInfoRequest>,
+        _request: Request<GetFunctionInfoRequest>,
     ) -> Result<Response<GetFunctionInfoResponse>, Status> {
         unimplemented!("GetFunctionInfo not yet implemented")
     }
@@ -433,35 +415,35 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
     // Vector Index
     async fn create_vector_index(
         &self,
-        request: Request<CreateVectorIndexRequest>,
+        _request: Request<CreateVectorIndexRequest>,
     ) -> Result<Response<CreateVectorIndexResponse>, Status> {
         unimplemented!("CreateVectorIndex not yet implemented")
     }
 
     async fn get_vector_index(
         &self,
-        request: Request<GetVectorIndexRequest>,
+        _request: Request<GetVectorIndexRequest>,
     ) -> Result<Response<GetVectorIndexResponse>, Status> {
         unimplemented!("GetVectorIndex not yet implemented")
     }
 
     async fn list_vector_indexes(
         &self,
-        request: Request<ListVectorIndexesRequest>,
+        _request: Request<ListVectorIndexesRequest>,
     ) -> Result<Response<ListVectorIndexesResponse>, Status> {
         unimplemented!("ListVectorIndexes not yet implemented")
     }
 
     async fn drop_vector_index(
         &self,
-        request: Request<DropVectorIndexRequest>,
+        _request: Request<DropVectorIndexRequest>,
     ) -> Result<Response<DropVectorIndexResponse>, Status> {
         unimplemented!("DropVectorIndex not yet implemented")
     }
 
     async fn search_vector(
         &self,
-        request: Request<SearchVectorRequest>,
+        _request: Request<SearchVectorRequest>,
     ) -> Result<Response<SearchVectorResponse>, Status> {
         unimplemented!("SearchVector not yet implemented")
     }

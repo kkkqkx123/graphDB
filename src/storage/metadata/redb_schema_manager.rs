@@ -6,7 +6,7 @@ use crate::storage::engine::{
     SPACE_NAME_INDEX_TABLE, TAGS_TABLE, TAG_ID_COUNTER_TABLE, TAG_INDEXES_TABLE,
 };
 use crate::storage::{FieldDef, Schema};
-use oxicoide::{decode_from_slice, encode_to_vec};
+use oxicode::{decode_from_slice, encode_to_vec};
 use redb::{Database, ReadableTable};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
@@ -153,7 +153,7 @@ impl super::SchemaManager for RedbSchemaManager {
 
             match result {
                 Some(id_value) => {
-                    let bytes = id_value.value();
+                    let bytes = id_value.value().0;
                     let array: [u8; 8] = bytes[0..8].try_into().map_err(|_| {
                         StorageError::DbError("ID byte length is less than 8 bytes".to_string())
                     })?;
@@ -213,7 +213,7 @@ impl super::SchemaManager for RedbSchemaManager {
             .get(&name_key)
             .map_err(|e| StorageError::DbError(format!("Failed to query name index: {}", e)))?
         {
-            let id_bytes = id_value.value();
+            let id_bytes = id_value.value().0;
             let space_id = u64::from_be_bytes(id_bytes[0..8].try_into().map_err(|_| {
                 StorageError::DbError("ID byte length is less than 8 bytes".to_string())
             })?);
@@ -336,7 +336,7 @@ impl super::SchemaManager for RedbSchemaManager {
                 .get(&key)
                 .map_err(|e| StorageError::DbError(format!("Failed to query ID counter: {}", e)))?
                 .map(|v| {
-                    let bytes = v.value();
+                    let bytes = v.value().0;
                     u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
                 })
                 .unwrap_or(0);
@@ -404,7 +404,7 @@ impl super::SchemaManager for RedbSchemaManager {
             for result in iter {
                 let (key, value) = result
                     .map_err(|e| StorageError::DbError(format!("Failed to iterate tag: {}", e)))?;
-                let key_bytes = &key.value();
+                let key_bytes = &key.value().0;
                 if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                     let tag: TagInfo = decode_from_slice(&value.value().0)?.0;
                     if tag.tag_name == tag_name {
@@ -469,7 +469,7 @@ impl super::SchemaManager for RedbSchemaManager {
         for result in iter {
             let (key, value) = result
                 .map_err(|e| StorageError::DbError(format!("Failed to iterate tag: {}", e)))?;
-            let key_bytes = &key.value();
+            let key_bytes = &key.value().0;
             if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                 let tag: TagInfo = decode_from_slice(&value.value().0)?.0;
                 if tag.tag_name == tag_name {
@@ -503,7 +503,7 @@ impl super::SchemaManager for RedbSchemaManager {
         for result in iter {
             let (key, value) = result
                 .map_err(|e| StorageError::DbError(format!("Failed to iterate tag: {}", e)))?;
-            let key_bytes = &key.value();
+            let key_bytes = &key.value().0;
             if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                 let tag: TagInfo = decode_from_slice(&value.value().0)?.0;
                 tags.push(tag);
@@ -537,7 +537,7 @@ impl super::SchemaManager for RedbSchemaManager {
             for result in iter {
                 let (key, value) = result
                     .map_err(|e| StorageError::DbError(format!("Failed to iterate tag: {}", e)))?;
-                let key_bytes = &key.value();
+                let key_bytes = &key.value().0;
                 if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                     let existing_tag: TagInfo = decode_from_slice(&value.value().0)?.0;
                     if existing_tag.tag_name == tag.tag_name {
@@ -621,7 +621,7 @@ impl super::SchemaManager for RedbSchemaManager {
                 .get(&key)
                 .map_err(|e| StorageError::DbError(format!("Failed to query ID counter: {}", e)))?
                 .map(|v| {
-                    let bytes = v.value();
+                    let bytes = v.value().0;
                     u64::from_be_bytes([
                         bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6],
                         bytes[7],
@@ -692,7 +692,7 @@ impl super::SchemaManager for RedbSchemaManager {
                 let (key, value) = result.map_err(|e| {
                     StorageError::DbError(format!("Failed to iterate edge type: {}", e))
                 })?;
-                let key_bytes = &key.value();
+                let key_bytes = &key.value().0;
                 if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                     let edge_type: EdgeTypeInfo =
                         decode_from_slice(&value.value().0)?.0;
@@ -763,7 +763,7 @@ impl super::SchemaManager for RedbSchemaManager {
             let (key, value) = result.map_err(|e| {
                 StorageError::DbError(format!("Failed to iterate edge type: {}", e))
             })?;
-            let key_bytes = &key.value();
+            let key_bytes = &key.value().0;
             if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                 let edge_type: EdgeTypeInfo = decode_from_slice(&value.value().0)?.0;
                 if edge_type.edge_type_name == edge_type_name {
@@ -798,7 +798,7 @@ impl super::SchemaManager for RedbSchemaManager {
             let (key, value) = result.map_err(|e| {
                 StorageError::DbError(format!("Failed to iterate edge type: {}", e))
             })?;
-            let key_bytes = &key.value();
+            let key_bytes = &key.value().0;
             if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                 let edge_type: EdgeTypeInfo = decode_from_slice(&value.value().0)?.0;
                 edge_types.push(edge_type);
@@ -837,7 +837,7 @@ impl super::SchemaManager for RedbSchemaManager {
                 let (key, value) = result.map_err(|e| {
                     StorageError::DbError(format!("Failed to iterate edge type: {}", e))
                 })?;
-                let key_bytes = &key.value();
+                let key_bytes = &key.value().0;
                 if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                     let existing_edge: EdgeTypeInfo =
                         decode_from_slice(&value.value().0)?.0;
@@ -924,7 +924,7 @@ impl super::SchemaManager for RedbSchemaManager {
             let key_data = key.value().0.clone();
             let key_str = String::from_utf8_lossy(&key_data);
             if key_str.starts_with(&space_prefix) {
-                let index_bytes = value.value();
+                let index_bytes = value.value().0;
                 let index: Index = decode_from_slice(&index_bytes)?.0;
                 indexes.push(index);
             }
@@ -955,7 +955,7 @@ impl super::SchemaManager for RedbSchemaManager {
             let key_data = key.value().0.clone();
             let key_str = String::from_utf8_lossy(&key_data);
             if key_str.starts_with(&space_prefix) {
-                let index_bytes = value.value();
+                let index_bytes = value.value().0;
                 let index: Index = decode_from_slice(&index_bytes)?.0;
                 indexes.push(index);
             }

@@ -2,262 +2,122 @@
 
 ## Summary
 
-- **Total Errors**: 60
-- **Total Warnings**: 6
-- **Total Issues**: 66
-- **Unique Error Patterns**: 7
-- **Unique Warning Patterns**: 4
-- **Files with Issues**: 41
+- **Total Errors**: 67
+- **Total Warnings**: 12
+- **Total Issues**: 79
+- **Unique Error Patterns**: 9
+- **Unique Warning Patterns**: 6
+- **Files with Issues**: 11
 
 ## Error Statistics
 
-**Total Errors**: 60
+**Total Errors**: 67
 
 ### Error Type Breakdown
 
-- **error[E0432]**: 39 errors
-- **error[E0433]**: 18 errors
-- **error[E0425]**: 3 errors
+- **error[E0560]**: 63 errors
+- **error[E0432]**: 3 errors
+- **error[E0063]**: 1 errors
 
 ### Files with Errors (Top 10)
 
-- `src\core\value\decimal128.rs`: 14 errors
-- `src\core\types\span.rs`: 4 errors
-- `src\core\error\storage.rs`: 4 errors
-- `src\storage\operations\rollback.rs`: 2 errors
-- `src\storage\entity\vertex_storage.rs`: 2 errors
-- `src\storage\operations\redb\reader.rs`: 2 errors
-- `src\storage\entity\edge_storage.rs`: 2 errors
-- `src\core\vertex_edge_path.rs`: 1 errors
-- `src\core\types\cluster.rs`: 1 errors
-- `src\core\types\mod.rs`: 1 errors
+- `tests\integration_logging.rs`: 63 errors
+- `tests\sync_fault_tolerance.rs`: 3 errors
+- `tests\integration_api.rs`: 1 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 6
+**Total Warnings**: 12
 
 ### Warning Type Breakdown
 
-- **warning**: 6 warnings
+- **warning**: 12 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\query\executor\result_processing\transformations\macros.rs`: 3 warnings
-- `src\api\embedded\telemetry.rs`: 1 warnings
-- `src\api\server\grpc\server.rs`: 1 warnings
-- `src\query\cache\plan_cache.rs`: 1 warnings
+- `src\core\stats\slow_query_logger.rs`: 2 warnings
+- `src\config\common\storage.rs`: 2 warnings
+- `src\config\server\security.rs`: 2 warnings
+- `src\core\stats\aggregated_stats.rs`: 2 warnings
+- `src\query\executor\result_processing\transformations\append_vertices.rs`: 1 warnings
+- `src\query\executor\result_processing\transformations\pattern_apply.rs`: 1 warnings
+- `src\query\executor\result_processing\transformations\rollup_apply.rs`: 1 warnings
+- `src\query\executor\result_processing\transformations\unwind.rs`: 1 warnings
 
 ## Detailed Error Categorization
 
-### error[E0432]: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
+### error[E0560]: struct `graphdb::config::Config` has no field named `database`: `graphdb::config::Config` does not have this field
 
-**Total Occurrences**: 39  
-**Unique Files**: 35
+**Total Occurrences**: 63  
+**Unique Files**: 1
 
-#### `src\storage\operations\rollback.rs`: 2 occurrences
+#### `tests\integration_logging.rs`: 63 occurrences
 
-- Line 8: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-- Line 335: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
+- Line 35: struct `graphdb::config::Config` has no field named `database`: `graphdb::config::Config` does not have this field
+- Line 41: struct `graphdb::config::Config` has no field named `transaction`: `graphdb::config::Config` does not have this field
+- Line 45: struct `graphdb::config::Config` has no field named `log`: `graphdb::config::Config` does not have this field
+- ... 60 more occurrences in this file
 
-#### `src\storage\entity\vertex_storage.rs`: 2 occurrences
-
-- Line 603: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-- Line 626: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\storage\entity\edge_storage.rs`: 2 occurrences
-
-- Line 460: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-- Line 491: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\value\decimal128.rs`: 2 occurrences
-
-- Line 24: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-- Line 31: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\types\import_export.rs`: 1 occurrences
-
-- Line 3: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\value\null.rs`: 1 occurrences
-
-- Line 5: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\types\tag.rs`: 1 occurrences
-
-- Line 5: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\types\fulltext_query.rs`: 1 occurrences
-
-- Line 7: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\storage\operations\redb\writer.rs`: 1 occurrences
-
-- Line 7: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\types\metadata_version.rs`: 1 occurrences
-
-- Line 4: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\storage\index\index_key_codec.rs`: 1 occurrences
-
-- Line 8: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\query\parser\ast\fulltext.rs`: 1 occurrences
-
-- Line 9: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\types\schema_change.rs`: 1 occurrences
-
-- Line 4: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\types\user.rs`: 1 occurrences
-
-- Line 3: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\value\value_def.rs`: 1 occurrences
-
-- Line 4: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\types\data_modification.rs`: 1 occurrences
-
-- Line 4: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\api\embedded\c_api\telemetry.rs`: 1 occurrences
-
-- Line 7: unresolved import `crate::api::embedded::c_api::types::GRAPHDB_FREE_STRING`: no `GRAPHDB_FREE_STRING` in `api::embedded::c_api::types`
-
-#### `src\core\vertex_edge_path.rs`: 1 occurrences
-
-- Line 1: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\value\date_time.rs`: 1 occurrences
-
-- Line 5: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\value\geography.rs`: 1 occurrences
-
-- Line 5: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\types\property.rs`: 1 occurrences
-
-- Line 5: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\types\index.rs`: 1 occurrences
-
-- Line 7: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\storage\operations\redb\reader.rs`: 1 occurrences
-
-- Line 5: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\query\parser\ast\vector.rs`: 1 occurrences
-
-- Line 8: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\storage\metadata\redb_index_metadata_manager.rs`: 1 occurrences
-
-- Line 5: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\types\cluster.rs`: 1 occurrences
-
-- Line 3: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\types\mod.rs`: 1 occurrences
-
-- Line 22: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\types\space.rs`: 1 occurrences
-
-- Line 4: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\storage\metadata\redb_extended_schema.rs`: 1 occurrences
-
-- Line 9: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\query\data_set.rs`: 1 occurrences
-
-- Line 6: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\value\list.rs`: 1 occurrences
-
-- Line 5: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\storage\metadata\redb_schema_manager.rs`: 1 occurrences
-
-- Line 9: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\transaction\context.rs`: 1 occurrences
-
-- Line 10: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\value\vector.rs`: 1 occurrences
-
-- Line 6: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-#### `src\core\types\edge.rs`: 1 occurrences
-
-- Line 5: unresolved import `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-### error[E0433]: failed to resolve: use of unresolved module or unlinked crate `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-**Total Occurrences**: 18  
-**Unique Files**: 3
-
-#### `src\core\value\decimal128.rs`: 12 occurrences
-
-- Line 72: failed to resolve: use of unresolved module or unlinked crate `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-- Line 75: failed to resolve: use of unresolved module or unlinked crate `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-- Line 82: failed to resolve: use of unresolved module or unlinked crate `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-- ... 9 more occurrences in this file
-
-#### `src\core\types\span.rs`: 4 occurrences
-
-- Line 92: failed to resolve: use of unresolved module or unlinked crate `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-- Line 93: failed to resolve: use of unresolved module or unlinked crate `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-- Line 23: failed to resolve: use of unresolved module or unlinked crate `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-- ... 1 more occurrences in this file
-
-#### `src\core\error\storage.rs`: 2 occurrences
-
-- Line 84: failed to resolve: use of unresolved module or unlinked crate `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-- Line 90: failed to resolve: use of unresolved module or unlinked crate `oxicoide`: use of unresolved module or unlinked crate `oxicoide`
-
-### error[E0425]: cannot find type `EncodeError` in module `oxicode::error`: not found in `oxicode::error`
+### error[E0432]: unresolved import `graphdb::sync::compensation`: could not find `compensation` in `sync`
 
 **Total Occurrences**: 3  
-**Unique Files**: 2
+**Unique Files**: 1
 
-#### `src\core\error\storage.rs`: 2 occurrences
+#### `tests\sync_fault_tolerance.rs`: 3 occurrences
 
-- Line 83: cannot find type `EncodeError` in module `oxicode::error`: not found in `oxicode::error`
-- Line 89: cannot find type `DecodeError` in module `oxicode::error`: not found in `oxicode::error`
+- Line 169: unresolved import `graphdb::sync::compensation`: could not find `compensation` in `sync`
+- Line 186: unresolved import `graphdb::sync::compensation`: could not find `compensation` in `sync`
+- Line 223: unresolved import `graphdb::sync::compensation`: could not find `compensation` in `sync`
 
-#### `src\storage\operations\redb\reader.rs`: 1 occurrences
+### error[E0063]: missing field `query_resource` in initializer of `graphdb::config::CommonConfig`: missing `query_resource`
 
-- Line 62: cannot find function `standard` in this scope: not found in this scope
+**Total Occurrences**: 1  
+**Unique Files**: 1
+
+#### `tests\integration_api.rs`: 1 occurrences
+
+- Line 684: missing field `query_resource` in initializer of `graphdb::config::CommonConfig`: missing `query_resource`
 
 ## Detailed Warning Categorization
 
-### warning: unused import: `std::sync::atomic::Ordering`
+### warning: this `impl` can be derived
 
-**Total Occurrences**: 6  
-**Unique Files**: 4
+**Total Occurrences**: 12  
+**Unique Files**: 8
 
-#### `src\query\executor\result_processing\transformations\macros.rs`: 3 occurrences
+#### `src\config\common\storage.rs`: 2 occurrences
 
-- Line 7: `crate` references the macro call's crate: help: to reference the macro definition's crate, use: `$crate`
-- Line 53: `crate` references the macro call's crate: help: to reference the macro definition's crate, use: `$crate`
-- Line 98: `crate` references the macro call's crate: help: to reference the macro definition's crate, use: `$crate`
+- Line 16: this `impl` can be derived
+- Line 45: this `impl` can be derived
 
-#### `src\query\cache\plan_cache.rs`: 1 occurrences
+#### `src\core\stats\slow_query_logger.rs`: 2 occurrences
 
-- Line 727: unused import: `std::sync::atomic::Ordering`
+- Line 60: fields `current_file_size` and `current_file_path` are never read
+- Line 371: this loop could be written as a `while let` loop: help: try: `while let Ok(log_entry) = rx.recv() { .. }`
 
-#### `src\api\embedded\telemetry.rs`: 1 occurrences
+#### `src\core\stats\aggregated_stats.rs`: 2 occurrences
 
-- Line 19: unused imports: `TelemetryRecorder` and `init_global_recorder`
+- Line 287: casting to the same type is unnecessary (`f64` -> `f64`): help: try: `self.avg_duration_us`
+- Line 465: manual implementation of `.is_multiple_of()`: help: replace with: `query_num.is_multiple_of((1.0 / sample_rate) as u64)`
 
-#### `src\api\server\grpc\server.rs`: 1 occurrences
+#### `src\config\server\security.rs`: 2 occurrences
 
-- Line 505: unused import: `super::*`
+- Line 20: this `impl` can be derived
+- Line 182: this `impl` can be derived
+
+#### `src\query\executor\result_processing\transformations\append_vertices.rs`: 1 occurrences
+
+- Line 12: unused import: `Executor`
+
+#### `src\query\executor\result_processing\transformations\pattern_apply.rs`: 1 occurrences
+
+- Line 14: unused import: `Executor`
+
+#### `src\query\executor\result_processing\transformations\unwind.rs`: 1 occurrences
+
+- Line 10: unused import: `Executor`
+
+#### `src\query\executor\result_processing\transformations\rollup_apply.rs`: 1 occurrences
+
+- Line 13: unused import: `Executor`
 

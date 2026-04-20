@@ -6,7 +6,7 @@ use crate::storage::engine::{
     ByteKey, CURRENT_VERSIONS_TABLE, SCHEMA_CHANGES_TABLE, SCHEMA_VERSIONS_TABLE,
 };
 use crate::storage::metadata::ExtendedSchemaManager;
-use oxicoide::{decode_from_slice, encode_to_vec};
+use oxicode::{decode_from_slice, encode_to_vec};
 use redb::{Database, ReadableTable};
 use std::sync::Arc;
 
@@ -79,7 +79,7 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
             .map_err(|e| ManagerError::storage_error(e.to_string()))?
         {
             Some(value) => {
-                let bytes = value.value();
+                let bytes = value.value().0;
                 if bytes.len() == 4 {
                     let version = i32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
                     Ok(version)
@@ -223,7 +223,7 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
                     decode_from_slice(&value.value().0)
                         .map_err(|e| {
                             ManagerError::storage_error(format!("Deserialization failed: {}", e))
-                        })?;
+                        })?.0;
                 changes.push(change);
             }
         }
