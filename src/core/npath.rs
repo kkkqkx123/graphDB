@@ -77,13 +77,13 @@ impl NPath {
     ///
     /// Creates a new path node that points to the parent path for prefix sharing.
     ///
-    /// # 参数
+    /// # Parameters
     ///
     /// * `parent` - parent path
     /// * `edge` - the edge that reaches the new vertex
     /// * `vertex` - new vertex
     ///
-    /// # 示例
+    /// # Example
     ///
     /// ```rust,ignore
     /// let extended = Arc::new(NPath::extend(parent, edge, vertex));
@@ -104,7 +104,7 @@ impl NPath {
     ///
     /// Fast detection of loop formation using HashSet, suitable for early pruning in DFS exploration.
     ///
-    /// # 参数
+    /// # Parameters
     ///
     /// * `parent` - 父路径
     /// * `edge` - 到达新顶点的边
@@ -116,7 +116,7 @@ impl NPath {
     /// * `Some(NPath)` - 扩展成功
     /// * `None` - loop detected
     ///
-    /// # 示例
+    /// # Example
     ///
     /// ```rust,ignore
     /// let mut seen = HashSet::new();
@@ -145,11 +145,11 @@ impl NPath {
     ///
     /// Facilitates compatibility with existing interfaces, converting traditional Path to NPath.
     ///
-    /// # 参数
+    /// # Parameters
     ///
     /// * :: `path` -- traditional Path structure
     ///
-    /// # 示例
+    /// # Example
     ///
     /// ```rust,ignore
     /// let npath = NPath::from_path(&path);

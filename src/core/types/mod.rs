@@ -59,6 +59,11 @@ pub enum DataType {
     Vector,
     VectorDense(usize),
     VectorSparse(usize),
+
+    /// JSON text type
+    Json,
+    /// JSONB binary type
+    JsonB,
 }
 
 impl std::fmt::Display for DataType {
@@ -99,6 +104,8 @@ impl std::fmt::Display for DataType {
             DataType::Vector => write!(f, "VECTOR"),
             DataType::VectorDense(n) => write!(f, "VECTOR_DENSE({})", n),
             DataType::VectorSparse(n) => write!(f, "VECTOR_SPARSE({})", n),
+            DataType::Json => write!(f, "JSON"),
+            DataType::JsonB => write!(f, "JSONB"),
         }
     }
 }

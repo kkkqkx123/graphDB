@@ -83,77 +83,77 @@ impl Value {
             }
             (Int8(a), Int8(b)) => {
                 if *b == 0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(Int8(a / b))
                 }
             }
             (Int16(a), Int16(b)) => {
                 if *b == 0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(Int16(a / b))
                 }
             }
             (Int32(a), Int32(b)) => {
                 if *b == 0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(Int32(a / b))
                 }
             }
             (Int64(a), Int64(b)) => {
                 if *b == 0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(Int64(a / b))
                 }
             }
             (UInt8(a), UInt8(b)) => {
                 if *b == 0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(UInt8(a / b))
                 }
             }
             (UInt16(a), UInt16(b)) => {
                 if *b == 0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(UInt16(a / b))
                 }
             }
             (UInt32(a), UInt32(b)) => {
                 if *b == 0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(UInt32(a / b))
                 }
             }
             (UInt64(a), UInt64(b)) => {
                 if *b == 0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(UInt64(a / b))
                 }
             }
             (Float(a), Float(b)) => {
                 if *b == 0.0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(Float(a / b))
                 }
             }
             (Int(a), Float(b)) => {
                 if *b == 0.0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(Float(*a as f64 / b))
                 }
             }
             (Float(a), Int(b)) => {
                 if *b == 0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(Float(a / *b as f64))
                 }
@@ -168,63 +168,63 @@ impl Value {
         match (self, other) {
             (Int(a), Int(b)) => {
                 if *b == 0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(Int(a % b))
                 }
             }
             (Int8(a), Int8(b)) => {
                 if *b == 0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(Int8(a % b))
                 }
             }
             (Int16(a), Int16(b)) => {
                 if *b == 0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(Int16(a % b))
                 }
             }
             (Int32(a), Int32(b)) => {
                 if *b == 0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(Int32(a % b))
                 }
             }
             (Int64(a), Int64(b)) => {
                 if *b == 0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(Int64(a % b))
                 }
             }
             (UInt8(a), UInt8(b)) => {
                 if *b == 0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(UInt8(a % b))
                 }
             }
             (UInt16(a), UInt16(b)) => {
                 if *b == 0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(UInt16(a % b))
                 }
             }
             (UInt32(a), UInt32(b)) => {
                 if *b == 0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(UInt32(a % b))
                 }
             }
             (UInt64(a), UInt64(b)) => {
                 if *b == 0 {
-                    Err("除零错误".to_string())
+                    Err("Division by zero".to_string())
                 } else {
                     Ok(UInt64(a % b))
                 }
@@ -246,28 +246,28 @@ impl Value {
             }
             (Int8(a), Int8(b)) => {
                 if *b < 0 {
-                    Err("负指数不支持整数幂运算".to_string())
+                    Err("Negative exponent not supported for integer power operation".to_string())
                 } else {
                     Ok(Int8(a.pow(*b as u32)))
                 }
             }
             (Int16(a), Int16(b)) => {
                 if *b < 0 {
-                    Err("负指数不支持整数幂运算".to_string())
+                    Err("Negative exponent not supported for integer power operation".to_string())
                 } else {
                     Ok(Int16(a.pow(*b as u32)))
                 }
             }
             (Int32(a), Int32(b)) => {
                 if *b < 0 {
-                    Err("负指数不支持整数幂运算".to_string())
+                    Err("Negative exponent not supported for integer power operation".to_string())
                 } else {
                     Ok(Int32(a.pow(*b as u32)))
                 }
             }
             (Int64(a), Int64(b)) => {
                 if *b < 0 {
-                    Err("负指数不支持整数幂运算".to_string())
+                    Err("Negative exponent not supported for integer power operation".to_string())
                 } else {
                     Ok(Int64(a.pow(*b as u32)))
                 }
@@ -390,64 +390,64 @@ impl Value {
             }
             (Int8(a), Int8(b)) => {
                 if *b < 0 {
-                    Err("左移位数不能为负数".to_string())
+                    Err("Left shift count cannot be negative".to_string())
                 } else if *b >= 8 {
-                    Err("左移位数超出范围".to_string())
+                    Err("Left shift count out of range".to_string())
                 } else {
                     Ok(Int8(a << *b as u32))
                 }
             }
             (Int16(a), Int16(b)) => {
                 if *b < 0 {
-                    Err("左移位数不能为负数".to_string())
+                    Err("Left shift count cannot be negative".to_string())
                 } else if *b >= 16 {
-                    Err("左移位数超出范围".to_string())
+                    Err("Left shift count out of range".to_string())
                 } else {
                     Ok(Int16(a << *b as u32))
                 }
             }
             (Int32(a), Int32(b)) => {
                 if *b < 0 {
-                    Err("左移位数不能为负数".to_string())
+                    Err("Left shift count cannot be negative".to_string())
                 } else if *b >= 32 {
-                    Err("左移位数超出范围".to_string())
+                    Err("Left shift count out of range".to_string())
                 } else {
                     Ok(Int32(a << *b as u32))
                 }
             }
             (Int64(a), Int64(b)) => {
                 if *b < 0 {
-                    Err("左移位数不能为负数".to_string())
+                    Err("Left shift count cannot be negative".to_string())
                 } else if *b >= 64 {
-                    Err("左移位数超出范围".to_string())
+                    Err("Left shift count out of range".to_string())
                 } else {
                     Ok(Int64(a << *b as u32))
                 }
             }
             (UInt8(a), UInt8(b)) => {
                 if *b >= 8 {
-                    Err("左移位数超出范围".to_string())
+                    Err("Left shift count out of range".to_string())
                 } else {
                     Ok(UInt8(a << *b as u32))
                 }
             }
             (UInt16(a), UInt16(b)) => {
                 if *b >= 16 {
-                    Err("左移位数超出范围".to_string())
+                    Err("Left shift count out of range".to_string())
                 } else {
                     Ok(UInt16(a << *b as u32))
                 }
             }
             (UInt32(a), UInt32(b)) => {
                 if *b >= 32 {
-                    Err("左移位数超出范围".to_string())
+                    Err("Left shift count out of range".to_string())
                 } else {
                     Ok(UInt32(a << *b))
                 }
             }
             (UInt64(a), UInt64(b)) => {
                 if *b >= 64 {
-                    Err("左移位数超出范围".to_string())
+                    Err("Left shift count out of range".to_string())
                 } else {
                     Ok(UInt64(a << *b as u32))
                 }
@@ -471,64 +471,64 @@ impl Value {
             }
             (Int8(a), Int8(b)) => {
                 if *b < 0 {
-                    Err("右移位数不能为负数".to_string())
+                    Err("Right shift count cannot be negative".to_string())
                 } else if *b >= 8 {
-                    Err("右移位数超出范围".to_string())
+                    Err("Right shift count out of range".to_string())
                 } else {
                     Ok(Int8(a >> *b as u32))
                 }
             }
             (Int16(a), Int16(b)) => {
                 if *b < 0 {
-                    Err("右移位数不能为负数".to_string())
+                    Err("Right shift count cannot be negative".to_string())
                 } else if *b >= 16 {
-                    Err("右移位数超出范围".to_string())
+                    Err("Right shift count out of range".to_string())
                 } else {
                     Ok(Int16(a >> *b as u32))
                 }
             }
             (Int32(a), Int32(b)) => {
                 if *b < 0 {
-                    Err("右移位数不能为负数".to_string())
+                    Err("Right shift count cannot be negative".to_string())
                 } else if *b >= 32 {
-                    Err("右移位数超出范围".to_string())
+                    Err("Right shift count out of range".to_string())
                 } else {
                     Ok(Int32(a >> *b as u32))
                 }
             }
             (Int64(a), Int64(b)) => {
                 if *b < 0 {
-                    Err("右移位数不能为负数".to_string())
+                    Err("Right shift count cannot be negative".to_string())
                 } else if *b >= 64 {
-                    Err("右移位数超出范围".to_string())
+                    Err("Right shift count out of range".to_string())
                 } else {
                     Ok(Int64(a >> *b as u32))
                 }
             }
             (UInt8(a), UInt8(b)) => {
                 if *b >= 8 {
-                    Err("右移位数超出范围".to_string())
+                    Err("Right shift count out of range".to_string())
                 } else {
                     Ok(UInt8(a >> *b as u32))
                 }
             }
             (UInt16(a), UInt16(b)) => {
                 if *b >= 16 {
-                    Err("右移位数超出范围".to_string())
+                    Err("Right shift count out of range".to_string())
                 } else {
                     Ok(UInt16(a >> *b as u32))
                 }
             }
             (UInt32(a), UInt32(b)) => {
                 if *b >= 32 {
-                    Err("右移位数超出范围".to_string())
+                    Err("Right shift count out of range".to_string())
                 } else {
                     Ok(UInt32(a >> *b))
                 }
             }
             (UInt64(a), UInt64(b)) => {
                 if *b >= 64 {
-                    Err("右移位数超出范围".to_string())
+                    Err("Right shift count out of range".to_string())
                 } else {
                     Ok(UInt64(a >> *b as u32))
                 }

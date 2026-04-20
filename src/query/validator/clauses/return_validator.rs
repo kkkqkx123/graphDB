@@ -1,6 +1,5 @@
 //! Return Statement Validator
 //! Used to validate the RETURN statement (the return clause in Cypher style)
-//! 参考 nebula-graph MatchValidator.cpp 中的 Return 子句验证
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::stmt::{Ast, ReturnItem, ReturnStmt};

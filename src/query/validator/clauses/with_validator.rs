@@ -1,6 +1,5 @@
 //! With the statement validator…
 //! Used to validate WITH statements (Cypher-style pipeline clauses)
-//! 参考 nebula-graph MatchValidator.cpp 中的 With 子句验证
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;

@@ -1,5 +1,4 @@
 //! FIND PATH Statement Validator – New System Version
-//! 对应 NebulaGraph FindPathValidator.h/.cpp 的功能
 //! Verify the validity of the FIND PATH statement.
 
 use std::sync::Arc;

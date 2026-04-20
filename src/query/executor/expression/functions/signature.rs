@@ -37,6 +37,8 @@ pub enum ValueType {
     Duration,
     DataSet,
     Vector,
+    Json,
+    JsonB,
     Empty,
     Any,
 }
@@ -73,6 +75,8 @@ impl ValueType {
             Value::Duration(_) => ValueType::Duration,
             Value::DataSet(_) => ValueType::DataSet,
             Value::Vector(_) => ValueType::Vector,
+            Value::Json(_) => ValueType::Json,
+            Value::JsonB(_) => ValueType::JsonB,
             Value::Empty => ValueType::Empty,
         }
     }
@@ -139,6 +143,8 @@ impl fmt::Display for ValueType {
             ValueType::Duration => write!(f, "DURATION"),
             ValueType::DataSet => write!(f, "DATASET"),
             ValueType::Vector => write!(f, "VECTOR"),
+            ValueType::Json => write!(f, "JSON"),
+            ValueType::JsonB => write!(f, "JSONB"),
             ValueType::Empty => write!(f, "EMPTY"),
             ValueType::Any => write!(f, "ANY"),
         }

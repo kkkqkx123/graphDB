@@ -1,5 +1,4 @@
 //! SET/GET/SHOW statement validator – New system version
-//! 对应 NebulaGraph SetValidator.h/.cpp 的功能
 //! Verify the validity of SET/GET/SHOW statements
 //!
 //! This document has been restructured in accordance with the new trait + enumeration validator framework.

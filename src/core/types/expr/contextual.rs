@@ -53,9 +53,9 @@ impl ContextualExpression {
     ///
     /// This method is used in scenarios where you need to get ownership of an Expression instead of a reference.
     ///
-    /// # 使用限制
-    /// 此方法只能在 Executor 层使用，其他层禁止调用
-    /// 违反此限制将破坏表达式系统的设计原则
+    /// # Restrictions on use
+    /// This method can only be used at the Executor level and is not allowed to be called at any other level.
+    /// Violation of this restriction would undermine the design principles of the expression system
     pub fn into_expression(self) -> Expression {
         self.get_expression()
             .expect("Expression should exist in context")

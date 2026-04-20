@@ -72,6 +72,8 @@ impl TypeUtils {
             DataType::Vector => 180,
             DataType::VectorDense(_) => 181,
             DataType::VectorSparse(_) => 182,
+            DataType::Json => 190,
+            DataType::JsonB => 191,
         }
     }
 
@@ -359,6 +361,8 @@ impl TypeUtils {
             DataType::Vector => "vector".to_string(),
             DataType::VectorDense(dim) => format!("vector_dense({})", dim),
             DataType::VectorSparse(dim) => format!("vector_sparse({})", dim),
+            DataType::Json => "json".to_string(),
+            DataType::JsonB => "jsonb".to_string(),
         }
     }
 

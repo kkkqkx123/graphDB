@@ -147,7 +147,7 @@ impl EdgeDirection {
     }
 
     /// Determine if it is inverted (inbound edge)
-    /// 用于与 Forward/Backward 命名兼容
+    /// For Forward/Backward naming compatibility
     pub fn is_backward(&self) -> bool {
         matches!(self, EdgeDirection::In | EdgeDirection::Both)
     }

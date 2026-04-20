@@ -1,5 +1,4 @@
 //! YIELD clause validator – New system version
-//! 对应 NebulaGraph YieldValidator.h/.cpp 的功能
 //! Verify the expressions in the YIELD clause and the column definitions.
 //!
 //! This document has been restructured in accordance with the new trait + enumeration validator framework.

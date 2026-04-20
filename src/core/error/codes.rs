@@ -254,7 +254,7 @@ impl PublicError {
     pub fn success() -> Self {
         Self {
             code: ErrorCode::Success,
-            message: "成功".to_string(),
+            message: "successes".to_string(),
         }
     }
 }

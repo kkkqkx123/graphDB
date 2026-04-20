@@ -225,5 +225,13 @@ fn value_to_json(value: crate::core::Value) -> serde_json::Value {
             serde_json::Value::Array(arr.into_iter().map(serde_json::Value::Number).collect())
         }
         crate::core::Value::DataSet(ds) => serde_json::json!(ds),
+        crate::core::Value::Json(j) => {
+            // Parse JSON text and convert to serde_json::Value
+            serde_json::from_str(j.as_str()).unwrap_or(serde_json::Value::Null)
+        }
+        crate::core::Value::JsonB(j) => {
+            // JSONB is already parsed, convert back to serde_json::Value
+            j.as_value().clone()
+        }
     }
 }

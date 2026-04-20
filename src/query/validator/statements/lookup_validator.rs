@@ -1,5 +1,4 @@
 //! LOOKUP Statement Validator
-//! 对应 NebulaGraph LookupValidator.h/.cpp 的功能
 //! Verify the validity of the LOOKUP statement.
 
 use std::collections::HashMap;

@@ -1,5 +1,4 @@
 //! Sequential Statement Validator
-//! 对应 NebulaGraph SequentialValidator.h/.cpp 的功能
 //! Verify the validity of multi-statement queries (separated by semicolons).
 //!
 //! This document has been restructured in accordance with the new trait + enumeration validator framework.

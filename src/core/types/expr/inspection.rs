@@ -183,7 +183,7 @@ impl Expression {
         matches!(self, Expression::PathBuild(_))
     }
 
-    /// 检查是否为类型转换表达式
+    /// Check whether it is a type conversion expression
     pub fn is_type_cast(&self) -> bool {
         matches!(self, Expression::TypeCast { .. })
     }
@@ -198,7 +198,7 @@ impl Expression {
         matches!(self, Expression::Reduce { .. })
     }
 
-    /// 获取函数名（如果是函数调用）
+    /// Gets the function name (if it is a function call)
     pub fn as_function_name(&self) -> Option<String> {
         match self {
             Expression::Function { name, .. } => Some(name.clone()),

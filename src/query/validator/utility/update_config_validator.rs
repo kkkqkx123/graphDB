@@ -1,6 +1,5 @@
 //! Update Configs Statement Validator
 //! Used to verify the UPDATE CONFIGS statement
-//! Reference: nebula-graph AdminValidator.cpp SetConfigValidator implementation
 
 use std::sync::Arc;
 

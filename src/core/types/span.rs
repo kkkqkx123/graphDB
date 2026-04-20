@@ -133,11 +133,11 @@ impl Span {
 
     /// Combining two spans
     ///
-    /// # 参数
+    /// # Parameters
     ///
     /// * :: `other` -- another span to be combined
     ///
-    /// # 返回值
+    /// # Return value
     ///
     /// A new span with the start position at the beginning of the current span and the end position at the end of the larger of the two spans
     pub fn merge(&self, other: Span) -> Span {
@@ -318,7 +318,7 @@ mod tests {
     #[test]
     fn test_serde_serialize() {
         let span = Span::new(Position::new(1, 5), Position::new(2, 10));
-        let json = serde_json::to_string(&span).expect("序列化Span应该成功");
+        let json = serde_json::to_string(&span).expect("Serializing Span should succeed");
         assert!(json.contains("start"));
         assert!(json.contains("end"));
     }
@@ -326,7 +326,7 @@ mod tests {
     #[test]
     fn test_serde_deserialize() {
         let json = r#"{"start":{"line":1,"column":5},"end":{"line":2,"column":10}}"#;
-        let span: Span = serde_json::from_str(json).expect("反序列化Span应该成功");
+        let span: Span = serde_json::from_str(json).expect("deserializing Span should succeed");
         assert_eq!(span.start.line, 1);
         assert_eq!(span.end.column, 10);
     }

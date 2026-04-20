@@ -1,5 +1,4 @@
 //! USE Statement Validator – New System Version
-//! 对应 NebulaGraph UseValidator.h/.cpp 的功能
 //! Verify the USE <space> statement
 //!
 //! This document has been restructured in accordance with the new trait + enumeration validator framework.

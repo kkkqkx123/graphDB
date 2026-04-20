@@ -66,6 +66,10 @@ impl MemoryEstimatable for Value {
 
             // DataSet type
             Value::DataSet(ds) => base_size + ds.as_ref().estimated_size(),
+
+            // JSON types
+            Value::Json(j) => base_size + j.estimated_size(),
+            Value::JsonB(j) => base_size + j.estimated_size(),
         }
     }
 }

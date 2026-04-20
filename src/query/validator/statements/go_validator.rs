@@ -1,5 +1,4 @@
 //! GO Statement Validator
-//! 对应 NebulaGraph GoValidator.h/.cpp 的功能
 //! Verify the GO FROM ... OVER ... WHERE ... YIELD ... statement
 
 use std::collections::HashMap;

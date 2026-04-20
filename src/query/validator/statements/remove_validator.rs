@@ -1,6 +1,5 @@
 //! Remove the statement validator.
 //! Used to verify the REMOVE statement (deletion of properties/tagging in Cypher style)
-//! 参考 nebula-graph MutateValidator.cpp 中的删除操作验证
 
 use std::sync::Arc;
 

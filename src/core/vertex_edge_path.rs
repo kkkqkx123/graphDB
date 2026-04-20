@@ -666,7 +666,7 @@ impl Path {
         self.steps.len()
     }
 
-    /// 获取路径长度（步骤数）
+    /// Get path length (number of steps)
     pub fn length(&self) -> usize {
         self.steps.len()
     }

@@ -61,7 +61,7 @@ struct ExpressionMetaSerde {
 impl ExpressionMeta {
     /// Create a new expression metadata wrapper (without location information)
     ///
-    /// # 示例
+    /// # Example
     ///
     /// ```rust
     /// use crate::core::types::{Expression, ExpressionMeta};
@@ -80,7 +80,7 @@ impl ExpressionMeta {
 
     /// Create and set location information
     ///
-    /// # 示例
+    /// # Example
     ///
     /// ```rust
     /// use crate::core::types::{Expression, ExpressionMeta, Span, Position};

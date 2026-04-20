@@ -139,14 +139,10 @@ impl AggregateValidationStrategy {
 
     /// Verify the use of wildcard attribute properties.
     ///
-    /// 根据 nebula-graph 的实现，只有 COUNT 函数允许通配符属性(*)作为参数。
-    ///
     /// Validation rules:
     /// 1. Only check the direct parameters of the aggregate functions (do not recursively check nested expressions).
-    /// 2. 只检查输入属性表达式（$-.prop 或 $var.prop 形式）
+    /// 2. Only check input attribute expressions（$-.prop or $var.prop）
     /// 3. Only the COUNT function allows the use of the wildcard attribute *.
-    ///
-    /// 参考：nebula-3.8.0/src/graph/util/ExpressionUtils.cpp:1199-1220
     fn validate_wildcard_property(
         &self,
         func: &AggregateFunction,

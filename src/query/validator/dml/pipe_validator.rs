@@ -1,5 +1,4 @@
 //! Pipeline Operation Validator
-//! 对应 NebulaGraph PipeValidator.h/.cpp 的功能
 //! Verify the compatibility of the queries before and after being connected by the pipeline operator `|`.
 //!
 //! This document has been restructured according to the new trait + enumeration validator framework.

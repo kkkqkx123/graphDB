@@ -1,5 +1,4 @@
 //! While obtaining the validator – New system version
-//! 对应 NebulaGraph FetchEdgesValidator.h/.cpp 的功能
 //! Verify the FETCH PROP ON ... statement
 //!
 //! This document has been restructured in accordance with the new trait + enumeration validator framework.

@@ -716,6 +716,9 @@ impl CostCalculator {
 
             // Vector type
             Value::Vector(_) => self.config.complex_type_cost_factor * 1.3,
+
+            // JSON types
+            Value::Json(_) | Value::JsonB(_) => self.config.complex_type_cost_factor * 1.2,
         }
     }
 

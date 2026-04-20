@@ -213,7 +213,7 @@ impl ErrorStatsManager {
         let phase_index = query_phase_to_index(phase);
         self.error_by_phase[phase_index].fetch_add(1, Ordering::Relaxed);
 
-        log::warn!("查询错误：type={}, phase={}", error_type, phase);
+        log::warn!("Query error: type={}, phase={}", error_type, phase);
     }
 
     pub fn record_error_with_context(&self, error_info: &ErrorInfo, query_text: Option<String>) {

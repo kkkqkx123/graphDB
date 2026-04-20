@@ -45,6 +45,15 @@ impl PartialEq for Value {
             (Value::Set(a), Value::Set(b)) => a == b,
             (Value::Geography(a), Value::Geography(b)) => a == b,
             (Value::Duration(a), Value::Duration(b)) => a == b,
+            (Value::Json(a), Value::Json(b)) => a == b,
+            (Value::JsonB(a), Value::JsonB(b)) => a == b,
+            // JSON and JSONB can be compared
+            (Value::Json(a), Value::JsonB(b)) => {
+                a.to_value().ok() == Some(b.as_value().clone())
+            }
+            (Value::JsonB(a), Value::Json(b)) => {
+                Some(a.as_value().clone()) == b.to_value().ok()
+            }
 
             // Comparison between integer types: comparison after conversion to i64
             (Value::Int(a), Value::Int8(b)) => *a == *b as i64,
@@ -114,6 +123,23 @@ impl Ord for Value {
             (Value::Set(a), Value::Set(b)) => Self::cmp_set(a, b),
             (Value::Geography(a), Value::Geography(b)) => Self::cmp_geography(a, b),
             (Value::Duration(a), Value::Duration(b)) => Self::cmp_duration(a, b),
+            (Value::Json(a), Value::Json(b)) => {
+                // Compare parsed values
+                match (a.to_value(), b.to_value()) {
+                    (Ok(a_val), Ok(b_val)) => Self::cmp_json_values(&a_val, &b_val),
+                    _ => CmpOrdering::Equal,
+                }
+            }
+            (Value::JsonB(a), Value::JsonB(b)) => a.cmp(b),
+            // Cross-type comparison
+            (Value::Json(a), Value::JsonB(b)) => match a.to_value() {
+                Ok(a_val) => Self::cmp_json_values(&a_val, b.as_value()),
+                _ => CmpOrdering::Equal,
+            },
+            (Value::JsonB(a), Value::Json(b)) => match b.to_value() {
+                Ok(b_val) => Self::cmp_json_values(a.as_value(), &b_val),
+                _ => CmpOrdering::Equal,
+            },
 
             // Comparison between integer types: comparison after conversion to i64
             (Value::Int(a), Value::Int8(b)) => a.cmp(&(*b as i64)),
@@ -270,6 +296,14 @@ impl Hash for Value {
             Value::Duration(d) => {
                 17u8.hash(state);
                 d.hash(state);
+            }
+            Value::Json(j) => {
+                22u8.hash(state);
+                j.hash(state);
+            }
+            Value::JsonB(j) => {
+                23u8.hash(state);
+                j.hash(state);
             }
             Value::DataSet(ds) => {
                 18u8.hash(state);
@@ -517,6 +551,65 @@ impl Value {
             DataType::Geography => 19,
             DataType::DataSet => 20,
             DataType::Vector | DataType::VectorDense(_) | DataType::VectorSparse(_) => 21,
+            DataType::Json => 24,
+            DataType::JsonB => 25,
+        }
+    }
+
+    // JSON value comparison helper function
+    fn cmp_json_values(a: &serde_json::Value, b: &serde_json::Value) -> CmpOrdering {
+        use serde_json::Value as JsonValue;
+
+        // Type priority: Null < Bool < Number < String < Array < Object
+        let type_priority = |v: &JsonValue| match v {
+            JsonValue::Null => 0,
+            JsonValue::Bool(_) => 1,
+            JsonValue::Number(_) => 2,
+            JsonValue::String(_) => 3,
+            JsonValue::Array(_) => 4,
+            JsonValue::Object(_) => 5,
+        };
+
+        let priority_a = type_priority(a);
+        let priority_b = type_priority(b);
+
+        match priority_a.cmp(&priority_b) {
+            CmpOrdering::Equal => match (a, b) {
+                (JsonValue::Null, JsonValue::Null) => CmpOrdering::Equal,
+                (JsonValue::Bool(a), JsonValue::Bool(b)) => a.cmp(b),
+                (JsonValue::Number(a), JsonValue::Number(b)) => {
+                    // Try comparing as integers, otherwise as floats
+                    if let (Some(a_i), Some(b_i)) = (a.as_i64(), b.as_i64()) {
+                        a_i.cmp(&b_i)
+                    } else if let (Some(a_f), Some(b_f)) = (a.as_f64(), b.as_f64()) {
+                        a_f.partial_cmp(&b_f).unwrap_or(CmpOrdering::Equal)
+                    } else {
+                        a.to_string().cmp(&b.to_string())
+                    }
+                }
+                (JsonValue::String(a), JsonValue::String(b)) => a.cmp(b),
+                (JsonValue::Array(a), JsonValue::Array(b)) => a
+                    .iter()
+                    .zip(b.iter())
+                    .map(|(x, y)| Self::cmp_json_values(x, y))
+                    .find(|&ord| ord != CmpOrdering::Equal)
+                    .unwrap_or_else(|| a.len().cmp(&b.len())),
+                (JsonValue::Object(a), JsonValue::Object(b)) => {
+                    let a_keys: Vec<_> = a.keys().collect();
+                    let b_keys: Vec<_> = b.keys().collect();
+
+                    match a_keys.cmp(&b_keys) {
+                        CmpOrdering::Equal => a_keys
+                            .iter()
+                            .map(|k| Self::cmp_json_values(&a[*k], &b[*k]))
+                            .find(|&ord| ord != CmpOrdering::Equal)
+                            .unwrap_or(CmpOrdering::Equal),
+                        other => other,
+                    }
+                }
+                _ => CmpOrdering::Equal, // Different types already handled by priority
+            },
+            other => other,
         }
     }
 }

@@ -1,5 +1,4 @@
 //! LIMIT clause validator
-//! 对应 NebulaGraph LimitValidator.h/.cpp 的功能
 //! Verify the expressions of the LIMIT and SKIP clauses.
 
 use crate::core::error::{ValidationError, ValidationErrorType};

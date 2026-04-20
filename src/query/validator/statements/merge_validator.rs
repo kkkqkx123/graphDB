@@ -1,6 +1,5 @@
 //! Merge Statement Validator
 //! Used to validate MERGE statements (Cypher-style pattern creation/matching)
-//! 参考 nebula-graph MaintainValidator.cpp 中的 MergeZoneValidator 实现
 
 use std::sync::Arc;
 

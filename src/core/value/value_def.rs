@@ -6,6 +6,7 @@ use crate::core::{
         date_time::{DateTimeValue, DateValue, DurationValue, TimeValue},
         decimal128::Decimal128Value,
         geography::GeographyValue,
+        json::{Json, JsonB, JsonError},
         list::List,
         null::NullType,
         vector::VectorValue,
@@ -59,6 +60,11 @@ pub enum Value {
     Duration(DurationValue),
     Vector(VectorValue),
     DataSet(Box<DataSet>),
+
+    /// JSON type (text format)
+    Json(Box<Json>),
+    /// JSONB type (binary format)
+    JsonB(Box<JsonB>),
 }
 
 impl Value {
@@ -95,6 +101,8 @@ impl Value {
             Value::Duration(_) => DataType::Duration,
             Value::Vector(_) => DataType::Vector,
             Value::DataSet(_) => DataType::DataSet,
+            Value::Json(_) => DataType::Json,
+            Value::JsonB(_) => DataType::JsonB,
         }
     }
 
@@ -283,7 +291,24 @@ impl Value {
             Value::Duration(d) => std::mem::size_of::<Self>() + d.estimated_size(),
             Value::Vector(v) => std::mem::size_of::<Self>() + v.estimated_size(),
             Value::DataSet(ds) => std::mem::size_of::<Self>() + ds.estimated_size(),
+            Value::Json(j) => std::mem::size_of::<Self>() + j.estimated_size(),
+            Value::JsonB(j) => std::mem::size_of::<Self>() + j.estimated_size(),
         }
+    }
+
+    /// Create JSON value
+    pub fn json(text: &str) -> Result<Self, JsonError> {
+        Ok(Value::Json(Box::new(Json::from_str(text)?)))
+    }
+
+    /// Create JSONB value
+    pub fn jsonb(text: &str) -> Result<Self, JsonError> {
+        Ok(Value::JsonB(Box::new(JsonB::from_str(text)?)))
+    }
+
+    /// Create JSON value from serde_json::Value
+    pub fn from_json_value(value: serde_json::Value) -> Self {
+        Value::JsonB(Box::new(JsonB::from_value(value)))
     }
 }
 
@@ -383,12 +408,12 @@ impl std::fmt::Display for Value {
                 }
                 write!(f, "}}")
             }
-            Value::Geography(g) => {
-                write!(f, "Geography(lat: {}, lon: {})", g.latitude, g.longitude)
-            }
+            Value::Geography(g) => write!(f, "Geography(lat: {}, lon: {})", g.latitude, g.longitude),
             Value::Duration(d) => write!(f, "Duration({:?})", d),
             Value::Vector(v) => write!(f, "{}", v),
             Value::DataSet(ds) => write!(f, "DataSet({} rows)", ds.row_count()),
+            Value::Json(j) => write!(f, "Json({})", j.as_str()),
+            Value::JsonB(j) => write!(f, "JsonB({})", j.to_json_string()),
         }
     }
 }

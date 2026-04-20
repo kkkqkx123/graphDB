@@ -327,21 +327,21 @@ impl AggregateFunction {
 
     pub fn description(&self) -> &str {
         match self {
-            AggregateFunction::Count(_) => "计算数量",
-            AggregateFunction::Sum(_) => "计算总和",
-            AggregateFunction::Avg(_) => "计算平均值",
-            AggregateFunction::Min(_) => "计算最小值",
-            AggregateFunction::Max(_) => "计算最大值",
-            AggregateFunction::Collect(_) => "收集所有值",
-            AggregateFunction::CollectSet(_) => "收集唯一值",
-            AggregateFunction::Distinct(_) => "去重",
-            AggregateFunction::Percentile(_, _) => "计算百分位数",
-            AggregateFunction::Std(_) => "计算标准差",
-            AggregateFunction::BitAnd(_) => "按位与",
-            AggregateFunction::BitOr(_) => "按位或",
-            AggregateFunction::GroupConcat(_, _) => "分组连接",
-            AggregateFunction::VecSum(_) => "计算向量逐元素总和",
-            AggregateFunction::VecAvg(_) => "计算向量逐元素平均值",
+            AggregateFunction::Count(_) => "Calculated quantity",
+            AggregateFunction::Sum(_) => "Calculate the sum",
+            AggregateFunction::Avg(_) => "Calculation of average values",
+            AggregateFunction::Min(_) => "Calculate minimum",
+            AggregateFunction::Max(_) => "Calculate the maximum value",
+            AggregateFunction::Collect(_) => "Collect all values",
+            AggregateFunction::CollectSet(_) => "Collection of unique values",
+            AggregateFunction::Distinct(_) => "deduplication",
+            AggregateFunction::Percentile(_, _) => "Calculation of percentile",
+            AggregateFunction::Std(_) => "calculate the standard deviation",
+            AggregateFunction::BitAnd(_) => "compatibility with",
+            AggregateFunction::BitOr(_) => "bitwise OR",
+            AggregateFunction::GroupConcat(_, _) => "packet connection",
+            AggregateFunction::VecSum(_) => "Calculate the element-by-element sum of vector",
+            AggregateFunction::VecAvg(_) => "Calculate the element-by-element average of the vector",
         }
     }
 }

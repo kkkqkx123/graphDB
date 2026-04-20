@@ -13,12 +13,14 @@
 //! - `date_time` - Date and time types
 //! - `decimal128` - Decimal128 high-precision numeric
 //! - `geography` - Geospatial types
+//! - `json` - JSON/JSONB types
 //! - `memory` - Memory estimation
 
 #[allow(non_snake_case)]
 pub mod date_time;
 pub mod decimal128;
 pub mod geography;
+pub mod json;
 pub mod list;
 pub mod memory;
 pub mod null;
@@ -32,6 +34,7 @@ pub mod vector;
 pub use date_time::{DateTimeValue, DateValue, DurationValue, TimeValue};
 pub use decimal128::Decimal128Value;
 pub use geography::GeographyValue;
+pub use json::{Json, JsonB, JsonError};
 pub use list::List;
 pub use null::NullType;
 pub use value_def::Value;
