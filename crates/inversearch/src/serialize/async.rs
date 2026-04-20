@@ -6,7 +6,7 @@ use crate::async_::AsyncIndex;
 use crate::error::Result;
 use crate::serialize::types::{IndexExportData, SerializeConfig};
 use oxicode::config::standard;
-use oxicode::serde::{decode_from_slice, Compat};
+use oxicode::serde::decode_from_slice;
 
 /// 异步序列化器
 pub struct AsyncSerializer {

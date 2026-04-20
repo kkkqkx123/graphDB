@@ -5,12 +5,8 @@
 use crate::core::error::CoordinatorError;
 use crate::core::Value;
 use crate::search::SyncConfig;
-use crate::sync::batch::BatchConfig;
-use crate::sync::compensation::{CompensationManager, CompensationStats};
 use crate::sync::coordinator::{ChangeType, SyncCoordinator};
-use crate::sync::recovery::RecoveryManager;
 use crate::sync::vector_sync::VectorSyncCoordinator;
-use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -21,13 +17,9 @@ pub struct SyncManager {
     sync_coordinator: Arc<SyncCoordinator>,
     vector_coordinator: Option<Arc<VectorSyncCoordinator>>,
     running: Arc<std::sync::atomic::AtomicBool>,
-    recovery: Option<Arc<RecoveryManager>>,
-    compensation_manager: Option<Arc<CompensationManager>>,
     dead_letter_queue: Option<Arc<crate::sync::DeadLetterQueue>>,
     #[allow(clippy::type_complexity)]
     handle: Mutex<Option<tokio::task::JoinHandle<()>>>,
-    #[allow(clippy::type_complexity)]
-    compensation_handle: Mutex<Option<tokio::task::JoinHandle<()>>>,
 }
 
 impl Clone for SyncManager {
@@ -36,11 +28,8 @@ impl Clone for SyncManager {
             sync_coordinator: self.sync_coordinator.clone(),
             vector_coordinator: self.vector_coordinator.clone(),
             running: self.running.clone(),
-            recovery: self.recovery.clone(),
-            compensation_manager: self.compensation_manager.clone(),
             dead_letter_queue: self.dead_letter_queue.clone(),
-            handle: Mutex::new(None),              // No cloning handle
-            compensation_handle: Mutex::new(None), // No cloning handle
+            handle: Mutex::new(None),
         }
     }
 }
@@ -51,7 +40,6 @@ impl std::fmt::Debug for SyncManager {
             .field("sync_coordinator", &self.sync_coordinator)
             .field("vector_coordinator", &self.vector_coordinator)
             .field("running", &self.running)
-            .field("recovery", &self.recovery)
             .finish_non_exhaustive()
     }
 }
@@ -62,11 +50,8 @@ impl SyncManager {
             sync_coordinator,
             vector_coordinator: None,
             running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            recovery: None,
-            compensation_manager: None,
             dead_letter_queue: None,
             handle: Mutex::new(None),
-            compensation_handle: Mutex::new(None),
         }
     }
 
@@ -83,33 +68,6 @@ impl SyncManager {
         _sync_config: SyncConfig,
     ) -> Self {
         Self::new(sync_coordinator)
-    }
-
-    pub fn with_recovery(
-        sync_coordinator: Arc<SyncCoordinator>,
-        _config: BatchConfig,
-        data_dir: PathBuf,
-    ) -> Self {
-        let recovery = Arc::new(RecoveryManager::new(data_dir));
-
-        Self {
-            sync_coordinator,
-            vector_coordinator: None,
-            running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            recovery: Some(recovery),
-            compensation_manager: None,
-            dead_letter_queue: None,
-            handle: Mutex::new(None),
-            compensation_handle: Mutex::new(None),
-        }
-    }
-
-    pub fn with_compensation_manager(
-        mut self,
-        compensation_manager: Arc<CompensationManager>,
-    ) -> Self {
-        self.compensation_manager = Some(compensation_manager);
-        self
     }
 
     pub fn with_dead_letter_queue(
@@ -131,22 +89,6 @@ impl SyncManager {
         // Start background tasks in the coordinator
         self.sync_coordinator.start_background_tasks().await;
 
-        // Start recovery manager if present
-        if let Some(ref recovery) = self.recovery {
-            recovery.start().await?;
-        }
-
-        // Start compensation manager if present
-        if let Some(ref compensation_manager) = self.compensation_manager {
-            let compensation_handle = compensation_manager
-                .clone()
-                .start_background_task(std::time::Duration::from_secs(60))
-                .await;
-
-            *self.compensation_handle.lock().await = Some(compensation_handle);
-            log::info!("Compensation manager started with automatic compensation enabled");
-        }
-
         Ok(())
     }
 
@@ -157,24 +99,9 @@ impl SyncManager {
         // Stop background tasks in the coordinator
         self.sync_coordinator.stop_background_tasks().await;
 
-        // Stop recovery manager if present
-        if let Some(ref recovery) = self.recovery {
-            recovery.stop().await;
-        }
-
-        // Stop compensation manager if present
-        if let Some(ref compensation_manager) = self.compensation_manager {
-            compensation_manager.stop();
-        }
-
         // Wait for handle to complete
         if let Some(handle) = self.handle.lock().await.take() {
             let _ = handle.await;
-        }
-
-        // Wait for compensation handle to complete
-        if let Some(comp_handle) = self.compensation_handle.lock().await.take() {
-            let _ = comp_handle.await;
         }
     }
 
@@ -298,22 +225,14 @@ impl SyncManager {
         let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
             space_id,
             edge_type,
-            "_id", // Use special field names to identify edges
+            "_id",
             ChangeType::Delete,
             format!("{}->{}", src, dst),
-            String::new(), // No text content is required when deleting
+            String::new(),
         );
         self.sync_coordinator
             .buffer_operation(txn_id, ctx)
             .map_err(SyncError::from)?;
-
-        // Buffer vector index deletions for all vector fields
-        if self.vector_coordinator.is_some() {
-            // Get all vector index locations for this edge type
-            // Note: In actual implementation, you may need to query metadata
-            // to determine which fields have vector indexes
-            // For now, we'll use a simplified approach
-        }
 
         Ok(())
     }
@@ -339,7 +258,6 @@ impl SyncManager {
             return Ok(());
         }
 
-        // Direct synchronous processing
         if let Some(ref vector_coord) = self.vector_coordinator {
             vector_coord
                 .on_vector_change(ctx)
@@ -467,17 +385,6 @@ impl SyncManager {
         }
     }
 
-    /// Manually trigger compensation for all unrecovered entries
-    pub async fn trigger_compensation(&self) -> Result<CompensationStats, SyncError> {
-        if let Some(ref compensation_manager) = self.compensation_manager {
-            Ok(compensation_manager.process_dead_letter_queue().await)
-        } else {
-            Err(SyncError::Internal(
-                "Compensation manager not initialized".to_string(),
-            ))
-        }
-    }
-
     /// Get dead letter queue size
     pub fn get_dlq_size(&self) -> usize {
         if let Some(ref dlq) = self.dead_letter_queue {
@@ -583,9 +490,6 @@ pub enum SyncError {
 
     #[error("Sync coordinator error: {0}")]
     SyncCoordinatorError(#[from] crate::sync::coordinator::SyncCoordinatorError),
-
-    #[error("Recovery error: {0}")]
-    RecoveryError(#[from] crate::sync::recovery::RecoveryError),
 
     #[error("Buffer error: {0}")]
     BufferError(String),

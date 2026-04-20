@@ -9,7 +9,6 @@ use crate::search::manager::FulltextIndexManager;
 use crate::sync::batch::{
     BatchConfig, BatchProcessor, GenericBatchProcessor, TransactionBatchBuffer, TransactionBuffer,
 };
-use crate::sync::compensation::CompensationManager;
 use crate::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
 use crate::sync::external_index::{
     FulltextClient, IndexData, IndexKey, IndexOperation, VectorClient,
@@ -30,7 +29,6 @@ pub struct SyncCoordinator {
     config: BatchConfig,
     metrics: Arc<SyncMetrics>,
     dead_letter_queue: Arc<DeadLetterQueue>,
-    compensation_manager: Option<Arc<CompensationManager>>,
 }
 
 impl std::fmt::Debug for SyncCoordinator {
@@ -48,9 +46,6 @@ impl SyncCoordinator {
         let metrics = Arc::new(SyncMetrics::new());
         let dead_letter_queue = Arc::new(DeadLetterQueue::new(DeadLetterQueueConfig::default()));
 
-        let compensation_manager =
-            CompensationManager::new(dead_letter_queue.clone(), metrics.clone());
-
         Self {
             fulltext_manager,
             vector_manager: None,
@@ -60,7 +55,6 @@ impl SyncCoordinator {
             config,
             metrics,
             dead_letter_queue,
-            compensation_manager: Some(Arc::new(compensation_manager)),
         }
     }
 
@@ -78,10 +72,6 @@ impl SyncCoordinator {
 
     pub fn dead_letter_queue(&self) -> &Arc<DeadLetterQueue> {
         &self.dead_letter_queue
-    }
-
-    pub fn compensation_manager(&self) -> Option<&Arc<CompensationManager>> {
-        self.compensation_manager.as_ref()
     }
 
     pub fn fulltext_manager(&self) -> &Arc<FulltextIndexManager> {
@@ -704,7 +694,6 @@ impl SyncCoordinator {
         if self.dead_letter_queue.is_auto_cleanup_enabled() {
             let dlq = self.dead_letter_queue.clone();
             let interval = self.dead_letter_queue.get_cleanup_interval();
-            let _metrics = self.metrics.clone();
 
             tokio::spawn(async move {
                 log::info!(
@@ -720,17 +709,6 @@ impl SyncCoordinator {
                     }
                 }
             });
-        }
-
-        // Start the compensation background task (if Compensation Manager is enabled)
-        if let Some(compensation_manager) = &self.compensation_manager {
-            let cm_clone = compensation_manager.clone();
-            tokio::spawn(async move {
-                cm_clone
-                    .start_background_task(Duration::from_secs(60))
-                    .await;
-            });
-            log::info!("Started compensation background task");
         }
 
         // Initiate an automatic cleanup task for the dead letter queue
@@ -766,8 +744,6 @@ impl SyncCoordinator {
             let processor: &Arc<VectorProcessor> = entry.value();
             processor.stop_background_task().await;
         }
-
-        // Note: Compensation and cleanup tasks are tokio::spawn and are automatically stopped when the coordinator is destroyed.
 
         log::info!("All background tasks stopped");
     }

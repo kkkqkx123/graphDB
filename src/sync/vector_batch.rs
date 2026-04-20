@@ -6,7 +6,8 @@
 //! - Configurable batch size and timeout
 
 use crate::search::SyncFailurePolicy;
-use crate::sync::vector_sync::{VectorChangeType, VectorSyncCoordinator};
+use crate::sync::vector_sync::VectorSyncCoordinator;
+use crate::sync::vector_types::VectorChangeType;
 use crate::transaction::types::TransactionId;
 use dashmap::DashMap;
 use std::collections::HashMap;

@@ -12,6 +12,7 @@ use crate::core::error::{VectorCoordinatorError, VectorCoordinatorResult};
 use crate::core::{Value, Vertex};
 pub use crate::sync::task::VectorPointData;
 pub use crate::sync::vector_batch::{VectorBatchConfig, VectorBatchManager};
+pub use crate::sync::vector_types::VectorChangeType;
 
 use vector_client::{
     EmbeddingService, SearchQuery, SearchResult, VectorFilter, VectorManager, VectorPoint,
@@ -56,22 +57,6 @@ impl SearchOptions {
     pub fn with_filter(mut self, filter: VectorFilter) -> Self {
         self.filter = Some(filter);
         self
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum VectorChangeType {
-    Insert,
-    Delete,
-}
-
-impl From<crate::sync::coordinator::ChangeType> for VectorChangeType {
-    fn from(ct: crate::sync::coordinator::ChangeType) -> Self {
-        match ct {
-            crate::sync::coordinator::ChangeType::Insert => VectorChangeType::Insert,
-            crate::sync::coordinator::ChangeType::Delete => VectorChangeType::Delete,
-            _ => VectorChangeType::Delete,
-        }
     }
 }
 

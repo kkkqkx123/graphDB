@@ -254,11 +254,10 @@ impl PersistenceManager {
 
     /// 序列化索引
     fn serialize_index(&self, index: &Index) -> Result<Vec<u8>> {
-        // 使用 serialize 模块的功能
         use crate::serialize::IndexExportData;
         
         let export_data = IndexExportData::from_index(index)?;
-        let data = encode_to_vec(&export_data)
+        let data = encode_to_vec(&export_data, standard())
             .map_err(|e| crate::error::InversearchError::Serialization(e.to_string()))?;
         
         Ok(data)
@@ -268,7 +267,7 @@ impl PersistenceManager {
     fn deserialize_index(&self, index: &mut Index, data: &[u8]) -> Result<()> {
         use crate::serialize::IndexExportData;
         
-        let export_data: IndexExportData = decode_from_slice(data)
+        let (export_data, _): (IndexExportData, usize) = decode_from_slice(data, standard())
             .map_err(|e| crate::error::InversearchError::Deserialization(e.to_string()))?;
         
         export_data.apply_to_index(index)?;

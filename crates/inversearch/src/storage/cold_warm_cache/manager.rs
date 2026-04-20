@@ -568,7 +568,7 @@ impl ColdWarmCacheManager {
                     .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?;
                 decompressed_data
             } else {
-                file_data
+                file_data.into()
             };
             self.stats.cold_hit.fetch_add(1, Ordering::Relaxed);
             self.promote_to_hot(index_name, data.clone()).await?;
