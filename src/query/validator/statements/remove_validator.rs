@@ -39,7 +39,7 @@ impl RemoveValidator {
     fn validate_remove_item(&self, item: &ContextualExpression) -> Result<(), ValidationError> {
         let expr_meta = item.expression().ok_or_else(|| {
             ValidationError::new(
-                "移除项表达式无效".to_string(),
+                "Remove item expression is invalid".to_string(),
                 ValidationErrorType::SemanticError,
             )
         })?;
@@ -55,7 +55,7 @@ impl RemoveValidator {
         use crate::core::types::expr::Expression;
 
         match item {
-            // 移除属性: REMOVE n.property
+            // Remove property: REMOVE n.property
             Expression::Property { object, property } => {
                 self.validate_property_access_internal(object, property)
             }

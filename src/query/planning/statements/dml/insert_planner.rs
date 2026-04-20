@@ -44,7 +44,7 @@ impl InsertPlanner {
         match stmt {
             Stmt::Insert(insert_stmt) => Ok(insert_stmt.clone()),
             _ => Err(PlannerError::PlanGenerationFailed(
-                "语句不是 INSERT 语句".to_string(),
+                "statement is not an INSERT statement".to_string(),
             )),
         }
     }
@@ -133,12 +133,12 @@ impl Planner for InsertPlanner {
         // Check the semantic information.
         let referenced_tags = &validation_info.semantic_info.referenced_tags;
         if !referenced_tags.is_empty() {
-            log::debug!("INSERT 引用的标签: {:?}", referenced_tags);
+            log::debug!("INSERT references the tag: {:?}", referenced_tags);
         }
 
         let referenced_edges = &validation_info.semantic_info.referenced_edges;
         if !referenced_edges.is_empty() {
-            log::debug!("INSERT 引用的边类型: {:?}", referenced_edges);
+            log::debug!("INSERT referenced edge type: {:?}", referenced_edges);
         }
 
         // Extract the INSERT statement
@@ -314,7 +314,7 @@ mod tests {
         });
         let result = planner.extract_insert_stmt(&stmt);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("不是 INSERT 语句"));
+        assert!(result.unwrap_err().to_string().contains("Not an INSERT statement"));
     }
 
     #[test]

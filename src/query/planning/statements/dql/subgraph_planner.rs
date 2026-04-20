@@ -45,7 +45,7 @@ impl Planner for SubgraphPlanner {
             Stmt::Subgraph(subgraph_stmt) => subgraph_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(
-                    "SubgraphPlanner 需要 Subgraph 语句".to_string(),
+                    "SubgraphPlanner requires the Subgraph statement.".to_string(),
                 ));
             }
         };
@@ -61,7 +61,7 @@ impl Planner for SubgraphPlanner {
             Steps::Range { min, max } => (*min, *max),
             Steps::Variable(_) => {
                 return Err(PlannerError::InvalidOperation(
-                    "SUBGRAPH 不支持变量步数".to_string(),
+                    "SUBGRAPH does not support variable steps".to_string(),
                 ));
             }
         };

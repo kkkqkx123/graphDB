@@ -44,7 +44,7 @@ impl Planner for PathPlanner {
             Stmt::FindPath(find_path_stmt) => find_path_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(
-                    "PathPlanner 需要 FindPath 语句".to_string(),
+                    "PathPlanner requires the FindPath statement.".to_string(),
                 ));
             }
         };

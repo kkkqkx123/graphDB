@@ -178,7 +178,7 @@ impl crate::query::planning::plan::core::nodes::base::plan_node_traits::Multiple
             self.deps.remove(index);
             Ok(())
         } else {
-            Err(format!("索引 {} 超出范围", index))
+            Err(format!("Index {} Out of range", index))
         }
     }
 }

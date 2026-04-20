@@ -284,7 +284,7 @@ impl AggregatedQueryStats {
 
     /// Get average duration in milliseconds
     pub fn avg_duration_ms(&self) -> f64 {
-        self.avg_duration_us as f64 / 1000.0
+        self.avg_duration_us / 1000.0
     }
 
     /// Get p95 duration in milliseconds
@@ -462,7 +462,7 @@ impl AggregatedStatsManager {
 
         // Simple deterministic sampling based on query count
         let query_num = self.total_queries.load(Ordering::Relaxed);
-        (query_num % (1.0 / sample_rate) as u64) == 0
+        query_num.is_multiple_of((1.0 / sample_rate) as u64)
     }
 
     /// Evict oldest patterns when limit exceeded
@@ -755,9 +755,11 @@ mod tests {
 
     #[test]
     fn test_adaptive_sampling() {
-        let mut config = AggregatedStatsConfig::default();
-        config.high_load_threshold_qps = 10; // Low threshold for testing
-        config.sampling_rate = 0.5;
+        let config = AggregatedStatsConfig {
+            high_load_threshold_qps: 10, // Low threshold for testing
+            sampling_rate: 0.5,
+            ..AggregatedStatsConfig::default()
+        };
 
         let manager = AggregatedStatsManager::with_config(config);
 
@@ -779,7 +781,7 @@ mod tests {
         // With 50% sampling rate and high load, should sample roughly 50%
         // Allow wider range due to deterministic sampling
         assert!(
-            sampled >= 20 && sampled <= 80,
+            (20..=80).contains(&sampled),
             "Expected ~50% sampling, got {}%",
             sampled
         );

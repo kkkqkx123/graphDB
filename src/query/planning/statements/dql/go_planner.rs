@@ -45,7 +45,7 @@ impl Planner for GoPlanner {
             Stmt::Go(go_stmt) => go_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(
-                    "GoPlanner 需要 Go 语句".to_string(),
+                    "GoPlanner requires Go statements".to_string(),
                 ));
             }
         };
@@ -55,14 +55,14 @@ impl Planner for GoPlanner {
 
         // 1. Check the optimization suggestions.
         for hint in &validation_info.optimization_hints {
-            log::debug!("GO 优化提示: {:?}", hint);
+            log::debug!("GO Optimization Tip: {:?}", hint);
         }
 
         // 2. Use the path analysis information
         for path_analysis in &validation_info.path_analysis {
             if path_analysis.edge_count > 5 {
                 log::warn!(
-                    "GO 路径包含 {} 条边，可能影响性能",
+                    "The GO path contains {} edges, which may affect performance.",
                     path_analysis.edge_count
                 );
             }
@@ -71,7 +71,7 @@ impl Planner for GoPlanner {
         // 3. Use semantic information
         let referenced_edges = &validation_info.semantic_info.referenced_edges;
         if !referenced_edges.is_empty() {
-            log::debug!("GO 引用的边类型: {:?}", referenced_edges);
+            log::debug!("GO referenced edge type: {:?}", referenced_edges);
         }
 
         // Handle FROM clause - extract source vertex IDs

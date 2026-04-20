@@ -190,7 +190,7 @@ impl LimitValidator {
             self.evaluate_expression_internal(&e)
         } else {
             Err(ValidationError::new(
-                "无法评估表达式".to_string(),
+                "Unable to evaluate expression".to_string(),
                 ValidationErrorType::SemanticError,
             ))
         }

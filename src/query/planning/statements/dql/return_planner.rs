@@ -29,7 +29,7 @@ impl ReturnPlanner {
         match stmt {
             Stmt::Return(return_stmt) => Ok(return_stmt.clone()),
             _ => Err(PlannerError::PlanGenerationFailed(
-                "语句不包含 RETURN".to_string(),
+                "statement does not contain a RETURN".to_string(),
             )),
         }
     }
@@ -71,12 +71,12 @@ impl Planner for ReturnPlanner {
         // Check the semantic information.
         let referenced_tags = &validation_info.semantic_info.referenced_tags;
         if !referenced_tags.is_empty() {
-            log::debug!("RETURN 引用的标签: {:?}", referenced_tags);
+            log::debug!("RETURN Referenced tags: {:?}", referenced_tags);
         }
 
         let referenced_properties = &validation_info.semantic_info.referenced_properties;
         if !referenced_properties.is_empty() {
-            log::debug!("RETURN 引用的属性: {:?}", referenced_properties);
+            log::debug!("RETURN Referenced properties: {:?}", referenced_properties);
         }
 
         let return_stmt = self.extract_return_stmt(validated.stmt())?;

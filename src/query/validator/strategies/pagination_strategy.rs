@@ -31,13 +31,13 @@ impl PaginationValidationStrategy {
         // Verify the validity of the paging parameters.
         if context.skip < 0 {
             return Err(ValidationError::new(
-                "SKIP不能为负数".to_string(),
+                "SKIP cannot be negative".to_string(),
                 ValidationErrorType::PaginationError,
             ));
         }
         if context.limit < 0 {
             return Err(ValidationError::new(
-                "LIMIT不能为负数".to_string(),
+                "LIMIT cannot be negative".to_string(),
                 ValidationErrorType::PaginationError,
             ));
         }

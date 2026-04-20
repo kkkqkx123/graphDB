@@ -106,7 +106,7 @@ impl ExpressionAnalyzer {
             Some(e) => e,
             None => {
                 return Err(ValidationError::new(
-                    "表达式无效或不存在".to_string(),
+                    "Invalid or non-existent expression".to_string(),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -733,7 +733,7 @@ mod tests {
         let ctx_expr = ContextualExpression::new(id, ctx.clone());
 
         let analyzer = ExpressionAnalyzer::new();
-        let result = analyzer.analyze(&ctx_expr, None).expect("分析失败");
+        let result = analyzer.analyze(&ctx_expr, None).expect("analysis failure");
 
         assert_eq!(result.data_type, DataType::Int);
         assert!(result.is_constant);
@@ -751,7 +751,7 @@ mod tests {
         let ctx_expr = ContextualExpression::new(id, ctx.clone());
 
         let analyzer = ExpressionAnalyzer::new();
-        let result = analyzer.analyze(&ctx_expr, None).expect("分析失败");
+        let result = analyzer.analyze(&ctx_expr, None).expect("analysis failure");
 
         assert_eq!(result.data_type, DataType::Int);
         assert!(result.is_constant);

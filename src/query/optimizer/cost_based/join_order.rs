@@ -36,7 +36,7 @@ pub struct TableInfo {
     pub id: String,
     /// Estimated number of lines
     pub estimated_rows: u64,
-    /// 选择性（0.0 ~ 1.0）
+    /// Selective (0.0 ~ 1.0)
     pub selectivity: f64,
     /// Is there an index available?
     pub has_index: bool,
@@ -291,7 +291,7 @@ impl JoinOrderOptimizer {
             .cloned()
             .unwrap_or_else(|| SubproblemSolution {
                 table_set: full_set,
-                last_table: tables.last().expect("tables 集合不为空").id.clone(),
+                last_table: tables.last().expect("tables collection is not empty").id.clone(),
                 total_cost: f64::MAX,
                 output_rows: 0,
                 join_tree: "fallback".to_string(),

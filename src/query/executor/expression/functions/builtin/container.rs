@@ -58,14 +58,14 @@ impl ContainerFunction {
     /// Obtain the function description
     pub fn description(&self) -> &str {
         match self {
-            Self::Head => "获取列表的第一个元素",
-            Self::Last => "获取列表的最后一个元素",
-            Self::Tail => "获取列表除第一个元素外的所有元素",
-            Self::Size => "获取字符串、列表、映射或集合的大小",
-            Self::Range => "生成一个整数范围列表",
-            Self::Keys => "获取顶点、边或映射的所有键",
-            Self::ReverseList => "反转列表",
-            Self::ToSet => "将列表转换为集合",
+            Self::Head => "Get the first element of the list",
+            Self::Last => "Get the last element of the list",
+            Self::Tail => "Get all elements of the list except the first one",
+            Self::Size => "Get the size of a string, list, map, or set",
+            Self::Range => "Generate a list of integer ranges",
+            Self::Keys => "Get all the keys for vertices, edges, or mappings.",
+            Self::ReverseList => "inversion list",
+            Self::ToSet => "Convert the list to a set.",
         }
     }
 
@@ -160,7 +160,7 @@ fn execute_range(args: &[Value]) -> Result<Value, ExpressionError> {
     let end = match &args[1] {
         Value::Int(i) => *i,
         Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-        _ => return Err(ExpressionError::type_error("range函数需要整数参数")),
+        _ => return Err(ExpressionError::type_error("The range function takes integer arguments")),
     };
     let step = if args.len() > 2 {
         match &args[2] {

@@ -173,7 +173,7 @@ mod tests {
             alias: "v".to_string(),
             is_matched: false,
         }];
-        let project = ProjectNode::new(start, columns).expect("创建ProjectNode失败");
+        let project = ProjectNode::new(start, columns).expect("Failed to create ProjectNode");
         let project_node = PlanNodeEnum::Project(project);
 
         // Create the GetNeighbors node.
@@ -191,7 +191,7 @@ mod tests {
         let mut ctx = RewriteContext::new();
         let result = rule
             .apply(&mut ctx, &get_neighbors_node)
-            .expect("应用规则失败");
+            .expect("Failed to apply rule");
 
         assert!(
             result.is_some(),

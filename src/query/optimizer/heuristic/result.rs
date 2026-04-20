@@ -6,22 +6,22 @@
 /// Rewrite the error type
 #[derive(Debug, thiserror::Error)]
 pub enum RewriteError {
-    #[error("无效的计划节点: {0}")]
+    #[error("Invalid plan node: {0}")]
     InvalidNode(String),
 
-    #[error("重写失败: {0}")]
+    #[error("Rewrite failed: {0}")]
     RewriteFailed(String),
 
-    #[error("不支持的节点类型: {0}")]
+    #[error("Unsupported node types: {0}")]
     UnsupportedNodeType(String),
 
-    #[error("优化器错误: {0}")]
+    #[error("Optimizer error: {0}")]
     OptimizerError(String),
 
-    #[error("循环检测: 节点 {0}")]
+    #[error("Loop detection: node {0}")]
     CycleDetected(usize),
 
-    #[error("无效的计划结构: {0}")]
+    #[error("Invalid program structure: {0}")]
     InvalidPlanStructure(String),
 }
 

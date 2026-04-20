@@ -115,7 +115,7 @@ impl MatchValidator {
         // 1. The validation model is not empty
         if match_stmt.patterns.is_empty() {
             return Err(ValidationError::new(
-                "MATCH 语句必须包含至少一个模式".to_string(),
+                "The MATCH statement must contain at least one pattern".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -131,7 +131,7 @@ impl MatchValidator {
         // 4. Verify the existence of the RETURN clause.
         if match_stmt.return_clause.is_none() {
             return Err(ValidationError::new(
-                "MATCH 语句必须包含 RETURN 子句".to_string(),
+                "The MATCH statement must contain a RETURN clause.".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -313,7 +313,7 @@ impl MatchValidator {
     ) -> Result<(), ValidationError> {
         if return_clause.items.is_empty() {
             return Err(ValidationError::new(
-                "RETURN 子句必须包含至少一个返回项".to_string(),
+                "The RETURN clause must contain at least one return item".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -381,7 +381,7 @@ impl MatchValidator {
     fn validate_order_by(&mut self, order_by: &OrderByClause) -> Result<(), ValidationError> {
         if order_by.items.is_empty() {
             return Err(ValidationError::new(
-                "ORDER BY 子句必须包含至少一个排序项".to_string(),
+                "The ORDER BY clause must contain at least one sort term".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -459,7 +459,7 @@ impl MatchValidator {
         // Validate skip value
         if context.skip < 0 {
             return Err(ValidationError::new(
-                "SKIP 值不能为负数".to_string(),
+                "SKIP value cannot be negative".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -467,7 +467,7 @@ impl MatchValidator {
         // Validating Limit Values
         if context.limit < 0 {
             return Err(ValidationError::new(
-                "LIMIT 值不能为负数".to_string(),
+                "The LIMIT value cannot be negative.".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -520,7 +520,7 @@ impl MatchValidator {
     ) -> Result<(), ValidationError> {
         if return_items.is_empty() {
             return Err(ValidationError::new(
-                "RETURN 子句必须包含至少一个返回项".to_string(),
+                "The RETURN clause must contain at least one return item".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -536,7 +536,7 @@ impl MatchValidator {
     ) -> Result<(), ValidationError> {
         if with_items.is_empty() {
             return Err(ValidationError::new(
-                "WITH 子句必须包含至少一个项".to_string(),
+                "The WITH clause must contain at least one item".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -551,7 +551,7 @@ impl MatchValidator {
     ) -> Result<(), ValidationError> {
         if unwind_expression.expression().is_none() {
             return Err(ValidationError::new(
-                "UNWIND 表达式无效".to_string(),
+                "UNWIND expression is invalid".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -577,7 +577,7 @@ impl MatchValidator {
     pub fn validate_yield(&mut self, context: &YieldClauseContext) -> Result<(), ValidationError> {
         if context.yield_columns.is_empty() {
             return Err(ValidationError::new(
-                "YIELD 子句必须包含至少一个列".to_string(),
+                "The YIELD clause must contain at least one column".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -657,7 +657,7 @@ impl MatchValidator {
     ) -> Result<(), ValidationError> {
         if ref_expression.expression().is_none() {
             return Err(ValidationError::new(
-                "引用表达式无效".to_string(),
+                "Invalid quoted expression".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -725,7 +725,7 @@ impl StatementValidator for MatchValidator {
             Stmt::Match(m) => m,
             _ => {
                 return Err(ValidationError::new(
-                    "期望 MATCH 语句".to_string(),
+                    "Expected MATCH statement".to_string(),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -743,12 +743,12 @@ impl StatementValidator for MatchValidator {
         // 6. Constructing a detailed ValidationInfo
         let mut info = ValidationInfo::new();
 
-        // 6.1 添加别名映射
+        // 6.1 Adding an Alias Map
         for (name, alias_type) in &self.aliases {
             info.add_alias(name.clone(), alias_type.clone());
         }
 
-        // 6.2 添加路径分析
+        // 6.2 Adding Path Analysis
         for pattern in &match_stmt.patterns {
             if let crate::query::parser::ast::Pattern::Path(path) = pattern {
                 let mut analysis = PathAnalysis::new();
@@ -766,17 +766,17 @@ impl StatementValidator for MatchValidator {
             }
         }
 
-        // 6.3 添加优化提示
+        // 6.3 Adding Optimization Tips
         if self.aliases.len() > 10 {
             info.add_optimization_hint(
                 crate::query::validator::OptimizationHint::PerformanceWarning {
-                    message: "查询包含大量别名，可能影响性能".to_string(),
+                    message: "Queries contain a large number of aliases, which may affect performance".to_string(),
                     severity: crate::query::validator::HintSeverity::Warning,
                 },
             );
         }
 
-        // 6.4 添加语义信息
+        // 6.4 Adding semantic information
         info.semantic_info.referenced_tags = self.get_referenced_tags();
         info.semantic_info.referenced_edges = self.get_referenced_edges();
 
@@ -1025,7 +1025,7 @@ mod tests {
         // Collecting aliases
         validator
             .collect_aliases_from_patterns(&[node_var_pattern])
-            .expect("收集别名失败");
+            .expect("Failed to collect aliases");
 
         // Verify that the variable pattern references a defined variable
         let var_pattern = VariablePattern::new("a".to_string(), Span::default());
@@ -1083,7 +1083,7 @@ mod tests {
 
         validator
             .collect_aliases_from_patterns(&[pattern])
-            .expect("收集别名失败");
+            .expect("Failed to collect aliases");
 
         // Verify that the alias map is empty, since VariablePattern is a reference and not a definition.
         assert!(validator.aliases.is_empty());

@@ -649,7 +649,7 @@ impl UpdateValidator {
     fn validate_expression(&self, expr: &ContextualExpression) -> Result<(), CoreValidationError> {
         if expr.expression().is_none() {
             return Err(CoreValidationError::new(
-                "表达式无效".to_string(),
+                "Invalid expression".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -738,7 +738,7 @@ impl StatementValidator for UpdateValidator {
             crate::query::parser::ast::Stmt::Update(u) => u,
             _ => {
                 return Err(ValidationError::new(
-                    "期望 UPDATE 语句".to_string(),
+                    "Expected UPDATE statement".to_string(),
                     ValidationErrorType::SemanticError,
                 ));
             }

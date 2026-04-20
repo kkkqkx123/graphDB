@@ -51,7 +51,7 @@ impl SelectivityEstimator {
     ///
     /// If there is histogram statistical information, use the histogram for an accurate estimation.
     /// Otherwise, if basic statistical information is available, use 1 divided by the number of distinct values.
-    /// 否则使用默认值 0.1
+    /// Otherwise the default value of 0.1 is used
     pub fn estimate_equality_selectivity(
         &self,
         tag_name: Option<&str>,
@@ -172,10 +172,10 @@ impl SelectivityEstimator {
     /// Estimating the selectivity of LIKE conditions
     ///
     /// Adjust the selectivity based on the prefix and suffix wildcards of the pattern:
-    /// - prefix%：选择性较高（约0.1）
-    /// - %suffix：选择性中等（约0.2）
-    /// - %substring%：选择性较低（约0.5）
-    /// - 无通配符：精确匹配（约0.05）
+    /// - prefix%: high selectivity (about 0.1)
+    /// - %suffix: medium selectivity (about 0.2)
+    /// - %substring%: less selective (about 0.5)
+    /// - No wildcard: exact match (about 0.05)
     pub fn estimate_like_selectivity(&self, pattern: &str) -> f64 {
         let has_prefix = pattern.starts_with('%');
         let has_suffix = pattern.ends_with('%');
@@ -243,7 +243,7 @@ impl SelectivityEstimator {
                 0.1
             }
             Expression::Property { .. } => {
-                // 属性本身作为条件（如 WHERE n.active）
+                // attribute itself as a condition (e.g. WHERE n.active)
                 // Assume that approximately half of the boolean attributes have the value “true”.
                 0.5
             }

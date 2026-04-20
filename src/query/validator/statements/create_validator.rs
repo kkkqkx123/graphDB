@@ -4,7 +4,7 @@
 //!
 //! This document has been restructured in accordance with the new trait + enumeration validator framework.
 //! The StatementValidator trait has been implemented to unify the interface.
-//! 2. 保留了 base_validator.rs 的完整功能：
+//! 2. The full functionality of base_validator.rs is preserved:
 //! Verify Lifecycle Management
 //! Management of input/output columns
 //! Expression property tracking
@@ -108,7 +108,7 @@ pub struct EdgeDefinition<'a> {
 /// CREATE Statement Validator – New Implementation
 ///
 /// Functionality integrity assurance:
-/// 1. 完整的验证生命周期（参考 base_validator.rs）
+/// 1. Complete validation lifecycle (refer to base_validator.rs)
 /// 2. Management of input/output columns
 /// 3. Expression property tracking
 /// 4. Management of user-defined variables
@@ -590,7 +590,7 @@ impl CreateValidator {
             self.extract_properties_internal(&e)
         } else {
             Err(ValidationError::new(
-                "属性表达式无效".to_string(),
+                "Invalid attribute expression".to_string(),
                 ValidationErrorType::SemanticError,
             ))
         }
@@ -633,7 +633,7 @@ impl CreateValidator {
         }
     }
 
-    /// 验证具体语句（参考 base_validator.rs 的 validate_impl）
+    /// Validation specific statements (refer to validate_impl in base_validator.rs)
     fn validate_impl(
         &mut self,
         create_stmt: &CreateStmt,
@@ -711,19 +711,19 @@ impl CreateValidator {
             }
             // CREATE TAG/EDGE: This operation requires additional space, but the current validator does not support it.
             CreateTarget::Tag { .. } | CreateTarget::EdgeType { .. } => Err(ValidationError::new(
-                "CreateValidator 不支持 CREATE TAG/EDGE，请使用 DDL 验证器".to_string(),
+                "CreateValidator does not support CREATE TAG/EDGE, use a DDL validator!".to_string(),
                 ValidationErrorType::SemanticError,
             )),
             // The CREATE INDEX command is now processed by a dedicated component called CreateIndexValidator.
             CreateTarget::Index { .. } => Err(ValidationError::new(
-                "CreateIndexValidator 不支持此类 CREATE 语句".to_string(),
+                "CreateIndexValidator does not support this type of CREATE statement.".to_string(),
                 ValidationErrorType::SemanticError,
             )),
             // CREATE Node/Edge/Path: This operation requires additional storage space and involves the execution of DML (Data Manipulation Language) validation processes.
             CreateTarget::Node { .. } | CreateTarget::Edge { .. } | CreateTarget::Path { .. } => {
                 if space_name.is_empty() {
                     return Err(ValidationError::new(
-                        "CREATE 语句需要预先选择图空间，请先执行 USE <space_name>".to_string(),
+                        "The CREATE statement requires a pre-selected map space, so run USE <space_name> first.".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
                 }
@@ -774,7 +774,7 @@ impl Default for CreateValidator {
 
 /// Implementing the StatementValidator trait
 ///
-/// 完整实现验证生命周期（参考 base_validator.rs）：
+/// Complete implementation of the validation lifecycle (refer to base_validator.rs):
 /// 1. Check whether space is required (is_global_statement)
 /// 2. Execute the specific validation logic (validate_impl).
 /// 3. Permission check (check_permission)
@@ -802,7 +802,7 @@ impl StatementValidator for CreateValidator {
             crate::query::parser::ast::Stmt::Create(create_stmt) => create_stmt,
             _ => {
                 return Err(ValidationError::new(
-                    "预期CREATE语句".to_string(),
+                    "Expected CREATE statement".to_string(),
                     ValidationErrorType::SemanticError,
                 ));
             }

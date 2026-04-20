@@ -11,105 +11,105 @@ define_function_enum! {
             name: "length",
             arity: 1,
             variadic: false,
-            description: "计算字符串长度",
+            description: "Calculate string length",
             handler: execute_length
         },
         Upper => {
             name: "upper",
             arity: 1,
             variadic: false,
-            description: "转换为大写",
+            description: "convert to uppercase",
             handler: execute_upper
         },
         Lower => {
             name: "lower",
             arity: 1,
             variadic: false,
-            description: "转换为小写",
+            description: "Convert to lowercase",
             handler: execute_lower
         },
         Trim => {
             name: "trim",
             arity: 1,
             variadic: false,
-            description: "去除首尾空白",
+            description: "Remove header and footer",
             handler: execute_trim
         },
         Substring => {
             name: "substring",
             arity: 3,
             variadic: false,
-            description: "获取子字符串",
+            description: "Get substring",
             handler: execute_substring
         },
         Concat => {
             name: "concat",
             arity: 1,
             variadic: true,
-            description: "连接字符串",
+            description: "connection string",
             handler: execute_concat
         },
         Replace => {
             name: "replace",
             arity: 2,
             variadic: false,
-            description: "替换字符串",
+            description: "Replacement String",
             handler: execute_replace
         },
         Contains => {
             name: "contains",
             arity: 2,
             variadic: false,
-            description: "检查是否包含子字符串",
+            description: "Checks if it contains substrings",
             handler: execute_contains
         },
         StartsWith => {
             name: "starts_with",
             arity: 2,
             variadic: false,
-            description: "检查是否以指定字符串开头",
+            description: "Checks if it starts with the specified string",
             handler: execute_starts_with
         },
         EndsWith => {
             name: "ends_with",
             arity: 2,
             variadic: false,
-            description: "检查是否以指定字符串结尾",
+            description: "Checks if the specified string ends",
             handler: execute_ends_with
         },
         Split => {
             name: "split",
             arity: 2,
             variadic: false,
-            description: "分割字符串",
+            description: "Split String",
             handler: execute_split
         },
         Lpad => {
             name: "lpad",
             arity: 3,
             variadic: false,
-            description: "左侧填充字符串",
+            description: "Left padding string",
             handler: execute_lpad
         },
         Rpad => {
             name: "rpad",
             arity: 3,
             variadic: false,
-            description: "右侧填充字符串",
+            description: "Right Fill String",
             handler: execute_rpad
         },
         ConcatWs => {
             name: "concat_ws",
             arity: 2,
             variadic: true,
-            description: "使用分隔符连接字符串",
+            description: "Concatenate strings using delimiters",
             handler: execute_concat_ws
         },
         Strcasecmp => {
             name: "strcasecmp",
             arity: 2,
             variadic: false,
-            description: "不区分大小写比较字符串",
+            description: "Compare strings case-insensitively",
             handler: execute_strcasecmp
         },
     }
@@ -119,7 +119,7 @@ fn execute_length(args: &[Value]) -> Result<Value, ExpressionError> {
     match &args[0] {
         Value::String(s) => Ok(Value::Int(s.len() as i64)),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("length函数需要字符串类型")),
+        _ => Err(ExpressionError::type_error("The length function requires a string type")),
     }
 }
 
@@ -143,7 +143,7 @@ fn execute_substring(args: &[Value]) -> Result<Value, ExpressionError> {
             Ok(Value::Null(NullType::Null))
         }
         _ => Err(ExpressionError::type_error(
-            "substring函数需要字符串和两个整数",
+            "The substring function takes a string and two integers.",
         )),
     }
 }
@@ -154,7 +154,7 @@ fn execute_concat(args: &[Value]) -> Result<Value, ExpressionError> {
         match arg {
             Value::String(s) => result.push_str(s),
             Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-            _ => return Err(ExpressionError::type_error("concat函数需要字符串类型")),
+            _ => return Err(ExpressionError::type_error("The concat function requires a string type")),
         }
     }
     Ok(Value::String(result))
@@ -164,7 +164,7 @@ fn execute_replace(args: &[Value]) -> Result<Value, ExpressionError> {
     match (&args[0], &args[1]) {
         (Value::String(s), Value::String(from)) => Ok(Value::String(s.replace(from, ""))),
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("replace函数需要字符串类型")),
+        _ => Err(ExpressionError::type_error("The replace function requires a string type")),
     }
 }
 
@@ -172,7 +172,7 @@ fn execute_contains(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 2 {
         return Err(ExpressionError::new(
             ExpressionErrorType::InvalidArgumentCount,
-            "contains函数需要2个参数",
+            "The contains function takes 2 arguments",
         ));
     }
     match (&args[0], &args[1]) {
@@ -189,7 +189,7 @@ fn execute_contains(args: &[Value]) -> Result<Value, ExpressionError> {
         )),
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
         _ => Err(ExpressionError::type_error(
-            "contains函数需要字符串或列表类型",
+            "The contains function requires a string or list type.",
         )),
     }
 }
@@ -208,7 +208,7 @@ define_binary_string_bool_fn!(
 fn execute_split(args: &[Value]) -> Result<Value, ExpressionError> {
     use crate::core::value::list::List;
     if args.len() != 2 {
-        return Err(ExpressionError::type_error("split函数需要2个参数"));
+        return Err(ExpressionError::type_error("The split function takes 2 arguments"));
     }
     match (&args[0], &args[1]) {
         (Value::String(s), Value::String(delimiter)) => {
@@ -225,7 +225,7 @@ fn execute_split(args: &[Value]) -> Result<Value, ExpressionError> {
 
 fn execute_lpad(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 3 {
-        return Err(ExpressionError::type_error("lpad函数需要3个参数"));
+        return Err(ExpressionError::type_error("The lpad function takes 3 arguments"));
     }
     match (&args[0], &args[1], &args[2]) {
         (Value::String(s), Value::Int(len), Value::String(pad)) => {
@@ -247,14 +247,14 @@ fn execute_lpad(args: &[Value]) -> Result<Value, ExpressionError> {
             Ok(Value::Null(NullType::Null))
         }
         _ => Err(ExpressionError::type_error(
-            "lpad函数需要字符串、整数和字符串参数",
+            "The lpad function takes string, integer, and string arguments",
         )),
     }
 }
 
 fn execute_rpad(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 3 {
-        return Err(ExpressionError::type_error("rpad函数需要3个参数"));
+        return Err(ExpressionError::type_error("The rpad function takes 3 arguments"));
     }
     match (&args[0], &args[1], &args[2]) {
         (Value::String(s), Value::Int(len), Value::String(pad)) => {
@@ -277,21 +277,21 @@ fn execute_rpad(args: &[Value]) -> Result<Value, ExpressionError> {
             Ok(Value::Null(NullType::Null))
         }
         _ => Err(ExpressionError::type_error(
-            "rpad函数需要字符串、整数和字符串参数",
+            "The rpad function takes string, integer, and string arguments",
         )),
     }
 }
 
 fn execute_concat_ws(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() < 2 {
-        return Err(ExpressionError::type_error("concat_ws函数至少需要2个参数"));
+        return Err(ExpressionError::type_error("The concat_ws function takes at least 2 arguments"));
     }
     let separator = match &args[0] {
         Value::String(s) => s.clone(),
         Value::Null(_) => return Ok(Value::Null(NullType::Null)),
         _ => {
             return Err(ExpressionError::type_error(
-                "concat_ws函数第一个参数需要字符串类型",
+                "The concat_ws function requires a string type for the first argument",
             ))
         }
     };
@@ -305,7 +305,7 @@ fn execute_concat_ws(args: &[Value]) -> Result<Value, ExpressionError> {
                 result.push_str(s);
             }
             Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-            _ => return Err(ExpressionError::type_error("concat_ws函数需要字符串类型")),
+            _ => return Err(ExpressionError::type_error("The concat_ws function requires the string type")),
         }
     }
     Ok(Value::String(result))
@@ -313,7 +313,7 @@ fn execute_concat_ws(args: &[Value]) -> Result<Value, ExpressionError> {
 
 fn execute_strcasecmp(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 2 {
-        return Err(ExpressionError::type_error("strcasecmp函数需要2个参数"));
+        return Err(ExpressionError::type_error("The strcasecmp function takes 2 arguments"));
     }
     match (&args[0], &args[1]) {
         (Value::String(a), Value::String(b)) => {
@@ -325,7 +325,7 @@ fn execute_strcasecmp(args: &[Value]) -> Result<Value, ExpressionError> {
             }))
         }
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("strcasecmp函数需要字符串类型")),
+        _ => Err(ExpressionError::type_error("The strcasecmp function requires the string type")),
     }
 }
 

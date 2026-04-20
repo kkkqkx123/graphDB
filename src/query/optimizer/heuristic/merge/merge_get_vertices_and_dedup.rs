@@ -144,7 +144,7 @@ mod tests {
         let start = PlanNodeEnum::Start(StartNode::new());
 
         // Creating a Deduplication Node
-        let dedup = DedupNode::new(start).expect("创建DedupNode失败");
+        let dedup = DedupNode::new(start).expect("Failed to create DedupNode");
         let dedup_node = PlanNodeEnum::Dedup(dedup);
 
         // Create the GetVertices node.
@@ -162,7 +162,7 @@ mod tests {
         let mut ctx = RewriteContext::new();
         let result = rule
             .apply(&mut ctx, &get_vertices_node)
-            .expect("应用规则失败");
+            .expect("Failed to apply rule");
 
         assert!(
             result.is_some(),

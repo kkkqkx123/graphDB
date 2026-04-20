@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// SSL/TLS configuration
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub struct SslConfig {
     /// Enable SSL/TLS
     pub enabled: bool,
@@ -15,18 +15,6 @@ pub struct SslConfig {
     pub ca_file: Option<String>,
     /// Require client certificate verification
     pub require_client_cert: bool,
-}
-
-impl Default for SslConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            cert_file: String::new(),
-            key_file: String::new(),
-            ca_file: None,
-            require_client_cert: false,
-        }
-    }
 }
 
 impl SslConfig {
@@ -50,7 +38,7 @@ impl SslConfig {
 }
 
 /// Audit log configuration
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub struct AuditConfig {
     /// Enable audit logging
     pub enabled: bool,
@@ -68,8 +56,9 @@ pub struct AuditConfig {
     pub max_files: u32,
 }
 
-impl Default for AuditConfig {
-    fn default() -> Self {
+impl AuditConfig {
+    /// Create default configuration
+    pub fn new() -> Self {
         Self {
             enabled: false,
             log_file: "logs/audit.log".to_string(),
@@ -164,7 +153,7 @@ impl PasswordPolicyConfig {
 }
 
 /// Security configuration aggregator
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub struct SecurityConfig {
     /// SSL/TLS configuration
     #[serde(default)]
@@ -177,16 +166,6 @@ pub struct SecurityConfig {
     /// Password policy configuration
     #[serde(default)]
     pub password_policy: PasswordPolicyConfig,
-}
-
-impl Default for SecurityConfig {
-    fn default() -> Self {
-        Self {
-            ssl: SslConfig::default(),
-            audit: AuditConfig::default(),
-            password_policy: PasswordPolicyConfig::default(),
-        }
-    }
 }
 
 impl SecurityConfig {

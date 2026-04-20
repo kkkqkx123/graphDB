@@ -108,7 +108,7 @@ impl Planner for MatchStatementPlanner {
 
         // Check the optimization suggestions.
         for hint in &validation_info.optimization_hints {
-            log::debug!("优化提示: {:?}", hint);
+            log::debug!("Optimization Tip: {:?}", hint);
         }
 
         // Optimize the planning using alias mapping.
@@ -147,13 +147,13 @@ impl MatchStatementPlanner {
             crate::query::parser::ast::Stmt::Match(match_stmt) => {
                 for hint in &validation_info.index_hints {
                     if hint.estimated_selectivity < 0.1 {
-                        log::debug!("使用高选择性索引: {}", hint.index_name);
+                        log::debug!("Using highly selective indexing: {}", hint.index_name);
                     }
                 }
 
                 let referenced_tags = &validation_info.semantic_info.referenced_tags;
                 if !referenced_tags.is_empty() {
-                    log::debug!("引用的标签: {:?}", referenced_tags);
+                    log::debug!("Quoted tags: {:?}", referenced_tags);
                 }
 
                 let mut plan = if match_stmt.patterns.is_empty() {
@@ -221,7 +221,7 @@ impl MatchStatementPlanner {
         match pattern {
             Pattern::Path(path) => {
                 if path.elements.is_empty() {
-                    return Err(PlannerError::PlanGenerationFailed("空路径模式".to_string()));
+                    return Err(PlannerError::PlanGenerationFailed("empty path model".to_string()));
                 }
 
                 let mut plan = SubPlan::new(None, None);
@@ -261,7 +261,7 @@ impl MatchStatementPlanner {
                         PathElement::Edge(edge) => {
                             if prev_node_alias.is_none() {
                                 return Err(PlannerError::PlanGenerationFailed(
-                                    "边模式必须跟随节点模式".to_string(),
+                                    "The edge pattern must follow the node pattern".to_string(),
                                 ));
                             }
 
@@ -410,7 +410,7 @@ impl MatchStatementPlanner {
                 .expect("expr_context should be set");
             let label_filter =
                 Self::build_label_filter_expression(&node.variable, &node.labels, expr_ctx);
-            let root_node = plan.root.as_ref().expect("plan的root应该存在");
+            let root_node = plan.root.as_ref().expect("The root of plan should exist");
             let filter_node = FilterNode::new(root_node.clone(), label_filter)
                 .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
             plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
@@ -419,7 +419,7 @@ impl MatchStatementPlanner {
         // If there is attribute filtering, add the filter.
         if let Some(ref props) = node.properties {
             let filter_node = FilterNode::new(
-                plan.root.as_ref().expect("plan的root应该存在").clone(),
+                plan.root.as_ref().expect("The root of plan should exist").clone(),
                 props.clone(),
             )
             .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
@@ -430,7 +430,7 @@ impl MatchStatementPlanner {
         if !node.predicates.is_empty() {
             for pred in &node.predicates {
                 let filter_node = FilterNode::new(
-                    plan.root.as_ref().expect("plan的root应该存在").clone(),
+                    plan.root.as_ref().expect("The root of plan should exist").clone(),
                     pred.clone(),
                 )
                 .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
@@ -476,7 +476,7 @@ impl MatchStatementPlanner {
         // If there is attribute filtering, add the filter.
         if let Some(ref props) = edge.properties {
             let filter_node = FilterNode::new(
-                plan.root.as_ref().expect("plan的root应该存在").clone(),
+                plan.root.as_ref().expect("The root of plan should exist").clone(),
                 props.clone(),
             )
             .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
@@ -487,7 +487,7 @@ impl MatchStatementPlanner {
         if !edge.predicates.is_empty() {
             for pred in &edge.predicates {
                 let filter_node = FilterNode::new(
-                    plan.root.as_ref().expect("plan的root应该存在").clone(),
+                    plan.root.as_ref().expect("The root of plan should exist").clone(),
                     pred.clone(),
                 )
                 .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
@@ -554,7 +554,7 @@ impl MatchStatementPlanner {
         // If there is attribute filtering, add the filter.
         if let Some(ref props) = edge.properties {
             let filter_node = FilterNode::new(
-                plan.root.as_ref().expect("plan的root应该存在").clone(),
+                plan.root.as_ref().expect("The root of plan should exist").clone(),
                 props.clone(),
             )
             .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
@@ -565,7 +565,7 @@ impl MatchStatementPlanner {
         if !edge.predicates.is_empty() {
             for pred in &edge.predicates {
                 let filter_node = FilterNode::new(
-                    plan.root.as_ref().expect("plan的root应该存在").clone(),
+                    plan.root.as_ref().expect("The root of plan should exist").clone(),
                     pred.clone(),
                 )
                 .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
@@ -752,7 +752,7 @@ impl MatchStatementPlanner {
         let input_node = input_plan
             .root()
             .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
 
         let filter_node = FilterNode::new(input_node.clone(), condition)?;
         Ok(SubPlan::new(Some(filter_node.into_enum()), input_plan.tail))
@@ -767,7 +767,7 @@ impl MatchStatementPlanner {
         let input_node = input_plan
             .root()
             .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
 
         // Check if any column contains an aggregate function
         let has_aggregate = columns.iter().any(|col| {
@@ -891,7 +891,7 @@ impl MatchStatementPlanner {
         let input_node = input_plan
             .root()
             .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
 
         let sort_items: Vec<SortItem> = order_by
             .into_iter()
@@ -925,7 +925,7 @@ impl MatchStatementPlanner {
         let input_node = input_plan
             .root()
             .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
 
         let limit_node = LimitNode::new(
             input_node.clone(),
@@ -940,7 +940,7 @@ impl MatchStatementPlanner {
         let input_node = input_plan
             .root()
             .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
 
         let dedup_node = DedupNode::new(input_node.clone())?;
         Ok(SubPlan::new(Some(dedup_node.into_enum()), input_plan.tail))
@@ -997,7 +997,7 @@ impl MatchStatementPlanner {
                     }
                     if columns.is_empty() {
                         return Err(PlannerError::PlanGenerationFailed(
-                            "RETURN 子句缺少返回项".to_string(),
+                            "RETURN clause missing return item".to_string(),
                         ));
                     }
                     Ok(Some(columns))
@@ -1042,7 +1042,7 @@ impl MatchStatementPlanner {
     /// Planning Alternative Paths Pattern
     ///
     /// Convert multiple path options into a union operation.
-    /// 例如: (a)-[:KNOWS|WORKS_WITH]->(b) 表示 KNOWS 或 WORKS_WITH 两种关系
+    /// Example: (a)-[:KNOWS|WORKS_WITH]->(b) denotes either KNOWS or WORKS_WITH.
     fn plan_alternative_patterns(
         &self,
         patterns: &[Pattern],
@@ -1054,7 +1054,7 @@ impl MatchStatementPlanner {
     ) -> Result<SubPlan, PlannerError> {
         if patterns.is_empty() {
             return Err(PlannerError::PlanGenerationFailed(
-                "替代路径不能为空".to_string(),
+                "The alternative path cannot be empty".to_string(),
             ));
         }
 
@@ -1161,7 +1161,7 @@ impl MatchStatementPlanner {
     /// Planning of optional path elements
     ///
     /// Use a left join to achieve an optional match, retaining all data from the left side.
-    /// 例如: (a)-[:KNOWS]->(b)? 表示 KNOWS 关系是可选的
+    /// Example: (a)-[:KNOWS]->(b)? means that the KNOWS relation is optional.
     fn plan_optional_element(
         &self,
         element: &PathElement,
@@ -1176,7 +1176,7 @@ impl MatchStatementPlanner {
             PathElement::Edge(edge) => self.plan_pattern_edge(edge, space_id)?,
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(
-                    "可选路径不支持嵌套的复杂模式".to_string(),
+                    "Optional paths do not support nested complex patterns".to_string(),
                 ));
             }
         };
@@ -1214,7 +1214,7 @@ impl MatchStatementPlanner {
     /// Planning for repeated path elements
     ///
     /// Implementing variable-length paths using loop nodes
-    /// 例如: (a)-[:KNOWS*1..3]->(b) 表示 1 到 3 跳 KNOWS 关系
+    /// Example: (a)-[:KNOWS*1..3]->(b) represents the 1 to 3 jump KNOWS relation.
     fn plan_repeated_element(
         &self,
         element: &PathElement,
@@ -1228,7 +1228,7 @@ impl MatchStatementPlanner {
             PathElement::Edge(edge) => self.plan_pattern_edge(edge, space_id)?,
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(
-                    "重复路径不支持嵌套的复杂模式".to_string(),
+                    "Repeated paths do not support nested complex patterns".to_string(),
                 ));
             }
         };

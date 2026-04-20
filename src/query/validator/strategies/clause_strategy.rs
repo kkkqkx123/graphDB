@@ -56,13 +56,13 @@ impl ClauseValidationStrategy {
         if let Some(ref pagination) = context.pagination {
             if pagination.skip < 0 {
                 return Err(ValidationError::new(
-                    "SKIP不能为负数".to_string(),
+                    "SKIP cannot be negative".to_string(),
                     ValidationErrorType::PaginationError,
                 ));
             }
             if pagination.limit < 0 {
                 return Err(ValidationError::new(
-                    "LIMIT不能为负数".to_string(),
+                    "LIMIT cannot be negative".to_string(),
                     ValidationErrorType::PaginationError,
                 ));
             }
@@ -93,7 +93,7 @@ impl ClauseValidationStrategy {
     ) -> Result<(), ValidationError> {
         if query_parts.is_empty() {
             return Err(ValidationError::new(
-                "没有声明别名。".to_string(),
+                "No aliases are declared.".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }

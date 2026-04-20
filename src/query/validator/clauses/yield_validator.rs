@@ -152,7 +152,7 @@ impl YieldValidator {
     fn validate_columns(&self) -> Result<(), ValidationError> {
         if self.yield_columns.is_empty() {
             return Err(ValidationError::new(
-                "YIELD 子句必须至少有一列".to_string(),
+                "The YIELD clause must have at least one column".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -162,7 +162,7 @@ impl YieldValidator {
             let name = col.name().to_string();
             if name.is_empty() {
                 return Err(ValidationError::new(
-                    "YIELD 列必须有一个名称或别名".to_string(),
+                    "YIELD columns must have a name or alias".to_string(),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -221,7 +221,7 @@ impl YieldValidator {
             });
             if has_non_comparable {
                 return Err(ValidationError::new(
-                    "YIELD 子句中使用 DISTINCT 时，所有列必须是可比较类型".to_string(),
+                    "When using DISTINCT in the YIELD clause, all columns must be of comparable type".to_string(),
                     ValidationErrorType::TypeError,
                 ));
             }

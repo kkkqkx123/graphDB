@@ -127,7 +127,7 @@ impl ExpressionValidationStrategy {
                 // Verify whether the use of the aggregate functions is in line with the context.
                 if !context.yield_clause.has_agg && context.yield_clause.group_keys.is_empty() {
                     return Err(ValidationError::new(
-                        "在GROUP BY子句中使用聚合函数时，必须指定GROUP BY键".to_string(),
+                        "When using an aggregate function in a GROUP BY clause, you must specify the GROUP BY key".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
                 }
@@ -217,7 +217,7 @@ impl ExpressionValidationStrategy {
                 && context.group_keys.is_empty()
             {
                 return Err(ValidationError::new(
-                    "在GROUP BY子句中使用聚合函数时，必须指定GROUP BY键".to_string(),
+                    "When using an aggregate function in a GROUP BY clause, you must specify the GROUP BY key".to_string(),
                     ValidationErrorType::SemanticError,
                 ));
             }

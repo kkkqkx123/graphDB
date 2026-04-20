@@ -243,11 +243,11 @@ mod tests {
         let expr_meta = crate::core::types::expr::ExpressionMeta::new(condition);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
-        let filter = FilterNode::new(start_enum.clone(), ctx_expr).expect("创建FilterNode失败");
+        let filter = FilterNode::new(start_enum.clone(), ctx_expr).expect("Failed to create FilterNode");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
         let join = HashInnerJoinNode::new(start_enum.clone(), start_enum, vec![], vec![])
-            .expect("创建HashInnerJoinNode失败");
+            .expect("Failed to create HashInnerJoinNode");
         let join_enum = PlanNodeEnum::HashInnerJoin(join);
 
         assert!(rule.can_push_down(&filter_enum, &join_enum));

@@ -64,16 +64,16 @@ impl GraphFunction {
     /// Obtain the function description
     pub fn description(&self) -> &str {
         match self {
-            Self::Id => "获取顶点的ID",
-            Self::Tags => "获取顶点的所有标签",
-            Self::Labels => "获取顶点的所有标签（别名）",
-            Self::Properties => "获取顶点或边的所有属性",
-            Self::EdgeType => "获取边的类型",
-            Self::Src => "获取边的起始顶点ID",
-            Self::Dst => "获取边的目标顶点ID",
-            Self::Rank => "获取边的rank值",
-            Self::StartNode => "获取边的起始顶点",
-            Self::EndNode => "获取边的目标顶点",
+            Self::Id => "Get the ID of the vertex",
+            Self::Tags => "Get all labels of a vertex",
+            Self::Labels => "Get all labels (aliases) of a vertex",
+            Self::Properties => "Get all attributes of a vertex or edge",
+            Self::EdgeType => "Get the type of the edge",
+            Self::Src => "Get the starting vertex ID of the edge",
+            Self::Dst => "Get the target vertex ID of the edge",
+            Self::Rank => "Get the edge's rank value",
+            Self::StartNode => "Get the starting vertex of the edge",
+            Self::EndNode => "Get the target vertex of the edge",
         }
     }
 
@@ -95,18 +95,18 @@ impl GraphFunction {
 
 fn execute_id(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("id函数需要1个参数"));
+        return Err(ExpressionError::type_error("The id function takes 1 argument"));
     }
     match &args[0] {
         Value::Vertex(v) => Ok((*v.vid).clone()),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("id函数需要顶点类型")),
+        _ => Err(ExpressionError::type_error("The id function requires a vertex type")),
     }
 }
 
 fn execute_tags(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("tags函数需要1个参数"));
+        return Err(ExpressionError::type_error("The tags function takes 1 argument"));
     }
     match &args[0] {
         Value::Vertex(v) => {
@@ -150,51 +150,51 @@ fn execute_properties(args: &[Value]) -> Result<Value, ExpressionError> {
 
 fn execute_edge_type(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("type函数需要1个参数"));
+        return Err(ExpressionError::type_error("The type function takes 1 argument"));
     }
     match &args[0] {
         Value::Edge(e) => Ok(Value::String(e.edge_type.clone())),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("type函数需要边类型")),
+        _ => Err(ExpressionError::type_error("The type function requires an edge type")),
     }
 }
 
 fn execute_src(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("src函数需要1个参数"));
+        return Err(ExpressionError::type_error("The src function takes 1 argument"));
     }
     match &args[0] {
         Value::Edge(e) => Ok((*e.src).clone()),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("src函数需要边类型")),
+        _ => Err(ExpressionError::type_error("The src function requires the edge type")),
     }
 }
 
 fn execute_dst(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("dst函数需要1个参数"));
+        return Err(ExpressionError::type_error("The dst function takes 1 argument"));
     }
     match &args[0] {
         Value::Edge(e) => Ok((*e.dst).clone()),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("dst函数需要边类型")),
+        _ => Err(ExpressionError::type_error("The dst function requires an edge type")),
     }
 }
 
 fn execute_rank(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("rank函数需要1个参数"));
+        return Err(ExpressionError::type_error("The rank function takes 1 argument"));
     }
     match &args[0] {
         Value::Edge(e) => Ok(Value::Int(e.ranking)),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("rank函数需要边类型")),
+        _ => Err(ExpressionError::type_error("The rank function requires an edge type")),
     }
 }
 
 fn execute_startnode(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("startnode函数需要1个参数"));
+        return Err(ExpressionError::type_error("The startnode function takes 1 argument."));
     }
     match &args[0] {
         Value::Edge(e) => {
@@ -202,13 +202,13 @@ fn execute_startnode(args: &[Value]) -> Result<Value, ExpressionError> {
             Ok(Value::Vertex(Box::new(vertex)))
         }
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("startnode函数需要边类型")),
+        _ => Err(ExpressionError::type_error("The startnode function requires the edge type")),
     }
 }
 
 fn execute_endnode(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("endnode函数需要1个参数"));
+        return Err(ExpressionError::type_error("The endnode function takes 1 argument"));
     }
     match &args[0] {
         Value::Edge(e) => {
@@ -216,7 +216,7 @@ fn execute_endnode(args: &[Value]) -> Result<Value, ExpressionError> {
             Ok(Value::Vertex(Box::new(vertex)))
         }
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("endnode函数需要边类型")),
+        _ => Err(ExpressionError::type_error("The endnode function requires an edge type")),
     }
 }
 
@@ -256,7 +256,7 @@ mod tests {
         let vertex = create_test_vertex();
         let result = GraphFunction::Id
             .execute(&[Value::Vertex(Box::new(vertex))])
-            .expect("id函数执行应该成功");
+            .expect("The id function execution should succeed");
         assert_eq!(result, Value::Int(1));
     }
 
@@ -265,7 +265,7 @@ mod tests {
         let vertex = create_test_vertex();
         let result = GraphFunction::Tags
             .execute(&[Value::Vertex(Box::new(vertex))])
-            .expect("tags函数执行应该成功");
+            .expect("The tags function should be executed successfully");
         if let Value::List(tags) = result {
             assert_eq!(tags.values.len(), 2);
         } else {
@@ -278,7 +278,7 @@ mod tests {
         let vertex = create_test_vertex();
         let result = GraphFunction::Properties
             .execute(&[Value::Vertex(Box::new(vertex))])
-            .expect("properties函数执行应该成功");
+            .expect("The properties function should execute successfully");
         if let Value::Map(props) = result {
             assert!(props.contains_key("name"));
             assert!(props.contains_key("age"));
@@ -292,8 +292,8 @@ mod tests {
     fn test_type_function() {
         let edge = create_test_edge();
         let result = GraphFunction::EdgeType
-            .execute(&[Value::Edge(edge)])
-            .expect("type函数执行应该成功");
+            .execute(&[Value::Edge(Box::new(edge))])
+            .expect("The type function execution should succeed");
         assert_eq!(result, Value::String("knows".to_string()));
     }
 
@@ -301,8 +301,8 @@ mod tests {
     fn test_src_function() {
         let edge = create_test_edge();
         let result = GraphFunction::Src
-            .execute(&[Value::Edge(edge)])
-            .expect("src函数执行应该成功");
+            .execute(&[Value::Edge(Box::new(edge))])
+            .expect("The src function execution should succeed");
         assert_eq!(result, Value::Int(1));
     }
 
@@ -310,8 +310,8 @@ mod tests {
     fn test_dst_function() {
         let edge = create_test_edge();
         let result = GraphFunction::Dst
-            .execute(&[Value::Edge(edge)])
-            .expect("dst函数执行应该成功");
+            .execute(&[Value::Edge(Box::new(edge))])
+            .expect("The dst function execution should succeed");
         assert_eq!(result, Value::Int(2));
     }
 
@@ -319,8 +319,8 @@ mod tests {
     fn test_rank_function() {
         let edge = create_test_edge();
         let result = GraphFunction::Rank
-            .execute(&[Value::Edge(edge)])
-            .expect("rank函数执行应该成功");
+            .execute(&[Value::Edge(Box::new(edge))])
+            .expect("The execution of the rank function should succeed");
         assert_eq!(result, Value::Int(0));
     }
 
@@ -331,19 +331,19 @@ mod tests {
         assert_eq!(
             GraphFunction::Id
                 .execute(std::slice::from_ref(&null_value))
-                .expect("id函数应该处理NULL"),
+                .expect("The id function should handle NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(
             GraphFunction::Tags
                 .execute(std::slice::from_ref(&null_value))
-                .expect("tags函数应该处理NULL"),
+                .expect("The tags function should handle NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(
             GraphFunction::Properties
                 .execute(std::slice::from_ref(&null_value))
-                .expect("properties函数应该处理NULL"),
+                .expect("The properties function should handle NULL."),
             Value::Null(NullType::Null)
         );
     }

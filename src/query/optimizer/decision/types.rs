@@ -208,7 +208,7 @@ pub enum IndexChoice {
     CompositeIndex {
         /// List of attribute names
         property_names: Vec<String>,
-        /// 索引名称
+        /// Index name
         index_name: String,
     },
     /// No available index.

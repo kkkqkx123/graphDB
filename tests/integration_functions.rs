@@ -169,7 +169,7 @@ fn test_type_function() {
     let registry = FunctionRegistry::new();
     let edge = create_test_edge(1, 2, "KNOWS", 0, HashMap::new());
 
-    let result = registry.execute("type", &[Value::Edge(edge)]);
+    let result = registry.execute("type", &[Value::Edge(Box::new(edge))]);
     assert!(result.is_ok());
     assert_eq!(
         result.expect("type函数应该成功"),
@@ -182,7 +182,7 @@ fn test_src_function() {
     let registry = FunctionRegistry::new();
     let edge = create_test_edge(100, 200, "KNOWS", 0, HashMap::new());
 
-    let result = registry.execute("src", &[Value::Edge(edge)]);
+    let result = registry.execute("src", &[Value::Edge(Box::new(edge))]);
     assert!(result.is_ok());
     assert_eq!(result.expect("src函数应该成功"), Value::Int(100));
 }
@@ -192,7 +192,7 @@ fn test_dst_function() {
     let registry = FunctionRegistry::new();
     let edge = create_test_edge(100, 200, "KNOWS", 0, HashMap::new());
 
-    let result = registry.execute("dst", &[Value::Edge(edge)]);
+    let result = registry.execute("dst", &[Value::Edge(Box::new(edge))]);
     assert!(result.is_ok());
     assert_eq!(result.expect("dst函数应该成功"), Value::Int(200));
 }
@@ -202,7 +202,7 @@ fn test_rank_function() {
     let registry = FunctionRegistry::new();
     let edge = create_test_edge(1, 2, "KNOWS", 42, HashMap::new());
 
-    let result = registry.execute("rank", &[Value::Edge(edge)]);
+    let result = registry.execute("rank", &[Value::Edge(Box::new(edge))]);
     assert!(result.is_ok());
     assert_eq!(result.expect("rank函数应该成功"), Value::Int(42));
 }
@@ -212,9 +212,9 @@ fn test_rank_function() {
 #[test]
 fn test_head_function() {
     let registry = FunctionRegistry::new();
-    let list = Value::List(List {
+    let list = Value::List(Box::new(List {
         values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
-    });
+    }));
 
     let result = registry.execute("head", &[list]);
     assert!(result.is_ok());
@@ -224,9 +224,9 @@ fn test_head_function() {
 #[test]
 fn test_last_function() {
     let registry = FunctionRegistry::new();
-    let list = Value::List(List {
+    let list = Value::List(Box::new(List {
         values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
-    });
+    }));
 
     let result = registry.execute("last", &[list]);
     assert!(result.is_ok());
@@ -236,9 +236,9 @@ fn test_last_function() {
 #[test]
 fn test_tail_function() {
     let registry = FunctionRegistry::new();
-    let list = Value::List(List {
+    let list = Value::List(Box::new(List {
         values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
-    });
+    }));
 
     let result = registry.execute("tail", &[list]);
     assert!(result.is_ok());
@@ -255,9 +255,9 @@ fn test_tail_function() {
 #[test]
 fn test_size_list_function() {
     let registry = FunctionRegistry::new();
-    let list = Value::List(List {
+    let list = Value::List(Box::new(List {
         values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
-    });
+    }));
 
     let result = registry.execute("size", &[list]);
     assert!(result.is_ok());
@@ -313,7 +313,7 @@ fn test_keys_map_function() {
     let mut map = HashMap::new();
     map.insert("name".to_string(), Value::String("Alice".to_string()));
     map.insert("age".to_string(), Value::Int(30));
-    let map_value = Value::Map(map);
+    let map_value = Value::Map(Box::new(map));
 
     let result = registry.execute("keys", &[map_value]);
     assert!(result.is_ok());
@@ -334,7 +334,7 @@ fn test_nodes_function() {
     let registry = FunctionRegistry::new();
     let path = create_test_path();
 
-    let result = registry.execute("nodes", &[Value::Path(path)]);
+    let result = registry.execute("nodes", &[Value::Path(Box::new(path))]);
     assert!(result.is_ok());
 
     if let Value::List(list) = result.expect("nodes函数应该成功") {
@@ -349,7 +349,7 @@ fn test_relationships_function() {
     let registry = FunctionRegistry::new();
     let path = create_test_path();
 
-    let result = registry.execute("relationships", &[Value::Path(path)]);
+    let result = registry.execute("relationships", &[Value::Path(Box::new(path))]);
     assert!(result.is_ok());
 
     if let Value::List(list) = result.expect("relationships函数应该成功") {
@@ -603,7 +603,7 @@ fn test_null_handling() {
 #[test]
 fn test_empty_list_operations() {
     let registry = FunctionRegistry::new();
-    let empty_list = Value::List(List { values: vec![] });
+    let empty_list = Value::List(Box::new(List { values: vec![] }));
 
     // head(空列表) 应该返回 NULL
     let result = registry.execute("head", std::slice::from_ref(&empty_list));
@@ -644,7 +644,7 @@ fn test_empty_path() {
     let empty_path = Path::new(v1);
 
     // nodes(空路径) 应该返回包含起点的列表
-    let result = registry.execute("nodes", &[Value::Path(empty_path.clone())]);
+    let result = registry.execute("nodes", &[Value::Path(Box::new(empty_path.clone()))]);
     assert!(result.is_ok());
 
     if let Value::List(list) = result.expect("nodes函数应该成功") {
@@ -654,7 +654,7 @@ fn test_empty_path() {
     }
 
     // relationships(空路径) 应该返回空列表
-    let result = registry.execute("relationships", &[Value::Path(empty_path)]);
+    let result = registry.execute("relationships", &[Value::Path(Box::new(empty_path))]);
     assert!(result.is_ok());
 
     if let Value::List(list) = result.expect("relationships函数应该成功") {
@@ -667,9 +667,9 @@ fn test_empty_path() {
 #[test]
 fn test_single_element_list() {
     let registry = FunctionRegistry::new();
-    let single_list = Value::List(List {
+    let single_list = Value::List(Box::new(List {
         values: vec![Value::Int(42)],
-    });
+    }));
 
     let result = registry.execute("head", std::slice::from_ref(&single_list));
     assert!(result.is_ok());
@@ -767,7 +767,7 @@ fn test_startnode_function() {
     let registry = FunctionRegistry::new();
     let edge = create_test_edge(100, 200, "KNOWS", 0, HashMap::new());
 
-    let result = registry.execute("startnode", &[Value::Edge(edge)]);
+    let result = registry.execute("startnode", &[Value::Edge(Box::new(edge))]);
     assert!(result.is_ok());
     assert!(matches!(
         result.expect("startnode函数应该成功"),
@@ -780,7 +780,7 @@ fn test_endnode_function() {
     let registry = FunctionRegistry::new();
     let edge = create_test_edge(100, 200, "KNOWS", 0, HashMap::new());
 
-    let result = registry.execute("endnode", &[Value::Edge(edge)]);
+    let result = registry.execute("endnode", &[Value::Edge(Box::new(edge))]);
     assert!(result.is_ok());
     assert!(matches!(
         result.expect("endnode函数应该成功"),
@@ -1023,9 +1023,9 @@ fn test_strcasecmp_function() {
 #[test]
 fn test_toset_function() {
     let registry = FunctionRegistry::new();
-    let list = Value::List(List {
+    let list = Value::List(Box::new(List {
         values: vec![Value::Int(1), Value::Int(2), Value::Int(1), Value::Int(3)],
-    });
+    }));
 
     let result = registry.execute("toset", &[list]);
     assert!(result.is_ok());
@@ -1035,9 +1035,9 @@ fn test_toset_function() {
 #[test]
 fn test_reverse_list_function() {
     let registry = FunctionRegistry::new();
-    let list = Value::List(List {
+    let list = Value::List(Box::new(List {
         values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
-    });
+    }));
 
     let result = registry.execute("reverse", &[list]);
     assert!(result.is_ok());

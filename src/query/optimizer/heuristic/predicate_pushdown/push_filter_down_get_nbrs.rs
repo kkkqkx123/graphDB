@@ -181,7 +181,7 @@ mod tests {
         let expr_meta = crate::core::types::expr::ExpressionMeta::new(condition);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
-        let filter = FilterNode::new(start_enum.clone(), ctx_expr).expect("创建FilterNode失败");
+        let filter = FilterNode::new(start_enum.clone(), ctx_expr).expect("Failed to create FilterNode");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
         let get_nbrs = GetNeighborsNode::new(1, "v");

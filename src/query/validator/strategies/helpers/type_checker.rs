@@ -608,7 +608,7 @@ impl TypeValidator {
                 self.validate_group_key_type_internal(operand.as_ref(), _context)
             }
             _ => Err(ValidationError::new(
-                "GROUP BY 键必须是有效的表达式".to_string(),
+                "The GROUP BY key must be a valid expression".to_string(),
                 ValidationErrorType::SemanticError,
             )),
         }

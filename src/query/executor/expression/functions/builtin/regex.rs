@@ -35,9 +35,9 @@ impl RegexFunction {
 
     pub fn description(&self) -> &str {
         match self {
-            RegexFunction::RegexMatch => "正则表达式匹配",
-            RegexFunction::RegexReplace => "正则表达式替换",
-            RegexFunction::RegexFind => "正则表达式查找",
+            RegexFunction::RegexMatch => "regular expression matching (math.)",
+            RegexFunction::RegexReplace => "regular expression substitution",
+            RegexFunction::RegexFind => "regular expression lookup (computing)",
         }
     }
 
@@ -54,7 +54,7 @@ impl RegexFunction {
                     Ok(Value::Bool(regex.is_match(s)))
                 }
                 (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("regex_match函数需要字符串类型")),
+                _ => Err(ExpressionError::type_error("The regex_match function requires the string type")),
             },
             RegexFunction::RegexReplace => match (&args[0], &args[1], &args[2]) {
                 (Value::String(s), Value::String(pattern), Value::String(replacement)) => {
@@ -72,7 +72,7 @@ impl RegexFunction {
                     Ok(Value::Null(NullType::Null))
                 }
                 _ => Err(ExpressionError::type_error(
-                    "regex_replace函数需要字符串类型",
+                    "The regex_replace function requires the string type",
                 )),
             },
             RegexFunction::RegexFind => match (&args[0], &args[1]) {
@@ -90,7 +90,7 @@ impl RegexFunction {
                     }
                 }
                 (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("regex_find函数需要字符串类型")),
+                _ => Err(ExpressionError::type_error("The regex_find function requires the string type")),
             },
         }
     }

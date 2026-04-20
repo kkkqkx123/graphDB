@@ -142,7 +142,7 @@ macro_rules! define_typed_rewrite_rule {
 ///
 /// Automatically generate implementations for the RewriteRule and PushDownRule traits.
 ///
-/// # 示例
+/// # Examples
 /// ```rust
 /// define_rewrite_pushdown_rule! {
 ///     name: PushFilterDownGetNbrsRule,
@@ -168,7 +168,7 @@ macro_rules! define_rewrite_pushdown_rule {
         pub struct $name;
 
         impl $name {
-            /// 创建规则实例
+            /// Creating rule instances
             pub fn new() -> Self {
                 Self
             }
@@ -246,7 +246,7 @@ macro_rules! define_rewrite_pushdown_rule {
 ///
 /// Automatically generate implementations of the RewriteRule and EliminationRule traits.
 ///
-/// # 示例
+/// # Examples
 /// ```rust
 /// define_rewrite_elimination_rule! {
 ///     name: EliminateFilterRule,
@@ -276,7 +276,7 @@ macro_rules! define_rewrite_elimination_rule {
         pub struct $name;
 
         impl $name {
-            /// 创建规则实例
+            /// Creating rule instances
             pub fn new() -> Self {
                 Self
             }
@@ -345,7 +345,7 @@ macro_rules! define_rewrite_elimination_rule {
 
 /// Define a simple elimination rule (which only deletes the current node).
 ///
-/// # 示例
+/// # Examples
 /// ```rust
 /// define_simple_rewrite_elimination_rule! {
 ///     name: EliminateTrueFilterRule,
@@ -366,7 +366,7 @@ macro_rules! define_simple_rewrite_elimination_rule {
         pub struct $name;
 
         impl $name {
-            /// 创建规则实例
+            /// Creating rule instances
             pub fn new() -> Self {
                 Self
             }
@@ -443,7 +443,7 @@ macro_rules! define_simple_rewrite_elimination_rule {
 ///
 /// Automatically generate implementations for the RewriteRule and MergeRule traits.
 ///
-/// # 示例
+/// # Examples
 /// ```rust
 /// define_rewrite_merge_rule! {
 ///     name: CombineFilterRule,
@@ -471,7 +471,7 @@ macro_rules! define_rewrite_merge_rule {
         pub struct $name;
 
         impl $name {
-            /// 创建规则实例
+            /// Creating rule instances
             pub fn new() -> Self {
                 Self
             }
@@ -575,7 +575,7 @@ macro_rules! define_rewrite_merge_rule {
 ///
 /// Automatically generate the default implementation of RuleRegistry, which includes the registration of all rules.
 ///
-/// # 示例
+/// # Examples
 /// ```rust
 /// define_rewrite_rule_registry! {
 ///     elimination: [

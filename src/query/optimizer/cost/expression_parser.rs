@@ -35,7 +35,7 @@ impl ExpressionParser {
     /// Try to parse the list size from the expression string.
     ///
     /// The following modes are supported:
-    /// - 数组字面量：[a, b, c] -> 3
+    /// - Array literals: [a, b, c] -> 3
     /// - range 函数：range(1, 10) -> 9, range(1, 10, 2) -> 5
     /// - Range expressions: 1..10 -> 9, 0..=5 -> 6
     /// - 集合函数：keys(map), values(map), nodes(path), relationships(path)
@@ -44,7 +44,7 @@ impl ExpressionParser {
     pub fn parse_list_size(&self, expr: &str) -> Option<f64> {
         let expr = expr.trim();
 
-        // 尝试解析数组字面量 [a, b, c]
+        // Attempt to parse array literals [a, b, c]
         if expr.starts_with('[') && expr.ends_with(']') {
             return self.parse_array_literal(expr);
         }
@@ -399,7 +399,7 @@ impl ExpressionParser {
             return Some(iterations as u32);
         }
 
-        // 尝试解析列表/集合大小：[a,b,c] 或 {a,b,c}
+        // Try to parse list/set size: [a,b,c] or {a,b,c}
         if condition.starts_with('[') && condition.ends_with(']') {
             return Some(self.parse_collection_size(condition));
         }
@@ -583,7 +583,7 @@ impl ExpressionParser {
         None
     }
 
-    /// 解析集合大小（如 "[a, b, c]"）
+    /// Resolve set size (e.g. "[a, b, c]")
     fn parse_collection_size(&self, expr: &str) -> u32 {
         let inner = &expr[1..expr.len() - 1];
         if inner.trim().is_empty() {

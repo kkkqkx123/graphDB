@@ -45,7 +45,7 @@ impl CollectionOperationEvaluator {
                         ))
                     }
                 } else {
-                    Err(ExpressionError::type_error("列表下标必须是整数"))
+                    Err(ExpressionError::type_error("List subscripts must be integers"))
                 }
             }
             Value::String(s) => {
@@ -62,7 +62,7 @@ impl CollectionOperationEvaluator {
                         ))
                     }
                 } else {
-                    Err(ExpressionError::type_error("字符串下标必须是整数"))
+                    Err(ExpressionError::type_error("String subscripts must be integers"))
                 }
             }
             Value::Map(map) => {
@@ -74,10 +74,10 @@ impl CollectionOperationEvaluator {
                         ))
                     })
                 } else {
-                    Err(ExpressionError::type_error("映射键必须是字符串"))
+                    Err(ExpressionError::type_error("Mapping key must be a string"))
                 }
             }
-            _ => Err(ExpressionError::type_error("不支持下标访问的类型")),
+            _ => Err(ExpressionError::type_error("Types for which subscript access are not supported")),
         }
     }
 
@@ -174,7 +174,7 @@ impl CollectionOperationEvaluator {
                     ))
                 }
             }
-            _ => Err(ExpressionError::type_error("不支持范围访问的类型")),
+            _ => Err(ExpressionError::type_error("Types of scope access are not supported")),
         }
     }
 
@@ -222,10 +222,10 @@ impl CollectionOperationEvaluator {
                         ))
                     }
                 } else {
-                    Err(ExpressionError::type_error("列表索引必须是整数"))
+                    Err(ExpressionError::type_error("List index must be an integer"))
                 }
             }
-            _ => Err(ExpressionError::type_error("不支持属性访问的类型")),
+            _ => Err(ExpressionError::type_error("Types of property access are not supported")),
         }
     }
 

@@ -46,7 +46,7 @@ impl ClausePlanner for WhereClausePlanner {
         let condition = extract_where_condition(stmt)?;
 
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("WHERE 子句需要输入计划".to_string())
+            PlannerError::PlanGenerationFailed("The WHERE clause requires an input plan".to_string())
         })?;
 
         let filter_node = FilterNode::new(input_node.clone(), condition)?;
@@ -61,7 +61,7 @@ fn extract_where_condition(stmt: &Stmt) -> Result<ContextualExpression, PlannerE
         }
     }
     Err(PlannerError::PlanGenerationFailed(
-        "WHERE 子句应该在 Parser 层创建默认表达式".to_string(),
+        "The WHERE clause should create a default expression at the Parser level".to_string(),
     ))
 }
 
@@ -100,7 +100,7 @@ mod tests {
             optional: false,
         });
 
-        let condition = extract_where_condition(&match_stmt).expect("提取失败");
+        let condition = extract_where_condition(&match_stmt).expect("failed to extract");
         assert_eq!(condition.id(), ctx_expr.id());
     }
 

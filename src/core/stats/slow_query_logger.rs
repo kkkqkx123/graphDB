@@ -370,51 +370,42 @@ impl SlowQueryLogger {
 
             let mut lines_written = 0;
 
-            loop {
-                match rx.recv() {
-                    Ok(log_entry) => {
-                        let bytes = log_entry.as_bytes();
-                        let current_size = file_size.load(Ordering::Relaxed);
+            while let Ok(log_entry) = rx.recv() {
+                let bytes = log_entry.as_bytes();
+                let current_size = file_size.load(Ordering::Relaxed);
 
-                        // Check if rotation is needed
-                        if current_size + bytes.len() as u64 > config.max_file_size_mb * 1024 * 1024
-                        {
-                            // Perform log rotation
-                            if let Err(e) = Self::rotate_logs(&config) {
-                                eprintln!("Failed to rotate slow query log: {}", e);
-                            }
-
-                            // Reopen new file
-                            writer = BufWriter::new(
-                                OpenOptions::new()
-                                    .create(true)
-                                    .write(true)
-                                    .truncate(true)
-                                    .open(&config.log_file_path)
-                                    .expect("Failed to open new slow query log file"),
-                            );
-                            file_size.store(0, Ordering::Relaxed);
-                        }
-
-                        // Write log entry
-                        if let Err(e) = writer.write_all(bytes) {
-                            eprintln!("Failed to write slow query log: {}", e);
-                        }
-
-                        lines_written += 1;
-
-                        // Periodic flush
-                        if lines_written % 10 == 0 {
-                            let _ = writer.flush();
-                        }
-
-                        file_size.fetch_add(bytes.len() as u64, Ordering::Relaxed);
+                // Check if rotation is needed
+                if current_size + bytes.len() as u64 > config.max_file_size_mb * 1024 * 1024 {
+                    // Perform log rotation
+                    if let Err(e) = Self::rotate_logs(&config) {
+                        eprintln!("Failed to rotate slow query log: {}", e);
                     }
-                    Err(_) => {
-                        // Channel closed, exit thread
-                        break;
-                    }
+
+                    // Reopen new file
+                    writer = BufWriter::new(
+                        OpenOptions::new()
+                            .create(true)
+                            .write(true)
+                            .truncate(true)
+                            .open(&config.log_file_path)
+                            .expect("Failed to open new slow query log file"),
+                    );
+                    file_size.store(0, Ordering::Relaxed);
                 }
+
+                // Write log entry
+                if let Err(e) = writer.write_all(bytes) {
+                    eprintln!("Failed to write slow query log: {}", e);
+                }
+
+                lines_written += 1;
+
+                // Periodic flush
+                if lines_written % 10 == 0 {
+                    let _ = writer.flush();
+                }
+
+                file_size.fetch_add(bytes.len() as u64, Ordering::Relaxed);
             }
 
             // Ensure all data is written

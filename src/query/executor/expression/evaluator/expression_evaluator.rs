@@ -139,7 +139,7 @@ impl ExpressionEvaluator {
                         match condition_result {
                             Value::Bool(true) => return Self::evaluate_recursive(value, context),
                             Value::Bool(false) => continue,
-                            _ => return Err(ExpressionError::type_error("CASE条件必须是布尔值")),
+                            _ => return Err(ExpressionError::type_error("CASE conditions must be Boolean")),
                         }
                     }
                 }
@@ -227,27 +227,27 @@ impl ExpressionEvaluator {
             }
 
             // Other types of expressions that require runtime context to be executed
-            Expression::Label(_) => Err(ExpressionError::type_error("未求解的标签表达式")),
+            Expression::Label(_) => Err(ExpressionError::type_error("Unsolved labeled expressions")),
             Expression::ListComprehension { .. } => Err(ExpressionError::type_error(
-                "列表推导表达式需要运行时上下文",
+                "List Derivation Expressions Require Runtime Contexts",
             )),
             Expression::LabelTagProperty { .. } => Err(ExpressionError::type_error(
-                "标签属性表达式需要运行时上下文",
+                "Tagged attribute expressions require runtime context",
             )),
             Expression::TagProperty { .. } => Err(ExpressionError::type_error(
-                "标签属性表达式需要运行时上下文",
+                "Tagged attribute expressions require runtime context",
             )),
             Expression::EdgeProperty { .. } => {
-                Err(ExpressionError::type_error("边属性表达式需要运行时上下文"))
+                Err(ExpressionError::type_error("Edge attribute expressions require runtime context"))
             }
             Expression::Predicate { .. } => {
-                Err(ExpressionError::type_error("谓词表达式需要运行时上下文"))
+                Err(ExpressionError::type_error("Predicate expressions require a runtime context"))
             }
             Expression::Reduce { .. } => {
-                Err(ExpressionError::type_error("归约表达式需要运行时上下文"))
+                Err(ExpressionError::type_error("Inductive expressions require a runtime context"))
             }
             Expression::PathBuild(_) => Err(ExpressionError::type_error(
-                "路径构建表达式需要运行时上下文",
+                "Path construction expressions require a runtime context",
             )),
             Expression::Parameter(name) => Err(ExpressionError::type_error(format!(
                 "The query parameter '{}' requires values provided by the runtime context.",

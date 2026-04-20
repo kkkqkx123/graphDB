@@ -163,7 +163,7 @@ impl UnwindValidator {
             self.validate_expression_internal(&expr)
         } else {
             Err(ValidationError::new(
-                "UNWIND 表达式无效".to_string(),
+                "UNWIND expression is invalid".to_string(),
                 ValidationErrorType::SyntaxError,
             ))
         }
@@ -176,7 +176,7 @@ impl UnwindValidator {
     ) -> Result<(), ValidationError> {
         if self.expression_is_empty(expression) {
             return Err(ValidationError::new(
-                "UNWIND 表达式不能为空".to_string(),
+                "UNWIND expression cannot be null".to_string(),
                 ValidationErrorType::SyntaxError,
             ));
         }
@@ -199,7 +199,7 @@ impl UnwindValidator {
     fn validate_variable(&self) -> Result<(), ValidationError> {
         if self.variable_name.is_empty() {
             return Err(ValidationError::new(
-                "UNWIND 需要 AS 子句指定变量名".to_string(),
+                "UNWIND requires the AS clause to specify the variable name.".to_string(),
                 ValidationErrorType::SyntaxError,
             ));
         }

@@ -107,11 +107,11 @@ macro_rules! define_plan_node_with_deps {
 
         impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode for $name {
             fn input(&self) -> &$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-                self.input.as_ref().expect("输入节点不存在")
+                self.input.as_ref().expect("Input node does not exist")
             }
 
             fn input_mut(&mut self) -> &mut $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-                self.input.as_mut().expect("输入节点不存在")
+                self.input.as_mut().expect("Input node does not exist")
             }
 
             fn set_input(&mut self, input: $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {

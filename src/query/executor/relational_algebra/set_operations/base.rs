@@ -183,7 +183,7 @@ impl<S: StorageClient + Send + 'static> crate::query::executor::base::Executor<S
     ) -> crate::query::executor::base::DBResult<crate::query::executor::base::ExecutionResult> {
         Err(crate::core::error::DBError::Query(
             crate::core::error::QueryError::ExecutionError(
-                "SetExecutor是抽象基类，不能直接执行".to_string(),
+                "SetExecutor is an abstract base class and cannot be executed directly".to_string(),
             ),
         ))
     }

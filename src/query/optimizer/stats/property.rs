@@ -11,7 +11,7 @@ use super::histogram::Histogram;
 /// Lightweight attribute combination statistics for GROUP BY base estimation
 #[derive(Debug, Clone)]
 pub struct PropertyCombinationStats {
-    /// 属性组合键（如 "tag.prop1.prop2"）
+    /// Property key combinations (e.g. "tag.prop1.prop2")
     pub key: String,
     /// Associated tags (if any)
     pub tag_name: Option<String>,

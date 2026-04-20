@@ -96,9 +96,9 @@ fn create_test_vertex_with_vector(
     let list_values: Vec<Value> = vector.iter().map(|&v| Value::Float(v as f64)).collect();
     props.insert(
         field_name.to_string(),
-        Value::List(graphdb::core::List {
+        Value::List(Box::new(graphdb::core::List {
             values: list_values,
-        }),
+        })),
     );
     let tag = Tag::new(tag_name.to_string(), props);
     Vertex::new(Value::Int(vid), vec![tag])

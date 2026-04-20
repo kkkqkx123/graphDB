@@ -82,7 +82,7 @@ fn extract_return_columns(stmt: &Stmt) -> Result<Vec<YieldColumn>, PlannerError>
 
     if columns.is_empty() {
         return Err(PlannerError::PlanGenerationFailed(
-            "RETURN 子句缺少返回项".to_string(),
+            "RETURN clause missing return item".to_string(),
         ));
     }
 
@@ -103,7 +103,7 @@ impl ClausePlanner for ReturnClausePlanner {
         let yield_columns = extract_return_columns(stmt)?;
 
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("RETURN 子句需要输入计划".to_string())
+            PlannerError::PlanGenerationFailed("The RETURN clause requires an input plan".to_string())
         })?;
 
         let project_node = ProjectNode::new(input_node.clone(), yield_columns)?;
@@ -199,7 +199,7 @@ mod tests {
             optional: false,
         });
 
-        let columns = extract_return_columns(&match_stmt).expect("提取失败");
+        let columns = extract_return_columns(&match_stmt).expect("failed to extract");
         assert_eq!(columns.len(), 1);
         assert_eq!(columns[0].alias, "n");
     }

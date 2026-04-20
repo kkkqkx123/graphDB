@@ -12,70 +12,70 @@ define_function_enum! {
             name: "st_point",
             arity: 2,
             variadic: false,
-            description: "创建地理点 (经度, 纬度)",
+            description: "Create Geographic Points (Longitude, Latitude)",
             handler: execute_st_point
         },
         StGeogFromText => {
             name: "st_geogfromtext",
             arity: 1,
             variadic: false,
-            description: "从WKT文本创建地理对象",
+            description: "Creating geographic objects from WKT text",
             handler: execute_st_geogfromtext
         },
         StAsText => {
             name: "st_astext",
             arity: 1,
             variadic: false,
-            description: "将地理对象转换为WKT文本",
+            description: "Convert geographic objects to WKT text",
             handler: execute_st_astext
         },
         StCentroid => {
             name: "st_centroid",
             arity: 1,
             variadic: false,
-            description: "计算地理对象的中心点",
+            description: "Calculate the center point of a geographic object",
             handler: execute_st_centroid
         },
         StIsValid => {
             name: "st_isvalid",
             arity: 1,
             variadic: false,
-            description: "检查地理对象是否有效",
+            description: "Checking the validity of geographic objects",
             handler: execute_st_isvalid
         },
         StIntersects => {
             name: "st_intersects",
             arity: 2,
             variadic: false,
-            description: "检查两个地理对象是否相交",
+            description: "Check if two geographic objects intersect",
             handler: execute_st_intersects
         },
         StCovers => {
             name: "st_covers",
             arity: 2,
             variadic: false,
-            description: "检查第一个地理对象是否覆盖第二个",
+            description: "Check if the first geographic object overrides the second",
             handler: execute_st_covers
         },
         StCoveredBy => {
             name: "st_coveredby",
             arity: 2,
             variadic: false,
-            description: "检查第一个地理对象是否被第二个覆盖",
+            description: "Check if the first geographic object is overwritten by the second",
             handler: execute_st_coveredby
         },
         StDWithin => {
             name: "st_dwithin",
             arity: 3,
             variadic: false,
-            description: "检查两个地理对象是否在指定距离内（单位：公里）",
+            description: "Check that two geographic objects are within the specified distance (in kilometers)",
             handler: execute_st_dwithin
         },
         StDistance => {
             name: "st_distance",
             arity: 2,
             variadic: false,
-            description: "计算两个地理对象之间的距离（单位：公里）",
+            description: "Calculation of the distance between two geographical objects (in kilometers)",
             handler: execute_st_distance
         },
     }
@@ -112,7 +112,7 @@ fn execute_st_point(args: &[Value]) -> Result<Value, ExpressionError> {
             Ok(Value::Geography(geo))
         }
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("st_point函数需要数值参数")),
+        _ => Err(ExpressionError::type_error("The st_point function takes numeric arguments")),
     }
 }
 
@@ -128,7 +128,7 @@ fn execute_st_geogfromtext(args: &[Value]) -> Result<Value, ExpressionError> {
         },
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
         _ => Err(ExpressionError::type_error(
-            "st_geogfromtext函数需要字符串参数",
+            "The st_geogfromtext function takes string arguments",
         )),
     }
 }
@@ -140,7 +140,7 @@ fn execute_st_astext(args: &[Value]) -> Result<Value, ExpressionError> {
             Ok(Value::String(wkt))
         }
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("st_astext函数需要地理类型")),
+        _ => Err(ExpressionError::type_error("The st_astext function requires the geographic type")),
     }
 }
 
@@ -148,7 +148,7 @@ fn execute_st_centroid(args: &[Value]) -> Result<Value, ExpressionError> {
     match &args[0] {
         Value::Geography(geo) => Ok(Value::Geography(geo.clone())),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("st_centroid函数需要地理类型")),
+        _ => Err(ExpressionError::type_error("The st_centroid function requires the geography type")),
     }
 }
 
@@ -162,7 +162,7 @@ fn execute_st_isvalid(args: &[Value]) -> Result<Value, ExpressionError> {
             Ok(Value::Bool(is_valid))
         }
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("st_isvalid函数需要地理类型")),
+        _ => Err(ExpressionError::type_error("The st_isvalid function requires the geography type")),
     }
 }
 
@@ -213,7 +213,7 @@ fn execute_st_dwithin(args: &[Value]) -> Result<Value, ExpressionError> {
             Ok(Value::Null(NullType::Null))
         }
         _ => Err(ExpressionError::type_error(
-            "st_dwithin函数需要地理类型和数值距离参数",
+            "The st_dwithin function requires geotype and numeric distance parameters",
         )),
     }
 }
@@ -227,7 +227,7 @@ mod tests {
         let func = GeographyFunction::StPoint;
         let result = func
             .execute(&[Value::Float(116.4074), Value::Float(39.9042)])
-            .expect("执行不应失败");
+            .expect("Implementation should not fail");
         assert!(matches!(result, Value::Geography(_)));
     }
 
@@ -240,7 +240,7 @@ mod tests {
         };
         let result = func
             .execute(&[Value::Geography(geo)])
-            .expect("执行不应失败");
+            .expect("Implementation should not fail");
         assert_eq!(result, Value::Bool(true));
     }
 
@@ -257,7 +257,7 @@ mod tests {
         };
         let result = func
             .execute(&[Value::Geography(geo1), Value::Geography(geo2)])
-            .expect("执行不应失败");
+            .expect("Implementation should not fail");
         assert!(matches!(result, Value::Float(_)));
     }
 
@@ -266,7 +266,7 @@ mod tests {
         let func = GeographyFunction::StIsValid;
         let result = func
             .execute(&[Value::Null(NullType::Null)])
-            .expect("执行不应失败");
+            .expect("Implementation should not fail");
         assert_eq!(result, Value::Null(NullType::Null));
     }
 }

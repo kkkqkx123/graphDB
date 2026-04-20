@@ -231,7 +231,7 @@ impl Row {
     /// Getting the edge
     pub fn get_edge(&self, column: &str) -> Option<&Edge> {
         self.get(column).and_then(|v| match v {
-            Value::Edge(edge) => Some(edge),
+            Value::Edge(edge) => Some(edge.as_ref()),
             _ => None,
         })
     }
@@ -239,7 +239,7 @@ impl Row {
     /// Get Path
     pub fn get_path(&self, column: &str) -> Option<&Path> {
         self.get(column).and_then(|v| match v {
-            Value::Path(path) => Some(path),
+            Value::Path(path) => Some(path.as_ref()),
             _ => None,
         })
     }
@@ -247,7 +247,7 @@ impl Row {
     /// Get List
     pub fn get_list(&self, column: &str) -> Option<&crate::core::value::list::List> {
         self.get(column).and_then(|v| match v {
-            Value::List(list) => Some(list),
+            Value::List(list) => Some(list.as_ref()),
             _ => None,
         })
     }
@@ -255,7 +255,7 @@ impl Row {
     /// Getting the mapping
     pub fn get_map(&self, column: &str) -> Option<&HashMap<String, Value>> {
         self.get(column).and_then(|v| match v {
-            Value::Map(map) => Some(map),
+            Value::Map(map) => Some(map.as_ref()),
             _ => None,
         })
     }

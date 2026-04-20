@@ -212,7 +212,7 @@ impl DeleteValidator {
                     .map_err(|e| ValidationError::new(e.message, e.error_type))
             } else {
                 Err(ValidationError::new(
-                    "顶点 ID 表达式无效".to_string(),
+                    "Vertex ID expression is invalid".to_string(),
                     ValidationErrorType::SemanticError,
                 ))
             }
@@ -249,7 +249,7 @@ impl DeleteValidator {
             }
         } else {
             Err(ValidationError::new(
-                "顶点 ID 表达式无效".to_string(),
+                "Vertex ID expression is invalid".to_string(),
                 ValidationErrorType::SemanticError,
             ))
         }
@@ -268,7 +268,7 @@ impl DeleteValidator {
             }
         } else {
             Err(ValidationError::new(
-                "Rank 表达式无效".to_string(),
+                "Rank expression is invalid".to_string(),
                 ValidationErrorType::SemanticError,
             ))
         }
@@ -291,7 +291,7 @@ impl DeleteValidator {
             Some(e) => e,
             None => {
                 return Err(ValidationError::new(
-                    "表达式无效".to_string(),
+                    "Invalid expression".to_string(),
                     ValidationErrorType::SemanticError,
                 ))
             }

@@ -70,7 +70,7 @@ impl ClausePlanner for OrderByClausePlanner {
         }
 
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("ORDER BY 子句需要输入计划".to_string())
+            PlannerError::PlanGenerationFailed("The ORDER BY clause requires an input plan".to_string())
         })?;
 
         let sort_items: Vec<SortItem> = order_by_items

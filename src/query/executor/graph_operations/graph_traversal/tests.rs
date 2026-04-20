@@ -177,7 +177,7 @@ mod tests {
     /// 最短路径(按权重): A->B->C (总权重: 3)
     /// 最短路径(按步数): A->B->C 或 A->D->C (都是2步)
     fn create_weighted_test_graph(_test_name: &str) -> Arc<Mutex<MockStorage>> {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
         let space = "default";
 
         {
@@ -346,7 +346,7 @@ mod tests {
 
     // Create a test image with coordinate attributes for testing the A* algorithm.
     fn create_spatial_test_graph(_test_name: &str) -> Arc<Mutex<MockStorage>> {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
         let space = "default";
 
         // 创建空间测试图：A(0,0) -> B(3,4) -> C(6,8), A -> D(1,1) -> C

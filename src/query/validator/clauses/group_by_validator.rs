@@ -103,7 +103,7 @@ impl GroupByValidator {
             self.validate_group_key_internal(&e)
         } else {
             Err(ValidationError::new(
-                "分组键表达式无效".to_string(),
+                "Invalid grouping key expression".to_string(),
                 ValidationErrorType::SemanticError,
             ))
         }
@@ -167,7 +167,7 @@ impl GroupByValidator {
             self.validate_having_expr_internal(&e)
         } else {
             Err(ValidationError::new(
-                "HAVING 表达式无效".to_string(),
+                "HAVING expression is invalid".to_string(),
                 ValidationErrorType::SemanticError,
             ))
         }

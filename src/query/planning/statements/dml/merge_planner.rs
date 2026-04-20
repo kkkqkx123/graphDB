@@ -39,7 +39,7 @@ impl MergePlanner {
         match stmt {
             Stmt::Merge(merge_stmt) => Ok(merge_stmt.clone()),
             _ => Err(PlannerError::PlanGenerationFailed(
-                "语句不包含 MERGE".to_string(),
+                "statement does not contain the MERGE".to_string(),
             )),
         }
     }
@@ -158,17 +158,17 @@ impl Planner for MergePlanner {
         // Check the semantic information.
         let referenced_tags = &validation_info.semantic_info.referenced_tags;
         if !referenced_tags.is_empty() {
-            log::debug!("MERGE 引用的标签: {:?}", referenced_tags);
+            log::debug!("MERGE quoted tags: {:?}", referenced_tags);
         }
 
         let referenced_edges = &validation_info.semantic_info.referenced_edges;
         if !referenced_edges.is_empty() {
-            log::debug!("MERGE 引用的边类型: {:?}", referenced_edges);
+            log::debug!("MERGE references edge type: {:?}", referenced_edges);
         }
 
         let referenced_properties = &validation_info.semantic_info.referenced_properties;
         if !referenced_properties.is_empty() {
-            log::debug!("MERGE 引用的属性: {:?}", referenced_properties);
+            log::debug!("MERGE Referenced Properties: {:?}", referenced_properties);
         }
 
         let merge_stmt = self.extract_merge_stmt(validated.stmt())?;

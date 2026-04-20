@@ -319,15 +319,15 @@ fn test_value_unary_operations() {
         Value::Int(5)
     );
     assert_eq!(
-        Value::List(graphdb::core::List {
+        Value::List(Box::new(graphdb::core::List {
             values: vec![Value::Int(1), Value::Int(2)]
-        })
+        }))
         .length()
         .expect("列表长度计算应该成功"),
         Value::Int(2)
     );
     assert_eq!(
-        Value::Map(std::collections::HashMap::new())
+        Value::Map(Box::<std::collections::HashMap<_, _>>::default())
             .length()
             .expect("映射长度计算应该成功"),
         Value::Int(0)
@@ -959,15 +959,15 @@ fn test_string_concatenation() {
 #[test]
 fn test_list_operations() {
     // Create list values
-    let list = Value::List(graphdb::core::List {
+    let list = Value::List(Box::new(graphdb::core::List {
         values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
-    });
+    }));
 
     assert_eq!(list.length().expect("列表长度计算应该成功"), Value::Int(3));
     assert_eq!(list.get_type(), DataType::List);
 
     // Empty list
-    let empty_list = Value::List(graphdb::core::List { values: vec![] });
+    let empty_list = Value::List(Box::new(graphdb::core::List { values: vec![] }));
     assert_eq!(
         empty_list.length().expect("空列表长度计算应该成功"),
         Value::Int(0)
@@ -982,7 +982,7 @@ fn test_map_operations() {
     let mut map = HashMap::new();
     map.insert("name".to_string(), Value::String("Alice".to_string()));
     map.insert("age".to_string(), Value::Int(30));
-    let map_value = Value::Map(map);
+    let map_value = Value::Map(Box::new(map));
 
     assert_eq!(
         map_value.length().expect("映射长度计算应该成功"),
@@ -1000,9 +1000,9 @@ fn test_value_memory_estimation() {
     let string_val = Value::String("hello world".to_string());
     assert!(string_val.estimated_size() >= std::mem::size_of::<Value>() + "hello world".len());
 
-    let list_val = Value::List(graphdb::core::List {
+    let list_val = Value::List(Box::new(graphdb::core::List {
         values: vec![Value::Int(1), Value::Int(2)],
-    });
+    }));
     assert!(list_val.estimated_size() > int_val.estimated_size());
 }
 

@@ -3,20 +3,15 @@
 use serde::{Deserialize, Serialize};
 
 /// Storage engine type
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum StorageEngine {
     /// Redb storage engine
+    #[default]
     Redb,
     /// RocksDB storage engine (future support)
     #[serde(rename = "rocksdb")]
     RocksDB,
-}
-
-impl Default for StorageEngine {
-    fn default() -> Self {
-        Self::Redb
-    }
 }
 
 impl std::fmt::Display for StorageEngine {
@@ -29,23 +24,18 @@ impl std::fmt::Display for StorageEngine {
 }
 
 /// Compression algorithm
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum CompressionAlgorithm {
     /// No compression
     None,
     /// LZ4 compression
+    #[default]
     Lz4,
     /// Zstandard compression
     Zstd,
     /// Snappy compression
     Snappy,
-}
-
-impl Default for CompressionAlgorithm {
-    fn default() -> Self {
-        Self::Lz4
-    }
 }
 
 impl std::fmt::Display for CompressionAlgorithm {

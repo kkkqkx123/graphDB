@@ -116,7 +116,7 @@ impl UseValidator {
     fn validate_space_name(&self) -> Result<(), ValidationError> {
         if self.space_name.is_empty() {
             return Err(ValidationError::new(
-                "USE 语句需要指定空间名".to_string(),
+                "The USE statement requires the space name to be specified".to_string(),
                 ValidationErrorType::SyntaxError,
             ));
         }
@@ -210,7 +210,7 @@ impl StatementValidator for UseValidator {
             self.space_name = use_stmt.space.clone();
         } else {
             return Err(ValidationError::new(
-                "期望 USE 语句".to_string(),
+                "Expected USE statement".to_string(),
                 crate::core::error::ValidationErrorType::SemanticError,
             ));
         }

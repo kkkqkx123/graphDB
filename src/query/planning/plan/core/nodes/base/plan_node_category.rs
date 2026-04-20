@@ -44,15 +44,15 @@ impl PlanNodeCategory {
     /// Please provide the text that needs to be translated into Chinese.
     pub fn description(&self) -> &'static str {
         match self {
-            PlanNodeCategory::Access => "访问层 - 从存储层读取数据",
-            PlanNodeCategory::Operation => "操作层 - 数据转换和过滤",
-            PlanNodeCategory::Join => "连接层 - 多数据流连接",
-            PlanNodeCategory::Traversal => "遍历层 - 图遍历和扩展",
-            PlanNodeCategory::ControlFlow => "控制流层 - 执行流程控制",
-            PlanNodeCategory::DataProcessing => "数据处理层 - 复杂数据操作",
-            PlanNodeCategory::Algorithm => "算法层 - 图算法执行",
-            PlanNodeCategory::Management => "管理/DDL层 - 元数据管理",
-            PlanNodeCategory::DataAccess => "数据访问层 - 全文搜索等数据访问操作",
+            PlanNodeCategory::Access => "Access layer - reads data from the storage layer",
+            PlanNodeCategory::Operation => "Operational Layer - Data Conversion and Filtering",
+            PlanNodeCategory::Join => "Connection Layer - Multi-Stream Connectivity",
+            PlanNodeCategory::Traversal => "Traversal Layer - Graph Traversal and Extension",
+            PlanNodeCategory::ControlFlow => "Control Flow Layer - Performs process control",
+            PlanNodeCategory::DataProcessing => "Data Processing Layer - Complex Data Manipulation",
+            PlanNodeCategory::Algorithm => "Algorithm Layer - Graph Algorithm Execution",
+            PlanNodeCategory::Management => "Management/DDL Layer - Metadata Management",
+            PlanNodeCategory::DataAccess => "Data access layer - full text search and other data access operations",
         }
     }
 

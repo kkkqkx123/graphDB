@@ -43,7 +43,7 @@ macro_rules! define_enum_is_methods {
 
 /// Generate a macro for the `as_xxx` method for `PlanNodeEnum`
 ///
-/// # 示例
+/// # Examples
 /// ```
 /// define_enum_as_methods! {
 ///     PlanNodeEnum,
@@ -70,7 +70,7 @@ macro_rules! define_enum_as_methods {
 
 /// Generate a macro for the `as_xxx_mut` method for `PlanNodeEnum`
 ///
-/// # 示例
+/// # Examples
 /// ```
 /// define_enum_as_mut_methods! {
 ///     PlanNodeEnum,
@@ -96,7 +96,7 @@ macro_rules! define_enum_as_mut_methods {
 
 /// Generate a macro for the `type_name` method for `PlanNodeEnum`
 ///
-/// # 示例
+/// # Examples
 /// ```
 /// define_enum_type_name! {
 ///     PlanNodeEnum,
@@ -119,7 +119,7 @@ macro_rules! define_enum_type_name {
 
 /// Generate a macro for the `category` method of `PlanNodeEnum`
 ///
-/// # 示例
+/// # Examples
 /// ```
 /// define_enum_category! {
 ///     PlanNodeEnum,
@@ -144,7 +144,7 @@ macro_rules! define_enum_category {
 /// Generate a macro for the describe method of PlanNodeEnum
 /// 假设所有节点都有 id() 和 output_var() 方法
 ///
-/// # 示例
+/// # Examples
 /// ```
 /// define_enum_describe! {
 ///     PlanNodeEnum,
@@ -453,7 +453,7 @@ macro_rules! define_plan_node {
                     self.deps.remove(index);
                     Ok(())
                 } else {
-                    Err(format!("索引 {} 超出范围", index))
+                    Err(format!("Index {} Out of range", index))
                 }
             }
         }

@@ -776,7 +776,7 @@ fn test_row_get_edge() {
         HashMap::new(),
     );
     let mut values = HashMap::new();
-    values.insert("e".to_string(), Value::Edge(edge));
+    values.insert("e".to_string(), Value::Edge(Box::new(edge)));
     let core_row = graphdb::api::core::Row { values };
     let row = Row::from_core(core_row);
 

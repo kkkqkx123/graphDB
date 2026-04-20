@@ -74,7 +74,7 @@ impl OperatorFeedback {
     /// Estimation error of the number of lines calculated
     ///
     /// Return the relative error: (Actual – Estimated) / Estimated
-    /// 如果估计为0，返回1.0
+    /// If the estimate is 0, return 1.0
     pub fn row_estimation_error(&self) -> f64 {
         if self.estimated_rows == 0 {
             return 1.0;

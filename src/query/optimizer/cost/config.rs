@@ -31,42 +31,42 @@ pub struct CostModelConfig {
     // ==================== Basic I/O Cost Parameters (Consistent with PostgreSQL) ====================
     /// Alternative to reading pages in order
     ///
-    /// 顺序读取一个磁盘页面的成本。默认值 1.0
+    /// The cost of sequentially reading a disk page. Default value 1.0
     /// In an SSD environment, the requirements can be appropriately reduced.
     pub seq_page_cost: f64,
 
     /// Alternative to reading a random page:
     ///
-    /// 随机读取一个磁盘页面的成本。默认值 4.0
+    /// The cost of reading a random disk page. Default value 4.0
     /// On traditional mechanical hard drives, random access is much slower than sequential access.
     /// In an SSD environment, the value of `seq_page_cost` can be approached.
     pub random_page_cost: f64,
 
     /// Cost of CPU processing per row
     ///
-    /// 处理每一行数据的 CPU 成本。默认值 0.01
+    /// CPU cost to process each row of data. Default value 0.01
     pub cpu_tuple_cost: f64,
 
     /// Cost of processing index rows
     ///
-    /// 处理每个索引项的 CPU 成本。默认值 0.005
+    /// CPU cost to process each index entry. Default value 0.005
     /// It is usually lower than `cpu_tuple_cost` because the index entries are smaller.
     pub cpu_index_tuple_cost: f64,
 
     /// The cost of operator calculations
     ///
-    /// 执行每个操作符或函数的 CPU 成本。默认值 0.0025
+    /// The CPU cost of executing each operator or function. Default value 0.0025
     pub cpu_operator_cost: f64,
 
     // ==================== Algorithm-related parameters ====================
     /// Hash construction overhead coefficient
     ///
-    /// 构建哈希表的额外开销系数。默认值 0.1
+    /// Extra overhead factor for building the hash table. Default value 0.1
     pub hash_build_overhead: f64,
 
     /// Sorting and comparing cost coefficients
     ///
-    /// 每次比较操作的代价系数。默认值 1.0
+    /// The cost factor for each comparison operation. Default value 1.0
     pub sort_comparison_cost: f64,
 
     /// Memory sorting threshold (number of rows)
@@ -76,23 +76,23 @@ pub struct CostModelConfig {
 
     /// Cost of external sorting pages
     ///
-    /// 外部排序时读写临时文件的代价。默认值 2.0
+    /// The cost of reading and writing temporary files while externally sorting. Default value 2.0
     pub external_sort_page_cost: f64,
 
     // ==================== Parameters specific to graph databases ====================
     /// Edge traversal cost
     ///
-    /// 遍历一条边的代价，比顶点处理更复杂。默认值 0.02
+    /// The cost of traversing an edge, which is more complex than vertex processing. Default value 0.02
     pub edge_traversal_cost: f64,
 
     /// Multi-hop traversal with an incrementing coefficient at each step
     ///
-    /// 每多一跳，代价递增的系数。默认值 1.2
+    /// The factor by which the cost is incremented for each additional hop. Default value 1.2
     pub multi_hop_penalty: f64,
 
     /// Cost of neighbor node lookup
     ///
-    /// 查找一个邻居节点的代价。默认值 0.015
+    /// The cost of finding a neighbor node. Default value 0.015
     pub neighbor_lookup_cost: f64,
 
     /// Effective cache size (number of pages)
@@ -102,17 +102,17 @@ pub struct CostModelConfig {
 
     /// Cache Hit Cost Coefficient
     ///
-    /// 数据在缓存中时的代价系数。默认值 0.1
+    /// The cost factor for when the data is in the cache. Default value 0.1
     pub cache_hit_cost_factor: f64,
 
     /// Fundamentals of the cost in shortest path algorithms
     ///
-    /// 最短路径算法的固定开销。默认值 10.0
+    /// Fixed overhead for the shortest path algorithm. Default value 10.0
     pub shortest_path_base_cost: f64,
 
     /// Path enumeration exponent coefficient
     ///
-    /// 枚举所有路径时的复杂度系数。默认值 2.0
+    /// The complexity factor when enumerating all paths. Default value 2.0
     pub path_enumeration_factor: f64,
 
     /// Super Node Threshold (Degree)
@@ -122,13 +122,13 @@ pub struct CostModelConfig {
 
     /// Super Node Additional Cost Coefficient
     ///
-    /// 涉及超级节点时的额外代价。默认值 2.0
+    /// Additional cost when super nodes are involved. Default value 2.0
     pub super_node_penalty: f64,
 
     // ==================== Default parameters for control flow ====================
     /// The default list size for “Unwind”.
     ///
-    /// 当无法从表达式推断列表大小时使用的默认值。默认值 3.0
+    /// Default value used when the list size cannot be inferred from an expression. Default value 3.0
     pub default_unwind_list_size: f64,
 
     /// The default number of iterations for the Loop function
@@ -144,7 +144,7 @@ pub struct CostModelConfig {
     // ==================== Memory and expression cost parameters ====================
     /// Cost per byte of memory usage
     ///
-    /// 每字节内存使用成本（用于估算内存压力）。默认值 0.0001
+    /// Cost per byte of memory usage (used to estimate memory pressure). Default value 0.0001
     pub memory_byte_cost: f64,
 
     /// Memory pressure threshold (bytes)
@@ -154,42 +154,42 @@ pub struct CostModelConfig {
 
     /// Memory pressure penalty factor
     ///
-    /// 内存压力惩罚系数。默认值 2.0
+    /// Memory pressure penalty factor. Default value 2.0
     pub memory_pressure_penalty: f64,
 
     /// Simple expression (leaf node) cost
     ///
-    /// 简单表达式（叶子节点）成本。默认值 0.001
+    /// Simple expression (leaf node) cost. Default value 0.001
     pub simple_expression_cost: f64,
 
     /// Function call base cost
     ///
-    /// 函数调用基础成本。默认值 0.01
+    /// The function call base cost. Default value 0.01
     pub function_call_base_cost: f64,
 
     /// Expression nesting cost per level
     ///
-    /// 复杂表达式每层嵌套成本。默认值 0.005
+    /// Nesting cost per level for complex expressions. Default value 0.005
     pub expression_nesting_cost: f64,
 
     /// Fixed-size type cost factor
     ///
-    /// 固定大小类型处理成本系数。默认值 1.0
+    /// Fixed size type processing cost factor. Default value 1.0
     pub fixed_type_cost_factor: f64,
 
     /// Variable-length type cost factor
     ///
-    /// 变长类型处理成本系数。默认值 1.5
+    /// Variable length type processing cost factor. Default value 1.5
     pub variable_type_cost_factor: f64,
 
     /// Complex type cost factor
     ///
-    /// 复杂类型处理成本系数。默认值 2.0
+    /// Complex type processing cost factor. Default value 2.0
     pub complex_type_cost_factor: f64,
 
     /// Graph type cost factor
     ///
-    /// 图类型处理成本系数。默认值 3.0
+    /// Chart type processing cost factor. Default value 3.0
     pub graph_type_cost_factor: f64,
 
     // ==================== Strategy Threshold Parameters ====================
@@ -218,29 +218,29 @@ pub struct StrategyThresholds {
 
     /// High cardinality ratio threshold
     ///
-    /// 高基数比例阈值（相对于输入行数），高于此值使用流式聚合。默认值 0.1
+    /// High base scale threshold (relative to the number of input lines) above which streaming aggregation is used. Default value 0.1
     pub high_cardinality_ratio: f64,
 
     // ==================== Traversal Strategy ====================
     /// Super node threshold (degree)
     ///
-    /// 超级节点阈值（度数），超过此值视为超级节点。默认值 1000.0
+    /// Supernode threshold (in degrees) above which a node is considered a supernode. Default value 1000.0
     pub traversal_super_node_threshold: f64,
 
     /// Bidirectional traversal savings threshold
     ///
-    /// 双向遍历节省阈值，超过此值才使用双向遍历。默认值 0.3
+    /// Bidirectional traversal savings threshold above which bidirectional traversal is used. Default value 0.3
     pub bidirectional_savings_threshold: f64,
 
     /// Default branching factor for traversal
     ///
-    /// 遍历默认分支因子，用于成本估计。默认值 2.0
+    /// Traverses the default branching factor for cost estimation. Default value 2.0
     pub default_branching_factor: f64,
 
     // ==================== TopN Strategy ====================
     /// TopN selectivity threshold
     ///
-    /// TopN选择性阈值，低于此值才使用TopN优化。默认值 0.1
+    /// TopN selectivity threshold below which TopN optimization is used. Default value 0.1
     pub topn_threshold: f64,
 
     /// TopN default limit
@@ -261,7 +261,7 @@ pub struct StrategyThresholds {
 
     /// Minimum complexity score for CTE materialization
     ///
-    /// CTE物化的最小复杂度分数。默认值 5.0
+    /// Minimum complexity score for CTE materialization. Default value 5.0
     pub min_complexity_score: f64,
 }
 

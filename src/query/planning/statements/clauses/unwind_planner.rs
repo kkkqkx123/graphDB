@@ -40,7 +40,7 @@ impl ClausePlanner for UnwindClausePlanner {
         let (expression, variable) = extract_unwind_info(stmt)?;
 
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("UNWIND 子句需要输入计划".to_string())
+            PlannerError::PlanGenerationFailed("The UNWIND clause requires a plan entry".to_string())
         })?;
 
         let unwind_node = UnwindNode::new(input_node.clone(), &variable, expression)?;
@@ -54,7 +54,7 @@ fn extract_unwind_info(stmt: &Stmt) -> Result<(ContextualExpression, String), Pl
         return Ok((unwind_stmt.expression.clone(), unwind_stmt.variable.clone()));
     }
     Err(PlannerError::PlanGenerationFailed(
-        "期望 UNWIND 语句，但得到了其他类型的语句".to_string(),
+        "Expecting UNWIND statements, but getting other types of statements".to_string(),
     ))
 }
 
@@ -93,7 +93,7 @@ mod tests {
             variable: "x".to_string(),
         });
 
-        let (_expr, var) = extract_unwind_info(&unwind_stmt).expect("提取失败");
+        let (_expr, var) = extract_unwind_info(&unwind_stmt).expect("failed to extract");
         assert_eq!(var, "x");
     }
 

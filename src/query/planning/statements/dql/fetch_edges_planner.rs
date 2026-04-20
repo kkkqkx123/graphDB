@@ -34,7 +34,7 @@ impl Planner for FetchEdgesPlanner {
             Stmt::Fetch(fetch_stmt) => fetch_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(
-                    "FetchEdgesPlanner 需要 Fetch 语句".to_string(),
+                    "FetchEdgesPlanner requires a Fetch statement.".to_string(),
                 ));
             }
         };
@@ -49,7 +49,7 @@ impl Planner for FetchEdgesPlanner {
             } => (src, dst, edge_type, rank),
             _ => {
                 return Err(PlannerError::InvalidOperation(
-                    "FetchEdgesPlanner 需要 FETCH EDGES 语句".to_string(),
+                    "FetchEdgesPlanner requires the FETCH EDGES statement.".to_string(),
                 ));
             }
         };

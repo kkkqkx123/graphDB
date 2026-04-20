@@ -275,7 +275,7 @@ mod tests {
         let avg_error = history
             .get_avg_row_error("fp_123")
             .expect("get_avg_row_error should succeed");
-        assert!((avg_error - 0.1).abs() < 0.01); // 平均误差应该接近0.1
+        assert!((avg_error - 0.1).abs() < 0.01); // The average error should be close to 0.1
     }
 
     #[test]

@@ -71,7 +71,7 @@ impl WithValidator {
             self.validate_expression_internal(&e)
         } else {
             Err(ValidationError::new(
-                "表达式无效".to_string(),
+                "Invalid expression".to_string(),
                 ValidationErrorType::SemanticError,
             ))
         }
@@ -161,7 +161,7 @@ impl WithValidator {
             }
         } else {
             Err(ValidationError::new(
-                "WHERE 表达式无效".to_string(),
+                "WHERE expression is invalid".to_string(),
                 ValidationErrorType::SemanticError,
             ))
         }

@@ -22,7 +22,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("INSERT EDGE解析应该成功");
+        let stmt = result.expect("INSERT EDGE parsing should succeed");
         assert_eq!(stmt.kind(), "INSERT");
 
         if let Stmt::Insert(insert_stmt) = stmt {
@@ -52,7 +52,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("INSERT EDGE带rank解析应该成功");
+        let stmt = result.expect("INSERT EDGE with rank parsing should succeed!");
         assert_eq!(stmt.kind(), "INSERT");
 
         if let Stmt::Insert(insert_stmt) = stmt {
@@ -82,7 +82,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("INSERT多个边解析应该成功");
+        let stmt = result.expect("INSERT multiple edge parsing should succeed");
         assert_eq!(stmt.kind(), "INSERT");
     }
 
@@ -96,7 +96,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("INSERT EDGE多属性解析应该成功");
+        let stmt = result.expect("INSERT EDGE multi-attribute parsing should succeed");
         assert_eq!(stmt.kind(), "INSERT");
     }
 
@@ -110,7 +110,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("INSERT VERTEX解析应该成功");
+        let stmt = result.expect("INSERT VERTEX parsing should succeed");
         assert_eq!(stmt.kind(), "INSERT");
     }
 
@@ -124,7 +124,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("INSERT多个顶点解析应该成功");
+        let stmt = result.expect("INSERT multiple vertex resolution should succeed");
         assert_eq!(stmt.kind(), "INSERT");
     }
 
@@ -138,7 +138,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("DELETE EDGE解析应该成功");
+        let stmt = result.expect("DELETE EDGE parsing should succeed");
         assert_eq!(stmt.kind(), "DELETE");
     }
 
@@ -152,7 +152,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("DELETE EDGE带rank解析应该成功");
+        let stmt = result.expect("DELETE EDGE with rank parsing should succeed");
         assert_eq!(stmt.kind(), "DELETE");
     }
 
@@ -166,7 +166,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("DELETE多个边解析应该成功");
+        let stmt = result.expect("DELETE multiple edge parsing should succeed");
         assert_eq!(stmt.kind(), "DELETE");
     }
 
@@ -180,7 +180,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("SET属性解析应该成功");
+        let stmt = result.expect("SET attribute parsing should succeed");
         assert_eq!(stmt.kind(), "SET");
     }
 
@@ -194,7 +194,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("SET多个属性解析应该成功");
+        let stmt = result.expect("SET multiple attribute parsing should succeed");
         assert_eq!(stmt.kind(), "SET");
     }
 
@@ -208,7 +208,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("SET带表达式解析应该成功");
+        let stmt = result.expect("SET with expression parsing should succeed");
         assert_eq!(stmt.kind(), "SET");
     }
 
@@ -222,7 +222,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("UPDATE顶点解析应该成功");
+        let stmt = result.expect("UPDATE vertex resolution should succeed");
         assert_eq!(stmt.kind(), "UPDATE");
     }
 
@@ -236,7 +236,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("DELETE VERTEX解析应该成功");
+        let stmt = result.expect("DELETE VERTEX parsing should succeed!");
         assert_eq!(stmt.kind(), "DELETE");
     }
 
@@ -250,7 +250,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("FIND SHORTEST PATH解析应该成功");
+        let stmt = result.expect("FIND SHORTEST PATH parsing should succeed!");
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
@@ -277,7 +277,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("带权FIND SHORTEST PATH解析应该成功");
+        let stmt = result.expect("Parsing the FIND SHORTEST PATH with rights should succeed!");
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
@@ -305,7 +305,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("使用ranking权重的FIND SHORTEST PATH解析应该成功");
+        let stmt = result.expect("FIND SHORTEST PATH parsing using ranking weights should succeed");
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
@@ -333,7 +333,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("FIND ALL PATH解析应该成功");
+        let stmt = result.expect("FIND ALL PATH parsing should succeed");
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
@@ -356,7 +356,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("带步数限制的FIND SHORTEST PATH解析应该成功");
+        let stmt = result.expect("FIND SHORTEST PATH parsing with a step limit should succeed!");
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
@@ -384,7 +384,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("带 WITH LOOP 的 FIND PATH 解析应该成功");
+        let stmt = result.expect("FIND PATH parsing with WITH LOOP should succeed!");
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
@@ -411,7 +411,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("带 WITH CYCLE 的 FIND PATH 解析应该成功");
+        let stmt = result.expect("FIND PATH parsing with WITH CYCLE should succeed!");
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
@@ -435,7 +435,7 @@ mod tests {
             result.err()
         );
 
-        let stmt = result.expect("带 WITH LOOP WITH CYCLE 的 FIND PATH 解析应该成功");
+        let stmt = result.expect("FIND PATH parsing with WITH LOOP WITH CYCLE should succeed!");
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {

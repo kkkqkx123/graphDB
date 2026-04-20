@@ -29,7 +29,7 @@ impl DeletePlanner {
         match stmt {
             Stmt::Delete(delete_stmt) => Ok(delete_stmt.clone()),
             _ => Err(PlannerError::PlanGenerationFailed(
-                "语句不包含 DELETE".to_string(),
+                "statement does not contain a DELETE".to_string(),
             )),
         }
     }
@@ -49,12 +49,12 @@ impl Planner for DeletePlanner {
         // Check the semantic information.
         let referenced_tags = &validation_info.semantic_info.referenced_tags;
         if !referenced_tags.is_empty() {
-            log::debug!("DELETE 引用的标签: {:?}", referenced_tags);
+            log::debug!("DELETE Referenced tags: {:?}", referenced_tags);
         }
 
         let referenced_edges = &validation_info.semantic_info.referenced_edges;
         if !referenced_edges.is_empty() {
-            log::debug!("DELETE 引用的边类型: {:?}", referenced_edges);
+            log::debug!("DELETE Referenced edge type: {:?}", referenced_edges);
         }
 
         let delete_stmt = self.extract_delete_stmt(validated.stmt())?;
@@ -119,20 +119,20 @@ impl Planner for DeletePlanner {
         qctx: Arc<QueryContext>,
         metadata_context: &MetadataContext,
     ) -> Result<SubPlan, PlannerError> {
-        // DELETE 操作主要使用标签和边类型元数据
-        // 目前 DELETE 主要验证空间名称和顶点/边 ID
-        // 元数据上下文可用于验证标签和边类型是否存在
+        // DELETE operations primarily use label and edge type metadata
+        // Currently, DELETE mainly validates space names and vertex/edge IDs.
+        // The metadata context can be used to validate the presence of tags and edge types
 
         let validation_info = &validated.validation_info;
         let referenced_tags = &validation_info.semantic_info.referenced_tags;
         let referenced_edges = &validation_info.semantic_info.referenced_edges;
 
-        // 验证引用的标签是否存在
+        // Verify that the referenced tag exists
         for tag_name in referenced_tags {
             let _space_id = qctx.space_id().unwrap_or(0);
             if metadata_context.get_tag_metadata(tag_name).is_none() {
-                // 如果元数据上下文中没有，尝试从 provider 获取
-                // 这里暂时只记录日志，实际验证在 Executor 层进行
+                // If it's not in the metadata context, try to get it from the provider
+                // For the time being, only the logs will be recorded, and the actual verification will be done at the Executor level.
                 log::debug!(
                     "Tag '{}' referenced in DELETE not found in metadata context",
                     tag_name
@@ -140,7 +140,7 @@ impl Planner for DeletePlanner {
             }
         }
 
-        // 验证引用的边类型是否存在
+        // Verify that the referenced edge type exists
         for edge_type in referenced_edges {
             if metadata_context.get_edge_type_metadata(edge_type).is_none() {
                 log::debug!(
@@ -150,7 +150,7 @@ impl Planner for DeletePlanner {
             }
         }
 
-        // 使用标准的 transform 方法
+        // Use the standard transform method
         self.transform(validated, qctx)
     }
 }

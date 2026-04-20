@@ -112,7 +112,7 @@ macro_rules! define_join_node {
 
             pub fn add_dependency(&mut self, _dep: $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) -> Result<(), $crate::query::planning::planner::PlannerError> {
                 Err($crate::query::planning::planner::PlannerError::InvalidOperation(
-                    format!("{}节点不支持添加依赖，它需要恰好两个输入", stringify!($name))
+                    format!("The {} node does not support adding dependencies, it requires exactly two inputs", stringify!($name))
                 ))
             }
 

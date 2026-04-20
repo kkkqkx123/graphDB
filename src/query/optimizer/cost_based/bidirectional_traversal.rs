@@ -345,7 +345,7 @@ impl BidirectionalTraversalOptimizer {
         let avg_skewness = total_skewness / edge_stats.len() as f64;
 
         // The higher the slope, the greater the tendency for an even distribution (to avoid being concentrated in “hot spots”).
-        // 返回范围: -0.1 到 0.1
+        // Return range: -0.1 to 0.1
         if avg_skewness > 0.7 {
             -0.1 // Severe inclination; adjustment towards equal distribution.
         } else if avg_skewness > 0.5 {

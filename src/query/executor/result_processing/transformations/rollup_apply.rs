@@ -539,7 +539,7 @@ mod tests {
 
     #[test]
     fn test_rollup_apply_zero_key() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
 
         let left_values = vec![Value::Int(1), Value::Int(2), Value::Int(3)];
         let right_values = vec![Value::Int(10), Value::Int(20)];
@@ -591,7 +591,7 @@ mod tests {
 
     #[test]
     fn test_rollup_apply_multi_key() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
 
         let left_values = vec![
             Value::from((1, "A")),
@@ -652,7 +652,7 @@ mod tests {
 
     #[test]
     fn test_rollup_apply_empty_right() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
 
         let left_values = vec![Value::Int(1), Value::Int(2)];
         let right_values: Vec<Value> = vec![];
@@ -703,7 +703,7 @@ mod tests {
 
     #[test]
     fn test_rollup_apply_empty_left() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
 
         let left_values: Vec<Value> = vec![];
         let right_values = vec![Value::Int(1), Value::Int(2)];

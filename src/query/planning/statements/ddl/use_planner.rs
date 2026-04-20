@@ -28,7 +28,7 @@ impl UsePlanner {
         match stmt {
             Stmt::Use(use_stmt) => Ok(use_stmt.clone()),
             _ => Err(PlannerError::PlanGenerationFailed(
-                "语句不包含 USE".to_string(),
+                "statement does not contain the USE".to_string(),
             )),
         }
     }

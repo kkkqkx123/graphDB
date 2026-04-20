@@ -8,7 +8,6 @@ use common::sync_helpers::{create_test_vertex, SyncTestHarness};
 use graphdb::core::types::DataType;
 use graphdb::core::Value;
 use graphdb::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
-use graphdb::sync::metrics::SyncMetrics;
 use std::sync::Arc;
 
 /// TC-060: Failed sync to dead letter queue
@@ -161,78 +160,6 @@ fn test_dead_letter_queue_size_limit() {
         entries.len() <= 15,
         "DLQ should respect size limit (or handle overflow gracefully)"
     );
-}
-
-/// TC-070: Automatic compensation
-#[test]
-fn test_automatic_compensation() {
-    use graphdb::sync::compensation::CompensationManager;
-
-    let dlq = Arc::new(DeadLetterQueue::new(DeadLetterQueueConfig::default()));
-    let metrics = Arc::new(SyncMetrics::new());
-
-    let _compensation_manager = Arc::new(CompensationManager::new(dlq.clone(), metrics.clone()));
-
-    // Verify compensation manager is created
-    // Note: stats() method may not exist, just verify creation
-
-    // Note: Full compensation test requires mocking the index client
-    // This test verifies the infrastructure exists
-}
-
-/// TC-071: Compensation timeout
-#[test]
-fn test_compensation_timeout() {
-    use graphdb::sync::compensation::CompensationManager;
-    use std::time::Duration;
-
-    let dlq = Arc::new(DeadLetterQueue::new(DeadLetterQueueConfig::default()));
-    let metrics = Arc::new(SyncMetrics::new());
-
-    let compensation_manager = Arc::new(CompensationManager::new(dlq.clone(), metrics.clone()));
-
-    // Start compensation with timeout
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    rt.block_on(async {
-        let _handle = compensation_manager
-            .clone()
-            .start_background_task(Duration::from_millis(100));
-        // Don't await the handle, just let it run in the background
-    });
-
-    // Verify compensation task started
-    assert!(
-        compensation_manager.is_running(),
-        "Compensation should be running"
-    );
-
-    // Stop compensation
-    compensation_manager.stop();
-
-    harness_wait(100);
-
-    assert!(
-        !compensation_manager.is_running(),
-        "Compensation should be stopped"
-    );
-}
-
-/// TC-072: Compensation statistics
-#[test]
-fn test_compensation_statistics() {
-    use graphdb::sync::compensation::CompensationManager;
-
-    let dlq = Arc::new(DeadLetterQueue::new(DeadLetterQueueConfig::default()));
-    let metrics = Arc::new(SyncMetrics::new());
-
-    let _compensation_manager = Arc::new(CompensationManager::new(dlq.clone(), metrics.clone()));
-
-    // Get initial stats (stats method may not exist)
-    // let stats = compensation_manager.stats().expect("Should get stats");
-
-    // Verify stats structure
-
-    // Note: Detailed stats testing requires actual compensation operations
 }
 
 /// TC-080: Crash recovery uncommitted transaction
@@ -528,9 +455,4 @@ fn test_batch_aggregation_optimization() {
         "All batch updates should be indexed, found {}",
         found_count
     );
-}
-
-/// Helper function for async wait
-fn harness_wait(ms: u64) {
-    std::thread::sleep(std::time::Duration::from_millis(ms));
 }

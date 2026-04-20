@@ -1,7 +1,7 @@
 //! Planned node visitor – used for rewriting child nodes
 //!
 //! This module provides the ChildRewriteVisitor class, which is used to traverse the plan tree and rewrite all its child nodes.
-//! 利用现有的 PlanNodeVisitor trait，消除 plan_rewriter.rs 中的重复代码。
+//! Eliminate duplicate code in plan_rewriter.rs by utilizing the existing PlanNodeVisitor trait.
 //!
 //! # Design Advantages
 //!
@@ -351,9 +351,9 @@ mod tests {
         let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
 
         let start = PlanNodeEnum::Start(StartNode::new());
-        let project = ProjectNode::new(start.clone(), vec![]).expect("创建ProjectNode失败");
+        let project = ProjectNode::new(start.clone(), vec![]).expect("Failed to create ProjectNode");
         let filter =
-            FilterNode::new(PlanNodeEnum::Project(project), ctx_expr).expect("创建FilterNode失败");
+            FilterNode::new(PlanNodeEnum::Project(project), ctx_expr).expect("Failed to create FilterNode");
 
         let mut rewrite_ctx = RewriteContext::new();
         let rewriter = PlanRewriter::new();
@@ -372,7 +372,7 @@ mod tests {
 
         let result = visitor.visit_start(&start);
         assert!(result.is_ok());
-        match result.expect("访问不应失败") {
+        match result.expect("The visit should not fail") {
             PlanNodeEnum::Start(_) => {}
             _ => panic!("The Start node is expected to be activated/started."),
         }

@@ -70,12 +70,12 @@ pub fn rewrite_contextual_expression(
 
 /// Rewrite the expression using the ContextualExpression mapping table.
 ///
-/// # 参数
+/// # Parameters
 /// `expr`: The Expression that needs to be rewritten.
 /// - `rewrite_map`: rewrite mapping table, key is variable name, value is ContextualExpression to be replaced
 /// - `expr_context`: expression context, used to register new expressions
 ///
-/// # 返回
+/// # Back
 /// The rewritten expression
 fn rewrite_expression_with_map(
     expr: &Expression,
@@ -234,11 +234,11 @@ fn rewrite_expression_with_map(
 /// The part that corresponds to the selector function
 /// The remaining part
 ///
-/// # 参数
+/// # Parameters
 /// `ctx_expr`: The context expression for the filtering criteria
 /// `picker`: A selector function that returns `true` if the corresponding element should be selected.
 ///
-/// # 返回
+/// # Back
 /// (The selected part; the remaining part)
 pub fn split_filter<F>(
     ctx_expr: &ContextualExpression,
@@ -326,11 +326,11 @@ where
 
 /// To combine two filter conditions, use the AND operator.
 ///
-/// # 参数
+/// # Parameters
 /// “left”: The left-side condition
 /// “right”: The condition on the right side
 ///
-/// # 返回
+/// # Back
 /// The merged conditions
 pub fn and_condition(
     left: Option<ContextualExpression>,
@@ -364,10 +364,10 @@ pub fn and_condition(
 
 /// To combine multiple filter conditions, use the AND operator.
 ///
-/// # 参数
+/// # Parameters
 /// `conditions`: List of conditions
 ///
-/// # 返回
+/// # Back
 /// Post-merger conditions
 pub fn and_conditions(
     conditions: Vec<Option<ContextualExpression>>,

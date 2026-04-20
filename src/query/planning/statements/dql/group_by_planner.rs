@@ -175,7 +175,7 @@ impl Planner for GroupByPlanner {
             Stmt::GroupBy(group_by_stmt) => group_by_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(
-                    "GroupByPlanner 需要 GroupBy 语句".to_string(),
+                    "GroupByPlanner requires the GroupBy statement.".to_string(),
                 ));
             }
         };

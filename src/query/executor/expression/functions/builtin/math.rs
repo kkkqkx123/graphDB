@@ -11,196 +11,196 @@ define_function_enum! {
             name: "abs",
             arity: 1,
             variadic: false,
-            description: "计算绝对值",
+            description: "Calculating Absolute Values",
             handler: execute_abs
         },
         Sqrt => {
             name: "sqrt",
             arity: 1,
             variadic: false,
-            description: "计算平方根",
+            description: "square root calculation",
             handler: execute_sqrt
         },
         Pow => {
             name: "pow",
             arity: 2,
             variadic: false,
-            description: "计算幂",
+            description: "exponentiate (math.)",
             handler: execute_pow
         },
         Log => {
             name: "log",
             arity: 2,
             variadic: false,
-            description: "计算对数",
+            description: "logarithmic",
             handler: execute_log
         },
         Log10 => {
             name: "log10",
             arity: 1,
             variadic: false,
-            description: "计算以10为底的对数",
+            description: "Calculating logarithms with base 10",
             handler: execute_log10
         },
         Sin => {
             name: "sin",
             arity: 1,
             variadic: false,
-            description: "计算正弦",
+            description: "calculate the sine",
             handler: execute_sin
         },
         Cos => {
             name: "cos",
             arity: 1,
             variadic: false,
-            description: "计算余弦",
+            description: "calculate the cosine",
             handler: execute_cos
         },
         Tan => {
             name: "tan",
             arity: 1,
             variadic: false,
-            description: "计算正切",
+            description: "arithmetic tangent (math.)",
             handler: execute_tan
         },
         Round => {
             name: "round",
             arity: 1,
             variadic: false,
-            description: "四舍五入",
+            description: "discard four, but treat five as whole (of decimal points)",
             handler: execute_round
         },
         Ceil => {
             name: "ceil",
             arity: 1,
             variadic: false,
-            description: "向上取整",
+            description: "Round up",
             handler: execute_ceil
         },
         Floor => {
             name: "floor",
             arity: 1,
             variadic: false,
-            description: "向下取整",
+            description: "round down",
             handler: execute_floor
         },
         Asin => {
             name: "asin",
             arity: 1,
             variadic: false,
-            description: "计算反正弦",
+            description: "calculate the arcsine",
             handler: execute_asin
         },
         Acos => {
             name: "acos",
             arity: 1,
             variadic: false,
-            description: "计算反余弦",
+            description: "Calculate the inverse cosine",
             handler: execute_acos
         },
         Atan => {
             name: "atan",
             arity: 1,
             variadic: false,
-            description: "计算反正切",
+            description: "Compute the arctangent",
             handler: execute_atan
         },
         Cbrt => {
             name: "cbrt",
             arity: 1,
             variadic: false,
-            description: "计算立方根",
+            description: "calculate the cube root",
             handler: execute_cbrt
         },
         Hypot => {
             name: "hypot",
             arity: 2,
             variadic: false,
-            description: "计算直角三角形斜边",
+            description: "Compute the hypotenuse of a right triangle",
             handler: execute_hypot
         },
         Sign => {
             name: "sign",
             arity: 1,
             variadic: false,
-            description: "返回数值符号",
+            description: "Return Value Symbol",
             handler: execute_sign
         },
         Rand => {
             name: "rand",
             arity: 0,
             variadic: false,
-            description: "生成随机浮点数",
+            description: "Generate random floating point numbers",
             handler: execute_rand
         },
         Rand32 => {
             name: "rand32",
             arity: 0,
             variadic: true,
-            description: "生成32位随机整数",
+            description: "Generate 32-bit random integers",
             handler: execute_rand32
         },
         Rand64 => {
             name: "rand64",
             arity: 0,
             variadic: false,
-            description: "生成64位随机整数",
+            description: "Generate 64-bit random integers",
             handler: execute_rand64
         },
         E => {
             name: "e",
             arity: 0,
             variadic: false,
-            description: "返回自然常数e",
+            description: "Returns the natural constant e",
             handler: execute_e
         },
         Pi => {
             name: "pi",
             arity: 0,
             variadic: false,
-            description: "返回圆周率pi",
+            description: "Return to pi",
             handler: execute_pi
         },
         Exp2 => {
             name: "exp2",
             arity: 1,
             variadic: false,
-            description: "计算2的幂",
+            description: "Calculating powers of 2",
             handler: execute_exp2
         },
         Log2 => {
             name: "log2",
             arity: 1,
             variadic: false,
-            description: "计算以2为底的对数",
+            description: "Calculating logarithms with a base of 2",
             handler: execute_log2
         },
         Radians => {
             name: "radians",
             arity: 1,
             variadic: false,
-            description: "角度转弧度",
+            description: "Angle to radian",
             handler: execute_radians
         },
         BitAnd => {
             name: "bit_and",
             arity: 2,
             variadic: false,
-            description: "按位与",
+            description: "compatibility with",
             handler: execute_bit_and
         },
         BitOr => {
             name: "bit_or",
             arity: 2,
             variadic: false,
-            description: "按位或",
+            description: "push-button or",
             handler: execute_bit_or
         },
         BitXor => {
             name: "bit_xor",
             arity: 2,
             variadic: false,
-            description: "按位异或",
+            description: "palindromic or binomial (math.)",
             handler: execute_bit_xor
         },
     }
@@ -269,13 +269,13 @@ define_binary_numeric_fn!(
 
 fn execute_sign(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("sign函数需要1个参数"));
+        return Err(ExpressionError::type_error("The sign function takes 1 argument"));
     }
     match &args[0] {
         Value::Int(i) => Ok(Value::Int(i.signum())),
         Value::Float(f) => Ok(Value::Int(f.signum() as i64)),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("sign函数需要数值类型")),
+        _ => Err(ExpressionError::type_error("The sign function requires a numeric type")),
     }
 }
 
@@ -293,14 +293,14 @@ fn execute_rand32(args: &[Value]) -> Result<Value, ExpressionError> {
         1 => match &args[0] {
             Value::Int(max) => rng.gen_range(0..*max) as i64,
             Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-            _ => return Err(ExpressionError::type_error("rand32函数需要整数参数")),
+            _ => return Err(ExpressionError::type_error("The rand32 function takes integer arguments")),
         },
         2 => match (&args[0], &args[1]) {
             (Value::Int(min), Value::Int(max)) => rng.gen_range(*min..*max),
             (Value::Null(_), _) | (_, Value::Null(_)) => return Ok(Value::Null(NullType::Null)),
-            _ => return Err(ExpressionError::type_error("rand32函数需要整数参数")),
+            _ => return Err(ExpressionError::type_error("The rand32 function takes integer arguments")),
         },
-        _ => return Err(ExpressionError::type_error("rand32函数需要0-2个参数")),
+        _ => return Err(ExpressionError::type_error("The rand32 function takes 0-2 arguments")),
     };
     Ok(Value::Int(result))
 }
@@ -321,34 +321,34 @@ fn execute_pi(_args: &[Value]) -> Result<Value, ExpressionError> {
 
 fn execute_bit_and(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 2 {
-        return Err(ExpressionError::type_error("bit_and函数需要2个参数"));
+        return Err(ExpressionError::type_error("The bit_and function takes 2 arguments"));
     }
     match (&args[0], &args[1]) {
         (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a & b)),
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("bit_and函数需要整数参数")),
+        _ => Err(ExpressionError::type_error("The bit_and function takes integer arguments")),
     }
 }
 
 fn execute_bit_or(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 2 {
-        return Err(ExpressionError::type_error("bit_or函数需要2个参数"));
+        return Err(ExpressionError::type_error("The bit_or function takes 2 arguments"));
     }
     match (&args[0], &args[1]) {
         (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a | b)),
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("bit_or函数需要整数参数")),
+        _ => Err(ExpressionError::type_error("The bit_or function takes integer arguments")),
     }
 }
 
 fn execute_bit_xor(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 2 {
-        return Err(ExpressionError::type_error("bit_xor函数需要2个参数"));
+        return Err(ExpressionError::type_error("The bit_xor function takes 2 arguments"));
     }
     match (&args[0], &args[1]) {
         (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a ^ b)),
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("bit_xor函数需要整数参数")),
+        _ => Err(ExpressionError::type_error("The bit_xor function takes integer arguments")),
     }
 }
 
@@ -359,7 +359,7 @@ mod tests {
     #[test]
     fn test_abs_int() {
         let func = MathFunction::Abs;
-        let result = func.execute(&[Value::Int(-5)]).expect("Abs 函数执行失败");
+        let result = func.execute(&[Value::Int(-5)]).expect("Abs Function Failure");
         assert_eq!(result, Value::Int(5));
     }
 
@@ -368,14 +368,14 @@ mod tests {
         let func = MathFunction::Abs;
         let result = func
             .execute(&[Value::Float(-5.5)])
-            .expect("Abs 函数执行失败");
+            .expect("Abs Function Failure");
         assert_eq!(result, Value::Float(5.5));
     }
 
     #[test]
     fn test_sqrt() {
         let func = MathFunction::Sqrt;
-        let result = func.execute(&[Value::Int(16)]).expect("Sqrt 函数执行失败");
+        let result = func.execute(&[Value::Int(16)]).expect("Sqrt function failed to execute");
         assert_eq!(result, Value::Float(4.0));
     }
 
@@ -384,7 +384,7 @@ mod tests {
         let func = MathFunction::Pow;
         let result = func
             .execute(&[Value::Int(2), Value::Int(3)])
-            .expect("Pow 函数执行失败");
+            .expect("Pow Function Execution Failure");
         assert_eq!(result, Value::Float(8.0));
     }
 
@@ -393,7 +393,7 @@ mod tests {
         let func = MathFunction::Sin;
         let result = func
             .execute(&[Value::Float(0.0)])
-            .expect("Sin 函数执行失败");
+            .expect("Sin Function Failure");
         assert_eq!(result, Value::Float(0.0));
     }
 
@@ -402,7 +402,7 @@ mod tests {
         let func = MathFunction::Cos;
         let result = func
             .execute(&[Value::Float(0.0)])
-            .expect("Cos 函数执行失败");
+            .expect("Cos Function Failure");
         assert_eq!(result, Value::Float(1.0));
     }
 
@@ -411,7 +411,7 @@ mod tests {
         let func = MathFunction::Round;
         let result = func
             .execute(&[Value::Float(3.7)])
-            .expect("Round 函数执行失败");
+            .expect("Round Function Failure");
         assert_eq!(result, Value::Float(4.0));
     }
 
@@ -420,7 +420,7 @@ mod tests {
         let func = MathFunction::Ceil;
         let result = func
             .execute(&[Value::Float(3.2)])
-            .expect("Ceil 函数执行失败");
+            .expect("Ceil Function Execution Failure");
         assert_eq!(result, Value::Float(4.0));
     }
 
@@ -429,7 +429,7 @@ mod tests {
         let func = MathFunction::Floor;
         let result = func
             .execute(&[Value::Float(3.9)])
-            .expect("Floor 函数执行失败");
+            .expect("Floor function failed to execute");
         assert_eq!(result, Value::Float(3.0));
     }
 
@@ -438,7 +438,7 @@ mod tests {
         let func = MathFunction::Abs;
         let result = func
             .execute(&[Value::Null(NullType::Null)])
-            .expect("Abs 函数空值处理失败");
+            .expect("Abs function null handling failure");
         assert_eq!(result, Value::Null(NullType::Null));
     }
 }

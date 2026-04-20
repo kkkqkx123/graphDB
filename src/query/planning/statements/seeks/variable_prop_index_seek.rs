@@ -127,7 +127,7 @@ impl VariablePropIndexSeek {
                     _ => return None,
                 };
 
-                // 尝试提取属性名和变量名: v.name = $var
+                // Try to extract the property name and variable name: v.name = $var
                 if let (Some(prop), Some(var_name)) =
                     (Self::extract_property(left), Self::extract_variable(right))
                 {
@@ -140,7 +140,7 @@ impl VariablePropIndexSeek {
                     }
                 }
 
-                // 交换左右尝试: $var = v.name
+                // Swap left and right attempts: $var = v.name
                 if let (Some(prop), Some(var_name)) =
                     (Self::extract_property(right), Self::extract_variable(left))
                 {
@@ -168,7 +168,7 @@ impl VariablePropIndexSeek {
     fn extract_property(expr: &crate::core::Expression) -> Option<String> {
         match expr {
             crate::core::Expression::Property { object, property } => {
-                // 检查是否为节点属性访问，如 v.name
+                // Check for node attribute access, e.g. v.name
                 if matches!(object.as_ref(), crate::core::Expression::Variable(_)) {
                     Some(property.clone())
                 } else {
@@ -255,7 +255,7 @@ impl SeekStrategy for VariablePropIndexSeek {
         // Check whether the variable has been bound.
         if !self.all_variables_bound() {
             return Err(StorageError::InvalidInput(
-                "变量属性查找需要所有变量已绑定".to_string(),
+                "Variable property lookups require all variables to be bound".to_string(),
             ));
         }
 

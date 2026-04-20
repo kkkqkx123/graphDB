@@ -161,9 +161,9 @@ impl FetchEdgesValidator {
         rank: Option<&ContextualExpression>,
     ) -> Result<(), ValidationError> {
         // Verify the source vertex expression.
-        self.validate_endpoint(src, "源顶点")?;
+        self.validate_endpoint(src, "source vertex")?;
         // Verify the target vertex expression.
-        self.validate_endpoint(dst, "目标顶点")?;
+        self.validate_endpoint(dst, "target vertex")?;
         // Verify the rank value.
         if let Some(rank_expr) = rank {
             self.validate_rank(rank_expr)?;
@@ -214,7 +214,7 @@ impl FetchEdgesValidator {
     fn validate_rank(&self, expr: &ContextualExpression) -> Result<(), ValidationError> {
         if expr.expression().is_none() {
             return Err(ValidationError::new(
-                "Rank 表达式无效".to_string(),
+                "Rank expression is invalid".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -228,14 +228,14 @@ impl FetchEdgesValidator {
                 return Ok(());
             } else {
                 return Err(ValidationError::new(
-                    "rank 值必须为非负整数".to_string(),
+                    "The rank value must be a non-negative integer".to_string(),
                     ValidationErrorType::SemanticError,
                 ));
             }
         }
 
         Err(ValidationError::new(
-            "rank 值必须为整数类型".to_string(),
+            "The rank value must be of integer type".to_string(),
             ValidationErrorType::SemanticError,
         ))
     }
@@ -244,7 +244,7 @@ impl FetchEdgesValidator {
     fn evaluate_expression(&self, expr: &ContextualExpression) -> Result<Value, ValidationError> {
         if expr.expression().is_none() {
             return Err(ValidationError::new(
-                "表达式无效".to_string(),
+                "Invalid expression".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -258,7 +258,7 @@ impl FetchEdgesValidator {
         }
 
         Err(ValidationError::new(
-            "表达式必须是常量或变量".to_string(),
+            "Expressions must be constants or variables".to_string(),
             ValidationErrorType::SemanticError,
         ))
     }
@@ -269,7 +269,7 @@ impl FetchEdgesValidator {
             Some(ctx_expr) => {
                 if ctx_expr.expression().is_none() {
                     return Err(ValidationError::new(
-                        "Rank 表达式无效".to_string(),
+                        "Rank expression is invalid".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
                 }
@@ -287,7 +287,7 @@ impl FetchEdgesValidator {
         }
 
         Err(ValidationError::new(
-            "rank 值必须为整数".to_string(),
+            "The rank value must be an integer".to_string(),
             ValidationErrorType::TypeMismatch,
         ))
     }
@@ -544,7 +544,7 @@ mod tests {
             validator.validate_rank(&create_contextual_expr(Expression::Literal(Value::Int(-1))));
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.message.contains("非负"));
+        assert!(err.message.contains("non-negative"));
     }
 
     #[test]

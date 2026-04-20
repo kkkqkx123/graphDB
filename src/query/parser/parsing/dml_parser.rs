@@ -117,11 +117,11 @@ impl DmlParser {
 
     fn parse_update_edge(&mut self, ctx: &mut ParseContext) -> Result<UpdateTarget, ParseError> {
         // Check whether it is UPSERT EDGE syntax: src -> dst @rank OF edge_type
-        // 还是 UPDATE EDGE 语法：OF edge_type FROM src TO dst [@rank]
+        // or UPDATE EDGE Syntax: OF edge_type FROM src TO dst [@rank]
         let is_upsert = ctx.is_upsert_mode();
 
         if is_upsert {
-            // UPSERT EDGE 语法：src -> dst [@rank] OF edge_type
+            // UPSERT EDGE Syntax: src -> dst [@rank] OF edge_type
             // The EDGE token has already been consumed within the `parse_update_after_token` function.
             let src = self.parse_expression(ctx)?;
             ctx.expect_token(TokenKind::Arrow)?;
@@ -143,7 +143,7 @@ impl DmlParser {
                 rank,
             })
         } else {
-            // UPDATE EDGE 语法：OF edge_type FROM src TO dst [@rank]
+            // UPDATE EDGE Syntax: OF edge_type FROM src TO dst [@rank]
             ctx.expect_token(TokenKind::Of)?;
 
             // Analyzing edge types

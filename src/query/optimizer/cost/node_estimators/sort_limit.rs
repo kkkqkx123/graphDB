@@ -8,7 +8,7 @@
 //! - Dedup
 //! - Sample
 //!
-//! 基于实际执行器实现（参考 aggregation.rs, sort.rs, limit.rs）：
+//! Based on the actual executor implementation (cf. aggregation.rs, sort.rs, limit.rs):
 //! **Aggregate:** The group status is stored using a `HashMap`. The associated costs include the processing of aggregate functions and the performance overhead of hash operations.
 //! Sort: Supports Top-N optimization (heap sorting is used when the amount of data exceeds limit * 10).
 //! Limit: Simple memory operations; the cost is proportional to the sum of the offset and the limit value.

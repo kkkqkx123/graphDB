@@ -130,7 +130,7 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
     fn execute_optimized_cartesian_product(&self) -> Result<DataSet, QueryError> {
         if self.input_vars.len() < 2 {
             return Err(QueryError::ExecutionError(
-                "笛卡尔积需要至少两个输入".to_string(),
+                "The Cartesian product requires at least two inputs".to_string(),
             ));
         }
 
@@ -415,7 +415,7 @@ pub mod tests {
 
     #[test]
     fn test_cross_join_empty_table() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
@@ -465,7 +465,7 @@ pub mod tests {
 
     #[test]
     fn test_cross_join_three_tables() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 

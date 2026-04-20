@@ -496,7 +496,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         let body = node
             .body()
             .as_ref()
-            .ok_or_else(|| QueryError::ExecutionError("Loop节点缺少body".to_string()))?;
+            .ok_or_else(|| QueryError::ExecutionError("Loop node missing body".to_string()))?;
 
         // Temporarily release the borrowing of the `self` object to construct the `bodyExecutor`.
         let body_executor = {
@@ -555,7 +555,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             let if_node = node
                 .if_branch()
                 .as_ref()
-                .ok_or_else(|| QueryError::ExecutionError("Select节点缺少if_branch".to_string()))?;
+                .ok_or_else(|| QueryError::ExecutionError("Select node missing if_branch".to_string()))?;
 
             let config = self.config.clone();
             let max_recursion_depth = config.max_recursion_depth;

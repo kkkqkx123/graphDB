@@ -59,9 +59,6 @@ pub struct Json {
 pub struct JsonB {
     /// Parsed JSON value
     value: JsonValue,
-    /// Serialized byte cache (for storage and transmission)
-    #[serde(skip)]
-    cached_bytes: Option<Vec<u8>>,
 }
 
 // Manual oxicode implementations using serde integration
@@ -129,7 +126,7 @@ impl<'de> oxicode::BorrowDecode<'de> for JsonB {
 
 impl Json {
     /// Create JSON from string
-    pub fn from_str(text: &str) -> Result<Self, JsonError> {
+    pub fn parse(text: &str) -> Result<Self, JsonError> {
         // Optional: Validate JSON format
         let value: JsonValue = serde_json::from_str(text)
             .map_err(|e| JsonError::InvalidJson(e.to_string()))?;
@@ -214,7 +211,7 @@ impl Hash for Json {
 
 impl JsonB {
     /// Create JSONB from string (must validate)
-    pub fn from_str(text: &str) -> Result<Self, JsonError> {
+    pub fn parse(text: &str) -> Result<Self, JsonError> {
         let value: JsonValue = serde_json::from_str(text)
             .map_err(|e| JsonError::InvalidJson(e.to_string()))?;
 
@@ -228,7 +225,6 @@ impl JsonB {
 
         Self {
             value: normalized,
-            cached_bytes: None,
         }
     }
 
@@ -496,14 +492,14 @@ mod tests {
 
     #[test]
     fn test_json_from_str() {
-        let json = Json::from_str(r#"{"name": "test", "value": 123}"#).unwrap();
+        let json = Json::parse(r#"{"name": "test", "value": 123}"#).unwrap();
         assert!(json.get_path("name").unwrap().is_some());
         assert!(json.get_path("value").unwrap().is_some());
     }
 
     #[test]
     fn test_jsonb_from_str() {
-        let jsonb = JsonB::from_str(r#"{"name": "test", "value": 123}"#).unwrap();
+        let jsonb = JsonB::parse(r#"{"name": "test", "value": 123}"#).unwrap();
         assert!(jsonb.contains_key("name"));
         assert!(jsonb.contains_key("value"));
         assert_eq!(jsonb.key_count(), 2);
@@ -511,29 +507,29 @@ mod tests {
 
     #[test]
     fn test_json_path() {
-        let json = Json::from_str(r#"{"items": [{"name": "a"}, {"name": "b"}]}"#).unwrap();
+        let json = Json::parse(r#"{"items": [{"name": "a"}, {"name": "b"}]}"#).unwrap();
         let value = json.get_path("items[0].name").unwrap();
         assert!(value.is_some());
     }
 
     #[test]
     fn test_json_to_jsonb() {
-        let json = Json::from_str(r#"{"test": 123}"#).unwrap();
+        let json = Json::parse(r#"{"test": 123}"#).unwrap();
         let jsonb = json.to_jsonb().unwrap();
         assert!(jsonb.contains_key("test"));
     }
 
     #[test]
     fn test_jsonb_comparison() {
-        let a = JsonB::from_str("1").unwrap();
-        let b = JsonB::from_str("2").unwrap();
+        let a = JsonB::parse("1").unwrap();
+        let b = JsonB::parse("2").unwrap();
         assert!(a < b);
     }
 
     #[test]
     fn test_jsonb_equality() {
-        let a = JsonB::from_str(r#"{"b": 1, "a": 2}"#).unwrap();
-        let b = JsonB::from_str(r#"{"a": 2, "b": 1}"#).unwrap();
+        let a = JsonB::parse(r#"{"b": 1, "a": 2}"#).unwrap();
+        let b = JsonB::parse(r#"{"a": 2, "b": 1}"#).unwrap();
         // JSONB normalizes key order, so these should be equal
         assert_eq!(a, b);
     }

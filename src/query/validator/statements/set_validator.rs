@@ -212,14 +212,14 @@ impl SetValidator {
     ) -> Result<(), ValidationError> {
         if target.expression().is_none() {
             return Err(ValidationError::new(
-                "SET 目标表达式无效".to_string(),
+                "SET Target expression is invalid".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
 
         if !target.is_variable() {
             return Err(ValidationError::new(
-                "SET 变量必须目标是一个变量".to_string(),
+                "SET variable must target a variable".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -227,7 +227,7 @@ impl SetValidator {
         if let Some(name) = target.as_variable() {
             if name.is_empty() {
                 return Err(ValidationError::new(
-                    "变量名不能为空".to_string(),
+                    "The variable name cannot be null".to_string(),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -240,7 +240,7 @@ impl SetValidator {
             Ok(())
         } else {
             Err(ValidationError::new(
-                "SET 变量必须目标是一个变量".to_string(),
+                "SET variable must target a variable".to_string(),
                 ValidationErrorType::SemanticError,
             ))
         }
@@ -254,14 +254,14 @@ impl SetValidator {
     ) -> Result<(), ValidationError> {
         if target.expression().is_none() {
             return Err(ValidationError::new(
-                "SET Tag 目标表达式无效".to_string(),
+                "SET Tag Target expression is invalid".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
 
         if !target.is_property() {
             return Err(ValidationError::new(
-                "SET Tag 必须目标是一个属性表达式".to_string(),
+                "The SET Tag must target an attribute expression.".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -276,14 +276,14 @@ impl SetValidator {
     ) -> Result<(), ValidationError> {
         if target.expression().is_none() {
             return Err(ValidationError::new(
-                "SET Edge 目标表达式无效".to_string(),
+                "SET Edge Target expression is invalid".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
 
         if !target.is_property() {
             return Err(ValidationError::new(
-                "SET Edge 必须目标是一个属性表达式".to_string(),
+                "SET Edge must target an attribute expression".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -296,7 +296,7 @@ impl SetValidator {
             Some(m) => m,
             None => {
                 return Err(ValidationError::new(
-                    "SET 优先级表达式无效".to_string(),
+                    "SET Invalid priority expression".to_string(),
                     ValidationErrorType::SemanticError,
                 ))
             }
@@ -308,20 +308,20 @@ impl SetValidator {
                 if let crate::core::Value::Int(n) = lit {
                     if *n < 0 {
                         return Err(ValidationError::new(
-                            "优先级不能为负数".to_string(),
+                            "Priority cannot be negative".to_string(),
                             ValidationErrorType::SemanticError,
                         ));
                     }
                     Ok(())
                 } else {
                     Err(ValidationError::new(
-                        "优先级必须是整数".to_string(),
+                        "Priority must be an integer".to_string(),
                         ValidationErrorType::TypeError,
                     ))
                 }
             }
             _ => Err(ValidationError::new(
-                "优先级必须是整数字面量".to_string(),
+                "Priority must be an integer literal".to_string(),
                 ValidationErrorType::SemanticError,
             )),
         }
@@ -332,7 +332,7 @@ impl SetValidator {
         for (name, value) in &self.variables {
             if name.is_empty() {
                 return Err(ValidationError::new(
-                    "变量名不能为空".to_string(),
+                    "The variable name cannot be null".to_string(),
                     ValidationErrorType::SemanticError,
                 ));
             }

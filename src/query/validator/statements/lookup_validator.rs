@@ -89,7 +89,7 @@ impl LookupValidator {
             Stmt::Lookup(lookup_stmt) => lookup_stmt,
             _ => {
                 return Err(ValidationError::new(
-                    "期望 LOOKUP 语句".to_string(),
+                    "Expected LOOKUP statement".to_string(),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -107,7 +107,7 @@ impl LookupValidator {
 
         if label.is_empty() {
             return Err(ValidationError::new(
-                "LOOKUP 必须指定 Tag 或 Edge 名称".to_string(),
+                "LOOKUP must specify the Tag or Edge name.".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -158,13 +158,13 @@ impl LookupValidator {
                 Expression::Label(name) => Ok(name.clone()),
                 Expression::Property { property, .. } => Ok(property.clone()),
                 _ => Err(ValidationError::new(
-                    "无法从表达式中提取列名".to_string(),
+                    "Unable to extract column names from expressions".to_string(),
                     ValidationErrorType::SemanticError,
                 )),
             }
         } else {
             Err(ValidationError::new(
-                "表达式无效".to_string(),
+                "Invalid expression".to_string(),
                 ValidationErrorType::SemanticError,
             ))
         }
@@ -258,7 +258,7 @@ impl LookupValidator {
                 Some(m) => m,
                 None => {
                     return Err(ValidationError::new(
-                        "过滤表达式无效".to_string(),
+                        "Invalid filter expression".to_string(),
                         ValidationErrorType::SemanticError,
                     ))
                 }

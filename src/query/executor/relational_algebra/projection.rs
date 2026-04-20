@@ -510,7 +510,7 @@ mod tests {
 
     #[test]
     fn test_expression_projection() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let expr = crate::core::Expression::Binary {

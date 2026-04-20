@@ -42,7 +42,7 @@ pub struct FeedbackDrivenSelectivity {
     min_correction: f64,
     /// Maximum correction factor
     max_correction: f64,
-    /// 选择性上限（默认0.99）
+    /// Selective upper limit (default 0.99)
     selectivity_cap: f64,
     /// Cumulative estimated error (used for calculating error statistics)
     cumulative_estimation_error: f64,
@@ -114,10 +114,10 @@ impl FeedbackDrivenSelectivity {
     /// Obtaining the confidence level for the selected estimate
     ///
     /// The confidence level is calculated based on the number of feedbacks received; the more feedback, the higher the confidence level.
-    /// 返回值范围：0.0 - 1.0
+    /// Return value range: 0.0 - 1.0
     pub fn estimation_confidence(&self) -> f64 {
         // Calculate the confidence using the sigmoid function.
-        // 反馈次数达到100时，置信度接近0.9
+        // The confidence level is close to 0.9 when the number of feedbacks reaches 100
         let x = self.feedback_count as f64 * 0.1;
         1.0 / (1.0 + (-x).exp())
     }
@@ -401,7 +401,7 @@ mod tests {
     fn test_avg_estimation_error() {
         let mut feedback = FeedbackDrivenSelectivity::new(0.5);
 
-        // 无反馈时误差为1.0
+        // 1.0% error without feedback
         assert_eq!(feedback.avg_estimation_error(), 1.0);
 
         // Add feedback

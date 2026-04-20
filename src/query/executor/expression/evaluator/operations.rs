@@ -122,7 +122,7 @@ impl BinaryOperationEvaluator {
     fn eval_xor(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
         match (left, right) {
             (Value::Bool(l), Value::Bool(r)) => Ok(Value::Bool(*l ^ *r)),
-            _ => Err(ExpressionError::type_error("XOR运算需要布尔值")),
+            _ => Err(ExpressionError::type_error("The XOR operation requires boolean values.")),
         }
     }
 
@@ -212,7 +212,7 @@ impl BinaryOperationEvaluator {
                 }
                 Ok(Value::Bool(items.contains(left)))
             }
-            _ => Err(ExpressionError::type_error("IN操作右侧必须是列表")),
+            _ => Err(ExpressionError::type_error("The right side of the IN operation must be a list.")),
         }
     }
 
@@ -228,7 +228,7 @@ impl BinaryOperationEvaluator {
                 }
                 Ok(Value::Bool(!items.contains(left)))
             }
-            _ => Err(ExpressionError::type_error("NOT IN操作右侧必须是列表")),
+            _ => Err(ExpressionError::type_error("The right side of the NOT IN operation must be a list.")),
         }
     }
 
@@ -245,7 +245,7 @@ impl BinaryOperationEvaluator {
                 }
                 Ok(Value::Bool(items.contains(item)))
             }
-            _ => Err(ExpressionError::type_error("CONTAINS操作需要字符串或列表")),
+            _ => Err(ExpressionError::type_error("The CONTAINS operation requires a string or a list.")),
         }
     }
 
@@ -256,7 +256,7 @@ impl BinaryOperationEvaluator {
 
         match (&left, &right) {
             (Value::String(s), Value::String(prefix)) => Ok(Value::Bool(s.starts_with(prefix))),
-            _ => Err(ExpressionError::type_error("STARTS WITH操作需要字符串值")),
+            _ => Err(ExpressionError::type_error("The `STARTS WITH` operation requires a string value.")),
         }
     }
 
@@ -267,7 +267,7 @@ impl BinaryOperationEvaluator {
 
         match (&left, &right) {
             (Value::String(s), Value::String(suffix)) => Ok(Value::Bool(s.ends_with(suffix))),
-            _ => Err(ExpressionError::type_error("ENDS WITH操作需要字符串值")),
+            _ => Err(ExpressionError::type_error("The ENDS WITH operation requires a string value.")),
         }
     }
 
@@ -373,7 +373,7 @@ impl UnaryOperationEvaluator {
             Value::String(s) => Ok(Value::Bool(s.is_empty())),
             Value::List(l) => Ok(Value::Bool(l.is_empty())),
             Value::Map(m) => Ok(Value::Bool(m.is_empty())),
-            _ => Err(ExpressionError::type_error("EMPTY检查需要容器类型")),
+            _ => Err(ExpressionError::type_error("The EMPTY check requires the container type.")),
         }
     }
 
@@ -382,7 +382,7 @@ impl UnaryOperationEvaluator {
             Value::String(s) => Ok(Value::Bool(!s.is_empty())),
             Value::List(l) => Ok(Value::Bool(!l.is_empty())),
             Value::Map(m) => Ok(Value::Bool(!m.is_empty())),
-            _ => Err(ExpressionError::type_error("EMPTY检查需要容器类型")),
+            _ => Err(ExpressionError::type_error("The EMPTY check requires the container type.")),
         }
     }
 }

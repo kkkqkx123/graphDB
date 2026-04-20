@@ -627,7 +627,7 @@ pub enum CreateTarget {
         labels: Vec<String>,
         properties: Option<ContextualExpression>,
     },
-    /// Cypher 风格的边创建: CREATE ()-[:Type {props}]->()
+    /// Cypher-style edge creation: CREATE ()-[:Type {props}]->()
     Edge {
         variable: Option<String>,
         edge_type: String,
@@ -636,7 +636,7 @@ pub enum CreateTarget {
         properties: Option<ContextualExpression>,
         direction: EdgeDirection,
     },
-    /// Cypher 风格的完整路径创建: CREATE (a)-[:FRIEND]->(b)
+    /// Cypher-style full path creation: CREATE (a)-[:FRIEND]->(b)
     Path { patterns: Vec<Pattern> },
     /// Schema definition – TAG
     Tag {

@@ -131,14 +131,14 @@ impl GoValidator {
         // Take the expression of the first vertex as the source.
         let from_expr = from_vertices.first().ok_or_else(|| {
             ValidationError::new(
-                "FROM 子句不能为空".to_string(),
+                "The FROM clause cannot be empty".to_string(),
                 ValidationErrorType::SemanticError,
             )
         })?;
 
         if from_expr.expression().is_none() {
             return Err(ValidationError::new(
-                "FROM 子句表达式无效".to_string(),
+                "FROM clause expression is invalid".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -178,7 +178,7 @@ impl GoValidator {
     ) -> Result<Vec<OverEdge>, ValidationError> {
         if edge_names.is_empty() {
             return Err(ValidationError::new(
-                "OVER 子句必须指定至少一条边".to_string(),
+                "The OVER clause must specify at least one edge".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -187,7 +187,7 @@ impl GoValidator {
         for edge_name in edge_names {
             if edge_name.is_empty() {
                 return Err(ValidationError::new(
-                    "边名称不能为空".to_string(),
+                    "Side names cannot be empty".to_string(),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -262,7 +262,7 @@ impl GoValidator {
                 let n_i32 = *n as i32;
                 if n_i32 < 0 {
                     return Err(ValidationError::new(
-                        "步数不能为负".to_string(),
+                        "The number of steps cannot be negative".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
                 }
@@ -276,13 +276,13 @@ impl GoValidator {
                 let max_i32 = *max as i32;
                 if min_i32 < 0 {
                     return Err(ValidationError::new(
-                        "步数范围起始值不能为负".to_string(),
+                        "The start of the step range cannot be negative".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
                 }
                 if max_i32 < min_i32 {
                     return Err(ValidationError::new(
-                        "步数范围结束值不能小于起始值".to_string(),
+                        "The end value of the step range cannot be less than the start value.".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
                 }
@@ -305,7 +305,7 @@ impl GoValidator {
     ) -> Result<(), ValidationError> {
         if expression.expression().is_none() {
             return Err(ValidationError::new(
-                "表达式无效".to_string(),
+                "Invalid expression".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -417,19 +417,19 @@ impl StatementValidator for GoValidator {
         // 10. Constructing detailed ValidationInfo
         let mut info = ValidationInfo::new();
 
-        // 10.1 添加别名映射
+        // 10.1 Adding an Alias Map
         for edge in &over_edges {
             info.add_alias(edge.edge_name.clone(), AliasType::Edge);
         }
 
-        // 10.2 添加语义信息
+        // 10.2 Adding semantic information
         for edge in &over_edges {
             info.semantic_info
                 .referenced_edges
                 .push(edge.edge_name.clone());
         }
 
-        // 10.3 添加路径分析
+        // 10.3 Adding Path Analysis
         let mut path_analysis =
             crate::query::validator::structs::validation_info::PathAnalysis::new();
         path_analysis.edge_count = over_edges.len();
@@ -444,7 +444,7 @@ impl StatementValidator for GoValidator {
 
         info.add_path_analysis(path_analysis);
 
-        // 10.4 添加优化提示
+        // 10.4 Adding Optimization Tips
         if over_edges.len() > 10 {
             info.add_optimization_hint(OptimizationHint::PerformanceWarning {
                 message: format!(
@@ -465,7 +465,7 @@ impl StatementValidator for GoValidator {
             }
         }
 
-        // 10.5 添加验证通过的子句
+        // 10.5 Adding Validated Clauses
         info.validated_clauses
             .push(crate::query::validator::structs::ClauseKind::Match);
 
@@ -591,7 +591,7 @@ mod tests {
         let result = validator.validate(create_test_ast(Stmt::Go(go_stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.message.contains("OVER 子句必须指定至少一条边"));
+        assert!(err.message.contains("The OVER clause must specify at least one edge"));
     }
 
     #[test]

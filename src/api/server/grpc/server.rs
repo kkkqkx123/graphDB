@@ -484,8 +484,6 @@ pub async fn run_server_with_grpc_service<S: StorageClient + Clone + Send + Sync
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_service_creation() {
         // Test that the service can be created

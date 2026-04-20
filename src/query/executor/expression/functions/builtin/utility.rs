@@ -37,9 +37,9 @@ impl UtilityFunction {
 
     pub fn description(&self) -> &str {
         match self {
-            UtilityFunction::Coalesce => "返回第一个非NULL值",
-            UtilityFunction::Hash => "计算哈希值",
-            UtilityFunction::JsonExtract => "从JSON字符串中提取指定路径的值",
+            UtilityFunction::Coalesce => "Returns the first non-NULL value",
+            UtilityFunction::Hash => "Compute the hash",
+            UtilityFunction::JsonExtract => "Extract the value of a specified path from a JSON string",
         }
     }
 
@@ -80,7 +80,7 @@ fn execute_hash(args: &[Value]) -> Result<Value, ExpressionError> {
             let hash_value = hasher.finish() as i64;
             Ok(Value::Int(hash_value))
         }
-        _ => Err(ExpressionError::type_error("hash函数需要字符串或整数类型")),
+        _ => Err(ExpressionError::type_error("The hash function requires a string or integer type")),
     }
 }
 
@@ -88,14 +88,14 @@ fn execute_json_extract(args: &[Value]) -> Result<Value, ExpressionError> {
     match (&args[0], &args[1]) {
         (Value::String(json_str), Value::String(path)) => {
             let json_value: JsonValue = serde_json::from_str(json_str)
-                .map_err(|_| ExpressionError::type_error("无效的JSON字符串"))?;
+                .map_err(|_| ExpressionError::type_error("Invalid JSON string"))?;
 
             let result = extract_json_value(&json_value, path);
             Ok(json_to_value(result))
         }
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
         _ => Err(ExpressionError::type_error(
-            "json_extract函数需要字符串参数",
+            "The json_extract function takes string arguments",
         )),
     }
 }

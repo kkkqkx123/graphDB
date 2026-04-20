@@ -238,7 +238,7 @@ impl InsertEdgesValidator {
     ) -> Result<(), ValidationError> {
         if value.expression().is_none() {
             return Err(ValidationError::new(
-                "属性值表达式无效".to_string(),
+                "Invalid attribute value expression".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }

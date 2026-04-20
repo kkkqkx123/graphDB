@@ -368,7 +368,7 @@ mod tests {
         let group_keys = vec!["category".to_string()];
         let agg_funcs = vec![AggregateFunction::Count(None)];
         let aggregate = AggregateNode::new(start_enum.clone(), group_keys, agg_funcs)
-            .expect("创建 AggregateNode 失败");
+            .expect("Failed to create AggregateNode");
         let aggregate_enum = PlanNodeEnum::Aggregate(aggregate);
 
         // Create a Filter node (the condition only involves the grouping key).
@@ -383,13 +383,13 @@ mod tests {
         let expr_meta = crate::core::types::expr::ExpressionMeta::new(condition);
         let id = expr_ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx);
-        let filter = FilterNode::new(aggregate_enum, ctx_expr).expect("创建 FilterNode 失败");
+        let filter = FilterNode::new(aggregate_enum, ctx_expr).expect("Failed to create FilterNode");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
         // Application rules
         let rule = PushFilterDownAggregateRule::new();
         let mut ctx = RewriteContext::new();
-        let result = rule.apply(&mut ctx, &filter_enum).expect("应用规则失败");
+        let result = rule.apply(&mut ctx, &filter_enum).expect("Failed to apply rule");
 
         // Verify that the conversion was successful.
         assert!(result.is_some());
@@ -408,7 +408,7 @@ mod tests {
         let group_keys = vec!["category".to_string()];
         let agg_funcs = vec![AggregateFunction::Count(None)];
         let aggregate = AggregateNode::new(start_enum.clone(), group_keys, agg_funcs)
-            .expect("创建 AggregateNode 失败");
+            .expect("Failed to create AggregateNode");
         let aggregate_enum = PlanNodeEnum::Aggregate(aggregate);
 
         // 创建 Filter 节点（条件涉及聚合函数结果，如 HAVING COUNT(*) > 10）
@@ -421,13 +421,13 @@ mod tests {
         let expr_meta = crate::core::types::expr::ExpressionMeta::new(condition);
         let id = expr_ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx);
-        let filter = FilterNode::new(aggregate_enum, ctx_expr).expect("创建 FilterNode 失败");
+        let filter = FilterNode::new(aggregate_enum, ctx_expr).expect("Failed to create FilterNode");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
         // Application rules
         let rule = PushFilterDownAggregateRule::new();
         let mut ctx = RewriteContext::new();
-        let result = rule.apply(&mut ctx, &filter_enum).expect("应用规则失败");
+        let result = rule.apply(&mut ctx, &filter_enum).expect("Failed to apply rule");
 
         // The conversion was not executed (because the conditions involved aggregated results).
         assert!(result.is_none());
@@ -451,13 +451,13 @@ mod tests {
         let expr_meta = crate::core::types::expr::ExpressionMeta::new(condition);
         let id = expr_ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx);
-        let filter = FilterNode::new(start_enum, ctx_expr).expect("创建 FilterNode 失败");
+        let filter = FilterNode::new(start_enum, ctx_expr).expect("Failed to create FilterNode");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
         // Apply the rules
         let rule = PushFilterDownAggregateRule::new();
         let mut ctx = RewriteContext::new();
-        let result = rule.apply(&mut ctx, &filter_enum).expect("应用规则失败");
+        let result = rule.apply(&mut ctx, &filter_enum).expect("Failed to apply rule");
 
         // The conversion was not performed (because the input is not of the “Aggregate” type).
         assert!(result.is_none());

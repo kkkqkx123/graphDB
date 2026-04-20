@@ -104,7 +104,7 @@ mod tests {
             Value::Int(2),
             Value::String(String::with_capacity(10)),
         ];
-        let v = Value::List(List::from(list));
+        let v = Value::List(Box::new(List::from(list)));
         let expected = std::mem::size_of::<Value>()
             + std::mem::size_of::<Value>() * 2
             + (std::mem::size_of::<Value>() + 10);

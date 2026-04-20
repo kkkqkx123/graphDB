@@ -170,7 +170,7 @@ impl CostCalculator {
 
     /// Calculating the cost of multi-step traversals
     ///
-    /// # 参数
+    /// # Parameters
     /// `start_nodes`: The number of starting nodes
     /// `edge_type`: Edge type (optional)
     /// - `steps`: The number of iterations (or steps) in a process.
@@ -245,7 +245,7 @@ impl CostCalculator {
     ///
     /// Formula: Number of input rows × Number of conditions × Cost of each operator
     ///
-    /// # 参数
+    /// # Parameters
     /// `input_rows`: The number of input rows
     /// `condition_count`: Number of conditions
     pub fn calculate_filter_cost(&self, input_rows: u64, condition_count: usize) -> f64 {
@@ -254,7 +254,7 @@ impl CostCalculator {
 
     /// Calculating the cost of projection
     ///
-    /// # 参数
+    /// # Parameters
     /// `input_rows`: Number of input rows
     /// - `columns`: The number of columns to be projected.
     pub fn calculate_project_cost(&self, input_rows: u64, columns: usize) -> f64 {
@@ -265,7 +265,7 @@ impl CostCalculator {
 
     /// Calculate the cost of hash-based inner joins
     ///
-    /// # 参数
+    /// # Parameters
     /// `left_rows`: The number of rows in the left table
     /// `right_rows`: The number of rows in the right table
     pub fn calculate_hash_join_cost(&self, left_rows: u64, right_rows: u64) -> f64 {
@@ -327,7 +327,7 @@ impl CostCalculator {
     /// - 有 LIMIT 且数据量大：使用 Top-N 算法 O(n log k)
     /// - Exceeding the memory threshold: External sorting
     ///
-    /// # 参数
+    /// # Parameters
     /// - `input_rows`: 输入行数
     /// - `sort_columns`: The columns to be sorted.
     /// - `limit`: An optional LIMIT value (used for Top-N optimization)
@@ -402,7 +402,7 @@ impl CostCalculator {
     /// It is necessary to calculate the grouping key (evaluation of the expression).
     /// Each aggregate function requires an update of its status.
     ///
-    /// # 参数
+    /// # Parameters
     /// - `input_rows`: 输入行数
     /// - `agg_functions`: The number of aggregate functions
     /// - `group_by_keys`: The number of keys used in the GROUP BY clause (used to estimate the cost of hash operations)
@@ -481,7 +481,7 @@ impl CostCalculator {
 
     /// Calculating the cost of loop iterations
     ///
-    /// # 参数
+    /// # Parameters
     /// `body_cost`: The cost of the loop body
     /// `iterations`: An estimate of the number of iterations required.
     pub fn calculate_loop_cost(&self, body_cost: f64, iterations: u32) -> f64 {
@@ -943,7 +943,7 @@ mod tests {
 
         // Complex types
         assert_eq!(
-            calculator.get_type_cost_factor(&Value::List(crate::core::value::List::new())),
+            calculator.get_type_cost_factor(&Value::List(Box::<crate::core::value::List>::default())),
             calculator.config.complex_type_cost_factor
         );
 

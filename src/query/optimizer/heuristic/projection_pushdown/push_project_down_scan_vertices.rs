@@ -174,10 +174,10 @@ mod tests {
             create_yield_column(Expression::Variable("id".to_string()), "id"),
             create_yield_column(Expression::Variable("name".to_string()), "name"),
         ];
-        let project = ProjectNode::new(scan.clone(), columns).expect("创建 ProjectNode 失败");
+        let project = ProjectNode::new(scan.clone(), columns).expect("Failed to create ProjectNode");
         let project_enum = PlanNodeEnum::Project(project);
 
-        let result = rule.apply(&mut ctx, &project_enum).expect("应用规则失败");
+        let result = rule.apply(&mut ctx, &project_enum).expect("Failed to apply rule");
 
         assert!(result.is_some());
         let transform = result.expect("Failed to apply rewrite rule");
@@ -201,7 +201,7 @@ mod tests {
             Expression::Variable("test".to_string()),
             "test",
         )];
-        let project = ProjectNode::new(scan.clone(), columns).expect("创建 ProjectNode 失败");
+        let project = ProjectNode::new(scan.clone(), columns).expect("Failed to create ProjectNode");
         let project_enum = PlanNodeEnum::Project(project);
 
         assert!(rule.can_push_down(&project_enum, &scan));

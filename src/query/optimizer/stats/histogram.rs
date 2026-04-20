@@ -315,7 +315,7 @@ mod tests {
         let samples: Vec<Value> = (1..=100).map(Value::Int).collect();
         let hist = Histogram::from_samples(samples, 10, 100);
 
-        // 对于均匀分布的数据，选择性应该接近 1/100 = 0.01
+        // For uniformly distributed data, the selectivity should be close to 1/100 = 0.01
         let selectivity = hist.estimate_equality_selectivity(&Value::Int(50));
         assert!(selectivity > 0.0 && selectivity < 0.1);
     }
@@ -325,7 +325,7 @@ mod tests {
         let samples: Vec<Value> = (1..=100).map(Value::Int).collect();
         let hist = Histogram::from_samples(samples, 10, 100);
 
-        // 估计小于50的选择性，应该接近 0.5
+        // Estimates of selectivity less than 50 should be closer to 0.5
         let range = RangeCondition::Lt(Value::Int(50));
         let selectivity = hist.estimate_range_selectivity(&range);
         assert!(selectivity > 0.3 && selectivity < 0.7);

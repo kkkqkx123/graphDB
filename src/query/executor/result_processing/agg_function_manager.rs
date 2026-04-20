@@ -512,54 +512,54 @@ mod tests {
     #[test]
     fn test_count_function() {
         let manager = AggFunctionManager::new();
-        let count_func = manager.get("COUNT").expect("COUNT函数应该存在");
+        let count_func = manager.get("COUNT").expect("The COUNT function should exist");
 
         let mut agg_data = AggData::new();
 
         // Testing for null values: The COUNT function should be initialized to 0.
-        count_func(&mut agg_data, &Value::Null(NullType::Null)).expect("COUNT函数调用应该成功");
+        count_func(&mut agg_data, &Value::Null(NullType::Null)).expect("The COUNT function call should succeed");
         assert_eq!(agg_data.result(), &Value::Int(0));
 
         // Normal test values
-        count_func(&mut agg_data, &Value::Int(1)).expect("COUNT函数调用应该成功");
+        count_func(&mut agg_data, &Value::Int(1)).expect("The COUNT function call should succeed");
         assert_eq!(agg_data.result(), &Value::Int(1));
 
-        count_func(&mut agg_data, &Value::Int(2)).expect("COUNT函数调用应该成功");
+        count_func(&mut agg_data, &Value::Int(2)).expect("The COUNT function call should succeed");
         assert_eq!(agg_data.result(), &Value::Int(2));
 
         // Testing NULL cases is not counted.
-        count_func(&mut agg_data, &Value::Null(NullType::Null)).expect("COUNT函数调用应该成功");
+        count_func(&mut agg_data, &Value::Null(NullType::Null)).expect("The COUNT function call should succeed");
         assert_eq!(agg_data.result(), &Value::Int(2));
     }
 
     #[test]
     fn test_sum_function() {
         let manager = AggFunctionManager::new();
-        let sum_func = manager.get("SUM").expect("SUM函数应该存在");
+        let sum_func = manager.get("SUM").expect("The SUM function should exist");
 
         let mut agg_data = AggData::new();
 
-        sum_func(&mut agg_data, &Value::Int(10)).expect("SUM函数调用应该成功");
+        sum_func(&mut agg_data, &Value::Int(10)).expect("The SUM function call should succeed");
         assert_eq!(agg_data.result(), &Value::Int(10));
 
-        sum_func(&mut agg_data, &Value::Int(20)).expect("SUM函数调用应该成功");
+        sum_func(&mut agg_data, &Value::Int(20)).expect("The SUM function call should succeed");
         assert_eq!(agg_data.result(), &Value::Int(30));
 
         // Test: NULL should not be included.
-        sum_func(&mut agg_data, &Value::Null(NullType::Null)).expect("SUM函数调用应该成功");
+        sum_func(&mut agg_data, &Value::Null(NullType::Null)).expect("The SUM function call should succeed");
         assert_eq!(agg_data.result(), &Value::Int(30));
     }
 
     #[test]
     fn test_collect_set_function() {
         let manager = AggFunctionManager::new();
-        let collect_set_func = manager.get("COLLECT_SET").expect("COLLECT_SET函数应该存在");
+        let collect_set_func = manager.get("COLLECT_SET").expect("The COLLECT_SET function should exist");
 
         let mut agg_data = AggData::new();
 
-        collect_set_func(&mut agg_data, &Value::Int(1)).expect("COLLECT_SET函数调用应该成功");
-        collect_set_func(&mut agg_data, &Value::Int(2)).expect("COLLECT_SET函数调用应该成功");
-        collect_set_func(&mut agg_data, &Value::Int(1)).expect("COLLECT_SET函数调用应该成功");
+        collect_set_func(&mut agg_data, &Value::Int(1)).expect("COLLECT_SET function call should succeed");
+        collect_set_func(&mut agg_data, &Value::Int(2)).expect("COLLECT_SET function call should succeed");
+        collect_set_func(&mut agg_data, &Value::Int(1)).expect("COLLECT_SET function call should succeed");
 
         if let Value::Set(set) = agg_data.result() {
             assert_eq!(set.len(), 2);

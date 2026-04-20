@@ -78,7 +78,7 @@ impl EdgeTypeStatistics {
 
     /// Determine whether there is a significant inclination.
     pub fn is_heavily_skewed(&self) -> bool {
-        // 基尼系数 > 0.5 认为存在严重倾斜
+        // Gini coefficients > 0.5 are considered to be severely skewed
         self.degree_gini_coefficient > 0.5
             || self.max_out_degree as f64 > self.avg_out_degree * 10.0
     }

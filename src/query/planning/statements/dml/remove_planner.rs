@@ -30,7 +30,7 @@ impl RemovePlanner {
         match stmt {
             Stmt::Remove(remove_stmt) => Ok(remove_stmt.clone()),
             _ => Err(PlannerError::PlanGenerationFailed(
-                "语句不包含 REMOVE".to_string(),
+                "statement does not contain a REMOVE".to_string(),
             )),
         }
     }
@@ -50,12 +50,12 @@ impl Planner for RemovePlanner {
         // Check the semantic information.
         let referenced_tags = &validation_info.semantic_info.referenced_tags;
         if !referenced_tags.is_empty() {
-            log::debug!("REMOVE 引用的标签: {:?}", referenced_tags);
+            log::debug!("REMOVE Referenced tags: {:?}", referenced_tags);
         }
 
         let referenced_properties = &validation_info.semantic_info.referenced_properties;
         if !referenced_properties.is_empty() {
-            log::debug!("REMOVE 引用的属性: {:?}", referenced_properties);
+            log::debug!("REMOVE Referenced properties: {:?}", referenced_properties);
         }
 
         let remove_stmt = self.extract_remove_stmt(validated.stmt())?;

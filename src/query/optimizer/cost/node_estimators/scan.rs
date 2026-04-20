@@ -215,7 +215,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.expect("估算应成功");
+        let (cost, output_rows) = result.expect("Estimates should be successful");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 1000);
     }
@@ -232,7 +232,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.expect("估算应成功");
+        let (cost, output_rows) = result.expect("Estimates should be successful");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 5000);
     }
@@ -257,7 +257,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.expect("估算应成功");
+        let (cost, output_rows) = result.expect("Estimates should be successful");
         assert!(cost > 0.0);
         assert!(output_rows >= 1);
     }
@@ -275,7 +275,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.expect("估算应成功");
+        let (cost, output_rows) = result.expect("Estimates should be successful");
         assert!(cost > 0.0);
         assert!(output_rows >= 1);
     }

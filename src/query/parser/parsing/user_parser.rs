@@ -353,7 +353,7 @@ impl UserParser {
     }
 
     /// Analysis of the SHOW ROLES statement
-    /// 语法: SHOW ROLES [IN <space_name>]
+    /// Syntax: SHOW ROLES [IN <space_name>]
     pub fn parse_show_roles_statement(
         &mut self,
         ctx: &mut ParseContext,

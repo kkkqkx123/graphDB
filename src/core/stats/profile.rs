@@ -205,10 +205,12 @@ mod tests {
     #[test]
     fn test_query_profile_add_executor_stat() {
         let mut profile = QueryProfile::new(123, "MATCH (n) RETURN n".to_string());
-        let mut stats = ExecutorStats::default();
-        stats.exec_time_us = 100_000;
-        stats.num_rows = 50;
-        stats.memory_peak = 1024;
+        let stats = ExecutorStats {
+            exec_time_us: 100_000,
+            num_rows: 50,
+            memory_peak: 1024,
+            ..ExecutorStats::default()
+        };
         let stat = ExecutorStat::from_executor("ScanVerticesExecutor".to_string(), 1, stats);
         profile.add_executor_stat(stat);
         assert_eq!(profile.executor_stats.len(), 1);
@@ -226,10 +228,12 @@ mod tests {
 
     #[test]
     fn test_executor_stat_from_executor() {
-        let mut stats = ExecutorStats::default();
-        stats.exec_time_us = 1500;
-        stats.num_rows = 100;
-        stats.memory_peak = 2048;
+        let stats = ExecutorStats {
+            exec_time_us: 1500,
+            num_rows: 100,
+            memory_peak: 2048,
+            ..ExecutorStats::default()
+        };
 
         let stat = ExecutorStat::from_executor("TestExecutor".to_string(), 1, stats);
 
@@ -240,9 +244,11 @@ mod tests {
 
     #[test]
     fn test_stage_metrics_from_query_metrics() {
-        let mut metrics = crate::core::stats::QueryMetrics::default();
-        metrics.parse_time_us = 100;
-        metrics.execute_time_us = 500;
+        let metrics = crate::core::stats::QueryMetrics {
+            parse_time_us: 100,
+            execute_time_us: 500,
+            ..crate::core::stats::QueryMetrics::default()
+        };
 
         let stages = StageMetrics::from_query_metrics(&metrics);
 

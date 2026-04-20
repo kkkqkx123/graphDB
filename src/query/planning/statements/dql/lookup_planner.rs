@@ -50,7 +50,7 @@ impl Planner for LookupPlanner {
             Stmt::Lookup(lookup_stmt) => lookup_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(
-                    "LookupPlanner 需要 Lookup 语句".to_string(),
+                    "LookupPlanner requires the Lookup statement.".to_string(),
                 ));
             }
         };
@@ -68,7 +68,7 @@ impl Planner for LookupPlanner {
 
         // 1. Check the optimization suggestions.
         for hint in &validation_info.optimization_hints {
-            log::debug!("LOOKUP 优化提示: {:?}", hint);
+            log::debug!("LOOKUP Optimization Tip: {:?}", hint);
         }
 
         // 2. Check the index suggestions.
@@ -79,7 +79,7 @@ impl Planner for LookupPlanner {
 
         if !validation_info.index_hints.is_empty() {
             let hint = &validation_info.index_hints[0];
-            log::debug!("LOOKUP 使用索引提示: {:?}", hint);
+            log::debug!("LOOKUP using index hints: {:?}", hint);
 
             let index_fields: Vec<crate::core::types::IndexField> = hint
                 .columns

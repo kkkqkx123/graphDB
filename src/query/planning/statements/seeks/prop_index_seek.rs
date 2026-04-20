@@ -179,7 +179,7 @@ impl PropIndexSeek {
     fn extract_property(expr: &crate::core::Expression) -> Option<String> {
         match expr {
             crate::core::Expression::Property { object, property } => {
-                // 检查是否为节点属性访问，如 v.name
+                // Check for node attribute access, e.g. v.name
                 if matches!(object.as_ref(), crate::core::Expression::Variable(_)) {
                     Some(property.clone())
                 } else {

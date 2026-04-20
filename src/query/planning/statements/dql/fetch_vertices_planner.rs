@@ -34,7 +34,7 @@ impl Planner for FetchVerticesPlanner {
             Stmt::Fetch(fetch_stmt) => fetch_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(
-                    "FetchVerticesPlanner 需要 Fetch 语句".to_string(),
+                    "FetchVerticesPlanner requires the Fetch statement.".to_string(),
                 ));
             }
         };
@@ -46,7 +46,7 @@ impl Planner for FetchVerticesPlanner {
             } => (ids, properties),
             _ => {
                 return Err(PlannerError::InvalidOperation(
-                    "FetchVerticesPlanner 需要 FETCH VERTICES 语句".to_string(),
+                    "FetchVerticesPlanner requires the FETCH VERTICES statement.".to_string(),
                 ));
             }
         };

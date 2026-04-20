@@ -29,7 +29,7 @@ impl WithPlanner {
         match stmt {
             Stmt::With(with_stmt) => Ok(with_stmt.clone()),
             _ => Err(PlannerError::PlanGenerationFailed(
-                "语句不包含 WITH".to_string(),
+                "statement does not contain the WITH".to_string(),
             )),
         }
     }
@@ -71,12 +71,12 @@ impl Planner for WithPlanner {
         // Check the semantic information.
         let referenced_tags = &validation_info.semantic_info.referenced_tags;
         if !referenced_tags.is_empty() {
-            log::debug!("WITH 引用的标签: {:?}", referenced_tags);
+            log::debug!("WITH referenced tags: {:?}", referenced_tags);
         }
 
         let referenced_properties = &validation_info.semantic_info.referenced_properties;
         if !referenced_properties.is_empty() {
-            log::debug!("WITH 引用的属性: {:?}", referenced_properties);
+            log::debug!("WITH referenced properties: {:?}", referenced_properties);
         }
 
         let with_stmt = self.extract_with_stmt(validated.stmt())?;

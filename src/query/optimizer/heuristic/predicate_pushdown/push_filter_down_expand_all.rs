@@ -151,7 +151,7 @@ mod tests {
                 start_enum.clone(),
                 ctx_expr,
             )
-            .expect("创建FilterNode失败");
+            .expect("Failed to create FilterNode");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
         let expand_all = ExpandAllNode::new(1, vec![], "OUT");

@@ -154,7 +154,7 @@ impl FetchVerticesValidator {
     fn basic_validate_vertex_id(expr: &ContextualExpression) -> Result<(), ValidationError> {
         if expr.expression().is_none() {
             return Err(ValidationError::new(
-                "顶点 ID 表达式无效".to_string(),
+                "Vertex ID expression is invalid".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -167,14 +167,14 @@ impl FetchVerticesValidator {
             if let Some(value) = expr.as_literal() {
                 if value.is_null() || value.is_empty() {
                     return Err(ValidationError::new(
-                        "顶点 ID 不能为空".to_string(),
+                        "Vertex ID cannot be null".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
                 }
                 if let Value::String(s) = value {
                     if s.is_empty() {
                         return Err(ValidationError::new(
-                            "顶点 ID 不能为空".to_string(),
+                            "Vertex ID cannot be null".to_string(),
                             ValidationErrorType::SemanticError,
                         ));
                     }
@@ -184,7 +184,7 @@ impl FetchVerticesValidator {
         }
 
         Err(ValidationError::new(
-            "顶点 ID 必须是常量或变量".to_string(),
+            "Vertex ID must be a constant or variable".to_string(),
             ValidationErrorType::SemanticError,
         ))
     }
@@ -215,7 +215,7 @@ impl FetchVerticesValidator {
             Some(m) => m,
             None => {
                 return Err(ValidationError::new(
-                    "表达式无效".to_string(),
+                    "Invalid expression".to_string(),
                     ValidationErrorType::SemanticError,
                 ))
             }
@@ -226,7 +226,7 @@ impl FetchVerticesValidator {
             Expression::Literal(v) => Ok(v.clone()),
             Expression::Variable(name) => Ok(Value::String(format!("${}", name))),
             _ => Err(ValidationError::new(
-                "表达式必须是常量或变量".to_string(),
+                "Expressions must be constants or variables".to_string(),
                 ValidationErrorType::SemanticError,
             )),
         }
@@ -460,7 +460,7 @@ mod tests {
         );
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.message.contains("不能为空"));
+        assert!(err.message.contains("Cannot be empty"));
     }
 
     #[test]

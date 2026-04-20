@@ -39,14 +39,14 @@ impl VariableChecker {
     pub fn validate_variable_name_format(&self, var: &str) -> Result<(), ValidationError> {
         if var.is_empty() {
             return Err(ValidationError::new(
-                "变量名不能为空".to_string(),
+                "The variable name cannot be null".to_string(),
                 ValidationErrorType::SyntaxError,
             ));
         }
 
         let first_char = var.chars().next().ok_or_else(|| {
             ValidationError::new(
-                "变量名不能为空".to_string(),
+                "The variable name cannot be null".to_string(),
                 ValidationErrorType::SyntaxError,
             )
         })?;

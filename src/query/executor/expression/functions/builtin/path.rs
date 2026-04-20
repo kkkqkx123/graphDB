@@ -36,8 +36,8 @@ impl PathFunction {
     /// Obtain the function description
     pub fn description(&self) -> &str {
         match self {
-            Self::Nodes => "获取路径中的所有顶点",
-            Self::Relationships => "获取路径中的所有边",
+            Self::Nodes => "Get all vertices in the path",
+            Self::Relationships => "Get all edges in the path",
         }
     }
 
@@ -51,7 +51,7 @@ impl PathFunction {
 
 fn execute_nodes(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("nodes函数需要1个参数"));
+        return Err(ExpressionError::type_error("The nodes function takes 1 argument"));
     }
     match &args[0] {
         Value::Path(path) => {
@@ -133,8 +133,8 @@ mod tests {
     fn test_nodes_function() {
         let path = create_test_path();
         let result = PathFunction::Nodes
-            .execute(&[Value::Path(path)])
-            .expect("nodes函数执行应该成功");
+            .execute(&[Value::Path(Box::new(path))])
+            .expect("The execution of the nodes function should succeed");
 
         if let Value::List(nodes) = result {
             assert_eq!(nodes.values.len(), 3);
@@ -162,8 +162,8 @@ mod tests {
     fn test_relationships_function() {
         let path = create_test_path();
         let result = PathFunction::Relationships
-            .execute(&[Value::Path(path)])
-            .expect("relationships函数执行应该成功");
+            .execute(&[Value::Path(Box::new(path))])
+            .expect("The relationships function should execute successfully");
 
         if let Value::List(edges) = result {
             assert_eq!(edges.values.len(), 2);
@@ -187,8 +187,8 @@ mod tests {
         let v1 = create_test_vertex_with_id(1);
         let path = Path::new(v1);
         let result = PathFunction::Nodes
-            .execute(&[Value::Path(path)])
-            .expect("nodes函数执行应该成功");
+            .execute(&[Value::Path(Box::new(path))])
+            .expect("The execution of the nodes function should succeed");
 
         if let Value::List(nodes) = result {
             assert_eq!(nodes.values.len(), 1);
@@ -202,8 +202,8 @@ mod tests {
         let v1 = create_test_vertex_with_id(1);
         let path = Path::new(v1);
         let result = PathFunction::Relationships
-            .execute(&[Value::Path(path)])
-            .expect("relationships函数执行应该成功");
+            .execute(&[Value::Path(Box::new(path))])
+            .expect("The relationships function should execute successfully");
 
         if let Value::List(edges) = result {
             assert_eq!(edges.values.len(), 0);
@@ -219,13 +219,13 @@ mod tests {
         assert_eq!(
             PathFunction::Nodes
                 .execute(std::slice::from_ref(&null_value))
-                .expect("nodes函数应该处理NULL"),
+                .expect("The nodes function should handle NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(
             PathFunction::Relationships
                 .execute(std::slice::from_ref(&null_value))
-                .expect("relationships函数应该处理NULL"),
+                .expect("The relationshipships function should handle NULL."),
             Value::Null(NullType::Null)
         );
     }

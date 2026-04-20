@@ -274,25 +274,25 @@ impl OptimizerEngine {
             &self.stats_manager,
             &self.cost_config.strategy_thresholds,
         );
-        log::info!("优化器代价模型配置已更新：{:?}", self.cost_config);
+        log::info!("Optimizer cost model configuration has been updated: {:?}", self.cost_config);
     }
 
     /// Set whether to enable heuristic optimization
     pub fn set_enable_heuristic(&mut self, enable: bool) {
         self.enable_heuristic = enable;
-        log::info!("启发式优化已{}", if enable { "启用" } else { "禁用" });
+        log::info!("Heuristic optimization has {}", if enable { "(computing) enable (a feature)" } else { "prohibit the use of sth." });
     }
 
     /// Set whether to enable cost-based optimization
     pub fn set_enable_cost_based(&mut self, enable: bool) {
         self.enable_cost_based = enable;
-        log::info!("基于代价的优化已{}", if enable { "启用" } else { "禁用" });
+        log::info!("Cost-based optimization has {}", if enable { "(computing) enable (a feature)" } else { "prohibit the use of sth." });
     }
 
     /// Set the maximum number of heuristic iterations
     pub fn set_max_heuristic_iterations(&mut self, max: usize) {
         self.max_heuristic_iterations = max;
-        log::info!("最大启发式迭代次数已设置为：{}", max);
+        log::info!("The maximum number of heuristic iterations has been set to {}", max);
     }
 
     /// Check if full optimization is enabled (both heuristic and cost-based)

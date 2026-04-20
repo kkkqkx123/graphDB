@@ -176,9 +176,11 @@ mod tests {
         let ctx = ExecutionStatsContext::new();
 
         ctx.on_node_start(1);
-        let mut exec_stats = ExecutorStats::default();
-        exec_stats.num_rows = 100;
-        exec_stats.exec_time_us = 5500;
+        let exec_stats = ExecutorStats {
+            num_rows: 100,
+            exec_time_us: 5500,
+            ..ExecutorStats::default()
+        };
         ctx.on_node_complete(1, exec_stats);
 
         let collected = ctx.collect_stats();

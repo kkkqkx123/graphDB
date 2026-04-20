@@ -78,7 +78,7 @@ impl AggregateValidationStrategy {
     ) -> Result<(), ValidationError> {
         if self.has_aggregate_expression(unwind_expression) {
             return Err(ValidationError::new(
-                "UNWIND子句中不能使用聚合表达式".to_string(),
+                "Aggregate expressions cannot be used in UNWIND clauses".to_string(),
                 ValidationErrorType::AggregateError,
             ));
         }
@@ -120,7 +120,7 @@ impl AggregateValidationStrategy {
                 // 2. Check for nested aggregate functions: It is not allowed for aggregate functions to contain other aggregate functions.
                 if self.has_aggregate_expression_internal(arg) {
                     return Err(ValidationError::new(
-                        "不允许聚合函数嵌套".to_string(),
+                        "Aggregate function nesting is not allowed".to_string(),
                         ValidationErrorType::AggregateError,
                     ));
                 }
@@ -158,9 +158,9 @@ impl AggregateValidationStrategy {
             if property == "*" {
                 if let crate::core::types::expr::Expression::Variable(var_name) = object.as_ref() {
                     let ref_type = if var_name == "-" {
-                        "输入属性"
+                        "Input Properties"
                     } else {
-                        "变量属性"
+                        "Variable Properties"
                     };
                     return Err(ValidationError::new(
                         format!(
@@ -381,7 +381,7 @@ mod tests {
         let result = strategy.validate_aggregate_expression(&ctx_expr);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.message.contains("不允许聚合函数嵌套"));
+        assert!(err.message.contains("Aggregate function nesting is not allowed"));
     }
 
     #[test]
@@ -530,7 +530,7 @@ mod tests {
         let result = strategy.validate_aggregate_expression(&ctx_expr);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.message.contains("输入属性"));
+        assert!(err.message.contains("Input Properties"));
         assert!(err.message.contains("SUM"));
     }
 
@@ -569,7 +569,7 @@ mod tests {
         let result = strategy.validate_aggregate_expression(&ctx_expr);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.message.contains("变量属性"));
+        assert!(err.message.contains("Variable Properties"));
         assert!(err.message.contains("AVG"));
     }
 

@@ -323,7 +323,7 @@ impl SortEliminationOptimizer {
                 advice.push(format!("Preserve the sort operation, cause: {:?}", reason));
 
                 if matches!(reason, SortKeepReason::NoLimitForTopN) {
-                    advice.push("如果查询包含 LIMIT，考虑将 Sort + Limit 转换为 TopN".to_string());
+                    advice.push("If the query contains a LIMIT, consider converting Sort + Limit to TopN".to_string());
                 }
             }
         }
@@ -375,10 +375,10 @@ mod tests {
         let cost_calculator = Arc::new(CostCalculator::new(stats_manager));
 
         let optimizer1 =
-            SortEliminationOptimizer::new(cost_calculator.clone()).with_topn_threshold(2.0); // 超过 1.0
+            SortEliminationOptimizer::new(cost_calculator.clone()).with_topn_threshold(2.0); // More than 1.0
         assert_eq!(optimizer1.topn_threshold, 1.0);
 
-        let optimizer2 = SortEliminationOptimizer::new(cost_calculator).with_topn_threshold(0.0001); // 小于 0.001
+        let optimizer2 = SortEliminationOptimizer::new(cost_calculator).with_topn_threshold(0.0001); // Less than 0.001
         assert_eq!(optimizer2.topn_threshold, 0.001);
     }
 

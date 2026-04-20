@@ -81,7 +81,7 @@ macro_rules! define_unary_float_fn {
             if args.is_empty() {
                 return Err($crate::core::error::ExpressionError::new(
                     $crate::core::error::ExpressionErrorType::InvalidArgumentCount,
-                    concat!($desc, "函数需要1个参数"),
+                    concat!($desc, "The function takes 1 argument"),
                 ));
             }
 
@@ -92,7 +92,7 @@ macro_rules! define_unary_float_fn {
                 Value::Null(_) => Ok(Value::Null(NullType::Null)),
                 _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     $desc,
-                    "函数需要数值类型"
+                    "Functions require numeric types"
                 ))),
             }
         }
@@ -109,7 +109,7 @@ macro_rules! define_unary_numeric_fn {
             if args.is_empty() {
                 return Err($crate::core::error::ExpressionError::new(
                     $crate::core::error::ExpressionErrorType::InvalidArgumentCount,
-                    concat!($desc, "函数需要1个参数"),
+                    concat!($desc, "The function takes 1 argument"),
                 ));
             }
 
@@ -119,7 +119,7 @@ macro_rules! define_unary_numeric_fn {
                 Value::Null(_) => Ok(Value::Null(NullType::Null)),
                 _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     $desc,
-                    "函数需要数值类型"
+                    "Functions require numeric types"
                 ))),
             }
         }
@@ -136,7 +136,7 @@ macro_rules! define_unary_string_fn {
             if args.is_empty() {
                 return Err($crate::core::error::ExpressionError::new(
                     $crate::core::error::ExpressionErrorType::InvalidArgumentCount,
-                    concat!($desc, "函数需要1个参数"),
+                    concat!($desc, "The function takes 1 argument"),
                 ));
             }
 
@@ -146,7 +146,7 @@ macro_rules! define_unary_string_fn {
                 Value::Null(_) => Ok(Value::Null(NullType::Null)),
                 _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     $desc,
-                    "函数需要字符串类型"
+                    "Functions require a string type"
                 ))),
             }
         }
@@ -163,7 +163,7 @@ macro_rules! define_datetime_extractor {
             if args.is_empty() {
                 return Err($crate::core::error::ExpressionError::new(
                     $crate::core::error::ExpressionErrorType::InvalidArgumentCount,
-                    concat!(stringify!($name), "函数需要1个参数"),
+                    concat!(stringify!($name), "The function takes 1 argument"),
                 ));
             }
 
@@ -173,7 +173,7 @@ macro_rules! define_datetime_extractor {
                 Value::Null(_) => Ok(Value::Null(NullType::Null)),
                 _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     stringify!($name),
-                    "函数需要日期或日期时间类型"
+                    "Functions require a date or datetime type"
                 ))),
             }
         }
@@ -185,7 +185,7 @@ macro_rules! define_datetime_extractor {
             if args.is_empty() {
                 return Err($crate::core::error::ExpressionError::new(
                     $crate::core::error::ExpressionErrorType::InvalidArgumentCount,
-                    concat!(stringify!($name), "函数需要1个参数"),
+                    concat!(stringify!($name), "The function takes 1 argument"),
                 ));
             }
 
@@ -195,7 +195,7 @@ macro_rules! define_datetime_extractor {
                 Value::Null(_) => Ok(Value::Null(NullType::Null)),
                 _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     stringify!($name),
-                    "函数需要时间或日期时间类型"
+                    "Functions require a time or datetime type"
                 ))),
             }
         }
@@ -212,9 +212,9 @@ macro_rules! define_arg_checked_fn {
             if args.len() != $arity {
                 return Err($crate::core::error::ExpressionError::type_error(concat!(
                     stringify!($name),
-                    "函数需要",
+                    "The function requires",
                     stringify!($arity),
-                    "个参数"
+                    "specifications"
                 )));
             }
             $handler(args)
@@ -232,7 +232,7 @@ macro_rules! define_binary_numeric_fn {
             if args.len() != 2 {
                 return Err($crate::core::error::ExpressionError::new(
                     $crate::core::error::ExpressionErrorType::InvalidArgumentCount,
-                    concat!($desc, "函数需要2个参数"),
+                    concat!($desc, "The function takes 2 arguments"),
                 ));
             }
 
@@ -245,7 +245,7 @@ macro_rules! define_binary_numeric_fn {
                 (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
                 _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     $desc,
-                    "函数需要数值类型"
+                    "Functions require numeric types"
                 ))),
             }
         }
@@ -262,7 +262,7 @@ macro_rules! define_binary_string_bool_fn {
             if args.len() != 2 {
                 return Err($crate::core::error::ExpressionError::new(
                     $crate::core::error::ExpressionErrorType::InvalidArgumentCount,
-                    concat!($desc, "函数需要2个参数"),
+                    concat!($desc, "The function takes 2 arguments"),
                 ));
             }
 
@@ -272,7 +272,7 @@ macro_rules! define_binary_string_bool_fn {
                 (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
                 _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     $desc,
-                    "函数需要字符串类型"
+                    "Functions require a string type"
                 ))),
             }
         }
@@ -289,7 +289,7 @@ macro_rules! define_binary_geography_fn {
             if args.len() != 2 {
                 return Err($crate::core::error::ExpressionError::new(
                     $crate::core::error::ExpressionErrorType::InvalidArgumentCount,
-                    concat!($desc, "函数需要2个参数"),
+                    concat!($desc, "The function takes 2 arguments"),
                 ));
             }
 
@@ -299,7 +299,7 @@ macro_rules! define_binary_geography_fn {
                 (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
                 _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     $desc,
-                    "函数需要地理类型参数"
+                    "Functions require geo-typed parameters"
                 ))),
             }
         }

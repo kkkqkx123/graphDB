@@ -29,7 +29,7 @@ impl YieldPlanner {
         match stmt {
             Stmt::Yield(yield_stmt) => Ok(yield_stmt.clone()),
             _ => Err(PlannerError::PlanGenerationFailed(
-                "语句不包含 YIELD".to_string(),
+                "statement does not contain the YIELD".to_string(),
             )),
         }
     }
@@ -69,12 +69,12 @@ impl Planner for YieldPlanner {
         // Check the semantic information.
         let referenced_tags = &validation_info.semantic_info.referenced_tags;
         if !referenced_tags.is_empty() {
-            log::debug!("YIELD 引用的标签: {:?}", referenced_tags);
+            log::debug!("YIELD quoted tags: {:?}", referenced_tags);
         }
 
         let referenced_properties = &validation_info.semantic_info.referenced_properties;
         if !referenced_properties.is_empty() {
-            log::debug!("YIELD 引用的属性: {:?}", referenced_properties);
+            log::debug!("YIELD referenced properties: {:?}", referenced_properties);
         }
 
         let yield_stmt = self.extract_yield_stmt(validated.stmt())?;

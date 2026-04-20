@@ -1,7 +1,7 @@
 //! CREATE Data Statement Planner
 //!
 //! Query planning for handling Cypher-style CREATE statements
-//! 支持 CREATE (n:Label {props}) 和 CREATE (a)-[:Type]->(b) 语法
+//! supports CREATE (n:Label {props}) and CREATE (a)-[:Type]->(b) syntaxes
 
 use crate::core::types::ContextualExpression;
 use crate::core::Value;
@@ -44,7 +44,7 @@ impl CreatePlanner {
         match stmt {
             Stmt::Create(create_stmt) => Ok(create_stmt.clone()),
             _ => Err(PlannerError::PlanGenerationFailed(
-                "语句不包含 CREATE".to_string(),
+                "statement does not contain the CREATE".to_string(),
             )),
         }
     }
@@ -59,7 +59,7 @@ impl CreatePlanner {
     ) -> Result<VertexInsertInfo, PlannerError> {
         if labels.is_empty() {
             return Err(PlannerError::PlanGenerationFailed(
-                "CREATE 节点必须指定至少一个 Label".to_string(),
+                "The CREATE node must specify at least one Label.".to_string(),
             ));
         }
 
@@ -144,12 +144,12 @@ impl Planner for CreatePlanner {
         // Check the semantic information.
         let referenced_tags = &validation_info.semantic_info.referenced_tags;
         if !referenced_tags.is_empty() {
-            log::debug!("CREATE 引用的标签: {:?}", referenced_tags);
+            log::debug!("CREATE Referenced tags: {:?}", referenced_tags);
         }
 
         let referenced_edges = &validation_info.semantic_info.referenced_edges;
         if !referenced_edges.is_empty() {
-            log::debug!("CREATE 引用的边类型: {:?}", referenced_edges);
+            log::debug!("CREATE Referenced edge type: {:?}", referenced_edges);
         }
 
         // Obtain the space name
@@ -247,7 +247,7 @@ impl Planner for CreatePlanner {
                         }
                         _ => {
                             return Err(PlannerError::PlanGenerationFailed(
-                                "路径创建只支持节点和路径模式".to_string(),
+                                "Path creation only supports node and path modes".to_string(),
                             ));
                         }
                     }
@@ -255,7 +255,7 @@ impl Planner for CreatePlanner {
 
                 if vertex_infos.is_empty() && edge_infos.is_empty() {
                     return Err(PlannerError::PlanGenerationFailed(
-                        "路径创建必须包含至少一个节点或边".to_string(),
+                        "Path creation must contain at least one node or edge".to_string(),
                     ));
                 }
 
@@ -280,7 +280,7 @@ impl Planner for CreatePlanner {
                         insert_nodes
                             .into_iter()
                             .next()
-                            .expect("insert_nodes 长度检查后不应为空"),
+                            .expect("insert_nodes should not be null after length checking"),
                         created_count,
                     )
                 } else {
@@ -290,7 +290,7 @@ impl Planner for CreatePlanner {
             }
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(
-                    "不支持的 CREATE 目标类型".to_string(),
+                    "Unsupported CREATE target types".to_string(),
                 ));
             }
         };
@@ -337,11 +337,11 @@ impl CreatePlanner {
                 Ok(result)
             } else {
                 Err(PlannerError::PlanGenerationFailed(
-                    "属性必须是 Map 表达式".to_string(),
+                    "attribute must be a Map expression".to_string(),
                 ))
             }
         } else {
-            Err(PlannerError::PlanGenerationFailed("表达式无效".to_string()))
+            Err(PlannerError::PlanGenerationFailed("Invalid expression".to_string()))
         }
     }
 
@@ -382,7 +382,7 @@ impl CreatePlanner {
                 crate::query::parser::ast::pattern::PathElement::Edge(edge) => {
                     if prev_vertex.is_none() {
                         return Err(PlannerError::PlanGenerationFailed(
-                            "边模式前必须有节点模式".to_string(),
+                            "Edge patterns must be preceded by node patterns".to_string(),
                         ));
                     }
 
@@ -394,7 +394,7 @@ impl CreatePlanner {
 
                     if edge.edge_types.is_empty() {
                         return Err(PlannerError::PlanGenerationFailed(
-                            "边模式必须指定边类型".to_string(),
+                            "The edge mode must specify the edge type".to_string(),
                         ));
                     }
 
@@ -436,7 +436,7 @@ impl CreatePlanner {
                 }
                 _ => {
                     return Err(PlannerError::PlanGenerationFailed(
-                        "路径创建不支持 Alternative、Optional 或 Repeated 模式".to_string(),
+                        "Path creation does not support Alternative, Optional, or Repeated modes.".to_string(),
                     ));
                 }
             }
@@ -452,7 +452,7 @@ impl CreatePlanner {
     ) -> Result<PassThroughNode, PlannerError> {
         if nodes.is_empty() {
             return Err(PlannerError::PlanGenerationFailed(
-                "无法组合空的节点列表".to_string(),
+                "Unable to combine empty node lists".to_string(),
             ));
         }
 
@@ -479,7 +479,7 @@ mod tests {
     fn test_create_path_simple() {
         let sql = "CREATE (a:Person {name: 'Alice'})-[:FRIEND]->(b:Person {name: 'Bob'})";
         let mut parser = Parser::new(sql);
-        let parser_result = parser.parse().expect("解析失败");
+        let parser_result = parser.parse().expect("parsing failure");
 
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
@@ -500,7 +500,7 @@ mod tests {
     fn test_create_path_with_properties() {
         let sql = "CREATE (a:Person {name: 'Alice', age: 30})-[:FRIEND {since: 2020}]->(b:Person {name: 'Bob', age: 25})";
         let mut parser = Parser::new(sql);
-        let parser_result = parser.parse().expect("解析失败");
+        let parser_result = parser.parse().expect("parsing failure");
 
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
@@ -520,7 +520,7 @@ mod tests {
     fn test_create_path_multiple_edges() {
         let sql = "CREATE (a:Person)-[:FRIEND]->(b:Person)-[:FRIEND]->(c:Person)";
         let mut parser = Parser::new(sql);
-        let parser_result = parser.parse().expect("解析失败");
+        let parser_result = parser.parse().expect("parsing failure");
 
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
@@ -540,7 +540,7 @@ mod tests {
     fn test_create_path_single_node() {
         let sql = "CREATE (a:Person {name: 'Alice'})";
         let mut parser = Parser::new(sql);
-        let parser_result = parser.parse().expect("解析失败");
+        let parser_result = parser.parse().expect("parsing failure");
 
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
@@ -560,7 +560,7 @@ mod tests {
     fn test_create_path_without_labels() {
         let sql = "CREATE (a)-[:FRIEND]->(b)";
         let mut parser = Parser::new(sql);
-        let parser_result = parser.parse().expect("解析失败");
+        let parser_result = parser.parse().expect("parsing failure");
 
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
@@ -580,7 +580,7 @@ mod tests {
     fn test_create_path_bidirectional_edge() {
         let sql = "CREATE (a:Person)-[:FRIEND]-(b:Person)";
         let mut parser = Parser::new(sql);
-        let parser_result = parser.parse().expect("解析应该成功");
+        let parser_result = parser.parse().expect("Parsing should work.");
 
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());

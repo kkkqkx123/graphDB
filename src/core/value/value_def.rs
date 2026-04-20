@@ -298,12 +298,12 @@ impl Value {
 
     /// Create JSON value
     pub fn json(text: &str) -> Result<Self, JsonError> {
-        Ok(Value::Json(Box::new(Json::from_str(text)?)))
+        Ok(Value::Json(Box::new(Json::parse(text)?)))
     }
 
     /// Create JSONB value
     pub fn jsonb(text: &str) -> Result<Self, JsonError> {
-        Ok(Value::JsonB(Box::new(JsonB::from_str(text)?)))
+        Ok(Value::JsonB(Box::new(JsonB::parse(text)?)))
     }
 
     /// Create JSON value from serde_json::Value

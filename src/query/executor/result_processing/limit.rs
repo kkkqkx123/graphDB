@@ -59,7 +59,7 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
             let input_result = input_exec.execute()?;
             self.apply_limits_to_input(input_result)
         } else if let Some(input) = &self.base.input {
-            // 使用 base.input 作为备选
+            // Use base.input as an alternative
             self.apply_limits_to_input(input.clone())
         } else {
             Err(DBError::Query(

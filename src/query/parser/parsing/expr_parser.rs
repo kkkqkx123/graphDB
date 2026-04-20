@@ -748,7 +748,7 @@ mod tests {
         let mut parser = ExprParser::new(ctx);
         let result = parser.parse_expression(ctx);
         assert!(result.is_ok());
-        let parse_result = result.expect("简单表达式解析应该成功");
+        let parse_result = result.expect("Simple expression parsing should succeed");
         // Verify that the structure of the expression is correct, without checking the specific precedence of the operators.
         assert!(matches!(parse_result.expr, Expression::Binary { .. }));
     }
@@ -760,7 +760,7 @@ mod tests {
         let mut parser = ExprParser::new(ctx);
         let result = parser.parse_expression(ctx);
         assert!(result.is_ok());
-        let parse_result = result.expect("带括号表达式解析应该成功");
+        let parse_result = result.expect("Parsing a bracketed expression should succeed");
         // Verify that the structure of the expression is correct, without checking the specific precedence of the operators.
         assert!(matches!(parse_result.expr, Expression::Binary { .. }));
     }

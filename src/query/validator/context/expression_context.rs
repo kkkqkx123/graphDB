@@ -214,7 +214,7 @@ impl ExpressionAnalysisContext {
 
     /// Check whether the expression has already been analyzed.
     ///
-    /// # 参数
+    /// # Parameters
     /// - `id`: 表达式ID
     ///
     /// # Back
@@ -243,12 +243,12 @@ impl ExpressionAnalysisContext {
 
     /// Combine the two expressions into a binary expression.
     ///
-    /// # 参数
+    /// # Parameters
     /// “op”: Binary operator
     /// “left”: The ContextualExpression of the left operand.
     /// “right”: The ContextualExpression of the right operand
     ///
-    /// # 返回
+    /// # Back
     /// The combined ContextualExpression
     pub fn combine_expressions(
         &self,
@@ -272,11 +272,11 @@ impl ExpressionAnalysisContext {
 
     /// Create a monomial expression.
     ///
-    /// # 参数
+    /// # Parameters
     /// “op” stands for “unary operator”.
     /// `operand`: The ContextualExpression of the operand.
     ///
-    /// # 返回
+    /// # Back
     /// New ContextualExpression
     pub fn create_unary_expression(
         &self,
@@ -297,11 +297,11 @@ impl ExpressionAnalysisContext {
 
     /// Create attribute access expressions
     ///
-    /// # 参数
+    /// # Parameters
     /// “object”: The ContextualExpression of the object.
     /// “property”: The name of the property.
     ///
-    /// # 返回
+    /// # Back
     /// 新的 ContextualExpression
     pub fn create_property_expression(
         &self,
@@ -322,12 +322,12 @@ impl ExpressionAnalysisContext {
 
     /// Create a function call expression.
     ///
-    /// # 参数
+    /// # Parameters
     /// `name`: The name of the function
     /// `args`: A list of `ContextualExpression` objects representing the parameters.
     /// `ctx_expr`: A `ContextualExpression` used to retrieve the context.
     ///
-    /// # 返回
+    /// # Back
     /// 新的 ContextualExpression
     pub fn create_function_expression(
         &self,
@@ -443,7 +443,7 @@ mod tests {
         let id = ctx.register_expression(meta);
         let retrieved = ctx.get_expression(&id);
         assert!(retrieved.is_some());
-        assert!(retrieved.expect("表达式应存在").is_variable());
+        assert!(retrieved.expect("The expression should exist").is_variable());
     }
 
     #[test]

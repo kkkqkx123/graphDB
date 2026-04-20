@@ -151,7 +151,7 @@ impl MergeValidator {
         }
 
         // Variable names must start with a letter or an underscore.
-        let first_char = name.chars().next().expect("变量名已验证非空");
+        let first_char = name.chars().next().expect("The variable name is verified to be non-null");
         if !first_char.is_alphabetic() && first_char != '_' {
             return Err(ValidationError::new(
                 format!(
@@ -175,7 +175,7 @@ impl MergeValidator {
         }
 
         // The attribute name must start with a letter or an underscore.
-        let first_char = name.chars().next().expect("属性名已验证非空");
+        let first_char = name.chars().next().expect("Attribute name is verified to be non-null");
         if !first_char.is_alphabetic() && first_char != '_' {
             return Err(ValidationError::new(
                 format!(
@@ -217,7 +217,7 @@ impl MergeValidator {
             self.validate_properties_internal(&e)
         } else {
             Err(ValidationError::new(
-                "属性表达式无效".to_string(),
+                "Invalid attribute expression".to_string(),
                 ValidationErrorType::SemanticError,
             ))
         }
@@ -228,7 +228,7 @@ impl MergeValidator {
             Expression::Map(items) => {
                 if items.is_empty() {
                     return Err(ValidationError::new(
-                        "属性不能为空".to_string(),
+                        "Attributes cannot be null".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
                 }
@@ -240,7 +240,7 @@ impl MergeValidator {
                 Ok(())
             }
             _ => Err(ValidationError::new(
-                "属性必须是映射类型".to_string(),
+                "Attribute must be a mapping type".to_string(),
                 ValidationErrorType::SemanticError,
             )),
         }
@@ -252,7 +252,7 @@ impl MergeValidator {
             self.validate_property_value_internal(&e)
         } else {
             Err(ValidationError::new(
-                "属性值表达式无效".to_string(),
+                "Invalid attribute value expression".to_string(),
                 ValidationErrorType::SemanticError,
             ))
         }
@@ -270,7 +270,7 @@ impl MergeValidator {
             Expression::Function { args, .. } => {
                 if args.is_empty() {
                     return Err(ValidationError::new(
-                        "函数调用必须有参数".to_string(),
+                        "Function calls must have arguments".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
                 }

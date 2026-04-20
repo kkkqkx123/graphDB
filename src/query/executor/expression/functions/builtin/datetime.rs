@@ -12,77 +12,77 @@ define_function_enum! {
             name: "now",
             arity: 0,
             variadic: false,
-            description: "当前时间戳",
+            description: "current timestamp",
             handler: execute_now
         },
         Date => {
             name: "date",
             arity: 1,
             variadic: false,
-            description: "创建日期",
+            description: "Date of creation",
             handler: execute_date
         },
         Time => {
             name: "time",
             arity: 1,
             variadic: false,
-            description: "创建时间",
+            description: "Creation time",
             handler: execute_time
         },
         DateTime => {
             name: "datetime",
             arity: 0,
             variadic: true,
-            description: "创建日期时间",
+            description: "Creation date and time",
             handler: execute_datetime
         },
         Year => {
             name: "year",
             arity: 1,
             variadic: false,
-            description: "提取年份",
+            description: "Year of extraction",
             handler: execute_year
         },
         Month => {
             name: "month",
             arity: 1,
             variadic: false,
-            description: "提取月份",
+            description: "Month of withdrawal",
             handler: execute_month
         },
         Day => {
             name: "day",
             arity: 1,
             variadic: false,
-            description: "提取日期",
+            description: "Withdrawal date",
             handler: execute_day
         },
         Hour => {
             name: "hour",
             arity: 1,
             variadic: false,
-            description: "提取小时",
+            description: "Withdrawal hours",
             handler: execute_hour
         },
         Minute => {
             name: "minute",
             arity: 1,
             variadic: false,
-            description: "提取分钟",
+            description: "Extraction minutes",
             handler: execute_minute
         },
         Second => {
             name: "second",
             arity: 1,
             variadic: false,
-            description: "提取秒",
+            description: "withdrawal second",
             handler: execute_second
         },
         TimeStamp => {
             name: "timestamp",
             arity: 0,
             variadic: true,
-            description: "获取当前时间戳或转换日期时间为时间戳",
+            description: "Get current timestamp or convert datetime to timestamp",
             handler: execute_timestamp
         },
     }
@@ -104,7 +104,7 @@ fn execute_now(_args: &[Value]) -> Result<Value, ExpressionError> {
     use std::time::{SystemTime, UNIX_EPOCH};
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .expect("系统时间错误")
+        .expect("system time error")
         .as_millis();
     Ok(Value::Int(now as i64))
 }
@@ -123,7 +123,7 @@ fn execute_date(args: &[Value]) -> Result<Value, ExpressionError> {
             Value::String(s) => {
                 // Parse the date
                 let naivedate = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").map_err(|_| {
-                    ExpressionError::type_error("无法解析日期字符串，期望格式: YYYY-MM-DD")
+                    ExpressionError::type_error("Unable to parse date string, expect format: YYYY-MM-DD")
                 })?;
                 let date = DateValue {
                     year: naivedate.year(),
@@ -133,7 +133,7 @@ fn execute_date(args: &[Value]) -> Result<Value, ExpressionError> {
                 Ok(Value::Date(date))
             }
             Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("date函数需要字符串类型")),
+            _ => Err(ExpressionError::type_error("The date function requires a string type")),
         }
     }
 }
@@ -155,7 +155,7 @@ fn execute_time(args: &[Value]) -> Result<Value, ExpressionError> {
                 let time = chrono::NaiveTime::parse_from_str(s, "%H:%M:%S%.f")
                     .or_else(|_| chrono::NaiveTime::parse_from_str(s, "%H:%M:%S"))
                     .map_err(|_| {
-                        ExpressionError::type_error("无法解析时间字符串，期望格式: HH:MM:SS")
+                        ExpressionError::type_error("Unable to parse time string, expect format: HH:MM:SS")
                     })?;
                 let time_val = TimeValue {
                     hour: time.hour(),
@@ -166,7 +166,7 @@ fn execute_time(args: &[Value]) -> Result<Value, ExpressionError> {
                 Ok(Value::Time(time_val))
             }
             Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("time函数需要字符串类型")),
+            _ => Err(ExpressionError::type_error("The time function requires a string type")),
         }
     }
 }
@@ -196,7 +196,7 @@ fn execute_datetime(args: &[Value]) -> Result<Value, ExpressionError> {
                 let datetime = chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")
                     .map_err(|_| {
                         ExpressionError::type_error(
-                            "无法解析日期时间字符串，期望格式: YYYY-MM-DD HH:MM:SS",
+                            "Unable to parse datetime string, expect format: YYYY-MM-DD HH:MM:SS",
                         )
                     })?;
                 let dt_val = DateTimeValue {
@@ -211,7 +211,7 @@ fn execute_datetime(args: &[Value]) -> Result<Value, ExpressionError> {
                 Ok(Value::DateTime(dt_val))
             }
             Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("datetime函数需要字符串类型")),
+            _ => Err(ExpressionError::type_error("The datetime function requires a string type")),
         }
     }
 }
@@ -222,7 +222,7 @@ fn execute_timestamp(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.is_empty() {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .expect("系统时间错误")
+            .expect("system time error")
             .as_millis();
         Ok(Value::Int(now as i64))
     } else {
@@ -230,16 +230,16 @@ fn execute_timestamp(args: &[Value]) -> Result<Value, ExpressionError> {
             Value::DateTime(dt) => {
                 let naive_dt = chrono::NaiveDateTime::new(
                     chrono::NaiveDate::from_ymd_opt(dt.year, dt.month, dt.day)
-                        .ok_or_else(|| ExpressionError::type_error("无效的日期"))?,
+                        .ok_or_else(|| ExpressionError::type_error("Date of invalidity"))?,
                     chrono::NaiveTime::from_hms_micro_opt(dt.hour, dt.minute, dt.sec, dt.microsec)
-                        .ok_or_else(|| ExpressionError::type_error("无效的时间"))?,
+                        .ok_or_else(|| ExpressionError::type_error("lapse"))?,
                 );
                 let timestamp = naive_dt.and_utc().timestamp_millis();
                 Ok(Value::Int(timestamp))
             }
             Value::Null(_) => Ok(Value::Null(NullType::Null)),
             _ => Err(ExpressionError::type_error(
-                "timestamp函数需要日期时间类型或无参数",
+                "The timestamp function requires a datetime type or no parameters.",
             )),
         }
     }

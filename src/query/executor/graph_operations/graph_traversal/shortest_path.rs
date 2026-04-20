@@ -139,7 +139,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
 
     /// Implement the shortest path algorithm
     fn execute_algorithm(&mut self) -> Result<Vec<Path>, QueryError> {
-        let storage = self.base.storage.clone().expect("存储未初始化");
+        let storage = self.base.storage.clone().expect("Storage not initialized");
         let edge_types = self.edge_types.as_deref();
 
         match self.algorithm_type {
@@ -273,6 +273,6 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShortestPathExecu
 
 impl<S: StorageClient + Send> HasStorage<S> for ShortestPathExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("存储未初始化")
+        self.base.storage.as_ref().expect("Storage not initialized")
     }
 }

@@ -29,7 +29,7 @@ impl ExpressionChecker {
             self.validate_expression_operations_recursive(expr, 0)
         } else {
             Err(ValidationError::new(
-                "表达式无效".to_string(),
+                "Invalid expression".to_string(),
                 ValidationErrorType::SemanticError,
             ))
         }
@@ -42,7 +42,7 @@ impl ExpressionChecker {
     ) -> Result<(), ValidationError> {
         if depth > 100 {
             return Err(ValidationError::new(
-                "表达式嵌套层级过深".to_string(),
+                "expressions are nested too deeply in levels".to_string(),
                 ValidationErrorType::ExpressionDepthError,
             ));
         }
@@ -111,7 +111,7 @@ impl ExpressionChecker {
                     right
                 {
                     return Err(ValidationError::new(
-                        "除数不能为0".to_string(),
+                        "The divisor cannot be 0".to_string(),
                         ValidationErrorType::DivisionByZero,
                     ));
                 }
@@ -120,7 +120,7 @@ impl ExpressionChecker {
                 )) = right
                 {
                     return Err(ValidationError::new(
-                        "除数不能为0.0".to_string(),
+                        "The divisor cannot be 0.0".to_string(),
                         ValidationErrorType::DivisionByZero,
                     ));
                 }
@@ -130,7 +130,7 @@ impl ExpressionChecker {
                     right
                 {
                     return Err(ValidationError::new(
-                        "模数不能为0".to_string(),
+                        "Modulus cannot be 0".to_string(),
                         ValidationErrorType::DivisionByZero,
                     ));
                 }
@@ -158,7 +158,7 @@ impl ExpressionChecker {
     ) -> Result<(), ValidationError> {
         if name.is_empty() {
             return Err(ValidationError::new(
-                "函数名不能为空".to_string(),
+                "Function name cannot be null".to_string(),
                 ValidationErrorType::SyntaxError,
             ));
         }
@@ -231,7 +231,7 @@ impl ExpressionChecker {
     ) -> Result<(), ValidationError> {
         if name.is_empty() {
             return Err(ValidationError::new(
-                "属性名不能为空".to_string(),
+                "Attribute name cannot be null".to_string(),
                 ValidationErrorType::SyntaxError,
             ));
         }
@@ -296,7 +296,7 @@ impl ExpressionChecker {
     ) -> Result<(), ValidationError> {
         if items.len() > 10000 {
             return Err(ValidationError::new(
-                "列表表达式元素过多".to_string(),
+                "Too many list expression elements".to_string(),
                 ValidationErrorType::TooManyElements,
             ));
         }
@@ -325,7 +325,7 @@ impl ExpressionChecker {
     ) -> Result<(), ValidationError> {
         if pairs.len() > 10000 {
             return Err(ValidationError::new(
-                "映射表达式键值对过多".to_string(),
+                "Mapping expressions with too many key-value pairs".to_string(),
                 ValidationErrorType::TooManyElements,
             ));
         }
@@ -371,7 +371,7 @@ impl ExpressionChecker {
     ) -> Result<(), ValidationError> {
         if when_clauses.is_empty() {
             return Err(ValidationError::new(
-                "CASE 表达式必须至少有一个 WHEN 子句".to_string(),
+                "CASE expressions must have at least one WHEN clause.".to_string(),
                 ValidationErrorType::SyntaxError,
             ));
         }
@@ -422,7 +422,7 @@ impl ExpressionChecker {
             return self.check_expression_cycles(expr, &mut visited, 0);
         }
         Err(ValidationError::new(
-            "表达式无效".to_string(),
+            "Invalid expression".to_string(),
             ValidationErrorType::SemanticError,
         ))
     }
@@ -435,7 +435,7 @@ impl ExpressionChecker {
     ) -> Result<(), ValidationError> {
         if depth > 100 {
             return Err(ValidationError::new(
-                "表达式循环依赖检测深度超限".to_string(),
+                "Expression Cyclic Dependency Detection Depth Overrun".to_string(),
                 ValidationErrorType::ExpressionDepthError,
             ));
         }

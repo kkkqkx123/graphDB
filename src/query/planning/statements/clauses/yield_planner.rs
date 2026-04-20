@@ -78,7 +78,7 @@ impl YieldClausePlanner {
         let input_node = input_plan
             .root()
             .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
 
         ProjectNode::new(input_node.clone(), columns.to_vec())
             .map_err(|e| {
@@ -99,7 +99,7 @@ impl YieldClausePlanner {
         let input_node = input_plan
             .root()
             .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
 
         FilterNode::new(input_node.clone(), condition)
             .map_err(|e| {
@@ -118,7 +118,7 @@ impl YieldClausePlanner {
         let input_node = input_plan
             .root()
             .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
 
         let offset = skip.unwrap_or(0) as i64;
         let count = limit.map(|l| l as i64).unwrap_or(i64::MAX);

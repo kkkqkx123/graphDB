@@ -472,7 +472,7 @@ impl SchemaValidator {
             self.evaluate_expression_internal(&e)
         } else {
             Err(CoreValidationError::new(
-                "表达式无效".to_string(),
+                "Invalid expression".to_string(),
                 ValidationErrorType::SemanticError,
             ))
         }

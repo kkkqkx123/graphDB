@@ -91,7 +91,7 @@ impl WithClausePlanner {
         let input_node = input_plan
             .root()
             .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
 
         ProjectNode::new(input_node.clone(), columns.to_vec())
             .map_err(|e| {
@@ -112,7 +112,7 @@ impl WithClausePlanner {
         let input_node = input_plan
             .root()
             .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
 
         FilterNode::new(input_node.clone(), condition.clone())
             .map_err(|e| {
@@ -132,7 +132,7 @@ impl WithClausePlanner {
         let input_node = input_plan
             .root()
             .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
 
         // Obtain the column names of the input node.
         let col_names = input_node.col_names();
@@ -181,7 +181,7 @@ impl WithClausePlanner {
         let input_node = input_plan
             .root()
             .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
 
         let limit_node = LimitNode::new(input_node.clone(), pagination.skip, pagination.limit)
             .map_err(|e| {
@@ -199,7 +199,7 @@ impl WithClausePlanner {
         let input_node = input_plan
             .root()
             .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
 
         // Create a deduplication node (using a simplified version of AggregateNode)
         let dedup_node = crate::query::planning::plan::core::nodes::DedupNode::new(
@@ -255,7 +255,7 @@ impl WithClausePlanner {
             Stmt::With(w) => w,
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(
-                    "期望 WITH 语句，但得到了其他类型的语句".to_string(),
+                    "Expecting a WITH statement, but getting other types of statements".to_string(),
                 ));
             }
         };

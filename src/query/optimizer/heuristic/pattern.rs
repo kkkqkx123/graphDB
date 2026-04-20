@@ -302,7 +302,7 @@ mod tests {
         let pattern = Pattern::new_with_name("Project");
         let input_node = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1, "default"));
         let project_node = PlanNodeEnum::Project(
-            ProjectNode::new(input_node.clone(), Vec::new()).expect("创建ProjectNode应该成功"),
+            ProjectNode::new(input_node.clone(), Vec::new()).expect("Creating the ProjectNode should succeed"),
         );
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr_meta =
@@ -310,7 +310,7 @@ mod tests {
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
         let filter_node = PlanNodeEnum::Filter(
-            FilterNode::new(input_node, ctx_expr).expect("创建FilterNode应该成功"),
+            FilterNode::new(input_node, ctx_expr).expect("Creating the FilterNode should succeed"),
         );
 
         assert!(pattern.matches(&project_node));
@@ -346,7 +346,7 @@ mod tests {
 
         let scan = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1, "default"));
         let project = PlanNodeEnum::Project(
-            ProjectNode::new(scan.clone(), Vec::new()).expect("创建ProjectNode应该成功"),
+            ProjectNode::new(scan.clone(), Vec::new()).expect("Creating the ProjectNode should succeed"),
         );
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr_meta =
@@ -354,7 +354,7 @@ mod tests {
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx.clone());
         let filter = PlanNodeEnum::Filter(
-            FilterNode::new(project.clone(), ctx_expr).expect("创建FilterNode应该成功"),
+            FilterNode::new(project.clone(), ctx_expr).expect("Creating the FilterNode should succeed"),
         );
 
         assert!(pattern.matches(&filter));
@@ -365,7 +365,7 @@ mod tests {
         let id2 = ctx.register_expression(expr_meta2);
         let ctx_expr2 = ContextualExpression::new(id2, ctx);
         let filter2 =
-            PlanNodeEnum::Filter(FilterNode::new(scan, ctx_expr2).expect("创建FilterNode应该成功"));
+            PlanNodeEnum::Filter(FilterNode::new(scan, ctx_expr2).expect("Creating the FilterNode should succeed"));
         assert!(!pattern.matches(&filter2));
     }
 }
