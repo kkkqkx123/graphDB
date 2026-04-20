@@ -6,6 +6,8 @@
 use crate::error::Result;
 use crate::storage::manager::StorageManager;
 use crate::{Index, DocId};
+use oxicode::config::standard;
+use oxicode::serde::{decode_from_slice, encode_to_vec};
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::{Read, Write};
@@ -256,7 +258,7 @@ impl PersistenceManager {
         use crate::serialize::IndexExportData;
         
         let export_data = IndexExportData::from_index(index)?;
-        let data = bincode::serialize(&export_data)
+        let data = encode_to_vec(&export_data)
             .map_err(|e| crate::error::InversearchError::Serialization(e.to_string()))?;
         
         Ok(data)
@@ -266,7 +268,7 @@ impl PersistenceManager {
     fn deserialize_index(&self, index: &mut Index, data: &[u8]) -> Result<()> {
         use crate::serialize::IndexExportData;
         
-        let export_data: IndexExportData = bincode::deserialize(data)
+        let export_data: IndexExportData = decode_from_slice(data)
             .map_err(|e| crate::error::InversearchError::Deserialization(e.to_string()))?;
         
         export_data.apply_to_index(index)?;

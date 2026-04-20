@@ -7,6 +7,8 @@ use crate::r#type::DocId;
 use crate::Index;
 use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Utc};
+use oxicode::config::standard;
+use oxicode::serde::{decode_from_slice, encode_to_vec};
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
@@ -167,7 +169,7 @@ impl WALManager {
 
     /// 记录变更到 WAL
     pub async fn record_change(&self, change: IndexChange) -> Result<()> {
-        let serialized = bincode::serialize(&change)?;
+        let serialized = encode_to_vec(&change, standard())?;
         let encoded = general_purpose::STANDARD.encode(&serialized);
         let line = format!("{}\n", encoded);
 
@@ -200,7 +202,7 @@ impl WALManager {
 
         let mut lines = Vec::new();
         for change in changes {
-            let serialized = bincode::serialize(&change)?;
+            let serialized = encode_to_vec(&change, standard())?;
             let encoded = general_purpose::STANDARD.encode(&serialized);
             lines.push(format!("{}\n", encoded));
         }
@@ -360,7 +362,7 @@ impl WALManager {
 
             for line in reader.lines().map_while(|r| r.ok()) {
                 if let Ok(decoded) = general_purpose::STANDARD.decode(&line) {
-                    if let Ok(change) = bincode::deserialize::<IndexChange>(&decoded) {
+                    if let Ok((change, _)) = decode_from_slice::<IndexChange, _>(&decoded, standard()) {
                         self.apply_change(index, change)?;
                     }
                 }
@@ -393,13 +395,13 @@ impl WALManager {
         use crate::serialize::SerializeConfig;
         let config = SerializeConfig::default();
         let export_data = index.export(&config)?;
-        Ok(bincode::serialize(&export_data)?)
+        Ok(encode_to_vec(&export_data, standard())?)
     }
 
     /// 反序列化索引
     fn deserialize_index(&self, index: &mut Index, data: &[u8]) -> Result<()> {
         use crate::serialize::{IndexExportData, SerializeConfig};
-        let export_data: IndexExportData = bincode::deserialize(data)?;
+        let (export_data, _): (IndexExportData, usize) = decode_from_slice(data, standard())?;
         let config = SerializeConfig::default();
         index.import(export_data, &config)?;
         Ok(())

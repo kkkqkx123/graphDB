@@ -4,7 +4,7 @@
 //! search options, highlight configuration, and result types.
 
 use crate::core::Value;
-use bincode::{Decode, Encode};
+use oxicoide::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

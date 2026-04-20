@@ -1,7 +1,7 @@
 //! Value Type Definition - Core Enum and Basic Methods
 
 use crate::core::types::DataType;
-use bincode::{Decode, Encode};
+use oxicoide::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 

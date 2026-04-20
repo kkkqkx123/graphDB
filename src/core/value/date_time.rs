@@ -2,7 +2,7 @@
 //!
 //! This module defines types for dates, times, date-times, and durations, as well as the related operations.
 
-use bincode::{Decode, Encode};
+use oxicoide::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 

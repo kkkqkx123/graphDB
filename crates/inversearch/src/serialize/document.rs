@@ -5,7 +5,8 @@
 use crate::document::Document;
 use crate::error::Result;
 use crate::serialize::types::*;
-use bincode;
+use oxicode::config::standard;
+use oxicode::serde::{decode_from_slice, encode_to_vec};
 
 impl Document {
     /// 导出 Document 数据
@@ -175,13 +176,13 @@ impl Document {
     /// 序列化为二进制数据（高性能）
     pub fn to_binary(&self, config: &SerializeConfig) -> Result<Vec<u8>> {
         let data = self.export(config)?;
-        let serialized = bincode::serialize(&data)?;
+        let serialized = encode_to_vec(&data, standard())?;
         Ok(serialized)
     }
 
     /// 从二进制数据反序列化
     pub fn from_binary(data: &[u8], config: &SerializeConfig) -> Result<Document> {
-        let data: DocumentExportData = bincode::deserialize(data)?;
+        let (data, _) = decode_from_slice::<DocumentExportData, _>(data, standard())?;
 
         let mut doc_config = crate::document::DocumentConfig::new();
 

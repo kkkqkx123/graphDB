@@ -5,7 +5,7 @@
 use crate::core::{StorageError, Value};
 use crate::storage::operations::traits::{EdgeWriter, VertexWriter};
 use crate::transaction::types::OperationLog;
-use bincode::{config::standard, decode_from_slice};
+use oxicoide::decode_from_slice;
 
 /// Operation logging context trait
 ///
@@ -101,7 +101,7 @@ impl<'a> StorageRollbackExecutor<'a> {
 
     /// Resolve Vertex ID
     fn parse_vertex_id(&self, bytes: &[u8]) -> Result<Value, StorageError> {
-        decode_from_slice(bytes, standard())
+        decode_from_slice(bytes)
             .map(|(v, _)| v)
             .map_err(|e| StorageError::DeserializeError(e.to_string()))
     }
@@ -188,7 +188,7 @@ impl<'a> RollbackExecutor for StorageRollbackExecutor<'a> {
                 let id = self.parse_vertex_id(vertex_id)?;
 
                 if let Some(ref state) = previous_state {
-                    let vertex = decode_from_slice(state, standard())?.0;
+                    let vertex = decode_from_slice(state)?.0;
                     self.writer.update_vertex(&self.space, vertex)?;
                 } else {
                     self.writer.delete_vertex(&self.space, &id)?;
@@ -201,7 +201,7 @@ impl<'a> RollbackExecutor for StorageRollbackExecutor<'a> {
                 vertex_id: _,
                 previous_data,
             } => {
-                let vertex = decode_from_slice(previous_data, standard())?.0;
+                let vertex = decode_from_slice(previous_data)?.0;
                 self.writer.update_vertex(&self.space, vertex)?;
                 Ok(())
             }
@@ -211,7 +211,7 @@ impl<'a> RollbackExecutor for StorageRollbackExecutor<'a> {
                 vertex_id: _,
                 vertex,
             } => {
-                let decoded_vertex = decode_from_slice(vertex, standard())?.0;
+                let decoded_vertex = decode_from_slice(vertex)?.0;
                 self.writer.insert_vertex(&self.space, decoded_vertex)?;
                 Ok(())
             }
@@ -224,7 +224,7 @@ impl<'a> RollbackExecutor for StorageRollbackExecutor<'a> {
                 let (src, dst, edge_type) = self.parse_edge_key(edge_id)?;
 
                 if let Some(ref state) = previous_state {
-                    let edge = decode_from_slice(state, standard())?.0;
+                    let edge = decode_from_slice(state)?.0;
                     self.writer.insert_edge(&self.space, edge)?;
                 } else {
                     self.writer
@@ -238,7 +238,7 @@ impl<'a> RollbackExecutor for StorageRollbackExecutor<'a> {
                 edge_id: _,
                 edge,
             } => {
-                let decoded_edge = decode_from_slice(edge, standard())?.0;
+                let decoded_edge = decode_from_slice(edge)?.0;
                 self.writer.insert_edge(&self.space, decoded_edge)?;
                 Ok(())
             }
@@ -248,7 +248,7 @@ impl<'a> RollbackExecutor for StorageRollbackExecutor<'a> {
                 edge_id: _,
                 previous_data,
             } => {
-                let edge = decode_from_slice(previous_data, standard())?.0;
+                let edge = decode_from_slice(previous_data)?.0;
                 self.writer.insert_edge(&self.space, edge)?;
                 Ok(())
             }
@@ -331,8 +331,8 @@ mod tests {
     use super::*;
     use crate::core::vertex_edge_path::Tag;
     use crate::core::{Edge, Vertex};
-    use bincode::config::standard;
-    use bincode::encode_to_vec;
+
+    use oxicoide::encode_to_vec;
     use std::cell::RefCell;
     use std::collections::HashMap;
 
@@ -501,7 +501,7 @@ mod tests {
             }],
         );
         let vertex1_bytes =
-            encode_to_vec(&vertex1, standard()).expect("Vertex serialization failed");
+            encode_to_vec(&vertex1).expect("Vertex serialization failed");
 
         let vertex2 = Vertex::new(
             Value::Int(2),
@@ -511,7 +511,7 @@ mod tests {
             }],
         );
         let vertex2_bytes =
-            encode_to_vec(&vertex2, standard()).expect("Vertex serialization failed");
+            encode_to_vec(&vertex2).expect("Vertex serialization failed");
 
         ctx.add_log(OperationLog::InsertVertex {
             space: "test".to_string(),
@@ -562,7 +562,7 @@ mod tests {
                 properties: HashMap::new(),
             }],
         );
-        let vertex_bytes = encode_to_vec(&vertex, standard()).expect("Vertex serialization failed");
+        let vertex_bytes = encode_to_vec(&vertex).expect("Vertex serialization failed");
 
         let log = OperationLog::DeleteVertex {
             space: "test_space".to_string(),

@@ -5,6 +5,8 @@
 use crate::async_::AsyncIndex;
 use crate::error::Result;
 use crate::serialize::types::{IndexExportData, SerializeConfig};
+use oxicode::config::standard;
+use oxicode::serde::{decode_from_slice, Compat};
 
 /// 异步序列化器
 pub struct AsyncSerializer {
@@ -63,7 +65,7 @@ impl AsyncSerializer {
         let index_clone = index.clone();
 
         tokio::task::spawn_blocking(move || {
-            let data: IndexExportData = bincode::deserialize(&binary_data)?;
+            let (data, _): (IndexExportData, usize) = decode_from_slice(&binary_data, standard())?;
 
             let mut index_guard = index_clone.index.blocking_write();
             index_guard.import(data, &config)

@@ -2,7 +2,7 @@
 
 use super::property_trait::PropertyTypeTrait;
 use crate::core::{DataType, Value};
-use bincode::{Decode, Encode};
+use oxicoide::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]

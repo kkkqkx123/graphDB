@@ -1,7 +1,7 @@
 //! Basic types in the graph space
 
 use crate::core::types::{DataType, EdgeTypeInfo, MetadataVersion, TagInfo};
-use bincode::{Decode, Encode};
+use oxicoide::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering};
 

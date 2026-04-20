@@ -4,6 +4,8 @@
 
 use crate::error::Result;
 use crate::storage::common::types::FileStorageData;
+use oxicode::config::standard;
+use oxicode::serde::{decode_from_slice, encode_to_vec};
 use std::path::Path;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -12,7 +14,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 ///
 /// 使用 bincode 序列化数据并写入文件
 pub async fn save_to_file(path: &Path, data: &FileStorageData) -> Result<()> {
-    let serialized = bincode::serialize(data)
+    let serialized = encode_to_vec(data, standard())
         .map_err(|e| crate::error::StorageError::Serialization(e.to_string()))?;
 
     let mut file = File::create(path).await?;
@@ -53,7 +55,7 @@ pub async fn load_from_file(path: &Path) -> Result<FileStorageData> {
         });
     }
 
-    let data: FileStorageData = bincode::deserialize(&contents)
+    let (data, _): (FileStorageData, usize) = decode_from_slice(&contents, standard())
         .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?;
 
     Ok(data)

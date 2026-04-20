@@ -600,7 +600,7 @@ impl VertexStorage {
         tag: &str,
         id: &Value,
     ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
-        use bincode::{config::standard, encode_to_vec};
+        use oxicoide::encode_to_vec;
 
         if let Some(vertex) = self.inner.reader.lock().get_vertex(space, id)? {
             let tag_info = self
@@ -611,7 +611,7 @@ impl VertexStorage {
                     StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag, space))
                 })?;
             let schema = self.build_vertex_schema(&tag_info)?;
-            let vertex_data = encode_to_vec(&vertex, standard())?;
+            let vertex_data = encode_to_vec(&vertex)?;
             return Ok(Some((schema, vertex_data)));
         }
         Ok(None)
@@ -623,7 +623,7 @@ impl VertexStorage {
         space: &str,
         tag: &str,
     ) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
-        use bincode::{config::standard, encode_to_vec};
+        use oxicoide::encode_to_vec;
 
         let mut results = Vec::new();
         let tag_info = self
@@ -638,7 +638,7 @@ impl VertexStorage {
         let vertices = self.inner.reader.lock().scan_vertices(space)?;
         for vertex in vertices {
             if vertex.tags.iter().any(|t| t.name == tag) {
-                let vertex_data = encode_to_vec(&vertex, standard())?;
+                let vertex_data = encode_to_vec(&vertex)?;
                 results.push((schema.clone(), vertex_data));
             }
         }

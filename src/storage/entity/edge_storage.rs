@@ -457,7 +457,7 @@ impl EdgeStorage {
         src: &Value,
         dst: &Value,
     ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
-        use bincode::{config::standard, encode_to_vec};
+        use oxicoide::encode_to_vec;
 
         if let Some(edge) = self
             .inner
@@ -476,7 +476,7 @@ impl EdgeStorage {
                     ))
                 })?;
             let schema = self.build_edge_schema(&edge_type_info)?;
-            let edge_data = encode_to_vec(&edge, standard())?;
+            let edge_data = encode_to_vec(&edge)?;
             return Ok(Some((schema, edge_data)));
         }
         Ok(None)
@@ -488,7 +488,7 @@ impl EdgeStorage {
         space: &str,
         edge_type: &str,
     ) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
-        use bincode::{config::standard, encode_to_vec};
+        use oxicoide::encode_to_vec;
 
         let mut results = Vec::new();
         let edge_type_info = self
@@ -509,7 +509,7 @@ impl EdgeStorage {
             .lock()
             .scan_edges_by_type(space, edge_type)?;
         for edge in edges {
-            let edge_data = encode_to_vec(&edge, standard())?;
+            let edge_data = encode_to_vec(&edge)?;
             results.push((schema.clone(), edge_data));
         }
 

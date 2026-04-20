@@ -1,7 +1,7 @@
 //! Definition of Schema change type
 
 use crate::core::types::property::PropertyDef;
-use bincode::{Decode, Encode};
+use oxicoide::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]

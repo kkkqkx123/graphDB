@@ -4,12 +4,14 @@
 
 use crate::error::Result;
 use crate::serialize::types::{IndexExportData, SerializeFormat};
+use oxicode::config::standard;
+use oxicode::serde::{decode_from_slice, encode_to_vec};
 
 /// 将数据序列化为字节数组（根据格式选择序列化方式）
 pub fn serialize_to_bytes(data: &IndexExportData, format: &SerializeFormat) -> Result<Vec<u8>> {
     let serialized = match format {
         SerializeFormat::Json => serde_json::to_vec(data)?,
-        SerializeFormat::Binary | SerializeFormat::MessagePack => bincode::serialize(data)?,
+        SerializeFormat::Binary | SerializeFormat::MessagePack => encode_to_vec(data, standard())?,
         SerializeFormat::Cbor => {
             let mut buf = Vec::new();
             ciborium::into_writer(data, &mut buf).map_err(|e| {
@@ -28,7 +30,10 @@ pub fn serialize_to_bytes(data: &IndexExportData, format: &SerializeFormat) -> R
 pub fn deserialize_from_bytes(bytes: &[u8], format: &SerializeFormat) -> Result<IndexExportData> {
     let data: IndexExportData = match format {
         SerializeFormat::Json => serde_json::from_slice(bytes)?,
-        SerializeFormat::Binary | SerializeFormat::MessagePack => bincode::deserialize(bytes)?,
+        SerializeFormat::Binary | SerializeFormat::MessagePack => {
+            let (data, _) = decode_from_slice::<IndexExportData, _>(bytes, standard())?;
+            data
+        }
         SerializeFormat::Cbor => ciborium::from_reader(bytes).map_err(|e| {
             crate::error::InversearchError::Deserialization(format!(
                 "CBOR deserialization error: {:?}",

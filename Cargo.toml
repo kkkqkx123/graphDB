@@ -20,7 +20,7 @@ flexi_logger = { version = "0.31", features = ["async"] }
 thiserror = "2.0.17"
 moka = { version = "0.12", features = ["sync", "future"] }
 lru = "0.16.2"
-bincode = { version = "2.0.1", features = ["serde", "derive"] }
+oxicode = "0.2.1"
 toml = "0.9.8"
 num_cpus = "1.17.0"
 uuid = { version = "1.19.0", features = ["v4"] }

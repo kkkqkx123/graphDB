@@ -21,14 +21,14 @@
 //! Decimal128 operations are slower than native floating-point numbers, but provide accurate decimal calculations.
 //! For scenarios where high precision is not required, the Float type is recommended.
 
-use bincode::Encode;
+use oxicoide::Encode;
 use dec::Decimal128;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
 #[allow(unused_imports)]
-use bincode::de::Decode;
+use oxicoide::Decode;
 
 /// Decimal128 Value Wrapper
 ///
@@ -69,30 +69,30 @@ impl<'de> Deserialize<'de> for Decimal128Value {
 }
 
 impl Encode for Decimal128Value {
-    fn encode<E: bincode::enc::Encoder>(
+    fn encode<E: oxicoide::enc::Encoder>(
         &self,
         encoder: &mut E,
-    ) -> Result<(), bincode::error::EncodeError> {
+    ) -> Result<(), oxicoide::error::EncodeError> {
         let s = self.to_string();
         s.encode(encoder)
     }
 }
 
-impl<C> bincode::de::Decode<C> for Decimal128Value {
-    fn decode<D: bincode::de::Decoder>(
+impl<C> oxicoide::Decode<C> for Decimal128Value {
+    fn decode<D: oxicoide::de::Decoder>(
         decoder: &mut D,
-    ) -> Result<Self, bincode::error::DecodeError> {
-        let s: String = bincode::de::Decode::decode(decoder)?;
-        Self::from_str(&s).map_err(bincode::error::DecodeError::OtherString)
+    ) -> Result<Self, oxicoide::error::DecodeError> {
+        let s: String = oxicoide::Decode::decode(decoder)?;
+        Self::from_str(&s).map_err(oxicode::error::DecodeError::OtherString)
     }
 }
 
-impl<'de, C> bincode::de::BorrowDecode<'de, C> for Decimal128Value {
-    fn borrow_decode<D: bincode::de::BorrowDecoder<'de>>(
+impl<'de, C> oxicoide::BorrowDecode<'de, C> for Decimal128Value {
+    fn borrow_decode<D: oxicoide::de::BorrowDecoder<'de>>(
         decoder: &mut D,
-    ) -> Result<Self, bincode::error::DecodeError> {
-        let s: String = bincode::de::BorrowDecode::borrow_decode(decoder)?;
-        Self::from_str(&s).map_err(bincode::error::DecodeError::OtherString)
+    ) -> Result<Self, oxicoide::error::DecodeError> {
+        let s: String = oxicoide::BorrowDecode::borrow_decode(decoder)?;
+        Self::from_str(&s).map_err(oxicode::error::DecodeError::OtherString)
     }
 }
 

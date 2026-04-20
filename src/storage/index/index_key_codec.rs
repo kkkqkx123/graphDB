@@ -5,7 +5,7 @@
 
 use crate::core::{StorageError, Value};
 use crate::storage::engine::ByteKey;
-use bincode::{config::standard, decode_from_slice, encode_to_vec};
+use oxicoide::{decode_from_slice, encode_to_vec};
 
 /// Index key type identifier
 pub const KEY_TYPE_VERTEX_REVERSE: u8 = 0x01;
@@ -19,12 +19,12 @@ pub struct IndexKeyCodec;
 impl IndexKeyCodec {
     /// Serialized value
     pub fn serialize_value(value: &Value) -> Result<Vec<u8>, StorageError> {
-        encode_to_vec(value, standard()).map_err(|e| StorageError::SerializeError(e.to_string()))
+        encode_to_vec(value).map_err(|e| StorageError::SerializeError(e.to_string()))
     }
 
     /// Deserialized value
     pub fn deserialize_value(data: &[u8]) -> Result<Value, StorageError> {
-        decode_from_slice(data, standard())
+        decode_from_slice(data)
             .map(|(v, _)| v)
             .map_err(|e| StorageError::DeserializeError(e.to_string()))
     }

@@ -1,8 +1,8 @@
 use thiserror::Error;
 
-impl From<Box<bincode::ErrorKind>> for InversearchError {
-    fn from(error: Box<bincode::ErrorKind>) -> Self {
-        InversearchError::BincodeError(error.to_string())
+impl From<oxicode::Error> for InversearchError {
+    fn from(error: oxicode::Error) -> Self {
+        InversearchError::OxicoideError(error.to_string())
     }
 }
 
@@ -53,8 +53,8 @@ pub enum InversearchError {
     #[error("Async error: {0}")]
     AsyncError(String),
 
-    #[error("Serialization error: {0}")]
-    BincodeError(String),
+    #[error("Oxicoide error: {0}")]
+    OxicoideError(String),
 
     #[error("JSON error: {0}")]
     JsonError(String),

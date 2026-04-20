@@ -6,7 +6,7 @@ use crate::storage::engine::{
     ByteKey, CURRENT_VERSIONS_TABLE, SCHEMA_CHANGES_TABLE, SCHEMA_VERSIONS_TABLE,
 };
 use crate::storage::metadata::ExtendedSchemaManager;
-use bincode::{decode_from_slice, encode_to_vec};
+use oxicoide::{decode_from_slice, encode_to_vec};
 use redb::{Database, ReadableTable};
 use std::sync::Arc;
 
@@ -79,7 +79,7 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
             .map_err(|e| ManagerError::storage_error(e.to_string()))?
         {
             Some(value) => {
-                let bytes = value.value().0;
+                let bytes = value.value();
                 if bytes.len() == 4 {
                     let version = i32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
                     Ok(version)
@@ -137,7 +137,7 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
         };
 
         let key = Self::make_version_key(space_id, new_version);
-        let value = encode_to_vec(&snapshot, bincode::config::standard())
+        let value = encode_to_vec(&snapshot)
             .map_err(|e| ManagerError::storage_error(format!("Serialization failed: {}", e)))?;
 
         let write_txn = self
@@ -177,7 +177,7 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
         change: SchemaChange,
     ) -> Result<(), ManagerError> {
         let key = Self::make_change_key(space_id, change.timestamp);
-        let value = encode_to_vec(&change, bincode::config::standard())
+        let value = encode_to_vec(&change)
             .map_err(|e| ManagerError::storage_error(format!("Serialization failed: {}", e)))?;
 
         let write_txn = self
@@ -220,11 +220,10 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
             let key_str = String::from_utf8_lossy(&key_bytes);
             if key_str.starts_with(&prefix) {
                 let change: SchemaChange =
-                    decode_from_slice(&value.value().0, bincode::config::standard())
+                    decode_from_slice(&value.value().0)
                         .map_err(|e| {
                             ManagerError::storage_error(format!("Deserialization failed: {}", e))
-                        })?
-                        .0;
+                        })?;
                 changes.push(change);
             }
         }

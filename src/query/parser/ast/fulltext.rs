@@ -6,7 +6,7 @@
 use crate::core::types::span::Span;
 use crate::core::types::FulltextEngineType;
 use crate::core::Value;
-use bincode::{Decode, Encode};
+use oxicoide::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

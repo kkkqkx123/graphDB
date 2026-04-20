@@ -2,7 +2,7 @@
 //!
 //! This module defines the types of geographic spatial points and the related operations.
 
-use bincode::{Decode, Encode};
+use oxicoide::{Decode, Encode};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 

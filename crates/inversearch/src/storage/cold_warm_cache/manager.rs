@@ -16,6 +16,8 @@ use crate::storage::common::{
 };
 use crate::{Index, StorageInterface};
 use dashmap::DashMap;
+use oxicode::config::standard;
+use oxicode::serde::{decode_from_slice, encode_to_vec};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -94,10 +96,11 @@ impl WarmCacheEntry {
     async fn load(&self) -> Result<FileStorageData> {
         let file_data = load_from_file(&self.file_path).await?;
         let data = if self.compressed {
-            let bytes = bincode::serialize(&file_data)?;
+            let bytes = encode_to_vec(&file_data, standard())?;
             let decompressed = decompress_data(&bytes)?;
-            bincode::deserialize(&decompressed)
-                .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?
+            let (decompressed_data, _) = decode_from_slice::<FileStorageData, _>(&decompressed, standard())
+                .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?;
+            decompressed_data
         } else {
             file_data
         };
@@ -179,7 +182,7 @@ impl WALWriter {
     }
 
     async fn write_entry(&mut self, entry: &WALEntry) -> Result<()> {
-        let bytes = bincode::serialize(entry)
+        let bytes = encode_to_vec(entry, standard())
             .map_err(|e| crate::error::StorageError::Serialization(e.to_string()))?;
         let len = bytes.len() as u32;
 
@@ -348,7 +351,7 @@ impl WALManager {
         }
 
         let file_data = load_from_file(path).await?;
-        let bytes = bincode::serialize(&file_data)?;
+        let bytes = encode_to_vec(&file_data, standard())?;
         let mut entries = Vec::new();
         let mut offset = 0;
 
@@ -363,7 +366,7 @@ impl WALManager {
                 break;
             }
 
-            let entry: WALEntry = bincode::deserialize(&bytes[offset..offset + len])
+            let (entry, _) = decode_from_slice::<WALEntry, _>(&bytes[offset..offset + len], standard())
                 .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?;
             entries.push(entry);
             offset += len;
@@ -559,13 +562,14 @@ impl ColdWarmCacheManager {
         if let Some(entry) = self.cold_storage.get(index_name) {
             let file_data = load_from_file(&entry.file_path).await?;
             let data: IndexData = if entry.compressed {
-                let bytes = bincode::serialize(&file_data)?;
+                let bytes = encode_to_vec(&file_data, standard())?;
                 let decompressed = decompress_data(&bytes)?;
-                bincode::deserialize(&decompressed)
-                    .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?
+                let (decompressed_data, _) = decode_from_slice::<IndexData, _>(&decompressed, standard())
+                    .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?;
+                decompressed_data
             } else {
                 file_data
-            }.into();
+            };
             self.stats.cold_hit.fetch_add(1, Ordering::Relaxed);
             self.promote_to_hot(index_name, data.clone()).await?;
             return Ok(Some(data));
@@ -780,7 +784,7 @@ impl ColdWarmCacheManager {
     async fn persist_to_warm(&self, index_name: &str, data: &IndexData) -> Result<()> {
         let file_path = self.config.cold_storage_path.join(format!("{}.warm", index_name));
         let file_data: FileStorageData = data.clone().into();
-        let bytes = bincode::serialize(&file_data)
+        let bytes = encode_to_vec(&file_data, standard())
             .map_err(|e| crate::error::StorageError::Serialization(e.to_string()))?;
 
         let (final_bytes, compressed) = if self.config.cold_storage_compression {
@@ -801,7 +805,7 @@ impl ColdWarmCacheManager {
     async fn persist_to_cold_storage(&self, index_name: &str, data: &IndexData) -> Result<()> {
         let file_path = self.config.cold_storage_path.join(format!("{}.cold", index_name));
         let file_data: FileStorageData = data.clone().into();
-        let bytes = bincode::serialize(&file_data)
+        let bytes = encode_to_vec(&file_data, standard())
             .map_err(|e| crate::error::StorageError::Serialization(e.to_string()))?;
 
         let (final_bytes, compressed) = if self.config.cold_storage_compression {

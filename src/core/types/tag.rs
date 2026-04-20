@@ -2,7 +2,7 @@
 
 use super::property::PropertyDef;
 use super::schema_trait::SchemaInfo;
-use bincode::{Decode, Encode};
+use oxicoide::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]

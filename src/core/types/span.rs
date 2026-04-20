@@ -20,8 +20,8 @@ use std::fmt;
     Default,
     Serialize,
     Deserialize,
-    bincode::Encode,
-    bincode::Decode,
+    oxicoide::Encode,
+    oxicoide::Decode,
 )]
 pub struct Position {
     /// Line numbers, starting at 1
@@ -89,8 +89,8 @@ impl fmt::Display for Position {
     Default,
     Serialize,
     Deserialize,
-    bincode::Encode,
-    bincode::Decode,
+    oxicoide::Encode,
+    oxicoide::Decode,
 )]
 pub struct Span {
     /// Starting position (included)

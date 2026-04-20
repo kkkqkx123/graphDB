@@ -1,4 +1,4 @@
-use bincode::{Decode, Encode};
+use oxicoide::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

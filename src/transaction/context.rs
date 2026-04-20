@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use bincode::{config::standard, decode_from_slice, encode_to_vec};
+use oxicoide::{decode_from_slice, encode_to_vec};
 use crossbeam_utils::atomic::AtomicCell;
 use parking_lot::{Mutex, RwLock};
 
@@ -476,10 +476,10 @@ impl TransactionContext {
                     let id_bytes = vertex_id.clone();
 
                     if let Some(ref state) = previous_state {
-                        let vertex: crate::core::Vertex = decode_from_slice(state, standard())
+                        let vertex: crate::core::Vertex = decode_from_slice(state)
                             .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?
                             .0;
-                        let vertex_bytes = encode_to_vec(&vertex, standard())
+                        let vertex_bytes = encode_to_vec(&vertex)
                             .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
 
                         self.with_write_txn(|write_txn| {
@@ -509,12 +509,12 @@ impl TransactionContext {
                     vertex_id: _,
                     previous_data,
                 } => {
-                    let vertex: crate::core::Vertex = decode_from_slice(previous_data, standard())
+                    let vertex: crate::core::Vertex = decode_from_slice(previous_data)
                         .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?
                         .0;
-                    let id_bytes = encode_to_vec(&vertex.vid, standard())
+                    let id_bytes = encode_to_vec(&vertex.vid)
                         .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
-                    let vertex_bytes = encode_to_vec(&vertex, standard())
+                    let vertex_bytes = encode_to_vec(&vertex)
                         .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
 
                     self.with_write_txn(|write_txn| {
@@ -533,12 +533,12 @@ impl TransactionContext {
                     vertex_id: _,
                     vertex,
                 } => {
-                    let decoded_vertex: crate::core::Vertex = decode_from_slice(vertex, standard())
+                    let decoded_vertex: crate::core::Vertex = decode_from_slice(vertex)
                         .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?
                         .0;
-                    let id_bytes = encode_to_vec(&decoded_vertex.vid, standard())
+                    let id_bytes = encode_to_vec(&decoded_vertex.vid)
                         .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
-                    let vertex_bytes = encode_to_vec(&decoded_vertex, standard())
+                    let vertex_bytes = encode_to_vec(&decoded_vertex)
                         .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
 
                     self.with_write_txn(|write_txn| {
@@ -560,10 +560,10 @@ impl TransactionContext {
                     let edge_key_bytes = edge_id.clone();
 
                     if let Some(ref state) = previous_state {
-                        let edge: crate::core::Edge = decode_from_slice(state, standard())
+                        let edge: crate::core::Edge = decode_from_slice(state)
                             .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?
                             .0;
-                        let edge_bytes = encode_to_vec(&edge, standard())
+                        let edge_bytes = encode_to_vec(&edge)
                             .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
 
                         self.with_write_txn(|write_txn| {
@@ -593,7 +593,7 @@ impl TransactionContext {
                     edge_id: _,
                     edge,
                 } => {
-                    let decoded_edge: crate::core::Edge = decode_from_slice(edge, standard())
+                    let decoded_edge: crate::core::Edge = decode_from_slice(edge)
                         .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?
                         .0;
                     let edge_key = format!(
@@ -601,7 +601,7 @@ impl TransactionContext {
                         decoded_edge.src, decoded_edge.dst, decoded_edge.edge_type
                     );
                     let edge_key_bytes = edge_key.as_bytes().to_vec();
-                    let edge_bytes = encode_to_vec(&decoded_edge, standard())
+                    let edge_bytes = encode_to_vec(&decoded_edge)
                         .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
 
                     self.with_write_txn(|write_txn| {
@@ -620,12 +620,12 @@ impl TransactionContext {
                     edge_id: _,
                     previous_data,
                 } => {
-                    let edge: crate::core::Edge = decode_from_slice(previous_data, standard())
+                    let edge: crate::core::Edge = decode_from_slice(previous_data)
                         .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?
                         .0;
                     let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
                     let edge_key_bytes = edge_key.as_bytes().to_vec();
-                    let edge_bytes = encode_to_vec(&edge, standard())
+                    let edge_bytes = encode_to_vec(&edge)
                         .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
 
                     self.with_write_txn(|write_txn| {

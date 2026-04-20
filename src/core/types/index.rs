@@ -4,7 +4,7 @@
 
 use super::property_trait::PropertyTypeTrait;
 use crate::core::Value;
-use bincode::{Decode, Encode};
+use oxicoide::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]

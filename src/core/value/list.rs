@@ -2,7 +2,7 @@
 //!
 //! This module defines the List type and its associated operations.
 
-use bincode::{Decode, Encode};
+use oxicoide::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 

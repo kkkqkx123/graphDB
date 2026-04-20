@@ -2,7 +2,7 @@ use crate::core::types::Index;
 use crate::core::StorageError;
 use crate::storage::engine::{ByteKey, EDGE_INDEXES_TABLE, TAG_INDEXES_TABLE};
 use crate::storage::metadata::IndexMetadataManager;
-use bincode::{config::standard, decode_from_slice, encode_to_vec};
+use oxicoide::{decode_from_slice, encode_to_vec};
 use redb::{Database, ReadableTable};
 use std::sync::Arc;
 
@@ -40,7 +40,7 @@ impl RedbIndexMetadataManager {
 impl IndexMetadataManager for RedbIndexMetadataManager {
     fn create_tag_index(&self, space_id: u64, index: &Index) -> Result<bool, StorageError> {
         let key = Self::make_tag_index_key(space_id, &index.name);
-        let index_bytes = encode_to_vec(index, standard())?;
+        let index_bytes = encode_to_vec(index)?;
 
         let write_txn = self
             .db
@@ -121,8 +121,8 @@ impl IndexMetadataManager for RedbIndexMetadataManager {
             .map_err(|e| StorageError::DbError(e.to_string()))?
         {
             Some(value) => {
-                let index_bytes = value.value().0;
-                let index: Index = decode_from_slice(&index_bytes, standard())?.0;
+                let index_bytes = value.value();
+                let index: Index = decode_from_slice(&index_bytes)?.0;
                 Ok(Some(index))
             }
             None => Ok(None),
@@ -148,8 +148,8 @@ impl IndexMetadataManager for RedbIndexMetadataManager {
             let key_data = key.value().0.clone();
             let key_str = String::from_utf8_lossy(&key_data);
             if key_str.starts_with(&space_prefix) {
-                let index_bytes = value.value().0;
-                let index: Index = decode_from_slice(&index_bytes, standard())?.0;
+                let index_bytes = value.value();
+                let index: Index = decode_from_slice(&index_bytes)?.0;
                 indexes.push(index);
             }
         }
@@ -173,8 +173,8 @@ impl IndexMetadataManager for RedbIndexMetadataManager {
                 let (key, value) = result.ok()?;
                 let key_data = key.value().0.clone();
                 let key_str = String::from_utf8_lossy(&key_data);
-                let index_bytes = value.value().0;
-                let index: Index = decode_from_slice(&index_bytes, standard()).ok()?.0;
+                let index_bytes = value.value();
+                let index: Index = decode_from_slice(&index_bytes).ok()?.0;
                 if key_str.starts_with(&space_prefix) && index.schema_name == tag_name {
                     Some(key_data)
                 } else {
@@ -212,7 +212,7 @@ impl IndexMetadataManager for RedbIndexMetadataManager {
 
     fn create_edge_index(&self, space_id: u64, index: &Index) -> Result<bool, StorageError> {
         let key = Self::make_edge_index_key(space_id, &index.name);
-        let index_bytes = encode_to_vec(index, standard())?;
+        let index_bytes = encode_to_vec(index)?;
 
         let write_txn = self
             .db
@@ -293,8 +293,8 @@ impl IndexMetadataManager for RedbIndexMetadataManager {
             .map_err(|e| StorageError::DbError(e.to_string()))?
         {
             Some(value) => {
-                let index_bytes = value.value().0;
-                let index: Index = decode_from_slice(&index_bytes, standard())?.0;
+                let index_bytes = value.value();
+                let index: Index = decode_from_slice(&index_bytes)?.0;
                 Ok(Some(index))
             }
             None => Ok(None),
@@ -320,8 +320,8 @@ impl IndexMetadataManager for RedbIndexMetadataManager {
             let key_data = key.value().0.clone();
             let key_str = String::from_utf8_lossy(&key_data);
             if key_str.starts_with(&space_prefix) {
-                let index_bytes = value.value().0;
-                let index: Index = decode_from_slice(&index_bytes, standard())?.0;
+                let index_bytes = value.value();
+                let index: Index = decode_from_slice(&index_bytes)?.0;
                 indexes.push(index);
             }
         }
@@ -349,8 +349,8 @@ impl IndexMetadataManager for RedbIndexMetadataManager {
                 let (key, value) = result.ok()?;
                 let key_data = key.value().0.clone();
                 let key_str = String::from_utf8_lossy(&key_data);
-                let index_bytes = value.value().0;
-                let index: Index = decode_from_slice(&index_bytes, standard()).ok()?.0;
+                let index_bytes = value.value();
+                let index: Index = decode_from_slice(&index_bytes).ok()?.0;
                 if key_str.starts_with(&space_prefix) && index.schema_name == edge_type {
                     Some(key_data)
                 } else {
