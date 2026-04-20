@@ -458,12 +458,12 @@ impl<'a> ParseContext<'a> {
             TokenKind::IntegerLiteral(n) => {
                 let n = *n;
                 self.next_token();
-                Ok(crate::core::Value::Int(n))
+                Ok(crate::core::Value::BigInt(n))
             }
             TokenKind::FloatLiteral(f) => {
                 let f = *f;
                 self.next_token();
-                Ok(crate::core::Value::Float(f))
+                Ok(crate::core::Value::Double(f))
             }
             TokenKind::BooleanLiteral(b) => {
                 let b = *b;

@@ -16,16 +16,11 @@ impl MemoryEstimatable for Value {
             Value::Empty
             | Value::Null(_)
             | Value::Bool(_)
+            | Value::SmallInt(_)
             | Value::Int(_)
-            | Value::Int8(_)
-            | Value::Int16(_)
-            | Value::Int32(_)
-            | Value::Int64(_)
-            | Value::UInt8(_)
-            | Value::UInt16(_)
-            | Value::UInt32(_)
-            | Value::UInt64(_)
-            | Value::Float(_) => base_size,
+            | Value::BigInt(_)
+            | Value::Float(_)
+            | Value::Double(_) => base_size,
 
             // Variable-length string types
             Value::String(s) => base_size + s.capacity(),

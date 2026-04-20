@@ -358,7 +358,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
         result_dataset.col_names.push("count".to_string());
         result_dataset
             .rows
-            .push(vec![Value::Int(dataset.rows.len() as i64)]);
+            .push(vec![Value::BigInt(dataset.rows.len() as i64)]);
         Ok(result_dataset)
     }
 
@@ -755,9 +755,9 @@ impl<S: StorageClient> AggregateExecutor<S> {
                     {
                         // Use the size of the set of unique elements as the result of the COUNT DISTINCT function.
                         if let Some(uniques) = agg_data.uniques() {
-                            Value::Int(uniques.len() as i64)
+                            Value::BigInt(uniques.len() as i64)
                         } else {
-                            Value::Int(0)
+                            Value::BigInt(0)
                         }
                     } else {
                         agg_data.result().clone()

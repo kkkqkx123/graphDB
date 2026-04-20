@@ -104,7 +104,7 @@ impl SearchEngine for InversearchEngine {
         let search_results = results
             .into_iter()
             .map(|r| SearchResult {
-                doc_id: Value::Int64(r.id as i64),
+                doc_id: Value::BigInt(r.id as i64),
                 score: r.score,
                 highlights: r.highlights,
                 matched_fields: vec![],

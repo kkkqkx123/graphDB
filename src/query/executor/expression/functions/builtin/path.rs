@@ -92,7 +92,7 @@ mod tests {
 
     fn create_test_vertex_with_id(id: i64) -> Vertex {
         Vertex::new(
-            Value::Int(id),
+            Value::BigInt(id),
             vec![Tag::new("person".to_string(), HashMap::new())],
         )
     }

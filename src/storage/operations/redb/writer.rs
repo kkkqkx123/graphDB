@@ -75,7 +75,7 @@ impl RedbWriter {
 impl RedbWriter {
     fn insert_vertex_internal(&self, vertex: Vertex) -> Result<Value, StorageError> {
         let id = match vertex.vid() {
-            Value::Int(0) | Value::Null(_) => Value::Int(generate_id() as i64),
+            Value::BigInt(0) | Value::Null(_) => Value::BigInt(generate_id() as i64),
             _ => vertex.vid().clone(),
         };
         let vertex_with_id = Vertex::new(id.clone(), vertex.tags);
@@ -230,7 +230,7 @@ impl RedbWriter {
 
         for vertex in &vertices {
             let id = match vertex.vid() {
-                Value::Int(0) | Value::Null(_) => Value::Int(generate_id() as i64),
+                Value::BigInt(0) | Value::Null(_) => Value::BigInt(generate_id() as i64),
                 _ => vertex.vid().clone(),
             };
             let previous_state = self.get_vertex_bytes(&id)?;

@@ -25,7 +25,7 @@ pub struct SpaceDesc {
 impl SpaceDesc {
     pub fn to_row(&self) -> Row {
         vec![
-            Value::Int(self.id as i64),
+            Value::BigInt(self.id as i64),
             Value::String(self.name.clone()),
             Value::String(self.vid_type.clone()),
             Value::String(self.charset.clone()),

@@ -96,7 +96,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowTagIndexStatu
                             Value::String(idx.schema_name.clone()),
                             Value::String(idx.properties.join(", ")),
                             Value::String(format!("{:?}", idx.status)),
-                            Value::Int(idx.id as i64),
+                            Value::BigInt(idx.id as i64),
                         ]
                     })
                     .collect();

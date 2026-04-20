@@ -8,18 +8,40 @@ impl Value {
     pub fn add(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
-            (Int(a), Int(b)) => Ok(Int(a + b)),
-            (Int8(a), Int8(b)) => Ok(Int8(a.wrapping_add(*b))),
-            (Int16(a), Int16(b)) => Ok(Int16(a.wrapping_add(*b))),
-            (Int32(a), Int32(b)) => Ok(Int32(a.wrapping_add(*b))),
-            (Int64(a), Int64(b)) => Ok(Int64(a.wrapping_add(*b))),
-            (UInt8(a), UInt8(b)) => Ok(UInt8(a.wrapping_add(*b))),
-            (UInt16(a), UInt16(b)) => Ok(UInt16(a.wrapping_add(*b))),
-            (UInt32(a), UInt32(b)) => Ok(UInt32(a.wrapping_add(*b))),
-            (UInt64(a), UInt64(b)) => Ok(UInt64(a.wrapping_add(*b))),
+            // Same type operations
+            (SmallInt(a), SmallInt(b)) => Ok(SmallInt(a.wrapping_add(*b))),
+            (Int(a), Int(b)) => Ok(Int(a.wrapping_add(*b))),
+            (BigInt(a), BigInt(b)) => Ok(BigInt(a.wrapping_add(*b))),
             (Float(a), Float(b)) => Ok(Float(a + b)),
-            (Int(a), Float(b)) => Ok(Float(*a as f64 + b)),
-            (Float(a), Int(b)) => Ok(Float(a + *b as f64)),
+            (Double(a), Double(b)) => Ok(Double(a + b)),
+
+            // Cross-type operations: promote to larger type
+            (SmallInt(a), Int(b)) => Ok(Int(*a as i32 + b)),
+            (Int(a), SmallInt(b)) => Ok(Int(a + *b as i32)),
+            (SmallInt(a), BigInt(b)) => Ok(BigInt(*a as i64 + b)),
+            (BigInt(a), SmallInt(b)) => Ok(BigInt(a + *b as i64)),
+            (Int(a), BigInt(b)) => Ok(BigInt(*a as i64 + b)),
+            (BigInt(a), Int(b)) => Ok(BigInt(a + *b as i64)),
+
+            // Integer to float promotion
+            (SmallInt(a), Float(b)) => Ok(Float(*a as f32 + b)),
+            (Float(a), SmallInt(b)) => Ok(Float(a + *b as f32)),
+            (Int(a), Float(b)) => Ok(Float(*a as f32 + b)),
+            (Float(a), Int(b)) => Ok(Float(a + *b as f32)),
+            (BigInt(a), Float(b)) => Ok(Float(*a as f32 + b)),
+            (Float(a), BigInt(b)) => Ok(Float(a + *b as f32)),
+
+            (SmallInt(a), Double(b)) => Ok(Double(*a as f64 + b)),
+            (Double(a), SmallInt(b)) => Ok(Double(a + *b as f64)),
+            (Int(a), Double(b)) => Ok(Double(*a as f64 + b)),
+            (Double(a), Int(b)) => Ok(Double(a + *b as f64)),
+            (BigInt(a), Double(b)) => Ok(Double(*a as f64 + b)),
+            (Double(a), BigInt(b)) => Ok(Double(a + *b as f64)),
+
+            (Float(a), Double(b)) => Ok(Double(*a as f64 + b)),
+            (Double(a), Float(b)) => Ok(Double(a + *b as f64)),
+
+            // String concatenation
             (String(a), String(b)) => Ok(String(format!("{}{}", a, b))),
             (String(a), FixedString { data: b, .. }) => Ok(String(format!("{}{}", a, b))),
             (FixedString { data: a, .. }, String(b)) => Ok(String(format!("{}{}", a, b))),
@@ -34,18 +56,38 @@ impl Value {
     pub fn sub(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
-            (Int(a), Int(b)) => Ok(Int(a - b)),
-            (Int8(a), Int8(b)) => Ok(Int8(a.wrapping_sub(*b))),
-            (Int16(a), Int16(b)) => Ok(Int16(a.wrapping_sub(*b))),
-            (Int32(a), Int32(b)) => Ok(Int32(a.wrapping_sub(*b))),
-            (Int64(a), Int64(b)) => Ok(Int64(a.wrapping_sub(*b))),
-            (UInt8(a), UInt8(b)) => Ok(UInt8(a.wrapping_sub(*b))),
-            (UInt16(a), UInt16(b)) => Ok(UInt16(a.wrapping_sub(*b))),
-            (UInt32(a), UInt32(b)) => Ok(UInt32(a.wrapping_sub(*b))),
-            (UInt64(a), UInt64(b)) => Ok(UInt64(a.wrapping_sub(*b))),
+            (SmallInt(a), SmallInt(b)) => Ok(SmallInt(a.wrapping_sub(*b))),
+            (Int(a), Int(b)) => Ok(Int(a.wrapping_sub(*b))),
+            (BigInt(a), BigInt(b)) => Ok(BigInt(a.wrapping_sub(*b))),
             (Float(a), Float(b)) => Ok(Float(a - b)),
-            (Int(a), Float(b)) => Ok(Float(*a as f64 - b)),
-            (Float(a), Int(b)) => Ok(Float(a - *b as f64)),
+            (Double(a), Double(b)) => Ok(Double(a - b)),
+
+            // Cross-type operations
+            (SmallInt(a), Int(b)) => Ok(Int(*a as i32 - b)),
+            (Int(a), SmallInt(b)) => Ok(Int(a - *b as i32)),
+            (SmallInt(a), BigInt(b)) => Ok(BigInt(*a as i64 - b)),
+            (BigInt(a), SmallInt(b)) => Ok(BigInt(a - *b as i64)),
+            (Int(a), BigInt(b)) => Ok(BigInt(*a as i64 - b)),
+            (BigInt(a), Int(b)) => Ok(BigInt(a - *b as i64)),
+
+            // Integer to float
+            (SmallInt(a), Float(b)) => Ok(Float(*a as f32 - b)),
+            (Float(a), SmallInt(b)) => Ok(Float(a - *b as f32)),
+            (Int(a), Float(b)) => Ok(Float(*a as f32 - b)),
+            (Float(a), Int(b)) => Ok(Float(a - *b as f32)),
+            (BigInt(a), Float(b)) => Ok(Float(*a as f32 - b)),
+            (Float(a), BigInt(b)) => Ok(Float(a - *b as f32)),
+
+            (SmallInt(a), Double(b)) => Ok(Double(*a as f64 - b)),
+            (Double(a), SmallInt(b)) => Ok(Double(a - *b as f64)),
+            (Int(a), Double(b)) => Ok(Double(*a as f64 - b)),
+            (Double(a), Int(b)) => Ok(Double(a - *b as f64)),
+            (BigInt(a), Double(b)) => Ok(Double(*a as f64 - b)),
+            (Double(a), BigInt(b)) => Ok(Double(a - *b as f64)),
+
+            (Float(a), Double(b)) => Ok(Double(*a as f64 - b)),
+            (Double(a), Float(b)) => Ok(Double(a - *b as f64)),
+
             _ => Err("Cannot perform subtraction on these value types".to_string()),
         }
     }
@@ -54,18 +96,38 @@ impl Value {
     pub fn mul(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
-            (Int(a), Int(b)) => Ok(Int(a * b)),
-            (Int8(a), Int8(b)) => Ok(Int8(a.wrapping_mul(*b))),
-            (Int16(a), Int16(b)) => Ok(Int16(a.wrapping_mul(*b))),
-            (Int32(a), Int32(b)) => Ok(Int32(a.wrapping_mul(*b))),
-            (Int64(a), Int64(b)) => Ok(Int64(a.wrapping_mul(*b))),
-            (UInt8(a), UInt8(b)) => Ok(UInt8(a.wrapping_mul(*b))),
-            (UInt16(a), UInt16(b)) => Ok(UInt16(a.wrapping_mul(*b))),
-            (UInt32(a), UInt32(b)) => Ok(UInt32(a.wrapping_mul(*b))),
-            (UInt64(a), UInt64(b)) => Ok(UInt64(a.wrapping_mul(*b))),
+            (SmallInt(a), SmallInt(b)) => Ok(SmallInt(a.wrapping_mul(*b))),
+            (Int(a), Int(b)) => Ok(Int(a.wrapping_mul(*b))),
+            (BigInt(a), BigInt(b)) => Ok(BigInt(a.wrapping_mul(*b))),
             (Float(a), Float(b)) => Ok(Float(a * b)),
-            (Int(a), Float(b)) => Ok(Float(*a as f64 * b)),
-            (Float(a), Int(b)) => Ok(Float(a * *b as f64)),
+            (Double(a), Double(b)) => Ok(Double(a * b)),
+
+            // Cross-type operations
+            (SmallInt(a), Int(b)) => Ok(Int(*a as i32 * b)),
+            (Int(a), SmallInt(b)) => Ok(Int(a * *b as i32)),
+            (SmallInt(a), BigInt(b)) => Ok(BigInt(*a as i64 * b)),
+            (BigInt(a), SmallInt(b)) => Ok(BigInt(a * *b as i64)),
+            (Int(a), BigInt(b)) => Ok(BigInt(*a as i64 * b)),
+            (BigInt(a), Int(b)) => Ok(BigInt(a * *b as i64)),
+
+            // Integer to float
+            (SmallInt(a), Float(b)) => Ok(Float(*a as f32 * b)),
+            (Float(a), SmallInt(b)) => Ok(Float(a * *b as f32)),
+            (Int(a), Float(b)) => Ok(Float(*a as f32 * b)),
+            (Float(a), Int(b)) => Ok(Float(a * *b as f32)),
+            (BigInt(a), Float(b)) => Ok(Float(*a as f32 * b)),
+            (Float(a), BigInt(b)) => Ok(Float(a * *b as f32)),
+
+            (SmallInt(a), Double(b)) => Ok(Double(*a as f64 * b)),
+            (Double(a), SmallInt(b)) => Ok(Double(a * *b as f64)),
+            (Int(a), Double(b)) => Ok(Double(*a as f64 * b)),
+            (Double(a), Int(b)) => Ok(Double(a * *b as f64)),
+            (BigInt(a), Double(b)) => Ok(Double(*a as f64 * b)),
+            (Double(a), BigInt(b)) => Ok(Double(a * *b as f64)),
+
+            (Float(a), Double(b)) => Ok(Double(*a as f64 * b)),
+            (Double(a), Float(b)) => Ok(Double(a * *b as f64)),
+
             _ => Err("Cannot perform multiplication on these value types".to_string()),
         }
     }
@@ -74,6 +136,13 @@ impl Value {
     pub fn div(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
+            (SmallInt(a), SmallInt(b)) => {
+                if *b == 0 {
+                    Err("Division by zero".to_string())
+                } else {
+                    Ok(SmallInt(a / b))
+                }
+            }
             (Int(a), Int(b)) => {
                 if *b == 0 {
                     Err("Division by zero".to_string())
@@ -81,60 +150,11 @@ impl Value {
                     Ok(Int(a / b))
                 }
             }
-            (Int8(a), Int8(b)) => {
+            (BigInt(a), BigInt(b)) => {
                 if *b == 0 {
                     Err("Division by zero".to_string())
                 } else {
-                    Ok(Int8(a / b))
-                }
-            }
-            (Int16(a), Int16(b)) => {
-                if *b == 0 {
-                    Err("Division by zero".to_string())
-                } else {
-                    Ok(Int16(a / b))
-                }
-            }
-            (Int32(a), Int32(b)) => {
-                if *b == 0 {
-                    Err("Division by zero".to_string())
-                } else {
-                    Ok(Int32(a / b))
-                }
-            }
-            (Int64(a), Int64(b)) => {
-                if *b == 0 {
-                    Err("Division by zero".to_string())
-                } else {
-                    Ok(Int64(a / b))
-                }
-            }
-            (UInt8(a), UInt8(b)) => {
-                if *b == 0 {
-                    Err("Division by zero".to_string())
-                } else {
-                    Ok(UInt8(a / b))
-                }
-            }
-            (UInt16(a), UInt16(b)) => {
-                if *b == 0 {
-                    Err("Division by zero".to_string())
-                } else {
-                    Ok(UInt16(a / b))
-                }
-            }
-            (UInt32(a), UInt32(b)) => {
-                if *b == 0 {
-                    Err("Division by zero".to_string())
-                } else {
-                    Ok(UInt32(a / b))
-                }
-            }
-            (UInt64(a), UInt64(b)) => {
-                if *b == 0 {
-                    Err("Division by zero".to_string())
-                } else {
-                    Ok(UInt64(a / b))
+                    Ok(BigInt(a / b))
                 }
             }
             (Float(a), Float(b)) => {
@@ -144,20 +164,88 @@ impl Value {
                     Ok(Float(a / b))
                 }
             }
-            (Int(a), Float(b)) => {
+            (Double(a), Double(b)) => {
                 if *b == 0.0 {
                     Err("Division by zero".to_string())
                 } else {
-                    Ok(Float(*a as f64 / b))
+                    Ok(Double(a / b))
                 }
             }
-            (Float(a), Int(b)) => {
+
+            // Cross-type: promote to larger type
+            (SmallInt(a), Int(b)) => {
                 if *b == 0 {
                     Err("Division by zero".to_string())
                 } else {
-                    Ok(Float(a / *b as f64))
+                    Ok(Int(*a as i32 / b))
                 }
             }
+            (Int(a), SmallInt(b)) => {
+                if *b == 0 {
+                    Err("Division by zero".to_string())
+                } else {
+                    Ok(Int(a / *b as i32))
+                }
+            }
+            (Int(a), BigInt(b)) => {
+                if *b == 0 {
+                    Err("Division by zero".to_string())
+                } else {
+                    Ok(BigInt(*a as i64 / b))
+                }
+            }
+            (BigInt(a), Int(b)) => {
+                if *b == 0 {
+                    Err("Division by zero".to_string())
+                } else {
+                    Ok(BigInt(a / *b as i64))
+                }
+            }
+
+            // Integer to double for division
+            (SmallInt(a), Double(b)) => {
+                if *b == 0.0 {
+                    Err("Division by zero".to_string())
+                } else {
+                    Ok(Double(*a as f64 / b))
+                }
+            }
+            (Double(a), SmallInt(b)) => {
+                if *b == 0 {
+                    Err("Division by zero".to_string())
+                } else {
+                    Ok(Double(a / *b as f64))
+                }
+            }
+            (Int(a), Double(b)) => {
+                if *b == 0.0 {
+                    Err("Division by zero".to_string())
+                } else {
+                    Ok(Double(*a as f64 / b))
+                }
+            }
+            (Double(a), Int(b)) => {
+                if *b == 0 {
+                    Err("Division by zero".to_string())
+                } else {
+                    Ok(Double(a / *b as f64))
+                }
+            }
+            (BigInt(a), Double(b)) => {
+                if *b == 0.0 {
+                    Err("Division by zero".to_string())
+                } else {
+                    Ok(Double(*a as f64 / b))
+                }
+            }
+            (Double(a), BigInt(b)) => {
+                if *b == 0 {
+                    Err("Division by zero".to_string())
+                } else {
+                    Ok(Double(a / *b as f64))
+                }
+            }
+
             _ => Err("Cannot perform division on these value types".to_string()),
         }
     }
@@ -166,6 +254,13 @@ impl Value {
     pub fn rem(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
+            (SmallInt(a), SmallInt(b)) => {
+                if *b == 0 {
+                    Err("Division by zero".to_string())
+                } else {
+                    Ok(SmallInt(a % b))
+                }
+            }
             (Int(a), Int(b)) => {
                 if *b == 0 {
                     Err("Division by zero".to_string())
@@ -173,60 +268,11 @@ impl Value {
                     Ok(Int(a % b))
                 }
             }
-            (Int8(a), Int8(b)) => {
+            (BigInt(a), BigInt(b)) => {
                 if *b == 0 {
                     Err("Division by zero".to_string())
                 } else {
-                    Ok(Int8(a % b))
-                }
-            }
-            (Int16(a), Int16(b)) => {
-                if *b == 0 {
-                    Err("Division by zero".to_string())
-                } else {
-                    Ok(Int16(a % b))
-                }
-            }
-            (Int32(a), Int32(b)) => {
-                if *b == 0 {
-                    Err("Division by zero".to_string())
-                } else {
-                    Ok(Int32(a % b))
-                }
-            }
-            (Int64(a), Int64(b)) => {
-                if *b == 0 {
-                    Err("Division by zero".to_string())
-                } else {
-                    Ok(Int64(a % b))
-                }
-            }
-            (UInt8(a), UInt8(b)) => {
-                if *b == 0 {
-                    Err("Division by zero".to_string())
-                } else {
-                    Ok(UInt8(a % b))
-                }
-            }
-            (UInt16(a), UInt16(b)) => {
-                if *b == 0 {
-                    Err("Division by zero".to_string())
-                } else {
-                    Ok(UInt16(a % b))
-                }
-            }
-            (UInt32(a), UInt32(b)) => {
-                if *b == 0 {
-                    Err("Division by zero".to_string())
-                } else {
-                    Ok(UInt32(a % b))
-                }
-            }
-            (UInt64(a), UInt64(b)) => {
-                if *b == 0 {
-                    Err("Division by zero".to_string())
-                } else {
-                    Ok(UInt64(a % b))
+                    Ok(BigInt(a % b))
                 }
             }
             _ => Err("Modulo operation is only supported for integer types".to_string()),
@@ -237,6 +283,13 @@ impl Value {
     pub fn pow(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
+            (SmallInt(a), SmallInt(b)) => {
+                if *b < 0 {
+                    Err("Negative exponent not supported for integer power operation".to_string())
+                } else {
+                    Ok(SmallInt(a.pow(*b as u32)))
+                }
+            }
             (Int(a), Int(b)) => {
                 if *b < 0 {
                     Err("Negative exponent not supported for integer power operation".to_string())
@@ -244,41 +297,21 @@ impl Value {
                     Ok(Int(a.pow(*b as u32)))
                 }
             }
-            (Int8(a), Int8(b)) => {
+            (BigInt(a), BigInt(b)) => {
                 if *b < 0 {
                     Err("Negative exponent not supported for integer power operation".to_string())
                 } else {
-                    Ok(Int8(a.pow(*b as u32)))
+                    Ok(BigInt(a.pow(*b as u32)))
                 }
             }
-            (Int16(a), Int16(b)) => {
-                if *b < 0 {
-                    Err("Negative exponent not supported for integer power operation".to_string())
-                } else {
-                    Ok(Int16(a.pow(*b as u32)))
-                }
-            }
-            (Int32(a), Int32(b)) => {
-                if *b < 0 {
-                    Err("Negative exponent not supported for integer power operation".to_string())
-                } else {
-                    Ok(Int32(a.pow(*b as u32)))
-                }
-            }
-            (Int64(a), Int64(b)) => {
-                if *b < 0 {
-                    Err("Negative exponent not supported for integer power operation".to_string())
-                } else {
-                    Ok(Int64(a.pow(*b as u32)))
-                }
-            }
-            (UInt8(a), UInt8(b)) => Ok(UInt8(a.pow(*b as u32))),
-            (UInt16(a), UInt16(b)) => Ok(UInt16(a.pow(*b as u32))),
-            (UInt32(a), UInt32(b)) => Ok(UInt32(a.pow(*b))),
-            (UInt64(a), UInt64(b)) => Ok(UInt64(a.pow(*b as u32))),
             (Float(a), Float(b)) => Ok(Float(a.powf(*b))),
-            (Int(a), Float(b)) => Ok(Float((*a as f64).powf(*b))),
-            (Float(a), Int(b)) => Ok(Float(a.powi(*b as i32))),
+            (Double(a), Double(b)) => Ok(Double(a.powf(*b))),
+            (SmallInt(a), Double(b)) => Ok(Double((*a as f64).powf(*b))),
+            (Double(a), SmallInt(b)) => Ok(Double(a.powi(*b as i32))),
+            (Int(a), Double(b)) => Ok(Double((*a as f64).powf(*b))),
+            (Double(a), Int(b)) => Ok(Double(a.powi(*b as i32))),
+            (BigInt(a), Double(b)) => Ok(Double((*a as f64).powf(*b))),
+            (Double(a), BigInt(b)) => Ok(Double(a.powi(*b as i32))),
             _ => Err("Cannot perform power operation on these value types".to_string()),
         }
     }
@@ -287,12 +320,11 @@ impl Value {
     pub fn neg(&self) -> Result<Value, String> {
         use Value::*;
         match self {
+            SmallInt(a) => Ok(SmallInt(-a)),
             Int(a) => Ok(Int(-a)),
-            Int8(a) => Ok(Int8(-a)),
-            Int16(a) => Ok(Int16(-a)),
-            Int32(a) => Ok(Int32(-a)),
-            Int64(a) => Ok(Int64(-a)),
+            BigInt(a) => Ok(BigInt(-a)),
             Float(a) => Ok(Float(-a)),
+            Double(a) => Ok(Double(-a)),
             _ => Err("Negation is only supported for numeric types".to_string()),
         }
     }
@@ -328,15 +360,9 @@ impl Value {
     pub fn bit_and(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
+            (SmallInt(a), SmallInt(b)) => Ok(SmallInt(a & b)),
             (Int(a), Int(b)) => Ok(Int(a & b)),
-            (Int8(a), Int8(b)) => Ok(Int8(a & b)),
-            (Int16(a), Int16(b)) => Ok(Int16(a & b)),
-            (Int32(a), Int32(b)) => Ok(Int32(a & b)),
-            (Int64(a), Int64(b)) => Ok(Int64(a & b)),
-            (UInt8(a), UInt8(b)) => Ok(UInt8(a & b)),
-            (UInt16(a), UInt16(b)) => Ok(UInt16(a & b)),
-            (UInt32(a), UInt32(b)) => Ok(UInt32(a & b)),
-            (UInt64(a), UInt64(b)) => Ok(UInt64(a & b)),
+            (BigInt(a), BigInt(b)) => Ok(BigInt(a & b)),
             _ => Err("Bitwise AND is only supported for integer types".to_string()),
         }
     }
@@ -345,15 +371,9 @@ impl Value {
     pub fn bit_or(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
+            (SmallInt(a), SmallInt(b)) => Ok(SmallInt(a | b)),
             (Int(a), Int(b)) => Ok(Int(a | b)),
-            (Int8(a), Int8(b)) => Ok(Int8(a | b)),
-            (Int16(a), Int16(b)) => Ok(Int16(a | b)),
-            (Int32(a), Int32(b)) => Ok(Int32(a | b)),
-            (Int64(a), Int64(b)) => Ok(Int64(a | b)),
-            (UInt8(a), UInt8(b)) => Ok(UInt8(a | b)),
-            (UInt16(a), UInt16(b)) => Ok(UInt16(a | b)),
-            (UInt32(a), UInt32(b)) => Ok(UInt32(a | b)),
-            (UInt64(a), UInt64(b)) => Ok(UInt64(a | b)),
+            (BigInt(a), BigInt(b)) => Ok(BigInt(a | b)),
             _ => Err("Bitwise OR is only supported for integer types".to_string()),
         }
     }
@@ -362,15 +382,9 @@ impl Value {
     pub fn bit_xor(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
+            (SmallInt(a), SmallInt(b)) => Ok(SmallInt(a ^ b)),
             (Int(a), Int(b)) => Ok(Int(a ^ b)),
-            (Int8(a), Int8(b)) => Ok(Int8(a ^ b)),
-            (Int16(a), Int16(b)) => Ok(Int16(a ^ b)),
-            (Int32(a), Int32(b)) => Ok(Int32(a ^ b)),
-            (Int64(a), Int64(b)) => Ok(Int64(a ^ b)),
-            (UInt8(a), UInt8(b)) => Ok(UInt8(a ^ b)),
-            (UInt16(a), UInt16(b)) => Ok(UInt16(a ^ b)),
-            (UInt32(a), UInt32(b)) => Ok(UInt32(a ^ b)),
-            (UInt64(a), UInt64(b)) => Ok(UInt64(a ^ b)),
+            (BigInt(a), BigInt(b)) => Ok(BigInt(a ^ b)),
             _ => Err("Bitwise XOR is only supported for integer types".to_string()),
         }
     }
@@ -379,77 +393,25 @@ impl Value {
     pub fn bit_shl(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
+            (SmallInt(a), SmallInt(b)) => {
+                if *b < 0 || *b >= 16 {
+                    Err("Shift count out of range".to_string())
+                } else {
+                    Ok(SmallInt(a << *b as u32))
+                }
+            }
             (Int(a), Int(b)) => {
-                if *b < 0 {
-                    Err("Left shift count cannot be negative".to_string())
-                } else if *b >= 64 {
-                    Err("Left shift count out of range".to_string())
+                if *b < 0 || *b >= 32 {
+                    Err("Shift count out of range".to_string())
                 } else {
                     Ok(Int(a << *b as u32))
                 }
             }
-            (Int8(a), Int8(b)) => {
-                if *b < 0 {
-                    Err("Left shift count cannot be negative".to_string())
-                } else if *b >= 8 {
-                    Err("Left shift count out of range".to_string())
+            (BigInt(a), BigInt(b)) => {
+                if *b < 0 || *b >= 64 {
+                    Err("Shift count out of range".to_string())
                 } else {
-                    Ok(Int8(a << *b as u32))
-                }
-            }
-            (Int16(a), Int16(b)) => {
-                if *b < 0 {
-                    Err("Left shift count cannot be negative".to_string())
-                } else if *b >= 16 {
-                    Err("Left shift count out of range".to_string())
-                } else {
-                    Ok(Int16(a << *b as u32))
-                }
-            }
-            (Int32(a), Int32(b)) => {
-                if *b < 0 {
-                    Err("Left shift count cannot be negative".to_string())
-                } else if *b >= 32 {
-                    Err("Left shift count out of range".to_string())
-                } else {
-                    Ok(Int32(a << *b as u32))
-                }
-            }
-            (Int64(a), Int64(b)) => {
-                if *b < 0 {
-                    Err("Left shift count cannot be negative".to_string())
-                } else if *b >= 64 {
-                    Err("Left shift count out of range".to_string())
-                } else {
-                    Ok(Int64(a << *b as u32))
-                }
-            }
-            (UInt8(a), UInt8(b)) => {
-                if *b >= 8 {
-                    Err("Left shift count out of range".to_string())
-                } else {
-                    Ok(UInt8(a << *b as u32))
-                }
-            }
-            (UInt16(a), UInt16(b)) => {
-                if *b >= 16 {
-                    Err("Left shift count out of range".to_string())
-                } else {
-                    Ok(UInt16(a << *b as u32))
-                }
-            }
-            (UInt32(a), UInt32(b)) => {
-                if *b >= 32 {
-                    Err("Left shift count out of range".to_string())
-                } else {
-                    Ok(UInt32(a << *b))
-                }
-            }
-            (UInt64(a), UInt64(b)) => {
-                if *b >= 64 {
-                    Err("Left shift count out of range".to_string())
-                } else {
-                    Ok(UInt64(a << *b as u32))
+                    Ok(BigInt(a << *b as u32))
                 }
             }
             _ => Err("Bitwise left shift is only supported for integer types".to_string()),
@@ -460,77 +422,25 @@ impl Value {
     pub fn bit_shr(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
+            (SmallInt(a), SmallInt(b)) => {
+                if *b < 0 || *b >= 16 {
+                    Err("Shift count out of range".to_string())
+                } else {
+                    Ok(SmallInt(a >> *b as u32))
+                }
+            }
             (Int(a), Int(b)) => {
-                if *b < 0 {
-                    Err("Right shift count cannot be negative".to_string())
-                } else if *b >= 64 {
-                    Err("Right shift count out of range".to_string())
+                if *b < 0 || *b >= 32 {
+                    Err("Shift count out of range".to_string())
                 } else {
                     Ok(Int(a >> *b as u32))
                 }
             }
-            (Int8(a), Int8(b)) => {
-                if *b < 0 {
-                    Err("Right shift count cannot be negative".to_string())
-                } else if *b >= 8 {
-                    Err("Right shift count out of range".to_string())
+            (BigInt(a), BigInt(b)) => {
+                if *b < 0 || *b >= 64 {
+                    Err("Shift count out of range".to_string())
                 } else {
-                    Ok(Int8(a >> *b as u32))
-                }
-            }
-            (Int16(a), Int16(b)) => {
-                if *b < 0 {
-                    Err("Right shift count cannot be negative".to_string())
-                } else if *b >= 16 {
-                    Err("Right shift count out of range".to_string())
-                } else {
-                    Ok(Int16(a >> *b as u32))
-                }
-            }
-            (Int32(a), Int32(b)) => {
-                if *b < 0 {
-                    Err("Right shift count cannot be negative".to_string())
-                } else if *b >= 32 {
-                    Err("Right shift count out of range".to_string())
-                } else {
-                    Ok(Int32(a >> *b as u32))
-                }
-            }
-            (Int64(a), Int64(b)) => {
-                if *b < 0 {
-                    Err("Right shift count cannot be negative".to_string())
-                } else if *b >= 64 {
-                    Err("Right shift count out of range".to_string())
-                } else {
-                    Ok(Int64(a >> *b as u32))
-                }
-            }
-            (UInt8(a), UInt8(b)) => {
-                if *b >= 8 {
-                    Err("Right shift count out of range".to_string())
-                } else {
-                    Ok(UInt8(a >> *b as u32))
-                }
-            }
-            (UInt16(a), UInt16(b)) => {
-                if *b >= 16 {
-                    Err("Right shift count out of range".to_string())
-                } else {
-                    Ok(UInt16(a >> *b as u32))
-                }
-            }
-            (UInt32(a), UInt32(b)) => {
-                if *b >= 32 {
-                    Err("Right shift count out of range".to_string())
-                } else {
-                    Ok(UInt32(a >> *b))
-                }
-            }
-            (UInt64(a), UInt64(b)) => {
-                if *b >= 64 {
-                    Err("Right shift count out of range".to_string())
-                } else {
-                    Ok(UInt64(a >> *b as u32))
+                    Ok(BigInt(a >> *b as u32))
                 }
             }
             _ => Err("Bitwise right shift is only supported for integer types".to_string()),
@@ -541,15 +451,9 @@ impl Value {
     pub fn bit_not(&self) -> Result<Value, String> {
         use Value::*;
         match self {
+            SmallInt(a) => Ok(SmallInt(!a)),
             Int(a) => Ok(Int(!a)),
-            Int8(a) => Ok(Int8(!a)),
-            Int16(a) => Ok(Int16(!a)),
-            Int32(a) => Ok(Int32(!a)),
-            Int64(a) => Ok(Int64(!a)),
-            UInt8(a) => Ok(UInt8(!a)),
-            UInt16(a) => Ok(UInt16(!a)),
-            UInt32(a) => Ok(UInt32(!a)),
-            UInt64(a) => Ok(UInt64(!a)),
+            BigInt(a) => Ok(BigInt(!a)),
             _ => Err("Bitwise NOT is only supported for integer types".to_string()),
         }
     }
@@ -558,26 +462,24 @@ impl Value {
     pub fn abs(&self) -> Result<Value, String> {
         use Value::*;
         match self {
+            SmallInt(a) => Ok(SmallInt(a.abs())),
             Int(a) => Ok(Int(a.abs())),
-            Int8(a) => Ok(Int8(a.abs())),
-            Int16(a) => Ok(Int16(a.abs())),
-            Int32(a) => Ok(Int32(a.abs())),
-            Int64(a) => Ok(Int64(a.abs())),
-            UInt8(_) | UInt16(_) | UInt32(_) | UInt64(_) => Ok(self.clone()),
+            BigInt(a) => Ok(BigInt(a.abs())),
             Float(a) => Ok(Float(a.abs())),
+            Double(a) => Ok(Double(a.abs())),
             _ => Err("Absolute value is only supported for numeric types".to_string()),
         }
     }
 
-    /// Length operation
-    pub fn length(&self) -> Result<Value, String> {
+    /// Get the length of a value (for strings, lists, maps, sets)
+    pub fn len(&self) -> Result<Value, String> {
         use Value::*;
         match self {
-            String(s) => Ok(Int(s.len() as i64)),
-            FixedString { data, .. } => Ok(Int(data.len() as i64)),
-            List(l) => Ok(Int(l.values.len() as i64)),
-            Map(m) => Ok(Int(m.len() as i64)),
-            Set(s) => Ok(Int(s.len() as i64)),
+            String(s) => Ok(Int(s.len() as i32)),
+            FixedString { data, .. } => Ok(Int(data.len() as i32)),
+            List(l) => Ok(Int(l.values.len() as i32)),
+            Map(m) => Ok(Int(m.len() as i32)),
+            Set(s) => Ok(Int(s.len() as i32)),
             _ => Err("Length operation is only supported for string, list, map, or set types".to_string()),
         }
     }

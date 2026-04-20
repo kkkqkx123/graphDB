@@ -87,8 +87,11 @@ macro_rules! define_unary_float_fn {
 
             let op = $op;
             match &args[0] {
-                Value::Int(i) => Ok(Value::Float(op(*i as f64))),
+                Value::SmallInt(i) => Ok(Value::Float(op(*i as f32))),
+                Value::Int(i) => Ok(Value::Float(op(*i as f32))),
+                Value::BigInt(i) => Ok(Value::Double(op(*i as f32) as f64)),
                 Value::Float(f) => Ok(Value::Float(op(*f))),
+                Value::Double(f) => Ok(Value::Double(op(*f as f32) as f64)),
                 Value::Null(_) => Ok(Value::Null(NullType::Null)),
                 _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     $desc,
@@ -114,8 +117,11 @@ macro_rules! define_unary_numeric_fn {
             }
 
             match &args[0] {
+                Value::SmallInt(i) => $int_op(*i as i32),
                 Value::Int(i) => $int_op(*i),
+                Value::BigInt(i) => $int_op(*i as i32),
                 Value::Float(f) => $float_op(*f),
+                Value::Double(f) => $float_op(*f as f32),
                 Value::Null(_) => Ok(Value::Null(NullType::Null)),
                 _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     $desc,
@@ -168,8 +174,8 @@ macro_rules! define_datetime_extractor {
             }
 
             match &args[0] {
-                Value::Date(d) => Ok(Value::Int(d.$date_field as i64)),
-                Value::DateTime(dt) => Ok(Value::Int(dt.$datetime_field as i64)),
+                Value::Date(d) => Ok(Value::BigInt(d.$date_field as i64)),
+                Value::DateTime(dt) => Ok(Value::BigInt(dt.$datetime_field as i64)),
                 Value::Null(_) => Ok(Value::Null(NullType::Null)),
                 _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     stringify!($name),
@@ -190,8 +196,8 @@ macro_rules! define_datetime_extractor {
             }
 
             match &args[0] {
-                Value::Time(t) => Ok(Value::Int(t.$time_field as i64)),
-                Value::DateTime(dt) => Ok(Value::Int(dt.$datetime_field as i64)),
+                Value::Time(t) => Ok(Value::BigInt(t.$time_field as i64)),
+                Value::DateTime(dt) => Ok(Value::BigInt(dt.$datetime_field as i64)),
                 Value::Null(_) => Ok(Value::Null(NullType::Null)),
                 _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     stringify!($name),
@@ -238,10 +244,15 @@ macro_rules! define_binary_numeric_fn {
 
             let op = $op;
             match (&args[0], &args[1]) {
-                (Value::Int(a), Value::Int(b)) => op(*a as f64, *b as f64),
-                (Value::Int(a), Value::Float(b)) => op(*a as f64, *b),
-                (Value::Float(a), Value::Int(b)) => op(*a, *b as f64),
+                (Value::SmallInt(a), Value::SmallInt(b)) => op(*a as f32, *b as f32),
+                (Value::Int(a), Value::Int(b)) => op(*a as f32, *b as f32),
+                (Value::BigInt(a), Value::BigInt(b)) => op(*a as f32, *b as f32),
+                (Value::SmallInt(a), Value::Int(b)) => op(*a as f32, *b as f32),
+                (Value::Int(a), Value::SmallInt(b)) => op(*a as f32, *b as f32),
                 (Value::Float(a), Value::Float(b)) => op(*a, *b),
+                (Value::Double(a), Value::Double(b)) => op(*a as f32, *b as f32),
+                (Value::Float(a), Value::Double(b)) => op(*a, *b as f32),
+                (Value::Double(a), Value::Float(b)) => op(*a as f32, *b),
                 (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
                 _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     $desc,

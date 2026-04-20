@@ -96,7 +96,7 @@ impl<S: StorageClient> Executor<S> for DescribeFulltextIndexExecutor<S> {
                 ],
                 vec![
                     Value::String("Space ID".to_string()),
-                    Value::Int(self.space_id as i64),
+                    Value::BigInt(self.space_id as i64),
                 ],
                 vec![
                     Value::String("Tag Name".to_string()),
@@ -109,7 +109,7 @@ impl<S: StorageClient> Executor<S> for DescribeFulltextIndexExecutor<S> {
                 vec![Value::String("Status".to_string()), Value::String(status)],
                 vec![
                     Value::String("Document Count".to_string()),
-                    Value::Int(stats.doc_count as i64),
+                    Value::BigInt(stats.doc_count as i64),
                 ],
                 vec![
                     Value::String("Index Size".to_string()),
@@ -124,7 +124,7 @@ impl<S: StorageClient> Executor<S> for DescribeFulltextIndexExecutor<S> {
                 ],
                 vec![
                     Value::String("Space ID".to_string()),
-                    Value::Int(self.space_id as i64),
+                    Value::BigInt(self.space_id as i64),
                 ],
                 vec![
                     Value::String("Tag Name".to_string()),

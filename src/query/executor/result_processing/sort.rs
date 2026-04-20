@@ -51,7 +51,7 @@ impl SortKey {
     /// Create a sorting key based on a column index.
     pub fn from_column_index(column_index: usize, order: SortOrder) -> Self {
         Self {
-            expression: Expression::Literal(Value::Int(column_index as i64)),
+            expression: Expression::Literal(Value::BigInt(column_index as i64)),
             order,
             column_index: Some(column_index),
         }

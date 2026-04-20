@@ -151,7 +151,7 @@ impl<S: StorageClient + Send + 'static> ProfileExecutor<S> {
         let mut operator_info = Vec::new();
 
         for node_desc in &plan_desc.plan_node_descs {
-            ids.push(Value::Int(node_desc.id));
+            ids.push(Value::BigInt(node_desc.id));
             names.push(Value::String(node_desc.name.clone()));
 
             let deps = node_desc

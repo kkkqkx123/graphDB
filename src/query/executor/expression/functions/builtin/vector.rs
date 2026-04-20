@@ -159,7 +159,7 @@ impl VectorFunction {
         let vec2 = extract_vector(&args[1])?;
 
         let similarity = compute_cosine_similarity(&vec1, &vec2)?;
-        Ok(Value::Float(similarity as f64))
+        Ok(Value::Double(similarity as f64))
     }
 
     /// Execute dot_product function
@@ -175,7 +175,7 @@ impl VectorFunction {
         let vec2 = extract_vector(&args[1])?;
 
         let dot = compute_dot_product(&vec1, &vec2)?;
-        Ok(Value::Float(dot as f64))
+        Ok(Value::Double(dot as f64))
     }
 
     /// Execute euclidean_distance function
@@ -194,7 +194,7 @@ impl VectorFunction {
         let vec2 = extract_vector(&args[1])?;
 
         let distance = compute_euclidean_distance(&vec1, &vec2)?;
-        Ok(Value::Float(distance as f64))
+        Ok(Value::Double(distance as f64))
     }
 
     /// Execute manhattan_distance function
@@ -213,7 +213,7 @@ impl VectorFunction {
         let vec2 = extract_vector(&args[1])?;
 
         let distance = compute_manhattan_distance(&vec1, &vec2)?;
-        Ok(Value::Float(distance as f64))
+        Ok(Value::Double(distance as f64))
     }
 
     /// Execute dimension function
@@ -226,7 +226,7 @@ impl VectorFunction {
         }
 
         let vec = extract_vector(&args[0])?;
-        Ok(Value::Int(vec.len() as i64))
+        Ok(Value::BigInt(vec.len() as i64))
     }
 
     /// Execute l2_norm function
@@ -240,7 +240,7 @@ impl VectorFunction {
 
         let vec = extract_vector(&args[0])?;
         let norm = compute_l2_norm(&vec);
-        Ok(Value::Float(norm as f64))
+        Ok(Value::Double(norm as f64))
     }
 
     /// Execute nnz function
@@ -254,7 +254,7 @@ impl VectorFunction {
 
         let vec = extract_vector(&args[0])?;
         let nnz = vec.iter().filter(|&&x| x != 0.0).count();
-        Ok(Value::Int(nnz as i64))
+        Ok(Value::BigInt(nnz as i64))
     }
 
     /// Execute normalize function
@@ -287,12 +287,11 @@ fn extract_vector(value: &Value) -> Result<Vec<f32>, ExpressionError> {
             let mut vec = Vec::with_capacity(list.values.len());
             for item in &list.values {
                 match item {
-                    Value::Float(f) => vec.push(*f as f32),
+                    Value::Float(f) => vec.push(*f),
+                    Value::Double(f) => vec.push(*f as f32),
+                    Value::SmallInt(i) => vec.push(*i as f32),
                     Value::Int(i) => vec.push(*i as f32),
-                    Value::Int8(i) => vec.push(*i as f32),
-                    Value::Int16(i) => vec.push(*i as f32),
-                    Value::Int32(i) => vec.push(*i as f32),
-                    Value::Int64(i) => vec.push(*i as f32),
+                    Value::BigInt(i) => vec.push(*i as f32),
                     _ => {
                         return Err(ExpressionError::new(
                             ExpressionErrorType::TypeError,

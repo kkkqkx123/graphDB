@@ -96,23 +96,23 @@ impl<S: StorageClient> ShowStatsExecutor<S> {
         let rows = vec![
             vec![
                 Value::String("Total Vertices".to_string()),
-                Value::Int(storage_stats.total_vertices as i64),
+                Value::BigInt(storage_stats.total_vertices as i64),
             ],
             vec![
                 Value::String("Total Edges".to_string()),
-                Value::Int(storage_stats.total_edges as i64),
+                Value::BigInt(storage_stats.total_edges as i64),
             ],
             vec![
                 Value::String("Total Spaces".to_string()),
-                Value::Int(storage_stats.total_spaces as i64),
+                Value::BigInt(storage_stats.total_spaces as i64),
             ],
             vec![
                 Value::String("Total Tags".to_string()),
-                Value::Int(storage_stats.total_tags as i64),
+                Value::BigInt(storage_stats.total_tags as i64),
             ],
             vec![
                 Value::String("Total Edge Types".to_string()),
-                Value::Int(storage_stats.total_edge_types as i64),
+                Value::BigInt(storage_stats.total_edge_types as i64),
             ],
         ];
 
@@ -130,9 +130,9 @@ impl<S: StorageClient> ShowStatsExecutor<S> {
             .map(|space| {
                 vec![
                     Value::String(space.space_name.clone()),
-                    Value::Int(space.space_id as i64),
-                    Value::Int(space.tags.len() as i64),
-                    Value::Int(space.edge_types.len() as i64),
+                    Value::BigInt(space.space_id as i64),
+                    Value::BigInt(space.tags.len() as i64),
+                    Value::BigInt(space.edge_types.len() as i64),
                 ]
             })
             .collect();
@@ -192,7 +192,7 @@ mod tests {
                         if row.len() >= 2 {
                             if let (
                                 crate::core::Value::String(key),
-                                crate::core::Value::Int(value),
+                                crate::core::Value::BigInt(value),
                             ) = (&row[0], &row[1])
                             {
                                 Some((key.clone(), *value))

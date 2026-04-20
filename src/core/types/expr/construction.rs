@@ -206,14 +206,24 @@ impl Expression {
         Expression::Literal(Value::Bool(value))
     }
 
-    /// Creating integer literal values
-    pub fn int(value: i64) -> Self {
+    /// Creating integer literal values (i32)
+    pub fn int(value: i32) -> Self {
         Expression::Literal(Value::Int(value))
     }
 
-    /// Creating a floating-point numeric literal
-    pub fn float(value: f64) -> Self {
+    /// Creating bigint literal values (i64)
+    pub fn bigint(value: i64) -> Self {
+        Expression::Literal(Value::BigInt(value))
+    }
+
+    /// Creating a floating-point numeric literal (f32)
+    pub fn float(value: f32) -> Self {
         Expression::Literal(Value::Float(value))
+    }
+
+    /// Creating a double-precision numeric literal (f64)
+    pub fn double(value: f64) -> Self {
+        Expression::Literal(Value::Double(value))
     }
 
     /// Creating a string literal

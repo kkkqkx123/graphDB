@@ -27,17 +27,13 @@ pub enum DataType {
     Empty,
     Null,
     Bool,
-    Int,
-    Int8,
-    Int16,
-    Int32,
-    Int64,
-    UInt8,
-    UInt16,
-    UInt32,
-    UInt64,
-    Float,
-    Double,
+    // Integer types: simplified to 3 types (aligned with PostgreSQL)
+    SmallInt,   // i16
+    Int,        // i32
+    BigInt,     // i64
+    // Floating point types: 2 types (standard practice)
+    Float,      // f32
+    Double,     // f64
     Decimal128,
     String,
     Date,
@@ -72,15 +68,9 @@ impl std::fmt::Display for DataType {
             DataType::Empty => write!(f, "EMPTY"),
             DataType::Null => write!(f, "NULL"),
             DataType::Bool => write!(f, "BOOL"),
+            DataType::SmallInt => write!(f, "SMALLINT"),
             DataType::Int => write!(f, "INT"),
-            DataType::Int8 => write!(f, "INT8"),
-            DataType::Int16 => write!(f, "INT16"),
-            DataType::Int32 => write!(f, "INT32"),
-            DataType::Int64 => write!(f, "INT64"),
-            DataType::UInt8 => write!(f, "UINT8"),
-            DataType::UInt16 => write!(f, "UINT16"),
-            DataType::UInt32 => write!(f, "UINT32"),
-            DataType::UInt64 => write!(f, "UINT64"),
+            DataType::BigInt => write!(f, "BIGINT"),
             DataType::Float => write!(f, "FLOAT"),
             DataType::Double => write!(f, "DOUBLE"),
             DataType::Decimal128 => write!(f, "DECIMAL128"),

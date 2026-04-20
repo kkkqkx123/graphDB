@@ -117,7 +117,7 @@ impl ExecutionContext {
     pub fn set_space_id(&self, space_id: u64) {
         self.variables
             .lock()
-            .insert("space_id".to_string(), Value::Int(space_id as i64));
+            .insert("space_id".to_string(), Value::BigInt(space_id as i64));
     }
 }
 

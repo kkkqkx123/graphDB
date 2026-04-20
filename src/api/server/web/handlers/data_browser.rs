@@ -104,7 +104,7 @@ async fn list_vertices_by_tag<S: StorageClient + Clone + Send + Sync + 'static>(
                     .first()
                     .and_then(|row| row.first())
                     .and_then(|val| match val {
-                        Value::Int64(c) => Some(*c),
+                        Value::BigInt(c) => Some(*c),
                         _ => None,
                     })
                     .unwrap_or(0),
@@ -190,7 +190,7 @@ async fn list_edges_by_type<S: StorageClient + Clone + Send + Sync + 'static>(
                     .first()
                     .and_then(|row| row.first())
                     .and_then(|val| match val {
-                        Value::Int64(c) => Some(*c),
+                        Value::BigInt(c) => Some(*c),
                         _ => None,
                     })
                     .unwrap_or(0),

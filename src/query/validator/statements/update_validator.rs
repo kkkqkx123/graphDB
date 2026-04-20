@@ -464,7 +464,7 @@ impl UpdateValidator {
         })?;
 
         match value {
-            Value::Int(i) => Ok(i),
+            Value::BigInt(i) => Ok(i),
             _ => Err(CoreValidationError::new(
                 "Rank must be an integer".to_string(),
                 ValidationErrorType::TypeMismatch,

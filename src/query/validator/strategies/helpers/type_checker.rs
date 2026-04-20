@@ -379,21 +379,17 @@ impl TypeValidator {
     ) -> DataType {
         let left_is_numeric = matches!(
             left_type,
-            DataType::Int
-                | DataType::Int8
-                | DataType::Int16
-                | DataType::Int32
-                | DataType::Int64
+            DataType::SmallInt
+                | DataType::Int
+                | DataType::BigInt
                 | DataType::Float
                 | DataType::Double
         );
         let right_is_numeric = matches!(
             right_type,
-            DataType::Int
-                | DataType::Int8
-                | DataType::Int16
-                | DataType::Int32
-                | DataType::Int64
+            DataType::SmallInt
+                | DataType::Int
+                | DataType::BigInt
                 | DataType::Float
                 | DataType::Double
         );
@@ -426,11 +422,9 @@ impl TypeValidator {
             crate::core::UnaryOperator::Minus | crate::core::UnaryOperator::Plus => {
                 let is_numeric = matches!(
                     operand_type,
-                    DataType::Int
-                        | DataType::Int8
-                        | DataType::Int16
-                        | DataType::Int32
-                        | DataType::Int64
+                    DataType::SmallInt
+                        | DataType::Int
+                        | DataType::BigInt
                         | DataType::Float
                         | DataType::Double
                 );

@@ -106,7 +106,7 @@ fn execute_now(_args: &[Value]) -> Result<Value, ExpressionError> {
         .duration_since(UNIX_EPOCH)
         .expect("system time error")
         .as_millis();
-    Ok(Value::Int(now as i64))
+    Ok(Value::BigInt(now as i64))
 }
 
 fn execute_date(args: &[Value]) -> Result<Value, ExpressionError> {
@@ -224,7 +224,7 @@ fn execute_timestamp(args: &[Value]) -> Result<Value, ExpressionError> {
             .duration_since(UNIX_EPOCH)
             .expect("system time error")
             .as_millis();
-        Ok(Value::Int(now as i64))
+        Ok(Value::BigInt(now as i64))
     } else {
         match &args[0] {
             Value::DateTime(dt) => {
@@ -235,7 +235,7 @@ fn execute_timestamp(args: &[Value]) -> Result<Value, ExpressionError> {
                         .ok_or_else(|| ExpressionError::type_error("lapse"))?,
                 );
                 let timestamp = naive_dt.and_utc().timestamp_millis();
-                Ok(Value::Int(timestamp))
+                Ok(Value::BigInt(timestamp))
             }
             Value::Null(_) => Ok(Value::Null(NullType::Null)),
             _ => Err(ExpressionError::type_error(

@@ -115,7 +115,7 @@ impl<S: StorageClient> Executor<S> for MatchFulltextExecutor<S> {
                                     Value::Null(crate::core::null::NullType::Null)
                                 }
                             }
-                            YieldExpression::Score(_) => Value::Float(result.score as f64),
+                            YieldExpression::Score(_) => Value::Double(result.score as f64),
                             YieldExpression::Highlight(_, _) => {
                                 if let Some(ref highlights) = result.highlights {
                                     Value::String(highlights.join(" ... "))
@@ -175,7 +175,7 @@ impl<S: StorageClient> Executor<S> for MatchFulltextExecutor<S> {
                     }
                 } else {
                     row.insert("doc_id".to_string(), result.doc_id.clone());
-                    row.insert("score".to_string(), Value::Float(result.score as f64));
+                    row.insert("score".to_string(), Value::Double(result.score as f64));
                 }
 
                 rows.push(row);
@@ -186,16 +186,20 @@ impl<S: StorageClient> Executor<S> for MatchFulltextExecutor<S> {
             let score_a = a
                 .get("score")
                 .and_then(|v| match v {
-                    Value::Float(f) => Some(*f),
+                    Value::Float(f) => Some(*f as f64),
+                    Value::Double(f) => Some(*f),
                     Value::Int(i) => Some(*i as f64),
+                    Value::BigInt(i) => Some(*i as f64),
                     _ => None,
                 })
                 .unwrap_or(0.0);
             let score_b = b
                 .get("score")
                 .and_then(|v| match v {
-                    Value::Float(f) => Some(*f),
+                    Value::Float(f) => Some(*f as f64),
+                    Value::Double(f) => Some(*f),
                     Value::Int(i) => Some(*i as f64),
+                    Value::BigInt(i) => Some(*i as f64),
                     _ => None,
                 })
                 .unwrap_or(0.0);

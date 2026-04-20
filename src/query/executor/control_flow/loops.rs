@@ -131,7 +131,7 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
         // 注意：current_iteration 已经在 execute() 方法中递增
         self.loop_context.set_variable(
             "__iteration".to_string(),
-            Value::Int(self.current_iteration as i64),
+            Value::BigInt(self.current_iteration as i64),
         );
 
         let result = self.body_executor.execute()?;
@@ -237,7 +237,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
 
             self.loop_context.set_variable(
                 "__iteration".to_string(),
-                Value::Int(self.current_iteration as i64),
+                Value::BigInt(self.current_iteration as i64),
             );
 
             let should_continue = match self.evaluate_condition() {
@@ -443,7 +443,7 @@ impl<S: StorageClient + Send + 'static> ForLoopExecutor<S> {
             base_config.expr_context,
         );
 
-        executor.set_loop_variable(config.loop_var.clone(), Value::Int(config.start));
+        executor.set_loop_variable(config.loop_var.clone(), Value::BigInt(config.start));
 
         Self {
             inner: executor,
@@ -464,7 +464,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S
 
         while (self.step > 0 && current <= self.end) || (self.step < 0 && current >= self.end) {
             self.inner
-                .set_loop_variable(self.loop_var.clone(), Value::Int(current));
+                .set_loop_variable(self.loop_var.clone(), Value::BigInt(current));
 
             let result = self.inner.execute_iteration()?;
             results.push(result);

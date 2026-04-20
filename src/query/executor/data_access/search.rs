@@ -261,12 +261,20 @@ impl<S: StorageClient> IndexScanExecutor<S> {
     fn coerce_value(target_type: &Value, str_val: &str) -> Value {
         match target_type {
             Value::Int(_) => str_val
-                .parse::<i64>()
+                .parse::<i32>()
                 .map(Value::Int)
                 .unwrap_or(Value::String(str_val.to_string())),
+            Value::BigInt(_) => str_val
+                .parse::<i64>()
+                .map(Value::BigInt)
+                .unwrap_or(Value::String(str_val.to_string())),
             Value::Float(_) => str_val
-                .parse::<f64>()
+                .parse::<f32>()
                 .map(Value::Float)
+                .unwrap_or(Value::String(str_val.to_string())),
+            Value::Double(_) => str_val
+                .parse::<f64>()
+                .map(Value::Double)
                 .unwrap_or(Value::String(str_val.to_string())),
             Value::Bool(_) => str_val
                 .parse::<bool>()
@@ -291,7 +299,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         }
         match column_name {
             "vid" => Some((*vertex.vid).clone()),
-            "id" => Some(Value::Int(vertex.id)),
+            "id" => Some(Value::BigInt(vertex.id)),
             _ => None,
         }
     }
@@ -303,7 +311,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         match column_name {
             "src" => Some((*edge.src).clone()),
             "dst" => Some((*edge.dst).clone()),
-            "ranking" => Some(Value::Int(edge.ranking)),
+            "ranking" => Some(Value::BigInt(edge.ranking)),
             _ => None,
         }
     }
@@ -324,12 +332,12 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                     if parts.len() >= 2 {
                         // Try to parse as integers first (since that's how they were inserted)
                         let src = if let Ok(src_int) = parts[0].parse::<i64>() {
-                            Value::Int(src_int)
+                            Value::BigInt(src_int)
                         } else {
                             Value::String(parts[0].to_string())
                         };
                         let dst = if let Ok(dst_int) = parts[1].parse::<i64>() {
-                            Value::Int(dst_int)
+                            Value::BigInt(dst_int)
                         } else {
                             Value::String(parts[1].to_string())
                         };
@@ -411,7 +419,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                                 props.insert(key, (*vertex.vid).clone());
                             }
                             "id" => {
-                                props.insert(key, Value::Int(vertex.id));
+                                props.insert(key, Value::BigInt(vertex.id));
                             }
                             "*" => {
                                 for (k, v) in &vertex.properties {
@@ -443,7 +451,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                                 props.insert(key, Value::String(edge.edge_type.clone()));
                             }
                             "ranking" => {
-                                props.insert(key, Value::Int(edge.ranking));
+                                props.insert(key, Value::BigInt(edge.ranking));
                             }
                             "*" => {
                                 for (k, v) in &edge.props {
@@ -469,9 +477,11 @@ impl<S: StorageClient> IndexScanExecutor<S> {
     fn compare_values(a: &Value, b: &Value) -> Option<std::cmp::Ordering> {
         match (a, b) {
             (Value::Int(a_i), Value::Int(b_i)) => Some(a_i.cmp(b_i)),
+            (Value::BigInt(a_i), Value::BigInt(b_i)) => Some(a_i.cmp(b_i)),
             (Value::Float(a_f), Value::Float(b_f)) => a_f.partial_cmp(b_f),
-            (Value::Int(a_i), Value::Float(b_f)) => (*a_i as f64).partial_cmp(b_f),
-            (Value::Float(a_f), Value::Int(b_i)) => a_f.partial_cmp(&(*b_i as f64)),
+            (Value::Double(a_f), Value::Double(b_f)) => a_f.partial_cmp(b_f),
+            (Value::Int(a_i), Value::Double(b_f)) => (*a_i as f64).partial_cmp(b_f),
+            (Value::Double(a_f), Value::Int(b_i)) => a_f.partial_cmp(&(*b_i as f64)),
             (Value::String(a_s), Value::String(b_s)) => Some(a_s.cmp(b_s)),
             _ => None,
         }

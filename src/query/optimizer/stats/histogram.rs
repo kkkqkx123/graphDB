@@ -259,10 +259,11 @@ fn compare_values(a: &Value, b: &Value) -> std::cmp::Ordering {
     use std::cmp::Ordering;
 
     match (a, b) {
+        (Value::SmallInt(a), Value::SmallInt(b)) => a.cmp(b),
         (Value::Int(a), Value::Int(b)) => a.cmp(b),
+        (Value::BigInt(a), Value::BigInt(b)) => a.cmp(b),
         (Value::Float(a), Value::Float(b)) => a.partial_cmp(b).unwrap_or(Ordering::Equal),
-        (Value::Int(a), Value::Float(b)) => (*a as f64).partial_cmp(b).unwrap_or(Ordering::Equal),
-        (Value::Float(a), Value::Int(b)) => a.partial_cmp(&(*b as f64)).unwrap_or(Ordering::Equal),
+        (Value::Double(a), Value::Double(b)) => a.partial_cmp(b).unwrap_or(Ordering::Equal),
         (Value::String(a), Value::String(b)) => a.cmp(b),
         (Value::Bool(a), Value::Bool(b)) => a.cmp(b),
         // Different types are sorted by their type (using the type ID as the sorting criterion).

@@ -7,7 +7,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 /// Geographic Information Representation
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Encode, Decode)]
 pub struct GeographyValue {
     pub latitude: f64,
     pub longitude: f64,

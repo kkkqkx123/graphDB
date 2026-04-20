@@ -270,13 +270,19 @@ impl HeuristicFunction {
             HeuristicFunction::PropertyDistance(lat_prop, lon_prop) => {
                 let get_coords = |props: &std::collections::HashMap<String, crate::core::Value>| -> Option<(f64, f64)> {
                     let lat = props.get(lat_prop).and_then(|v| match v {
-                        crate::core::Value::Float(f) => Some(*f),
+                        crate::core::Value::Float(f) => Some((*f).into()),
+                        crate::core::Value::Double(f) => Some(*f),
+                        crate::core::Value::SmallInt(i) => Some(*i as f64),
                         crate::core::Value::Int(i) => Some(*i as f64),
+                        crate::core::Value::BigInt(i) => Some(*i as f64),
                         _ => None,
                     });
                     let lon = props.get(lon_prop).and_then(|v| match v {
-                        crate::core::Value::Float(f) => Some(*f),
+                        crate::core::Value::Float(f) => Some((*f).into()),
+                        crate::core::Value::Double(f) => Some(*f),
+                        crate::core::Value::SmallInt(i) => Some(*i as f64),
                         crate::core::Value::Int(i) => Some(*i as f64),
+                        crate::core::Value::BigInt(i) => Some(*i as f64),
                         _ => None,
                     });
                     match (lat, lon) {

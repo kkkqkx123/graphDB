@@ -14,10 +14,9 @@ use parking_lot::Mutex;
 impl SpaceInfo {
     pub fn from_executor(executor_info: &ExecutorSpaceInfo) -> Self {
         let vid_type = match executor_info.vid_type.as_str() {
-            "INT64" => DataType::Int64,
-            "INT32" => DataType::Int32,
-            "INT16" => DataType::Int16,
-            "INT8" => DataType::Int8,
+            "INT64" | "BIGINT" => DataType::BigInt,
+            "INT32" | "INT" | "INTEGER" => DataType::Int,
+            "INT16" | "SMALLINT" => DataType::SmallInt,
             _ => DataType::String,
         };
 

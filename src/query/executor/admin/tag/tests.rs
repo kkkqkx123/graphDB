@@ -21,7 +21,7 @@ mod tests {
         ));
         let properties = vec![
             PropertyDef::new("name".to_string(), DataType::String),
-            PropertyDef::new("age".to_string(), DataType::Int32),
+            PropertyDef::new("age".to_string(), DataType::Int),
         ];
         let tag_info = ExecutorTagInfo::new("test_space".to_string(), "person".to_string())
             .with_properties(properties);
@@ -147,7 +147,7 @@ mod tests {
     fn test_executor_tag_info_builder() {
         let properties = vec![
             PropertyDef::new("name".to_string(), DataType::String),
-            PropertyDef::new("age".to_string(), DataType::Int32),
+            PropertyDef::new("age".to_string(), DataType::Int),
         ];
         let tag_info = ExecutorTagInfo::new("my_space".to_string(), "person".to_string())
             .with_properties(properties)

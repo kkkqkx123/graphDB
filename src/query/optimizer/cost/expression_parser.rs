@@ -239,13 +239,16 @@ impl ExpressionParser {
 
         match name_lower.as_str() {
             "abs" if args.len() == 1 => match args[0] {
+                Value::SmallInt(i) => Some(Value::SmallInt(i.abs())),
                 Value::Int(i) => Some(Value::Int(i.abs())),
+                Value::BigInt(i) => Some(Value::BigInt(i.abs())),
                 Value::Float(f) => Some(Value::Float(f.abs())),
+                Value::Double(f) => Some(Value::Double(f.abs())),
                 _ => None,
             },
             "length" | "size" if args.len() == 1 => match args[0] {
-                Value::String(s) => Some(Value::Int(s.len() as i64)),
-                Value::List(list) => Some(Value::Int(list.len() as i64)),
+                Value::String(s) => Some(Value::BigInt(s.len() as i64)),
+                Value::List(list) => Some(Value::BigInt(list.len() as i64)),
                 _ => None,
             },
             "upper" | "toupper" if args.len() == 1 => match args[0] {
@@ -257,11 +260,11 @@ impl ExpressionParser {
                 _ => None,
             },
             "substring" | "substr" if args.len() >= 2 => match (args[0], args.get(1).copied()) {
-                (Value::String(s), Some(Value::Int(start))) => {
+                (Value::String(s), Some(Value::BigInt(start))) => {
                     let start_idx = if *start >= 0 { *start as usize } else { 0 };
                     let end_idx = if args.len() >= 3 {
                         match args[2] {
-                            Value::Int(len) => start_idx + (*len as usize),
+                            Value::BigInt(len) => start_idx + (*len as usize),
                             _ => s.len(),
                         }
                     } else {
@@ -288,10 +291,11 @@ impl ExpressionParser {
 
     fn add_values(&self, left: &Value, right: &Value) -> Option<Value> {
         match (left, right) {
+            (Value::SmallInt(l), Value::SmallInt(r)) => Some(Value::SmallInt(l + r)),
             (Value::Int(l), Value::Int(r)) => Some(Value::Int(l + r)),
+            (Value::BigInt(l), Value::BigInt(r)) => Some(Value::BigInt(l + r)),
             (Value::Float(l), Value::Float(r)) => Some(Value::Float(l + r)),
-            (Value::Int(l), Value::Float(r)) => Some(Value::Float(*l as f64 + r)),
-            (Value::Float(l), Value::Int(r)) => Some(Value::Float(l + *r as f64)),
+            (Value::Double(l), Value::Double(r)) => Some(Value::Double(l + r)),
             (Value::String(l), Value::String(r)) => Some(Value::String(format!("{}{}", l, r))),
             _ => None,
         }
@@ -299,47 +303,53 @@ impl ExpressionParser {
 
     fn subtract_values(&self, left: &Value, right: &Value) -> Option<Value> {
         match (left, right) {
+            (Value::SmallInt(l), Value::SmallInt(r)) => Some(Value::SmallInt(l - r)),
             (Value::Int(l), Value::Int(r)) => Some(Value::Int(l - r)),
+            (Value::BigInt(l), Value::BigInt(r)) => Some(Value::BigInt(l - r)),
             (Value::Float(l), Value::Float(r)) => Some(Value::Float(l - r)),
-            (Value::Int(l), Value::Float(r)) => Some(Value::Float(*l as f64 - r)),
-            (Value::Float(l), Value::Int(r)) => Some(Value::Float(l - *r as f64)),
+            (Value::Double(l), Value::Double(r)) => Some(Value::Double(l - r)),
             _ => None,
         }
     }
 
     fn multiply_values(&self, left: &Value, right: &Value) -> Option<Value> {
         match (left, right) {
+            (Value::SmallInt(l), Value::SmallInt(r)) => Some(Value::SmallInt(l * r)),
             (Value::Int(l), Value::Int(r)) => Some(Value::Int(l * r)),
+            (Value::BigInt(l), Value::BigInt(r)) => Some(Value::BigInt(l * r)),
             (Value::Float(l), Value::Float(r)) => Some(Value::Float(l * r)),
-            (Value::Int(l), Value::Float(r)) => Some(Value::Float(*l as f64 * r)),
-            (Value::Float(l), Value::Int(r)) => Some(Value::Float(l * *r as f64)),
+            (Value::Double(l), Value::Double(r)) => Some(Value::Double(l * r)),
             _ => None,
         }
     }
 
     fn divide_values(&self, left: &Value, right: &Value) -> Option<Value> {
         match (left, right) {
+            (Value::SmallInt(l), Value::SmallInt(r)) if *r != 0 => Some(Value::SmallInt(l / r)),
             (Value::Int(l), Value::Int(r)) if *r != 0 => Some(Value::Int(l / r)),
+            (Value::BigInt(l), Value::BigInt(r)) if *r != 0 => Some(Value::BigInt(l / r)),
             (Value::Float(l), Value::Float(r)) if *r != 0.0 => Some(Value::Float(l / r)),
-            (Value::Int(l), Value::Float(r)) if *r != 0.0 => Some(Value::Float(*l as f64 / r)),
-            (Value::Float(l), Value::Int(r)) if *r != 0 => Some(Value::Float(l / *r as f64)),
+            (Value::Double(l), Value::Double(r)) if *r != 0.0 => Some(Value::Double(l / r)),
             _ => None,
         }
     }
 
     fn modulo_values(&self, left: &Value, right: &Value) -> Option<Value> {
         match (left, right) {
+            (Value::SmallInt(l), Value::SmallInt(r)) if *r != 0 => Some(Value::SmallInt(l % r)),
             (Value::Int(l), Value::Int(r)) if *r != 0 => Some(Value::Int(l % r)),
+            (Value::BigInt(l), Value::BigInt(r)) if *r != 0 => Some(Value::BigInt(l % r)),
             _ => None,
         }
     }
 
     fn compare_values(&self, left: &Value, right: &Value) -> Option<std::cmp::Ordering> {
         match (left, right) {
+            (Value::SmallInt(l), Value::SmallInt(r)) => Some(l.cmp(r)),
             (Value::Int(l), Value::Int(r)) => Some(l.cmp(r)),
+            (Value::BigInt(l), Value::BigInt(r)) => Some(l.cmp(r)),
             (Value::Float(l), Value::Float(r)) => l.partial_cmp(r),
-            (Value::Int(l), Value::Float(r)) => (*l as f64).partial_cmp(r),
-            (Value::Float(l), Value::Int(r)) => l.partial_cmp(&(*r as f64)),
+            (Value::Double(l), Value::Double(r)) => l.partial_cmp(r),
             (Value::String(l), Value::String(r)) => Some(l.cmp(r)),
             (Value::Bool(l), Value::Bool(r)) => Some(l.cmp(r)),
             _ => None,

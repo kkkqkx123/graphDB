@@ -113,7 +113,7 @@ impl InsertPlanner {
         expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Vec<YieldColumn> {
         let expr =
-            ExprFactory::constant(crate::core::Value::Int(count as i64), expr_context.clone());
+            ExprFactory::constant(crate::core::Value::BigInt(count as i64), expr_context.clone());
         vec![YieldColumn::new(expr, "inserted_count".to_string())]
     }
 }

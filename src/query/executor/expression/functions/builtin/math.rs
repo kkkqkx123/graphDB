@@ -208,62 +208,62 @@ define_function_enum! {
 
 define_unary_numeric_fn!(
     execute_abs,
-    int: |i: i64| Ok(Value::Int(i.abs())),
-    float: |f: f64| Ok(Value::Float(f.abs())),
+    int: |i: i32| Ok(Value::Int(i.abs())),
+    float: |f: f32| Ok(Value::Float(f.abs())),
     "abs"
 );
 
-define_unary_float_fn!(execute_sqrt, |v: f64| v.sqrt(), "sqrt");
-define_unary_float_fn!(execute_sin, |v: f64| v.sin(), "sin");
-define_unary_float_fn!(execute_cos, |v: f64| v.cos(), "cos");
-define_unary_float_fn!(execute_tan, |v: f64| v.tan(), "tan");
-define_unary_float_fn!(execute_log10, |v: f64| v.log10(), "log10");
+define_unary_float_fn!(execute_sqrt, |v: f32| v.sqrt(), "sqrt");
+define_unary_float_fn!(execute_sin, |v: f32| v.sin(), "sin");
+define_unary_float_fn!(execute_cos, |v: f32| v.cos(), "cos");
+define_unary_float_fn!(execute_tan, |v: f32| v.tan(), "tan");
+define_unary_float_fn!(execute_log10, |v: f32| v.log10(), "log10");
 
 define_unary_numeric_fn!(
     execute_round,
-    int: |i: i64| Ok(Value::Int(i)),
-    float: |f: f64| Ok(Value::Float(f.round())),
+    int: |i: i32| Ok(Value::Int(i)),
+    float: |f: f32| Ok(Value::Float(f.round())),
     "round"
 );
 
 define_unary_numeric_fn!(
     execute_ceil,
-    int: |i: i64| Ok(Value::Float(i as f64)),
-    float: |f: f64| Ok(Value::Float(f.ceil())),
+    int: |i: i32| Ok(Value::Float(i as f32)),
+    float: |f: f32| Ok(Value::Float(f.ceil())),
     "ceil"
 );
 
 define_unary_numeric_fn!(
     execute_floor,
-    int: |i: i64| Ok(Value::Float(i as f64)),
-    float: |f: f64| Ok(Value::Float(f.floor())),
+    int: |i: i32| Ok(Value::Float(i as f32)),
+    float: |f: f32| Ok(Value::Float(f.floor())),
     "floor"
 );
 
 define_binary_numeric_fn!(
     execute_pow,
-    |a: f64, b: f64| Ok(Value::Float(a.powf(b))),
+    |a: f32, b: f32| Ok(Value::Float(a.powf(b))),
     "pow"
 );
 
 define_binary_numeric_fn!(
     execute_log,
-    |base: f64, val: f64| Ok(Value::Float(val.log(base))),
+    |base: f32, val: f32| Ok(Value::Float(val.log(base))),
     "log"
 );
 
 // New implementation of mathematical functions
-define_unary_float_fn!(execute_asin, |v: f64| v.asin(), "asin");
-define_unary_float_fn!(execute_acos, |v: f64| v.acos(), "acos");
-define_unary_float_fn!(execute_atan, |v: f64| v.atan(), "atan");
-define_unary_float_fn!(execute_cbrt, |v: f64| v.cbrt(), "cbrt");
-define_unary_float_fn!(execute_exp2, |v: f64| v.exp2(), "exp2");
-define_unary_float_fn!(execute_log2, |v: f64| v.log2(), "log2");
-define_unary_float_fn!(execute_radians, |v: f64| v.to_radians(), "radians");
+define_unary_float_fn!(execute_asin, |v: f32| v.asin(), "asin");
+define_unary_float_fn!(execute_acos, |v: f32| v.acos(), "acos");
+define_unary_float_fn!(execute_atan, |v: f32| v.atan(), "atan");
+define_unary_float_fn!(execute_cbrt, |v: f32| v.cbrt(), "cbrt");
+define_unary_float_fn!(execute_exp2, |v: f32| v.exp2(), "exp2");
+define_unary_float_fn!(execute_log2, |v: f32| v.log2(), "log2");
+define_unary_float_fn!(execute_radians, |v: f32| v.to_radians(), "radians");
 
 define_binary_numeric_fn!(
     execute_hypot,
-    |a: f64, b: f64| Ok(Value::Float(a.hypot(b))),
+    |a: f32, b: f32| Ok(Value::Float(a.hypot(b))),
     "hypot"
 );
 
@@ -272,8 +272,11 @@ fn execute_sign(args: &[Value]) -> Result<Value, ExpressionError> {
         return Err(ExpressionError::type_error("The sign function takes 1 argument"));
     }
     match &args[0] {
+        Value::SmallInt(i) => Ok(Value::SmallInt(i.signum())),
         Value::Int(i) => Ok(Value::Int(i.signum())),
-        Value::Float(f) => Ok(Value::Int(f.signum() as i64)),
+        Value::BigInt(i) => Ok(Value::BigInt(i.signum())),
+        Value::Float(f) => Ok(Value::Int(f.signum() as i32)),
+        Value::Double(f) => Ok(Value::BigInt(f.signum() as i64)),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
         _ => Err(ExpressionError::type_error("The sign function requires a numeric type")),
     }
@@ -282,16 +285,16 @@ fn execute_sign(args: &[Value]) -> Result<Value, ExpressionError> {
 fn execute_rand(_args: &[Value]) -> Result<Value, ExpressionError> {
     use rand::Rng;
     let mut rng = rand::thread_rng();
-    Ok(Value::Float(rng.gen::<f64>()))
+    Ok(Value::Double(rng.gen::<f64>()))
 }
 
 fn execute_rand32(args: &[Value]) -> Result<Value, ExpressionError> {
     use rand::Rng;
     let mut rng = rand::thread_rng();
     let result = match args.len() {
-        0 => rng.gen::<i32>() as i64,
+        0 => rng.gen::<i32>(),
         1 => match &args[0] {
-            Value::Int(max) => rng.gen_range(0..*max) as i64,
+            Value::Int(max) => rng.gen_range(0..*max),
             Value::Null(_) => return Ok(Value::Null(NullType::Null)),
             _ => return Err(ExpressionError::type_error("The rand32 function takes integer arguments")),
         },
@@ -308,15 +311,15 @@ fn execute_rand32(args: &[Value]) -> Result<Value, ExpressionError> {
 fn execute_rand64(_args: &[Value]) -> Result<Value, ExpressionError> {
     use rand::Rng;
     let mut rng = rand::thread_rng();
-    Ok(Value::Int(rng.gen::<i64>()))
+    Ok(Value::BigInt(rng.gen::<i64>()))
 }
 
 fn execute_e(_args: &[Value]) -> Result<Value, ExpressionError> {
-    Ok(Value::Float(std::f64::consts::E))
+    Ok(Value::Double(std::f64::consts::E))
 }
 
 fn execute_pi(_args: &[Value]) -> Result<Value, ExpressionError> {
-    Ok(Value::Float(std::f64::consts::PI))
+    Ok(Value::Double(std::f64::consts::PI))
 }
 
 fn execute_bit_and(args: &[Value]) -> Result<Value, ExpressionError> {
@@ -324,7 +327,9 @@ fn execute_bit_and(args: &[Value]) -> Result<Value, ExpressionError> {
         return Err(ExpressionError::type_error("The bit_and function takes 2 arguments"));
     }
     match (&args[0], &args[1]) {
+        (Value::SmallInt(a), Value::SmallInt(b)) => Ok(Value::SmallInt(a & b)),
         (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a & b)),
+        (Value::BigInt(a), Value::BigInt(b)) => Ok(Value::BigInt(a & b)),
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
         _ => Err(ExpressionError::type_error("The bit_and function takes integer arguments")),
     }
@@ -335,7 +340,9 @@ fn execute_bit_or(args: &[Value]) -> Result<Value, ExpressionError> {
         return Err(ExpressionError::type_error("The bit_or function takes 2 arguments"));
     }
     match (&args[0], &args[1]) {
+        (Value::SmallInt(a), Value::SmallInt(b)) => Ok(Value::SmallInt(a | b)),
         (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a | b)),
+        (Value::BigInt(a), Value::BigInt(b)) => Ok(Value::BigInt(a | b)),
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
         _ => Err(ExpressionError::type_error("The bit_or function takes integer arguments")),
     }
@@ -346,7 +353,9 @@ fn execute_bit_xor(args: &[Value]) -> Result<Value, ExpressionError> {
         return Err(ExpressionError::type_error("The bit_xor function takes 2 arguments"));
     }
     match (&args[0], &args[1]) {
+        (Value::SmallInt(a), Value::SmallInt(b)) => Ok(Value::SmallInt(a ^ b)),
         (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a ^ b)),
+        (Value::BigInt(a), Value::BigInt(b)) => Ok(Value::BigInt(a ^ b)),
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
         _ => Err(ExpressionError::type_error("The bit_xor function takes integer arguments")),
     }

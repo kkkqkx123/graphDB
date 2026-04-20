@@ -156,16 +156,16 @@ impl<'a> StorageRollbackExecutor<'a> {
 
     /// Parsing Debug Format Strings for Value
     fn parse_value_debug(&self, s: &str) -> Result<Value, StorageError> {
-        if s.starts_with("Int(") && s.ends_with(')') {
-            let inner = &s[4..s.len() - 1];
+        if s.starts_with("BigInt(") && s.ends_with(')') {
+            let inner = &s[7..s.len() - 1];
             if let Ok(id) = inner.parse::<i64>() {
-                return Ok(Value::Int(id));
+                return Ok(Value::BigInt(id));
             }
         } else if s.starts_with("String(\"") && s.ends_with("\")") {
             let inner = &s[8..s.len() - 2];
             return Ok(Value::String(inner.to_string()));
         } else if let Ok(id) = s.parse::<i64>() {
-            return Ok(Value::Int(id));
+            return Ok(Value::BigInt(id));
         } else {
             return Ok(Value::String(s.to_string()));
         }

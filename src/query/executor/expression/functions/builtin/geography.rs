@@ -85,8 +85,22 @@ fn execute_st_point(args: &[Value]) -> Result<Value, ExpressionError> {
     match (&args[0], &args[1]) {
         (Value::Float(lon), Value::Float(lat)) => {
             let geo = GeographyValue {
+                longitude: *lon as f64,
+                latitude: *lat as f64,
+            };
+            Ok(Value::Geography(geo))
+        }
+        (Value::Double(lon), Value::Double(lat)) => {
+            let geo = GeographyValue {
                 longitude: *lon,
                 latitude: *lat,
+            };
+            Ok(Value::Geography(geo))
+        }
+        (Value::SmallInt(lon), Value::SmallInt(lat)) => {
+            let geo = GeographyValue {
+                longitude: *lon as f64,
+                latitude: *lat as f64,
             };
             Ok(Value::Geography(geo))
         }
@@ -97,17 +111,24 @@ fn execute_st_point(args: &[Value]) -> Result<Value, ExpressionError> {
             };
             Ok(Value::Geography(geo))
         }
-        (Value::Float(lon), Value::Int(lat)) => {
+        (Value::BigInt(lon), Value::BigInt(lat)) => {
             let geo = GeographyValue {
-                longitude: *lon,
+                longitude: *lon as f64,
                 latitude: *lat as f64,
             };
             Ok(Value::Geography(geo))
         }
-        (Value::Int(lon), Value::Float(lat)) => {
+        (Value::Float(lon), Value::Double(lat)) => {
             let geo = GeographyValue {
                 longitude: *lon as f64,
                 latitude: *lat,
+            };
+            Ok(Value::Geography(geo))
+        }
+        (Value::Double(lon), Value::Float(lat)) => {
+            let geo = GeographyValue {
+                longitude: *lon,
+                latitude: *lat as f64,
             };
             Ok(Value::Geography(geo))
         }
@@ -195,7 +216,7 @@ define_binary_geography_fn!(
 
 define_binary_geography_fn!(
     execute_st_distance,
-    |geo1: &GeographyValue, geo2: &GeographyValue| { Ok(Value::Float(geo1.distance(geo2))) },
+    |geo1: &GeographyValue, geo2: &GeographyValue| { Ok(Value::Double(geo1.distance(geo2))) },
     "st_distance"
 );
 
@@ -203,9 +224,17 @@ fn execute_st_dwithin(args: &[Value]) -> Result<Value, ExpressionError> {
     match (&args[0], &args[1], &args[2]) {
         (Value::Geography(geo1), Value::Geography(geo2), Value::Float(distance)) => {
             let actual_distance = geo1.distance(geo2);
+            Ok(Value::Bool(actual_distance <= *distance as f64))
+        }
+        (Value::Geography(geo1), Value::Geography(geo2), Value::Double(distance)) => {
+            let actual_distance = geo1.distance(geo2);
             Ok(Value::Bool(actual_distance <= *distance))
         }
         (Value::Geography(geo1), Value::Geography(geo2), Value::Int(distance)) => {
+            let actual_distance = geo1.distance(geo2);
+            Ok(Value::Bool(actual_distance <= *distance as f64))
+        }
+        (Value::Geography(geo1), Value::Geography(geo2), Value::BigInt(distance)) => {
             let actual_distance = geo1.distance(geo2);
             Ok(Value::Bool(actual_distance <= *distance as f64))
         }

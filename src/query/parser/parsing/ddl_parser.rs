@@ -840,11 +840,11 @@ impl DdlParser {
             }
             TokenKind::IntegerLiteral(n) => {
                 ctx.next_token();
-                Ok(Value::Int(n))
+                Ok(Value::BigInt(n))
             }
             TokenKind::FloatLiteral(f) => {
                 ctx.next_token();
-                Ok(Value::Float(f))
+                Ok(Value::Double(f))
             }
             TokenKind::BooleanLiteral(b) => {
                 ctx.next_token();
@@ -861,11 +861,11 @@ impl DdlParser {
                 match inner_token_kind {
                     TokenKind::IntegerLiteral(n) => {
                         ctx.next_token();
-                        Ok(Value::Int(-n))
+                        Ok(Value::BigInt(-n))
                     }
                     TokenKind::FloatLiteral(f) => {
                         ctx.next_token();
-                        Ok(Value::Float(-f))
+                        Ok(Value::Double(-f))
                     }
                     _ => Err(ParseError::new(
                         ParseErrorKind::SyntaxError,

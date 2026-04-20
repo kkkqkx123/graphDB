@@ -642,12 +642,11 @@ impl<S: StorageClient> SchemaApi<S> {
         use crate::core::Value;
 
         match data_type {
-            DataType::Int
-            | DataType::Int8
-            | DataType::Int16
-            | DataType::Int32
-            | DataType::Int64 => Value::Int(0),
-            DataType::Float | DataType::Double => Value::Float(0.0),
+            DataType::SmallInt => Value::SmallInt(0),
+            DataType::Int => Value::Int(0),
+            DataType::BigInt => Value::BigInt(0),
+            DataType::Float => Value::Float(0.0),
+            DataType::Double => Value::Double(0.0),
             DataType::String | DataType::FixedString(_) => Value::String(String::new()),
             DataType::Bool => Value::Bool(false),
             DataType::Date => Value::Date(DateValue {

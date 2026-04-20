@@ -146,7 +146,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 .and_then(|e| e.get_expression())
                 .and_then(|expr| Self::evaluate_literal(&expr))
                 .and_then(|v| match v {
-                    crate::core::Value::Int(v) => Some(v),
+                    crate::core::Value::BigInt(v) => Some(v),
                     _ => None,
                 })
                 .unwrap_or(0);
@@ -391,7 +391,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                     .as_ref()
                     .and_then(|r| r.get_expression().and_then(|e| Self::evaluate_literal(&e)))
                     .and_then(|v| match v {
-                        Value::Int(i) => Some(i),
+                        Value::BigInt(i) => Some(i),
                         _ => None,
                     });
 
@@ -528,7 +528,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 .as_ref()
                 .and_then(|r| r.get_expression().and_then(|e| Self::evaluate_literal(&e)))
                 .and_then(|v| match v {
-                    Value::Int(i) => Some(i),
+                    Value::BigInt(i) => Some(i),
                     _ => None,
                 });
 

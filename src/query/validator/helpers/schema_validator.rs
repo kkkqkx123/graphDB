@@ -159,10 +159,12 @@ impl SchemaValidator {
             (a, b) if a == b => true,
 
             // The integer type is compatible.
-            (DataType::Int, DataType::Int64) => true,
-            (DataType::Int64, DataType::Int) => true,
-            (DataType::Int32, DataType::Int) => true,
-            (DataType::Int32, DataType::Int64) => true,
+            (DataType::SmallInt, DataType::Int) => true,
+            (DataType::SmallInt, DataType::BigInt) => true,
+            (DataType::Int, DataType::SmallInt) => true,
+            (DataType::Int, DataType::BigInt) => true,
+            (DataType::BigInt, DataType::SmallInt) => true,
+            (DataType::BigInt, DataType::Int) => true,
 
             // Floating-point number compatibility
             (DataType::Float, DataType::Double) => true,
@@ -170,8 +172,9 @@ impl SchemaValidator {
 
             // VID is compatible with various types.
             (DataType::VID, DataType::String) => true,
+            (DataType::VID, DataType::SmallInt) => true,
             (DataType::VID, DataType::Int) => true,
-            (DataType::VID, DataType::Int64) => true,
+            (DataType::VID, DataType::BigInt) => true,
             (DataType::VID, DataType::FixedString(_)) => true,
 
             // FixedString is compatible with String.
@@ -190,11 +193,7 @@ impl SchemaValidator {
     pub fn data_type_to_value_type(data_type: &DataType) -> ValueType {
         match data_type {
             DataType::Bool => ValueType::Bool,
-            DataType::Int
-            | DataType::Int8
-            | DataType::Int16
-            | DataType::Int32
-            | DataType::Int64 => ValueType::Int,
+            DataType::SmallInt | DataType::Int | DataType::BigInt => ValueType::Int,
             DataType::Float | DataType::Double => ValueType::Float,
             DataType::String | DataType::FixedString(_) => ValueType::String,
             DataType::Date => ValueType::Date,
@@ -282,8 +281,8 @@ impl SchemaValidator {
                     ));
                 }
             }
-            DataType::Int | DataType::Int64 | DataType::Int32 => {
-                if !matches!(vid, Value::Int(_)) {
+            DataType::SmallInt | DataType::Int | DataType::BigInt => {
+                if !matches!(vid, Value::SmallInt(_) | Value::Int(_) | Value::BigInt(_)) {
                     return Err(CoreValidationError::new(
                         format!("VID Expected integer type, actually {:?}", vid.get_type()),
                         ValidationErrorType::TypeMismatch,
@@ -292,7 +291,7 @@ impl SchemaValidator {
             }
             DataType::VID => {
                 // The VID type accepts a variety of formats.
-                if !matches!(vid, Value::String(_) | Value::Int(_)) {
+                if !matches!(vid, Value::String(_) | Value::SmallInt(_) | Value::Int(_) | Value::BigInt(_)) {
                     return Err(CoreValidationError::new(
                         format!("VID type incompatibility: {:?}", vid.get_type()),
                         ValidationErrorType::TypeMismatch,
@@ -370,11 +369,11 @@ impl SchemaValidator {
                             ));
                         }
                     }
-                    Value::Int(_) => {
+                    Value::SmallInt(_) | Value::Int(_) | Value::BigInt(_) => {
                         // Check whether the types of the data match.
                         if !matches!(
                             vid_type,
-                            DataType::Int | DataType::Int64 | DataType::Int32 | DataType::VID
+                            DataType::SmallInt | DataType::Int | DataType::BigInt | DataType::VID
                         ) {
                             return Err(CoreValidationError::new(
                                 format!(
@@ -626,8 +625,11 @@ impl SchemaValidator {
         match value {
             Value::Null(_) => DataType::String, // The text to be translated is: “By default, it is of the string type.”
             Value::Bool(_) => DataType::Bool,
-            Value::Int(_) => DataType::Int64,
-            Value::Float(_) => DataType::Double,
+            Value::SmallInt(_) => DataType::SmallInt,
+            Value::Int(_) => DataType::Int,
+            Value::BigInt(_) => DataType::BigInt,
+            Value::Float(_) => DataType::Float,
+            Value::Double(_) => DataType::Double,
             Value::String(s) => {
                 // Select either FixedString or String depending on the length of the string.
                 if s.len() <= 256 {
@@ -820,10 +822,10 @@ mod tests {
         // Integer compatibility
         assert!(SchemaValidator::is_type_compatible(
             &DataType::Int,
-            &DataType::Int64
+            &DataType::BigInt
         ));
         assert!(SchemaValidator::is_type_compatible(
-            &DataType::Int64,
+            &DataType::BigInt,
             &DataType::Int
         ));
 

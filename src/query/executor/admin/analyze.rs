@@ -203,9 +203,9 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
                     rows.push(vec![
                         Value::String("TAG".to_string()),
                         Value::String(stats.tag_name.clone()),
-                        Value::Int(stats.vertex_count as i64),
-                        Value::Float(stats.avg_out_degree),
-                        Value::Float(stats.avg_in_degree),
+                        Value::BigInt(stats.vertex_count as i64),
+                        Value::Double(stats.avg_out_degree),
+                        Value::Double(stats.avg_in_degree),
                     ]);
                 }
 
@@ -227,9 +227,9 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
                     rows.push(vec![
                         Value::String("EDGE".to_string()),
                         Value::String(stats.edge_type.clone()),
-                        Value::Int(stats.edge_count as i64),
-                        Value::Float(stats.avg_out_degree),
-                        Value::Float(stats.avg_in_degree),
+                        Value::BigInt(stats.edge_count as i64),
+                        Value::Double(stats.avg_out_degree),
+                        Value::Double(stats.avg_in_degree),
                     ]);
                 }
             }
@@ -245,9 +245,9 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
                 rows.push(vec![
                     Value::String("TAG".to_string()),
                     Value::String(stats.tag_name.clone()),
-                    Value::Int(stats.vertex_count as i64),
-                    Value::Float(stats.avg_out_degree),
-                    Value::Float(stats.avg_in_degree),
+                    Value::BigInt(stats.vertex_count as i64),
+                    Value::Double(stats.avg_out_degree),
+                    Value::Double(stats.avg_in_degree),
                 ]);
             }
             AnalyzeTarget::EdgeType(edge_type) => {
@@ -262,9 +262,9 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
                 rows.push(vec![
                     Value::String("EDGE".to_string()),
                     Value::String(stats.edge_type.clone()),
-                    Value::Int(stats.edge_count as i64),
-                    Value::Float(stats.avg_out_degree),
-                    Value::Float(stats.avg_in_degree),
+                    Value::BigInt(stats.edge_count as i64),
+                    Value::Double(stats.avg_out_degree),
+                    Value::Double(stats.avg_in_degree),
                 ]);
             }
             AnalyzeTarget::Property { tag, property } => {

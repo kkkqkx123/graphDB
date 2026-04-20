@@ -679,16 +679,11 @@ impl CostCalculator {
             Value::Empty
             | Value::Null(_)
             | Value::Bool(_)
+            | Value::SmallInt(_)
             | Value::Int(_)
-            | Value::Int8(_)
-            | Value::Int16(_)
-            | Value::Int32(_)
-            | Value::Int64(_)
-            | Value::UInt8(_)
-            | Value::UInt16(_)
-            | Value::UInt32(_)
-            | Value::UInt64(_)
-            | Value::Float(_) => self.config.fixed_type_cost_factor,
+            | Value::BigInt(_)
+            | Value::Float(_)
+            | Value::Double(_) => self.config.fixed_type_cost_factor,
 
             // Variable-length types
             Value::String(_) | Value::FixedString { .. } | Value::Blob(_) => {

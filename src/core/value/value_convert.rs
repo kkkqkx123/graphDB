@@ -11,26 +11,15 @@ use chrono::{Datelike, Timelike};
 
 impl Value {
     /// Convert to a boolean value
-    ///
-    /// Return the Value type.
-    /// Empty values and the “Null” value return “Null”.
-    /// Boolean values are returned directly.
-    /// The string "true" or "false" returns the corresponding boolean value; for all other cases, Null is returned.
-    /// For other types, return “BadData”.
     pub fn to_bool(&self) -> Value {
         match self {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
             Value::Bool(b) => Value::Bool(*b),
+            Value::SmallInt(i) => Value::Bool(*i != 0),
             Value::Int(i) => Value::Bool(*i != 0),
-            Value::Int8(i) => Value::Bool(*i != 0),
-            Value::Int16(i) => Value::Bool(*i != 0),
-            Value::Int32(i) => Value::Bool(*i != 0),
-            Value::Int64(i) => Value::Bool(*i != 0),
-            Value::UInt8(i) => Value::Bool(*i != 0),
-            Value::UInt16(i) => Value::Bool(*i != 0),
-            Value::UInt32(i) => Value::Bool(*i != 0),
-            Value::UInt64(i) => Value::Bool(*i != 0),
+            Value::BigInt(i) => Value::Bool(*i != 0),
             Value::Float(f) => Value::Bool(*f != 0.0),
+            Value::Double(f) => Value::Bool(*f != 0.0),
             Value::String(s) => {
                 let lower = s.to_lowercase();
                 if lower == "true" {
@@ -55,104 +44,84 @@ impl Value {
         }
     }
 
-    /// Convert to an integer.
-    ///
-    /// Refer to the design of Nebula-Graph:
-    /// - Empty and Null values return Null
-    /// - Integers are returned directly.
-    /// - Floating-point numbers are truncated to integers; in the event of an overflow, the boundary values are returned.
-    /// - String parsing to an integer; if the conversion fails, return Null.
-    /// - Converting boolean values to 1/0
+    /// Convert to BigInt (i64)
     pub fn to_int(&self) -> Value {
         match self {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
-            Value::Int(i) => Value::Int(*i),
-            Value::Int8(i) => Value::Int(*i as i64),
-            Value::Int16(i) => Value::Int(*i as i64),
-            Value::Int32(i) => Value::Int(*i as i64),
-            Value::Int64(i) => Value::Int(*i),
-            Value::UInt8(i) => Value::Int(*i as i64),
-            Value::UInt16(i) => Value::Int(*i as i64),
-            Value::UInt32(i) => Value::Int(*i as i64),
-            Value::UInt64(i) => {
-                if *i <= i64::MAX as u64 {
-                    Value::Int(*i as i64)
-                } else {
-                    Value::Null(NullType::ErrOverflow)
-                }
-            }
+            Value::SmallInt(i) => Value::BigInt(*i as i64),
+            Value::Int(i) => Value::BigInt(*i as i64),
+            Value::BigInt(i) => Value::BigInt(*i),
             Value::Float(f) => {
                 if f.is_nan() || f.is_infinite() {
                     Value::Null(NullType::Null)
-                } else if *f <= i64::MIN as f64 {
-                    Value::Int(i64::MIN)
-                } else if *f >= i64::MAX as f64 {
-                    Value::Int(i64::MAX)
                 } else {
-                    Value::Int(*f as i64)
+                    Value::BigInt(*f as i64)
+                }
+            }
+            Value::Double(f) => {
+                if f.is_nan() || f.is_infinite() {
+                    Value::Null(NullType::Null)
+                } else {
+                    Value::BigInt(*f as i64)
                 }
             }
             Value::String(s) => match s.parse::<i64>() {
-                Ok(i) => Value::Int(i),
+                Ok(i) => Value::BigInt(i),
                 Err(_) => Value::Null(NullType::Null),
             },
             Value::FixedString { data, .. } => match data.parse::<i64>() {
-                Ok(i) => Value::Int(i),
+                Ok(i) => Value::BigInt(i),
                 Err(_) => Value::Null(NullType::Null),
             },
-            Value::Bool(b) => Value::Int(if *b { 1 } else { 0 }),
+            Value::Bool(b) => Value::BigInt(if *b { 1 } else { 0 }),
             _ => Value::Null(NullType::BadData),
         }
     }
 
-    /// Convert to a floating-point number
-    ///
-    /// Refer to the design of Nebula-Graph:
-    /// - Empty and Null values return Null
-    /// - The floating-point number is returned directly.
-    /// - Converting integers to floating-point numbers
-    /// - String parsing to a floating-point number; if the parsing fails, return Null.
+    /// Convert to Double (f64)
     pub fn to_float(&self) -> Value {
         match self {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
-            Value::Float(f) => Value::Float(*f),
-            Value::Int(i) => Value::Float(*i as f64),
-            Value::Int8(i) => Value::Float(*i as f64),
-            Value::Int16(i) => Value::Float(*i as f64),
-            Value::Int32(i) => Value::Float(*i as f64),
-            Value::Int64(i) => Value::Float(*i as f64),
-            Value::UInt8(i) => Value::Float(*i as f64),
-            Value::UInt16(i) => Value::Float(*i as f64),
-            Value::UInt32(i) => Value::Float(*i as f64),
-            Value::UInt64(i) => Value::Float(*i as f64),
+            Value::Float(f) => Value::Double(*f as f64),
+            Value::Double(f) => Value::Double(*f),
+            Value::SmallInt(i) => Value::Double(*i as f64),
+            Value::Int(i) => Value::Double(*i as f64),
+            Value::BigInt(i) => Value::Double(*i as f64),
             Value::String(s) => match s.parse::<f64>() {
-                Ok(f) => Value::Float(f),
+                Ok(f) => Value::Double(f),
                 Err(_) => Value::Null(NullType::Null),
             },
             Value::FixedString { data, .. } => match data.parse::<f64>() {
-                Ok(f) => Value::Float(f),
+                Ok(f) => Value::Double(f),
                 Err(_) => Value::Null(NullType::Null),
             },
-            Value::Bool(b) => Value::Float(if *b { 1.0 } else { 0.0 }),
+            Value::Bool(b) => Value::Double(if *b { 1.0 } else { 0.0 }),
             _ => Value::Null(NullType::BadData),
         }
     }
 
-    /// Translate the following text into a string:
+    /// Convert to string
     pub fn to_string(&self) -> Result<String, String> {
         match self {
             Value::String(s) => Ok(s.clone()),
             Value::FixedString { data, .. } => Ok(data.clone()),
+            Value::SmallInt(i) => Ok(i.to_string()),
             Value::Int(i) => Ok(i.to_string()),
-            Value::Int8(i) => Ok(i.to_string()),
-            Value::Int16(i) => Ok(i.to_string()),
-            Value::Int32(i) => Ok(i.to_string()),
-            Value::Int64(i) => Ok(i.to_string()),
-            Value::UInt8(i) => Ok(i.to_string()),
-            Value::UInt16(i) => Ok(i.to_string()),
-            Value::UInt32(i) => Ok(i.to_string()),
-            Value::UInt64(i) => Ok(i.to_string()),
+            Value::BigInt(i) => Ok(i.to_string()),
             Value::Float(f) => {
+                if f.is_nan() {
+                    Ok("NaN".to_string())
+                } else if f.is_infinite() {
+                    if f.is_sign_positive() {
+                        Ok("Infinity".to_string())
+                    } else {
+                        Ok("-Infinity".to_string())
+                    }
+                } else {
+                    Ok(f.to_string())
+                }
+            }
+            Value::Double(f) => {
                 if f.is_nan() {
                     Ok("NaN".to_string())
                 } else if f.is_infinite() {
@@ -239,7 +208,9 @@ impl Value {
             }),
             Value::String(s) => Self::parse_date_string(s),
             Value::FixedString { data, .. } => Self::parse_date_string(data),
-            Value::Int(i) => Value::Date(Self::days_to_date(*i)),
+            Value::SmallInt(i) => Value::Date(Self::days_to_date(*i as i64)),
+            Value::Int(i) => Value::Date(Self::days_to_date(*i as i64)),
+            Value::BigInt(i) => Value::Date(Self::days_to_date(*i)),
             _ => Value::Null(NullType::BadData),
         }
     }
@@ -286,7 +257,31 @@ impl Value {
             }),
             Value::String(s) => Self::parse_datetime_string(s),
             Value::FixedString { data, .. } => Self::parse_datetime_string(data),
+            Value::SmallInt(i) => {
+                let date = Self::days_to_date(*i as i64);
+                Value::DateTime(DateTimeValue {
+                    year: date.year,
+                    month: date.month,
+                    day: date.day,
+                    hour: 0,
+                    minute: 0,
+                    sec: 0,
+                    microsec: 0,
+                })
+            }
             Value::Int(i) => {
+                let date = Self::days_to_date(*i as i64);
+                Value::DateTime(DateTimeValue {
+                    year: date.year,
+                    month: date.month,
+                    day: date.day,
+                    hour: 0,
+                    minute: 0,
+                    sec: 0,
+                    microsec: 0,
+                })
+            }
+            Value::BigInt(i) => {
                 let date = Self::days_to_date(*i);
                 Value::DateTime(DateTimeValue {
                     year: date.year,
@@ -307,12 +302,31 @@ impl Value {
         match self {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
             Value::Duration(d) => Value::Duration(d.clone()),
+            Value::SmallInt(i) => Value::Duration(DurationValue {
+                seconds: *i as i64,
+                microseconds: 0,
+                months: 0,
+            }),
             Value::Int(i) => Value::Duration(DurationValue {
+                seconds: *i as i64,
+                microseconds: 0,
+                months: 0,
+            }),
+            Value::BigInt(i) => Value::Duration(DurationValue {
                 seconds: *i,
                 microseconds: 0,
                 months: 0,
             }),
             Value::Float(f) => {
+                let seconds = f.floor() as i64;
+                let microseconds = ((f - seconds as f32) * 1_000_000.0) as i32;
+                Value::Duration(DurationValue {
+                    seconds,
+                    microseconds,
+                    months: 0,
+                })
+            }
+            Value::Double(f) => {
                 let seconds = f.floor() as i64;
                 let microseconds = ((f - seconds as f64) * 1_000_000.0) as i32;
                 Value::Duration(DurationValue {
@@ -448,12 +462,11 @@ impl Value {
     pub fn try_implicit_cast(&self, target_type: &DataType) -> Result<Value, String> {
         match target_type {
             DataType::Bool => Ok(self.to_bool()),
-            DataType::Int
-            | DataType::Int8
-            | DataType::Int16
-            | DataType::Int32
-            | DataType::Int64 => Ok(self.to_int()),
-            DataType::Float | DataType::Double => Ok(self.to_float()),
+            DataType::SmallInt => Ok(self.to_smallint()),
+            DataType::Int => Ok(self.to_int32()),
+            DataType::BigInt => Ok(self.to_int()),
+            DataType::Float => Ok(self.to_float32()),
+            DataType::Double => Ok(self.to_float()),
             DataType::String => self.to_string().map(Value::String),
             DataType::FixedString(len) => match self {
                 Value::String(s) | Value::FixedString { data: s, .. } => {
@@ -469,6 +482,72 @@ impl Value {
         }
     }
 
+    /// Convert to SmallInt (i16)
+    pub fn to_smallint(&self) -> Value {
+        match self {
+            Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
+            Value::SmallInt(i) => Value::SmallInt(*i),
+            Value::Int(i) => Value::SmallInt(*i as i16),
+            Value::BigInt(i) => Value::SmallInt(*i as i16),
+            Value::Float(f) => Value::SmallInt(*f as i16),
+            Value::Double(f) => Value::SmallInt(*f as i16),
+            Value::String(s) => match s.parse::<i16>() {
+                Ok(i) => Value::SmallInt(i),
+                Err(_) => Value::Null(NullType::Null),
+            },
+            Value::FixedString { data, .. } => match data.parse::<i16>() {
+                Ok(i) => Value::SmallInt(i),
+                Err(_) => Value::Null(NullType::Null),
+            },
+            Value::Bool(b) => Value::SmallInt(if *b { 1 } else { 0 }),
+            _ => Value::Null(NullType::BadData),
+        }
+    }
+
+    /// Convert to Int (i32)
+    pub fn to_int32(&self) -> Value {
+        match self {
+            Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
+            Value::SmallInt(i) => Value::Int(*i as i32),
+            Value::Int(i) => Value::Int(*i),
+            Value::BigInt(i) => Value::Int(*i as i32),
+            Value::Float(f) => Value::Int(*f as i32),
+            Value::Double(f) => Value::Int(*f as i32),
+            Value::String(s) => match s.parse::<i32>() {
+                Ok(i) => Value::Int(i),
+                Err(_) => Value::Null(NullType::Null),
+            },
+            Value::FixedString { data, .. } => match data.parse::<i32>() {
+                Ok(i) => Value::Int(i),
+                Err(_) => Value::Null(NullType::Null),
+            },
+            Value::Bool(b) => Value::Int(if *b { 1 } else { 0 }),
+            _ => Value::Null(NullType::BadData),
+        }
+    }
+
+    /// Convert to Float (f32)
+    pub fn to_float32(&self) -> Value {
+        match self {
+            Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
+            Value::Float(f) => Value::Float(*f),
+            Value::Double(f) => Value::Float(*f as f32),
+            Value::SmallInt(i) => Value::Float(*i as f32),
+            Value::Int(i) => Value::Float(*i as f32),
+            Value::BigInt(i) => Value::Float(*i as f32),
+            Value::String(s) => match s.parse::<f32>() {
+                Ok(f) => Value::Float(f),
+                Err(_) => Value::Null(NullType::Null),
+            },
+            Value::FixedString { data, .. } => match data.parse::<f32>() {
+                Ok(f) => Value::Float(f),
+                Err(_) => Value::Null(NullType::Null),
+            },
+            Value::Bool(b) => Value::Float(if *b { 1.0 } else { 0.0 }),
+            _ => Value::Null(NullType::BadData),
+        }
+    }
+
     /// Check whether an implicit conversion is possible.
     pub fn can_implicitly_cast_to(&self, target_type: &DataType) -> bool {
         self.try_implicit_cast(target_type).is_ok()
@@ -477,8 +556,9 @@ impl Value {
     /// Check whether the value is a valid number.
     pub fn is_valid_number(&self) -> bool {
         match self {
-            Value::Int(_) => true,
+            Value::SmallInt(_) | Value::Int(_) | Value::BigInt(_) => true,
             Value::Float(f) => !f.is_nan() && !f.is_infinite(),
+            Value::Double(f) => !f.is_nan() && !f.is_infinite(),
             _ => false,
         }
     }
@@ -532,63 +612,33 @@ impl From<bool> for Value {
     }
 }
 
-impl From<i8> for Value {
-    fn from(value: i8) -> Self {
-        Value::Int8(value)
-    }
-}
-
 impl From<i16> for Value {
     fn from(value: i16) -> Self {
-        Value::Int16(value)
+        Value::SmallInt(value)
     }
 }
 
 impl From<i32> for Value {
     fn from(value: i32) -> Self {
-        Value::Int32(value)
+        Value::Int(value)
     }
 }
 
 impl From<i64> for Value {
     fn from(value: i64) -> Self {
-        Value::Int64(value)
-    }
-}
-
-impl From<u8> for Value {
-    fn from(value: u8) -> Self {
-        Value::UInt8(value)
-    }
-}
-
-impl From<u16> for Value {
-    fn from(value: u16) -> Self {
-        Value::UInt16(value)
-    }
-}
-
-impl From<u32> for Value {
-    fn from(value: u32) -> Self {
-        Value::UInt32(value)
-    }
-}
-
-impl From<u64> for Value {
-    fn from(value: u64) -> Self {
-        Value::UInt64(value)
-    }
-}
-
-impl From<f64> for Value {
-    fn from(value: f64) -> Self {
-        Value::Float(value)
+        Value::BigInt(value)
     }
 }
 
 impl From<f32> for Value {
     fn from(value: f32) -> Self {
-        Value::Float(value as f64)
+        Value::Float(value)
+    }
+}
+
+impl From<f64> for Value {
+    fn from(value: f64) -> Self {
+        Value::Double(value)
     }
 }
 
@@ -631,7 +681,7 @@ impl From<std::collections::HashSet<Value>> for Value {
 impl From<(i64, &str)> for Value {
     fn from(value: (i64, &str)) -> Self {
         Value::list(List::from(vec![
-            Value::Int(value.0),
+            Value::BigInt(value.0),
             Value::String(value.1.to_string()),
         ]))
     }
@@ -640,7 +690,7 @@ impl From<(i64, &str)> for Value {
 impl From<(i64, String)> for Value {
     fn from(value: (i64, String)) -> Self {
         Value::list(List::from(vec![
-            Value::Int(value.0),
+            Value::BigInt(value.0),
             Value::String(value.1),
         ]))
     }

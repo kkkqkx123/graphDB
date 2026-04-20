@@ -503,21 +503,17 @@ impl ExpressionAnalyzer {
     fn deduce_arithmetic_type(&self, left: &DataType, right: &DataType) -> DataType {
         let left_is_numeric = matches!(
             left,
-            DataType::Int
-                | DataType::Int8
-                | DataType::Int16
-                | DataType::Int32
-                | DataType::Int64
+            DataType::SmallInt
+                | DataType::Int
+                | DataType::BigInt
                 | DataType::Float
                 | DataType::Double
         );
         let right_is_numeric = matches!(
             right,
-            DataType::Int
-                | DataType::Int8
-                | DataType::Int16
-                | DataType::Int32
-                | DataType::Int64
+            DataType::SmallInt
+                | DataType::Int
+                | DataType::BigInt
                 | DataType::Float
                 | DataType::Double
         );
@@ -597,32 +593,32 @@ impl ExpressionAnalyzer {
             BinaryOperator::Add => match (left, right) {
                 (Value::Int(l), Value::Int(r)) => Some(Value::Int(l + r)),
                 (Value::Float(l), Value::Float(r)) => Some(Value::Float(l + r)),
-                (Value::Int(l), Value::Float(r)) => Some(Value::Float(*l as f64 + r)),
-                (Value::Float(l), Value::Int(r)) => Some(Value::Float(l + *r as f64)),
+                (Value::Int(l), Value::Float(r)) => Some(Value::Float(*l as f32 + r)),
+                (Value::Float(l), Value::Int(r)) => Some(Value::Float(l + *r as f32)),
                 _ => None,
             },
 
             BinaryOperator::Subtract => match (left, right) {
                 (Value::Int(l), Value::Int(r)) => Some(Value::Int(l - r)),
                 (Value::Float(l), Value::Float(r)) => Some(Value::Float(l - r)),
-                (Value::Int(l), Value::Float(r)) => Some(Value::Float(*l as f64 - r)),
-                (Value::Float(l), Value::Int(r)) => Some(Value::Float(l - *r as f64)),
+                (Value::Int(l), Value::Float(r)) => Some(Value::Float(*l as f32 - r)),
+                (Value::Float(l), Value::Int(r)) => Some(Value::Float(l - *r as f32)),
                 _ => None,
             },
 
             BinaryOperator::Multiply => match (left, right) {
                 (Value::Int(l), Value::Int(r)) => Some(Value::Int(l * r)),
                 (Value::Float(l), Value::Float(r)) => Some(Value::Float(l * r)),
-                (Value::Int(l), Value::Float(r)) => Some(Value::Float(*l as f64 * r)),
-                (Value::Float(l), Value::Int(r)) => Some(Value::Float(l * *r as f64)),
+                (Value::Int(l), Value::Float(r)) => Some(Value::Float(*l as f32 * r)),
+                (Value::Float(l), Value::Int(r)) => Some(Value::Float(l * *r as f32)),
                 _ => None,
             },
 
             BinaryOperator::Divide => match (left, right) {
                 (Value::Int(l), Value::Int(r)) if *r != 0 => Some(Value::Int(l / r)),
                 (Value::Float(l), Value::Float(r)) if *r != 0.0 => Some(Value::Float(l / r)),
-                (Value::Int(l), Value::Float(r)) if *r != 0.0 => Some(Value::Float(*l as f64 / r)),
-                (Value::Float(l), Value::Int(r)) if *r != 0 => Some(Value::Float(l / *r as f64)),
+                (Value::Int(l), Value::Float(r)) if *r != 0.0 => Some(Value::Float(*l as f32 / r)),
+                (Value::Float(l), Value::Int(r)) if *r != 0 => Some(Value::Float(l / *r as f32)),
                 _ => None,
             },
 
@@ -642,32 +638,32 @@ impl ExpressionAnalyzer {
             BinaryOperator::LessThan => match (left, right) {
                 (Value::Int(l), Value::Int(r)) => Some(Value::Bool(l < r)),
                 (Value::Float(l), Value::Float(r)) => Some(Value::Bool(l < r)),
-                (Value::Int(l), Value::Float(r)) => Some(Value::Bool((*l as f64) < *r)),
-                (Value::Float(l), Value::Int(r)) => Some(Value::Bool(*l < *r as f64)),
+                (Value::Int(l), Value::Float(r)) => Some(Value::Bool((*l as f32) < *r)),
+                (Value::Float(l), Value::Int(r)) => Some(Value::Bool(*l < *r as f32)),
                 _ => None,
             },
 
             BinaryOperator::LessThanOrEqual => match (left, right) {
                 (Value::Int(l), Value::Int(r)) => Some(Value::Bool(l <= r)),
                 (Value::Float(l), Value::Float(r)) => Some(Value::Bool(l <= r)),
-                (Value::Int(l), Value::Float(r)) => Some(Value::Bool((*l as f64) <= *r)),
-                (Value::Float(l), Value::Int(r)) => Some(Value::Bool(*l <= *r as f64)),
+                (Value::Int(l), Value::Float(r)) => Some(Value::Bool((*l as f32) <= *r)),
+                (Value::Float(l), Value::Int(r)) => Some(Value::Bool(*l <= *r as f32)),
                 _ => None,
             },
 
             BinaryOperator::GreaterThan => match (left, right) {
                 (Value::Int(l), Value::Int(r)) => Some(Value::Bool(l > r)),
                 (Value::Float(l), Value::Float(r)) => Some(Value::Bool(l > r)),
-                (Value::Int(l), Value::Float(r)) => Some(Value::Bool((*l as f64) > *r)),
-                (Value::Float(l), Value::Int(r)) => Some(Value::Bool(*l > *r as f64)),
+                (Value::Int(l), Value::Float(r)) => Some(Value::Bool((*l as f32) > *r)),
+                (Value::Float(l), Value::Int(r)) => Some(Value::Bool(*l > *r as f32)),
                 _ => None,
             },
 
             BinaryOperator::GreaterThanOrEqual => match (left, right) {
                 (Value::Int(l), Value::Int(r)) => Some(Value::Bool(l >= r)),
                 (Value::Float(l), Value::Float(r)) => Some(Value::Bool(l >= r)),
-                (Value::Int(l), Value::Float(r)) => Some(Value::Bool((*l as f64) >= *r)),
-                (Value::Float(l), Value::Int(r)) => Some(Value::Bool(*l >= *r as f64)),
+                (Value::Int(l), Value::Float(r)) => Some(Value::Bool((*l as f32) >= *r)),
+                (Value::Float(l), Value::Int(r)) => Some(Value::Bool(*l >= *r as f32)),
                 _ => None,
             },
 

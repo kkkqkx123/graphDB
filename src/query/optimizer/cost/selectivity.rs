@@ -377,8 +377,11 @@ impl SelectivityEstimator {
     fn extract_numeric_value(&self, expr: &Expression) -> Option<f64> {
         match expr {
             Expression::Literal(value) => match value {
+                crate::core::value::Value::SmallInt(i) => Some(*i as f64),
                 crate::core::value::Value::Int(i) => Some(*i as f64),
-                crate::core::value::Value::Float(f) => Some(*f),
+                crate::core::value::Value::BigInt(i) => Some(*i as f64),
+                crate::core::value::Value::Float(f) => Some((*f).into()),
+                crate::core::value::Value::Double(f) => Some(*f),
                 _ => None,
             },
             _ => None,

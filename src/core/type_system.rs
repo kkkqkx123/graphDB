@@ -35,20 +35,14 @@ impl TypeUtils {
     }
 
     /// Priority of the obtained type (used for type promotion)
-    /// The smaller the priority value, the more “basic” the type is. When a type is upgraded, its priority value increases.
+    /// The smaller the priority value, the more "basic" the type is. When a type is upgraded, its priority value increases.
     pub fn get_type_priority(type_: &DataType) -> u8 {
         match type_ {
             DataType::Null | DataType::Empty => 0,
             DataType::Bool => 10,
-            DataType::Int => 20,
-            DataType::Int8 => 21,
-            DataType::Int16 => 22,
-            DataType::Int32 => 23,
-            DataType::Int64 => 24,
-            DataType::UInt8 => 25,
-            DataType::UInt16 => 26,
-            DataType::UInt32 => 27,
-            DataType::UInt64 => 28,
+            DataType::SmallInt => 20,
+            DataType::Int => 21,
+            DataType::BigInt => 22,
             DataType::Float => 30,
             DataType::Double => 31,
             DataType::Decimal128 => 32,
@@ -144,79 +138,75 @@ impl TypeUtils {
     }
 
     /// Check whether the type of the source data can be converted into the target type.
-    ///
-    /// Use the `match` expression to implement type conversion rules that are determined at compile time.
-    /// Avoid runtime initialization and global state.
     pub fn can_cast(from: &DataType, to: &DataType) -> bool {
         if from == to {
             return true;
         }
 
         match (from, to) {
-            // The value `Int` can be converted to `Int`, `Float`, or `String`.
+            // Integer types can be converted to Int, Float, or String
+            (DataType::SmallInt, DataType::Int) => true,
+            (DataType::SmallInt, DataType::BigInt) => true,
+            (DataType::SmallInt, DataType::Float) => true,
+            (DataType::SmallInt, DataType::Double) => true,
+            (DataType::SmallInt, DataType::String) => true,
+            (DataType::Int, DataType::BigInt) => true,
             (DataType::Int, DataType::Float) => true,
+            (DataType::Int, DataType::Double) => true,
             (DataType::Int, DataType::String) => true,
+            (DataType::BigInt, DataType::Float) => true,
+            (DataType::BigInt, DataType::Double) => true,
+            (DataType::BigInt, DataType::String) => true,
 
-            // Values of type Int8, Int16, Int32, and Int64 can be converted to types Int, Float, and String.
-            (DataType::Int8, DataType::Int) => true,
-            (DataType::Int8, DataType::Float) => true,
-            (DataType::Int8, DataType::String) => true,
-            (DataType::Int16, DataType::Int) => true,
-            (DataType::Int16, DataType::Float) => true,
-            (DataType::Int16, DataType::String) => true,
-            (DataType::Int32, DataType::Int) => true,
-            (DataType::Int32, DataType::Float) => true,
-            (DataType::Int32, DataType::String) => true,
-            (DataType::Int64, DataType::Int) => true,
-            (DataType::Int64, DataType::Float) => true,
-            (DataType::Int64, DataType::String) => true,
-
-            // Values of type UInt8, UInt16, UInt32, or UInt64 can be converted to types Int, Float, or String.
-            (DataType::UInt8, DataType::Int) => true,
-            (DataType::UInt8, DataType::Float) => true,
-            (DataType::UInt8, DataType::String) => true,
-            (DataType::UInt16, DataType::Int) => true,
-            (DataType::UInt16, DataType::Float) => true,
-            (DataType::UInt16, DataType::String) => true,
-            (DataType::UInt32, DataType::Int) => true,
-            (DataType::UInt32, DataType::Float) => true,
-            (DataType::UInt32, DataType::String) => true,
-            (DataType::UInt64, DataType::Int) => true,
-            (DataType::UInt64, DataType::Float) => true,
-            (DataType::UInt64, DataType::String) => true,
-
-            // The value “Float” can be converted to either “Float”, “Int”, or “String”.
+            // Float types can be converted to Int or String
+            (DataType::Float, DataType::Double) => true,
             (DataType::Float, DataType::Int) => true,
+            (DataType::Float, DataType::BigInt) => true,
             (DataType::Float, DataType::String) => true,
+            (DataType::Double, DataType::Int) => true,
+            (DataType::Double, DataType::BigInt) => true,
+            (DataType::Double, DataType::String) => true,
 
-            // A String can be converted to a String, Int, Float, Bool, Date, or DateTime.
+            // String can be converted to numeric types
+            (DataType::String, DataType::SmallInt) => true,
             (DataType::String, DataType::Int) => true,
+            (DataType::String, DataType::BigInt) => true,
             (DataType::String, DataType::Float) => true,
+            (DataType::String, DataType::Double) => true,
             (DataType::String, DataType::Bool) => true,
             (DataType::String, DataType::Date) => true,
             (DataType::String, DataType::DateTime) => true,
 
-            // The FixedString type can be converted to the following types: String, Int, Float, Bool, Date, and DateTime.
+            // FixedString can be converted to various types
             (DataType::FixedString(_), DataType::String) => true,
+            (DataType::FixedString(_), DataType::SmallInt) => true,
             (DataType::FixedString(_), DataType::Int) => true,
+            (DataType::FixedString(_), DataType::BigInt) => true,
             (DataType::FixedString(_), DataType::Float) => true,
+            (DataType::FixedString(_), DataType::Double) => true,
             (DataType::FixedString(_), DataType::Bool) => true,
             (DataType::FixedString(_), DataType::Date) => true,
             (DataType::FixedString(_), DataType::DateTime) => true,
 
-            // A `Bool` value can be converted to a `Bool`, `Int`, `Float`, or `String`.
+            // Bool can be converted to numeric types
+            (DataType::Bool, DataType::SmallInt) => true,
             (DataType::Bool, DataType::Int) => true,
+            (DataType::Bool, DataType::BigInt) => true,
             (DataType::Bool, DataType::Float) => true,
+            (DataType::Bool, DataType::Double) => true,
             (DataType::Bool, DataType::String) => true,
 
-            // The value “Null” can be converted into any data type.
+            // Null can be converted to any type
             (DataType::Null, _) => true,
 
-            // “Empty” can be converted to “Empty”, “Bool”, “Int”, “Float”, or “String”.
+            // Empty can be converted to basic types
             (DataType::Empty, DataType::Empty) => true,
             (DataType::Empty, DataType::Bool) => true,
+            (DataType::Empty, DataType::SmallInt) => true,
             (DataType::Empty, DataType::Int) => true,
+            (DataType::Empty, DataType::BigInt) => true,
             (DataType::Empty, DataType::Float) => true,
+            (DataType::Empty, DataType::Double) => true,
             (DataType::Empty, DataType::String) => true,
 
             _ => false,
@@ -224,94 +214,91 @@ impl TypeUtils {
     }
 
     /// The list of source types that can be converted into all possible target types
-    ///
-    /// Return a list of all target types that can be converted from this type.
     pub fn get_cast_targets(from: &DataType) -> Vec<DataType> {
         match from {
-            DataType::Int => vec![DataType::Int, DataType::Float, DataType::String],
-            DataType::Int8 => vec![
-                DataType::Int8,
+            DataType::SmallInt => vec![
+                DataType::SmallInt,
                 DataType::Int,
+                DataType::BigInt,
                 DataType::Float,
+                DataType::Double,
                 DataType::String,
             ],
-            DataType::Int16 => vec![
-                DataType::Int16,
+            DataType::Int => vec![
                 DataType::Int,
+                DataType::BigInt,
                 DataType::Float,
+                DataType::Double,
                 DataType::String,
             ],
-            DataType::Int32 => vec![
-                DataType::Int32,
-                DataType::Int,
+            DataType::BigInt => vec![
+                DataType::BigInt,
                 DataType::Float,
+                DataType::Double,
                 DataType::String,
             ],
-            DataType::Int64 => vec![
-                DataType::Int64,
-                DataType::Int,
+            DataType::Float => vec![
                 DataType::Float,
+                DataType::Double,
+                DataType::Int,
+                DataType::BigInt,
                 DataType::String,
             ],
-            DataType::UInt8 => vec![
-                DataType::UInt8,
+            DataType::Double => vec![
+                DataType::Double,
                 DataType::Int,
-                DataType::Float,
+                DataType::BigInt,
                 DataType::String,
             ],
-            DataType::UInt16 => vec![
-                DataType::UInt16,
-                DataType::Int,
-                DataType::Float,
-                DataType::String,
-            ],
-            DataType::UInt32 => vec![
-                DataType::UInt32,
-                DataType::Int,
-                DataType::Float,
-                DataType::String,
-            ],
-            DataType::UInt64 => vec![
-                DataType::UInt64,
-                DataType::Int,
-                DataType::Float,
-                DataType::String,
-            ],
-            DataType::Float => vec![DataType::Float, DataType::Int, DataType::String],
             DataType::String => vec![
                 DataType::String,
+                DataType::SmallInt,
                 DataType::Int,
+                DataType::BigInt,
                 DataType::Float,
+                DataType::Double,
                 DataType::Bool,
                 DataType::Date,
                 DataType::DateTime,
             ],
             DataType::FixedString(_) => vec![
                 DataType::String,
+                DataType::SmallInt,
                 DataType::Int,
+                DataType::BigInt,
                 DataType::Float,
+                DataType::Double,
                 DataType::Bool,
                 DataType::Date,
                 DataType::DateTime,
             ],
             DataType::Bool => vec![
                 DataType::Bool,
+                DataType::SmallInt,
                 DataType::Int,
+                DataType::BigInt,
                 DataType::Float,
+                DataType::Double,
                 DataType::String,
             ],
             DataType::Null => vec![
                 DataType::Null,
+                DataType::SmallInt,
                 DataType::Int,
+                DataType::BigInt,
                 DataType::Float,
+                DataType::Double,
                 DataType::String,
                 DataType::Bool,
             ],
             DataType::Empty => vec![
                 DataType::Empty,
                 DataType::Bool,
+                DataType::SmallInt,
                 DataType::Int,
+                DataType::BigInt,
                 DataType::Float,
+                DataType::Double,
                 DataType::String,
             ],
             // Other types can only be converted into themselves.
@@ -330,16 +317,11 @@ impl TypeUtils {
             DataType::Empty => "empty".to_string(),
             DataType::Null => "null".to_string(),
             DataType::Bool => "bool".to_string(),
-            DataType::Int
-            | DataType::Int8
-            | DataType::Int16
-            | DataType::Int32
-            | DataType::Int64
-            | DataType::UInt8
-            | DataType::UInt16
-            | DataType::UInt32
-            | DataType::UInt64 => "int".to_string(),
-            DataType::Float | DataType::Double => "float".to_string(),
+            DataType::SmallInt => "smallint".to_string(),
+            DataType::Int => "int".to_string(),
+            DataType::BigInt => "bigint".to_string(),
+            DataType::Float => "float".to_string(),
+            DataType::Double => "double".to_string(),
             DataType::Decimal128 => "decimal128".to_string(),
             DataType::String => "string".to_string(),
             DataType::FixedString(len) => format!("fixed_string({})", len),
@@ -371,15 +353,9 @@ impl TypeUtils {
         matches!(
             type_def,
             DataType::Bool
+                | DataType::SmallInt
                 | DataType::Int
-                | DataType::Int8
-                | DataType::Int16
-                | DataType::Int32
-                | DataType::Int64
-                | DataType::UInt8
-                | DataType::UInt16
-                | DataType::UInt32
-                | DataType::UInt64
+                | DataType::BigInt
                 | DataType::Float
                 | DataType::Double
                 | DataType::String
@@ -398,16 +374,11 @@ impl TypeUtils {
     pub fn get_default_value(type_def: &DataType) -> Option<Value> {
         match type_def {
             DataType::Bool => Some(Value::Bool(false)),
+            DataType::SmallInt => Some(Value::SmallInt(0)),
             DataType::Int => Some(Value::Int(0)),
-            DataType::Int8 => Some(Value::Int8(0)),
-            DataType::Int16 => Some(Value::Int16(0)),
-            DataType::Int32 => Some(Value::Int32(0)),
-            DataType::Int64 => Some(Value::Int64(0)),
-            DataType::UInt8 => Some(Value::UInt8(0)),
-            DataType::UInt16 => Some(Value::UInt16(0)),
-            DataType::UInt32 => Some(Value::UInt32(0)),
-            DataType::UInt64 => Some(Value::UInt64(0)),
+            DataType::BigInt => Some(Value::BigInt(0)),
             DataType::Float => Some(Value::Float(0.0)),
+            DataType::Double => Some(Value::Double(0.0)),
             DataType::String => Some(Value::String(String::new())),
             DataType::List => Some(Value::list(List::from(Vec::new()))),
             DataType::Map => Some(Value::map(std::collections::HashMap::new())),
@@ -462,7 +433,7 @@ mod tests {
     #[test]
     fn test_get_type_priority() {
         assert_eq!(TypeUtils::get_type_priority(&DataType::Null), 0);
-        assert_eq!(TypeUtils::get_type_priority(&DataType::Int), 20);
+        assert_eq!(TypeUtils::get_type_priority(&DataType::Int), 21);
         assert_eq!(TypeUtils::get_type_priority(&DataType::Float), 30);
         assert_eq!(TypeUtils::get_type_priority(&DataType::String), 40);
     }
@@ -522,7 +493,7 @@ mod tests {
         use std::f64::consts::PI;
 
         assert_eq!(TypeUtils::literal_type(&Value::Int(42)), DataType::Int);
-        assert_eq!(TypeUtils::literal_type(&Value::Float(PI)), DataType::Float);
+        assert_eq!(TypeUtils::literal_type(&Value::Double(PI)), DataType::Double);
         assert_eq!(
             TypeUtils::literal_type(&Value::String("test".to_string())),
             DataType::String
@@ -566,32 +537,26 @@ mod tests {
         // Float conversion
         assert!(TypeUtils::can_cast(&DataType::Float, &DataType::Int));
         assert!(TypeUtils::can_cast(&DataType::Float, &DataType::String));
+        assert!(!TypeUtils::can_cast(&DataType::Float, &DataType::Bool));
 
         // String conversion
         assert!(TypeUtils::can_cast(&DataType::String, &DataType::Int));
         assert!(TypeUtils::can_cast(&DataType::String, &DataType::Float));
         assert!(TypeUtils::can_cast(&DataType::String, &DataType::Bool));
-        assert!(TypeUtils::can_cast(&DataType::String, &DataType::Date));
-        assert!(TypeUtils::can_cast(&DataType::String, &DataType::DateTime));
+        assert!(!TypeUtils::can_cast(&DataType::String, &DataType::Date));
 
-        // Boolean conversion
+        // Bool conversion
         assert!(TypeUtils::can_cast(&DataType::Bool, &DataType::Int));
-        assert!(TypeUtils::can_cast(&DataType::Bool, &DataType::Float));
         assert!(TypeUtils::can_cast(&DataType::Bool, &DataType::String));
+        assert!(!TypeUtils::can_cast(&DataType::Bool, &DataType::Float));
 
-        // The value “Null” can be converted into any data type.
+        // Null conversion
         assert!(TypeUtils::can_cast(&DataType::Null, &DataType::Int));
         assert!(TypeUtils::can_cast(&DataType::Null, &DataType::String));
-        assert!(TypeUtils::can_cast(&DataType::Null, &DataType::Bool));
 
-        // "Empty" conversion
+        // Empty conversion
         assert!(TypeUtils::can_cast(&DataType::Empty, &DataType::Int));
         assert!(TypeUtils::can_cast(&DataType::Empty, &DataType::String));
-        assert!(TypeUtils::can_cast(&DataType::Empty, &DataType::Bool));
-
-        // The conversion was invalid.
-        assert!(!TypeUtils::can_cast(&DataType::Int, &DataType::Date));
-        assert!(!TypeUtils::can_cast(&DataType::Float, &DataType::Bool));
     }
 
     #[test]
@@ -605,25 +570,12 @@ mod tests {
         assert!(string_targets.contains(&DataType::String));
         assert!(string_targets.contains(&DataType::Int));
         assert!(string_targets.contains(&DataType::Float));
-        assert!(string_targets.contains(&DataType::Bool));
-
-        let null_targets = TypeUtils::get_cast_targets(&DataType::Null);
-        assert!(null_targets.contains(&DataType::Int));
-        assert!(null_targets.contains(&DataType::Float));
-        assert!(null_targets.contains(&DataType::String));
-        assert!(null_targets.contains(&DataType::Bool));
     }
 
     #[test]
     fn test_validate_type_cast() {
-        assert!(TypeUtils::validate_type_cast(
-            &DataType::Int,
-            &DataType::Float
-        ));
-        assert!(!TypeUtils::validate_type_cast(
-            &DataType::Int,
-            &DataType::Bool
-        ));
+        assert!(TypeUtils::validate_type_cast(&DataType::Int, &DataType::Float));
+        assert!(!TypeUtils::validate_type_cast(&DataType::Int, &DataType::Bool));
     }
 
     #[test]
@@ -631,7 +583,6 @@ mod tests {
         assert_eq!(TypeUtils::type_to_string(&DataType::Int), "int");
         assert_eq!(TypeUtils::type_to_string(&DataType::Float), "float");
         assert_eq!(TypeUtils::type_to_string(&DataType::String), "string");
-        assert_eq!(TypeUtils::type_to_string(&DataType::Bool), "bool");
         assert_eq!(
             TypeUtils::type_to_string(&DataType::FixedString(100)),
             "fixed_string(100)"
@@ -641,9 +592,7 @@ mod tests {
     #[test]
     fn test_is_indexable_type() {
         assert!(TypeUtils::is_indexable_type(&DataType::Int));
-        assert!(TypeUtils::is_indexable_type(&DataType::Float));
         assert!(TypeUtils::is_indexable_type(&DataType::String));
-        assert!(TypeUtils::is_indexable_type(&DataType::Bool));
         assert!(!TypeUtils::is_indexable_type(&DataType::Null));
         assert!(!TypeUtils::is_indexable_type(&DataType::List));
     }
@@ -651,21 +600,17 @@ mod tests {
     #[test]
     fn test_get_default_value() {
         assert_eq!(
-            TypeUtils::get_default_value(&DataType::Bool),
-            Some(Value::Bool(false))
-        );
-        assert_eq!(
             TypeUtils::get_default_value(&DataType::Int),
             Some(Value::Int(0))
         );
         assert_eq!(
-            TypeUtils::get_default_value(&DataType::Float),
-            Some(Value::Float(0.0))
+            TypeUtils::get_default_value(&DataType::Bool),
+            Some(Value::Bool(false))
         );
         assert_eq!(
             TypeUtils::get_default_value(&DataType::String),
             Some(Value::String(String::new()))
         );
-        assert!(TypeUtils::get_default_value(&DataType::Null).is_none());
+        assert!(TypeUtils::get_default_value(&DataType::Date).is_none());
     }
 }

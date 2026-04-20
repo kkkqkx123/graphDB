@@ -245,10 +245,11 @@ impl PropIndexSeek {
     /// Compare two values
     fn compare_values(left: &Value, right: &Value) -> Option<i32> {
         match (left, right) {
+            (Value::SmallInt(i1), Value::SmallInt(i2)) => Some(i1.cmp(i2) as i32),
             (Value::Int(i1), Value::Int(i2)) => Some(i1.cmp(i2) as i32),
+            (Value::BigInt(i1), Value::BigInt(i2)) => Some(i1.cmp(i2) as i32),
             (Value::Float(f1), Value::Float(f2)) => f1.partial_cmp(f2).map(|c| c as i32),
-            (Value::Int(i), Value::Float(f)) => (*i as f64).partial_cmp(f).map(|c| c as i32),
-            (Value::Float(f), Value::Int(i)) => f.partial_cmp(&(*i as f64)).map(|c| c as i32),
+            (Value::Double(f1), Value::Double(f2)) => f1.partial_cmp(f2).map(|c| c as i32),
             (Value::String(s1), Value::String(s2)) => Some(s1.cmp(s2) as i32),
             _ => None,
         }

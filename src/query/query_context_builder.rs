@@ -116,7 +116,7 @@ mod tests {
         let space_info = SpaceInfo {
             space_id: 1,
             space_name: "test_space".to_string(),
-            vid_type: crate::core::types::DataType::Int64,
+            vid_type: crate::core::types::DataType::BigInt,
             tags: Vec::new(),
             edge_types: Vec::new(),
             version: crate::core::types::MetadataVersion::default(),
@@ -159,7 +159,7 @@ mod tests {
         let space_info = SpaceInfo {
             space_id: 1,
             space_name: "test_space".to_string(),
-            vid_type: crate::core::types::DataType::Int64,
+            vid_type: crate::core::types::DataType::BigInt,
             tags: Vec::new(),
             edge_types: Vec::new(),
             version: crate::core::types::MetadataVersion::default(),

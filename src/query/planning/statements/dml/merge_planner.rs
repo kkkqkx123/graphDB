@@ -137,7 +137,7 @@ impl MergePlanner {
     ) -> Result<ContextualExpression, PlannerError> {
         // Generate a random ID
         let random_id = rand::random::<i64>().abs();
-        let vid_meta = ExpressionMeta::new(Expression::Literal(Value::Int(random_id)));
+        let vid_meta = ExpressionMeta::new(Expression::Literal(Value::BigInt(random_id)));
         let vid_id = expr_context.register_expression(vid_meta);
         Ok(ContextualExpression::new(vid_id, expr_context.clone()))
     }

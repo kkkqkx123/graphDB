@@ -24,7 +24,7 @@ mod tests {
         ));
         let properties = vec![
             PropertyDef::new("weight".to_string(), DataType::Double),
-            PropertyDef::new("since".to_string(), DataType::Int64),
+            PropertyDef::new("since".to_string(), DataType::BigInt),
         ];
         let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "knows".to_string())
             .with_properties(properties);
@@ -150,7 +150,7 @@ mod tests {
     fn test_executor_edge_info_builder() {
         let properties = vec![
             PropertyDef::new("weight".to_string(), DataType::Double),
-            PropertyDef::new("since".to_string(), DataType::Int64),
+            PropertyDef::new("since".to_string(), DataType::BigInt),
         ];
         let edge_info = ExecutorEdgeInfo::new("my_space".to_string(), "knows".to_string())
             .with_properties(properties)
@@ -226,7 +226,7 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let properties = vec![
-            PropertyDef::new("int_field".to_string(), DataType::Int64),
+            PropertyDef::new("int_field".to_string(), DataType::BigInt),
             PropertyDef::new("bool_field".to_string(), DataType::Bool),
             PropertyDef::new("double_field".to_string(), DataType::Double),
             PropertyDef::new("string_field".to_string(), DataType::String),
@@ -248,7 +248,7 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let properties = vec![
-            PropertyDef::new("required_field".to_string(), DataType::Int64),
+            PropertyDef::new("required_field".to_string(), DataType::BigInt),
             PropertyDef::new("optional_field".to_string(), DataType::String),
         ];
         let edge_info =
@@ -302,7 +302,7 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let new_prop = PropertyDef::new("new_field".to_string(), DataType::Int64);
+        let new_prop = PropertyDef::new("new_field".to_string(), DataType::BigInt);
         let items = vec![AlterEdgeItem::add_property(new_prop)];
         let alter_info = AlterEdgeInfo::new("test_space".to_string(), "knows".to_string())
             .with_items(items)
@@ -413,7 +413,7 @@ mod tests {
 
     #[test]
     fn test_alter_edge_item_add_property() {
-        let prop = PropertyDef::new("test_prop".to_string(), DataType::Int64);
+        let prop = PropertyDef::new("test_prop".to_string(), DataType::BigInt);
         let item = AlterEdgeItem::add_property(prop.clone());
 
         assert!(matches!(item.op, AlterEdgeOp::Add));
@@ -500,7 +500,7 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let items = vec![
-            AlterEdgeItem::add_property(PropertyDef::new("field1".to_string(), DataType::Int64)),
+            AlterEdgeItem::add_property(PropertyDef::new("field1".to_string(), DataType::BigInt)),
             AlterEdgeItem::add_property(PropertyDef::new("field2".to_string(), DataType::String)),
             AlterEdgeItem::drop_property("old_field1".to_string()),
             AlterEdgeItem::drop_property("old_field2".to_string()),
@@ -566,7 +566,7 @@ mod tests {
     #[test]
     fn test_executor_edge_info_builder_chain() {
         let properties = vec![
-            PropertyDef::new("prop1".to_string(), DataType::Int64),
+            PropertyDef::new("prop1".to_string(), DataType::BigInt),
             PropertyDef::new("prop2".to_string(), DataType::String),
         ];
         let edge_info = ExecutorEdgeInfo::new("space1".to_string(), "edge1".to_string())
@@ -583,7 +583,7 @@ mod tests {
     fn test_alter_edge_info_builder_chain() {
         let items = vec![AlterEdgeItem::add_property(PropertyDef::new(
             "new_prop".to_string(),
-            DataType::Int64,
+            DataType::BigInt,
         ))];
         let alter_info = AlterEdgeInfo::new("space1".to_string(), "edge1".to_string())
             .with_items(items)

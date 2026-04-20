@@ -119,7 +119,7 @@ impl CreatePlanner {
         expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Vec<YieldColumn> {
         let expr_meta = crate::core::types::expr::ExpressionMeta::new(
-            crate::core::Expression::literal(Value::Int(count as i64)),
+            crate::core::Expression::literal(Value::BigInt(count as i64)),
         );
         let id = expr_context.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, expr_context.clone());

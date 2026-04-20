@@ -73,7 +73,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for RemoveExecutor<S>
         match result {
             Ok(count) => {
                 let dataset =
-                    DataSet::from_rows(vec![vec![Value::Int(count)]], vec!["count".to_string()]);
+                    DataSet::from_rows(vec![vec![Value::BigInt(count)]], vec!["count".to_string()]);
                 Ok(ExecutionResult::DataSet(dataset))
             }
             Err(e) => Err(e),

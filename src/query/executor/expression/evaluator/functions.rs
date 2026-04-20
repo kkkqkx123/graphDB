@@ -26,9 +26,9 @@ impl FunctionEvaluator {
             AggregateFunction::Count(_) => {
                 if distinct {
                     let unique_values: std::collections::HashSet<_> = args.iter().collect();
-                    Ok(Value::Int(unique_values.len() as i64))
+                    Ok(Value::BigInt(unique_values.len() as i64))
                 } else {
-                    Ok(Value::Int(args.len() as i64))
+                    Ok(Value::BigInt(args.len() as i64))
                 }
             }
             AggregateFunction::Sum(_) => {
@@ -92,7 +92,9 @@ impl FunctionEvaluator {
 
                 let percentile = match &args[1] {
                     Value::Int(v) => *v as f64,
-                    Value::Float(v) => *v,
+                    Value::BigInt(v) => *v as f64,
+                    Value::Float(v) => *v as f64,
+                    Value::Double(v) => *v,
                     _ => return Err(ExpressionError::type_error("Percentile must be a number")),
                 };
 
@@ -115,8 +117,11 @@ impl FunctionEvaluator {
                 let mut numeric_values = Vec::new();
                 for value in values.iter() {
                     match value {
+                        Value::SmallInt(v) => numeric_values.push(*v as f64),
                         Value::Int(v) => numeric_values.push(*v as f64),
-                        Value::Float(v) => numeric_values.push(*v),
+                        Value::BigInt(v) => numeric_values.push(*v as f64),
+                        Value::Float(v) => numeric_values.push(*v as f64),
+                        Value::Double(v) => numeric_values.push(*v),
                         _ => continue,
                     }
                 }
@@ -133,13 +138,13 @@ impl FunctionEvaluator {
                 let upper_index = index.ceil() as usize;
 
                 if lower_index == upper_index {
-                    Ok(Value::Float(numeric_values[lower_index]))
+                    Ok(Value::Double(numeric_values[lower_index]))
                 } else {
                     let lower_value = numeric_values[lower_index];
                     let upper_value = numeric_values[upper_index];
                     let weight = index - lower_index as f64;
                     let interpolated = lower_value + weight * (upper_value - lower_value);
-                    Ok(Value::Float(interpolated))
+                    Ok(Value::Double(interpolated))
                 }
             }
             AggregateFunction::Std(_) => {
@@ -159,8 +164,11 @@ impl FunctionEvaluator {
                 let mut numeric_values = Vec::new();
                 for value in values.iter() {
                     match value {
+                        Value::SmallInt(v) => numeric_values.push(*v as f64),
                         Value::Int(v) => numeric_values.push(*v as f64),
-                        Value::Float(v) => numeric_values.push(*v),
+                        Value::BigInt(v) => numeric_values.push(*v as f64),
+                        Value::Float(v) => numeric_values.push(*v as f64),
+                        Value::Double(v) => numeric_values.push(*v),
                         _ => continue,
                     }
                 }
@@ -178,7 +186,7 @@ impl FunctionEvaluator {
                     / n;
                 let std_dev = variance.sqrt();
 
-                Ok(Value::Float(std_dev))
+                Ok(Value::Double(std_dev))
             }
             AggregateFunction::BitAnd(_) => {
                 if args.is_empty() {
@@ -197,7 +205,9 @@ impl FunctionEvaluator {
                 let mut result = i64::MAX;
                 for value in values.iter() {
                     match value {
-                        Value::Int(v) => result &= v,
+                        Value::SmallInt(v) => result &= *v as i64,
+                        Value::Int(v) => result &= *v as i64,
+                        Value::BigInt(v) => result &= *v,
                         _ => {
                             return Err(ExpressionError::type_error(
                                 "All values must be integers for BIT_AND",
@@ -206,7 +216,7 @@ impl FunctionEvaluator {
                     }
                 }
 
-                Ok(Value::Int(result))
+                Ok(Value::BigInt(result))
             }
             AggregateFunction::BitOr(_) => {
                 if args.is_empty() {
@@ -225,7 +235,9 @@ impl FunctionEvaluator {
                 let mut result = 0i64;
                 for value in values.iter() {
                     match value {
-                        Value::Int(v) => result |= v,
+                        Value::SmallInt(v) => result |= *v as i64,
+                        Value::Int(v) => result |= *v as i64,
+                        Value::BigInt(v) => result |= *v,
                         _ => {
                             return Err(ExpressionError::type_error(
                                 "All values must be integers for BIT_OR",
@@ -234,7 +246,7 @@ impl FunctionEvaluator {
                     }
                 }
 
-                Ok(Value::Int(result))
+                Ok(Value::BigInt(result))
             }
             AggregateFunction::GroupConcat(_, separator) => {
                 if args.is_empty() {

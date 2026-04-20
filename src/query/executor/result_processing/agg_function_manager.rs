@@ -202,17 +202,20 @@ impl AggFunctionManager {
 
                 // Obtain the value
                 let val_f64 = match val {
+                    Value::SmallInt(v) => *v as f64,
                     Value::Int(v) => *v as f64,
-                    Value::Float(v) => *v,
+                    Value::BigInt(v) => *v as f64,
+                    Value::Float(v) => (*v).into(),
+                    Value::Double(v) => *v,
                     _ => return Ok(()),
                 };
 
                 // Initialization
                 if agg_data.result().is_null() {
-                    *agg_data.result_mut() = Value::Float(0.0);
-                    *agg_data.cnt_mut() = Value::Float(0.0);
-                    *agg_data.avg_mut() = Value::Float(0.0);
-                    *agg_data.deviation_mut() = Value::Float(0.0);
+                    *agg_data.result_mut() = Value::Double(0.0);
+                    *agg_data.cnt_mut() = Value::Double(0.0);
+                    *agg_data.avg_mut() = Value::Double(0.0);
+                    *agg_data.deviation_mut() = Value::Double(0.0);
                 }
 
                 // Get the current value
@@ -220,7 +223,7 @@ impl AggFunctionManager {
                 let avg = agg_data.avg().clone();
                 let deviation = agg_data.deviation().clone();
 
-                if let (Value::Float(c), Value::Float(a), Value::Float(d)) = (cnt, avg, deviation) {
+                if let (Value::Double(c), Value::Double(a), Value::Double(d)) = (cnt, avg, deviation) {
                     let new_cnt = c + 1.0;
                     // The Welford algorithm is used to calculate the standard deviation.
                     let delta = val_f64 - a;
@@ -228,13 +231,13 @@ impl AggFunctionManager {
                     let delta2 = val_f64 - new_avg;
                     let new_deviation = d + delta * delta2;
 
-                    *agg_data.cnt_mut() = Value::Float(new_cnt);
-                    *agg_data.avg_mut() = Value::Float(new_avg);
-                    *agg_data.deviation_mut() = Value::Float(new_deviation);
+                    *agg_data.cnt_mut() = Value::Double(new_cnt);
+                    *agg_data.avg_mut() = Value::Double(new_avg);
+                    *agg_data.deviation_mut() = Value::Double(new_deviation);
 
                     if new_cnt >= 2.0 {
                         let variance = new_deviation / (new_cnt - 1.0);
-                        *agg_data.result_mut() = Value::Float(variance.sqrt());
+                        *agg_data.result_mut() = Value::Double(variance.sqrt());
                     }
                 }
                 Ok(())

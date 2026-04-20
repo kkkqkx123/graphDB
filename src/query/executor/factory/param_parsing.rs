@@ -16,7 +16,7 @@ pub fn parse_vertex_ids(src_vids: &str) -> Vec<Value> {
         .map(|s| {
             // Try to parse as integer first
             if let Ok(i) = s.parse::<i64>() {
-                Value::Int(i)
+                Value::BigInt(i)
             } else {
                 Value::String(s.to_string())
             }

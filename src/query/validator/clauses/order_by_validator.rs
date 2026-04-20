@@ -350,11 +350,9 @@ impl OrderByValidator {
                 // Please provide the text you would like to have translated, as well as the target language you need the translation to. I will then perform the translation for you.
                 match target_type {
                     crate::core::DataType::Bool => Ok(ValueType::Bool),
-                    crate::core::DataType::Int
-                    | crate::core::DataType::Int8
-                    | crate::core::DataType::Int16
-                    | crate::core::DataType::Int32
-                    | crate::core::DataType::Int64 => Ok(ValueType::Int),
+                    crate::core::DataType::SmallInt
+                    | crate::core::DataType::Int
+                    | crate::core::DataType::BigInt => Ok(ValueType::Int),
                     crate::core::DataType::Float | crate::core::DataType::Double => {
                         Ok(ValueType::Float)
                     }

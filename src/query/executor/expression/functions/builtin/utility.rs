@@ -72,13 +72,13 @@ fn execute_hash(args: &[Value]) -> Result<Value, ExpressionError> {
             let mut hasher = DefaultHasher::new();
             s.hash(&mut hasher);
             let hash_value = hasher.finish() as i64;
-            Ok(Value::Int(hash_value))
+            Ok(Value::BigInt(hash_value))
         }
         Value::Int(i) => {
             let mut hasher = DefaultHasher::new();
             i.hash(&mut hasher);
             let hash_value = hasher.finish() as i64;
-            Ok(Value::Int(hash_value))
+            Ok(Value::BigInt(hash_value))
         }
         _ => Err(ExpressionError::type_error("The hash function requires a string or integer type")),
     }
@@ -131,9 +131,9 @@ fn json_to_value(json: &JsonValue) -> Value {
         JsonValue::Bool(b) => Value::Bool(*b),
         JsonValue::Number(n) => {
             if let Some(i) = n.as_i64() {
-                Value::Int(i)
+                Value::BigInt(i)
             } else if let Some(f) = n.as_f64() {
-                Value::Float(f)
+                Value::Double(f)
             } else {
                 Value::Null(NullType::Null)
             }

@@ -62,7 +62,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DeleteTagExecutor
         match result {
             Ok(count) => {
                 let dataset = DataSet::from_rows(
-                    vec![vec![Value::Int(count as i64)]],
+                    vec![vec![Value::BigInt(count as i64)]],
                     vec!["count".to_string()],
                 );
                 Ok(ExecutionResult::DataSet(dataset))

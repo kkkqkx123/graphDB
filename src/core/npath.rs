@@ -476,14 +476,14 @@ mod tests {
     use crate::core::Value;
 
     fn create_test_vertex(id: i64) -> Arc<Vertex> {
-        Arc::new(Vertex::new(Value::Int(id), vec![]))
+        Arc::new(Vertex::new(Value::BigInt(id), vec![]))
     }
 
     fn create_test_edge(src_id: i64, dst_id: i64, edge_type: &str) -> Arc<Edge> {
         use std::collections::HashMap;
         Arc::new(Edge::new(
-            Value::Int(src_id),
-            Value::Int(dst_id),
+            Value::BigInt(src_id),
+            Value::BigInt(dst_id),
             edge_type.to_string(),
             0,
             HashMap::new(),

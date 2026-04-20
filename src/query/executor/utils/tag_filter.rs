@@ -52,7 +52,7 @@ impl TagFilterProcessor {
 
         // Number of tags added
         let tag_count = vertex.tags.len() as i64;
-        context.set_variable("tag_count".to_string(), Value::Int(tag_count));
+        context.set_variable("tag_count".to_string(), Value::BigInt(tag_count));
 
         // Add each tag as a separate variable.
         for (i, tag) in vertex.tags.iter().enumerate() {

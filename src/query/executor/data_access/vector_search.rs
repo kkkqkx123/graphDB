@@ -269,11 +269,11 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
     fn extract_field_value(&self, field: &OutputField, result: &SearchResult) -> DBResult<Value> {
         match field.name.as_str() {
             "id" | "vertex_id" => Ok(Value::String(result.id.clone())),
-            "score" => Ok(Value::Float(result.score as f64)),
+            "score" => Ok(Value::Double(result.score as f64)),
             "vector" => {
                 // Return vector if requested
                 if let Some(vec) = &result.vector {
-                    let values: Vec<Value> = vec.iter().map(|&v| Value::Float(v as f64)).collect();
+                    let values: Vec<Value> = vec.iter().map(|&v| Value::Float(v)).collect();
                     Ok(Value::list(List::from(values)))
                 } else {
                     Ok(Value::Null(NullType::Null))
@@ -299,9 +299,9 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
             serde_json::Value::Bool(b) => Ok(Value::Bool(*b)),
             serde_json::Value::Number(n) => {
                 if let Some(i) = n.as_i64() {
-                    Ok(Value::Int(i))
+                    Ok(Value::BigInt(i))
                 } else if let Some(f) = n.as_f64() {
-                    Ok(Value::Float(f))
+                    Ok(Value::Double(f))
                 } else {
                     Ok(Value::Null(NullType::Null))
                 }
@@ -514,7 +514,7 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
     fn extract_field_value(&self, field: &OutputField, result: &SearchResult) -> DBResult<Value> {
         match field.name.as_str() {
             "id" | "vertex_id" => Ok(Value::String(result.id.clone())),
-            "score" => Ok(Value::Float(result.score as f64)),
+            "score" => Ok(Value::Double(result.score as f64)),
             _ => {
                 if let Some(payload) = &result.payload {
                     if let Some(payload_value) = payload.get(&field.name) {
@@ -533,9 +533,9 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
             serde_json::Value::Bool(b) => Ok(Value::Bool(*b)),
             serde_json::Value::Number(n) => {
                 if let Some(i) = n.as_i64() {
-                    Ok(Value::Int(i))
+                    Ok(Value::BigInt(i))
                 } else if let Some(f) = n.as_f64() {
-                    Ok(Value::Float(f))
+                    Ok(Value::Double(f))
                 } else {
                     Ok(Value::Null(NullType::Null))
                 }
@@ -735,7 +735,7 @@ impl<S: StorageClient> Executor<S> for VectorMatchExecutor<S> {
         for result in results {
             dataset.add_row(vec![
                 Value::String(result.id),
-                Value::Float(result.score as f64),
+                Value::Double(result.score as f64),
             ]);
         }
 

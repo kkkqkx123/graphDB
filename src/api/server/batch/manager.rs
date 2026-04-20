@@ -258,9 +258,9 @@ fn json_to_value(json: serde_json::Value) -> Option<Value> {
         serde_json::Value::Bool(b) => Some(Value::Bool(b)),
         serde_json::Value::Number(n) => {
             if let Some(i) = n.as_i64() {
-                Some(Value::Int(i))
+                Some(Value::BigInt(i))
             } else {
-                n.as_f64().map(Value::Float)
+                n.as_f64().map(Value::Double)
             }
         }
         serde_json::Value::String(s) => Some(Value::String(s)),
@@ -291,7 +291,7 @@ mod tests {
         );
 
         // Test number
-        assert_eq!(json_to_value(serde_json::json!(42)), Some(Value::Int(42)));
+        assert_eq!(json_to_value(serde_json::json!(42)), Some(Value::BigInt(42)));
 
         // Test string
         assert_eq!(

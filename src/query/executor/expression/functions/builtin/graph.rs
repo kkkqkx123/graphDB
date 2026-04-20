@@ -186,7 +186,7 @@ fn execute_rank(args: &[Value]) -> Result<Value, ExpressionError> {
         return Err(ExpressionError::type_error("The rank function takes 1 argument"));
     }
     match &args[0] {
-        Value::Edge(e) => Ok(Value::Int(e.ranking)),
+        Value::Edge(e) => Ok(Value::BigInt(e.ranking)),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
         _ => Err(ExpressionError::type_error("The rank function requires an edge type")),
     }

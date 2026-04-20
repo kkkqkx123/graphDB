@@ -164,7 +164,7 @@ impl AggregateExpression {
 
         // Return the aggregated results of the current state.
         match &self.function {
-            AggregateFunction::Count(_) => Ok(Value::Int(state.count)),
+            AggregateFunction::Count(_) => Ok(Value::BigInt(state.count)),
             AggregateFunction::Sum(_) => Ok(state.sum.clone()),
             AggregateFunction::Min(_) => Ok(state
                 .min
@@ -177,12 +177,15 @@ impl AggregateExpression {
             AggregateFunction::Avg(_) => {
                 if state.count > 0 {
                     match &state.sum {
-                        Value::Int(i) => Ok(Value::Float(*i as f64 / state.count as f64)),
-                        Value::Float(f) => Ok(Value::Float(*f / state.count as f64)),
-                        _ => Ok(Value::Float(0.0)),
+                        Value::SmallInt(i) => Ok(Value::Double(*i as f64 / state.count as f64)),
+                        Value::Int(i) => Ok(Value::Double(*i as f64 / state.count as f64)),
+                        Value::BigInt(i) => Ok(Value::Double(*i as f64 / state.count as f64)),
+                        Value::Float(f) => Ok(Value::Double(*f as f64 / state.count as f64)),
+                        Value::Double(f) => Ok(Value::Double(*f / state.count as f64)),
+                        _ => Ok(Value::Double(0.0)),
                     }
                 } else {
-                    Ok(Value::Float(0.0))
+                    Ok(Value::Double(0.0))
                 }
             }
             AggregateFunction::Collect(_) => Ok(Value::list(List::from(state.values.clone()))),
@@ -300,22 +303,28 @@ impl AggregateState {
             AggregateFunction::Percentile(_, _) => {
                 // Special handling of the PERCENTILE function: Collecting numerical values
                 match value {
+                    Value::SmallInt(v) => self.percentile_values.push(*v as f64),
                     Value::Int(v) => self.percentile_values.push(*v as f64),
-                    Value::Float(v) => self.percentile_values.push(*v),
+                    Value::BigInt(v) => self.percentile_values.push(*v as f64),
+                    Value::Float(v) => self.percentile_values.push(*v as f64),
+                    Value::Double(v) => self.percentile_values.push(*v),
                     _ => {}
                 }
             }
             AggregateFunction::Std(_) => {
                 // Special handling of the STD function: Collecting numerical values
                 match value {
+                    Value::SmallInt(v) => self.std_values.push(*v as f64),
                     Value::Int(v) => self.std_values.push(*v as f64),
-                    Value::Float(v) => self.std_values.push(*v),
+                    Value::BigInt(v) => self.std_values.push(*v as f64),
+                    Value::Float(v) => self.std_values.push(*v as f64),
+                    Value::Double(v) => self.std_values.push(*v),
                     _ => {}
                 }
             }
             AggregateFunction::BitAnd(_) => {
                 // Special handling of the BIT_AND function
-                if let Value::Int(v) = value {
+                if let Value::BigInt(v) = value {
                     if let Some(current) = self.bit_and_value {
                         self.bit_and_value = Some(current & v);
                     } else {
@@ -325,7 +334,7 @@ impl AggregateState {
             }
             AggregateFunction::BitOr(_) => {
                 // Special handling of the BIT_OR function
-                if let Value::Int(v) = value {
+                if let Value::BigInt(v) = value {
                     if let Some(current) = self.bit_or_value {
                         self.bit_or_value = Some(current | v);
                     } else {
@@ -396,17 +405,38 @@ impl AggregateState {
 
                 // Update Total
                 match (&mut self.sum, value) {
+                    (Value::SmallInt(ref mut sum_int), Value::SmallInt(val_int)) => {
+                        *sum_int += *val_int;
+                    }
                     (Value::Int(ref mut sum_int), Value::Int(val_int)) => {
+                        *sum_int += *val_int;
+                    }
+                    (Value::BigInt(ref mut sum_int), Value::BigInt(val_int)) => {
                         *sum_int += *val_int;
                     }
                     (Value::Float(ref mut sum_float), Value::Float(val_float)) => {
                         *sum_float += *val_float;
                     }
-                    (Value::Int(ref mut sum_int), Value::Float(val_float)) => {
-                        self.sum = Value::Float(*sum_int as f64 + *val_float);
+                    (Value::Double(ref mut sum_float), Value::Double(val_float)) => {
+                        *sum_float += *val_float;
                     }
-                    (Value::Float(ref mut sum_float), Value::Int(val_int)) => {
-                        *sum_float += *val_int as f64;
+                    (Value::SmallInt(ref mut sum_int), Value::Int(val_int)) => {
+                        self.sum = Value::Int(*sum_int as i32 + *val_int);
+                    }
+                    (Value::Int(ref mut sum_int), Value::SmallInt(val_int)) => {
+                        *sum_int += *val_int as i32;
+                    }
+                    (Value::Int(ref mut sum_int), Value::BigInt(val_int)) => {
+                        self.sum = Value::BigInt(*sum_int as i64 + *val_int);
+                    }
+                    (Value::BigInt(ref mut sum_int), Value::Int(val_int)) => {
+                        *sum_int += *val_int as i64;
+                    }
+                    (Value::Float(ref mut sum_float), Value::Double(val_float)) => {
+                        self.sum = Value::Double(*sum_float as f64 + *val_float);
+                    }
+                    (Value::Double(ref mut sum_float), Value::Float(val_float)) => {
+                        *sum_float += *val_float as f64;
                     }
                     _ => {}
                 }
@@ -434,13 +464,13 @@ impl AggregateState {
         let upper_index = index.ceil() as usize;
 
         if lower_index == upper_index {
-            Ok(Value::Float(sorted_values[lower_index]))
+            Ok(Value::Double(sorted_values[lower_index]))
         } else {
             let lower_value = sorted_values[lower_index];
             let upper_value = sorted_values[upper_index];
             let weight = index - lower_index as f64;
             let interpolated = lower_value + weight * (upper_value - lower_value);
-            Ok(Value::Float(interpolated))
+            Ok(Value::Double(interpolated))
         }
     }
 
@@ -460,13 +490,13 @@ impl AggregateState {
             / n;
         let std_dev = variance.sqrt();
 
-        Ok(Value::Float(std_dev))
+        Ok(Value::Double(std_dev))
     }
 
     /// Performing a bitwise AND operation
     pub fn calculate_bit_and(&self) -> Result<Value, ExpressionError> {
         if let Some(value) = self.bit_and_value {
-            Ok(Value::Int(value))
+            Ok(Value::BigInt(value))
         } else {
             Ok(Value::Null(crate::core::value::NullType::Null))
         }
@@ -475,7 +505,7 @@ impl AggregateState {
     /// Performing a bitwise OR operation
     pub fn calculate_bit_or(&self) -> Result<Value, ExpressionError> {
         if let Some(value) = self.bit_or_value {
-            Ok(Value::Int(value))
+            Ok(Value::BigInt(value))
         } else {
             Ok(Value::Null(crate::core::value::NullType::Null))
         }

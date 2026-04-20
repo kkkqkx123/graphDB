@@ -54,11 +54,7 @@ impl ValueType {
         use crate::core::DataType;
         match data_type {
             DataType::Bool => ValueType::Bool,
-            DataType::Int
-            | DataType::Int8
-            | DataType::Int16
-            | DataType::Int32
-            | DataType::Int64 => ValueType::Int,
+            DataType::SmallInt | DataType::Int | DataType::BigInt => ValueType::Int,
             DataType::Float | DataType::Double => ValueType::Float,
             DataType::String | DataType::FixedString(_) => ValueType::String,
             DataType::Date => ValueType::Date,

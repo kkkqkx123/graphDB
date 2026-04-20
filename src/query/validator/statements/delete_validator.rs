@@ -446,7 +446,7 @@ impl DeleteValidator {
         };
 
         match inner_expr {
-            Expression::Literal(Value::Int(i)) => Ok(i),
+            Expression::Literal(Value::BigInt(i)) => Ok(i),
             Expression::Variable(_) => Ok(0),
             _ => Err(ValidationError::new(
                 "Rank must be an integer".to_string(),

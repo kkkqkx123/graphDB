@@ -282,7 +282,7 @@ impl FetchEdgesValidator {
             return Ok(0);
         }
 
-        if let Some(Value::Int(i)) = inner_expr.as_literal() {
+        if let Some(Value::BigInt(i)) = inner_expr.as_literal() {
             return Ok(i);
         }
 

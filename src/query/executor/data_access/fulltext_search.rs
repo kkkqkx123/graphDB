@@ -208,12 +208,13 @@ impl<S: StorageClient> FulltextSearchExecutor<S> {
     fn compare_value_order(&self, left: &Value, right: &Value) -> Ordering {
         match (left, right) {
             (Value::Int(a), Value::Int(b)) => a.cmp(b),
-            (Value::Int(a), Value::Float(b)) => {
+            (Value::Int(a), Value::Double(b)) => {
                 (*a as f64).partial_cmp(b).unwrap_or(Ordering::Equal)
             }
-            (Value::Float(a), Value::Int(b)) => {
+            (Value::Double(a), Value::Int(b)) => {
                 a.partial_cmp(&(*b as f64)).unwrap_or(Ordering::Equal)
             }
+            (Value::Double(a), Value::Double(b)) => a.partial_cmp(b).unwrap_or(Ordering::Equal),
             (Value::Float(a), Value::Float(b)) => a.partial_cmp(b).unwrap_or(Ordering::Equal),
             (Value::String(a), Value::String(b)) => a.cmp(b),
             (Value::Bool(a), Value::Bool(b)) => a.cmp(b),
@@ -259,16 +260,20 @@ impl<S: StorageClient> FulltextSearchExecutor<S> {
             let score_a = a
                 .get("score")
                 .and_then(|v| match v {
-                    Value::Float(f) => Some(*f),
+                    Value::Float(f) => Some(*f as f64),
+                    Value::Double(f) => Some(*f),
                     Value::Int(i) => Some(*i as f64),
+                    Value::BigInt(i) => Some(*i as f64),
                     _ => None,
                 })
                 .unwrap_or(0.0);
             let score_b = b
                 .get("score")
                 .and_then(|v| match v {
-                    Value::Float(f) => Some(*f),
+                    Value::Float(f) => Some(*f as f64),
+                    Value::Double(f) => Some(*f),
                     Value::Int(i) => Some(*i as f64),
+                    Value::BigInt(i) => Some(*i as f64),
                     _ => None,
                 })
                 .unwrap_or(0.0);
@@ -381,7 +386,7 @@ impl<S: StorageClient> Executor<S> for FulltextSearchExecutor<S> {
                                     Value::Null(crate::core::null::NullType::Null)
                                 }
                             }
-                            YieldExpression::Score(_) => Value::Float(result.score as f64),
+                            YieldExpression::Score(_) => Value::Double(result.score as f64),
                             YieldExpression::Highlight(_, _) => {
                                 if let Some(ref highlights) = result.highlights {
                                     Value::String(highlights.join(" ... "))
@@ -441,7 +446,7 @@ impl<S: StorageClient> Executor<S> for FulltextSearchExecutor<S> {
                     }
                 } else {
                     row.insert("doc_id".to_string(), result.doc_id.clone());
-                    row.insert("score".to_string(), Value::Float(result.score as f64));
+                    row.insert("score".to_string(), Value::Double(result.score as f64));
                 }
 
                 rows.push(row);
@@ -570,7 +575,7 @@ impl<S: StorageClient> Executor<S> for FulltextScanExecutor<S> {
             if let Some(vertex) = vertex {
                 let mut row = HashMap::new();
                 row.insert("doc_id".to_string(), result.doc_id.clone());
-                row.insert("score".to_string(), Value::Float(result.score as f64));
+                row.insert("score".to_string(), Value::Double(result.score as f64));
 
                 if let Some(tag) = vertex.tags.first() {
                     for (k, v) in &tag.properties {
@@ -586,16 +591,20 @@ impl<S: StorageClient> Executor<S> for FulltextScanExecutor<S> {
             let score_a = a
                 .get("score")
                 .and_then(|v| match v {
-                    Value::Float(f) => Some(*f),
+                    Value::Float(f) => Some(*f as f64),
+                    Value::Double(f) => Some(*f),
                     Value::Int(i) => Some(*i as f64),
+                    Value::BigInt(i) => Some(*i as f64),
                     _ => None,
                 })
                 .unwrap_or(0.0);
             let score_b = b
                 .get("score")
                 .and_then(|v| match v {
-                    Value::Float(f) => Some(*f),
+                    Value::Float(f) => Some(*f as f64),
+                    Value::Double(f) => Some(*f),
                     Value::Int(i) => Some(*i as f64),
+                    Value::BigInt(i) => Some(*i as f64),
                     _ => None,
                 })
                 .unwrap_or(0.0);

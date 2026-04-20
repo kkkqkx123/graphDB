@@ -169,15 +169,9 @@ impl LimitValidator {
         match expr {
             Expression::Literal(val) => matches!(
                 val,
-                crate::core::Value::Int(_)
-                    | crate::core::Value::Int8(_)
-                    | crate::core::Value::Int16(_)
-                    | crate::core::Value::Int32(_)
-                    | crate::core::Value::Int64(_)
-                    | crate::core::Value::UInt8(_)
-                    | crate::core::Value::UInt16(_)
-                    | crate::core::Value::UInt32(_)
-                    | crate::core::Value::UInt64(_)
+                crate::core::Value::SmallInt(_)
+                    | crate::core::Value::Int(_)
+                    | crate::core::Value::BigInt(_)
             ),
             Expression::Variable(_) => true, // Variables are checked during runtime.
             _ => false,
@@ -204,23 +198,9 @@ impl LimitValidator {
         use crate::core::types::expr::Expression;
 
         match expr {
-            Expression::Literal(crate::core::Value::Int(n)) => Ok(*n),
-            Expression::Literal(crate::core::Value::Int8(n)) => Ok(*n as i64),
-            Expression::Literal(crate::core::Value::Int16(n)) => Ok(*n as i64),
-            Expression::Literal(crate::core::Value::Int32(n)) => Ok(*n as i64),
-            Expression::Literal(crate::core::Value::Int64(n)) => Ok(*n),
-            Expression::Literal(crate::core::Value::UInt8(n)) => Ok(*n as i64),
-            Expression::Literal(crate::core::Value::UInt16(n)) => Ok(*n as i64),
-            Expression::Literal(crate::core::Value::UInt32(n)) => Ok(*n as i64),
-            Expression::Literal(crate::core::Value::UInt64(n)) => {
-                if *n > i64::MAX as u64 {
-                    return Err(ValidationError::new(
-                        "Integer value too large".to_string(),
-                        ValidationErrorType::SemanticError,
-                    ));
-                }
-                Ok(*n as i64)
-            }
+            Expression::Literal(crate::core::Value::SmallInt(n)) => Ok(*n as i64),
+            Expression::Literal(crate::core::Value::Int(n)) => Ok(*n as i64),
+            Expression::Literal(crate::core::Value::BigInt(n)) => Ok(*n),
             Expression::Variable(_) => Ok(0), // Variables are parsed at runtime.
             _ => Err(ValidationError::new(
                 "Cannot evaluate expression".to_string(),

@@ -96,8 +96,11 @@ impl<S: StorageClient> AStar<S> {
             EdgeWeightConfig::Property(prop_name) => edge
                 .get_property(prop_name)
                 .map(|v| match v {
+                    crate::core::Value::SmallInt(i) => *i as f64,
                     crate::core::Value::Int(i) => *i as f64,
-                    crate::core::Value::Float(f) => *f,
+                    crate::core::Value::BigInt(i) => *i as f64,
+                    crate::core::Value::Float(f) => (*f).into(),
+                    crate::core::Value::Double(f) => *f,
                     _ => 1.0,
                 })
                 .unwrap_or(1.0),

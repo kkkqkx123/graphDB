@@ -236,7 +236,7 @@ impl RedbStorage {
     /// Analyzing vertex IDs
     fn parse_vertex_id(&self, vertex_id: &str) -> Result<Value, StorageError> {
         if let Ok(i) = vertex_id.parse::<i64>() {
-            return Ok(Value::Int(i));
+            return Ok(Value::BigInt(i));
         }
         Ok(Value::String(vertex_id.to_string()))
     }

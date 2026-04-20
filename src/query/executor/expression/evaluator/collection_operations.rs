@@ -13,11 +13,9 @@ impl CollectionOperationEvaluator {
     /// Try to convert the Value to an i64 index.
     fn value_to_i64(index: &Value) -> Option<i64> {
         match index {
-            Value::Int(i) => Some(*i),
-            Value::Int8(i) => Some(*i as i64),
-            Value::Int16(i) => Some(*i as i64),
-            Value::Int32(i) => Some(*i as i64),
-            Value::Int64(i) => Some(*i),
+            Value::SmallInt(i) => Some(*i as i64),
+            Value::Int(i) => Some(*i as i64),
+            Value::BigInt(i) => Some(*i),
             _ => None,
         }
     }
@@ -101,7 +99,7 @@ impl CollectionOperationEvaluator {
                     .map(|v| {
                         if let Value::Int(i) = v {
                             if *i < 0 {
-                                (list.len() as i64 + i) as usize
+                                (list.len() as i32 + i) as usize
                             } else {
                                 *i as usize
                             }
@@ -115,7 +113,7 @@ impl CollectionOperationEvaluator {
                     .map(|v| {
                         if let Value::Int(i) = v {
                             if *i < 0 {
-                                (list.len() as i64 + i) as usize
+                                (list.len() as i32 + i) as usize
                             } else {
                                 *i as usize
                             }
@@ -140,7 +138,7 @@ impl CollectionOperationEvaluator {
                     .map(|v| {
                         if let Value::Int(i) = v {
                             if *i < 0 {
-                                (chars.len() as i64 + i) as usize
+                                (chars.len() as i32 + i) as usize
                             } else {
                                 *i as usize
                             }
@@ -154,7 +152,7 @@ impl CollectionOperationEvaluator {
                     .map(|v| {
                         if let Value::Int(i) = v {
                             if *i < 0 {
-                                (chars.len() as i64 + i) as usize
+                                (chars.len() as i32 + i) as usize
                             } else {
                                 *i as usize
                             }

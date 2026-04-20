@@ -22,22 +22,19 @@ use std::{
 };
 
 /// Indicates values that can be stored in node/edge attributes
-/// Following Nebula's Value type design pattern
+/// Simplified design following PostgreSQL type system
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub enum Value {
     Empty,
     Null(NullType),
     Bool(bool),
-    Int(i64),
-    Int8(i8),
-    Int16(i16),
-    Int32(i32),
-    Int64(i64),
-    UInt8(u8),
-    UInt16(u16),
-    UInt32(u32),
-    UInt64(u64),
-    Float(f64),
+    // Integer types: simplified to 3 types (aligned with PostgreSQL)
+    SmallInt(i16),  // 2 bytes, corresponds to PostgreSQL smallint
+    Int(i32),       // 4 bytes, corresponds to PostgreSQL integer
+    BigInt(i64),    // 8 bytes, corresponds to PostgreSQL bigint
+    // Floating point types: 2 types (standard practice)
+    Float(f32),     // 4 bytes, single precision
+    Double(f64),    // 8 bytes, double precision
     Decimal128(Decimal128Value),
     String(String),
     /// Fixed-length strings for optimized storage of short strings
@@ -74,16 +71,11 @@ impl Value {
             Value::Empty => DataType::Empty,
             Value::Null(_) => DataType::Null,
             Value::Bool(_) => DataType::Bool,
+            Value::SmallInt(_) => DataType::SmallInt,
             Value::Int(_) => DataType::Int,
-            Value::Int8(_) => DataType::Int8,
-            Value::Int16(_) => DataType::Int16,
-            Value::Int32(_) => DataType::Int32,
-            Value::Int64(_) => DataType::Int64,
-            Value::UInt8(_) => DataType::UInt8,
-            Value::UInt16(_) => DataType::UInt16,
-            Value::UInt32(_) => DataType::UInt32,
-            Value::UInt64(_) => DataType::UInt64,
+            Value::BigInt(_) => DataType::BigInt,
             Value::Float(_) => DataType::Float,
+            Value::Double(_) => DataType::Double,
             Value::Decimal128(_) => DataType::Decimal128,
             Value::String(_) => DataType::String,
             Value::FixedString { len, .. } => DataType::FixedString(*len),
@@ -115,16 +107,11 @@ impl Value {
     pub fn is_numeric(&self) -> bool {
         matches!(
             self,
-            Value::Int(_)
-                | Value::Int8(_)
-                | Value::Int16(_)
-                | Value::Int32(_)
-                | Value::Int64(_)
-                | Value::UInt8(_)
-                | Value::UInt16(_)
-                | Value::UInt32(_)
-                | Value::UInt64(_)
+            Value::SmallInt(_)
+                | Value::Int(_)
+                | Value::BigInt(_)
                 | Value::Float(_)
+                | Value::Double(_)
                 | Value::Decimal128(_)
         )
     }
@@ -168,8 +155,11 @@ impl Value {
                 let vector: Option<Vec<f32>> = list
                     .iter()
                     .map(|v| match v {
-                        Value::Float(f) => Some(*f as f32),
+                        Value::Float(f) => Some(*f),
+                        Value::Double(f) => Some(*f as f32),
                         Value::Int(i) => Some(*i as f32),
+                        Value::SmallInt(i) => Some(*i as f32),
+                        Value::BigInt(i) => Some(*i as f32),
                         _ => None,
                     })
                     .collect();
@@ -248,16 +238,11 @@ impl Value {
             Value::Empty => std::mem::size_of::<Self>(),
             Value::Null(_) => std::mem::size_of::<Self>(),
             Value::Bool(_) => std::mem::size_of::<Self>(),
+            Value::SmallInt(_) => std::mem::size_of::<Self>(),
             Value::Int(_) => std::mem::size_of::<Self>(),
-            Value::Int8(_) => std::mem::size_of::<Self>(),
-            Value::Int16(_) => std::mem::size_of::<Self>(),
-            Value::Int32(_) => std::mem::size_of::<Self>(),
-            Value::Int64(_) => std::mem::size_of::<Self>(),
-            Value::UInt8(_) => std::mem::size_of::<Self>(),
-            Value::UInt16(_) => std::mem::size_of::<Self>(),
-            Value::UInt32(_) => std::mem::size_of::<Self>(),
-            Value::UInt64(_) => std::mem::size_of::<Self>(),
+            Value::BigInt(_) => std::mem::size_of::<Self>(),
             Value::Float(_) => std::mem::size_of::<Self>(),
+            Value::Double(_) => std::mem::size_of::<Self>(),
             Value::Decimal128(_) => std::mem::size_of::<Self>(),
             Value::String(s) => std::mem::size_of::<Self>() + s.capacity(),
             Value::FixedString { data, .. } => std::mem::size_of::<Self>() + data.capacity(),
@@ -350,16 +335,11 @@ impl std::fmt::Display for Value {
             Value::Empty => write!(f, "EMPTY"),
             Value::Null(n) => write!(f, "NULL({:?})", n),
             Value::Bool(b) => write!(f, "{}", b),
+            Value::SmallInt(i) => write!(f, "{}", i),
             Value::Int(i) => write!(f, "{}", i),
-            Value::Int8(i) => write!(f, "{}", i),
-            Value::Int16(i) => write!(f, "{}", i),
-            Value::Int32(i) => write!(f, "{}", i),
-            Value::Int64(i) => write!(f, "{}", i),
-            Value::UInt8(i) => write!(f, "{}", i),
-            Value::UInt16(i) => write!(f, "{}", i),
-            Value::UInt32(i) => write!(f, "{}", i),
-            Value::UInt64(i) => write!(f, "{}", i),
+            Value::BigInt(i) => write!(f, "{}", i),
             Value::Float(fl) => write!(f, "{}", fl),
+            Value::Double(fl) => write!(f, "{}", fl),
             Value::Decimal128(d) => write!(f, "{}", d),
             Value::String(s) => write!(f, "\"{}\"", s),
             Value::FixedString { len, data } => write!(f, "\"{}\"[fixed:{}]", data, len),

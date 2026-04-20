@@ -72,10 +72,9 @@ impl FieldDef {
     pub fn estimated_size(&self) -> usize {
         match self.field_type {
             DataType::Bool => 1,
-            DataType::Int8 => 1,
-            DataType::Int16 => 2,
-            DataType::Int32 => 4,
-            DataType::Int64 => 8,
+            DataType::SmallInt => 2,
+            DataType::Int => 4,
+            DataType::BigInt => 8,
             DataType::Float => 4,
             DataType::Double => 8,
             DataType::String => 8,

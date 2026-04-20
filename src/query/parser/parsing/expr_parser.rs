@@ -416,7 +416,7 @@ impl<'a> ExprParser<'a> {
                 ctx.next_token();
                 let span = ctx.merge_span(start_pos, ctx.current_position());
                 Ok(ParseResult {
-                    expr: Expression::literal(Value::Int(n)),
+                    expr: Expression::literal(Value::BigInt(n)),
                     span,
                 })
             }
@@ -424,7 +424,7 @@ impl<'a> ExprParser<'a> {
                 ctx.next_token();
                 let span = ctx.merge_span(start_pos, ctx.current_position());
                 Ok(ParseResult {
-                    expr: Expression::literal(Value::Float(f)),
+                    expr: Expression::literal(Value::Double(f)),
                     span,
                 })
             }

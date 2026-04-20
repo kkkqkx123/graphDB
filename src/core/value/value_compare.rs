@@ -1,5 +1,4 @@
 use crate::core::{
-    types::DataType,
     value::{
         date_time::{DateTimeValue, DateValue, DurationValue, TimeValue},
         geography::GeographyValue,
@@ -21,16 +20,11 @@ impl PartialEq for Value {
             (Value::Empty, Value::Empty) => true,
             (Value::Null(a), Value::Null(b)) => a == b,
             (Value::Bool(a), Value::Bool(b)) => a == b,
+            (Value::SmallInt(a), Value::SmallInt(b)) => a == b,
             (Value::Int(a), Value::Int(b)) => a == b,
-            (Value::Int8(a), Value::Int8(b)) => a == b,
-            (Value::Int16(a), Value::Int16(b)) => a == b,
-            (Value::Int32(a), Value::Int32(b)) => a == b,
-            (Value::Int64(a), Value::Int64(b)) => a == b,
-            (Value::UInt8(a), Value::UInt8(b)) => a == b,
-            (Value::UInt16(a), Value::UInt16(b)) => a == b,
-            (Value::UInt32(a), Value::UInt32(b)) => a == b,
-            (Value::UInt64(a), Value::UInt64(b)) => a == b,
-            (Value::Float(a), Value::Float(b)) => (a == b) || (a.is_nan() && b.is_nan()), // Proper handling of NaN
+            (Value::BigInt(a), Value::BigInt(b)) => a == b,
+            (Value::Float(a), Value::Float(b)) => (a == b) || (a.is_nan() && b.is_nan()),
+            (Value::Double(a), Value::Double(b)) => (a == b) || (a.is_nan() && b.is_nan()),
             (Value::Decimal128(a), Value::Decimal128(b)) => a == b,
             (Value::String(a), Value::String(b)) => a == b,
             (Value::FixedString { data: a, .. }, Value::FixedString { data: b, .. }) => a == b,
@@ -55,27 +49,29 @@ impl PartialEq for Value {
                 Some(a.as_value().clone()) == b.to_value().ok()
             }
 
-            // Comparison between integer types: comparison after conversion to i64
-            (Value::Int(a), Value::Int8(b)) => *a == *b as i64,
-            (Value::Int(a), Value::Int16(b)) => *a == *b as i64,
-            (Value::Int(a), Value::Int32(b)) => *a == *b as i64,
-            (Value::Int(a), Value::Int64(b)) => *a == *b,
-            (Value::Int8(a), Value::Int(b)) => *a as i64 == *b,
-            (Value::Int16(a), Value::Int(b)) => *a as i64 == *b,
-            (Value::Int32(a), Value::Int(b)) => *a as i64 == *b,
-            (Value::Int64(a), Value::Int(b)) => *a == *b,
-            (Value::Int8(a), Value::Int16(b)) => *a as i64 == *b as i64,
-            (Value::Int8(a), Value::Int32(b)) => *a as i64 == *b as i64,
-            (Value::Int8(a), Value::Int64(b)) => *a as i64 == *b,
-            (Value::Int16(a), Value::Int8(b)) => *a as i64 == *b as i64,
-            (Value::Int16(a), Value::Int32(b)) => *a as i64 == *b as i64,
-            (Value::Int16(a), Value::Int64(b)) => *a as i64 == *b,
-            (Value::Int32(a), Value::Int8(b)) => *a as i64 == *b as i64,
-            (Value::Int32(a), Value::Int16(b)) => *a as i64 == *b as i64,
-            (Value::Int32(a), Value::Int64(b)) => *a as i64 == *b,
-            (Value::Int64(a), Value::Int8(b)) => *a == *b as i64,
-            (Value::Int64(a), Value::Int16(b)) => *a == *b as i64,
-            (Value::Int64(a), Value::Int32(b)) => *a == *b as i64,
+            // Cross-type integer comparisons: promote to i64
+            (Value::SmallInt(a), Value::Int(b)) => *a as i64 == *b as i64,
+            (Value::Int(a), Value::SmallInt(b)) => *a as i64 == *b as i64,
+            (Value::SmallInt(a), Value::BigInt(b)) => *a as i64 == *b,
+            (Value::BigInt(a), Value::SmallInt(b)) => *a == *b as i64,
+            (Value::Int(a), Value::BigInt(b)) => *a as i64 == *b,
+            (Value::BigInt(a), Value::Int(b)) => *a == *b as i64,
+
+            // Integer to float comparisons
+            (Value::SmallInt(a), Value::Float(b)) => *a as f32 == *b,
+            (Value::Float(a), Value::SmallInt(b)) => *a == *b as f32,
+            (Value::Int(a), Value::Float(b)) => *a as f32 == *b,
+            (Value::Float(a), Value::Int(b)) => *a == *b as f32,
+            (Value::BigInt(a), Value::Float(b)) => *a as f32 == *b,
+            (Value::Float(a), Value::BigInt(b)) => *a == *b as f32,
+            (Value::SmallInt(a), Value::Double(b)) => *a as f64 == *b,
+            (Value::Double(a), Value::SmallInt(b)) => *a == *b as f64,
+            (Value::Int(a), Value::Double(b)) => *a as f64 == *b,
+            (Value::Double(a), Value::Int(b)) => *a == *b as f64,
+            (Value::BigInt(a), Value::Double(b)) => *a as f64 == *b,
+            (Value::Double(a), Value::BigInt(b)) => *a == *b as f64,
+            (Value::Float(a), Value::Double(b)) => *a as f64 == *b,
+            (Value::Double(a), Value::Float(b)) => *a == *b as f64,
 
             _ => false,
         }
@@ -93,22 +89,16 @@ impl PartialOrd for Value {
 
 impl Ord for Value {
     fn cmp(&self, other: &Self) -> CmpOrdering {
-        // Use actual type comparisons instead of hashes
         match (self, other) {
             // Comparison of the same type
             (Value::Empty, Value::Empty) => CmpOrdering::Equal,
             (Value::Null(a), Value::Null(b)) => Self::cmp_null(a, b),
             (Value::Bool(a), Value::Bool(b)) => a.cmp(b),
+            (Value::SmallInt(a), Value::SmallInt(b)) => a.cmp(b),
             (Value::Int(a), Value::Int(b)) => a.cmp(b),
-            (Value::Int8(a), Value::Int8(b)) => a.cmp(b),
-            (Value::Int16(a), Value::Int16(b)) => a.cmp(b),
-            (Value::Int32(a), Value::Int32(b)) => a.cmp(b),
-            (Value::Int64(a), Value::Int64(b)) => a.cmp(b),
-            (Value::UInt8(a), Value::UInt8(b)) => a.cmp(b),
-            (Value::UInt16(a), Value::UInt16(b)) => a.cmp(b),
-            (Value::UInt32(a), Value::UInt32(b)) => a.cmp(b),
-            (Value::UInt64(a), Value::UInt64(b)) => a.cmp(b),
-            (Value::Float(a), Value::Float(b)) => Self::cmp_f64(*a, *b),
+            (Value::BigInt(a), Value::BigInt(b)) => a.cmp(b),
+            (Value::Float(a), Value::Float(b)) => Self::cmp_f32(*a, *b),
+            (Value::Double(a), Value::Double(b)) => Self::cmp_f64(*a, *b),
             (Value::Decimal128(a), Value::Decimal128(b)) => a.cmp(b),
             (Value::String(a), Value::String(b)) => a.cmp(b),
             (Value::FixedString { data: a, .. }, Value::FixedString { data: b, .. }) => a.cmp(b),
@@ -124,7 +114,6 @@ impl Ord for Value {
             (Value::Geography(a), Value::Geography(b)) => Self::cmp_geography(a, b),
             (Value::Duration(a), Value::Duration(b)) => Self::cmp_duration(a, b),
             (Value::Json(a), Value::Json(b)) => {
-                // Compare parsed values
                 match (a.to_value(), b.to_value()) {
                     (Ok(a_val), Ok(b_val)) => Self::cmp_json_values(&a_val, &b_val),
                     _ => CmpOrdering::Equal,
@@ -141,27 +130,29 @@ impl Ord for Value {
                 _ => CmpOrdering::Equal,
             },
 
-            // Comparison between integer types: comparison after conversion to i64
-            (Value::Int(a), Value::Int8(b)) => a.cmp(&(*b as i64)),
-            (Value::Int(a), Value::Int16(b)) => a.cmp(&(*b as i64)),
-            (Value::Int(a), Value::Int32(b)) => a.cmp(&(*b as i64)),
-            (Value::Int(a), Value::Int64(b)) => a.cmp(b),
-            (Value::Int8(a), Value::Int(b)) => (*a as i64).cmp(b),
-            (Value::Int16(a), Value::Int(b)) => (*a as i64).cmp(b),
-            (Value::Int32(a), Value::Int(b)) => (*a as i64).cmp(b),
-            (Value::Int64(a), Value::Int(b)) => a.cmp(b),
-            (Value::Int8(a), Value::Int16(b)) => (*a as i64).cmp(&(*b as i64)),
-            (Value::Int8(a), Value::Int32(b)) => (*a as i64).cmp(&(*b as i64)),
-            (Value::Int8(a), Value::Int64(b)) => (*a as i64).cmp(b),
-            (Value::Int16(a), Value::Int8(b)) => (*a as i64).cmp(&(*b as i64)),
-            (Value::Int16(a), Value::Int32(b)) => (*a as i64).cmp(&(*b as i64)),
-            (Value::Int16(a), Value::Int64(b)) => (*a as i64).cmp(b),
-            (Value::Int32(a), Value::Int8(b)) => (*a as i64).cmp(&(*b as i64)),
-            (Value::Int32(a), Value::Int16(b)) => (*a as i64).cmp(&(*b as i64)),
-            (Value::Int32(a), Value::Int64(b)) => (*a as i64).cmp(b),
-            (Value::Int64(a), Value::Int8(b)) => a.cmp(&(*b as i64)),
-            (Value::Int64(a), Value::Int16(b)) => a.cmp(&(*b as i64)),
-            (Value::Int64(a), Value::Int32(b)) => a.cmp(&(*b as i64)),
+            // Cross-type integer comparisons: promote to i64
+            (Value::SmallInt(a), Value::Int(b)) => (*a as i64).cmp(&(*b as i64)),
+            (Value::Int(a), Value::SmallInt(b)) => (*a as i64).cmp(&(*b as i64)),
+            (Value::SmallInt(a), Value::BigInt(b)) => (*a as i64).cmp(b),
+            (Value::BigInt(a), Value::SmallInt(b)) => a.cmp(&(*b as i64)),
+            (Value::Int(a), Value::BigInt(b)) => (*a as i64).cmp(b),
+            (Value::BigInt(a), Value::Int(b)) => a.cmp(&(*b as i64)),
+
+            // Integer to float comparisons
+            (Value::SmallInt(a), Value::Float(b)) => (*a as f32).partial_cmp(b).unwrap_or(CmpOrdering::Equal),
+            (Value::Float(a), Value::SmallInt(b)) => a.partial_cmp(&(*b as f32)).unwrap_or(CmpOrdering::Equal),
+            (Value::Int(a), Value::Float(b)) => (*a as f32).partial_cmp(b).unwrap_or(CmpOrdering::Equal),
+            (Value::Float(a), Value::Int(b)) => a.partial_cmp(&(*b as f32)).unwrap_or(CmpOrdering::Equal),
+            (Value::BigInt(a), Value::Float(b)) => (*a as f32).partial_cmp(b).unwrap_or(CmpOrdering::Equal),
+            (Value::Float(a), Value::BigInt(b)) => a.partial_cmp(&(*b as f32)).unwrap_or(CmpOrdering::Equal),
+            (Value::SmallInt(a), Value::Double(b)) => (*a as f64).partial_cmp(b).unwrap_or(CmpOrdering::Equal),
+            (Value::Double(a), Value::SmallInt(b)) => a.partial_cmp(&(*b as f64)).unwrap_or(CmpOrdering::Equal),
+            (Value::Int(a), Value::Double(b)) => (*a as f64).partial_cmp(b).unwrap_or(CmpOrdering::Equal),
+            (Value::Double(a), Value::Int(b)) => a.partial_cmp(&(*b as f64)).unwrap_or(CmpOrdering::Equal),
+            (Value::BigInt(a), Value::Double(b)) => (*a as f64).partial_cmp(b).unwrap_or(CmpOrdering::Equal),
+            (Value::Double(a), Value::BigInt(b)) => a.partial_cmp(&(*b as f64)).unwrap_or(CmpOrdering::Equal),
+            (Value::Float(a), Value::Double(b)) => (*a as f64).partial_cmp(b).unwrap_or(CmpOrdering::Equal),
+            (Value::Double(a), Value::Float(b)) => a.partial_cmp(&(*b as f64)).unwrap_or(CmpOrdering::Equal),
 
             // Comparison between different types: based on type prioritization
             (a, b) => Self::cmp_by_type_priority(a, b),
@@ -182,48 +173,37 @@ impl Hash for Value {
                 2u8.hash(state);
                 b.hash(state);
             }
-            Value::Int(i) => {
+            Value::SmallInt(i) => {
                 3u8.hash(state);
                 i.hash(state);
             }
-            Value::Int8(i) => {
+            Value::Int(i) => {
                 4u8.hash(state);
                 i.hash(state);
             }
-            Value::Int16(i) => {
+            Value::BigInt(i) => {
                 5u8.hash(state);
                 i.hash(state);
             }
-            Value::Int32(i) => {
-                6u8.hash(state);
-                i.hash(state);
-            }
-            Value::Int64(i) => {
-                7u8.hash(state);
-                i.hash(state);
-            }
-            Value::UInt8(i) => {
-                8u8.hash(state);
-                i.hash(state);
-            }
-            Value::UInt16(i) => {
-                9u8.hash(state);
-                i.hash(state);
-            }
-            Value::UInt32(i) => {
-                10u8.hash(state);
-                i.hash(state);
-            }
-            Value::UInt64(i) => {
-                11u8.hash(state);
-                i.hash(state);
-            }
             Value::Float(f) => {
-                12u8.hash(state);
+                6u8.hash(state);
                 // Creating a hash from a bitwise representation of a floating point number
                 if f.is_nan() {
                     // All NaN values should hash to the same value
-                    (0x7ff80000u32 as u64).hash(state);
+                    (0x7fc00000u32 as u32).hash(state);
+                } else if *f == 0.0 {
+                    // Ensure +0.0 and -0.0 hash to the same value
+                    0.0_f32.to_bits().hash(state);
+                } else {
+                    f.to_bits().hash(state);
+                }
+            }
+            Value::Double(f) => {
+                7u8.hash(state);
+                // Creating a hash from a bitwise representation of a floating point number
+                if f.is_nan() {
+                    // All NaN values should hash to the same value
+                    (0x7ff8000000000000u64 as u64).hash(state);
                 } else if *f == 0.0 {
                     // Ensure +0.0 and -0.0 hash to the same value
                     0.0_f64.to_bits().hash(state);
@@ -232,85 +212,85 @@ impl Hash for Value {
                 }
             }
             Value::Decimal128(d) => {
-                19u8.hash(state);
+                8u8.hash(state);
                 d.hash(state);
             }
             Value::String(s) => {
-                13u8.hash(state);
+                9u8.hash(state);
                 s.hash(state);
             }
             Value::FixedString { data, .. } => {
-                20u8.hash(state);
+                10u8.hash(state);
                 data.hash(state);
             }
             Value::Blob(b) => {
-                14u8.hash(state);
+                11u8.hash(state);
                 b.hash(state);
             }
             Value::Date(d) => {
-                15u8.hash(state);
+                12u8.hash(state);
                 d.hash(state);
             }
             Value::Time(t) => {
-                16u8.hash(state);
+                13u8.hash(state);
                 t.hash(state);
             }
             Value::DateTime(dt) => {
-                17u8.hash(state);
+                14u8.hash(state);
                 dt.hash(state);
             }
             Value::Vertex(v) => {
-                18u8.hash(state);
+                15u8.hash(state);
                 v.hash(state);
             }
             Value::Edge(e) => {
-                19u8.hash(state);
+                16u8.hash(state);
                 e.hash(state);
             }
             Value::Path(p) => {
-                12u8.hash(state);
+                17u8.hash(state);
                 p.hash(state);
             }
             Value::List(l) => {
-                13u8.hash(state);
+                18u8.hash(state);
                 l.hash(state);
             }
             Value::Map(m) => {
-                14u8.hash(state);
+                19u8.hash(state);
                 // Hash mapping by sorted key-value pairs
                 let mut pairs: Vec<_> = m.iter().collect();
                 pairs.sort_by_key(|&(k, _)| k);
                 pairs.hash(state);
             }
             Value::Set(s) => {
-                15u8.hash(state);
+                20u8.hash(state);
                 // For collections, we will hash all values in sorted order to ensure consistency
                 let mut values: Vec<_> = s.iter().collect();
                 values.sort();
                 values.hash(state);
             }
             Value::Geography(g) => {
-                16u8.hash(state);
+                21u8.hash(state);
                 g.hash(state);
             }
             Value::Duration(d) => {
-                17u8.hash(state);
+                22u8.hash(state);
                 d.hash(state);
             }
             Value::Json(j) => {
-                22u8.hash(state);
-                j.hash(state);
-            }
-            Value::JsonB(j) => {
                 23u8.hash(state);
                 j.hash(state);
             }
+            Value::JsonB(j) => {
+                24u8.hash(state);
+                j.hash(state);
+            }
             Value::DataSet(ds) => {
-                18u8.hash(state);
+                25u8.hash(state);
                 ds.hash(state);
             }
             Value::Vector(v) => {
-                21u8.hash(state);
+                26u8.hash(state);
                 v.hash(state);
             }
         }
@@ -320,14 +300,12 @@ impl Hash for Value {
 impl Value {
     // Null type comparison helper function
     fn cmp_null(a: &NullType, b: &NullType) -> CmpOrdering {
-        // Sequential comparison based on enumerated variants
         match (a, b) {
             (NullType::Null, NullType::Null) => CmpOrdering::Equal,
             (NullType::NaN, NullType::NaN) => CmpOrdering::Equal,
             (NullType::BadData, NullType::BadData) => CmpOrdering::Equal,
             (NullType::BadType, NullType::BadType) => CmpOrdering::Equal,
             _ => {
-                // Comparison of different types in order of variants
                 let priority_a = Self::null_type_priority(a);
                 let priority_b = Self::null_type_priority(b);
                 priority_a.cmp(&priority_b)
@@ -349,15 +327,27 @@ impl Value {
         }
     }
 
-    // Floating Point Comparison Helper Functions
-    fn cmp_f64(a: f64, b: f64) -> CmpOrdering {
-        // Handling floating-point comparisons, including NaN
+    // Floating Point Comparison Helper Functions (f32)
+    fn cmp_f32(a: f32, b: f32) -> CmpOrdering {
         if a.is_nan() && b.is_nan() {
             CmpOrdering::Equal
         } else if a.is_nan() {
-            CmpOrdering::Less // NaN Less than any non-NaN value
+            CmpOrdering::Less
         } else if b.is_nan() {
-            CmpOrdering::Greater // Any non-NaN value greater than NaN
+            CmpOrdering::Greater
+        } else {
+            a.partial_cmp(&b).unwrap_or(CmpOrdering::Equal)
+        }
+    }
+
+    // Floating Point Comparison Helper Functions (f64)
+    fn cmp_f64(a: f64, b: f64) -> CmpOrdering {
+        if a.is_nan() && b.is_nan() {
+            CmpOrdering::Equal
+        } else if a.is_nan() {
+            CmpOrdering::Less
+        } else if b.is_nan() {
+            CmpOrdering::Greater
         } else {
             a.partial_cmp(&b).unwrap_or(CmpOrdering::Equal)
         }
@@ -365,7 +355,6 @@ impl Value {
 
     // Date Comparison Helper Functions
     fn cmp_date(a: &DateValue, b: &DateValue) -> CmpOrdering {
-        // Comparison date: year -> month -> day
         match a.year.cmp(&b.year) {
             CmpOrdering::Equal => match a.month.cmp(&b.month) {
                 CmpOrdering::Equal => a.day.cmp(&b.day),
@@ -377,7 +366,6 @@ impl Value {
 
     // Time Comparison Auxiliary Functions
     fn cmp_time(a: &TimeValue, b: &TimeValue) -> CmpOrdering {
-        // Compare time: hours -> minutes -> seconds -> microseconds
         match a.hour.cmp(&b.hour) {
             CmpOrdering::Equal => match a.minute.cmp(&b.minute) {
                 CmpOrdering::Equal => match a.sec.cmp(&b.sec) {
@@ -392,7 +380,6 @@ impl Value {
 
     // Date-Time Comparison Helper Functions
     fn cmp_datetime(a: &DateTimeValue, b: &DateTimeValue) -> CmpOrdering {
-        // Compare date and time: year -> month -> day -> hour -> minute -> second -> microseconds
         match a.year.cmp(&b.year) {
             CmpOrdering::Equal => match a.month.cmp(&b.month) {
                 CmpOrdering::Equal => match a.day.cmp(&b.day) {
@@ -414,202 +401,181 @@ impl Value {
         }
     }
 
-    // Duration Comparison Auxiliary Functions
-    fn cmp_duration(a: &DurationValue, b: &DurationValue) -> CmpOrdering {
-        // Comparison duration: seconds -> microseconds -> months
-        match a.seconds.cmp(&b.seconds) {
-            CmpOrdering::Equal => match a.microseconds.cmp(&b.microseconds) {
-                CmpOrdering::Equal => a.months.cmp(&b.months),
-                ord => ord,
-            },
-            ord => ord,
-        }
-    }
-
     // List Comparison Helper Functions
     fn cmp_list(a: &List, b: &List) -> CmpOrdering {
-        // Compare lists by dictionary order
-        let min_len = a.values.len().min(b.values.len());
-        for i in 0..min_len {
-            match a.values[i].cmp(&b.values[i]) {
-                CmpOrdering::Equal => continue,
-                ord => return ord,
-            }
-        }
-        a.values.len().cmp(&b.values.len())
+        a.values.len().cmp(&b.values.len()).then_with(|| {
+            a.values.iter().zip(b.values.iter()).fold(
+                CmpOrdering::Equal,
+                |acc, (a_val, b_val)| {
+                    if acc == CmpOrdering::Equal {
+                        a_val.cmp(b_val)
+                    } else {
+                        acc
+                    }
+                },
+            )
+        })
     }
 
-    // Mapping Comparison Auxiliary Functions
+    // Mapping Comparison Helper Functions
     fn cmp_map(a: &HashMap<String, Value>, b: &HashMap<String, Value>) -> CmpOrdering {
-        // Compare the number of keys first
-        match a.len().cmp(&b.len()) {
-            CmpOrdering::Equal => {
-                // Comparison by sorted key-value pairs
-                let mut a_sorted: Vec<_> = a.iter().collect();
-                let mut b_sorted: Vec<_> = b.iter().collect();
-                a_sorted.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
-                b_sorted.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
-
-                for ((k1, v1), (k2, v2)) in a_sorted.iter().zip(b_sorted.iter()) {
-                    match k1.cmp(k2) {
-                        CmpOrdering::Equal => match v1.cmp(v2) {
-                            CmpOrdering::Equal => continue,
-                            ord => return ord,
-                        },
-                        ord => return ord,
+        a.len().cmp(&b.len()).then_with(|| {
+            let mut a_pairs: Vec<_> = a.iter().collect();
+            let mut b_pairs: Vec<_> = b.iter().collect();
+            a_pairs.sort_by_key(|&(k, _)| k);
+            b_pairs.sort_by_key(|&(k, _)| k);
+            a_pairs.iter().zip(b_pairs.iter()).fold(
+                CmpOrdering::Equal,
+                |acc, ((a_k, a_v), (b_k, b_v))| {
+                    if acc == CmpOrdering::Equal {
+                        a_k.cmp(b_k).then_with(|| a_v.cmp(b_v))
+                    } else {
+                        acc
                     }
-                }
-                CmpOrdering::Equal
-            }
-            ord => ord,
-        }
+                },
+            )
+        })
     }
 
-    // Set Comparison Auxiliary Functions
-    fn cmp_set(
-        a: &std::collections::HashSet<Value>,
-        b: &std::collections::HashSet<Value>,
-    ) -> CmpOrdering {
-        // Compare set sizes first
-        match a.len().cmp(&b.len()) {
-            CmpOrdering::Equal => {
-                // Comparison by sorted elements
-                let mut a_sorted: Vec<_> = a.iter().collect();
-                let mut b_sorted: Vec<_> = b.iter().collect();
-                a_sorted.sort();
-                b_sorted.sort();
-
-                for (v1, v2) in a_sorted.iter().zip(b_sorted.iter()) {
-                    match v1.cmp(v2) {
-                        CmpOrdering::Equal => continue,
-                        ord => return ord,
+    // Collection comparison helper functions
+    fn cmp_set(a: &std::collections::HashSet<Value>, b: &std::collections::HashSet<Value>) -> CmpOrdering {
+        a.len().cmp(&b.len()).then_with(|| {
+            let mut a_values: Vec<_> = a.iter().collect();
+            let mut b_values: Vec<_> = b.iter().collect();
+            a_values.sort();
+            b_values.sort();
+            a_values.iter().zip(b_values.iter()).fold(
+                CmpOrdering::Equal,
+                |acc, (a_val, b_val)| {
+                    if acc == CmpOrdering::Equal {
+                        a_val.cmp(b_val)
+                    } else {
+                        acc
                     }
-                }
-                CmpOrdering::Equal
-            }
-            ord => ord,
-        }
+                },
+            )
+        })
     }
 
-    // Geographic Information Comparison Auxiliary Function - Version
+    // Geographic comparison helper functions
     fn cmp_geography(a: &GeographyValue, b: &GeographyValue) -> CmpOrdering {
-        // Comparing Latitude and Longitude
-        match a.latitude.total_cmp(&b.latitude) {
-            CmpOrdering::Equal => a.longitude.total_cmp(&b.longitude),
+        // Compare by latitude first, then longitude
+        // Using partial_cmp and treating NaN as less than any other value
+        match a.latitude.partial_cmp(&b.latitude) {
+            Some(CmpOrdering::Equal) => a.longitude.partial_cmp(&b.longitude).unwrap_or(CmpOrdering::Equal),
+            Some(ord) => ord,
+            None => CmpOrdering::Equal, // Both NaN case
+        }
+    }
+
+    // Duration Comparison Helper Functions
+    fn cmp_duration(a: &DurationValue, b: &DurationValue) -> CmpOrdering {
+        match a.seconds.cmp(&b.seconds) {
+            CmpOrdering::Equal => a.microseconds.cmp(&b.microseconds),
             ord => ord,
         }
     }
 
-    // Type Priority Comparison Helper Functions
-    fn cmp_by_type_priority(a: &Value, b: &Value) -> CmpOrdering {
-        // Type priority: Empty < Null < Bool < Int < Float < String < Date < Time < DateTime < Duration <
-        //             Vertex < Edge < Path < List < Map < Set < Geography
-        let type_a = a.get_type();
-        let type_b = b.get_type();
-
-        if type_a == type_b {
-            // The same type should already be handled in the main function, here as a fallback
-            return CmpOrdering::Equal;
-        }
-
-        // Using Enumerated Value Comparisons Instead of String Comparisons
-        Self::type_priority(&type_a).cmp(&Self::type_priority(&type_b))
-    }
-
-    // Type Priority Mapping Functions
-    fn type_priority(typ: &DataType) -> u8 {
-        match typ {
-            DataType::Empty => 0,
-            DataType::Null => 1,
-            DataType::Bool => 2,
-            DataType::Int
-            | DataType::Int8
-            | DataType::Int16
-            | DataType::Int32
-            | DataType::Int64
-            | DataType::UInt8
-            | DataType::UInt16
-            | DataType::UInt32
-            | DataType::UInt64 => 3,
-            DataType::Float | DataType::Double => 4,
-            DataType::Decimal128 => 5,
-            DataType::String => 6,
-            DataType::FixedString(_) => 6,
-            DataType::Date => 7,
-            DataType::Time => 8,
-            DataType::Timestamp => 8,
-            DataType::DateTime => 9,
-            DataType::VID => 10,
-            DataType::Duration => 11,
-            DataType::Vertex => 12,
-            DataType::Edge => 13,
-            DataType::Path => 14,
-            DataType::List => 15,
-            DataType::Map => 16,
-            DataType::Set => 17,
-            DataType::Blob => 18,
-            DataType::Geography => 19,
-            DataType::DataSet => 20,
-            DataType::Vector | DataType::VectorDense(_) | DataType::VectorSparse(_) => 21,
-            DataType::Json => 24,
-            DataType::JsonB => 25,
-        }
-    }
-
-    // JSON value comparison helper function
+    // JSON value comparison helper functions
     fn cmp_json_values(a: &serde_json::Value, b: &serde_json::Value) -> CmpOrdering {
         use serde_json::Value as JsonValue;
-
-        // Type priority: Null < Bool < Number < String < Array < Object
-        let type_priority = |v: &JsonValue| match v {
-            JsonValue::Null => 0,
-            JsonValue::Bool(_) => 1,
-            JsonValue::Number(_) => 2,
-            JsonValue::String(_) => 3,
-            JsonValue::Array(_) => 4,
-            JsonValue::Object(_) => 5,
-        };
-
-        let priority_a = type_priority(a);
-        let priority_b = type_priority(b);
-
-        match priority_a.cmp(&priority_b) {
-            CmpOrdering::Equal => match (a, b) {
-                (JsonValue::Null, JsonValue::Null) => CmpOrdering::Equal,
-                (JsonValue::Bool(a), JsonValue::Bool(b)) => a.cmp(b),
-                (JsonValue::Number(a), JsonValue::Number(b)) => {
-                    // Try comparing as integers, otherwise as floats
-                    if let (Some(a_i), Some(b_i)) = (a.as_i64(), b.as_i64()) {
-                        a_i.cmp(&b_i)
-                    } else if let (Some(a_f), Some(b_f)) = (a.as_f64(), b.as_f64()) {
-                        a_f.partial_cmp(&b_f).unwrap_or(CmpOrdering::Equal)
-                    } else {
-                        a.to_string().cmp(&b.to_string())
-                    }
+        match (a, b) {
+            (JsonValue::Null, JsonValue::Null) => CmpOrdering::Equal,
+            (JsonValue::Bool(a), JsonValue::Bool(b)) => a.cmp(b),
+            (JsonValue::Number(a), JsonValue::Number(b)) => {
+                // Compare numbers
+                if let (Some(a_i64), Some(b_i64)) = (a.as_i64(), b.as_i64()) {
+                    a_i64.cmp(&b_i64)
+                } else if let (Some(a_f64), Some(b_f64)) = (a.as_f64(), b.as_f64()) {
+                    a_f64.partial_cmp(&b_f64).unwrap_or(CmpOrdering::Equal)
+                } else {
+                    CmpOrdering::Equal
                 }
-                (JsonValue::String(a), JsonValue::String(b)) => a.cmp(b),
-                (JsonValue::Array(a), JsonValue::Array(b)) => a
-                    .iter()
-                    .zip(b.iter())
-                    .map(|(x, y)| Self::cmp_json_values(x, y))
-                    .find(|&ord| ord != CmpOrdering::Equal)
-                    .unwrap_or_else(|| a.len().cmp(&b.len())),
-                (JsonValue::Object(a), JsonValue::Object(b)) => {
-                    let a_keys: Vec<_> = a.keys().collect();
-                    let b_keys: Vec<_> = b.keys().collect();
+            }
+            (JsonValue::String(a), JsonValue::String(b)) => a.cmp(b),
+            (JsonValue::Array(a), JsonValue::Array(b)) => {
+                a.len().cmp(&b.len()).then_with(|| {
+                    a.iter().zip(b.iter()).fold(
+                        CmpOrdering::Equal,
+                        |acc, (a_val, b_val)| {
+                            if acc == CmpOrdering::Equal {
+                                Self::cmp_json_values(a_val, b_val)
+                            } else {
+                                acc
+                            }
+                        },
+                    )
+                })
+            }
+            (JsonValue::Object(a), JsonValue::Object(b)) => {
+                a.len().cmp(&b.len()).then_with(|| {
+                    let mut a_pairs: Vec<_> = a.iter().collect();
+                    let mut b_pairs: Vec<_> = b.iter().collect();
+                    a_pairs.sort_by_key(|&(k, _)| k);
+                    b_pairs.sort_by_key(|&(k, _)| k);
+                    a_pairs.iter().zip(b_pairs.iter()).fold(
+                        CmpOrdering::Equal,
+                        |acc, ((a_k, a_v), (b_k, b_v))| {
+                            if acc == CmpOrdering::Equal {
+                                a_k.cmp(b_k).then_with(|| Self::cmp_json_values(a_v, b_v))
+                            } else {
+                                acc
+                            }
+                        },
+                    )
+                })
+            }
+            // Cross-type comparison: Null < Bool < Number < String < Array < Object
+            (JsonValue::Null, _) => CmpOrdering::Less,
+            (_, JsonValue::Null) => CmpOrdering::Greater,
+            (JsonValue::Bool(_), _) => CmpOrdering::Less,
+            (_, JsonValue::Bool(_)) => CmpOrdering::Greater,
+            (JsonValue::Number(_), _) => CmpOrdering::Less,
+            (_, JsonValue::Number(_)) => CmpOrdering::Greater,
+            (JsonValue::String(_), _) => CmpOrdering::Less,
+            (_, JsonValue::String(_)) => CmpOrdering::Greater,
+            (JsonValue::Array(_), _) => CmpOrdering::Less,
+            (_, JsonValue::Array(_)) => CmpOrdering::Greater,
+        }
+    }
 
-                    match a_keys.cmp(&b_keys) {
-                        CmpOrdering::Equal => a_keys
-                            .iter()
-                            .map(|k| Self::cmp_json_values(&a[*k], &b[*k]))
-                            .find(|&ord| ord != CmpOrdering::Equal)
-                            .unwrap_or(CmpOrdering::Equal),
-                        other => other,
-                    }
-                }
-                _ => CmpOrdering::Equal, // Different types already handled by priority
-            },
-            other => other,
+    // Type priority comparison helper functions
+    fn cmp_by_type_priority(a: &Value, b: &Value) -> CmpOrdering {
+        let priority_a = Self::type_priority(a);
+        let priority_b = Self::type_priority(b);
+        priority_a.cmp(&priority_b)
+    }
+
+    // Type priority mapping function
+    fn type_priority(value: &Value) -> u8 {
+        match value {
+            Value::Empty => 0,
+            Value::Null(_) => 1,
+            Value::Bool(_) => 2,
+            Value::SmallInt(_) => 3,
+            Value::Int(_) => 4,
+            Value::BigInt(_) => 5,
+            Value::Float(_) => 6,
+            Value::Double(_) => 7,
+            Value::Decimal128(_) => 8,
+            Value::Date(_) => 9,
+            Value::Time(_) => 10,
+            Value::DateTime(_) => 11,
+            Value::String(_) => 12,
+            Value::FixedString { .. } => 13,
+            Value::Blob(_) => 14,
+            Value::Vertex(_) => 15,
+            Value::Edge(_) => 16,
+            Value::Path(_) => 17,
+            Value::List(_) => 18,
+            Value::Map(_) => 19,
+            Value::Set(_) => 20,
+            Value::Geography(_) => 21,
+            Value::Duration(_) => 22,
+            Value::Json(_) => 23,
+            Value::JsonB(_) => 24,
+            Value::DataSet(_) => 25,
+            Value::Vector(_) => 26,
         }
     }
 }

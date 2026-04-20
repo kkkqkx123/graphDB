@@ -670,8 +670,8 @@ mod tests {
             Some("42".to_string())
         );
         assert_eq!(
-            planner.value_to_string(&crate::core::Value::Float(std::f64::consts::PI)),
-            Some(format!("{}", std::f64::consts::PI))
+            planner.value_to_string(&crate::core::Value::Float(std::f32::consts::PI)),
+            Some(format!("{}", std::f32::consts::PI))
         );
         assert_eq!(
             planner.value_to_string(&crate::core::Value::Bool(true)),

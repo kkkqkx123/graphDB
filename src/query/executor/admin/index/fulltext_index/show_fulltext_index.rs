@@ -61,11 +61,11 @@ impl<S: StorageClient> Executor<S> for ShowFulltextIndexExecutor<S> {
             .map(|meta| {
                 vec![
                     Value::String(meta.index_name),
-                    Value::Int(meta.space_id as i64),
+                    Value::BigInt(meta.space_id as i64),
                     Value::String(meta.tag_name),
                     Value::String(meta.field_name),
                     Value::String(meta.engine_type.to_string()),
-                    Value::Int(meta.doc_count as i64),
+                    Value::BigInt(meta.doc_count as i64),
                     Value::String(format!("{:?}", meta.status)),
                     Value::String(meta.created_at.to_rfc3339()),
                 ]

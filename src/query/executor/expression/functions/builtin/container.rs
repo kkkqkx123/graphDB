@@ -137,10 +137,10 @@ fn execute_size(args: &[Value]) -> Result<Value, ExpressionError> {
         return Err(ExpressionError::type_error("size requires 1 argument"));
     }
     match &args[0] {
-        Value::String(s) => Ok(Value::Int(s.len() as i64)),
-        Value::List(list) => Ok(Value::Int(list.values.len() as i64)),
-        Value::Map(map) => Ok(Value::Int(map.len() as i64)),
-        Value::Set(set) => Ok(Value::Int(set.len() as i64)),
+        Value::String(s) => Ok(Value::BigInt(s.len() as i64)),
+        Value::List(list) => Ok(Value::BigInt(list.values.len() as i64)),
+        Value::Map(map) => Ok(Value::BigInt(map.len() as i64)),
+        Value::Set(set) => Ok(Value::BigInt(set.len() as i64)),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
         _ => Err(ExpressionError::type_error(
             "size requires string, list, map or set type",

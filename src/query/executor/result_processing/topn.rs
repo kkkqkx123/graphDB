@@ -750,7 +750,7 @@ impl<S: StorageClient> TopNExecutor<S> {
                 } else if name == "vid" || name == "_vid" {
                     Ok(*vertex.vid.clone())
                 } else if name == "id" || name == "_id" {
-                    Ok(Value::Int(vertex.id))
+                    Ok(Value::BigInt(vertex.id))
                 } else {
                     Ok(Value::Null(crate::core::value::NullType::Null))
                 }
@@ -773,7 +773,7 @@ impl<S: StorageClient> TopNExecutor<S> {
                 // For complex expressions, use an expression evaluator.
                 let mut context = DefaultExpressionContext::new();
                 context.set_variable("vid".to_string(), *vertex.vid.clone());
-                context.set_variable("id".to_string(), Value::Int(vertex.id));
+                context.set_variable("id".to_string(), Value::BigInt(vertex.id));
 
                 // Add all tag attributes to the context.
                 for tag in &vertex.tags {
@@ -804,7 +804,7 @@ impl<S: StorageClient> TopNExecutor<S> {
                 } else if name == "dst" || name == "_dst" {
                     Ok(*edge.dst.clone())
                 } else if name == "ranking" || name == "_ranking" {
-                    Ok(Value::Int(edge.ranking))
+                    Ok(Value::BigInt(edge.ranking))
                 } else if name == "edge_type" || name == "_type" {
                     Ok(Value::String(edge.edge_type.clone()))
                 } else if let Some(value) = edge.get_property(name) {
@@ -832,7 +832,7 @@ impl<S: StorageClient> TopNExecutor<S> {
                 let mut context = DefaultExpressionContext::new();
                 context.set_variable("src".to_string(), *edge.src.clone());
                 context.set_variable("dst".to_string(), *edge.dst.clone());
-                context.set_variable("ranking".to_string(), Value::Int(edge.ranking));
+                context.set_variable("ranking".to_string(), Value::BigInt(edge.ranking));
                 context.set_variable(
                     "edge_type".to_string(),
                     Value::String(edge.edge_type.clone()),

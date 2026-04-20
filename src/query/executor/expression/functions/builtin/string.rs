@@ -117,7 +117,7 @@ define_function_enum! {
 
 fn execute_length(args: &[Value]) -> Result<Value, ExpressionError> {
     match &args[0] {
-        Value::String(s) => Ok(Value::Int(s.len() as i64)),
+        Value::String(s) => Ok(Value::BigInt(s.len() as i64)),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
         _ => Err(ExpressionError::type_error("The length function requires a string type")),
     }
