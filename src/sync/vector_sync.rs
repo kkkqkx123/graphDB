@@ -5,18 +5,42 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 
 use crate::core::error::{VectorCoordinatorError, VectorCoordinatorResult};
 use crate::core::{Value, Vertex};
-pub use crate::sync::task::VectorPointData;
-pub use crate::sync::vector_batch::{VectorBatchConfig, VectorBatchManager};
-pub use crate::sync::vector_types::VectorChangeType;
+use crate::transaction::types::TransactionId;
 
 use vector_client::{
     EmbeddingService, SearchQuery, SearchResult, VectorFilter, VectorManager, VectorPoint,
 };
+
+/// Vector point data for synchronization
+#[derive(Debug, Clone)]
+pub struct VectorPointData {
+    pub id: String,
+    pub vector: Vec<f32>,
+    pub payload: HashMap<String, Value>,
+}
+
+/// Vector change type
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum VectorChangeType {
+    Insert,
+    Delete,
+}
+
+impl From<crate::sync::coordinator::ChangeType> for VectorChangeType {
+    fn from(ct: crate::sync::coordinator::ChangeType) -> Self {
+        match ct {
+            crate::sync::coordinator::ChangeType::Insert => VectorChangeType::Insert,
+            crate::sync::coordinator::ChangeType::Delete => VectorChangeType::Delete,
+            _ => VectorChangeType::Delete,
+        }
+    }
+}
 
 /// Search options for vector search
 #[derive(Debug, Clone)]
@@ -110,10 +134,116 @@ impl VectorChangeContext {
     }
 }
 
-use crate::sync::vector_transaction_buffer::{
-    PendingVectorUpdate, VectorTransactionBuffer, VectorTransactionBufferConfig,
-};
-use crate::transaction::types::TransactionId;
+/// Pending vector index update
+#[derive(Debug, Clone)]
+pub struct PendingVectorUpdate {
+    pub txn_id: TransactionId,
+    pub context: VectorChangeContext,
+}
+
+impl PendingVectorUpdate {
+    pub fn new(txn_id: TransactionId, context: VectorChangeContext) -> Self {
+        Self { txn_id, context }
+    }
+}
+
+/// Vector transaction buffer configuration
+#[derive(Debug, Clone)]
+pub struct VectorTransactionBufferConfig {
+    pub max_buffer_size: usize,
+    pub flush_timeout_ms: u64,
+}
+
+impl Default for VectorTransactionBufferConfig {
+    fn default() -> Self {
+        Self {
+            max_buffer_size: 1000,
+            flush_timeout_ms: 100,
+        }
+    }
+}
+
+/// Vector transaction buffer
+pub struct VectorTransactionBuffer {
+    buffers: DashMap<TransactionId, Vec<PendingVectorUpdate>>,
+    config: VectorTransactionBufferConfig,
+}
+
+impl std::fmt::Debug for VectorTransactionBuffer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("VectorTransactionBuffer")
+            .field("buffers", &self.buffers.len())
+            .field("config", &self.config)
+            .finish()
+    }
+}
+
+impl VectorTransactionBuffer {
+    pub fn new(config: VectorTransactionBufferConfig) -> Self {
+        Self {
+            buffers: DashMap::new(),
+            config,
+        }
+    }
+
+    pub fn config(&self) -> &VectorTransactionBufferConfig {
+        &self.config
+    }
+
+    /// Add a pending vector update
+    pub fn add_update(
+        &self,
+        txn_id: TransactionId,
+        update: PendingVectorUpdate,
+    ) -> Result<(), VectorBufferError> {
+        let mut buffer = self.buffers.entry(txn_id).or_default();
+
+        if buffer.len() >= self.config.max_buffer_size {
+            return Err(VectorBufferError::BufferFull(format!(
+                "Buffer full for transaction {:?}",
+                txn_id
+            )));
+        }
+
+        buffer.push(update);
+        Ok(())
+    }
+
+    /// Get and clear pending updates for a transaction
+    pub fn take_updates(&self, txn_id: TransactionId) -> Vec<PendingVectorUpdate> {
+        self.buffers
+            .remove(&txn_id)
+            .map(|(_, updates)| updates)
+            .unwrap_or_default()
+    }
+
+    /// Check if there are pending updates
+    pub fn has_pending_updates(&self, txn_id: TransactionId) -> bool {
+        if let Some(buffer) = self.buffers.get(&txn_id) {
+            !buffer.is_empty()
+        } else {
+            false
+        }
+    }
+
+    /// Cleanup buffer for a transaction
+    pub fn cleanup(&self, txn_id: TransactionId) {
+        self.buffers.remove(&txn_id);
+    }
+}
+
+/// Vector buffer error
+#[derive(Debug, thiserror::Error)]
+pub enum VectorBufferError {
+    #[error("Buffer full: {0}")]
+    BufferFull(String),
+
+    #[error("Transaction not found: {0}")]
+    TransactionNotFound(TransactionId),
+
+    #[error("Internal error: {0}")]
+    Internal(String),
+}
 
 /// Vector synchronization coordinator
 pub struct VectorSyncCoordinator {

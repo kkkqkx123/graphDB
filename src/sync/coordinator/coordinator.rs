@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use dashmap::DashMap;
+use tracing::{debug, warn};
 
 use super::types::{ChangeContext, ChangeData, ChangeType, IndexType};
 use crate::search::manager::FulltextIndexManager;
@@ -11,13 +12,23 @@ use crate::sync::batch::{
 };
 use crate::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
 use crate::sync::external_index::{
-    FulltextClient, IndexData, IndexKey, IndexOperation, VectorClient,
+    FulltextClient, IndexData, IndexKey, IndexOperation, VectorClient, VectorClientConfig,
 };
 use crate::sync::metrics::SyncMetrics;
 use crate::sync::retry::{with_retry, RetryConfig};
 
 type FulltextProcessor = GenericBatchProcessor<FulltextClient>;
 type VectorProcessor = GenericBatchProcessor<VectorClient>;
+
+/// Default retry configuration for local (fulltext) operations
+fn default_local_retry_config() -> RetryConfig {
+    RetryConfig::new(2, Duration::from_millis(50), Duration::from_secs(2))
+}
+
+/// Default retry configuration for remote (vector) operations
+fn default_remote_retry_config() -> RetryConfig {
+    RetryConfig::new(3, Duration::from_millis(100), Duration::from_secs(10))
+}
 
 pub struct SyncCoordinator {
     fulltext_manager: Arc<FulltextIndexManager>,
@@ -27,6 +38,7 @@ pub struct SyncCoordinator {
     transaction_buffers:
         DashMap<crate::transaction::types::TransactionId, Arc<TransactionBatchBuffer>>,
     config: BatchConfig,
+    vector_client_config: VectorClientConfig,
     metrics: Arc<SyncMetrics>,
     dead_letter_queue: Arc<DeadLetterQueue>,
 }
@@ -53,6 +65,7 @@ impl SyncCoordinator {
             vector_processors: DashMap::new(),
             transaction_buffers: DashMap::new(),
             config,
+            vector_client_config: VectorClientConfig::default(),
             metrics,
             dead_letter_queue,
         }
@@ -63,6 +76,11 @@ impl SyncCoordinator {
         vector_manager: Arc<vector_client::VectorManager>,
     ) -> Self {
         self.vector_manager = Some(vector_manager);
+        self
+    }
+
+    pub fn with_vector_client_config(mut self, config: VectorClientConfig) -> Self {
+        self.vector_client_config = config;
         self
     }
 
@@ -123,12 +141,16 @@ impl SyncCoordinator {
             return Some(processor.clone());
         }
 
-        let vector_client = Arc::new(VectorClient::new(
-            space_id,
-            tag_name.to_string(),
-            field_name.to_string(),
-            vector_manager.clone(),
-        ));
+        let vector_client = Arc::new(
+            VectorClient::with_config(
+                space_id,
+                tag_name.to_string(),
+                field_name.to_string(),
+                vector_manager.clone(),
+                self.vector_client_config.clone(),
+            )
+            .with_dead_letter_queue(self.dead_letter_queue.clone()),
+        );
 
         let processor = Arc::new(GenericBatchProcessor::new_immediate(vector_client));
 
@@ -337,9 +359,8 @@ impl SyncCoordinator {
                 }
             }
 
-            // Second pass: process vector batches with aggregation
+            // Second pass: process vector batches with aggregation (remote index - more retries)
             for (key, operations) in vector_batches {
-                // Record operation type
                 for op in &operations {
                     match op {
                         IndexOperation::Insert { .. } => {
@@ -354,9 +375,7 @@ impl SyncCoordinator {
                     }
                 }
 
-                // Creating a Retry Configuration
-                let retry_config =
-                    RetryConfig::new(3, Duration::from_millis(100), Duration::from_secs(5));
+                let retry_config = default_remote_retry_config();
 
                 if let Some(processor) = self.get_or_create_vector_processor(
                     key.space_id,
@@ -376,21 +395,22 @@ impl SyncCoordinator {
                     {
                         Ok(_) => {
                             metrics_clone.record_retry_success();
+                            debug!("Vector batch committed successfully");
                         }
                         Err(e) => {
                             metrics_clone.record_retry_failure();
-                            // Add failed operations to the dead letter queue
+                            warn!("Vector batch failed after retries: {:?}", e);
                             for op in operations {
                                 let entry = DeadLetterEntry::new(
                                     op,
-                                    format!("Index sync failed after retries: {:?}", e),
+                                    format!("Remote index sync failed after retries: {:?}", e),
                                     retry_config_clone.max_retries,
                                 );
                                 dlq_clone.add(entry);
                             }
                             return Err(SyncCoordinatorError::BatchError(
                                 crate::sync::batch::BatchError::InvalidOperation(format!(
-                                    "Failed to sync index operations: {:?}",
+                                    "Failed to sync remote index operations: {:?}",
                                     e
                                 )),
                             ));
@@ -399,9 +419,8 @@ impl SyncCoordinator {
                 }
             }
 
-            // Third pass: process full-text batches with aggregation
+            // Third pass: process full-text batches with aggregation (local index - fewer retries)
             for (key, operations) in fulltext_batches {
-                // Record operation type
                 for op in &operations {
                     match op {
                         IndexOperation::Insert { .. } => {
@@ -416,9 +435,7 @@ impl SyncCoordinator {
                     }
                 }
 
-                // Creating a Retry Configuration
-                let retry_config =
-                    RetryConfig::new(3, Duration::from_millis(100), Duration::from_secs(5));
+                let retry_config = default_local_retry_config();
 
                 if let Some(processor) = self.get_or_create_fulltext_processor(
                     key.space_id,
@@ -438,21 +455,22 @@ impl SyncCoordinator {
                     {
                         Ok(_) => {
                             metrics_clone.record_retry_success();
+                            debug!("Fulltext batch committed successfully");
                         }
                         Err(e) => {
                             metrics_clone.record_retry_failure();
-                            // Add failed operations to the dead letter queue
+                            warn!("Fulltext batch failed after retries: {:?}", e);
                             for op in operations {
                                 let entry = DeadLetterEntry::new(
                                     op,
-                                    format!("Index sync failed after retries: {:?}", e),
+                                    format!("Local index sync failed after retries: {:?}", e),
                                     retry_config_clone.max_retries,
                                 );
                                 dlq_clone.add(entry);
                             }
                             return Err(SyncCoordinatorError::BatchError(
                                 crate::sync::batch::BatchError::InvalidOperation(format!(
-                                    "Failed to sync index operations: {:?}",
+                                    "Failed to sync local index operations: {:?}",
                                     e
                                 )),
                             ));

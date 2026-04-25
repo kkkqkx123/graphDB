@@ -243,11 +243,21 @@ impl<E: ExternalIndexClient + 'static> BatchProcessor for GenericBatchProcessor<
     }
 }
 
+/// Entry for buffering operations within a transaction
 #[derive(Debug, Default)]
 pub struct TransactionBufferEntry {
     pub operations: Vec<IndexOperation>,
 }
 
+/// Transaction-aware buffer for index operations
+///
+/// This buffer provides temporary storage for index operations during a transaction.
+/// It supports two-phase commit pattern:
+/// - Phase 1 (prepare): Buffer operations as they are generated
+/// - Phase 2 (commit/rollback): Either clear the buffer (commit) or discard (rollback)
+///
+/// Note: This buffer only stores operations. The actual execution of operations
+/// must be performed by the caller using `take_operations()` to retrieve and execute them.
 pub struct TransactionBatchBuffer {
     pending: DashMap<TransactionId, DashMap<IndexKey, TransactionBufferEntry>>,
 }
@@ -267,16 +277,24 @@ impl Default for TransactionBatchBuffer {
 }
 
 impl TransactionBatchBuffer {
+    /// Create a new transaction batch buffer
     pub fn new() -> Self {
         Self {
             pending: DashMap::new(),
         }
     }
 
+    /// Create a new buffer without an associated processor
+    ///
+    /// This is an alias for `new()` for API compatibility.
     pub fn new_without_processor() -> Self {
         Self::new()
     }
 
+    /// Take all buffered operations for a transaction
+    ///
+    /// This removes the operations from the buffer and returns them.
+    /// The caller is responsible for executing these operations.
     pub fn take_operations(
         &self,
         txn_id: TransactionId,

@@ -7,4 +7,4 @@ pub use error::ExternalIndexError;
 pub use error::IndexResult;
 pub use fulltext_client::FulltextClient;
 pub use trait_def::{ExternalIndexClient, IndexData, IndexKey, IndexOperation, IndexOptions};
-pub use vector_client::VectorClient;
+pub use vector_client::{VectorClient, VectorClientConfig};

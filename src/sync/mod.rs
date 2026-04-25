@@ -3,22 +3,23 @@
 //! Synchronization system for fulltext and vector index updates.
 
 pub mod batch;
+pub mod circuit_breaker;
 pub mod coordinator;
 pub mod dead_letter_queue;
 pub mod external_index;
 pub mod manager;
 pub mod metrics;
 pub mod retry;
-pub mod task;
-pub mod vector_batch;
 pub mod vector_sync;
-pub mod vector_transaction_buffer;
-pub mod vector_types;
 
 pub use crate::search::SyncConfig;
 pub use batch::{
     BatchConfig, BatchError, BatchProcessor, GenericBatchProcessor, TransactionBatchBuffer,
     TransactionBuffer,
+};
+pub use circuit_breaker::{
+    CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError, CircuitBreakerStats, CircuitState,
+    with_circuit_breaker,
 };
 pub use coordinator::{
     ChangeContext, ChangeData, ChangeType, IndexType, SyncCoordinator, SyncCoordinatorError,
@@ -28,14 +29,9 @@ pub use external_index::{ExternalIndexClient, IndexData, IndexOperation};
 pub use manager::{SyncError, SyncManager};
 pub use metrics::SyncMetrics;
 pub use retry::{with_retry, RetryConfig};
-pub use task::VectorPointData;
-pub use vector_batch::{VectorBatchConfig, VectorBatchError, VectorBatchManager};
 pub use vector_sync::{
-    SearchOptions, VectorChangeContext, VectorIndexLocation, VectorSyncCoordinator,
-};
-pub use vector_types::VectorChangeType;
-pub use vector_transaction_buffer::{
-    PendingVectorUpdate, VectorTransactionBuffer, VectorTransactionBufferConfig,
+    PendingVectorUpdate, SearchOptions, VectorChangeContext, VectorChangeType, VectorIndexLocation,
+    VectorPointData, VectorSyncCoordinator, VectorTransactionBuffer, VectorTransactionBufferConfig,
 };
 
 /// Pending index update (moved from transaction::sync_handle)

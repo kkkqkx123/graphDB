@@ -2,17 +2,21 @@ use std::time::Duration;
 
 use crate::search::SyncFailurePolicy;
 
+/// Batch processing configuration
 #[derive(Debug, Clone)]
 pub struct BatchConfig {
+    /// Maximum number of operations before auto-commit
     pub batch_size: usize,
+    /// Time interval for automatic batch commits
     pub flush_interval: Duration,
-    pub commit_interval: Duration, // Alias for compatibility
+    /// Maximum number of operations that can be buffered
     pub max_buffer_size: usize,
+    /// Whether to enable persistence for batch operations
     pub enable_persistence: bool,
+    /// Path for persistence storage
     pub persistence_path: Option<std::path::PathBuf>,
+    /// Policy for handling sync failures
     pub failure_policy: SyncFailurePolicy,
-    pub queue_capacity: usize,   // For compatibility
-    pub max_wait_time: Duration, // For compatibility
 }
 
 impl Default for BatchConfig {
@@ -20,13 +24,10 @@ impl Default for BatchConfig {
         Self {
             batch_size: 100,
             flush_interval: Duration::from_secs(1),
-            commit_interval: Duration::from_secs(1),
             max_buffer_size: 10000,
             enable_persistence: false,
             persistence_path: None,
             failure_policy: SyncFailurePolicy::FailOpen,
-            queue_capacity: 1000,
-            max_wait_time: Duration::from_secs(5),
         }
     }
 }
@@ -68,13 +69,10 @@ impl From<crate::sync::SyncConfig> for BatchConfig {
         Self {
             batch_size: old.batch_size,
             flush_interval: Duration::from_millis(old.commit_interval_ms),
-            commit_interval: Duration::from_millis(old.commit_interval_ms),
             max_buffer_size: old.queue_size,
             enable_persistence: false,
             persistence_path: None,
             failure_policy: old.failure_policy,
-            queue_capacity: old.queue_size,
-            max_wait_time: Duration::from_secs(5),
         }
     }
 }
