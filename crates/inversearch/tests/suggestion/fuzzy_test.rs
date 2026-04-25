@@ -5,8 +5,8 @@
 //! - Levenshtein距离
 //! - 模糊匹配结果
 
-use inversearch_service::intersect::SuggestionEngine;
 use inversearch_service::intersect::suggestion::{SuggestionConfig, SuggestionScorer};
+use inversearch_service::intersect::SuggestionEngine;
 
 /// 测试相似度计算 - 相同字符串
 #[test]
@@ -75,7 +75,10 @@ fn test_fuzzy_match_filtering() {
     let search_results = vec![vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]];
     let result = engine.generate_suggestions("test", &search_results);
 
-    assert!(result.fuzzy_matches.len() <= 3, "模糊匹配结果应该受max_suggestions限制");
+    assert!(
+        result.fuzzy_matches.len() <= 3,
+        "模糊匹配结果应该受max_suggestions限制"
+    );
 }
 
 /// 测试高阈值过滤

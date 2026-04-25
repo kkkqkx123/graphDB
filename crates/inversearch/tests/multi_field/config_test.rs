@@ -7,7 +7,7 @@
 
 use inversearch_service::document::{Document, DocumentConfig};
 use inversearch_service::search::{
-    MultiFieldSearchConfig, multi_field_search, multi_field_search_with_weights,
+    multi_field_search, multi_field_search_with_weights, MultiFieldSearchConfig,
 };
 
 fn create_test_document() -> Document {
@@ -118,11 +118,7 @@ fn test_convenience_function_basic() {
 #[test]
 fn test_convenience_function_with_weights() {
     let doc = create_test_document();
-    let result = multi_field_search_with_weights(
-        &doc,
-        "test",
-        &[("title", 2.0), ("content", 1.0)],
-    );
+    let result = multi_field_search_with_weights(&doc, "test", &[("title", 2.0), ("content", 1.0)]);
 
     assert!(result.is_ok());
     let search_result = result.unwrap();
@@ -133,8 +129,7 @@ fn test_convenience_function_with_weights() {
 #[test]
 fn test_empty_query() {
     let doc = create_test_document();
-    let config = MultiFieldSearchConfig::new(&doc)
-        .add_field("title");
+    let config = MultiFieldSearchConfig::new(&doc).add_field("title");
 
     let result = config.search("");
     assert!(result.is_ok());
@@ -163,11 +158,7 @@ fn test_chinese_query() {
 #[test]
 fn test_multilingual_query() {
     let doc = create_test_document();
-    let result = multi_field_search(
-        &doc,
-        "Rust编程 Programming",
-        &["title", "content", "tags"],
-    );
+    let result = multi_field_search(&doc, "Rust编程 Programming", &["title", "content", "tags"]);
 
     assert!(result.is_ok());
 }
@@ -176,11 +167,7 @@ fn test_multilingual_query() {
 #[test]
 fn test_special_chars_query() {
     let doc = create_test_document();
-    let result = multi_field_search(
-        &doc,
-        "test@email.com",
-        &["title", "content"],
-    );
+    let result = multi_field_search(&doc, "test@email.com", &["title", "content"]);
 
     assert!(result.is_ok());
 }

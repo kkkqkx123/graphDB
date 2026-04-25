@@ -12,7 +12,7 @@ use dashmap::DashMap;
 use tracing::{debug, info, warn};
 
 use crate::config::VectorClientConfig;
-use crate::engine::{VectorEngine, QdrantEngine};
+use crate::engine::{QdrantEngine, VectorEngine};
 use crate::error::{Result, VectorClientError};
 use crate::types::{CollectionConfig, SearchQuery, SearchResult, VectorPoint};
 

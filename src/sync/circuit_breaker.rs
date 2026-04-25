@@ -382,8 +382,7 @@ mod tests {
 
     #[test]
     fn test_circuit_breaker_opens_after_failures() {
-        let config = CircuitBreakerConfig::default()
-            .with_failure_threshold(3);
+        let config = CircuitBreakerConfig::default().with_failure_threshold(3);
         let cb = CircuitBreaker::new("test", config);
 
         assert!(cb.is_allowed());

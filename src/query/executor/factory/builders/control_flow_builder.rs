@@ -77,10 +77,9 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
             .map(|meta| meta.inner().clone())
             .unwrap_or_else(|| crate::core::Expression::Literal(crate::core::Value::Bool(true)));
 
-        let if_branch = node
-            .if_branch()
-            .as_ref()
-            .ok_or_else(|| QueryError::ExecutionError("Select node missing if_branch".to_string()))?;
+        let if_branch = node.if_branch().as_ref().ok_or_else(|| {
+            QueryError::ExecutionError("Select node missing if_branch".to_string())
+        })?;
 
         let if_executor = create_executor_fn(if_branch, storage.clone(), context)?;
 

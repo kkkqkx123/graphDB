@@ -196,7 +196,12 @@ pub struct RetryConfig {
 }
 
 impl RetryConfig {
-    pub fn new(max_retries: usize, initial_delay_ms: u64, max_delay_ms: u64, multiplier: f64) -> Self {
+    pub fn new(
+        max_retries: usize,
+        initial_delay_ms: u64,
+        max_delay_ms: u64,
+        multiplier: f64,
+    ) -> Self {
         Self {
             max_retries,
             initial_delay_ms,

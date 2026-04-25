@@ -151,7 +151,10 @@ impl MergeValidator {
         }
 
         // Variable names must start with a letter or an underscore.
-        let first_char = name.chars().next().expect("The variable name is verified to be non-null");
+        let first_char = name
+            .chars()
+            .next()
+            .expect("The variable name is verified to be non-null");
         if !first_char.is_alphabetic() && first_char != '_' {
             return Err(ValidationError::new(
                 format!(
@@ -175,7 +178,10 @@ impl MergeValidator {
         }
 
         // The attribute name must start with a letter or an underscore.
-        let first_char = name.chars().next().expect("Attribute name is verified to be non-null");
+        let first_char = name
+            .chars()
+            .next()
+            .expect("Attribute name is verified to be non-null");
         if !first_char.is_alphabetic() && first_char != '_' {
             return Err(ValidationError::new(
                 format!(

@@ -28,12 +28,12 @@ pub enum DataType {
     Null,
     Bool,
     // Integer types: simplified to 3 types (aligned with PostgreSQL)
-    SmallInt,   // i16
-    Int,        // i32
-    BigInt,     // i64
+    SmallInt, // i16
+    Int,      // i32
+    BigInt,   // i64
     // Floating point types: 2 types (standard practice)
-    Float,      // f32
-    Double,     // f64
+    Float,  // f32
+    Double, // f64
     Decimal128,
     String,
     Date,

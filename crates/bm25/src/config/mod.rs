@@ -22,8 +22,10 @@ mod builder;
 mod loader;
 mod validator;
 
-pub use builder::{Bm25ConfigBuilder, IndexManagerConfigBuilder, SearchConfigBuilder, StorageConfigBuilder};
-pub use builder::{StorageConfig, StorageType, TantivyStorageConfig, RedisStorageConfig};
+pub use builder::{
+    Bm25ConfigBuilder, IndexManagerConfigBuilder, SearchConfigBuilder, StorageConfigBuilder,
+};
+pub use builder::{RedisStorageConfig, StorageConfig, StorageType, TantivyStorageConfig};
 pub use loader::{ConfigFormat, ConfigLoader, EnvLoader, FileLoader, LoaderError, LoaderResult};
 pub use validator::{ConfigValidator, ValidationError, ValidationResult};
 
@@ -106,19 +108,25 @@ impl Bm25Config {
     }
 
     /// Apply configuration from key-value pairs
-    fn apply_vars(&mut self, vars: &HashMap<String, String>) -> Result<(), crate::config::loader::LoaderError> {
+    fn apply_vars(
+        &mut self,
+        vars: &HashMap<String, String>,
+    ) -> Result<(), crate::config::loader::LoaderError> {
         if let Some(val) = vars.get("k1") {
-            self.k1 = val.parse::<f32>()
+            self.k1 = val
+                .parse::<f32>()
                 .map_err(|e| LoaderError::ParseError(format!("k1: {}", e)))?;
         }
 
         if let Some(val) = vars.get("b") {
-            self.b = val.parse::<f32>()
+            self.b = val
+                .parse::<f32>()
                 .map_err(|e| LoaderError::ParseError(format!("b: {}", e)))?;
         }
 
         if let Some(val) = vars.get("avg_doc_length") {
-            self.avg_doc_length = val.parse::<f32>()
+            self.avg_doc_length = val
+                .parse::<f32>()
                 .map_err(|e| LoaderError::ParseError(format!("avg_doc_length: {}", e)))?;
         }
 
@@ -126,10 +134,12 @@ impl Bm25Config {
             // Parse as "title,content" format
             let parts: Vec<&str> = val.split(',').collect();
             if parts.len() == 2 {
-                self.field_weights.title = parts[0].parse::<f32>()
+                self.field_weights.title = parts[0]
+                    .parse::<f32>()
                     .map_err(|e| LoaderError::ParseError(format!("field_weights.title: {}", e)))?;
-                self.field_weights.content = parts[1].parse::<f32>()
-                    .map_err(|e| LoaderError::ParseError(format!("field_weights.content: {}", e)))?;
+                self.field_weights.content = parts[1].parse::<f32>().map_err(|e| {
+                    LoaderError::ParseError(format!("field_weights.content: {}", e))
+                })?;
             }
         }
 
@@ -262,39 +272,49 @@ impl SearchConfig {
     }
 
     /// Apply configuration from key-value pairs
-    fn apply_vars(&mut self, vars: &HashMap<String, String>) -> Result<(), crate::config::loader::LoaderError> {
+    fn apply_vars(
+        &mut self,
+        vars: &HashMap<String, String>,
+    ) -> Result<(), crate::config::loader::LoaderError> {
         if let Some(val) = vars.get("default_limit") {
-            self.default_limit = val.parse::<usize>()
+            self.default_limit = val
+                .parse::<usize>()
                 .map_err(|e| LoaderError::ParseError(format!("default_limit: {}", e)))?;
         }
 
         if let Some(val) = vars.get("max_limit") {
-            self.max_limit = val.parse::<usize>()
+            self.max_limit = val
+                .parse::<usize>()
                 .map_err(|e| LoaderError::ParseError(format!("max_limit: {}", e)))?;
         }
 
         if let Some(val) = vars.get("enable_highlight") {
-            self.enable_highlight = val.parse::<bool>()
+            self.enable_highlight = val
+                .parse::<bool>()
                 .map_err(|e| LoaderError::ParseError(format!("enable_highlight: {}", e)))?;
         }
 
         if let Some(val) = vars.get("highlight_fragment_size") {
-            self.highlight_fragment_size = val.parse::<usize>()
+            self.highlight_fragment_size = val
+                .parse::<usize>()
                 .map_err(|e| LoaderError::ParseError(format!("highlight_fragment_size: {}", e)))?;
         }
 
         if let Some(val) = vars.get("enable_spell_check") {
-            self.enable_spell_check = val.parse::<bool>()
+            self.enable_spell_check = val
+                .parse::<bool>()
                 .map_err(|e| LoaderError::ParseError(format!("enable_spell_check: {}", e)))?;
         }
 
         if let Some(val) = vars.get("fuzzy_matching") {
-            self.fuzzy_matching = val.parse::<bool>()
+            self.fuzzy_matching = val
+                .parse::<bool>()
                 .map_err(|e| LoaderError::ParseError(format!("fuzzy_matching: {}", e)))?;
         }
 
         if let Some(val) = vars.get("fuzzy_distance") {
-            self.fuzzy_distance = val.parse::<u8>()
+            self.fuzzy_distance = val
+                .parse::<u8>()
                 .map_err(|e| LoaderError::ParseError(format!("fuzzy_distance: {}", e)))?;
         }
 

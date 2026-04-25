@@ -181,11 +181,13 @@ mod tests {
             create_yield_column(Expression::Variable("src".to_string()), "src"),
             create_yield_column(Expression::Variable("dst".to_string()), "dst"),
         ];
-        let project =
-            ProjectNode::new(edge_index_scan_enum.clone(), columns).expect("Failed to create ProjectNode");
+        let project = ProjectNode::new(edge_index_scan_enum.clone(), columns)
+            .expect("Failed to create ProjectNode");
         let project_enum = PlanNodeEnum::Project(project);
 
-        let result = rule.apply(&mut ctx, &project_enum).expect("Failed to apply rule");
+        let result = rule
+            .apply(&mut ctx, &project_enum)
+            .expect("Failed to apply rule");
 
         assert!(result.is_some());
         let transform = result.expect("Failed to apply rewrite rule");
@@ -210,8 +212,8 @@ mod tests {
             Expression::Variable("test".to_string()),
             "test",
         )];
-        let project =
-            ProjectNode::new(edge_index_scan.clone(), columns).expect("Failed to create ProjectNode");
+        let project = ProjectNode::new(edge_index_scan.clone(), columns)
+            .expect("Failed to create ProjectNode");
         let project_enum = PlanNodeEnum::Project(project);
 
         assert!(rule.can_push_down(&project_enum, &edge_index_scan));

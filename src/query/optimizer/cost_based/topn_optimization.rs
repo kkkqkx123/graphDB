@@ -323,7 +323,10 @@ impl SortEliminationOptimizer {
                 advice.push(format!("Preserve the sort operation, cause: {:?}", reason));
 
                 if matches!(reason, SortKeepReason::NoLimitForTopN) {
-                    advice.push("If the query contains a LIMIT, consider converting Sort + Limit to TopN".to_string());
+                    advice.push(
+                        "If the query contains a LIMIT, consider converting Sort + Limit to TopN"
+                            .to_string(),
+                    );
                 }
             }
         }

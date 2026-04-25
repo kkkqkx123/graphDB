@@ -1,5 +1,5 @@
-use crate::config::{Bm25Config, SearchConfig, StorageConfig};
 use crate::api::core::IndexManagerConfig;
+use crate::config::{Bm25Config, SearchConfig, StorageConfig};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 

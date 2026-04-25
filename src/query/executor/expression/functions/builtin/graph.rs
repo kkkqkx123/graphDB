@@ -95,18 +95,24 @@ impl GraphFunction {
 
 fn execute_id(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("The id function takes 1 argument"));
+        return Err(ExpressionError::type_error(
+            "The id function takes 1 argument",
+        ));
     }
     match &args[0] {
         Value::Vertex(v) => Ok((*v.vid).clone()),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("The id function requires a vertex type")),
+        _ => Err(ExpressionError::type_error(
+            "The id function requires a vertex type",
+        )),
     }
 }
 
 fn execute_tags(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("The tags function takes 1 argument"));
+        return Err(ExpressionError::type_error(
+            "The tags function takes 1 argument",
+        ));
     }
     match &args[0] {
         Value::Vertex(v) => {
@@ -128,7 +134,9 @@ fn execute_labels(args: &[Value]) -> Result<Value, ExpressionError> {
 
 fn execute_properties(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("properties requires 1 argument"));
+        return Err(ExpressionError::type_error(
+            "properties requires 1 argument",
+        ));
     }
     match &args[0] {
         Value::Vertex(v) => {
@@ -150,51 +158,69 @@ fn execute_properties(args: &[Value]) -> Result<Value, ExpressionError> {
 
 fn execute_edge_type(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("The type function takes 1 argument"));
+        return Err(ExpressionError::type_error(
+            "The type function takes 1 argument",
+        ));
     }
     match &args[0] {
         Value::Edge(e) => Ok(Value::String(e.edge_type.clone())),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("The type function requires an edge type")),
+        _ => Err(ExpressionError::type_error(
+            "The type function requires an edge type",
+        )),
     }
 }
 
 fn execute_src(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("The src function takes 1 argument"));
+        return Err(ExpressionError::type_error(
+            "The src function takes 1 argument",
+        ));
     }
     match &args[0] {
         Value::Edge(e) => Ok((*e.src).clone()),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("The src function requires the edge type")),
+        _ => Err(ExpressionError::type_error(
+            "The src function requires the edge type",
+        )),
     }
 }
 
 fn execute_dst(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("The dst function takes 1 argument"));
+        return Err(ExpressionError::type_error(
+            "The dst function takes 1 argument",
+        ));
     }
     match &args[0] {
         Value::Edge(e) => Ok((*e.dst).clone()),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("The dst function requires an edge type")),
+        _ => Err(ExpressionError::type_error(
+            "The dst function requires an edge type",
+        )),
     }
 }
 
 fn execute_rank(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("The rank function takes 1 argument"));
+        return Err(ExpressionError::type_error(
+            "The rank function takes 1 argument",
+        ));
     }
     match &args[0] {
         Value::Edge(e) => Ok(Value::BigInt(e.ranking)),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("The rank function requires an edge type")),
+        _ => Err(ExpressionError::type_error(
+            "The rank function requires an edge type",
+        )),
     }
 }
 
 fn execute_startnode(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("The startnode function takes 1 argument."));
+        return Err(ExpressionError::type_error(
+            "The startnode function takes 1 argument.",
+        ));
     }
     match &args[0] {
         Value::Edge(e) => {
@@ -202,13 +228,17 @@ fn execute_startnode(args: &[Value]) -> Result<Value, ExpressionError> {
             Ok(Value::Vertex(Box::new(vertex)))
         }
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("The startnode function requires the edge type")),
+        _ => Err(ExpressionError::type_error(
+            "The startnode function requires the edge type",
+        )),
     }
 }
 
 fn execute_endnode(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("The endnode function takes 1 argument"));
+        return Err(ExpressionError::type_error(
+            "The endnode function takes 1 argument",
+        ));
     }
     match &args[0] {
         Value::Edge(e) => {
@@ -216,7 +246,9 @@ fn execute_endnode(args: &[Value]) -> Result<Value, ExpressionError> {
             Ok(Value::Vertex(Box::new(vertex)))
         }
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("The endnode function requires an edge type")),
+        _ => Err(ExpressionError::type_error(
+            "The endnode function requires an edge type",
+        )),
     }
 }
 

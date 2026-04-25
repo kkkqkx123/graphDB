@@ -43,7 +43,10 @@ impl bb8::ManageConnection for RedisConnectionManager {
     }
 
     async fn is_valid(&self, conn: &mut Self::Connection) -> std::result::Result<(), Self::Error> {
-        redis::cmd("PING").query_async(conn).await.map(|_: String| ())
+        redis::cmd("PING")
+            .query_async(conn)
+            .await
+            .map(|_: String| ())
     }
 
     fn has_broken(&self, _: &mut Self::Connection) -> bool {
@@ -149,13 +152,12 @@ impl RedisStorage {
     }
 
     async fn get_connection(&self) -> Result<bb8::PooledConnection<'_, RedisConnectionManager>> {
-        self.pool
-            .get()
-            .await
-            .map_err(|e| {
-                self.error_stats.connection_errors.fetch_add(1, Ordering::Relaxed);
-                Bm25Error::StorageError(e.to_string())
-            })
+        self.pool.get().await.map_err(|e| {
+            self.error_stats
+                .connection_errors
+                .fetch_add(1, Ordering::Relaxed);
+            Bm25Error::StorageError(e.to_string())
+        })
     }
 
     async fn scan_keys(&self, pattern: &str) -> Result<Vec<String>> {
@@ -176,7 +178,9 @@ impl RedisStorage {
                 .query_async(&mut *conn)
                 .await
                 .map_err(|e| {
-                    self.error_stats.connection_errors.fetch_add(1, Ordering::Relaxed);
+                    self.error_stats
+                        .connection_errors
+                        .fetch_add(1, Ordering::Relaxed);
                     Bm25Error::StorageError(e.to_string())
                 })?;
 
@@ -213,7 +217,9 @@ impl RedisStorage {
             .query_async(&mut *conn)
             .await
             .map_err(|e| {
-                self.error_stats.connection_errors.fetch_add(1, Ordering::Relaxed);
+                self.error_stats
+                    .connection_errors
+                    .fetch_add(1, Ordering::Relaxed);
                 Bm25Error::StorageError(e.to_string())
             })?;
 
@@ -236,11 +242,31 @@ impl RedisStorage {
 
     fn record_error(&self, error_type: &str) {
         match error_type {
-            "connection" => { self.error_stats.connection_errors.fetch_add(1, Ordering::Relaxed); }
-            "serialization" => { self.error_stats.serialization_errors.fetch_add(1, Ordering::Relaxed); }
-            "deserialization" => { self.error_stats.deserialization_errors.fetch_add(1, Ordering::Relaxed); }
-            "timeout" => { self.error_stats.timeout_errors.fetch_add(1, Ordering::Relaxed); }
-            _ => { self.error_stats.other_errors.fetch_add(1, Ordering::Relaxed); }
+            "connection" => {
+                self.error_stats
+                    .connection_errors
+                    .fetch_add(1, Ordering::Relaxed);
+            }
+            "serialization" => {
+                self.error_stats
+                    .serialization_errors
+                    .fetch_add(1, Ordering::Relaxed);
+            }
+            "deserialization" => {
+                self.error_stats
+                    .deserialization_errors
+                    .fetch_add(1, Ordering::Relaxed);
+            }
+            "timeout" => {
+                self.error_stats
+                    .timeout_errors
+                    .fetch_add(1, Ordering::Relaxed);
+            }
+            _ => {
+                self.error_stats
+                    .other_errors
+                    .fetch_add(1, Ordering::Relaxed);
+            }
         }
     }
 }
@@ -267,25 +293,20 @@ impl StorageInterface for RedisStorage {
         let mut conn = self.get_connection().await?;
 
         let mut pipe = redis::pipe();
-        
+
         // 使用 HINCRBYFLOAT 实现 TF 的原子累加，使用 "default" 作为默认 doc_id
         pipe.cmd("HINCRBYFLOAT")
             .arg(self.make_tf_key(term))
             .arg("default")
             .arg(tf);
-        
-        // 设置 DF 值
-        pipe.cmd("SET")
-            .arg(self.make_df_key(term))
-            .arg(df as usize);
 
-        let _: () = pipe
-            .query_async(&mut *conn)
-            .await
-            .map_err(|e| {
-                self.record_error("connection");
-                Bm25Error::StorageError(e.to_string())
-            })?;
+        // 设置 DF 值
+        pipe.cmd("SET").arg(self.make_df_key(term)).arg(df as usize);
+
+        let _: () = pipe.query_async(&mut *conn).await.map_err(|e| {
+            self.record_error("connection");
+            Bm25Error::StorageError(e.to_string())
+        })?;
 
         Ok(())
     }
@@ -313,17 +334,14 @@ impl StorageInterface for RedisStorage {
                 .arg(*df as usize);
         }
 
-        let _: () = pipe
-            .query_async(&mut *conn)
-            .await
-            .map_err(|e| {
-                self.record_error("connection");
-                Bm25Error::StorageError(e.to_string())
-            })?;
+        let _: () = pipe.query_async(&mut *conn).await.map_err(|e| {
+            self.record_error("connection");
+            Bm25Error::StorageError(e.to_string())
+        })?;
 
         // 更新内存使用量
         self.update_memory_usage().await?;
-        
+
         Ok(())
     }
 
@@ -441,9 +459,8 @@ impl StorageInterface for RedisStorage {
     async fn health_check(&self) -> Result<bool> {
         match self.pool.get().await {
             Ok(mut conn) => {
-                let result: std::result::Result<String, redis::RedisError> = redis::cmd("PING")
-                    .query_async(&mut *conn)
-                    .await;
+                let result: std::result::Result<String, redis::RedisError> =
+                    redis::cmd("PING").query_async(&mut *conn).await;
                 Ok(result.is_ok())
             }
             Err(_) => Ok(false),
@@ -465,13 +482,10 @@ impl StorageInterface for RedisStorage {
                 pipe.cmd("HDEL").arg(tf_key).arg(doc_id);
             }
 
-            let _: () = pipe
-                .query_async(&mut *conn)
-                .await
-                .map_err(|e| {
-                    self.record_error("connection");
-                    Bm25Error::StorageError(e.to_string())
-                })?;
+            let _: () = pipe.query_async(&mut *conn).await.map_err(|e| {
+                self.record_error("connection");
+                Bm25Error::StorageError(e.to_string())
+            })?;
         }
 
         Ok(())
@@ -483,9 +497,8 @@ impl RedisStorage {
     pub async fn health_check(&self) -> Result<bool> {
         match self.pool.get().await {
             Ok(mut conn) => {
-                let result: std::result::Result<String, redis::RedisError> = redis::cmd("PING")
-                    .query_async(&mut *conn)
-                    .await;
+                let result: std::result::Result<String, redis::RedisError> =
+                    redis::cmd("PING").query_async(&mut *conn).await;
                 Ok(result.is_ok())
             }
             Err(_) => Ok(false),
@@ -513,19 +526,29 @@ impl RedisStorage {
             memory_usage: self.get_memory_usage(),
             error_count: self.get_total_errors(),
             connection_errors: self.error_stats.connection_errors.load(Ordering::Relaxed) as usize,
-            serialization_errors: self.error_stats.serialization_errors.load(Ordering::Relaxed) as usize,
-            deserialization_errors: self.error_stats.deserialization_errors.load(Ordering::Relaxed) as usize,
+            serialization_errors: self
+                .error_stats
+                .serialization_errors
+                .load(Ordering::Relaxed) as usize,
+            deserialization_errors: self
+                .error_stats
+                .deserialization_errors
+                .load(Ordering::Relaxed) as usize,
         }
     }
 
     fn get_total_errors(&self) -> usize {
-        (
-            self.error_stats.connection_errors.load(Ordering::Relaxed) +
-            self.error_stats.serialization_errors.load(Ordering::Relaxed) +
-            self.error_stats.deserialization_errors.load(Ordering::Relaxed) +
-            self.error_stats.timeout_errors.load(Ordering::Relaxed) +
-            self.error_stats.other_errors.load(Ordering::Relaxed)
-        ) as usize
+        (self.error_stats.connection_errors.load(Ordering::Relaxed)
+            + self
+                .error_stats
+                .serialization_errors
+                .load(Ordering::Relaxed)
+            + self
+                .error_stats
+                .deserialization_errors
+                .load(Ordering::Relaxed)
+            + self.error_stats.timeout_errors.load(Ordering::Relaxed)
+            + self.error_stats.other_errors.load(Ordering::Relaxed)) as usize
     }
 
     /// 记录操作开始时间（内部使用）
@@ -561,7 +584,11 @@ impl RedisStorage {
     }
 
     /// 批量提交多个文档的 TF 统计（Redis 特有方法）
-    pub async fn commit_batch_doc_tf(&mut self, term: &str, doc_tfs: &[(String, f32)]) -> Result<()> {
+    pub async fn commit_batch_doc_tf(
+        &mut self,
+        term: &str,
+        doc_tfs: &[(String, f32)],
+    ) -> Result<()> {
         if doc_tfs.is_empty() {
             return Ok(());
         }
@@ -576,13 +603,10 @@ impl RedisStorage {
                 .arg(*tf);
         }
 
-        let _: () = pipe
-            .query_async(&mut *conn)
-            .await
-            .map_err(|e| {
-                self.record_error("connection");
-                Bm25Error::StorageError(e.to_string())
-            })?;
+        let _: () = pipe.query_async(&mut *conn).await.map_err(|e| {
+            self.record_error("connection");
+            Bm25Error::StorageError(e.to_string())
+        })?;
 
         Ok(())
     }

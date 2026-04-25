@@ -103,7 +103,9 @@ impl ClausePlanner for ReturnClausePlanner {
         let yield_columns = extract_return_columns(stmt)?;
 
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("The RETURN clause requires an input plan".to_string())
+            PlannerError::PlanGenerationFailed(
+                "The RETURN clause requires an input plan".to_string(),
+            )
         })?;
 
         let project_node = ProjectNode::new(input_node.clone(), yield_columns)?;

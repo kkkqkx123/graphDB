@@ -147,9 +147,7 @@ impl ConfigLoader for EnvLoader {
             .filter(|(k, _)| k.starts_with(&self.prefix))
             .map(|(k, v)| {
                 // Remove prefix and convert to lowercase
-                let key = k
-                    .trim_start_matches(&self.prefix)
-                    .to_lowercase();
+                let key = k.trim_start_matches(&self.prefix).to_lowercase();
                 (key, v)
             })
             .collect())
@@ -216,14 +214,13 @@ impl FileLoader {
 
 impl ConfigLoader for FileLoader {
     fn load(&self) -> LoaderResult<HashMap<String, String>> {
-        let content = std::fs::read_to_string(&self.path)
-            .map_err(|e| {
-                if e.kind() == std::io::ErrorKind::NotFound {
-                    LoaderError::FileNotFound(self.path.clone())
-                } else {
-                    LoaderError::IoError(e)
-                }
-            })?;
+        let content = std::fs::read_to_string(&self.path).map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                LoaderError::FileNotFound(self.path.clone())
+            } else {
+                LoaderError::IoError(e)
+            }
+        })?;
 
         match self.format {
             ConfigFormat::Toml => {
@@ -357,7 +354,10 @@ mod tests {
         let loader = EnvLoader::new("TEST_");
         let vars = loader.load().unwrap();
 
-        assert_eq!(vars.get("writer_memory_budget"), Some(&"100000000".to_string()));
+        assert_eq!(
+            vars.get("writer_memory_budget"),
+            Some(&"100000000".to_string())
+        );
         assert_eq!(vars.get("writer_threads"), Some(&"4".to_string()));
         assert!(!vars.contains_key("other_var"));
 
@@ -405,9 +405,18 @@ mod tests {
         let toml_value: toml::Value = toml::from_str(toml_str).unwrap();
         let result = flatten_toml(&toml_value, "");
 
-        assert_eq!(result.get("writer_memory_budget"), Some(&"100000000".to_string()));
-        assert_eq!(result.get("log_merge_policy.min_num_segments"), Some(&"8".to_string()));
-        assert_eq!(result.get("log_merge_policy.max_docs_before_merge"), Some(&"10000000".to_string()));
+        assert_eq!(
+            result.get("writer_memory_budget"),
+            Some(&"100000000".to_string())
+        );
+        assert_eq!(
+            result.get("log_merge_policy.min_num_segments"),
+            Some(&"8".to_string())
+        );
+        assert_eq!(
+            result.get("log_merge_policy.max_docs_before_merge"),
+            Some(&"10000000".to_string())
+        );
     }
 
     #[test]
@@ -420,8 +429,14 @@ mod tests {
         let yaml_value: serde_yaml::Value = serde_yaml::from_str(yaml_str).unwrap();
         let result = flatten_yaml(&yaml_value, "");
 
-        assert_eq!(result.get("writer_memory_budget"), Some(&"100000000".to_string()));
-        assert_eq!(result.get("log_merge_policy.min_num_segments"), Some(&"8".to_string()));
+        assert_eq!(
+            result.get("writer_memory_budget"),
+            Some(&"100000000".to_string())
+        );
+        assert_eq!(
+            result.get("log_merge_policy.min_num_segments"),
+            Some(&"8".to_string())
+        );
     }
 
     #[test]
@@ -437,7 +452,13 @@ mod tests {
         let json_value: serde_json::Value = serde_json::from_str(json_str).unwrap();
         let result = flatten_json(&json_value, "");
 
-        assert_eq!(result.get("writer_memory_budget"), Some(&"100000000".to_string()));
-        assert_eq!(result.get("log_merge_policy.min_num_segments"), Some(&"8".to_string()));
+        assert_eq!(
+            result.get("writer_memory_budget"),
+            Some(&"100000000".to_string())
+        );
+        assert_eq!(
+            result.get("log_merge_policy.min_num_segments"),
+            Some(&"8".to_string())
+        );
     }
 }

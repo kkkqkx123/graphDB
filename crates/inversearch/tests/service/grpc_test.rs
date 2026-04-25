@@ -7,9 +7,9 @@
 //! - Search
 //! - ClearIndex
 
-use inversearch_service::service::InversearchService;
 use inversearch_service::proto::inversearch_service_server::InversearchService as InversearchServiceTrait;
 use inversearch_service::proto::*;
+use inversearch_service::service::InversearchService;
 use tonic::Request;
 
 /// 测试添加文档接口
@@ -23,7 +23,9 @@ async fn test_grpc_add_document() {
         metadata: Default::default(),
     });
 
-    let response = InversearchServiceTrait::add_document(&service, request).await.unwrap();
+    let response = InversearchServiceTrait::add_document(&service, request)
+        .await
+        .unwrap();
     let result = response.into_inner();
 
     assert!(result.success, "添加文档应该成功");
@@ -42,7 +44,9 @@ async fn test_grpc_add_multiple_documents() {
             metadata: Default::default(),
         });
 
-        let response = InversearchServiceTrait::add_document(&service, request).await.unwrap();
+        let response = InversearchServiceTrait::add_document(&service, request)
+            .await
+            .unwrap();
         let result = response.into_inner();
         assert!(result.success, "文档 {} 添加应该成功", i);
     }
@@ -59,7 +63,9 @@ async fn test_grpc_update_document() {
         content: "Original content".to_string(),
         metadata: Default::default(),
     });
-    InversearchServiceTrait::add_document(&service, add_request).await.unwrap();
+    InversearchServiceTrait::add_document(&service, add_request)
+        .await
+        .unwrap();
 
     // 更新文档
     let update_request = Request::new(UpdateDocumentRequest {
@@ -68,7 +74,9 @@ async fn test_grpc_update_document() {
         metadata: Default::default(),
     });
 
-    let response = InversearchServiceTrait::update_document(&service, update_request).await.unwrap();
+    let response = InversearchServiceTrait::update_document(&service, update_request)
+        .await
+        .unwrap();
     let result = response.into_inner();
 
     assert!(result.success, "更新文档应该成功");
@@ -85,14 +93,16 @@ async fn test_grpc_remove_document() {
         content: "Content to remove".to_string(),
         metadata: Default::default(),
     });
-    InversearchServiceTrait::add_document(&service, add_request).await.unwrap();
+    InversearchServiceTrait::add_document(&service, add_request)
+        .await
+        .unwrap();
 
     // 删除文档
-    let remove_request = Request::new(RemoveDocumentRequest {
-        id: 1,
-    });
+    let remove_request = Request::new(RemoveDocumentRequest { id: 1 });
 
-    let response = InversearchServiceTrait::remove_document(&service, remove_request).await.unwrap();
+    let response = InversearchServiceTrait::remove_document(&service, remove_request)
+        .await
+        .unwrap();
     let result = response.into_inner();
 
     assert!(result.success, "删除文档应该成功");
@@ -110,7 +120,9 @@ async fn test_grpc_search() {
             content: format!("Searchable document {}", i),
             metadata: Default::default(),
         });
-        InversearchServiceTrait::add_document(&service, request).await.unwrap();
+        InversearchServiceTrait::add_document(&service, request)
+            .await
+            .unwrap();
     }
 
     // 搜索
@@ -127,7 +139,9 @@ async fn test_grpc_search() {
         highlight_options: None,
     });
 
-    let response = InversearchServiceTrait::search(&service, search_request).await.unwrap();
+    let response = InversearchServiceTrait::search(&service, search_request)
+        .await
+        .unwrap();
     let result = response.into_inner();
 
     // SearchResponse 没有 success 字段，直接检查结果
@@ -146,12 +160,16 @@ async fn test_grpc_clear_index() {
             content: format!("Document {}", i),
             metadata: Default::default(),
         });
-        InversearchServiceTrait::add_document(&service, request).await.unwrap();
+        InversearchServiceTrait::add_document(&service, request)
+            .await
+            .unwrap();
     }
 
     // 清空索引
     let clear_request = Request::new(ClearIndexRequest {});
-    let response = InversearchServiceTrait::clear_index(&service, clear_request).await.unwrap();
+    let response = InversearchServiceTrait::clear_index(&service, clear_request)
+        .await
+        .unwrap();
     let result = response.into_inner();
 
     assert!(result.success, "清空索引应该成功");
@@ -176,7 +194,7 @@ async fn test_grpc_search_empty_query() {
     });
 
     let response = InversearchServiceTrait::search(&service, search_request).await;
-    
+
     // 空查询可能返回错误或空结果，取决于实现
     let _ = response;
 }
@@ -199,7 +217,9 @@ async fn test_grpc_search_nonexistent() {
         highlight_options: None,
     });
 
-    let response = InversearchServiceTrait::search(&service, search_request).await.unwrap();
+    let response = InversearchServiceTrait::search(&service, search_request)
+        .await
+        .unwrap();
     let result = response.into_inner();
 
     // SearchResponse 没有 success 字段，直接检查结果

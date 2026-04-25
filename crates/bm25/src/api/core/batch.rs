@@ -1,7 +1,7 @@
-use crate::error::Result;
-use crate::api::core::{IndexManager, IndexSchema};
-use crate::storage::MutableStorageManager;
 use crate::api::core::stats_extractor::extract_batch_tf_df_stats;
+use crate::api::core::{IndexManager, IndexSchema};
+use crate::error::Result;
+use crate::storage::MutableStorageManager;
 use std::collections::HashMap;
 use tantivy::IndexWriter;
 

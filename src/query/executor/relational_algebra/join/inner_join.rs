@@ -307,7 +307,9 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
         let probe_keys = self.base_executor.get_probe_keys().clone();
 
         if hash_keys.is_empty() || probe_keys.is_empty() {
-            return Err(QueryError::ExecutionError("Hash or probe key is empty".to_string()));
+            return Err(QueryError::ExecutionError(
+                "Hash or probe key is empty".to_string(),
+            ));
         }
 
         let (hash_keys, probe_keys, build_dataset, probe_dataset, build_col_names, probe_col_names) =
@@ -622,7 +624,9 @@ mod tests {
 
     #[test]
     fn test_inner_join_multi_key() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create Mock store"),
+        ));
         let expr_context = Arc::new(ExpressionContextStruct::new());
 
         let expr1 = Expression::variable("a");
@@ -706,7 +710,9 @@ mod tests {
 
     #[test]
     fn test_inner_join_empty_dataset() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create Mock store"),
+        ));
         let expr_context = Arc::new(ExpressionContextStruct::new());
 
         let expr1 = Expression::variable("id");
@@ -760,7 +766,9 @@ mod tests {
 
     #[test]
     fn test_inner_join_with_variable_expression() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create Mock store"),
+        ));
         let expr_context = Arc::new(ExpressionContextStruct::new());
 
         let expr1 = Expression::Variable("id".to_string());

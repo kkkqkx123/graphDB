@@ -119,7 +119,9 @@ fn execute_length(args: &[Value]) -> Result<Value, ExpressionError> {
     match &args[0] {
         Value::String(s) => Ok(Value::BigInt(s.len() as i64)),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("The length function requires a string type")),
+        _ => Err(ExpressionError::type_error(
+            "The length function requires a string type",
+        )),
     }
 }
 
@@ -154,7 +156,11 @@ fn execute_concat(args: &[Value]) -> Result<Value, ExpressionError> {
         match arg {
             Value::String(s) => result.push_str(s),
             Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-            _ => return Err(ExpressionError::type_error("The concat function requires a string type")),
+            _ => {
+                return Err(ExpressionError::type_error(
+                    "The concat function requires a string type",
+                ))
+            }
         }
     }
     Ok(Value::String(result))
@@ -164,7 +170,9 @@ fn execute_replace(args: &[Value]) -> Result<Value, ExpressionError> {
     match (&args[0], &args[1]) {
         (Value::String(s), Value::String(from)) => Ok(Value::String(s.replace(from, ""))),
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("The replace function requires a string type")),
+        _ => Err(ExpressionError::type_error(
+            "The replace function requires a string type",
+        )),
     }
 }
 
@@ -208,7 +216,9 @@ define_binary_string_bool_fn!(
 fn execute_split(args: &[Value]) -> Result<Value, ExpressionError> {
     use crate::core::value::list::List;
     if args.len() != 2 {
-        return Err(ExpressionError::type_error("The split function takes 2 arguments"));
+        return Err(ExpressionError::type_error(
+            "The split function takes 2 arguments",
+        ));
     }
     match (&args[0], &args[1]) {
         (Value::String(s), Value::String(delimiter)) => {
@@ -225,7 +235,9 @@ fn execute_split(args: &[Value]) -> Result<Value, ExpressionError> {
 
 fn execute_lpad(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 3 {
-        return Err(ExpressionError::type_error("The lpad function takes 3 arguments"));
+        return Err(ExpressionError::type_error(
+            "The lpad function takes 3 arguments",
+        ));
     }
     match (&args[0], &args[1], &args[2]) {
         (Value::String(s), Value::Int(len), Value::String(pad)) => {
@@ -254,7 +266,9 @@ fn execute_lpad(args: &[Value]) -> Result<Value, ExpressionError> {
 
 fn execute_rpad(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 3 {
-        return Err(ExpressionError::type_error("The rpad function takes 3 arguments"));
+        return Err(ExpressionError::type_error(
+            "The rpad function takes 3 arguments",
+        ));
     }
     match (&args[0], &args[1], &args[2]) {
         (Value::String(s), Value::Int(len), Value::String(pad)) => {
@@ -284,7 +298,9 @@ fn execute_rpad(args: &[Value]) -> Result<Value, ExpressionError> {
 
 fn execute_concat_ws(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() < 2 {
-        return Err(ExpressionError::type_error("The concat_ws function takes at least 2 arguments"));
+        return Err(ExpressionError::type_error(
+            "The concat_ws function takes at least 2 arguments",
+        ));
     }
     let separator = match &args[0] {
         Value::String(s) => s.clone(),
@@ -305,7 +321,11 @@ fn execute_concat_ws(args: &[Value]) -> Result<Value, ExpressionError> {
                 result.push_str(s);
             }
             Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-            _ => return Err(ExpressionError::type_error("The concat_ws function requires the string type")),
+            _ => {
+                return Err(ExpressionError::type_error(
+                    "The concat_ws function requires the string type",
+                ))
+            }
         }
     }
     Ok(Value::String(result))
@@ -313,7 +333,9 @@ fn execute_concat_ws(args: &[Value]) -> Result<Value, ExpressionError> {
 
 fn execute_strcasecmp(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 2 {
-        return Err(ExpressionError::type_error("The strcasecmp function takes 2 arguments"));
+        return Err(ExpressionError::type_error(
+            "The strcasecmp function takes 2 arguments",
+        ));
     }
     match (&args[0], &args[1]) {
         (Value::String(a), Value::String(b)) => {
@@ -325,7 +347,9 @@ fn execute_strcasecmp(args: &[Value]) -> Result<Value, ExpressionError> {
             }))
         }
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("The strcasecmp function requires the string type")),
+        _ => Err(ExpressionError::type_error(
+            "The strcasecmp function requires the string type",
+        )),
     }
 }
 

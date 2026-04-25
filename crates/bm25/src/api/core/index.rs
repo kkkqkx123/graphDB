@@ -1,9 +1,11 @@
 use crate::error::Result;
+use crate::tokenizer::MixedTokenizer;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::{Arc, RwLock};
 use tantivy::indexer::{LogMergePolicy, MergePolicy};
-use tantivy::{schema::*, Index, IndexReader, IndexWriter, ReloadPolicy};
+use tantivy::schema::*;
+use tantivy::{Index, IndexReader, IndexWriter, ReloadPolicy};
 
 /// 重载策略配置
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
@@ -137,11 +139,12 @@ impl IndexManagerConfig {
     /// Load configuration from environment variables with custom prefix
     pub fn from_env_with_prefix(prefix: &str) -> Result<Self> {
         use crate::config::{ConfigLoader, EnvLoader};
-        
+
         let loader = EnvLoader::new(prefix);
-        let env_vars = loader.load()
+        let env_vars = loader
+            .load()
             .map_err(|e| crate::error::Bm25Error::InternalError(e.to_string()))?;
-        
+
         let mut config = Self::default();
         config.apply_vars(&env_vars)?;
         Ok(config)
@@ -150,11 +153,12 @@ impl IndexManagerConfig {
     /// Load configuration from a file (TOML, YAML, or JSON)
     pub fn from_file(path: &str) -> Result<Self> {
         use crate::config::{ConfigLoader, FileLoader};
-        
+
         let loader = FileLoader::new(path);
-        let file_vars = loader.load()
+        let file_vars = loader
+            .load()
             .map_err(|e| crate::error::Bm25Error::InternalError(e.to_string()))?;
-        
+
         let mut config = Self::default();
         config.apply_vars(&file_vars)?;
         Ok(config)
@@ -165,61 +169,78 @@ impl IndexManagerConfig {
         use std::str::FromStr;
 
         if let Some(val) = vars.get("writer_memory_budget") {
-            self.writer_memory_budget = val.parse()
-                .map_err(|e| crate::error::Bm25Error::InternalError(
-                    format!("Failed to parse writer_memory_budget: {}", e)
-                ))?;
+            self.writer_memory_budget = val.parse().map_err(|e| {
+                crate::error::Bm25Error::InternalError(format!(
+                    "Failed to parse writer_memory_budget: {}",
+                    e
+                ))
+            })?;
         }
 
         if let Some(val) = vars.get("writer_num_threads") {
-            let threads: usize = val.parse()
-                .map_err(|e| crate::error::Bm25Error::InternalError(
-                    format!("Failed to parse writer_num_threads: {}", e)
-                ))?;
+            let threads: usize = val.parse().map_err(|e| {
+                crate::error::Bm25Error::InternalError(format!(
+                    "Failed to parse writer_num_threads: {}",
+                    e
+                ))
+            })?;
             self.writer_num_threads = if threads > 0 { Some(threads) } else { None };
         }
 
         if let Some(val) = vars.get("reader_cache_enabled") {
-            self.reader_cache_enabled = val.parse()
-                .map_err(|e| crate::error::Bm25Error::InternalError(
-                    format!("Failed to parse reader_cache_enabled: {}", e)
-                ))?;
+            self.reader_cache_enabled = val.parse().map_err(|e| {
+                crate::error::Bm25Error::InternalError(format!(
+                    "Failed to parse reader_cache_enabled: {}",
+                    e
+                ))
+            })?;
         }
 
         // Handle nested configuration (e.g., log_merge_policy.min_num_segments)
         if let Some(val) = vars.get("log_merge_policy.min_num_segments") {
-            self.log_merge_policy.min_num_segments = val.parse()
-                .map_err(|e| crate::error::Bm25Error::InternalError(
-                    format!("Failed to parse log_merge_policy.min_num_segments: {}", e)
-                ))?;
+            self.log_merge_policy.min_num_segments = val.parse().map_err(|e| {
+                crate::error::Bm25Error::InternalError(format!(
+                    "Failed to parse log_merge_policy.min_num_segments: {}",
+                    e
+                ))
+            })?;
         }
 
         if let Some(val) = vars.get("log_merge_policy.max_docs_before_merge") {
-            self.log_merge_policy.max_docs_before_merge = val.parse()
-                .map_err(|e| crate::error::Bm25Error::InternalError(
-                    format!("Failed to parse log_merge_policy.max_docs_before_merge: {}", e)
-                ))?;
+            self.log_merge_policy.max_docs_before_merge = val.parse().map_err(|e| {
+                crate::error::Bm25Error::InternalError(format!(
+                    "Failed to parse log_merge_policy.max_docs_before_merge: {}",
+                    e
+                ))
+            })?;
         }
 
         if let Some(val) = vars.get("log_merge_policy.min_layer_size") {
-            self.log_merge_policy.min_layer_size = val.parse()
-                .map_err(|e| crate::error::Bm25Error::InternalError(
-                    format!("Failed to parse log_merge_policy.min_layer_size: {}", e)
-                ))?;
+            self.log_merge_policy.min_layer_size = val.parse().map_err(|e| {
+                crate::error::Bm25Error::InternalError(format!(
+                    "Failed to parse log_merge_policy.min_layer_size: {}",
+                    e
+                ))
+            })?;
         }
 
         if let Some(val) = vars.get("log_merge_policy.level_log_size") {
-            self.log_merge_policy.level_log_size = f64::from_str(val)
-                .map_err(|e| crate::error::Bm25Error::InternalError(
-                    format!("Failed to parse log_merge_policy.level_log_size: {}", e)
-                ))?;
+            self.log_merge_policy.level_log_size = f64::from_str(val).map_err(|e| {
+                crate::error::Bm25Error::InternalError(format!(
+                    "Failed to parse log_merge_policy.level_log_size: {}",
+                    e
+                ))
+            })?;
         }
 
         if let Some(val) = vars.get("log_merge_policy.del_docs_ratio_before_merge") {
-            self.log_merge_policy.del_docs_ratio_before_merge = f32::from_str(val)
-                .map_err(|e| crate::error::Bm25Error::InternalError(
-                    format!("Failed to parse log_merge_policy.del_docs_ratio_before_merge: {}", e)
-                ))?;
+            self.log_merge_policy.del_docs_ratio_before_merge =
+                f32::from_str(val).map_err(|e| {
+                    crate::error::Bm25Error::InternalError(format!(
+                        "Failed to parse log_merge_policy.del_docs_ratio_before_merge: {}",
+                        e
+                    ))
+                })?;
         }
 
         Ok(())
@@ -227,18 +248,16 @@ impl IndexManagerConfig {
 
     /// Export configuration to TOML string
     pub fn to_toml(&self) -> Result<String> {
-        toml::to_string(self)
-            .map_err(|e: toml::ser::Error| crate::error::Bm25Error::InternalError(
-                format!("Failed to serialize to TOML: {}", e)
-            ))
+        toml::to_string(self).map_err(|e: toml::ser::Error| {
+            crate::error::Bm25Error::InternalError(format!("Failed to serialize to TOML: {}", e))
+        })
     }
 
     /// Export configuration to JSON string (pretty-printed)
     pub fn to_json(&self) -> Result<String> {
-        serde_json::to_string_pretty(self)
-            .map_err(|e| crate::error::Bm25Error::InternalError(
-                format!("Failed to serialize to JSON: {}", e)
-            ))
+        serde_json::to_string_pretty(self).map_err(|e| {
+            crate::error::Bm25Error::InternalError(format!("Failed to serialize to JSON: {}", e))
+        })
     }
 
     /// Export configuration to environment variables
@@ -253,10 +272,7 @@ impl IndexManagerConfig {
         );
 
         if let Some(threads) = self.writer_num_threads {
-            vars.insert(
-                format!("{}WRITER_NUM_THREADS", prefix),
-                threads.to_string(),
-            );
+            vars.insert(format!("{}WRITER_NUM_THREADS", prefix), threads.to_string());
         }
 
         vars.insert(
@@ -283,7 +299,9 @@ impl IndexManagerConfig {
         );
         vars.insert(
             format!("{}LOG_MERGE_POLICY.DEL_DOCS_RATIO_BEFORE_MERGE", prefix),
-            self.log_merge_policy.del_docs_ratio_before_merge.to_string(),
+            self.log_merge_policy
+                .del_docs_ratio_before_merge
+                .to_string(),
         );
 
         vars
@@ -299,7 +317,9 @@ impl IndexManagerConfig {
                 policy.set_max_docs_before_merge(self.log_merge_policy.max_docs_before_merge);
                 policy.set_min_layer_size(self.log_merge_policy.min_layer_size);
                 policy.set_level_log_size(self.log_merge_policy.level_log_size);
-                policy.set_del_docs_ratio_before_merge(self.log_merge_policy.del_docs_ratio_before_merge);
+                policy.set_del_docs_ratio_before_merge(
+                    self.log_merge_policy.del_docs_ratio_before_merge,
+                );
                 Box::new(policy)
             }
         }
@@ -324,6 +344,7 @@ impl IndexManager {
         std::fs::create_dir_all(path)?;
         let schema = Self::build_schema();
         let index = Index::create_in_dir(path, schema.clone())?;
+        Self::register_tokenizers(&index);
         Ok(Self {
             index,
             schema,
@@ -339,6 +360,7 @@ impl IndexManager {
     pub fn open_with_config<P: AsRef<Path>>(path: P, config: IndexManagerConfig) -> Result<Self> {
         let index = Index::open_in_dir(path)?;
         let schema = index.schema();
+        Self::register_tokenizers(&index);
         Ok(Self {
             index,
             schema: schema.clone(),
@@ -347,11 +369,47 @@ impl IndexManager {
         })
     }
 
+    fn register_tokenizers(index: &Index) {
+        let mixed_tokenizer = MixedTokenizer::new();
+        index.tokenizers().register("mixed", mixed_tokenizer);
+    }
+
     fn build_schema() -> Schema {
         let mut schema_builder = Schema::builder();
         schema_builder.add_text_field("document_id", STRING | STORED);
         schema_builder.add_text_field("title", TEXT | STORED);
-        schema_builder.add_text_field("content", TEXT | STORED);
+
+        let content_options = TextOptions::default()
+            .set_indexing_options(
+                TextFieldIndexing::default()
+                    .set_tokenizer("mixed")
+                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+            )
+            .set_stored();
+        schema_builder.add_text_field("content", content_options);
+
+        schema_builder.add_text_field("entity_type", STRING | STORED);
+
+        let raw_name_options = TextOptions::default()
+            .set_indexing_options(
+                TextFieldIndexing::default()
+                    .set_tokenizer("mixed")
+                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+            )
+            .set_stored();
+        schema_builder.add_text_field("raw_name", raw_name_options);
+
+        let keywords_options = TextOptions::default()
+            .set_indexing_options(
+                TextFieldIndexing::default()
+                    .set_tokenizer("mixed")
+                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+            )
+            .set_stored();
+        schema_builder.add_text_field("keywords", keywords_options);
+
+        schema_builder.add_text_field("file_path", STRING | STORED);
+        schema_builder.add_text_field("module_name", STRING | STORED);
         schema_builder.build()
     }
 
@@ -360,12 +418,12 @@ impl IndexManager {
             .config
             .writer_num_threads
             .unwrap_or_else(|| num_cpus::get().max(1));
-        
+
         // Tantivy requires at least 15MB per thread for the memory arena
         const MIN_MEMORY_PER_THREAD: usize = 15_000_000;
         let min_memory_budget = num_threads * MIN_MEMORY_PER_THREAD;
         let memory_budget = self.config.writer_memory_budget.max(min_memory_budget);
-        
+
         let writer = self
             .index
             .writer_with_num_threads(num_threads, memory_budget)?;

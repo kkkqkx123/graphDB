@@ -52,7 +52,9 @@ impl PlanNodeCategory {
             PlanNodeCategory::DataProcessing => "Data Processing Layer - Complex Data Manipulation",
             PlanNodeCategory::Algorithm => "Algorithm Layer - Graph Algorithm Execution",
             PlanNodeCategory::Management => "Management/DDL Layer - Metadata Management",
-            PlanNodeCategory::DataAccess => "Data access layer - full text search and other data access operations",
+            PlanNodeCategory::DataAccess => {
+                "Data access layer - full text search and other data access operations"
+            }
         }
     }
 

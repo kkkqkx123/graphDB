@@ -1,5 +1,5 @@
-use crate::error::Result;
 use crate::api::core::{IndexManager, IndexSchema};
+use crate::error::Result;
 use crate::storage::MutableStorageManager;
 use tantivy::IndexWriter;
 use tantivy::Term;

@@ -3,8 +3,8 @@
 //! 提供所有存储实现共享的类型、工具函数和 trait
 
 pub mod base;
-pub mod config;
 pub mod compression;
+pub mod config;
 pub mod error;
 pub mod io;
 pub mod metrics;

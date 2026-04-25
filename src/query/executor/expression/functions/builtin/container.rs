@@ -150,17 +150,27 @@ fn execute_size(args: &[Value]) -> Result<Value, ExpressionError> {
 
 fn execute_range(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() < 2 || args.len() > 3 {
-        return Err(ExpressionError::type_error("range requires 2 or 3 arguments"));
+        return Err(ExpressionError::type_error(
+            "range requires 2 or 3 arguments",
+        ));
     }
     let start = match &args[0] {
         Value::Int(i) => *i,
         Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-        _ => return Err(ExpressionError::type_error("range requires integer arguments")),
+        _ => {
+            return Err(ExpressionError::type_error(
+                "range requires integer arguments",
+            ))
+        }
     };
     let end = match &args[1] {
         Value::Int(i) => *i,
         Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-        _ => return Err(ExpressionError::type_error("The range function takes integer arguments")),
+        _ => {
+            return Err(ExpressionError::type_error(
+                "The range function takes integer arguments",
+            ))
+        }
     };
     let step = if args.len() > 2 {
         match &args[2] {

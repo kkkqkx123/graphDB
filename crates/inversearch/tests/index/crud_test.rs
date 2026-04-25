@@ -8,9 +8,7 @@
 
 use inversearch_service::search::search;
 
-use crate::common::{
-    create_empty_index, basic_search_options,
-};
+use crate::common::{basic_search_options, create_empty_index};
 
 /// 测试添加文档
 /// 验证：添加的文档可以被搜索到
@@ -28,7 +26,10 @@ fn test_add_document() {
     let options = basic_search_options("Test");
     let result = search(&index, &options).unwrap();
     assert!(!result.results.is_empty(), "Expected non-empty results");
-    assert!(result.results.contains(&1), "Expected results to contain document 1");
+    assert!(
+        result.results.contains(&1),
+        "Expected results to contain document 1"
+    );
 }
 
 /// 测试更新文档
@@ -51,13 +52,20 @@ fn test_update_document() {
     // 验证旧内容搜索不到
     let options = basic_search_options("Old");
     let result = search(&index, &options).unwrap();
-    assert!(result.results.is_empty(), "Expected empty results, got {:?}", result.results);
+    assert!(
+        result.results.is_empty(),
+        "Expected empty results, got {:?}",
+        result.results
+    );
 
     // 验证新内容可以搜索到
     let options = basic_search_options("New");
     let result = search(&index, &options).unwrap();
     assert!(!result.results.is_empty(), "Expected non-empty results");
-    assert!(result.results.contains(&1), "Expected results to contain document 1");
+    assert!(
+        result.results.contains(&1),
+        "Expected results to contain document 1"
+    );
 }
 
 /// 测试删除文档
@@ -83,7 +91,11 @@ fn test_remove_document() {
     // 验证搜索不到
     let options = basic_search_options("Test");
     let result = search(&index, &options).unwrap();
-    assert!(result.results.is_empty(), "Expected empty results, got {:?}", result.results);
+    assert!(
+        result.results.is_empty(),
+        "Expected empty results, got {:?}",
+        result.results
+    );
 }
 
 /// 测试添加重复文档
@@ -101,7 +113,10 @@ fn test_add_duplicate_document() {
     let options = basic_search_options("Second");
     let result = search(&index, &options).unwrap();
     assert!(!result.results.is_empty(), "Expected non-empty results");
-    assert!(result.results.contains(&1), "Expected results to contain document 1");
+    assert!(
+        result.results.contains(&1),
+        "Expected results to contain document 1"
+    );
 
     // 验证旧内容可能搜索不到（取决于实现）
     let options = basic_search_options("First");

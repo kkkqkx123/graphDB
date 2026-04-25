@@ -18,8 +18,8 @@ pub use batch::{
     TransactionBuffer,
 };
 pub use circuit_breaker::{
-    CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError, CircuitBreakerStats, CircuitState,
-    with_circuit_breaker,
+    with_circuit_breaker, CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError,
+    CircuitBreakerStats, CircuitState,
 };
 pub use coordinator::{
     ChangeContext, ChangeData, ChangeType, IndexType, SyncCoordinator, SyncCoordinatorError,

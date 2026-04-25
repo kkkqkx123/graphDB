@@ -329,7 +329,9 @@ mod tests {
 
     #[test]
     fn test_sample_executor_reservoir() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create Mock store"),
+        ));
 
         // Create test data
         let values: Vec<Value> = (1..=100).map(Value::Int).collect();

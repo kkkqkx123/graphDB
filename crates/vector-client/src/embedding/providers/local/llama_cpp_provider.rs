@@ -12,11 +12,11 @@ use std::sync::Mutex;
 use llama_cpp_2::context::params::{LlamaContextParams, LlamaPoolingType};
 use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::llama_batch::LlamaBatch;
-use llama_cpp_2::model::{AddBos, LlamaModel};
 use llama_cpp_2::model::params::LlamaModelParams;
+use llama_cpp_2::model::{AddBos, LlamaModel};
 
-use super::provider::{EmbeddingProvider, ProviderType};
 use super::error::{EmbeddingError, Result};
+use super::provider::{EmbeddingProvider, ProviderType};
 
 /// llama.cpp local library provider with Vulkan GPU acceleration support
 ///
@@ -91,21 +91,20 @@ impl LlamaCppProvider {
         n_gpu_layers: Option<u32>,
     ) -> Result<Self> {
         // Initialize backend
-        let backend = LlamaBackend::init()
-            .map_err(|e| EmbeddingError::Internal(
-                format!("Failed to initialize llama.cpp backend: {}", e)
-            ))?;
+        let backend = LlamaBackend::init().map_err(|e| {
+            EmbeddingError::Internal(format!("Failed to initialize llama.cpp backend: {}", e))
+        })?;
 
         // Configure model parameters with GPU offloading
         // This is where Vulkan acceleration takes effect if compiled with CMAKE_ARGS="-DGGML_VULKAN=on"
-        let model_params = LlamaModelParams::default()
-            .with_n_gpu_layers(n_gpu_layers.unwrap_or(1000));  // Default: full offload to GPU
+        let model_params =
+            LlamaModelParams::default().with_n_gpu_layers(n_gpu_layers.unwrap_or(1000)); // Default: full offload to GPU
 
         // Load model
-        let model = LlamaModel::load_from_file(&backend, &model_path, &model_params)
-            .map_err(|e| EmbeddingError::Internal(
-                format!("Failed to load model from {}: {}", model_path, e)
-            ))?;
+        let model =
+            LlamaModel::load_from_file(&backend, &model_path, &model_params).map_err(|e| {
+                EmbeddingError::Internal(format!("Failed to load model from {}: {}", model_path, e))
+            })?;
 
         // Parse pooling type
         let pooling = match pooling_type.as_str() {
@@ -119,8 +118,7 @@ impl LlamaCppProvider {
 
         // Configure context parameters
         let n_ctx_value = n_ctx.unwrap_or(4096);
-        let n_ctx_nonzero = NonZeroU32::new(n_ctx_value)
-            .expect("n_ctx must be greater than 0");
+        let n_ctx_nonzero = NonZeroU32::new(n_ctx_value).expect("n_ctx must be greater than 0");
 
         let ctx_params = LlamaContextParams::default()
             .with_n_ctx(Some(n_ctx_nonzero))
@@ -133,10 +131,9 @@ impl LlamaCppProvider {
             .with_offload_kqv(offload_kqv.unwrap_or(true));
 
         // Create context
-        let ctx = model.new_context(&backend, ctx_params.clone())
-            .map_err(|e| EmbeddingError::Internal(
-                format!("Failed to create context: {}", e)
-            ))?;
+        let ctx = model
+            .new_context(&backend, ctx_params.clone())
+            .map_err(|e| EmbeddingError::Internal(format!("Failed to create context: {}", e)))?;
 
         // Get dimension from model if not provided
         let dim = dimension.unwrap_or_else(|| {
@@ -166,34 +163,29 @@ impl LlamaCppProvider {
 
         for (i, text) in texts.iter().enumerate() {
             // Tokenize text
-            let tokens = self.model.str_to_token(text, AddBos::Always)
-                .map_err(|e| EmbeddingError::Internal(
-                    format!("Failed to tokenize text {}: {}", i, e)
-                ))?;
+            let tokens = self.model.str_to_token(text, AddBos::Always).map_err(|e| {
+                EmbeddingError::Internal(format!("Failed to tokenize text {}: {}", i, e))
+            })?;
 
             // Create batch
-            let mut ctx = self.ctx.lock()
-                .map_err(|e| EmbeddingError::Internal(
-                    format!("Failed to lock context: {}", e)
-                ))?;
+            let mut ctx = self
+                .ctx
+                .lock()
+                .map_err(|e| EmbeddingError::Internal(format!("Failed to lock context: {}", e)))?;
 
             let mut batch = LlamaBatch::new(ctx.n_ctx() as usize, 1);
-            batch.add_sequence(&tokens, i, false)
-                .map_err(|e| EmbeddingError::Internal(
-                    format!("Failed to add sequence to batch: {}", e)
-                ))?;
+            batch.add_sequence(&tokens, i, false).map_err(|e| {
+                EmbeddingError::Internal(format!("Failed to add sequence to batch: {}", e))
+            })?;
 
             // Decode
             ctx.decode(&mut batch)
-                .map_err(|e| EmbeddingError::Internal(
-                    format!("Failed to decode batch: {}", e)
-                ))?;
+                .map_err(|e| EmbeddingError::Internal(format!("Failed to decode batch: {}", e)))?;
 
             // Get embeddings
-            let embedding = ctx.embeddings_seq_ith(i)
-                .map_err(|e| EmbeddingError::Internal(
-                    format!("Failed to get embeddings for text {}: {}", i, e)
-                ))?;
+            let embedding = ctx.embeddings_seq_ith(i).map_err(|e| {
+                EmbeddingError::Internal(format!("Failed to get embeddings for text {}: {}", i, e))
+            })?;
 
             // Normalize embedding (L2 normalization)
             let normalized = Self::normalize(&embedding);
@@ -233,17 +225,20 @@ impl LlamaCppProvider {
     /// ```
     pub fn detect_gpu_devices() -> Vec<String> {
         use llama_cpp_2::list_llama_ggml_backend_devices;
-        
+
         let devices = list_llama_ggml_backend_devices();
-        devices.iter().map(|dev| {
-            format!(
-                "Device {}: {} ({} backend, {} MiB total)",
-                dev.name,
-                dev.backend,
-                dev.device_type,
-                dev.memory_total / 1024 / 1024
-            )
-        }).collect()
+        devices
+            .iter()
+            .map(|dev| {
+                format!(
+                    "Device {}: {} ({} backend, {} MiB total)",
+                    dev.name,
+                    dev.backend,
+                    dev.device_type,
+                    dev.memory_total / 1024 / 1024
+                )
+            })
+            .collect()
     }
 }
 
@@ -274,7 +269,7 @@ mod tests {
     fn test_normalize() {
         let embedding = vec![3.0, 4.0];
         let normalized = LlamaCppProvider::normalize(&embedding);
-        
+
         // L2 norm of [3, 4] is 5, so normalized should be [0.6, 0.8]
         assert!((normalized[0] - 0.6).abs() < 1e-6);
         assert!((normalized[1] - 0.8).abs() < 1e-6);
@@ -284,7 +279,7 @@ mod tests {
     fn test_normalize_zero() {
         let embedding = vec![0.0, 0.0];
         let normalized = LlamaCppProvider::normalize(&embedding);
-        
+
         // Zero vector should remain unchanged
         assert_eq!(normalized, vec![0.0, 0.0]);
     }

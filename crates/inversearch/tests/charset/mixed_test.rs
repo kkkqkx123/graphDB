@@ -8,9 +8,7 @@
 
 use inversearch_service::search::search;
 
-use crate::common::{
-    create_empty_index, basic_search_options,
-};
+use crate::common::{basic_search_options, create_empty_index};
 
 /// 测试中英文混合
 #[test]
@@ -69,9 +67,13 @@ fn test_emoji() {
 fn test_code_snippets() {
     let mut index = create_empty_index();
 
-    index.add(1, "fn main() { println!(\"Hello\"); }", false).unwrap();
+    index
+        .add(1, "fn main() { println!(\"Hello\"); }", false)
+        .unwrap();
     index.add(2, "const x = 42; // comment", false).unwrap();
-    index.add(3, "class MyClass { constructor() {} }", false).unwrap();
+    index
+        .add(3, "class MyClass { constructor() {} }", false)
+        .unwrap();
 
     let options = basic_search_options("println");
     let result = search(&index, &options).unwrap();
@@ -84,8 +86,12 @@ fn test_code_snippets() {
 fn test_urls() {
     let mut index = create_empty_index();
 
-    index.add(1, "Visit https://www.rust-lang.org for more info", false).unwrap();
-    index.add(2, "Check out http://example.com/path?query=1", false).unwrap();
+    index
+        .add(1, "Visit https://www.rust-lang.org for more info", false)
+        .unwrap();
+    index
+        .add(2, "Check out http://example.com/path?query=1", false)
+        .unwrap();
 
     let options = basic_search_options("rust-lang");
     let result = search(&index, &options).unwrap();
@@ -98,8 +104,12 @@ fn test_urls() {
 fn test_email_addresses() {
     let mut index = create_empty_index();
 
-    index.add(1, "Contact us at support@example.com", false).unwrap();
-    index.add(2, "Email: user.name@company.co.uk", false).unwrap();
+    index
+        .add(1, "Contact us at support@example.com", false)
+        .unwrap();
+    index
+        .add(2, "Email: user.name@company.co.uk", false)
+        .unwrap();
 
     let options = basic_search_options("support");
     let result = search(&index, &options).unwrap();
@@ -141,7 +151,9 @@ fn test_html_tags() {
 fn test_markdown() {
     let mut index = create_empty_index();
 
-    index.add(1, "# Heading\n\nThis is **bold** and *italic*", false).unwrap();
+    index
+        .add(1, "# Heading\n\nThis is **bold** and *italic*", false)
+        .unwrap();
     index.add(2, "- List item 1\n- List item 2", false).unwrap();
 
     let options = basic_search_options("Heading");

@@ -1295,7 +1295,9 @@ mod tests {
 
     #[test]
     fn test_topn_executor_with_offset() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create Mock store"),
+        ));
 
         let values: Vec<Value> = (1..=10).map(Value::Int).collect();
 

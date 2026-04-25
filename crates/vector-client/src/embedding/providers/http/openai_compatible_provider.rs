@@ -103,7 +103,8 @@ impl OpenAICompatibleProvider {
         let dimension = config.dimension.ok_or_else(|| {
             EmbeddingError::Config(
                 "Dimension must be specified in EmbeddingConfig. \
-                 Use EmbeddingConfig::with_dimension() to set it.".to_string()
+                 Use EmbeddingConfig::with_dimension() to set it."
+                    .to_string(),
             )
         })?;
 
@@ -141,7 +142,10 @@ impl OpenAICompatibleProvider {
 
     /// Build embedding request
     fn build_request(&self, texts: &[&str]) -> EmbeddingRequest {
-        let input = texts.iter().map(|&t| self.preprocessor.preprocess(t)).collect();
+        let input = texts
+            .iter()
+            .map(|&t| self.preprocessor.preprocess(t))
+            .collect();
         EmbeddingRequest {
             model: self.config.model.clone(),
             input,
@@ -165,8 +169,6 @@ impl OpenAICompatibleProvider {
         Ok(embeddings)
     }
 
-   
-
     /// Create embeddings for texts
     ///
     /// This method applies the configured preprocessor to all texts before embedding.
@@ -177,28 +179,22 @@ impl OpenAICompatibleProvider {
 
         let request = self.build_request(texts);
 
-        let mut req_builder = self
-            .client
-            .post(&self.config.base_url)
-            .json(&request);
+        let mut req_builder = self.client.post(&self.config.base_url).json(&request);
 
         // Add authentication if API key is provided
         if let Some(api_key) = &self.config.api_key {
             req_builder = req_builder.header("Authorization", format!("Bearer {}", api_key));
         }
 
-        let response = req_builder
-            .send()
-            .await
-            .map_err(|e| {
-                if e.is_timeout() {
-                    EmbeddingError::Http("Request timeout".to_string())
-                } else if e.is_connect() {
-                    EmbeddingError::Http("Connection failed".to_string())
-                } else {
-                    EmbeddingError::Http(e.to_string())
-                }
-            })?;
+        let response = req_builder.send().await.map_err(|e| {
+            if e.is_timeout() {
+                EmbeddingError::Http("Request timeout".to_string())
+            } else if e.is_connect() {
+                EmbeddingError::Http("Connection failed".to_string())
+            } else {
+                EmbeddingError::Http(e.to_string())
+            }
+        })?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -209,8 +205,9 @@ impl OpenAICompatibleProvider {
             )));
         }
 
-        let embedding_response: EmbeddingResponse = response.json().await
-            .map_err(|e| EmbeddingError::InvalidResponse(format!("Failed to parse response: {}", e)))?;
+        let embedding_response: EmbeddingResponse = response.json().await.map_err(|e| {
+            EmbeddingError::InvalidResponse(format!("Failed to parse response: {}", e))
+        })?;
 
         self.parse_response(embedding_response)
     }
@@ -257,15 +254,13 @@ impl EmbeddingProvider for OpenAICompatibleProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::embedding::PreprocessorConfig;
     use crate::embedding::preprocessor::NomicTaskType;
+    use crate::embedding::PreprocessorConfig;
 
     #[test]
     fn test_create_provider() {
-        let config = EmbeddingConfig::new(
-            "http://localhost:11434/api/embeddings",
-            "all-minilm"
-        ).with_dimension(384);
+        let config = EmbeddingConfig::new("http://localhost:11434/api/embeddings", "all-minilm")
+            .with_dimension(384);
         let provider = OpenAICompatibleProvider::new(config);
         assert!(provider.is_ok());
     }
@@ -274,43 +269,42 @@ mod tests {
     fn test_create_provider_with_api_key() {
         let config = EmbeddingConfig::new(
             "https://api.openai.com/v1/embeddings",
-            "text-embedding-3-small"
-        ).with_api_key("sk-test")
-         .with_dimension(1536);
+            "text-embedding-3-small",
+        )
+        .with_api_key("sk-test")
+        .with_dimension(1536);
         let provider = OpenAICompatibleProvider::new(config);
         assert!(provider.is_ok());
     }
 
     #[test]
     fn test_create_provider_with_preprocessor() {
-        let config = EmbeddingConfig::new(
-            "http://localhost:11434/api/embeddings",
-            "nomic-embed-text"
-        ).with_preprocessor(PreprocessorConfig::Nomic {
-            task_type: NomicTaskType::SearchDocument,
-        })
-        .with_dimension(768);
+        let config =
+            EmbeddingConfig::new("http://localhost:11434/api/embeddings", "nomic-embed-text")
+                .with_preprocessor(PreprocessorConfig::Nomic {
+                    task_type: NomicTaskType::SearchDocument,
+                })
+                .with_dimension(768);
         let provider = OpenAICompatibleProvider::new(config);
         assert!(provider.is_ok());
     }
 
     #[test]
     fn test_dimension_required() {
-        let config = EmbeddingConfig::new(
-            "http://localhost:11434/api/embeddings",
-            "all-MiniLM-L6-v2"
-        );
+        let config =
+            EmbeddingConfig::new("http://localhost:11434/api/embeddings", "all-MiniLM-L6-v2");
         let result = OpenAICompatibleProvider::new(config);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Dimension must be specified"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Dimension must be specified"));
     }
 
     #[test]
     fn test_custom_dimension() {
-        let config = EmbeddingConfig::new(
-            "http://localhost:11434/api/embeddings",
-            "custom-model"
-        ).with_dimension(512);
+        let config = EmbeddingConfig::new("http://localhost:11434/api/embeddings", "custom-model")
+            .with_dimension(512);
         let provider = OpenAICompatibleProvider::new(config).expect("create failed");
         assert_eq!(provider.dimension(), 512);
     }

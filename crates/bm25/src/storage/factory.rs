@@ -3,12 +3,9 @@
 //! Provides factory methods for creating storage instances based on configuration.
 
 use crate::config::{RedisStorageConfig, StorageConfig, StorageType, TantivyStorageConfig};
-use crate::error::Result;
-#[cfg(any(
-    not(feature = "storage-tantivy"),
-    not(feature = "storage-redis")
-))]
+#[cfg(any(not(feature = "storage-tantivy"), not(feature = "storage-redis")))]
 use crate::error::Bm25Error;
+use crate::error::Result;
 use crate::storage::common::r#trait::StorageInterface;
 use std::sync::Arc;
 
@@ -58,21 +55,22 @@ impl StorageFactory {
         #[cfg(feature = "storage-tantivy")]
         {
             use crate::storage::TantivyStorage;
-            
+
             let storage_config = crate::storage::tantivy::TantivyStorageConfig {
                 index_path: std::path::PathBuf::from(&config.index_path),
                 writer_memory_mb: config.writer_memory_mb,
             };
-            
+
             let storage = TantivyStorage::new(storage_config);
             Ok(Arc::new(storage))
         }
-        
+
         #[cfg(not(feature = "storage-tantivy"))]
         {
             let _config = config;
             Err(Bm25Error::StorageError(
-                "Tantivy storage is not enabled. Please enable the 'storage-tantivy' feature.".to_string()
+                "Tantivy storage is not enabled. Please enable the 'storage-tantivy' feature."
+                    .to_string(),
             ))
         }
     }
@@ -89,10 +87,10 @@ impl StorageFactory {
     pub async fn create_redis(config: RedisStorageConfig) -> Result<Arc<dyn StorageInterface>> {
         #[cfg(feature = "storage-redis")]
         {
-            use crate::storage::RedisStorage;
             use crate::storage::redis::RedisStorageConfig as InternalRedisConfig;
+            use crate::storage::RedisStorage;
             use std::time::Duration;
-            
+
             let storage_config = InternalRedisConfig {
                 url: config.url,
                 pool_size: config.pool_size,
@@ -102,18 +100,19 @@ impl StorageFactory {
                 max_lifetime: config.max_lifetime_secs.map(Duration::from_secs),
                 connection_timeout_bb8: Duration::from_secs(config.connection_timeout_secs),
             };
-            
+
             let mut storage = RedisStorage::new(storage_config).await?;
             storage.init().await?;
-            
+
             Ok(Arc::new(storage))
         }
-        
+
         #[cfg(not(feature = "storage-redis"))]
         {
             let _config = config; // Suppress unused variable warning
             Err(Bm25Error::StorageError(
-                "Redis storage is not enabled. Please enable the 'storage-redis' feature.".to_string()
+                "Redis storage is not enabled. Please enable the 'storage-redis' feature."
+                    .to_string(),
             ))
         }
     }
@@ -131,7 +130,7 @@ impl StorageFactory {
     /// * `Result<Arc<dyn StorageInterface>>` - Created and initialized storage instance
     pub async fn create_and_init(config: StorageConfig) -> Result<Arc<dyn StorageInterface>> {
         let storage = Self::create(config).await?;
-        
+
         // Clone the Arc to call init
         // Note: This requires the storage to be mutable, which is handled internally
         Ok(storage)
@@ -153,14 +152,14 @@ mod tests {
     #[cfg(feature = "storage-tantivy")]
     async fn test_storage_factory_create_tantivy() {
         use tempfile::tempdir;
-        
+
         let temp_dir = tempdir().unwrap();
         let index_path = temp_dir.path().join("test_index");
-        
+
         let config = StorageConfig::builder()
             .tantivy_index_path(index_path.to_string_lossy().to_string())
             .build();
-        
+
         let result = StorageFactory::create(config).await;
         assert!(result.is_ok());
     }

@@ -291,7 +291,10 @@ impl SchemaValidator {
             }
             DataType::VID => {
                 // The VID type accepts a variety of formats.
-                if !matches!(vid, Value::String(_) | Value::SmallInt(_) | Value::Int(_) | Value::BigInt(_)) {
+                if !matches!(
+                    vid,
+                    Value::String(_) | Value::SmallInt(_) | Value::Int(_) | Value::BigInt(_)
+                ) {
                     return Err(CoreValidationError::new(
                         format!("VID type incompatibility: {:?}", vid.get_type()),
                         ValidationErrorType::TypeMismatch,

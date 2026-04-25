@@ -1004,7 +1004,9 @@ mod tests {
 
         let config = SortConfig::default();
 
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create Mock store"),
+        ));
 
         let mut executor = SortExecutor::new(1, storage, sort_keys, Some(3), config)
             .expect("SortExecutor::new should succeed");
@@ -1030,7 +1032,9 @@ mod tests {
 
         let config = SortConfig::default();
 
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create Mock store"),
+        ));
 
         let mut executor = SortExecutor::new(1, storage, sort_keys, Some(2), config)
             .expect("SortExecutor::new should succeed");
@@ -1058,7 +1062,9 @@ mod tests {
 
         let config = SortConfig::default();
 
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create Mock store"),
+        ));
 
         let mut executor = SortExecutor::new(1, storage, sort_keys, None, config)
             .expect("SortExecutor::new should succeed");
@@ -1088,7 +1094,9 @@ mod tests {
         let sort_keys = vec![SortKey::from_column_index(10, SortOrder::Asc)]; // Invalid column index
 
         let config = SortConfig::default();
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create Mock store"),
+        ));
 
         let mut executor = SortExecutor::new(1, storage, sort_keys, None, config)
             .expect("SortExecutor::new should succeed");
@@ -1112,7 +1120,9 @@ mod tests {
 
         let config = SortConfig::default();
 
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create Mock store"),
+        ));
 
         let executor = SortExecutor::new(1, storage, sort_keys, None, config)
             .expect("SortExecutor::new should succeed");

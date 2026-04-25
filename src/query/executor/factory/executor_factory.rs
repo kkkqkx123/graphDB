@@ -552,10 +552,9 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
 
         // Construct the `if_branch`.
         let if_branch = {
-            let if_node = node
-                .if_branch()
-                .as_ref()
-                .ok_or_else(|| QueryError::ExecutionError("Select node missing if_branch".to_string()))?;
+            let if_node = node.if_branch().as_ref().ok_or_else(|| {
+                QueryError::ExecutionError("Select node missing if_branch".to_string())
+            })?;
 
             let config = self.config.clone();
             let max_recursion_depth = config.max_recursion_depth;

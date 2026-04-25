@@ -7,10 +7,7 @@
 
 use inversearch_service::search::search;
 
-use crate::common::{
-    create_english_index, create_empty_index,
-    basic_search_options,
-};
+use crate::common::{basic_search_options, create_empty_index, create_english_index};
 
 /// 测试多词搜索返回更多结果
 #[test]
@@ -47,7 +44,10 @@ fn test_search_multiple_different_terms() {
     let result = search(&index, &options).unwrap();
 
     // 应该找到文档 1
-    assert!(result.results.contains(&1), "Expected results to contain document 1");
+    assert!(
+        result.results.contains(&1),
+        "Expected results to contain document 1"
+    );
 }
 
 /// 测试词组搜索
@@ -65,7 +65,10 @@ fn test_phrase_search() {
 
     // 应该找到包含这个词组的文档
     assert!(!result.results.is_empty(), "Expected non-empty results");
-    assert!(result.results.contains(&1), "Expected results to contain document 1");
+    assert!(
+        result.results.contains(&1),
+        "Expected results to contain document 1"
+    );
 }
 
 /// 测试停用词处理

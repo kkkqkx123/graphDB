@@ -711,7 +711,8 @@ impl CreateValidator {
             }
             // CREATE TAG/EDGE: This operation requires additional space, but the current validator does not support it.
             CreateTarget::Tag { .. } | CreateTarget::EdgeType { .. } => Err(ValidationError::new(
-                "CreateValidator does not support CREATE TAG/EDGE, use a DDL validator!".to_string(),
+                "CreateValidator does not support CREATE TAG/EDGE, use a DDL validator!"
+                    .to_string(),
                 ValidationErrorType::SemanticError,
             )),
             // The CREATE INDEX command is now processed by a dedicated component called CreateIndexValidator.

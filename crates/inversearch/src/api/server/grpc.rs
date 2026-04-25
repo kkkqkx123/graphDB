@@ -96,16 +96,14 @@ impl InversearchService {
         let index = Arc::new(RwLock::new(index));
 
         #[cfg(feature = "store-cold-warm-cache")]
-        let storage: Arc<dyn StorageInterface + Send + Sync> =
-            tokio::task::block_in_place(|| {
-                tokio::runtime::Handle::current().block_on(async {
-                    let manager = ColdWarmCacheManager::new().await.unwrap();
-                    manager as Arc<dyn StorageInterface + Send + Sync>
-                })
-            });
+        let storage: Arc<dyn StorageInterface + Send + Sync> = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                let manager = ColdWarmCacheManager::new().await.unwrap();
+                manager as Arc<dyn StorageInterface + Send + Sync>
+            })
+        });
         #[cfg(not(feature = "store-cold-warm-cache"))]
-        let storage: Arc<dyn StorageInterface + Send + Sync> =
-            panic!("No storage backend enabled");
+        let storage: Arc<dyn StorageInterface + Send + Sync> = panic!("No storage backend enabled");
 
         Self {
             index,
@@ -240,15 +238,13 @@ impl InversearchServiceTrait for InversearchService {
                     }
                 }
                 // Remove operation
-                2 => {
-                    match index.remove(op.document_id, false) {
-                        Ok(_) => success_count += 1,
-                        Err(e) => {
-                            failed_count += 1;
-                            errors.push(format!("Remove {} failed: {}", op.document_id, e));
-                        }
+                2 => match index.remove(op.document_id, false) {
+                    Ok(_) => success_count += 1,
+                    Err(e) => {
+                        failed_count += 1;
+                        errors.push(format!("Remove {} failed: {}", op.document_id, e));
                     }
-                }
+                },
                 // Update operation
                 3 => {
                     if let Some(doc) = op.document {
@@ -383,10 +379,10 @@ impl InversearchServiceTrait for InversearchService {
     ) -> Result<Response<GetStatsResponse>, Status> {
         let index = self.index.read().await;
         let document_count = index.document_count();
-        
+
         // 计算索引大小（主索引 + 上下文索引的条目数）
         let index_size = index.map.index.len() + index.ctx.index.len();
-        
+
         // 缓存大小（如果有缓存）
         let cache_size = index.cache.as_ref().map(|c| c.len()).unwrap_or(0);
 
@@ -404,11 +400,11 @@ impl InversearchServiceTrait for InversearchService {
     ) -> Result<Response<HealthCheckResponse>, Status> {
         let index = self.index.read().await;
         let document_count = index.document_count();
-        
+
         // 多维度健康检查
-        let is_healthy = !index.map.index.is_empty() || !index.ctx.index.is_empty()
-            && document_count < u32::MAX as usize;
-        
+        let is_healthy = !index.map.index.is_empty()
+            || !index.ctx.index.is_empty() && document_count < u32::MAX as usize;
+
         // 计算运行时间
         let uptime = self.start_time.elapsed().as_secs();
 

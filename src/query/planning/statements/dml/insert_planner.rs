@@ -112,8 +112,10 @@ impl InsertPlanner {
         count: usize,
         expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Vec<YieldColumn> {
-        let expr =
-            ExprFactory::constant(crate::core::Value::BigInt(count as i64), expr_context.clone());
+        let expr = ExprFactory::constant(
+            crate::core::Value::BigInt(count as i64),
+            expr_context.clone(),
+        );
         vec![YieldColumn::new(expr, "inserted_count".to_string())]
     }
 }
@@ -314,7 +316,10 @@ mod tests {
         });
         let result = planner.extract_insert_stmt(&stmt);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Not an INSERT statement"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Not an INSERT statement"));
     }
 
     #[test]

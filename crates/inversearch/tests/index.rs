@@ -6,7 +6,7 @@
 mod common;
 
 mod index {
-    mod crud_test;
     mod batch_test;
     mod clear_test;
+    mod crud_test;
 }

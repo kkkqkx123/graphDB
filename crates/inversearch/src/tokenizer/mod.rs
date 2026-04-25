@@ -1,6 +1,6 @@
-use crate::r#type::EncoderOptions;
 use crate::encoder::Encoder;
 use crate::error::Result;
+use crate::r#type::EncoderOptions;
 
 pub struct Tokenizer {
     pub encoder: Encoder,
@@ -128,7 +128,8 @@ impl Tokenizer {
 
 impl Default for Tokenizer {
     fn default() -> Self {
-        Tokenizer::new(EncoderOptions::default()).expect("Default tokenizer creation should succeed")
+        Tokenizer::new(EncoderOptions::default())
+            .expect("Default tokenizer creation should succeed")
     }
 }
 

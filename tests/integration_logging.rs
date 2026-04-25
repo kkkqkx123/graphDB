@@ -411,7 +411,10 @@ fn test_log_file_path_resolution() {
         embedded: graphdb::config::EmbeddedConfig::default(),
     };
 
-    let custom_path = format!("{}/{}.log", custom_config.common.log.dir, custom_config.common.log.file);
+    let custom_path = format!(
+        "{}/{}.log",
+        custom_config.common.log.dir, custom_config.common.log.file
+    );
     assert_eq!(custom_path, "/var/log/graphdb/app.log");
 }
 

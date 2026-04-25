@@ -65,7 +65,9 @@ impl OptimizerConfig {
         }
 
         if self.min_iteration_rounds > self.max_iteration_rounds {
-            return Err("Min iteration rounds cannot be greater than max iteration rounds".to_string());
+            return Err(
+                "Min iteration rounds cannot be greater than max iteration rounds".to_string(),
+            );
         }
 
         Ok(())

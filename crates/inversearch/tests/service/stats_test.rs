@@ -4,9 +4,9 @@
 //! - GetStats 接口
 //! - 统计信息准确性
 
-use inversearch_service::service::InversearchService;
 use inversearch_service::proto::inversearch_service_server::InversearchService as InversearchServiceTrait;
 use inversearch_service::proto::*;
+use inversearch_service::service::InversearchService;
 use tonic::Request;
 
 /// 测试获取空索引统计
@@ -15,7 +15,9 @@ async fn test_stats_empty_index() {
     let service = InversearchService::new().await;
 
     let stats_request = Request::new(GetStatsRequest {});
-    let response = InversearchServiceTrait::get_stats(&service, stats_request).await.unwrap();
+    let response = InversearchServiceTrait::get_stats(&service, stats_request)
+        .await
+        .unwrap();
     let result = response.into_inner();
 
     // GetStatsResponse 没有 success 字段，直接检查 document_count
@@ -34,12 +36,16 @@ async fn test_stats_after_add() {
             content: format!("Document {}", i),
             metadata: Default::default(),
         });
-        InversearchServiceTrait::add_document(&service, request).await.unwrap();
+        InversearchServiceTrait::add_document(&service, request)
+            .await
+            .unwrap();
     }
 
     // 获取统计
     let stats_request = Request::new(GetStatsRequest {});
-    let response = InversearchServiceTrait::get_stats(&service, stats_request).await.unwrap();
+    let response = InversearchServiceTrait::get_stats(&service, stats_request)
+        .await
+        .unwrap();
     let result = response.into_inner();
 
     assert_eq!(result.document_count, 5, "文档数应该为 5");
@@ -57,18 +63,24 @@ async fn test_stats_after_remove() {
             content: format!("Document {}", i),
             metadata: Default::default(),
         });
-        InversearchServiceTrait::add_document(&service, request).await.unwrap();
+        InversearchServiceTrait::add_document(&service, request)
+            .await
+            .unwrap();
     }
 
     // 删除 2 个文档
     for i in 1..=2 {
         let request = Request::new(RemoveDocumentRequest { id: i });
-        InversearchServiceTrait::remove_document(&service, request).await.unwrap();
+        InversearchServiceTrait::remove_document(&service, request)
+            .await
+            .unwrap();
     }
 
     // 获取统计
     let stats_request = Request::new(GetStatsRequest {});
-    let response = InversearchServiceTrait::get_stats(&service, stats_request).await.unwrap();
+    let response = InversearchServiceTrait::get_stats(&service, stats_request)
+        .await
+        .unwrap();
     let result = response.into_inner();
 
     assert_eq!(result.document_count, 3, "文档数应该为 3");
@@ -86,16 +98,22 @@ async fn test_stats_after_clear() {
             content: format!("Document {}", i),
             metadata: Default::default(),
         });
-        InversearchServiceTrait::add_document(&service, request).await.unwrap();
+        InversearchServiceTrait::add_document(&service, request)
+            .await
+            .unwrap();
     }
 
     // 清空索引
     let clear_request = Request::new(ClearIndexRequest {});
-    InversearchServiceTrait::clear_index(&service, clear_request).await.unwrap();
+    InversearchServiceTrait::clear_index(&service, clear_request)
+        .await
+        .unwrap();
 
     // 获取统计
     let stats_request = Request::new(GetStatsRequest {});
-    let response = InversearchServiceTrait::get_stats(&service, stats_request).await.unwrap();
+    let response = InversearchServiceTrait::get_stats(&service, stats_request)
+        .await
+        .unwrap();
     let result = response.into_inner();
 
     assert_eq!(result.document_count, 0, "清空后文档数应该为 0");

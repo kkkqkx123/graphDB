@@ -209,7 +209,10 @@ impl ExternalIndexClient for VectorClient {
             .iter()
             .filter_map(|(id, data)| {
                 if let IndexData::Vector(vector) = data {
-                    Some(vector_client::types::VectorPoint::new(id.clone(), vector.clone()))
+                    Some(vector_client::types::VectorPoint::new(
+                        id.clone(),
+                        vector.clone(),
+                    ))
                 } else {
                     None
                 }
@@ -319,7 +322,9 @@ impl ExternalIndexClient for VectorClient {
     }
 
     async fn rollback(&self) -> IndexResult<()> {
-        debug!("VectorClient rollback: no-op for remote vector store (no real transaction support)");
+        debug!(
+            "VectorClient rollback: no-op for remote vector store (no real transaction support)"
+        );
         Ok(())
     }
 
@@ -371,7 +376,11 @@ mod tests {
     #[test]
     fn test_config_builder() {
         let config = VectorClientConfig::default()
-            .with_retry_config(RetryConfig::new(5, Duration::from_millis(200), Duration::from_secs(20)))
+            .with_retry_config(RetryConfig::new(
+                5,
+                Duration::from_millis(200),
+                Duration::from_secs(20),
+            ))
             .with_operation_timeout(Duration::from_secs(60))
             .with_dead_letter_queue(false);
 

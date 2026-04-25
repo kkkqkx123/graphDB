@@ -76,8 +76,7 @@ impl VectorClientError {
     pub fn is_not_found(&self) -> bool {
         matches!(
             self,
-            VectorClientError::CollectionNotFound(_)
-                | VectorClientError::PointNotFound(_, _)
+            VectorClientError::CollectionNotFound(_) | VectorClientError::PointNotFound(_, _)
         )
     }
 

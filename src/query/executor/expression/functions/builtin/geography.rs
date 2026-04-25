@@ -133,7 +133,9 @@ fn execute_st_point(args: &[Value]) -> Result<Value, ExpressionError> {
             Ok(Value::Geography(geo))
         }
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("The st_point function takes numeric arguments")),
+        _ => Err(ExpressionError::type_error(
+            "The st_point function takes numeric arguments",
+        )),
     }
 }
 
@@ -161,7 +163,9 @@ fn execute_st_astext(args: &[Value]) -> Result<Value, ExpressionError> {
             Ok(Value::String(wkt))
         }
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("The st_astext function requires the geographic type")),
+        _ => Err(ExpressionError::type_error(
+            "The st_astext function requires the geographic type",
+        )),
     }
 }
 
@@ -169,7 +173,9 @@ fn execute_st_centroid(args: &[Value]) -> Result<Value, ExpressionError> {
     match &args[0] {
         Value::Geography(geo) => Ok(Value::Geography(geo.clone())),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("The st_centroid function requires the geography type")),
+        _ => Err(ExpressionError::type_error(
+            "The st_centroid function requires the geography type",
+        )),
     }
 }
 
@@ -183,7 +189,9 @@ fn execute_st_isvalid(args: &[Value]) -> Result<Value, ExpressionError> {
             Ok(Value::Bool(is_valid))
         }
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("The st_isvalid function requires the geography type")),
+        _ => Err(ExpressionError::type_error(
+            "The st_isvalid function requires the geography type",
+        )),
     }
 }
 

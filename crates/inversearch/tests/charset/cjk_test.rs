@@ -8,9 +8,7 @@
 
 use inversearch_service::search::search;
 
-use crate::common::{
-    create_empty_index, basic_search_options,
-};
+use crate::common::{basic_search_options, create_empty_index};
 
 /// 测试基本中文字符
 #[test]
@@ -24,7 +22,10 @@ fn test_basic_chinese() {
     let result = search(&index, &options).unwrap();
 
     assert!(!result.results.is_empty(), "Expected non-empty results");
-    assert!(result.results.contains(&1), "Expected results to contain document 1");
+    assert!(
+        result.results.contains(&1),
+        "Expected results to contain document 1"
+    );
 }
 
 /// 测试简体中文

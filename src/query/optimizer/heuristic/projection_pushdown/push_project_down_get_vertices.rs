@@ -175,11 +175,13 @@ mod tests {
             Expression::Variable("vertex".to_string()),
             "vertex",
         )];
-        let project =
-            ProjectNode::new(get_vertices_enum.clone(), columns).expect("Failed to create ProjectNode");
+        let project = ProjectNode::new(get_vertices_enum.clone(), columns)
+            .expect("Failed to create ProjectNode");
         let project_enum = PlanNodeEnum::Project(project);
 
-        let result = rule.apply(&mut ctx, &project_enum).expect("Failed to apply rule");
+        let result = rule
+            .apply(&mut ctx, &project_enum)
+            .expect("Failed to apply rule");
 
         assert!(result.is_some());
         let transform = result.expect("Failed to apply rewrite rule");

@@ -5,10 +5,10 @@
 //! - 结果合并
 //! - 元数据处理
 
+use inversearch_service::r#type::IntermediateSearchResults;
 use inversearch_service::resolver::{
     combine_search_results, resolve_default, Resolver, ResolverOptions,
 };
-use inversearch_service::r#type::IntermediateSearchResults;
 
 /// 测试 Resolver 创建
 #[test]
@@ -169,11 +169,7 @@ fn test_resolver_options_default() {
 /// 测试多层嵌套结果处理
 #[test]
 fn test_nested_results() {
-    let result: IntermediateSearchResults = vec![
-        vec![1, 2, 3],
-        vec![4, 5, 6],
-        vec![7, 8, 9],
-    ];
+    let result: IntermediateSearchResults = vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]];
     let resolved = resolve_default(&result, 5, 0, false);
 
     assert_eq!(resolved.len(), 5);

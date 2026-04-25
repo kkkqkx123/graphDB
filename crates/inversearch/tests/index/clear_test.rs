@@ -6,9 +6,7 @@
 
 use inversearch_service::search::search;
 
-use crate::common::{
-    create_empty_index, basic_search_options,
-};
+use crate::common::{basic_search_options, create_empty_index};
 
 /// 测试清空索引
 #[test]
@@ -36,7 +34,11 @@ fn test_clear_index() {
     // 验证搜索不到
     let options = basic_search_options("Document");
     let result = search(&index, &options).unwrap();
-    assert!(result.results.is_empty(), "Expected empty results, got {:?}", result.results);
+    assert!(
+        result.results.is_empty(),
+        "Expected empty results, got {:?}",
+        result.results
+    );
 }
 
 /// 测试清空后重新添加文档
@@ -65,7 +67,11 @@ fn test_clear_and_readd() {
     // 验证旧文档搜索不到
     let options = basic_search_options("Original");
     let result = search(&index, &options).unwrap();
-    assert!(result.results.is_empty(), "Expected empty results, got {:?}", result.results);
+    assert!(
+        result.results.is_empty(),
+        "Expected empty results, got {:?}",
+        result.results
+    );
 }
 
 /// 测试空索引清空
@@ -79,7 +85,11 @@ fn test_clear_empty_index() {
     // 验证索引仍然为空
     let options = basic_search_options("test");
     let result = search(&index, &options).unwrap();
-    assert!(result.results.is_empty(), "Expected empty results, got {:?}", result.results);
+    assert!(
+        result.results.is_empty(),
+        "Expected empty results, got {:?}",
+        result.results
+    );
 }
 
 /// 测试多次清空

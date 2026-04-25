@@ -161,7 +161,8 @@ impl ChunkedSerializer {
         while let Some(chunk) = provider()? {
             match chunk.data_type {
                 ChunkDataType::Registry => {
-                    let (items, _): (Vec<String>, usize) = decode_from_slice(&chunk.data, standard())?;
+                    let (items, _): (Vec<String>, usize) =
+                        decode_from_slice(&chunk.data, standard())?;
                     if registry_data.is_none() {
                         registry_data = Some(RegistryData::Set(Vec::new()));
                     }
@@ -174,13 +175,15 @@ impl ChunkedSerializer {
                     }
                 }
                 ChunkDataType::MainIndex => {
-                    let (items, _): (Vec<(String, Vec<u64>)>, usize) = decode_from_slice(&chunk.data, standard())?;
+                    let (items, _): (Vec<(String, Vec<u64>)>, usize) =
+                        decode_from_slice(&chunk.data, standard())?;
                     for (key, value) in items {
                         main_index_data.insert(key, value);
                     }
                 }
                 ChunkDataType::ContextIndex => {
-                    let (items, _): (Vec<(String, HashMap<String, Vec<u64>>)>, usize) = decode_from_slice(&chunk.data, standard())?;
+                    let (items, _): (Vec<(String, HashMap<String, Vec<u64>>)>, usize) =
+                        decode_from_slice(&chunk.data, standard())?;
                     for (key, value) in items {
                         context_index_data.insert(key, value);
                     }

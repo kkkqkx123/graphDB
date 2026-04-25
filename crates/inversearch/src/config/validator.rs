@@ -27,11 +27,11 @@ pub enum ValidationError {
         value: String,
         reason: String,
     },
-    
+
     /// Missing required field
     #[error("Missing required field: {0}")]
     MissingField(String),
-    
+
     /// Configuration dependency error
     #[error("Configuration dependency error: {dependency}")]
     DependencyError { dependency: String },
@@ -74,7 +74,7 @@ pub trait ConfigValidator {
 // Validation Implementations
 // ============================================================================
 
-use crate::config::{Config, ServerConfig, IndexConfig, CacheConfig, StorageConfig, LoggingConfig};
+use crate::config::{CacheConfig, Config, IndexConfig, LoggingConfig, ServerConfig, StorageConfig};
 
 impl ConfigValidator for Config {
     fn validate(&self) -> ValidationResult<()> {
@@ -97,7 +97,7 @@ impl ConfigValidator for ServerConfig {
                 reason: "port cannot be 0".to_string(),
             });
         }
-        
+
         // Validate host is not empty
         if self.host.is_empty() {
             return Err(ValidationError::InvalidValue {
@@ -106,7 +106,7 @@ impl ConfigValidator for ServerConfig {
                 reason: "host cannot be empty".to_string(),
             });
         }
-        
+
         // Validate workers range
         if self.workers == 0 {
             return Err(ValidationError::InvalidValue {
@@ -115,7 +115,7 @@ impl ConfigValidator for ServerConfig {
                 reason: "workers must be at least 1".to_string(),
             });
         }
-        
+
         Ok(())
     }
 }
@@ -130,7 +130,7 @@ impl ConfigValidator for IndexConfig {
                 reason: "must be between 1 and 12".to_string(),
             });
         }
-        
+
         // Validate tokenize mode
         let valid_modes = ["strict", "forward", "reverse", "full", "bidirectional"];
         if !valid_modes.contains(&self.tokenize.as_str()) {
@@ -140,7 +140,7 @@ impl ConfigValidator for IndexConfig {
                 reason: format!("must be one of: {:?}", valid_modes),
             });
         }
-        
+
         // Validate depth range
         if self.depth > 10 {
             return Err(ValidationError::InvalidValue {
@@ -149,7 +149,7 @@ impl ConfigValidator for IndexConfig {
                 reason: "depth should not exceed 10".to_string(),
             });
         }
-        
+
         Ok(())
     }
 }
@@ -164,7 +164,7 @@ impl ConfigValidator for CacheConfig {
                 reason: "cache size must be positive when enabled".to_string(),
             });
         }
-        
+
         // Validate cache size upper bound
         if self.size > 1_000_000 {
             return Err(ValidationError::InvalidValue {
@@ -173,7 +173,7 @@ impl ConfigValidator for CacheConfig {
                 reason: "cache size should not exceed 1,000,000".to_string(),
             });
         }
-        
+
         // Validate TTL range
         if let Some(ttl) = self.ttl {
             if ttl > 86400 {
@@ -184,7 +184,7 @@ impl ConfigValidator for CacheConfig {
                 });
             }
         }
-        
+
         Ok(())
     }
 }
@@ -202,7 +202,7 @@ impl ConfigValidator for StorageConfig {
                         reason: "Redis URL cannot be empty".to_string(),
                     });
                 }
-                
+
                 if redis_config.pool_size == 0 {
                     return Err(ValidationError::InvalidValue {
                         field: "storage.redis.pool_size".to_string(),
@@ -211,7 +211,7 @@ impl ConfigValidator for StorageConfig {
                     });
                 }
             }
-            
+
             #[cfg(feature = "store-file")]
             if let Some(file_config) = &self.file {
                 if file_config.base_path.is_empty() {
@@ -221,7 +221,7 @@ impl ConfigValidator for StorageConfig {
                         reason: "base path cannot be empty".to_string(),
                     });
                 }
-                
+
                 if file_config.save_interval_secs == 0 {
                     return Err(ValidationError::InvalidValue {
                         field: "storage.file.save_interval_secs".to_string(),
@@ -230,7 +230,7 @@ impl ConfigValidator for StorageConfig {
                     });
                 }
             }
-            
+
             #[cfg(feature = "store-wal")]
             if let Some(wal_config) = &self.wal {
                 if wal_config.base_path.is_empty() {
@@ -240,7 +240,7 @@ impl ConfigValidator for StorageConfig {
                         reason: "base path cannot be empty".to_string(),
                     });
                 }
-                
+
                 if wal_config.max_wal_size == 0 {
                     return Err(ValidationError::InvalidValue {
                         field: "storage.wal.max_wal_size".to_string(),
@@ -250,7 +250,7 @@ impl ConfigValidator for StorageConfig {
                 }
             }
         }
-        
+
         Ok(())
     }
 }
@@ -266,7 +266,7 @@ impl ConfigValidator for LoggingConfig {
                 reason: format!("must be one of: {:?}", valid_levels),
             });
         }
-        
+
         // Validate log format
         let valid_formats = ["json", "text"];
         if !valid_formats.contains(&self.format.as_str()) {
@@ -276,7 +276,7 @@ impl ConfigValidator for LoggingConfig {
                 reason: format!("must be one of: {:?}", valid_formats),
             });
         }
-        
+
         Ok(())
     }
 }

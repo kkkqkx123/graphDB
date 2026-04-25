@@ -29,6 +29,7 @@ storage-redis = ["redis", "async-trait", "bb8"]
 
 [dependencies]
 tantivy = "0.24"
+jieba-rs = "0.7"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"

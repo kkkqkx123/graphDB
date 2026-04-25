@@ -46,7 +46,9 @@ impl ClausePlanner for WhereClausePlanner {
         let condition = extract_where_condition(stmt)?;
 
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("The WHERE clause requires an input plan".to_string())
+            PlannerError::PlanGenerationFailed(
+                "The WHERE clause requires an input plan".to_string(),
+            )
         })?;
 
         let filter_node = FilterNode::new(input_node.clone(), condition)?;

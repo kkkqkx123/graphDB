@@ -6,11 +6,11 @@
 //! - 自定义模板
 //! - 大小写处理
 
+use inversearch_service::encoder::Encoder;
 use inversearch_service::highlight::highlight_single_document;
 use inversearch_service::highlight::types::{
-    HighlightConfig, HighlightOptions, HighlightBoundaryOptions,
+    HighlightBoundaryOptions, HighlightConfig, HighlightOptions,
 };
-use inversearch_service::encoder::Encoder;
 use inversearch_service::r#type::EncoderOptions;
 
 fn create_test_encoder() -> Encoder {

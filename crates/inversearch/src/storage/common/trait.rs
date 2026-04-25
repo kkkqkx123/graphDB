@@ -8,7 +8,7 @@ use crate::storage::common::types::StorageInfo;
 use crate::Index;
 
 /// 存储接口 - 类似JavaScript版本的StorageInterface
-/// 
+///
 /// 注意：所有方法都使用 &self，实现者需要使用内部可变性（如 RwLock/Mutex）
 #[async_trait::async_trait]
 pub trait StorageInterface: Send + Sync {

@@ -6,9 +6,7 @@
 //! - 缓存统计
 //! - TTL 过期
 
-use inversearch_service::search::{
-    SearchCache, CacheKeyGenerator, CacheStats,
-};
+use inversearch_service::search::{CacheKeyGenerator, CacheStats, SearchCache};
 use inversearch_service::SearchOptions;
 use std::time::Duration;
 

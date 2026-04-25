@@ -202,6 +202,6 @@ mod tests {
                 .expect("Failed to create engine");
 
         assert_eq!(engine.name(), "bm25", "Expected engine name 'bm25'");
-        assert_eq!(engine.version(), "0.1.0", "Expected version '0.1.0'");
+        assert_eq!(engine.version(), "0.2.0", "Expected version '0.2.0'");
     }
 }

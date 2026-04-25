@@ -8,11 +8,11 @@ use std::sync::Arc;
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
 use crate::core::{Value, Vertex};
+#[cfg(test)]
+use crate::query::executor::base::Executor;
 use crate::query::executor::base::{
     AppendVerticesConfig, BaseExecutor, ExecutionResult, ExecutorConfig, HasStorage,
 };
-#[cfg(test)]
-use crate::query::executor::base::Executor;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::DataSet;

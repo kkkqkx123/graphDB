@@ -1,3 +1,3 @@
 pub mod index;
 
-pub use index::{Bm25Index, SearchResult};
+pub use index::{Bm25Index, SearchResult, SearchResultWithHighlights};

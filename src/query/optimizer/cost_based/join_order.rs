@@ -291,7 +291,11 @@ impl JoinOrderOptimizer {
             .cloned()
             .unwrap_or_else(|| SubproblemSolution {
                 table_set: full_set,
-                last_table: tables.last().expect("tables collection is not empty").id.clone(),
+                last_table: tables
+                    .last()
+                    .expect("tables collection is not empty")
+                    .id
+                    .clone(),
                 total_cost: f64::MAX,
                 output_rows: 0,
                 join_tree: "fallback".to_string(),

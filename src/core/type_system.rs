@@ -495,7 +495,10 @@ mod tests {
         use std::f64::consts::PI;
 
         assert_eq!(TypeUtils::literal_type(&Value::Int(42)), DataType::Int);
-        assert_eq!(TypeUtils::literal_type(&Value::Double(PI)), DataType::Double);
+        assert_eq!(
+            TypeUtils::literal_type(&Value::Double(PI)),
+            DataType::Double
+        );
         assert_eq!(
             TypeUtils::literal_type(&Value::String("test".to_string())),
             DataType::String
@@ -576,8 +579,14 @@ mod tests {
 
     #[test]
     fn test_validate_type_cast() {
-        assert!(TypeUtils::validate_type_cast(&DataType::Int, &DataType::Float));
-        assert!(!TypeUtils::validate_type_cast(&DataType::Int, &DataType::Bool));
+        assert!(TypeUtils::validate_type_cast(
+            &DataType::Int,
+            &DataType::Float
+        ));
+        assert!(!TypeUtils::validate_type_cast(
+            &DataType::Int,
+            &DataType::Bool
+        ));
     }
 
     #[test]

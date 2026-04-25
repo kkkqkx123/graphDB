@@ -30,7 +30,7 @@ impl Default for ConnectionPoolConfig {
             min_idle: 5,
             max_size: 50,
             connection_timeout_secs: 30,
-            idle_timeout_secs: 600, // 10 minutes
+            idle_timeout_secs: 600,  // 10 minutes
             max_lifetime_secs: 1800, // 30 minutes
             health_check_interval_secs: 30,
             max_age_secs: 0, // Disabled
@@ -131,7 +131,10 @@ mod tests {
         assert_eq!(config.connection_timeout(), Duration::from_secs(30));
         assert_eq!(config.idle_timeout(), Duration::from_secs(600));
         assert_eq!(config.max_lifetime(), Duration::from_secs(1800));
-        assert_eq!(config.health_check_interval(), Some(Duration::from_secs(30)));
+        assert_eq!(
+            config.health_check_interval(),
+            Some(Duration::from_secs(30))
+        );
         assert_eq!(config.max_age(), None);
     }
 }

@@ -5,7 +5,7 @@
 
 use crate::error::Result;
 use crate::storage::manager::StorageManager;
-use crate::{Index, DocId};
+use crate::{DocId, Index};
 use oxicode::config::standard;
 use oxicode::serde::{decode_from_slice, encode_to_vec};
 use serde::{Deserialize, Serialize};
@@ -81,26 +81,26 @@ impl PersistenceManager {
     pub fn save_metadata(&self, metadata: &IndexMetadata) -> Result<()> {
         let metadata_path = self.base_path.join("metadata.json");
         fs::create_dir_all(&self.base_path)?;
-        
+
         let json = serde_json::to_string_pretty(metadata)?;
         let mut file = File::create(metadata_path)?;
         file.write_all(json.as_bytes())?;
-        
+
         Ok(())
     }
 
     /// 加载索引元数据
     pub fn load_metadata(&self) -> Result<IndexMetadata> {
         let metadata_path = self.base_path.join("metadata.json");
-        
+
         if !metadata_path.exists() {
             return Ok(IndexMetadata::default());
         }
-        
+
         let mut file = File::open(metadata_path)?;
         let mut contents = String::new();
         file.read_to_string(&mut contents)?;
-        
+
         let metadata = serde_json::from_str(&contents)?;
         Ok(metadata)
     }
@@ -115,7 +115,7 @@ impl PersistenceManager {
 
         // 序列化索引数据
         let index_data = self.serialize_index(index)?;
-        
+
         // 保存到备份目录
         fs::create_dir_all(&backup_path)?;
         let data_file = backup_path.join("index_data.bin");
@@ -147,10 +147,10 @@ impl PersistenceManager {
     /// 从备份恢复
     pub fn restore_backup(&self, index: &mut Index, backup_path: &Path) -> Result<()> {
         let data_file = backup_path.join("index_data.bin");
-        
+
         if !data_file.exists() {
             return Err(crate::error::InversearchError::Storage(
-                crate::error::StorageError::Generic("Backup data file not found".to_string())
+                crate::error::StorageError::Generic("Backup data file not found".to_string()),
             ));
         }
 
@@ -233,7 +233,7 @@ impl PersistenceManager {
     /// 导出索引到文件
     pub fn export_index(&self, index: &Index, output_file: &Path) -> Result<()> {
         let data = self.serialize_index(index)?;
-        
+
         fs::create_dir_all(output_file.parent().unwrap_or(Path::new(".")))?;
         let mut file = File::create(output_file)?;
         file.write_all(&data)?;
@@ -255,23 +255,23 @@ impl PersistenceManager {
     /// 序列化索引
     fn serialize_index(&self, index: &Index) -> Result<Vec<u8>> {
         use crate::serialize::IndexExportData;
-        
+
         let export_data = IndexExportData::from_index(index)?;
         let data = encode_to_vec(&export_data, standard())
             .map_err(|e| crate::error::InversearchError::Serialization(e.to_string()))?;
-        
+
         Ok(data)
     }
 
     /// 反序列化索引
     fn deserialize_index(&self, index: &mut Index, data: &[u8]) -> Result<()> {
         use crate::serialize::IndexExportData;
-        
+
         let (export_data, _): (IndexExportData, usize) = decode_from_slice(data, standard())
             .map_err(|e| crate::error::InversearchError::Deserialization(e.to_string()))?;
-        
+
         export_data.apply_to_index(index)?;
-        
+
         Ok(())
     }
 
@@ -319,7 +319,11 @@ impl PersistenceManager {
     }
 
     /// 从存储恢复索引（异步）
-    pub async fn restore_from_storage(&self, index: &mut Index, storage: &StorageManager) -> Result<()> {
+    pub async fn restore_from_storage(
+        &self,
+        index: &mut Index,
+        storage: &StorageManager,
+    ) -> Result<()> {
         // 使用 storage manager 挂载索引
         storage.mount_index(index).await
     }
@@ -337,7 +341,8 @@ pub struct IndexSnapshot {
 impl IndexSnapshot {
     /// 从索引创建快照
     pub fn from_index(index: &Index) -> Self {
-        let documents: Vec<(DocId, String)> = index.documents
+        let documents: Vec<(DocId, String)> = index
+            .documents
             .iter()
             .map(|(&id, content)| (id, content.clone()))
             .collect();
@@ -357,7 +362,7 @@ impl IndexSnapshot {
     /// 应用快照到索引
     pub fn apply_to_index(&self, index: &mut Index) -> Result<()> {
         index.clear();
-        
+
         for (id, content) in &self.documents {
             index.documents.insert(*id, content.clone());
         }
@@ -377,9 +382,9 @@ mod tests {
     fn test_metadata_save_load() {
         let temp_dir = std::env::temp_dir().join("inversearch_test_metadata");
         let _ = fs::remove_dir_all(&temp_dir);
-        
+
         let manager = PersistenceManager::new(&temp_dir);
-        
+
         let metadata = IndexMetadata {
             name: "test_index".to_string(),
             path: temp_dir.to_string_lossy().to_string(),
@@ -390,7 +395,7 @@ mod tests {
         };
 
         assert!(manager.save_metadata(&metadata).is_ok());
-        
+
         let loaded = manager.load_metadata().unwrap();
         assert_eq!(loaded.name, "test_index");
         assert_eq!(loaded.document_count, 100);
@@ -402,7 +407,7 @@ mod tests {
     fn test_index_snapshot() {
         let index = Index::new(crate::IndexOptions::default()).unwrap();
         let snapshot = IndexSnapshot::from_index(&index);
-        
+
         assert!(snapshot.documents.is_empty());
         assert!(!snapshot.timestamp.is_empty());
     }

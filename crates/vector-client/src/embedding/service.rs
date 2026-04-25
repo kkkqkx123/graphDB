@@ -22,7 +22,11 @@ impl EmbeddingService {
     /// Create a new embedding service with custom provider
     pub fn new(provider: Box<dyn EmbeddingProvider>, config: EmbeddingConfig) -> Self {
         let dimension = provider.dimension();
-        Self { provider, config, dimension }
+        Self {
+            provider,
+            config,
+            dimension,
+        }
     }
 
     /// Create from configuration (HTTP-based provider)
@@ -42,11 +46,15 @@ impl EmbeddingService {
     /// ```
     pub fn from_config(config: EmbeddingConfig) -> Result<Self> {
         config.validate()?;
-        
+
         let provider = Box::new(OpenAICompatibleProvider::new(config.clone())?);
         let dimension = provider.dimension();
-        
-        Ok(Self { provider, config, dimension })
+
+        Ok(Self {
+            provider,
+            config,
+            dimension,
+        })
     }
 
     /// Create from llama.cpp configuration with GPU support
@@ -83,17 +91,21 @@ impl EmbeddingService {
             model_path,
             pooling_type,
             dimension,
-            None,  // n_ctx
-            None,  // n_threads
-            None,  // n_threads_batch
-            None,  // n_batch
-            None,  // n_ubatch
-            None,  // offload_kqv
+            None, // n_ctx
+            None, // n_threads
+            None, // n_threads_batch
+            None, // n_batch
+            None, // n_ubatch
+            None, // offload_kqv
             n_gpu_layers,
         )?);
-        
+
         let config = EmbeddingConfig::default();
-        Ok(Self { provider, config, dimension: provider.dimension() })
+        Ok(Self {
+            provider,
+            config,
+            dimension: provider.dimension(),
+        })
     }
 
     /// Embed a single text

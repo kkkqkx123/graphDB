@@ -19,7 +19,9 @@ use std::str::FromStr;
 ///
 /// Stores UUID in binary format for efficient storage and comparison.
 /// Supports all UUID versions (1, 3, 4, 5, 6, 7, 8).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Encode, Decode,
+)]
 pub struct UuidValue(pub [u8; 16]);
 
 impl UuidValue {
@@ -50,8 +52,8 @@ impl UuidValue {
         // Parse hex string to bytes
         let mut bytes = [0u8; 16];
         for (i, chunk) in hex_str.as_bytes().chunks(2).enumerate() {
-            let hex_chunk = std::str::from_utf8(chunk)
-                .map_err(|_| UuidError::InvalidFormat(s.to_string()))?;
+            let hex_chunk =
+                std::str::from_utf8(chunk).map_err(|_| UuidError::InvalidFormat(s.to_string()))?;
             bytes[i] = u8::from_str_radix(hex_chunk, 16)
                 .map_err(|_| UuidError::InvalidFormat(s.to_string()))?;
         }
@@ -258,8 +260,10 @@ mod tests {
 
     #[test]
     fn test_uuid_from_bytes() {
-        let bytes = [0x55, 0x0e, 0x84, 0x00, 0xe2, 0x9b, 0x41, 0xd4,
-                     0xa7, 0x16, 0x44, 0x66, 0x55, 0x44, 0x00, 0x00];
+        let bytes = [
+            0x55, 0x0e, 0x84, 0x00, 0xe2, 0x9b, 0x41, 0xd4, 0xa7, 0x16, 0x44, 0x66, 0x55, 0x44,
+            0x00, 0x00,
+        ];
         let uuid = UuidValue::from_bytes(bytes);
         assert_eq!(uuid.as_bytes(), &bytes);
     }
@@ -285,7 +289,10 @@ mod tests {
     #[test]
     fn test_uuid_urn() {
         let uuid = UuidValue::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
-        assert_eq!(uuid.to_urn_string(), "urn:uuid:550e8400-e29b-41d4-a716-446655440000");
+        assert_eq!(
+            uuid.to_urn_string(),
+            "urn:uuid:550e8400-e29b-41d4-a716-446655440000"
+        );
     }
 
     #[test]
@@ -300,6 +307,9 @@ mod tests {
     #[test]
     fn test_uuid_from_str_trait() {
         let uuid: UuidValue = "550e8400-e29b-41d4-a716-446655440000".parse().unwrap();
-        assert_eq!(uuid.to_hyphenated_string(), "550e8400-e29b-41d4-a716-446655440000");
+        assert_eq!(
+            uuid.to_hyphenated_string(),
+            "550e8400-e29b-41d4-a716-446655440000"
+        );
     }
 }

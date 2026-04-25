@@ -214,7 +214,10 @@ impl TransactionTestData {
 
     /// Create an account vertex value map
     pub fn account(id: i64, balance: i64) -> HashMap<&'static str, Value> {
-        HashMap::from([("id", Value::Int(id as i32)), ("balance", Value::Int(balance as i32))])
+        HashMap::from([
+            ("id", Value::Int(id as i32)),
+            ("balance", Value::Int(balance as i32)),
+        ])
     }
 
     /// Create a product vertex value map

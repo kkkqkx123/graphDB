@@ -415,7 +415,9 @@ pub mod tests {
 
     #[test]
     fn test_cross_join_empty_table() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create Mock store"),
+        ));
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
@@ -465,7 +467,9 @@ pub mod tests {
 
     #[test]
     fn test_cross_join_three_tables() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create Mock store"),
+        ));
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 

@@ -88,10 +88,9 @@ impl WithClausePlanner {
         input_plan: &SubPlan,
         columns: &[YieldColumn],
     ) -> Result<PlanNodeEnum, PlannerError> {
-        let input_node = input_plan
-            .root()
-            .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
+        let input_node = input_plan.root().as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
+        })?;
 
         ProjectNode::new(input_node.clone(), columns.to_vec())
             .map_err(|e| {
@@ -109,10 +108,9 @@ impl WithClausePlanner {
         input_plan: &SubPlan,
         condition: &crate::core::types::expr::contextual::ContextualExpression,
     ) -> Result<PlanNodeEnum, PlannerError> {
-        let input_node = input_plan
-            .root()
-            .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
+        let input_node = input_plan.root().as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
+        })?;
 
         FilterNode::new(input_node.clone(), condition.clone())
             .map_err(|e| {
@@ -129,10 +127,9 @@ impl WithClausePlanner {
         input_plan: SubPlan,
         order_by_ctx: &OrderByClauseContext,
     ) -> Result<SubPlan, PlannerError> {
-        let input_node = input_plan
-            .root()
-            .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
+        let input_node = input_plan.root().as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
+        })?;
 
         // Obtain the column names of the input node.
         let col_names = input_node.col_names();
@@ -178,10 +175,9 @@ impl WithClausePlanner {
         input_plan: SubPlan,
         pagination: &PaginationContext,
     ) -> Result<SubPlan, PlannerError> {
-        let input_node = input_plan
-            .root()
-            .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
+        let input_node = input_plan.root().as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
+        })?;
 
         let limit_node = LimitNode::new(input_node.clone(), pagination.skip, pagination.limit)
             .map_err(|e| {
@@ -196,10 +192,9 @@ impl WithClausePlanner {
 
     /// Using the DISTINCT keyword (to remove duplicates)
     fn apply_distinct(&self, input_plan: SubPlan) -> Result<SubPlan, PlannerError> {
-        let input_node = input_plan
-            .root()
-            .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
+        let input_node = input_plan.root().as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
+        })?;
 
         // Create a deduplication node (using a simplified version of AggregateNode)
         let dedup_node = crate::query::planning::plan::core::nodes::DedupNode::new(

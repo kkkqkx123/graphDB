@@ -45,7 +45,9 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 .get_expression()
                 .and_then(|e| Self::evaluate_literal(&e))
                 .ok_or_else(|| {
-                    QueryError::ExecutionError("Vertex ID expression does not exist or is not a literal".to_string())
+                    QueryError::ExecutionError(
+                        "Vertex ID expression does not exist or is not a literal".to_string(),
+                    )
                 })?;
 
             // Obtain the tag name
@@ -129,7 +131,9 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 .get_expression()
                 .and_then(|e| Self::evaluate_literal(&e))
                 .ok_or_else(|| {
-                    QueryError::ExecutionError("Source vertex ID expression does not exist or is not literal".to_string())
+                    QueryError::ExecutionError(
+                        "Source vertex ID expression does not exist or is not literal".to_string(),
+                    )
                 })?;
 
             // Obtain the expression for the target vertex ID and evaluate it.
@@ -137,7 +141,10 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 .get_expression()
                 .and_then(|e| Self::evaluate_literal(&e))
                 .ok_or_else(|| {
-                    QueryError::ExecutionError("Target vertex ID expression does not exist or is not a literal".to_string())
+                    QueryError::ExecutionError(
+                        "Target vertex ID expression does not exist or is not a literal"
+                            .to_string(),
+                    )
                 })?;
 
             // Obtain the rank (optional); the default value is 0.
@@ -241,7 +248,9 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 .get_expression()
                 .and_then(|e| Self::evaluate_literal(&e))
                 .ok_or_else(|| {
-                    QueryError::ExecutionError("Vertex ID expression does not exist or is not a literal".to_string())
+                    QueryError::ExecutionError(
+                        "Vertex ID expression does not exist or is not a literal".to_string(),
+                    )
                 })?;
             vertex_ids.push(vid);
         }
@@ -275,14 +284,19 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 .get_expression()
                 .and_then(|e| Self::evaluate_literal(&e))
                 .ok_or_else(|| {
-                    QueryError::ExecutionError("Source vertex ID expression does not exist or is not literal".to_string())
+                    QueryError::ExecutionError(
+                        "Source vertex ID expression does not exist or is not literal".to_string(),
+                    )
                 })?;
 
             let dst = dst_expr
                 .get_expression()
                 .and_then(|e| Self::evaluate_literal(&e))
                 .ok_or_else(|| {
-                    QueryError::ExecutionError("Target vertex ID expression does not exist or is not a literal".to_string())
+                    QueryError::ExecutionError(
+                        "Target vertex ID expression does not exist or is not a literal"
+                            .to_string(),
+                    )
                 })?;
 
             // Use the edge type from the node, or a default if not specified
@@ -319,7 +333,9 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                     .get_expression()
                     .and_then(|e| Self::evaluate_literal(&e))
                     .ok_or_else(|| {
-                        QueryError::ExecutionError("Vertex ID expression does not exist or is not a literal".to_string())
+                        QueryError::ExecutionError(
+                            "Vertex ID expression does not exist or is not a literal".to_string(),
+                        )
                     })?;
 
                 log::debug!(
@@ -375,7 +391,10 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                     .get_expression()
                     .and_then(|e| Self::evaluate_literal(&e))
                     .ok_or_else(|| {
-                        QueryError::ExecutionError("Source vertex ID expression does not exist or is not literal".to_string())
+                        QueryError::ExecutionError(
+                            "Source vertex ID expression does not exist or is not literal"
+                                .to_string(),
+                        )
                     })?;
 
                 let dst = info
@@ -383,7 +402,10 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                     .get_expression()
                     .and_then(|e| Self::evaluate_literal(&e))
                     .ok_or_else(|| {
-                        QueryError::ExecutionError("Target vertex ID expression does not exist or is not a literal".to_string())
+                        QueryError::ExecutionError(
+                            "Target vertex ID expression does not exist or is not a literal"
+                                .to_string(),
+                        )
                     })?;
 
                 let rank = info
@@ -450,7 +472,9 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 .get_expression()
                 .and_then(|e| Self::evaluate_literal(&e))
                 .ok_or_else(|| {
-                    QueryError::ExecutionError("Vertex ID expression does not exist or is not a literal".to_string())
+                    QueryError::ExecutionError(
+                        "Vertex ID expression does not exist or is not a literal".to_string(),
+                    )
                 })?;
 
             let mut properties = HashMap::new();
@@ -512,7 +536,9 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 .get_expression()
                 .and_then(|e| Self::evaluate_literal(&e))
                 .ok_or_else(|| {
-                    QueryError::ExecutionError("Source vertex ID expression does not exist or is not literal".to_string())
+                    QueryError::ExecutionError(
+                        "Source vertex ID expression does not exist or is not literal".to_string(),
+                    )
                 })?;
 
             let dst = info
@@ -520,7 +546,10 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 .get_expression()
                 .and_then(|e| Self::evaluate_literal(&e))
                 .ok_or_else(|| {
-                    QueryError::ExecutionError("Target vertex ID expression does not exist or is not a literal".to_string())
+                    QueryError::ExecutionError(
+                        "Target vertex ID expression does not exist or is not a literal"
+                            .to_string(),
+                    )
                 })?;
 
             let rank = info

@@ -362,7 +362,9 @@ impl WALManager {
 
             for line in reader.lines().map_while(|r| r.ok()) {
                 if let Ok(decoded) = general_purpose::STANDARD.decode(&line) {
-                    if let Ok((change, _)) = decode_from_slice::<IndexChange, _>(&decoded, standard()) {
+                    if let Ok((change, _)) =
+                        decode_from_slice::<IndexChange, _>(&decoded, standard())
+                    {
                         self.apply_change(index, change)?;
                     }
                 }

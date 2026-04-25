@@ -42,7 +42,9 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
             .list_expression()
             .expression()
             .map(|meta| meta.inner().clone())
-            .ok_or_else(|| QueryError::ExecutionError("Expression does not exist in context".to_string()))?;
+            .ok_or_else(|| {
+                QueryError::ExecutionError("Expression does not exist in context".to_string())
+            })?;
 
         let executor = UnwindExecutor::new(
             node.id(),
@@ -67,7 +69,9 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
             let expression = ctx_expr
                 .expression()
                 .map(|meta| meta.inner().clone())
-                .ok_or_else(|| QueryError::ExecutionError("Expression does not exist in context".to_string()))?;
+                .ok_or_else(|| {
+                    QueryError::ExecutionError("Expression does not exist in context".to_string())
+                })?;
             parsed_assignments.push((var_name.clone(), expression));
         }
 

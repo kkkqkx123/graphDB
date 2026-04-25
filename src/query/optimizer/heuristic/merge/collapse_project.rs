@@ -314,7 +314,8 @@ mod tests {
             alias: "col1".to_string(),
             is_matched: false,
         }];
-        let child_proj = ProjectNode::new(start, child_columns).expect("Failed to create ProjectNode");
+        let child_proj =
+            ProjectNode::new(start, child_columns).expect("Failed to create ProjectNode");
         let child_node = PlanNodeEnum::Project(child_proj);
 
         // Upper-level project: col2 = col1
@@ -328,14 +329,16 @@ mod tests {
             alias: "col2".to_string(),
             is_matched: false,
         }];
-        let parent_proj =
-            ProjectNode::new(child_node.clone(), parent_columns).expect("Failed to create ProjectNode");
+        let parent_proj = ProjectNode::new(child_node.clone(), parent_columns)
+            .expect("Failed to create ProjectNode");
         let parent_node = PlanNodeEnum::Project(parent_proj);
 
         // Apply the rules.
         let rule = CollapseProjectRule::new();
         let mut ctx = RewriteContext::new();
-        let result = rule.apply(&mut ctx, &parent_node).expect("Failed to apply rule");
+        let result = rule
+            .apply(&mut ctx, &parent_node)
+            .expect("Failed to apply rule");
 
         assert!(
             result.is_some(),

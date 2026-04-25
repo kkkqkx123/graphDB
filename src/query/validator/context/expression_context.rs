@@ -443,7 +443,9 @@ mod tests {
         let id = ctx.register_expression(meta);
         let retrieved = ctx.get_expression(&id);
         assert!(retrieved.is_some());
-        assert!(retrieved.expect("The expression should exist").is_variable());
+        assert!(retrieved
+            .expect("The expression should exist")
+            .is_variable());
     }
 
     #[test]

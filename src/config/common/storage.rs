@@ -182,7 +182,7 @@ impl Default for QueryResourceConfig {
             max_memory_per_query: 0, // Unlimited
             max_concurrent_queries: default_max_concurrent_queries(),
             query_timeout_secs: 0, // No timeout
-            max_result_size: 0, // Unlimited
+            max_result_size: 0,    // Unlimited
             max_vertex_scan: default_max_vertex_scan(),
             max_edge_scan: default_max_edge_scan(),
         }

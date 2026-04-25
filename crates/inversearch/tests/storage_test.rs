@@ -8,12 +8,9 @@
 
 mod common;
 
-use inversearch_service::storage::{
-    common::base::StorageBase,
-    common::StorageInterface,
-};
-use inversearch_service::Index;
 use inversearch_service::index::IndexOptions;
+use inversearch_service::storage::{common::base::StorageBase, common::StorageInterface};
+use inversearch_service::Index;
 use tempfile::TempDir;
 
 // ============================================================================
@@ -149,7 +146,8 @@ fn test_storage_base_clear() {
 
     base.data.insert("test".to_string(), vec![1, 2, 3]);
     base.documents.insert(1, "doc1".to_string());
-    base.context_data.insert("ctx".to_string(), std::collections::HashMap::new());
+    base.context_data
+        .insert("ctx".to_string(), std::collections::HashMap::new());
 
     base.clear();
 
@@ -195,14 +193,24 @@ mod memory_tests {
         storage.open().await.expect("open should succeed");
 
         let index = Index::new(IndexOptions::default()).expect("create index should succeed");
-        index.add(1, "hello world", false).expect("add should succeed");
-        index.add(2, "rust programming", false).expect("add should succeed");
+        index
+            .add(1, "hello world", false)
+            .expect("add should succeed");
+        index
+            .add(2, "rust programming", false)
+            .expect("add should succeed");
 
         // 提交到存储
-        storage.commit(&index, false, false).await.expect("commit should succeed");
+        storage
+            .commit(&index, false, false)
+            .await
+            .expect("commit should succeed");
 
         // 测试获取
-        let results = storage.get("hello", None, 10, 0, true, false).await.expect("get should succeed");
+        let results = storage
+            .get("hello", None, 10, 0, true, false)
+            .await
+            .expect("get should succeed");
         assert_eq!(results.len(), 1);
         assert!(results.contains(&1));
 
@@ -221,13 +229,21 @@ mod memory_tests {
         storage.open().await.expect("open should succeed");
 
         let index = Index::new(IndexOptions::default()).expect("create index should succeed");
-        index.add(1, "test content", false).expect("add should succeed");
-        storage.commit(&index, false, false).await.expect("commit should succeed");
+        index
+            .add(1, "test content", false)
+            .expect("add should succeed");
+        storage
+            .commit(&index, false, false)
+            .await
+            .expect("commit should succeed");
 
         // 清空
         storage.clear().await.expect("clear should succeed");
 
-        let results = storage.get("test", None, 10, 0, true, false).await.expect("get should succeed");
+        let results = storage
+            .get("test", None, 10, 0, true, false)
+            .await
+            .expect("get should succeed");
         assert!(results.is_empty());
 
         storage.close().await.expect("close should succeed");
@@ -243,7 +259,10 @@ mod memory_tests {
         let index = Index::new(IndexOptions::default()).expect("create index should succeed");
         index.add(1, "doc1", false).expect("add should succeed");
         index.add(2, "doc2", false).expect("add should succeed");
-        storage.commit(&index, false, false).await.expect("commit should succeed");
+        storage
+            .commit(&index, false, false)
+            .await
+            .expect("commit should succeed");
 
         // 删除文档
         storage.remove(&[1]).await.expect("remove should succeed");
@@ -262,11 +281,21 @@ mod memory_tests {
         storage.open().await.expect("open should succeed");
 
         let index = Index::new(IndexOptions::default()).expect("create index should succeed");
-        index.add(1, "content one", false).expect("add should succeed");
-        index.add(2, "content two", false).expect("add should succeed");
-        storage.commit(&index, false, false).await.expect("commit should succeed");
+        index
+            .add(1, "content one", false)
+            .expect("add should succeed");
+        index
+            .add(2, "content two", false)
+            .expect("add should succeed");
+        storage
+            .commit(&index, false, false)
+            .await
+            .expect("commit should succeed");
 
-        let enriched = storage.enrich(&[1, 2]).await.expect("enrich should succeed");
+        let enriched = storage
+            .enrich(&[1, 2])
+            .await
+            .expect("enrich should succeed");
         assert_eq!(enriched.len(), 2);
 
         storage.close().await.expect("close should succeed");
@@ -280,8 +309,13 @@ mod memory_tests {
         storage.open().await.expect("open should succeed");
 
         let index = Index::new(IndexOptions::default()).expect("create index should succeed");
-        index.add(1, "test content for metrics", false).expect("add should succeed");
-        storage.commit(&index, false, false).await.expect("commit should succeed");
+        index
+            .add(1, "test content for metrics", false)
+            .expect("add should succeed");
+        storage
+            .commit(&index, false, false)
+            .await
+            .expect("commit should succeed");
 
         let metrics = storage.get_operation_stats().await;
         assert!(metrics.operation_count > 0);
@@ -309,14 +343,24 @@ mod file_tests {
         storage.open().await.expect("open should succeed");
 
         let index = Index::new(IndexOptions::default()).expect("create index should succeed");
-        index.add(1, "hello world", false).expect("add should succeed");
-        index.add(2, "rust programming", false).expect("add should succeed");
+        index
+            .add(1, "hello world", false)
+            .expect("add should succeed");
+        index
+            .add(2, "rust programming", false)
+            .expect("add should succeed");
 
         // 提交到存储
-        storage.commit(&index, false, false).await.expect("commit should succeed");
+        storage
+            .commit(&index, false, false)
+            .await
+            .expect("commit should succeed");
 
         // 测试获取
-        let results = storage.get("hello", None, 10, 0, true, false).await.expect("get should succeed");
+        let results = storage
+            .get("hello", None, 10, 0, true, false)
+            .await
+            .expect("get should succeed");
         assert_eq!(results.len(), 1);
         assert!(results.contains(&1));
 
@@ -339,8 +383,13 @@ mod file_tests {
             storage.open().await.expect("open should succeed");
 
             let index = Index::new(IndexOptions::default()).expect("create index should succeed");
-            index.add(1, "persistent data", false).expect("add should succeed");
-            storage.commit(&index, false, false).await.expect("commit should succeed");
+            index
+                .add(1, "persistent data", false)
+                .expect("add should succeed");
+            storage
+                .commit(&index, false, false)
+                .await
+                .expect("commit should succeed");
 
             storage.close().await.expect("close should succeed");
         }
@@ -350,7 +399,10 @@ mod file_tests {
             let mut storage = FileStorage::new(&path);
             storage.open().await.expect("open should succeed");
 
-            let results = storage.get("persistent", None, 10, 0, true, false).await.expect("get should succeed");
+            let results = storage
+                .get("persistent", None, 10, 0, true, false)
+                .await
+                .expect("get should succeed");
             assert_eq!(results.len(), 1);
             assert!(results.contains(&1));
 
@@ -367,8 +419,13 @@ mod file_tests {
         storage.open().await.expect("open should succeed");
 
         let index = Index::new(IndexOptions::default()).expect("create index should succeed");
-        index.add(1, "test content", false).expect("add should succeed");
-        storage.commit(&index, false, false).await.expect("commit should succeed");
+        index
+            .add(1, "test content", false)
+            .expect("add should succeed");
+        storage
+            .commit(&index, false, false)
+            .await
+            .expect("commit should succeed");
 
         storage.close().await.expect("close should succeed");
 
@@ -376,5 +433,3 @@ mod file_tests {
         assert!(size > 0, "File size should be positive");
     }
 }
-
-

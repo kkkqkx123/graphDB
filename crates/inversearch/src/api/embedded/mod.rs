@@ -1,6 +1,6 @@
 pub mod index;
 
 pub use index::{
-    EmbeddedIndex, EmbeddedSearchResult, EmbeddedBatch, EmbeddedBatchOperation,
-    EmbeddedBatchResult, EmbeddedIndexStats, EmbeddedIndexBuilder,
+    EmbeddedBatch, EmbeddedBatchOperation, EmbeddedBatchResult, EmbeddedIndex,
+    EmbeddedIndexBuilder, EmbeddedIndexStats, EmbeddedSearchResult,
 };

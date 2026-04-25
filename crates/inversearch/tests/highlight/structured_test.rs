@@ -5,9 +5,11 @@
 //! - 匹配位置信息
 //! - 多字段高亮
 
-use inversearch_service::highlight::highlight_single_document_structured;
-use inversearch_service::highlight::types::{HighlightConfig, HighlightBoundaryOptions, DocumentHighlight};
 use inversearch_service::encoder::Encoder;
+use inversearch_service::highlight::highlight_single_document_structured;
+use inversearch_service::highlight::types::{
+    DocumentHighlight, HighlightBoundaryOptions, HighlightConfig,
+};
 use inversearch_service::r#type::EncoderOptions;
 
 fn create_test_encoder() -> Encoder {

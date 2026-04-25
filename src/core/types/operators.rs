@@ -341,7 +341,9 @@ impl AggregateFunction {
             AggregateFunction::BitOr(_) => "bitwise OR",
             AggregateFunction::GroupConcat(_, _) => "packet connection",
             AggregateFunction::VecSum(_) => "Calculate the element-by-element sum of vector",
-            AggregateFunction::VecAvg(_) => "Calculate the element-by-element average of the vector",
+            AggregateFunction::VecAvg(_) => {
+                "Calculate the element-by-element average of the vector"
+            }
         }
     }
 }

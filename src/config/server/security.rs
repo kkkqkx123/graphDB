@@ -135,10 +135,10 @@ impl PasswordPolicyConfig {
 
     /// Check if password complexity requirements are configured
     pub fn has_complexity_requirements(&self) -> bool {
-        self.require_uppercase || 
-        self.require_lowercase || 
-        self.require_digit || 
-        self.require_special
+        self.require_uppercase
+            || self.require_lowercase
+            || self.require_digit
+            || self.require_special
     }
 
     /// Check if password expiration is enabled

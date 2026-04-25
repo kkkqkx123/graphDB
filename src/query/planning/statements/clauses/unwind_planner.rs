@@ -40,7 +40,9 @@ impl ClausePlanner for UnwindClausePlanner {
         let (expression, variable) = extract_unwind_info(stmt)?;
 
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("The UNWIND clause requires a plan entry".to_string())
+            PlannerError::PlanGenerationFailed(
+                "The UNWIND clause requires a plan entry".to_string(),
+            )
         })?;
 
         let unwind_node = UnwindNode::new(input_node.clone(), &variable, expression)?;

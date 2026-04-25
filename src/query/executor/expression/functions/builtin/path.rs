@@ -51,7 +51,9 @@ impl PathFunction {
 
 fn execute_nodes(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("The nodes function takes 1 argument"));
+        return Err(ExpressionError::type_error(
+            "The nodes function takes 1 argument",
+        ));
     }
     match &args[0] {
         Value::Path(path) => {
@@ -68,7 +70,9 @@ fn execute_nodes(args: &[Value]) -> Result<Value, ExpressionError> {
 
 fn execute_relationships(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("relationships requires 1 argument"));
+        return Err(ExpressionError::type_error(
+            "relationships requires 1 argument",
+        ));
     }
     match &args[0] {
         Value::Path(path) => {
@@ -80,7 +84,9 @@ fn execute_relationships(args: &[Value]) -> Result<Value, ExpressionError> {
             Ok(Value::list(List { values: result }))
         }
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("relationships requires a path type")),
+        _ => Err(ExpressionError::type_error(
+            "relationships requires a path type",
+        )),
     }
 }
 

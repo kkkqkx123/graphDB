@@ -54,7 +54,9 @@ impl RegexFunction {
                     Ok(Value::Bool(regex.is_match(s)))
                 }
                 (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("The regex_match function requires the string type")),
+                _ => Err(ExpressionError::type_error(
+                    "The regex_match function requires the string type",
+                )),
             },
             RegexFunction::RegexReplace => match (&args[0], &args[1], &args[2]) {
                 (Value::String(s), Value::String(pattern), Value::String(replacement)) => {
@@ -90,7 +92,9 @@ impl RegexFunction {
                     }
                 }
                 (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("The regex_find function requires the string type")),
+                _ => Err(ExpressionError::type_error(
+                    "The regex_find function requires the string type",
+                )),
             },
         }
     }

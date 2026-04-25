@@ -221,7 +221,9 @@ impl MatchStatementPlanner {
         match pattern {
             Pattern::Path(path) => {
                 if path.elements.is_empty() {
-                    return Err(PlannerError::PlanGenerationFailed("empty path model".to_string()));
+                    return Err(PlannerError::PlanGenerationFailed(
+                        "empty path model".to_string(),
+                    ));
                 }
 
                 let mut plan = SubPlan::new(None, None);
@@ -419,7 +421,10 @@ impl MatchStatementPlanner {
         // If there is attribute filtering, add the filter.
         if let Some(ref props) = node.properties {
             let filter_node = FilterNode::new(
-                plan.root.as_ref().expect("The root of plan should exist").clone(),
+                plan.root
+                    .as_ref()
+                    .expect("The root of plan should exist")
+                    .clone(),
                 props.clone(),
             )
             .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
@@ -430,7 +435,10 @@ impl MatchStatementPlanner {
         if !node.predicates.is_empty() {
             for pred in &node.predicates {
                 let filter_node = FilterNode::new(
-                    plan.root.as_ref().expect("The root of plan should exist").clone(),
+                    plan.root
+                        .as_ref()
+                        .expect("The root of plan should exist")
+                        .clone(),
                     pred.clone(),
                 )
                 .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
@@ -476,7 +484,10 @@ impl MatchStatementPlanner {
         // If there is attribute filtering, add the filter.
         if let Some(ref props) = edge.properties {
             let filter_node = FilterNode::new(
-                plan.root.as_ref().expect("The root of plan should exist").clone(),
+                plan.root
+                    .as_ref()
+                    .expect("The root of plan should exist")
+                    .clone(),
                 props.clone(),
             )
             .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
@@ -487,7 +498,10 @@ impl MatchStatementPlanner {
         if !edge.predicates.is_empty() {
             for pred in &edge.predicates {
                 let filter_node = FilterNode::new(
-                    plan.root.as_ref().expect("The root of plan should exist").clone(),
+                    plan.root
+                        .as_ref()
+                        .expect("The root of plan should exist")
+                        .clone(),
                     pred.clone(),
                 )
                 .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
@@ -554,7 +568,10 @@ impl MatchStatementPlanner {
         // If there is attribute filtering, add the filter.
         if let Some(ref props) = edge.properties {
             let filter_node = FilterNode::new(
-                plan.root.as_ref().expect("The root of plan should exist").clone(),
+                plan.root
+                    .as_ref()
+                    .expect("The root of plan should exist")
+                    .clone(),
                 props.clone(),
             )
             .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
@@ -565,7 +582,10 @@ impl MatchStatementPlanner {
         if !edge.predicates.is_empty() {
             for pred in &edge.predicates {
                 let filter_node = FilterNode::new(
-                    plan.root.as_ref().expect("The root of plan should exist").clone(),
+                    plan.root
+                        .as_ref()
+                        .expect("The root of plan should exist")
+                        .clone(),
                     pred.clone(),
                 )
                 .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
@@ -749,10 +769,9 @@ impl MatchStatementPlanner {
         condition: ContextualExpression,
         _space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
-        let input_node = input_plan
-            .root()
-            .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
+        let input_node = input_plan.root().as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
+        })?;
 
         let filter_node = FilterNode::new(input_node.clone(), condition)?;
         Ok(SubPlan::new(Some(filter_node.into_enum()), input_plan.tail))
@@ -764,10 +783,9 @@ impl MatchStatementPlanner {
         columns: Vec<YieldColumn>,
         _space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
-        let input_node = input_plan
-            .root()
-            .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
+        let input_node = input_plan.root().as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
+        })?;
 
         // Check if any column contains an aggregate function
         let has_aggregate = columns.iter().any(|col| {
@@ -888,10 +906,9 @@ impl MatchStatementPlanner {
         order_by: Vec<OrderByItem>,
         _space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
-        let input_node = input_plan
-            .root()
-            .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
+        let input_node = input_plan.root().as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
+        })?;
 
         let sort_items: Vec<SortItem> = order_by
             .into_iter()
@@ -922,10 +939,9 @@ impl MatchStatementPlanner {
         input_plan: SubPlan,
         pagination: PaginationInfo,
     ) -> Result<SubPlan, PlannerError> {
-        let input_node = input_plan
-            .root()
-            .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
+        let input_node = input_plan.root().as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
+        })?;
 
         let limit_node = LimitNode::new(
             input_node.clone(),
@@ -937,10 +953,9 @@ impl MatchStatementPlanner {
     }
 
     fn plan_dedup(&self, input_plan: SubPlan) -> Result<SubPlan, PlannerError> {
-        let input_node = input_plan
-            .root()
-            .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
+        let input_node = input_plan.root().as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
+        })?;
 
         let dedup_node = DedupNode::new(input_node.clone())?;
         Ok(SubPlan::new(Some(dedup_node.into_enum()), input_plan.tail))

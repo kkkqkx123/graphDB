@@ -7,8 +7,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use oxicode::{decode_from_slice, encode_to_vec};
 use crossbeam_utils::atomic::AtomicCell;
+use oxicode::{decode_from_slice, encode_to_vec};
 use parking_lot::{Mutex, RwLock};
 
 use crate::core::StorageError;

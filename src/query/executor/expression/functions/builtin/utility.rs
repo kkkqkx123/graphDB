@@ -39,7 +39,9 @@ impl UtilityFunction {
         match self {
             UtilityFunction::Coalesce => "Returns the first non-NULL value",
             UtilityFunction::Hash => "Compute the hash",
-            UtilityFunction::JsonExtract => "Extract the value of a specified path from a JSON string",
+            UtilityFunction::JsonExtract => {
+                "Extract the value of a specified path from a JSON string"
+            }
         }
     }
 
@@ -80,7 +82,9 @@ fn execute_hash(args: &[Value]) -> Result<Value, ExpressionError> {
             let hash_value = hasher.finish() as i64;
             Ok(Value::BigInt(hash_value))
         }
-        _ => Err(ExpressionError::type_error("The hash function requires a string or integer type")),
+        _ => Err(ExpressionError::type_error(
+            "The hash function requires a string or integer type",
+        )),
     }
 }
 

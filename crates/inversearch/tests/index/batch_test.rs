@@ -7,9 +7,7 @@
 
 use inversearch_service::search::search;
 
-use crate::common::{
-    create_empty_index, basic_search_options,
-};
+use crate::common::{basic_search_options, create_empty_index};
 
 /// 测试批量添加文档
 #[test]
@@ -17,9 +15,7 @@ fn test_batch_add() {
     let mut index = create_empty_index();
 
     // 批量添加文档
-    let docs: Vec<(u64, &str)> = (1..=100)
-        .map(|i| (i, "batch test content"))
-        .collect();
+    let docs: Vec<(u64, &str)> = (1..=100).map(|i| (i, "batch test content")).collect();
 
     for (id, content) in docs {
         index.add(id, content, false).unwrap();
@@ -65,7 +61,9 @@ fn test_large_batch_performance() {
     // 添加大量文档
     let start = std::time::Instant::now();
     for i in 1..=1000 {
-        index.add(i, &format!("Performance test document number {}", i), false).unwrap();
+        index
+            .add(i, &format!("Performance test document number {}", i), false)
+            .unwrap();
     }
     let add_duration = start.elapsed();
 

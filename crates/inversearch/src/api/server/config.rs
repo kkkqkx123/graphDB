@@ -1,7 +1,9 @@
 // Server configuration - only compiled when "service" feature is enabled
 #![cfg(feature = "service")]
 
-use crate::config::{Config, ServerConfig as AppConfig, IndexConfig, CacheConfig, StorageConfig, LoggingConfig};
+use crate::config::{
+    CacheConfig, Config, IndexConfig, LoggingConfig, ServerConfig as AppConfig, StorageConfig,
+};
 
 /// Service configuration
 #[derive(Debug, Clone)]
@@ -56,7 +58,7 @@ impl ServiceConfig {
     /// Load configuration from environment variables
     pub fn from_env() -> Result<Self, Box<dyn std::error::Error>> {
         let mut config = Self::default();
-        
+
         // Override with environment variables
         if let Ok(host) = std::env::var("INVSEARCH_HOST") {
             config.server.host = host;
@@ -67,7 +69,7 @@ impl ServiceConfig {
         if let Ok(workers) = std::env::var("INVSEARCH_WORKERS") {
             config.server.workers = workers.parse()?;
         }
-        
+
         Ok(Self {
             server: config.server,
             index: config.index,
@@ -80,7 +82,7 @@ impl ServiceConfig {
     /// Load configuration from file with environment variable overrides
     pub fn from_file_with_env_override(path: &str) -> anyhow::Result<Self> {
         let mut config = Self::from_file(path)?;
-        
+
         // Override with environment variables
         if let Ok(host) = std::env::var("INVSEARCH_HOST") {
             config.server.host = host;
@@ -91,7 +93,7 @@ impl ServiceConfig {
         if let Ok(workers) = std::env::var("INVSEARCH_WORKERS") {
             config.server.workers = workers.parse()?;
         }
-        
+
         Ok(config)
     }
 }

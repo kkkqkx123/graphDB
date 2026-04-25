@@ -6,7 +6,7 @@
 //! - 错误消息格式
 
 use inversearch_service::error::{
-    InversearchError, IndexError, SearchError, EncoderError, StorageError, CacheError,
+    CacheError, EncoderError, IndexError, InversearchError, SearchError, StorageError,
 };
 
 // ============================================================================
@@ -249,12 +249,10 @@ fn test_error_chain_from_index() {
     let inversearch_err: InversearchError = index_err.into();
 
     match inversearch_err {
-        InversearchError::Index(e) => {
-            match e {
-                IndexError::NotFound(id) => assert_eq!(id, 42),
-                _ => panic!("Expected NotFound error"),
-            }
-        }
+        InversearchError::Index(e) => match e {
+            IndexError::NotFound(id) => assert_eq!(id, 42),
+            _ => panic!("Expected NotFound error"),
+        },
         _ => panic!("Expected Index error"),
     }
 }
@@ -266,12 +264,10 @@ fn test_error_chain_from_search() {
     let inversearch_err: InversearchError = search_err.into();
 
     match inversearch_err {
-        InversearchError::Search(e) => {
-            match e {
-                SearchError::Timeout => (),
-                _ => panic!("Expected Timeout error"),
-            }
-        }
+        InversearchError::Search(e) => match e {
+            SearchError::Timeout => (),
+            _ => panic!("Expected Timeout error"),
+        },
         _ => panic!("Expected Search error"),
     }
 }
@@ -291,7 +287,7 @@ fn test_result_ok() {
 /// 测试 Result 类型错误情况
 #[test]
 fn test_result_err() {
-    let result: inversearch_service::error::Result<u64> = 
+    let result: inversearch_service::error::Result<u64> =
         Err(InversearchError::Index(IndexError::NotFound(1)));
     assert!(result.is_err());
 }

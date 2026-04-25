@@ -59,7 +59,9 @@ impl HttpServerConfig {
 
         if self.https_enabled {
             if self.https_cert_file.is_none() {
-                return Err("HTTPS certificate file must be specified when HTTPS is enabled".to_string());
+                return Err(
+                    "HTTPS certificate file must be specified when HTTPS is enabled".to_string(),
+                );
             }
             if self.https_key_file.is_none() {
                 return Err("HTTPS key file must be specified when HTTPS is enabled".to_string());
@@ -71,9 +73,7 @@ impl HttpServerConfig {
 
     /// Check if HTTPS is properly configured
     pub fn is_https_configured(&self) -> bool {
-        self.https_enabled && 
-        self.https_cert_file.is_some() && 
-        self.https_key_file.is_some()
+        self.https_enabled && self.https_cert_file.is_some() && self.https_key_file.is_some()
     }
 }
 

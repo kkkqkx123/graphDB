@@ -54,7 +54,9 @@ fn execute_to_int(args: &[Value]) -> Result<Value, ExpressionError> {
         _ => {
             let result = args[0].to_int();
             if let Value::Null(NullType::BadData) = result {
-                Err(ExpressionError::type_error("The to_int function does not support this type"))
+                Err(ExpressionError::type_error(
+                    "The to_int function does not support this type",
+                ))
             } else {
                 Ok(result)
             }
@@ -68,7 +70,9 @@ fn execute_to_float(args: &[Value]) -> Result<Value, ExpressionError> {
         _ => {
             let result = args[0].to_float();
             if let Value::Null(NullType::BadData) = result {
-                Err(ExpressionError::type_error("The to_float function does not support the type"))
+                Err(ExpressionError::type_error(
+                    "The to_float function does not support the type",
+                ))
             } else {
                 Ok(result)
             }
@@ -82,7 +86,9 @@ fn execute_to_bool(args: &[Value]) -> Result<Value, ExpressionError> {
         _ => {
             let result = args[0].to_bool();
             if let Value::Null(NullType::BadData) = result {
-                Err(ExpressionError::type_error("The to_bool function does not support this type"))
+                Err(ExpressionError::type_error(
+                    "The to_bool function does not support this type",
+                ))
             } else {
                 Ok(result)
             }
@@ -97,7 +103,9 @@ mod tests {
     #[test]
     fn test_to_string() {
         let func = ConversionFunction::ToString;
-        let result = func.execute(&[Value::Int(42)]).expect("Implementation should not fail");
+        let result = func
+            .execute(&[Value::Int(42)])
+            .expect("Implementation should not fail");
         assert_eq!(result, Value::String("42".to_string()));
     }
 
@@ -113,14 +121,18 @@ mod tests {
     #[test]
     fn test_to_float() {
         let func = ConversionFunction::ToFloat;
-        let result = func.execute(&[Value::Int(42)]).expect("Implementation should not fail");
+        let result = func
+            .execute(&[Value::Int(42)])
+            .expect("Implementation should not fail");
         assert_eq!(result, Value::Float(42.0));
     }
 
     #[test]
     fn test_to_bool() {
         let func = ConversionFunction::ToBool;
-        let result = func.execute(&[Value::Int(1)]).expect("Implementation should not fail");
+        let result = func
+            .execute(&[Value::Int(1)])
+            .expect("Implementation should not fail");
         assert_eq!(result, Value::Bool(true));
     }
 

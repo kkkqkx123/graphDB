@@ -694,8 +694,7 @@ impl super::SchemaManager for RedbSchemaManager {
                 })?;
                 let key_bytes = &key.value().0;
                 if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
-                    let edge_type: EdgeTypeInfo =
-                        decode_from_slice(&value.value().0)?.0;
+                    let edge_type: EdgeTypeInfo = decode_from_slice(&value.value().0)?.0;
                     if edge_type.edge_type_name == edge_type_name {
                         let id_bytes = &key_bytes[8..12];
                         edge_type_id = Some(i32::from_be_bytes([
@@ -839,8 +838,7 @@ impl super::SchemaManager for RedbSchemaManager {
                 })?;
                 let key_bytes = &key.value().0;
                 if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
-                    let existing_edge: EdgeTypeInfo =
-                        decode_from_slice(&value.value().0)?.0;
+                    let existing_edge: EdgeTypeInfo = decode_from_slice(&value.value().0)?.0;
                     if existing_edge.edge_type_name == edge.edge_type_name {
                         let id_bytes = &key_bytes[8..12];
                         edge_type_id = Some(i32::from_be_bytes([

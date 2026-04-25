@@ -98,8 +98,9 @@ impl WarmCacheEntry {
         let data = if self.compressed {
             let bytes = encode_to_vec(&file_data, standard())?;
             let decompressed = decompress_data(&bytes)?;
-            let (decompressed_data, _) = decode_from_slice::<FileStorageData, _>(&decompressed, standard())
-                .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?;
+            let (decompressed_data, _) =
+                decode_from_slice::<FileStorageData, _>(&decompressed, standard())
+                    .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?;
             decompressed_data
         } else {
             file_data
@@ -322,13 +323,17 @@ impl WALManager {
             let entries = self.read_wal_file(&current_wal_path).await?;
             for entry in entries {
                 match entry {
-                    WALEntry::Add { index_name, data, .. } => {
+                    WALEntry::Add {
+                        index_name, data, ..
+                    } => {
                         index_states.insert(index_name, data);
                     }
                     WALEntry::Remove { index_name, .. } => {
                         index_states.remove(&index_name);
                     }
-                    WALEntry::Update { index_name, data, .. } => {
+                    WALEntry::Update {
+                        index_name, data, ..
+                    } => {
                         index_states.insert(index_name, data);
                     }
                 }
@@ -359,15 +364,21 @@ impl WALManager {
             if offset + 4 > bytes.len() {
                 break;
             }
-            let len = u32::from_le_bytes([bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]]) as usize;
+            let len = u32::from_le_bytes([
+                bytes[offset],
+                bytes[offset + 1],
+                bytes[offset + 2],
+                bytes[offset + 3],
+            ]) as usize;
             offset += 4;
 
             if offset + len > bytes.len() {
                 break;
             }
 
-            let (entry, _) = decode_from_slice::<WALEntry, _>(&bytes[offset..offset + len], standard())
-                .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?;
+            let (entry, _) =
+                decode_from_slice::<WALEntry, _>(&bytes[offset..offset + len], standard())
+                    .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?;
             entries.push(entry);
             offset += len;
         }
@@ -564,8 +575,9 @@ impl ColdWarmCacheManager {
             let data: IndexData = if entry.compressed {
                 let bytes = encode_to_vec(&file_data, standard())?;
                 let decompressed = decompress_data(&bytes)?;
-                let (decompressed_data, _) = decode_from_slice::<IndexData, _>(&decompressed, standard())
-                    .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?;
+                let (decompressed_data, _) =
+                    decode_from_slice::<IndexData, _>(&decompressed, standard())
+                        .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?;
                 decompressed_data
             } else {
                 file_data.into()
@@ -770,7 +782,8 @@ impl ColdWarmCacheManager {
 
         for key in keys_to_evict {
             if let Some((_, entry)) = self.warm_cache.remove(&key) {
-                self.warm_cache_size.fetch_sub(entry.size, Ordering::Relaxed);
+                self.warm_cache_size
+                    .fetch_sub(entry.size, Ordering::Relaxed);
                 let file_data = entry.load().await?;
                 let data: IndexData = file_data.into();
                 self.persist_to_cold_storage(&key, &data).await?;
@@ -782,13 +795,19 @@ impl ColdWarmCacheManager {
     }
 
     async fn persist_to_warm(&self, index_name: &str, data: &IndexData) -> Result<()> {
-        let file_path = self.config.cold_storage_path.join(format!("{}.warm", index_name));
+        let file_path = self
+            .config
+            .cold_storage_path
+            .join(format!("{}.warm", index_name));
         let file_data: FileStorageData = data.clone().into();
         let bytes = encode_to_vec(&file_data, standard())
             .map_err(|e| crate::error::StorageError::Serialization(e.to_string()))?;
 
         let (final_bytes, compressed) = if self.config.cold_storage_compression {
-            (compress_data(&bytes, self.config.cold_storage_compression_level)?, true)
+            (
+                compress_data(&bytes, self.config.cold_storage_compression_level)?,
+                true,
+            )
         } else {
             (bytes, false)
         };
@@ -797,19 +816,26 @@ impl ColdWarmCacheManager {
 
         let entry = WarmCacheEntry::new(file_path, final_bytes.len(), compressed);
         self.warm_cache.insert(index_name.to_string(), entry);
-        self.warm_cache_size.fetch_add(final_bytes.len(), Ordering::Relaxed);
+        self.warm_cache_size
+            .fetch_add(final_bytes.len(), Ordering::Relaxed);
 
         Ok(())
     }
 
     async fn persist_to_cold_storage(&self, index_name: &str, data: &IndexData) -> Result<()> {
-        let file_path = self.config.cold_storage_path.join(format!("{}.cold", index_name));
+        let file_path = self
+            .config
+            .cold_storage_path
+            .join(format!("{}.cold", index_name));
         let file_data: FileStorageData = data.clone().into();
         let bytes = encode_to_vec(&file_data, standard())
             .map_err(|e| crate::error::StorageError::Serialization(e.to_string()))?;
 
         let (final_bytes, compressed) = if self.config.cold_storage_compression {
-            (compress_data(&bytes, self.config.cold_storage_compression_level)?, true)
+            (
+                compress_data(&bytes, self.config.cold_storage_compression_level)?,
+                true,
+            )
         } else {
             (bytes, false)
         };
@@ -855,7 +881,9 @@ impl ColdWarmCacheManager {
             }
         }
 
-        self.stats.flush_count.fetch_add(flushed_count, Ordering::Relaxed);
+        self.stats
+            .flush_count
+            .fetch_add(flushed_count, Ordering::Relaxed);
         Ok(())
     }
 
@@ -920,11 +948,17 @@ impl ColdWarmCacheManager {
         let mut stats = HashMap::new();
         stats.insert(
             "hot_cache_size".to_string(),
-            format!("{:.2} MB", self.hot_cache_size.load(Ordering::Relaxed) as f64 / 1024.0 / 1024.0),
+            format!(
+                "{:.2} MB",
+                self.hot_cache_size.load(Ordering::Relaxed) as f64 / 1024.0 / 1024.0
+            ),
         );
         stats.insert(
             "warm_cache_size".to_string(),
-            format!("{:.2} MB", self.warm_cache_size.load(Ordering::Relaxed) as f64 / 1024.0 / 1024.0),
+            format!(
+                "{:.2} MB",
+                self.warm_cache_size.load(Ordering::Relaxed) as f64 / 1024.0 / 1024.0
+            ),
         );
         stats.insert(
             "hot_hit_rate".to_string(),

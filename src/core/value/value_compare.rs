@@ -1,18 +1,12 @@
-use crate::core::{
-    value::{
-        date_time::{DateTimeValue, DateValue, TimeValue},
-        geography::GeographyValue,
-        interval::IntervalValue,
-        list::List,
-        null::NullType,
-        Value,
-    },
+use crate::core::value::{
+    date_time::{DateTimeValue, DateValue, TimeValue},
+    geography::GeographyValue,
+    interval::IntervalValue,
+    list::List,
+    null::NullType,
+    Value,
 };
-use std::{
-    cmp::Ordering as CmpOrdering,
-    collections::HashMap,
-    hash::Hash,
-};
+use std::{cmp::Ordering as CmpOrdering, collections::HashMap, hash::Hash};
 
 // Manual implementation of PartialEq to handle f64 comparisons correctly
 impl PartialEq for Value {
@@ -42,12 +36,8 @@ impl PartialEq for Value {
             (Value::Json(a), Value::Json(b)) => a == b,
             (Value::JsonB(a), Value::JsonB(b)) => a == b,
             // JSON and JSONB can be compared
-            (Value::Json(a), Value::JsonB(b)) => {
-                a.to_value().ok() == Some(b.as_value().clone())
-            }
-            (Value::JsonB(a), Value::Json(b)) => {
-                Some(a.as_value().clone()) == b.to_value().ok()
-            }
+            (Value::Json(a), Value::JsonB(b)) => a.to_value().ok() == Some(b.as_value().clone()),
+            (Value::JsonB(a), Value::Json(b)) => Some(a.as_value().clone()) == b.to_value().ok(),
             (Value::Uuid(a), Value::Uuid(b)) => a == b,
             (Value::Interval(a), Value::Interval(b)) => a == b,
 
@@ -114,12 +104,10 @@ impl Ord for Value {
             (Value::Map(a), Value::Map(b)) => Self::cmp_map(a, b),
             (Value::Set(a), Value::Set(b)) => Self::cmp_set(a, b),
             (Value::Geography(a), Value::Geography(b)) => Self::cmp_geography(a, b),
-            (Value::Json(a), Value::Json(b)) => {
-                match (a.to_value(), b.to_value()) {
-                    (Ok(a_val), Ok(b_val)) => Self::cmp_json_values(&a_val, &b_val),
-                    _ => CmpOrdering::Equal,
-                }
-            }
+            (Value::Json(a), Value::Json(b)) => match (a.to_value(), b.to_value()) {
+                (Ok(a_val), Ok(b_val)) => Self::cmp_json_values(&a_val, &b_val),
+                _ => CmpOrdering::Equal,
+            },
             (Value::JsonB(a), Value::JsonB(b)) => a.cmp(b),
             // Cross-type comparison
             (Value::Json(a), Value::JsonB(b)) => match a.to_value() {
@@ -142,20 +130,48 @@ impl Ord for Value {
             (Value::BigInt(a), Value::Int(b)) => a.cmp(&(*b as i64)),
 
             // Integer to float comparisons
-            (Value::SmallInt(a), Value::Float(b)) => (*a as f32).partial_cmp(b).unwrap_or(CmpOrdering::Equal),
-            (Value::Float(a), Value::SmallInt(b)) => a.partial_cmp(&(*b as f32)).unwrap_or(CmpOrdering::Equal),
-            (Value::Int(a), Value::Float(b)) => (*a as f32).partial_cmp(b).unwrap_or(CmpOrdering::Equal),
-            (Value::Float(a), Value::Int(b)) => a.partial_cmp(&(*b as f32)).unwrap_or(CmpOrdering::Equal),
-            (Value::BigInt(a), Value::Float(b)) => (*a as f32).partial_cmp(b).unwrap_or(CmpOrdering::Equal),
-            (Value::Float(a), Value::BigInt(b)) => a.partial_cmp(&(*b as f32)).unwrap_or(CmpOrdering::Equal),
-            (Value::SmallInt(a), Value::Double(b)) => (*a as f64).partial_cmp(b).unwrap_or(CmpOrdering::Equal),
-            (Value::Double(a), Value::SmallInt(b)) => a.partial_cmp(&(*b as f64)).unwrap_or(CmpOrdering::Equal),
-            (Value::Int(a), Value::Double(b)) => (*a as f64).partial_cmp(b).unwrap_or(CmpOrdering::Equal),
-            (Value::Double(a), Value::Int(b)) => a.partial_cmp(&(*b as f64)).unwrap_or(CmpOrdering::Equal),
-            (Value::BigInt(a), Value::Double(b)) => (*a as f64).partial_cmp(b).unwrap_or(CmpOrdering::Equal),
-            (Value::Double(a), Value::BigInt(b)) => a.partial_cmp(&(*b as f64)).unwrap_or(CmpOrdering::Equal),
-            (Value::Float(a), Value::Double(b)) => (*a as f64).partial_cmp(b).unwrap_or(CmpOrdering::Equal),
-            (Value::Double(a), Value::Float(b)) => a.partial_cmp(&(*b as f64)).unwrap_or(CmpOrdering::Equal),
+            (Value::SmallInt(a), Value::Float(b)) => {
+                (*a as f32).partial_cmp(b).unwrap_or(CmpOrdering::Equal)
+            }
+            (Value::Float(a), Value::SmallInt(b)) => {
+                a.partial_cmp(&(*b as f32)).unwrap_or(CmpOrdering::Equal)
+            }
+            (Value::Int(a), Value::Float(b)) => {
+                (*a as f32).partial_cmp(b).unwrap_or(CmpOrdering::Equal)
+            }
+            (Value::Float(a), Value::Int(b)) => {
+                a.partial_cmp(&(*b as f32)).unwrap_or(CmpOrdering::Equal)
+            }
+            (Value::BigInt(a), Value::Float(b)) => {
+                (*a as f32).partial_cmp(b).unwrap_or(CmpOrdering::Equal)
+            }
+            (Value::Float(a), Value::BigInt(b)) => {
+                a.partial_cmp(&(*b as f32)).unwrap_or(CmpOrdering::Equal)
+            }
+            (Value::SmallInt(a), Value::Double(b)) => {
+                (*a as f64).partial_cmp(b).unwrap_or(CmpOrdering::Equal)
+            }
+            (Value::Double(a), Value::SmallInt(b)) => {
+                a.partial_cmp(&(*b as f64)).unwrap_or(CmpOrdering::Equal)
+            }
+            (Value::Int(a), Value::Double(b)) => {
+                (*a as f64).partial_cmp(b).unwrap_or(CmpOrdering::Equal)
+            }
+            (Value::Double(a), Value::Int(b)) => {
+                a.partial_cmp(&(*b as f64)).unwrap_or(CmpOrdering::Equal)
+            }
+            (Value::BigInt(a), Value::Double(b)) => {
+                (*a as f64).partial_cmp(b).unwrap_or(CmpOrdering::Equal)
+            }
+            (Value::Double(a), Value::BigInt(b)) => {
+                a.partial_cmp(&(*b as f64)).unwrap_or(CmpOrdering::Equal)
+            }
+            (Value::Float(a), Value::Double(b)) => {
+                (*a as f64).partial_cmp(b).unwrap_or(CmpOrdering::Equal)
+            }
+            (Value::Double(a), Value::Float(b)) => {
+                a.partial_cmp(&(*b as f64)).unwrap_or(CmpOrdering::Equal)
+            }
 
             // Comparison between different types: based on type prioritization
             (a, b) => Self::cmp_by_type_priority(a, b),
@@ -411,16 +427,16 @@ impl Value {
     // List Comparison Helper Functions
     fn cmp_list(a: &List, b: &List) -> CmpOrdering {
         a.values.len().cmp(&b.values.len()).then_with(|| {
-            a.values.iter().zip(b.values.iter()).fold(
-                CmpOrdering::Equal,
-                |acc, (a_val, b_val)| {
+            a.values
+                .iter()
+                .zip(b.values.iter())
+                .fold(CmpOrdering::Equal, |acc, (a_val, b_val)| {
                     if acc == CmpOrdering::Equal {
                         a_val.cmp(b_val)
                     } else {
                         acc
                     }
-                },
-            )
+                })
         })
     }
 
@@ -445,22 +461,25 @@ impl Value {
     }
 
     // Collection comparison helper functions
-    fn cmp_set(a: &std::collections::HashSet<Value>, b: &std::collections::HashSet<Value>) -> CmpOrdering {
+    fn cmp_set(
+        a: &std::collections::HashSet<Value>,
+        b: &std::collections::HashSet<Value>,
+    ) -> CmpOrdering {
         a.len().cmp(&b.len()).then_with(|| {
             let mut a_values: Vec<_> = a.iter().collect();
             let mut b_values: Vec<_> = b.iter().collect();
             a_values.sort();
             b_values.sort();
-            a_values.iter().zip(b_values.iter()).fold(
-                CmpOrdering::Equal,
-                |acc, (a_val, b_val)| {
+            a_values
+                .iter()
+                .zip(b_values.iter())
+                .fold(CmpOrdering::Equal, |acc, (a_val, b_val)| {
                     if acc == CmpOrdering::Equal {
                         a_val.cmp(b_val)
                     } else {
                         acc
                     }
-                },
-            )
+                })
         })
     }
 
@@ -469,7 +488,10 @@ impl Value {
         // Compare by latitude first, then longitude
         // Using partial_cmp and treating NaN as less than any other value
         match a.latitude.partial_cmp(&b.latitude) {
-            Some(CmpOrdering::Equal) => a.longitude.partial_cmp(&b.longitude).unwrap_or(CmpOrdering::Equal),
+            Some(CmpOrdering::Equal) => a
+                .longitude
+                .partial_cmp(&b.longitude)
+                .unwrap_or(CmpOrdering::Equal),
             Some(ord) => ord,
             None => CmpOrdering::Equal, // Both NaN case
         }
@@ -503,38 +525,33 @@ impl Value {
                 }
             }
             (JsonValue::String(a), JsonValue::String(b)) => a.cmp(b),
-            (JsonValue::Array(a), JsonValue::Array(b)) => {
-                a.len().cmp(&b.len()).then_with(|| {
-                    a.iter().zip(b.iter()).fold(
-                        CmpOrdering::Equal,
-                        |acc, (a_val, b_val)| {
-                            if acc == CmpOrdering::Equal {
-                                Self::cmp_json_values(a_val, b_val)
-                            } else {
-                                acc
-                            }
-                        },
-                    )
-                })
-            }
-            (JsonValue::Object(a), JsonValue::Object(b)) => {
-                a.len().cmp(&b.len()).then_with(|| {
-                    let mut a_pairs: Vec<_> = a.iter().collect();
-                    let mut b_pairs: Vec<_> = b.iter().collect();
-                    a_pairs.sort_by_key(|&(k, _)| k);
-                    b_pairs.sort_by_key(|&(k, _)| k);
-                    a_pairs.iter().zip(b_pairs.iter()).fold(
-                        CmpOrdering::Equal,
-                        |acc, ((a_k, a_v), (b_k, b_v))| {
-                            if acc == CmpOrdering::Equal {
-                                a_k.cmp(b_k).then_with(|| Self::cmp_json_values(a_v, b_v))
-                            } else {
-                                acc
-                            }
-                        },
-                    )
-                })
-            }
+            (JsonValue::Array(a), JsonValue::Array(b)) => a.len().cmp(&b.len()).then_with(|| {
+                a.iter()
+                    .zip(b.iter())
+                    .fold(CmpOrdering::Equal, |acc, (a_val, b_val)| {
+                        if acc == CmpOrdering::Equal {
+                            Self::cmp_json_values(a_val, b_val)
+                        } else {
+                            acc
+                        }
+                    })
+            }),
+            (JsonValue::Object(a), JsonValue::Object(b)) => a.len().cmp(&b.len()).then_with(|| {
+                let mut a_pairs: Vec<_> = a.iter().collect();
+                let mut b_pairs: Vec<_> = b.iter().collect();
+                a_pairs.sort_by_key(|&(k, _)| k);
+                b_pairs.sort_by_key(|&(k, _)| k);
+                a_pairs.iter().zip(b_pairs.iter()).fold(
+                    CmpOrdering::Equal,
+                    |acc, ((a_k, a_v), (b_k, b_v))| {
+                        if acc == CmpOrdering::Equal {
+                            a_k.cmp(b_k).then_with(|| Self::cmp_json_values(a_v, b_v))
+                        } else {
+                            acc
+                        }
+                    },
+                )
+            }),
             // Cross-type comparison: Null < Bool < Number < String < Array < Object
             (JsonValue::Null, _) => CmpOrdering::Less,
             (_, JsonValue::Null) => CmpOrdering::Greater,

@@ -481,7 +481,10 @@ impl Value {
             Map(m) => Ok(Int(m.len() as i32)),
             Set(s) => Ok(Int(s.len() as i32)),
             Blob(b) => Ok(Int(b.len() as i32)),
-            _ => Err("Length operation is only supported for string, blob, list, map, or set types".to_string()),
+            _ => Err(
+                "Length operation is only supported for string, blob, list, map, or set types"
+                    .to_string(),
+            ),
         }
     }
 }

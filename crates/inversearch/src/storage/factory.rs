@@ -63,7 +63,9 @@ impl StorageFactory {
     ///
     /// * `Result<Arc<dyn StorageInterface>>` - Created storage instance
     #[cfg(feature = "store-file")]
-    pub fn create_file(storage_config: &crate::config::StorageConfig) -> Result<Arc<dyn StorageInterface>> {
+    pub fn create_file(
+        storage_config: &crate::config::StorageConfig,
+    ) -> Result<Arc<dyn StorageInterface>> {
         use crate::storage::file::FileStorage;
 
         let path = storage_config
@@ -103,7 +105,9 @@ impl StorageFactory {
     ///
     /// * `Result<Arc<dyn StorageInterface>>` - Created storage instance
     #[cfg(feature = "store-redis")]
-    pub async fn create_redis(storage_config: &crate::config::StorageConfig) -> Result<Arc<dyn StorageInterface>> {
+    pub async fn create_redis(
+        storage_config: &crate::config::StorageConfig,
+    ) -> Result<Arc<dyn StorageInterface>> {
         use crate::storage::redis::{RedisStorage, RedisStorageConfig};
 
         let config = storage_config
@@ -130,9 +134,11 @@ impl StorageFactory {
     ///
     /// * `Result<Arc<dyn StorageInterface>>` - Created storage instance
     #[cfg(feature = "store-wal")]
-    pub async fn create_wal(storage_config: &crate::config::StorageConfig) -> Result<Arc<dyn StorageInterface>> {
-        use crate::storage::wal::WALStorage;
+    pub async fn create_wal(
+        storage_config: &crate::config::StorageConfig,
+    ) -> Result<Arc<dyn StorageInterface>> {
         use crate::storage::wal::WALConfig;
+        use crate::storage::wal::WALStorage;
 
         let config = storage_config
             .wal
@@ -168,9 +174,9 @@ impl StorageFactory {
         #[cfg(not(feature = "store-cold-warm-cache"))]
         {
             use crate::error::{InversearchError, StorageError};
-            Err(InversearchError::Storage(
-                StorageError::Generic("Cold-warm cache storage is not enabled".to_string())
-            ))
+            Err(InversearchError::Storage(StorageError::Generic(
+                "Cold-warm cache storage is not enabled".to_string(),
+            )))
         }
     }
 }
@@ -183,17 +189,18 @@ mod tests {
     #[tokio::test]
     async fn test_create_cold_warm_cache() {
         // Use a temporary directory for the test to avoid conflicts with existing data
-        let temp_dir = std::env::temp_dir().join(format!("inversearch_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("inversearch_test_{}", std::process::id()));
         let wal_path = temp_dir.join("wal");
         let cold_path = temp_dir.join("cold");
-        
+
         // Clean up any existing test data
         let _ = tokio::fs::remove_dir_all(&temp_dir).await;
-        
+
         // Create directories
         let _ = tokio::fs::create_dir_all(&wal_path).await;
         let _ = tokio::fs::create_dir_all(&cold_path).await;
-        
+
         let config = Config {
             storage: crate::config::StorageConfig {
                 enabled: false,
@@ -208,7 +215,7 @@ mod tests {
             eprintln!("Failed to create cold-warm cache: {:?}", e);
         }
         assert!(result.is_ok(), "Should create cold-warm cache storage");
-        
+
         // Clean up temp directory
         let _ = tokio::fs::remove_dir_all(&temp_dir).await;
     }

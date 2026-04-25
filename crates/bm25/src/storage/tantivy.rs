@@ -8,7 +8,7 @@ use crate::storage::common::types::StorageInfo;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tantivy::schema::{Schema, TEXT, STORED, STRING};
+use tantivy::schema::{Schema, STORED, STRING, TEXT};
 use tantivy::{Index, IndexReader, IndexWriter, Term};
 use tokio::sync::RwLock;
 
@@ -64,20 +64,20 @@ impl StorageInterface for TantivyStorage {
         if self.index.is_none() {
             std::fs::create_dir_all(&self.config.index_path)
                 .map_err(|e| Bm25Error::StorageError(e.to_string()))?;
-            
+
             let index = Index::create_in_dir(&self.config.index_path, self.schema.clone())
                 .map_err(|e| Bm25Error::IndexCreationFailed(e.to_string()))?;
-            
+
             let writer = index
                 .writer(self.config.writer_memory_mb * 1024 * 1024)
                 .map_err(|e| Bm25Error::IndexCreationFailed(e.to_string()))?;
-            
+
             let reader = index
                 .reader_builder()
                 .reload_policy(tantivy::ReloadPolicy::OnCommitWithDelay)
                 .try_into()
                 .map_err(|e| Bm25Error::IndexCreationFailed(e.to_string()))?;
-            
+
             self.index = Some(Arc::new(RwLock::new(index)));
             self.writer = Some(Arc::new(RwLock::new(writer)));
             self.reader = Some(Arc::new(RwLock::new(reader)));
@@ -106,19 +106,21 @@ impl StorageInterface for TantivyStorage {
     }
 
     async fn get_stats(&self, term: &str) -> Result<Option<Bm25Stats>> {
-        let reader = self.reader.as_ref()
+        let reader = self
+            .reader
+            .as_ref()
             .ok_or_else(|| Bm25Error::IndexNotInitialized)?;
         let reader = reader.read().await;
         let searcher = reader.searcher();
-        
+
         // Get term frequency from the content field
         let field = self.schema.get_field("content").unwrap();
         let term_obj = Term::from_field_text(field, term);
-        
+
         // Get document frequency
         let doc_freq = searcher.doc_freq(&term_obj)?;
         let total_docs = searcher.num_docs();
-        
+
         // Calculate average document length
         let avg_doc_length = if total_docs > 0 {
             let total_terms = searcher.num_docs() * 100; // Approximation
@@ -126,7 +128,7 @@ impl StorageInterface for TantivyStorage {
         } else {
             0.0
         };
-        
+
         Ok(Some(Bm25Stats {
             tf: HashMap::new(), // TF is calculated per document during search
             df: HashMap::from([(term.to_string(), doc_freq as u64)]),
@@ -136,14 +138,16 @@ impl StorageInterface for TantivyStorage {
     }
 
     async fn get_df(&self, term: &str) -> Result<Option<u64>> {
-        let reader = self.reader.as_ref()
+        let reader = self
+            .reader
+            .as_ref()
             .ok_or_else(|| Bm25Error::IndexNotInitialized)?;
         let reader = reader.read().await;
         let searcher = reader.searcher();
-        
+
         let field = self.schema.get_field("content").unwrap();
         let term_obj = Term::from_field_text(field, term);
-        
+
         let doc_freq = searcher.doc_freq(&term_obj)?;
         Ok(Some(doc_freq as u64))
     }
@@ -151,17 +155,19 @@ impl StorageInterface for TantivyStorage {
     async fn get_tf(&self, term: &str, _doc_id: &str) -> Result<Option<f32>> {
         // TF is calculated during search time in Tantivy
         // This is a simplified implementation
-        let reader = self.reader.as_ref()
+        let reader = self
+            .reader
+            .as_ref()
             .ok_or_else(|| Bm25Error::IndexNotInitialized)?;
         let reader = reader.read().await;
         let searcher = reader.searcher();
-        
+
         let field = self.schema.get_field("content").unwrap();
         let term_obj = Term::from_field_text(field, term);
-        
+
         let doc_freq = searcher.doc_freq(&term_obj)?;
         let total_docs = searcher.num_docs();
-        
+
         // Simple TF calculation (in real BM25, this is more complex)
         if doc_freq > 0 && total_docs > 0 {
             let tf = (doc_freq as f32) / (total_docs as f32);

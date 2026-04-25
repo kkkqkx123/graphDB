@@ -31,12 +31,12 @@ pub enum Value {
     Null(NullType),
     Bool(bool),
     // Integer types: simplified to 3 types (aligned with PostgreSQL)
-    SmallInt(i16),  // 2 bytes, corresponds to PostgreSQL smallint
-    Int(i32),       // 4 bytes, corresponds to PostgreSQL integer
-    BigInt(i64),    // 8 bytes, corresponds to PostgreSQL bigint
+    SmallInt(i16), // 2 bytes, corresponds to PostgreSQL smallint
+    Int(i32),      // 4 bytes, corresponds to PostgreSQL integer
+    BigInt(i64),   // 8 bytes, corresponds to PostgreSQL bigint
     // Floating point types: 2 types (standard practice)
-    Float(f32),     // 4 bytes, single precision
-    Double(f64),    // 8 bytes, double precision
+    Float(f32),  // 4 bytes, single precision
+    Double(f64), // 8 bytes, double precision
     Decimal128(Decimal128Value),
     String(String),
     /// Fixed-length strings for optimized storage of short strings
@@ -395,7 +395,9 @@ impl std::fmt::Display for Value {
                 }
                 write!(f, "}}")
             }
-            Value::Geography(g) => write!(f, "Geography(lat: {}, lon: {})", g.latitude, g.longitude),
+            Value::Geography(g) => {
+                write!(f, "Geography(lat: {}, lon: {})", g.latitude, g.longitude)
+            }
             Value::Vector(v) => write!(f, "{}", v),
             Value::DataSet(ds) => write!(f, "DataSet({} rows)", ds.row_count()),
             Value::Json(j) => write!(f, "Json({})", j.as_str()),

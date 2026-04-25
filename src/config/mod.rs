@@ -51,7 +51,9 @@ pub use common::database::DatabaseConfig;
 pub use common::log::LogConfig;
 pub use common::monitoring::{MonitoringConfig, SlowQueryLogConfig};
 pub use common::optimizer::{OptimizerConfig, OptimizerRulesConfig};
-pub use common::storage::{CompressionAlgorithm, QueryResourceConfig, StorageConfig, StorageEngine};
+pub use common::storage::{
+    CompressionAlgorithm, QueryResourceConfig, StorageConfig, StorageEngine,
+};
 pub use common::transaction::TransactionConfig;
 
 #[cfg(feature = "server")]
@@ -347,8 +349,14 @@ mod tests {
 
         let loaded_config =
             Config::load(temp_file.path()).expect("Failed to load config from temporary file");
-        assert_eq!(config.common.database.host, loaded_config.common.database.host);
-        assert_eq!(config.common.database.port, loaded_config.common.database.port);
+        assert_eq!(
+            config.common.database.host,
+            loaded_config.common.database.host
+        );
+        assert_eq!(
+            config.common.database.port,
+            loaded_config.common.database.port
+        );
         assert_eq!(config.common.log.level, loaded_config.common.log.level);
     }
 

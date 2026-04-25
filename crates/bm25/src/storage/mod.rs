@@ -32,7 +32,7 @@ pub mod manager;
 
 pub use common::{
     r#trait::StorageInterface,
-    types::{StorageInfo, Bm25Stats},
+    types::{Bm25Stats, StorageInfo},
 };
 
 #[cfg(feature = "storage-tantivy")]

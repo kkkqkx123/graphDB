@@ -5,8 +5,10 @@
 //! - 建议生成
 //! - 替代查询生成
 
+use inversearch_service::intersect::suggestion::{
+    generate_suggestions, SuggestionConfig, SuggestionResult,
+};
 use inversearch_service::intersect::SuggestionEngine;
-use inversearch_service::intersect::suggestion::{SuggestionConfig, SuggestionResult, generate_suggestions};
 
 /// 测试默认建议配置
 #[test]
@@ -35,7 +37,11 @@ fn test_generate_basic_suggestions() {
     let search_results = vec![vec![1, 2, 3], vec![4, 5, 6]];
     let result = engine.generate_suggestions("test", &search_results);
 
-    assert!(!result.suggestions.is_empty() || !result.fuzzy_matches.is_empty() || !result.alternative_queries.is_empty());
+    assert!(
+        !result.suggestions.is_empty()
+            || !result.fuzzy_matches.is_empty()
+            || !result.alternative_queries.is_empty()
+    );
 }
 
 /// 测试空搜索结果

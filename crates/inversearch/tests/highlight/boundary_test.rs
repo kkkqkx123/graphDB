@@ -5,9 +5,9 @@
 //! - 省略号处理
 //! - 前后边界
 
-use inversearch_service::highlight::highlight_single_document;
-use inversearch_service::highlight::types::{HighlightConfig, HighlightBoundaryOptions};
 use inversearch_service::encoder::Encoder;
+use inversearch_service::highlight::highlight_single_document;
+use inversearch_service::highlight::types::{HighlightBoundaryOptions, HighlightConfig};
 use inversearch_service::r#type::EncoderOptions;
 
 fn create_test_encoder() -> Encoder {

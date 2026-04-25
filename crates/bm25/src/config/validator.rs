@@ -45,14 +45,22 @@ pub enum ValidationError {
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ValidationError::InvalidValue { field, value, reason } => {
+            ValidationError::InvalidValue {
+                field,
+                value,
+                reason,
+            } => {
                 write!(f, "Invalid value for {}: {} ({})", field, value, reason)
             }
             ValidationError::MissingField(field) => {
                 write!(f, "Missing required field: {}", field)
             }
             ValidationError::DependencyError { field, dependency } => {
-                write!(f, "Configuration dependency error for {}: {}", field, dependency)
+                write!(
+                    f,
+                    "Configuration dependency error for {}: {}",
+                    field, dependency
+                )
             }
         }
     }
@@ -129,8 +137,13 @@ mod tests {
         let config = TestConfig { value: 0 };
         let result = config.validate();
         assert!(result.is_err());
-        
-        if let Err(ValidationError::InvalidValue { field, value, reason }) = result {
+
+        if let Err(ValidationError::InvalidValue {
+            field,
+            value,
+            reason,
+        }) = result
+        {
             assert_eq!(field, "value");
             assert_eq!(value, "0");
             assert!(reason.contains("greater than 0"));

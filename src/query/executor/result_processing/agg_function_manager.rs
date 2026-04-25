@@ -223,7 +223,9 @@ impl AggFunctionManager {
                 let avg = agg_data.avg().clone();
                 let deviation = agg_data.deviation().clone();
 
-                if let (Value::Double(c), Value::Double(a), Value::Double(d)) = (cnt, avg, deviation) {
+                if let (Value::Double(c), Value::Double(a), Value::Double(d)) =
+                    (cnt, avg, deviation)
+                {
                     let new_cnt = c + 1.0;
                     // The Welford algorithm is used to calculate the standard deviation.
                     let delta = val_f64 - a;
@@ -515,12 +517,15 @@ mod tests {
     #[test]
     fn test_count_function() {
         let manager = AggFunctionManager::new();
-        let count_func = manager.get("COUNT").expect("The COUNT function should exist");
+        let count_func = manager
+            .get("COUNT")
+            .expect("The COUNT function should exist");
 
         let mut agg_data = AggData::new();
 
         // Testing for null values: The COUNT function should be initialized to 0.
-        count_func(&mut agg_data, &Value::Null(NullType::Null)).expect("The COUNT function call should succeed");
+        count_func(&mut agg_data, &Value::Null(NullType::Null))
+            .expect("The COUNT function call should succeed");
         assert_eq!(agg_data.result(), &Value::Int(0));
 
         // Normal test values
@@ -531,7 +536,8 @@ mod tests {
         assert_eq!(agg_data.result(), &Value::Int(2));
 
         // Testing NULL cases is not counted.
-        count_func(&mut agg_data, &Value::Null(NullType::Null)).expect("The COUNT function call should succeed");
+        count_func(&mut agg_data, &Value::Null(NullType::Null))
+            .expect("The COUNT function call should succeed");
         assert_eq!(agg_data.result(), &Value::Int(2));
     }
 
@@ -549,20 +555,26 @@ mod tests {
         assert_eq!(agg_data.result(), &Value::Int(30));
 
         // Test: NULL should not be included.
-        sum_func(&mut agg_data, &Value::Null(NullType::Null)).expect("The SUM function call should succeed");
+        sum_func(&mut agg_data, &Value::Null(NullType::Null))
+            .expect("The SUM function call should succeed");
         assert_eq!(agg_data.result(), &Value::Int(30));
     }
 
     #[test]
     fn test_collect_set_function() {
         let manager = AggFunctionManager::new();
-        let collect_set_func = manager.get("COLLECT_SET").expect("The COLLECT_SET function should exist");
+        let collect_set_func = manager
+            .get("COLLECT_SET")
+            .expect("The COLLECT_SET function should exist");
 
         let mut agg_data = AggData::new();
 
-        collect_set_func(&mut agg_data, &Value::Int(1)).expect("COLLECT_SET function call should succeed");
-        collect_set_func(&mut agg_data, &Value::Int(2)).expect("COLLECT_SET function call should succeed");
-        collect_set_func(&mut agg_data, &Value::Int(1)).expect("COLLECT_SET function call should succeed");
+        collect_set_func(&mut agg_data, &Value::Int(1))
+            .expect("COLLECT_SET function call should succeed");
+        collect_set_func(&mut agg_data, &Value::Int(2))
+            .expect("COLLECT_SET function call should succeed");
+        collect_set_func(&mut agg_data, &Value::Int(1))
+            .expect("COLLECT_SET function call should succeed");
 
         if let Value::Set(set) = agg_data.result() {
             assert_eq!(set.len(), 2);

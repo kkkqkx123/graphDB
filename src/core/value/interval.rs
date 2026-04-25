@@ -164,37 +164,43 @@ impl IntervalValue {
                     num_str.clear();
                 }
                 'Y' => {
-                    let num: i32 = num_str.parse()
+                    let num: i32 = num_str
+                        .parse()
                         .map_err(|_| IntervalError::InvalidFormat(s.to_string()))?;
                     months += num * 12;
                     num_str.clear();
                 }
                 'M' if !in_time_part => {
-                    let num: i32 = num_str.parse()
+                    let num: i32 = num_str
+                        .parse()
                         .map_err(|_| IntervalError::InvalidFormat(s.to_string()))?;
                     months += num;
                     num_str.clear();
                 }
                 'D' => {
-                    let num: i32 = num_str.parse()
+                    let num: i32 = num_str
+                        .parse()
                         .map_err(|_| IntervalError::InvalidFormat(s.to_string()))?;
                     days += num;
                     num_str.clear();
                 }
                 'H' => {
-                    let num: i64 = num_str.parse()
+                    let num: i64 = num_str
+                        .parse()
                         .map_err(|_| IntervalError::InvalidFormat(s.to_string()))?;
                     microseconds += num * 3_600_000_000;
                     num_str.clear();
                 }
                 'M' if in_time_part => {
-                    let num: i64 = num_str.parse()
+                    let num: i64 = num_str
+                        .parse()
                         .map_err(|_| IntervalError::InvalidFormat(s.to_string()))?;
                     microseconds += num * 60_000_000;
                     num_str.clear();
                 }
                 'S' => {
-                    let num: f64 = num_str.parse()
+                    let num: f64 = num_str
+                        .parse()
                         .map_err(|_| IntervalError::InvalidFormat(s.to_string()))?;
                     microseconds += (num * 1_000_000.0) as i64;
                     num_str.clear();
@@ -244,7 +250,8 @@ impl IntervalValue {
         let mut i = 0;
 
         while i < parts.len() {
-            let num: f64 = parts[i].parse()
+            let num: f64 = parts[i]
+                .parse()
                 .map_err(|_| IntervalError::InvalidFormat(s.to_string()))?;
             i += 1;
 
@@ -290,20 +297,24 @@ impl IntervalValue {
             return Err(IntervalError::InvalidFormat(s.to_string()));
         }
 
-        let hours: i64 = parts[0].parse()
+        let hours: i64 = parts[0]
+            .parse()
             .map_err(|_| IntervalError::InvalidFormat(s.to_string()))?;
-        let minutes: i64 = parts[1].parse()
+        let minutes: i64 = parts[1]
+            .parse()
             .map_err(|_| IntervalError::InvalidFormat(s.to_string()))?;
 
         // Handle optional fractional seconds
         let sec_parts: Vec<&str> = parts[2].split('.').collect();
-        let seconds: i64 = sec_parts[0].parse()
+        let seconds: i64 = sec_parts[0]
+            .parse()
             .map_err(|_| IntervalError::InvalidFormat(s.to_string()))?;
 
         let mut micros = 0i64;
         if sec_parts.len() > 1 {
             let frac = format!("{:0<6}", sec_parts[1]);
-            let frac_6: i64 = frac[..6.min(frac.len())].parse()
+            let frac_6: i64 = frac[..6.min(frac.len())]
+                .parse()
                 .map_err(|_| IntervalError::InvalidFormat(s.to_string()))?;
             micros = frac_6;
         }
@@ -385,11 +396,7 @@ impl IntervalValue {
 
     /// Absolute value
     pub fn abs(&self) -> Self {
-        Self::new(
-            self.months.abs(),
-            self.days.abs(),
-            self.microseconds.abs(),
-        )
+        Self::new(self.months.abs(), self.days.abs(), self.microseconds.abs())
     }
 
     /// Format as ISO 8601 duration
@@ -453,10 +460,18 @@ impl IntervalValue {
         let micros = self.fractional_seconds();
 
         if years != 0 {
-            parts.push(format!("{} year{}", years, if years == 1 { "" } else { "s" }));
+            parts.push(format!(
+                "{} year{}",
+                years,
+                if years == 1 { "" } else { "s" }
+            ));
         }
         if months != 0 {
-            parts.push(format!("{} mon{}", months, if months == 1 { "" } else { "s" }));
+            parts.push(format!(
+                "{} mon{}",
+                months,
+                if months == 1 { "" } else { "s" }
+            ));
         }
         if days != 0 {
             parts.push(format!("{} day{}", days, if days == 1 { "" } else { "s" }));
@@ -590,7 +605,10 @@ mod tests {
         let iv = IntervalValue::parse("P1Y2M3DT4H5M6S").unwrap();
         assert_eq!(iv.months, 14);
         assert_eq!(iv.days, 3);
-        assert_eq!(iv.microseconds, 4 * 3_600_000_000 + 5 * 60_000_000 + 6 * 1_000_000);
+        assert_eq!(
+            iv.microseconds,
+            4 * 3_600_000_000 + 5 * 60_000_000 + 6 * 1_000_000
+        );
     }
 
     #[test]
@@ -601,10 +619,14 @@ mod tests {
 
     #[test]
     fn test_interval_parse_postgresql() {
-        let iv = IntervalValue::parse("1 year 2 months 3 days 4 hours 5 minutes 6 seconds").unwrap();
+        let iv =
+            IntervalValue::parse("1 year 2 months 3 days 4 hours 5 minutes 6 seconds").unwrap();
         assert_eq!(iv.months, 14);
         assert_eq!(iv.days, 3);
-        assert_eq!(iv.microseconds, 4 * 3_600_000_000 + 5 * 60_000_000 + 6 * 1_000_000);
+        assert_eq!(
+            iv.microseconds,
+            4 * 3_600_000_000 + 5 * 60_000_000 + 6 * 1_000_000
+        );
     }
 
     #[test]
@@ -617,7 +639,10 @@ mod tests {
     fn test_interval_parse_day_time() {
         let iv = IntervalValue::parse("3 4:05:06").unwrap();
         assert_eq!(iv.days, 3);
-        assert_eq!(iv.microseconds, 4 * 3_600_000_000 + 5 * 60_000_000 + 6 * 1_000_000);
+        assert_eq!(
+            iv.microseconds,
+            4 * 3_600_000_000 + 5 * 60_000_000 + 6 * 1_000_000
+        );
     }
 
     #[test]
@@ -687,7 +712,9 @@ mod tests {
 
     #[test]
     fn test_interval_time_components() {
-        let iv = IntervalValue::from_hours(25) + IntervalValue::from_minutes(30) + IntervalValue::from_seconds(45);
+        let iv = IntervalValue::from_hours(25)
+            + IntervalValue::from_minutes(30)
+            + IntervalValue::from_seconds(45);
         assert_eq!(iv.hours(), 25);
         assert_eq!(iv.minutes(), 30);
         assert_eq!(iv.seconds(), 45);

@@ -76,7 +76,9 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
     pub fn validate_no_self_reference(&self) -> Result<(), DBError> {
         if self.body_executor.id() == self.base.id {
             return Err(DBError::Query(
-                crate::core::error::QueryError::ExecutionError("Loop executors cannot be self-referential".to_string()),
+                crate::core::error::QueryError::ExecutionError(
+                    "Loop executors cannot be self-referential".to_string(),
+                ),
             ));
         }
         Ok(())
@@ -688,7 +690,9 @@ mod tests {
 
     #[test]
     fn test_for_loop_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create Mock store"),
+        ));
         let storage_clone = storage.clone();
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());

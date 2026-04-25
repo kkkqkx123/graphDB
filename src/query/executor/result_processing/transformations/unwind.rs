@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{Expression, Value};
-use crate::query::executor::base::{BaseExecutor, ExecutionResult};
 #[cfg(test)]
 use crate::query::executor::base::Executor;
+use crate::query::executor::base::{BaseExecutor, ExecutionResult};
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::{
     DefaultExpressionContext, ExpressionContext as EvalContext,

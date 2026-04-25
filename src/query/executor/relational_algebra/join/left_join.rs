@@ -477,7 +477,9 @@ mod tests {
 
     #[test]
     fn test_left_join_empty_right() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create Mock store")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create Mock store"),
+        ));
         let expr_context = Arc::new(ExpressionContextStruct::new());
 
         let expr1 = Expression::Variable("0".to_string());

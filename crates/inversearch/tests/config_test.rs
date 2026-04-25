@@ -2,7 +2,9 @@
 //!
 //! Tests for configuration loading, validation, and building
 
-use inversearch_service::config::{Config, ServerConfig, IndexConfig, CacheConfig, LoggingConfig, ConfigValidator, ValidationError};
+use inversearch_service::config::{
+    CacheConfig, Config, ConfigValidator, IndexConfig, LoggingConfig, ServerConfig, ValidationError,
+};
 
 /// Test Config default values
 ///
@@ -10,7 +12,7 @@ use inversearch_service::config::{Config, ServerConfig, IndexConfig, CacheConfig
 #[test]
 fn test_config_defaults() {
     let config = Config::default();
-    
+
     assert_eq!(config.server.host, "0.0.0.0");
     assert_eq!(config.server.port, 50051);
     assert_eq!(config.index.resolution, 9);
@@ -30,7 +32,7 @@ fn test_server_config_validation() {
         workers: 4,
     };
     assert!(config.validate().is_ok());
-    
+
     // Invalid: port 0
     let config = ServerConfig {
         host: "0.0.0.0".to_string(),
@@ -38,7 +40,7 @@ fn test_server_config_validation() {
         workers: 4,
     };
     assert!(config.validate().is_err());
-    
+
     // Invalid: empty host
     let config = ServerConfig {
         host: "".to_string(),
@@ -46,7 +48,7 @@ fn test_server_config_validation() {
         workers: 4,
     };
     assert!(config.validate().is_err());
-    
+
     // Invalid: workers 0
     let config = ServerConfig {
         host: "0.0.0.0".to_string(),
@@ -71,7 +73,7 @@ fn test_index_config_validation() {
         keystore: None,
     };
     assert!(config.validate().is_ok());
-    
+
     // Invalid: resolution too low
     let config = IndexConfig {
         resolution: 0,
@@ -82,7 +84,7 @@ fn test_index_config_validation() {
         keystore: None,
     };
     assert!(config.validate().is_err());
-    
+
     // Invalid: resolution too high
     let config = IndexConfig {
         resolution: 13,
@@ -93,7 +95,7 @@ fn test_index_config_validation() {
         keystore: None,
     };
     assert!(config.validate().is_err());
-    
+
     // Invalid: tokenize mode
     let config = IndexConfig {
         resolution: 9,
@@ -104,7 +106,7 @@ fn test_index_config_validation() {
         keystore: None,
     };
     assert!(config.validate().is_err());
-    
+
     // Invalid: depth too high
     let config = IndexConfig {
         resolution: 9,
@@ -129,7 +131,7 @@ fn test_cache_config_validation() {
         ttl: None,
     };
     assert!(config.validate().is_ok());
-    
+
     // Valid: enabled cache with proper size
     let config = CacheConfig {
         enabled: true,
@@ -137,7 +139,7 @@ fn test_cache_config_validation() {
         ttl: Some(3600),
     };
     assert!(config.validate().is_ok());
-    
+
     // Invalid: enabled cache with size 0
     let config = CacheConfig {
         enabled: true,
@@ -145,7 +147,7 @@ fn test_cache_config_validation() {
         ttl: None,
     };
     assert!(config.validate().is_err());
-    
+
     // Invalid: cache size too large
     let config = CacheConfig {
         enabled: true,
@@ -153,7 +155,7 @@ fn test_cache_config_validation() {
         ttl: None,
     };
     assert!(config.validate().is_err());
-    
+
     // Invalid: TTL too large
     let config = CacheConfig {
         enabled: true,
@@ -174,14 +176,14 @@ fn test_logging_config_validation() {
         format: "json".to_string(),
     };
     assert!(config.validate().is_ok());
-    
+
     // Invalid: log level
     let config = LoggingConfig {
         level: "invalid".to_string(),
         format: "json".to_string(),
     };
     assert!(config.validate().is_err());
-    
+
     // Invalid: log format
     let config = LoggingConfig {
         level: "info".to_string(),
@@ -198,12 +200,12 @@ fn test_full_config_validation() {
     // Valid config
     let config = Config::default();
     assert!(config.validate().is_ok());
-    
+
     // Invalid server config
     let mut config = Config::default();
     config.server.port = 0;
     assert!(config.validate().is_err());
-    
+
     // Invalid index config
     let mut config = Config::default();
     config.index.resolution = 0;
@@ -220,11 +222,16 @@ fn test_validation_error_messages() {
         port: 50051,
         workers: 4,
     };
-    
+
     let result = config.validate();
     assert!(result.is_err());
-    
-    if let Err(ValidationError::InvalidValue { field, value, reason }) = result {
+
+    if let Err(ValidationError::InvalidValue {
+        field,
+        value,
+        reason,
+    }) = result
+    {
         assert_eq!(field, "server.host");
         assert_eq!(value, "empty");
         assert!(!reason.is_empty());
@@ -269,9 +276,9 @@ fn test_config_from_toml_string() {
         level = "info"
         format = "json"
     "#;
-    
+
     let config: Config = toml::from_str(toml_content).unwrap();
-    
+
     assert_eq!(config.server.host, "0.0.0.0");
     assert_eq!(config.server.port, 50051);
     assert_eq!(config.index.resolution, 9);
@@ -309,7 +316,7 @@ fn test_config_from_toml_with_validation() {
         level = "info"
         format = "json"
     "#;
-    
+
     let config: Config = toml::from_str(toml_content).unwrap();
     assert!(config.validate().is_ok());
 }
@@ -344,7 +351,7 @@ fn test_invalid_config_rejection() {
         level = "info"
         format = "json"
     "#;
-    
+
     let config: Config = toml::from_str(toml_content).unwrap();
     assert!(config.validate().is_err());
 }

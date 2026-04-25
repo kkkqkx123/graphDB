@@ -291,7 +291,10 @@ mod tests {
         );
 
         // Test number
-        assert_eq!(json_to_value(serde_json::json!(42)), Some(Value::BigInt(42)));
+        assert_eq!(
+            json_to_value(serde_json::json!(42)),
+            Some(Value::BigInt(42))
+        );
 
         // Test string
         assert_eq!(

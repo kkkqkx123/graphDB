@@ -83,7 +83,10 @@ impl SearchQuery {
     }
 
     pub fn with_range(mut self, radius: f32, max_results: Option<usize>) -> Self {
-        self.search_mode = Some(SearchMode::Range { radius, max_results });
+        self.search_mode = Some(SearchMode::Range {
+            radius,
+            max_results,
+        });
         self.score_threshold = Some(radius);
         if let Some(max) = max_results {
             self.limit = max;

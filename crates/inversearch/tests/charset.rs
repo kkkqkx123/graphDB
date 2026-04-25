@@ -6,7 +6,7 @@
 mod common;
 
 mod charset {
-    mod latin_test;
     mod cjk_test;
+    mod latin_test;
     mod mixed_test;
 }

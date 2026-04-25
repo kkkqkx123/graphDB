@@ -11,9 +11,7 @@ mod common;
 
 use graphdb::core::types::expr::Expression;
 use graphdb::core::types::DataType;
-use graphdb::core::value::{
-    DateTimeValue, DateValue, GeographyValue, NullType, TimeValue, Value,
-};
+use graphdb::core::value::{DateTimeValue, DateValue, GeographyValue, NullType, TimeValue, Value};
 use graphdb::query::executor::expression::evaluation_context::DefaultExpressionContext;
 use graphdb::query::executor::expression::functions::FunctionRegistry;
 use graphdb::query::executor::expression::{ExpressionContext, ExpressionEvaluator};

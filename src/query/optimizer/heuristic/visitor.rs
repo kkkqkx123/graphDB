@@ -351,9 +351,10 @@ mod tests {
         let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
 
         let start = PlanNodeEnum::Start(StartNode::new());
-        let project = ProjectNode::new(start.clone(), vec![]).expect("Failed to create ProjectNode");
-        let filter =
-            FilterNode::new(PlanNodeEnum::Project(project), ctx_expr).expect("Failed to create FilterNode");
+        let project =
+            ProjectNode::new(start.clone(), vec![]).expect("Failed to create ProjectNode");
+        let filter = FilterNode::new(PlanNodeEnum::Project(project), ctx_expr)
+            .expect("Failed to create FilterNode");
 
         let mut rewrite_ctx = RewriteContext::new();
         let rewriter = PlanRewriter::new();

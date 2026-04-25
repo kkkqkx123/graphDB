@@ -1,11 +1,10 @@
 use qdrant_client::qdrant::{
-    Filter, GeoBoundingBox as QdrantGeoBoundingBox,
-    GeoPoint as QdrantGeoPoint, GeoRadius as QdrantGeoRadius, Range,
-    ValuesCount, Condition, PointId,
+    Condition, Filter, GeoBoundingBox as QdrantGeoBoundingBox, GeoPoint as QdrantGeoPoint,
+    GeoRadius as QdrantGeoRadius, PointId, Range, ValuesCount,
 };
 
 use crate::error::{Result, VectorClientError};
-use crate::types::{VectorFilter, FilterCondition, ConditionType};
+use crate::types::{ConditionType, FilterCondition, VectorFilter};
 
 pub fn convert_filter(filter: &VectorFilter) -> Result<Filter> {
     let mut qdrant_filter = Filter::default();
@@ -72,10 +71,7 @@ fn convert_condition(condition: &FilterCondition) -> Result<Option<Condition>> {
         ConditionType::IsEmpty => Condition::is_empty(condition.field.clone()),
         ConditionType::IsNull => Condition::is_null(condition.field.clone()),
         ConditionType::HasId { ids } => {
-            let point_ids: Vec<PointId> = ids
-                .iter()
-                .map(|id| point_id_from_str(id))
-                .collect();
+            let point_ids: Vec<PointId> = ids.iter().map(|id| point_id_from_str(id)).collect();
             Condition::has_id(point_ids)
         }
         ConditionType::GeoRadius(radius) => Condition::geo_radius(
@@ -138,10 +134,7 @@ fn convert_condition(condition: &FilterCondition) -> Result<Option<Condition>> {
                     if strings.len() == arr.len() {
                         return Ok(Some(Condition::matches(field_path, strings)));
                     }
-                    let ints: Vec<i64> = arr
-                        .iter()
-                        .filter_map(|v| v.as_i64())
-                        .collect();
+                    let ints: Vec<i64> = arr.iter().filter_map(|v| v.as_i64()).collect();
                     if ints.len() == arr.len() {
                         return Ok(Some(Condition::matches(field_path, ints)));
                     }

@@ -770,7 +770,9 @@ impl StatementValidator for MatchValidator {
         if self.aliases.len() > 10 {
             info.add_optimization_hint(
                 crate::query::validator::OptimizationHint::PerformanceWarning {
-                    message: "Queries contain a large number of aliases, which may affect performance".to_string(),
+                    message:
+                        "Queries contain a large number of aliases, which may affect performance"
+                            .to_string(),
                     severity: crate::query::validator::HintSeverity::Warning,
                 },
             );

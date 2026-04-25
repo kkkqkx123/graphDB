@@ -1,10 +1,12 @@
 use qdrant_client::qdrant::{
-    Distance, HnswConfigDiffBuilder, FieldType,
-    ScalarQuantizationBuilder, ProductQuantizationBuilder, BinaryQuantizationBuilder,
-    quantization_config::Quantization as QdrantQuantization,
+    quantization_config::Quantization as QdrantQuantization, BinaryQuantizationBuilder, Distance,
+    FieldType, HnswConfigDiffBuilder, ProductQuantizationBuilder, ScalarQuantizationBuilder,
 };
 
-use crate::types::{DistanceMetric, HnswConfig, QuantizationConfig, QuantizationType, CompressionRatio, PayloadSchemaType, IndexType};
+use crate::types::{
+    CompressionRatio, DistanceMetric, HnswConfig, IndexType, PayloadSchemaType, QuantizationConfig,
+    QuantizationType,
+};
 
 pub fn convert_distance(distance: DistanceMetric) -> Distance {
     match distance {
@@ -55,7 +57,10 @@ pub fn build_quantization_config(
         }
 
         let qdrant_quant_config = match &quant.quant_type {
-            Some(QuantizationType::Scalar { quantile, always_ram }) => {
+            Some(QuantizationType::Scalar {
+                quantile,
+                always_ram,
+            }) => {
                 let mut builder = ScalarQuantizationBuilder::default();
                 if let Some(q) = quantile {
                     builder = builder.quantile(*q);
@@ -65,7 +70,10 @@ pub fn build_quantization_config(
                 }
                 QdrantQuantization::from(builder)
             }
-            Some(QuantizationType::Product { compression, always_ram }) => {
+            Some(QuantizationType::Product {
+                compression,
+                always_ram,
+            }) => {
                 let compression_value = match compression {
                     CompressionRatio::X4 => 4,
                     CompressionRatio::X8 => 8,

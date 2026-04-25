@@ -5,6 +5,6 @@
 mod common;
 
 mod resolver {
-    mod set_operations_test;
     mod enrich_test;
+    mod set_operations_test;
 }

@@ -210,7 +210,8 @@ mod tests {
                 is_matched: false,
             },
         ];
-        let child_proj = ProjectNode::new(start, child_columns).expect("Failed to create lower-level Project");
+        let child_proj =
+            ProjectNode::new(start, child_columns).expect("Failed to create lower-level Project");
         let child_node = PlanNodeEnum::Project(child_proj);
 
         // Create an upper-level Project node that references the alias of the lower-level Project.
@@ -224,14 +225,16 @@ mod tests {
             alias: "result".to_string(),
             is_matched: false,
         }];
-        let parent_proj =
-            ProjectNode::new(child_node, parent_columns).expect("Failed to create upper-level Project");
+        let parent_proj = ProjectNode::new(child_node, parent_columns)
+            .expect("Failed to create upper-level Project");
         let parent_node = PlanNodeEnum::Project(parent_proj);
 
         // Apply the rules
         let rule = CollapseConsecutiveProjectRule::new();
         let mut ctx = RewriteContext::new();
-        let result = rule.apply(&mut ctx, &parent_node).expect("Failed to apply rule");
+        let result = rule
+            .apply(&mut ctx, &parent_node)
+            .expect("Failed to apply rule");
 
         assert!(
             result.is_some(),

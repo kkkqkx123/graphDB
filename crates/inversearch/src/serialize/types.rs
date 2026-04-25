@@ -277,7 +277,7 @@ impl IndexExportData {
     /// 从索引创建导出数据
     pub fn from_index(index: &crate::Index) -> crate::error::Result<Self> {
         use chrono::Utc;
-        
+
         Ok(Self {
             version: env!("CARGO_PKG_VERSION").to_string(),
             created_at: Utc::now().to_rfc3339(),
@@ -312,19 +312,19 @@ impl IndexExportData {
     pub fn apply_to_index(&self, index: &mut crate::Index) -> crate::error::Result<()> {
         // 应用配置
         index.apply_config(&self.config)?;
-        
+
         // 清空当前索引
         index.clear();
-        
+
         // 恢复主索引
         index.import_main_index(&self.data.main_index)?;
-        
+
         // 恢复上下文索引
         index.import_context_index(&self.data.context_index)?;
-        
+
         // 恢复注册表
         index.import_registry(&self.data.registry)?;
-        
+
         Ok(())
     }
 }

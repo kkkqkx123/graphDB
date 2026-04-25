@@ -943,7 +943,8 @@ mod tests {
 
         // Complex types
         assert_eq!(
-            calculator.get_type_cost_factor(&Value::List(Box::<crate::core::value::List>::default())),
+            calculator
+                .get_type_cost_factor(&Value::List(Box::<crate::core::value::List>::default())),
             calculator.config.complex_type_cost_factor
         );
 

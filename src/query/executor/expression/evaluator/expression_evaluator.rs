@@ -139,7 +139,11 @@ impl ExpressionEvaluator {
                         match condition_result {
                             Value::Bool(true) => return Self::evaluate_recursive(value, context),
                             Value::Bool(false) => continue,
-                            _ => return Err(ExpressionError::type_error("CASE conditions must be Boolean")),
+                            _ => {
+                                return Err(ExpressionError::type_error(
+                                    "CASE conditions must be Boolean",
+                                ))
+                            }
                         }
                     }
                 }
@@ -227,7 +231,9 @@ impl ExpressionEvaluator {
             }
 
             // Other types of expressions that require runtime context to be executed
-            Expression::Label(_) => Err(ExpressionError::type_error("Unsolved labeled expressions")),
+            Expression::Label(_) => {
+                Err(ExpressionError::type_error("Unsolved labeled expressions"))
+            }
             Expression::ListComprehension { .. } => Err(ExpressionError::type_error(
                 "List Derivation Expressions Require Runtime Contexts",
             )),
@@ -237,15 +243,15 @@ impl ExpressionEvaluator {
             Expression::TagProperty { .. } => Err(ExpressionError::type_error(
                 "Tagged attribute expressions require runtime context",
             )),
-            Expression::EdgeProperty { .. } => {
-                Err(ExpressionError::type_error("Edge attribute expressions require runtime context"))
-            }
-            Expression::Predicate { .. } => {
-                Err(ExpressionError::type_error("Predicate expressions require a runtime context"))
-            }
-            Expression::Reduce { .. } => {
-                Err(ExpressionError::type_error("Inductive expressions require a runtime context"))
-            }
+            Expression::EdgeProperty { .. } => Err(ExpressionError::type_error(
+                "Edge attribute expressions require runtime context",
+            )),
+            Expression::Predicate { .. } => Err(ExpressionError::type_error(
+                "Predicate expressions require a runtime context",
+            )),
+            Expression::Reduce { .. } => Err(ExpressionError::type_error(
+                "Inductive expressions require a runtime context",
+            )),
             Expression::PathBuild(_) => Err(ExpressionError::type_error(
                 "Path construction expressions require a runtime context",
             )),

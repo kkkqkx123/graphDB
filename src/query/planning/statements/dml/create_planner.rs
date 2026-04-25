@@ -341,7 +341,9 @@ impl CreatePlanner {
                 ))
             }
         } else {
-            Err(PlannerError::PlanGenerationFailed("Invalid expression".to_string()))
+            Err(PlannerError::PlanGenerationFailed(
+                "Invalid expression".to_string(),
+            ))
         }
     }
 
@@ -436,7 +438,8 @@ impl CreatePlanner {
                 }
                 _ => {
                     return Err(PlannerError::PlanGenerationFailed(
-                        "Path creation does not support Alternative, Optional, or Repeated modes.".to_string(),
+                        "Path creation does not support Alternative, Optional, or Repeated modes."
+                            .to_string(),
                     ));
                 }
             }

@@ -235,9 +235,7 @@ mod tests {
 
     #[test]
     fn test_builder_memory_mb() {
-        let config = IndexManagerConfig::builder()
-            .writer_memory_mb(100)
-            .build();
+        let config = IndexManagerConfig::builder().writer_memory_mb(100).build();
         assert_eq!(config.writer_memory_budget, 100_000_000);
     }
 
@@ -251,17 +249,13 @@ mod tests {
 
     #[test]
     fn test_builder_threads() {
-        let config = IndexManagerConfig::builder()
-            .writer_threads(4)
-            .build();
+        let config = IndexManagerConfig::builder().writer_threads(4).build();
         assert_eq!(config.writer_num_threads, Some(4));
     }
 
     #[test]
     fn test_builder_reader_cache() {
-        let config = IndexManagerConfig::builder()
-            .reader_cache(false)
-            .build();
+        let config = IndexManagerConfig::builder().reader_cache(false).build();
         assert!(!config.reader_cache_enabled);
     }
 
@@ -679,10 +673,7 @@ mod bm25_builder_tests {
 
     #[test]
     fn test_bm25_builder_chain() {
-        let config = Bm25Config::builder()
-            .k1(2.0)
-            .b(0.5)
-            .build();
+        let config = Bm25Config::builder().k1(2.0).b(0.5).build();
         assert_eq!(config.k1, 2.0);
         assert_eq!(config.b, 0.5);
     }

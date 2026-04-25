@@ -5,7 +5,7 @@
 
 use crate::error::Result;
 use crate::storage::common::types::StorageInfo;
-use crate::{Index, DocId};
+use crate::{DocId, Index};
 use std::sync::Arc;
 
 // 根据特性导入具体存储类型
@@ -15,10 +15,20 @@ use crate::storage::cold_warm_cache::ColdWarmCacheManager;
 #[cfg(all(feature = "store-file", not(feature = "store-cold-warm-cache")))]
 use crate::storage::file::FileStorage;
 
-#[cfg(all(feature = "store-redis", not(any(feature = "store-cold-warm-cache", feature = "store-file"))))]
+#[cfg(all(
+    feature = "store-redis",
+    not(any(feature = "store-cold-warm-cache", feature = "store-file"))
+))]
 use crate::storage::redis::RedisStorage;
 
-#[cfg(all(feature = "store-wal", not(any(feature = "store-cold-warm-cache", feature = "store-file", feature = "store-redis"))))]
+#[cfg(all(
+    feature = "store-wal",
+    not(any(
+        feature = "store-cold-warm-cache",
+        feature = "store-file",
+        feature = "store-redis"
+    ))
+))]
 use crate::storage::wal::WALStorage;
 
 // 定义默认存储类型
@@ -28,20 +38,40 @@ pub type DefaultStorage = ColdWarmCacheManager;
 #[cfg(all(feature = "store-file", not(feature = "store-cold-warm-cache")))]
 pub type DefaultStorage = FileStorage;
 
-#[cfg(all(feature = "store-redis", not(any(feature = "store-cold-warm-cache", feature = "store-file"))))]
+#[cfg(all(
+    feature = "store-redis",
+    not(any(feature = "store-cold-warm-cache", feature = "store-file"))
+))]
 pub type DefaultStorage = RedisStorage;
 
-#[cfg(all(feature = "store-wal", not(any(feature = "store-cold-warm-cache", feature = "store-file", feature = "store-redis"))))]
+#[cfg(all(
+    feature = "store-wal",
+    not(any(
+        feature = "store-cold-warm-cache",
+        feature = "store-file",
+        feature = "store-redis"
+    ))
+))]
 pub type DefaultStorage = WALStorage;
 
-#[cfg(not(any(feature = "store-cold-warm-cache", feature = "store-file", feature = "store-redis", feature = "store-wal")))]
+#[cfg(not(any(
+    feature = "store-cold-warm-cache",
+    feature = "store-file",
+    feature = "store-redis",
+    feature = "store-wal"
+)))]
 use crate::storage::memory::MemoryStorage;
 
-#[cfg(not(any(feature = "store-cold-warm-cache", feature = "store-file", feature = "store-redis", feature = "store-wal")))]
+#[cfg(not(any(
+    feature = "store-cold-warm-cache",
+    feature = "store-file",
+    feature = "store-redis",
+    feature = "store-wal"
+)))]
 pub type DefaultStorage = MemoryStorage;
 
 /// 存储管理器
-/// 
+///
 /// 使用条件编译确定具体存储类型，提供零成本抽象的存储管理
 #[derive(Clone)]
 pub struct StorageManager {
@@ -162,7 +192,7 @@ impl StorageManager {
 }
 
 /// 存储管理器构建器
-/// 
+///
 /// 用于根据配置创建存储管理器
 pub struct StorageManagerBuilder;
 
@@ -174,30 +204,45 @@ impl StorageManagerBuilder {
             let storage = ColdWarmCacheManager::new().await?;
             Ok(StorageManager::new(storage))
         }
-        
+
         #[cfg(all(feature = "store-file", not(feature = "store-cold-warm-cache")))]
         {
             let storage = Arc::new(FileStorage::new("./data"));
             Ok(StorageManager::new(storage))
         }
-        
-        #[cfg(all(feature = "store-redis", not(any(feature = "store-cold-warm-cache", feature = "store-file"))))]
+
+        #[cfg(all(
+            feature = "store-redis",
+            not(any(feature = "store-cold-warm-cache", feature = "store-file"))
+        ))]
         {
             use crate::storage::redis::RedisStorageConfig;
             let config = RedisStorageConfig::default();
             let storage = RedisStorage::new(config).await?;
             Ok(StorageManager::new(Arc::new(storage)))
         }
-        
-        #[cfg(all(feature = "store-wal", not(any(feature = "store-cold-warm-cache", feature = "store-file", feature = "store-redis"))))]
+
+        #[cfg(all(
+            feature = "store-wal",
+            not(any(
+                feature = "store-cold-warm-cache",
+                feature = "store-file",
+                feature = "store-redis"
+            ))
+        ))]
         {
             use crate::storage::wal::WALConfig;
             let config = WALConfig::default();
             let storage = WALStorage::new(config).await?;
             Ok(StorageManager::new(Arc::new(storage)))
         }
-        
-        #[cfg(not(any(feature = "store-cold-warm-cache", feature = "store-file", feature = "store-redis", feature = "store-wal")))]
+
+        #[cfg(not(any(
+            feature = "store-cold-warm-cache",
+            feature = "store-file",
+            feature = "store-redis",
+            feature = "store-wal"
+        )))]
         {
             let storage = Arc::new(MemoryStorage::new());
             Ok(StorageManager::new(storage))
@@ -213,10 +258,10 @@ mod tests {
     async fn test_storage_manager_creation() {
         let manager = StorageManagerBuilder::build_default().await;
         assert!(manager.is_ok());
-        
+
         let manager = manager.unwrap();
         assert!(manager.open().await.is_ok());
-        
+
         let info = manager.info().await.unwrap();
         assert!(!info.name.is_empty());
     }
@@ -224,12 +269,12 @@ mod tests {
     #[tokio::test]
     async fn test_storage_operations() {
         let manager = StorageManagerBuilder::build_default().await.unwrap();
-        
+
         // 测试基本操作
         assert!(manager.has(1).await.is_ok());
         assert!(manager.remove(&[1, 2, 3]).await.is_ok());
         assert!(manager.clear().await.is_ok());
-        
+
         // 测试搜索
         let results = manager.get("test", None, 10, 0, true, false).await;
         assert!(results.is_ok());

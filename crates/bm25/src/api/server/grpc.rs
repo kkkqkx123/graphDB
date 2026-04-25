@@ -9,8 +9,8 @@ use super::proto::{
 };
 use crate::api::core::{batch, delete, document, search, stats};
 use crate::api::core::{IndexManager, IndexSchema};
-use crate::storage::{MutableStorageManager, StorageManagerBuilder};
 use crate::config::StorageType;
+use crate::storage::{MutableStorageManager, StorageManagerBuilder};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -38,7 +38,7 @@ impl BM25Service {
     /// 创建服务并初始化存储层
     pub async fn with_storage(config: Config) -> Result<Self, anyhow::Error> {
         let index_path = PathBuf::from(&config.index.index_path);
-        
+
         // 根据配置创建存储管理器
         let storage_manager = match config.storage.storage_type {
             StorageType::Tantivy => {
@@ -48,7 +48,9 @@ impl BM25Service {
                         index_path: std::path::PathBuf::from(&config.storage.tantivy.index_path),
                         writer_memory_mb: config.storage.tantivy.writer_memory_mb,
                     };
-                    Arc::new(StorageManagerBuilder::build_mutable_tantivy(tantivy_config)?)
+                    Arc::new(StorageManagerBuilder::build_mutable_tantivy(
+                        tantivy_config,
+                    )?)
                 }
                 #[cfg(not(feature = "storage-tantivy"))]
                 {
@@ -61,11 +63,19 @@ impl BM25Service {
                     let redis_config = crate::storage::redis::RedisStorageConfig {
                         url: config.storage.redis.url.clone(),
                         pool_size: config.storage.redis.pool_size,
-                        connection_timeout: std::time::Duration::from_secs(config.storage.redis.connection_timeout_secs),
+                        connection_timeout: std::time::Duration::from_secs(
+                            config.storage.redis.connection_timeout_secs,
+                        ),
                         key_prefix: config.storage.redis.key_prefix.clone(),
                         min_idle: config.storage.redis.min_idle,
-                        max_lifetime: config.storage.redis.max_lifetime_secs.map(std::time::Duration::from_secs),
-                        connection_timeout_bb8: std::time::Duration::from_secs(config.storage.redis.connection_timeout_secs),
+                        max_lifetime: config
+                            .storage
+                            .redis
+                            .max_lifetime_secs
+                            .map(std::time::Duration::from_secs),
+                        connection_timeout_bb8: std::time::Duration::from_secs(
+                            config.storage.redis.connection_timeout_secs,
+                        ),
                     };
                     Arc::new(StorageManagerBuilder::build_mutable_redis(redis_config).await?)
                 }
@@ -78,7 +88,9 @@ impl BM25Service {
                         index_path: std::path::PathBuf::from(&config.storage.tantivy.index_path),
                         writer_memory_mb: config.storage.tantivy.writer_memory_mb,
                     };
-                    Arc::new(StorageManagerBuilder::build_mutable_tantivy(tantivy_config)?)
+                    Arc::new(StorageManagerBuilder::build_mutable_tantivy(
+                        tantivy_config,
+                    )?)
                 }
                 #[cfg(not(any(feature = "storage-redis", feature = "storage-tantivy")))]
                 {
@@ -86,10 +98,10 @@ impl BM25Service {
                 }
             }
         };
-        
+
         // 初始化存储
         storage_manager.init().await?;
-        
+
         Ok(Self {
             _config: config,
             index_path,
@@ -137,9 +149,16 @@ impl Bm25ServiceTrait for BM25Service {
         // 使用存储层集成
         if let Some(ref storage) = self.storage {
             let avg_doc_length = self._config.bm25.avg_doc_length;
-            document::add_document_with_storage(&manager, storage, &schema, &req.document_id, &fields, avg_doc_length)
-                .await
-                .map_err(|e| Status::internal(format!("Failed to index document: {}", e)))?;
+            document::add_document_with_storage(
+                &manager,
+                storage,
+                &schema,
+                &req.document_id,
+                &fields,
+                avg_doc_length,
+            )
+            .await
+            .map_err(|e| Status::internal(format!("Failed to index document: {}", e)))?;
         } else {
             document::add_document(&manager, &schema, &req.document_id, &fields)
                 .map_err(|e| Status::internal(format!("Failed to index document: {}", e)))?;
@@ -175,9 +194,15 @@ impl Bm25ServiceTrait for BM25Service {
         // 使用存储层集成
         let count = if let Some(ref storage) = self.storage {
             let avg_doc_length = self._config.bm25.avg_doc_length;
-            batch::batch_add_documents_with_storage(&manager, storage, &schema, documents, avg_doc_length)
-                .await
-                .map_err(|e| Status::internal(format!("Failed to batch index documents: {}", e)))?
+            batch::batch_add_documents_with_storage(
+                &manager,
+                storage,
+                &schema,
+                documents,
+                avg_doc_length,
+            )
+            .await
+            .map_err(|e| Status::internal(format!("Failed to batch index documents: {}", e)))?
         } else {
             batch::batch_add_documents(&manager, &schema, documents)
                 .map_err(|e| Status::internal(format!("Failed to batch index documents: {}", e)))?

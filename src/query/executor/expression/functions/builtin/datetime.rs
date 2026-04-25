@@ -123,7 +123,9 @@ fn execute_date(args: &[Value]) -> Result<Value, ExpressionError> {
             Value::String(s) => {
                 // Parse the date
                 let naivedate = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").map_err(|_| {
-                    ExpressionError::type_error("Unable to parse date string, expect format: YYYY-MM-DD")
+                    ExpressionError::type_error(
+                        "Unable to parse date string, expect format: YYYY-MM-DD",
+                    )
                 })?;
                 let date = DateValue {
                     year: naivedate.year(),
@@ -133,7 +135,9 @@ fn execute_date(args: &[Value]) -> Result<Value, ExpressionError> {
                 Ok(Value::Date(date))
             }
             Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("The date function requires a string type")),
+            _ => Err(ExpressionError::type_error(
+                "The date function requires a string type",
+            )),
         }
     }
 }
@@ -155,7 +159,9 @@ fn execute_time(args: &[Value]) -> Result<Value, ExpressionError> {
                 let time = chrono::NaiveTime::parse_from_str(s, "%H:%M:%S%.f")
                     .or_else(|_| chrono::NaiveTime::parse_from_str(s, "%H:%M:%S"))
                     .map_err(|_| {
-                        ExpressionError::type_error("Unable to parse time string, expect format: HH:MM:SS")
+                        ExpressionError::type_error(
+                            "Unable to parse time string, expect format: HH:MM:SS",
+                        )
                     })?;
                 let time_val = TimeValue {
                     hour: time.hour(),
@@ -166,7 +172,9 @@ fn execute_time(args: &[Value]) -> Result<Value, ExpressionError> {
                 Ok(Value::Time(time_val))
             }
             Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("The time function requires a string type")),
+            _ => Err(ExpressionError::type_error(
+                "The time function requires a string type",
+            )),
         }
     }
 }
@@ -211,7 +219,9 @@ fn execute_datetime(args: &[Value]) -> Result<Value, ExpressionError> {
                 Ok(Value::DateTime(dt_val))
             }
             Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("The datetime function requires a string type")),
+            _ => Err(ExpressionError::type_error(
+                "The datetime function requires a string type",
+            )),
         }
     }
 }

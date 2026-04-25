@@ -500,8 +500,7 @@ mod tests {
                 properties: HashMap::new(),
             }],
         );
-        let vertex1_bytes =
-            encode_to_vec(&vertex1).expect("Vertex serialization failed");
+        let vertex1_bytes = encode_to_vec(&vertex1).expect("Vertex serialization failed");
 
         let vertex2 = Vertex::new(
             Value::Int(2),
@@ -510,8 +509,7 @@ mod tests {
                 properties: HashMap::new(),
             }],
         );
-        let vertex2_bytes =
-            encode_to_vec(&vertex2).expect("Vertex serialization failed");
+        let vertex2_bytes = encode_to_vec(&vertex2).expect("Vertex serialization failed");
 
         ctx.add_log(OperationLog::InsertVertex {
             space: "test".to_string(),

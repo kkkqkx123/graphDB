@@ -8,10 +8,7 @@
 
 use inversearch_service::search::search;
 
-use crate::common::{
-    create_english_index, create_empty_index,
-    basic_search_options,
-};
+use crate::common::{basic_search_options, create_empty_index, create_english_index};
 
 /// 测试空查询
 #[test]
@@ -34,7 +31,11 @@ fn test_nonexistent_term() {
     let result = search(&index, &options).unwrap();
 
     // 应该返回空结果
-    assert!(result.results.is_empty(), "Expected empty results, got {:?}", result.results);
+    assert!(
+        result.results.is_empty(),
+        "Expected empty results, got {:?}",
+        result.results
+    );
     assert_eq!(result.total, 0, "总数应该为 0");
 }
 
@@ -93,7 +94,10 @@ fn test_numeric_query() {
     let result = search(&index, &options).unwrap();
 
     // 应该找到文档 1
-    assert!(result.results.contains(&1), "Expected results to contain document 1");
+    assert!(
+        result.results.contains(&1),
+        "Expected results to contain document 1"
+    );
 }
 
 /// 测试 Unicode 字符
@@ -116,7 +120,9 @@ fn test_xss_protection() {
     let mut index = create_empty_index();
 
     // 尝试添加包含脚本标签的内容
-    index.add(1, "<script>alert('xss')</script>", false).unwrap();
+    index
+        .add(1, "<script>alert('xss')</script>", false)
+        .unwrap();
 
     // 搜索脚本标签
     let options = basic_search_options("script");

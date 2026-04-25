@@ -51,7 +51,9 @@ impl ClausePlanner for PaginationPlanner {
         let pagination = extract_pagination_info(stmt);
 
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("The LIMIT/SKIP clause requires a schedule entry.".to_string())
+            PlannerError::PlanGenerationFailed(
+                "The LIMIT/SKIP clause requires a schedule entry.".to_string(),
+            )
         })?;
 
         let limit_node = LimitNode::new(

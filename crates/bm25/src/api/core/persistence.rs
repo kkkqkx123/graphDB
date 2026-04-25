@@ -1,5 +1,5 @@
-use crate::error::Result;
 use crate::api::core::{IndexManager, IndexSchema};
+use crate::error::Result;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::{Read, Write};

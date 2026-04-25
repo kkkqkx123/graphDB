@@ -5,9 +5,9 @@
 //! - 并发写入安全性
 //! - 并发添加后数据一致性
 
+use inversearch_service::{Index, IndexOptions};
 use std::sync::Arc;
 use std::thread;
-use inversearch_service::{Index, IndexOptions};
 
 /// 测试单线程批量添加基准
 #[test]
@@ -37,7 +37,12 @@ fn test_concurrent_add_with_mutex() {
             for i in 1..=25 {
                 let doc_id = thread_id * 25 + i;
                 let mut idx = index_clone.lock().unwrap();
-                idx.add(doc_id as u64, &format!("Thread {} Document {}", thread_id, i), false).unwrap();
+                idx.add(
+                    doc_id as u64,
+                    &format!("Thread {} Document {}", thread_id, i),
+                    false,
+                )
+                .unwrap();
             }
         });
         handles.push(handle);
@@ -68,7 +73,8 @@ fn test_concurrent_add_unique_ids() {
             for i in 0..100 {
                 let doc_id = start_id + i;
                 let mut idx = index_clone.lock().unwrap();
-                idx.add(doc_id, &format!("Document {}", doc_id), false).unwrap();
+                idx.add(doc_id, &format!("Document {}", doc_id), false)
+                    .unwrap();
             }
         });
         handles.push(handle);
@@ -106,7 +112,8 @@ fn test_concurrent_add_and_verify() {
             for i in 1..=50 {
                 let doc_id = batch * 50 + i;
                 let mut idx = index_clone.lock().unwrap();
-                idx.add(doc_id as u64, &format!("Batch {} Doc {}", batch, i), false).unwrap();
+                idx.add(doc_id as u64, &format!("Batch {} Doc {}", batch, i), false)
+                    .unwrap();
             }
         });
         handles.push(handle);
@@ -138,7 +145,8 @@ fn test_concurrent_add_same_id() {
         let index_clone = Arc::clone(&index);
         let handle = thread::spawn(move || {
             let mut idx = index_clone.lock().unwrap();
-            idx.add(1, &format!("Thread {} content", thread_id), false).unwrap();
+            idx.add(1, &format!("Thread {} content", thread_id), false)
+                .unwrap();
         });
         handles.push(handle);
     }
@@ -166,7 +174,8 @@ fn test_concurrent_add_large_batch() {
             for i in 0..250 {
                 let doc_id = start_id + i;
                 let mut idx = index_clone.lock().unwrap();
-                idx.add(doc_id, &format!("Document {}", doc_id), false).unwrap();
+                idx.add(doc_id, &format!("Document {}", doc_id), false)
+                    .unwrap();
             }
         });
         handles.push(handle);

@@ -269,7 +269,9 @@ define_binary_numeric_fn!(
 
 fn execute_sign(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
-        return Err(ExpressionError::type_error("The sign function takes 1 argument"));
+        return Err(ExpressionError::type_error(
+            "The sign function takes 1 argument",
+        ));
     }
     match &args[0] {
         Value::SmallInt(i) => Ok(Value::SmallInt(i.signum())),
@@ -278,7 +280,9 @@ fn execute_sign(args: &[Value]) -> Result<Value, ExpressionError> {
         Value::Float(f) => Ok(Value::Int(f.signum() as i32)),
         Value::Double(f) => Ok(Value::BigInt(f.signum() as i64)),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("The sign function requires a numeric type")),
+        _ => Err(ExpressionError::type_error(
+            "The sign function requires a numeric type",
+        )),
     }
 }
 
@@ -296,14 +300,26 @@ fn execute_rand32(args: &[Value]) -> Result<Value, ExpressionError> {
         1 => match &args[0] {
             Value::Int(max) => rng.gen_range(0..*max),
             Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-            _ => return Err(ExpressionError::type_error("The rand32 function takes integer arguments")),
+            _ => {
+                return Err(ExpressionError::type_error(
+                    "The rand32 function takes integer arguments",
+                ))
+            }
         },
         2 => match (&args[0], &args[1]) {
             (Value::Int(min), Value::Int(max)) => rng.gen_range(*min..*max),
             (Value::Null(_), _) | (_, Value::Null(_)) => return Ok(Value::Null(NullType::Null)),
-            _ => return Err(ExpressionError::type_error("The rand32 function takes integer arguments")),
+            _ => {
+                return Err(ExpressionError::type_error(
+                    "The rand32 function takes integer arguments",
+                ))
+            }
         },
-        _ => return Err(ExpressionError::type_error("The rand32 function takes 0-2 arguments")),
+        _ => {
+            return Err(ExpressionError::type_error(
+                "The rand32 function takes 0-2 arguments",
+            ))
+        }
     };
     Ok(Value::Int(result))
 }
@@ -324,40 +340,52 @@ fn execute_pi(_args: &[Value]) -> Result<Value, ExpressionError> {
 
 fn execute_bit_and(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 2 {
-        return Err(ExpressionError::type_error("The bit_and function takes 2 arguments"));
+        return Err(ExpressionError::type_error(
+            "The bit_and function takes 2 arguments",
+        ));
     }
     match (&args[0], &args[1]) {
         (Value::SmallInt(a), Value::SmallInt(b)) => Ok(Value::SmallInt(a & b)),
         (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a & b)),
         (Value::BigInt(a), Value::BigInt(b)) => Ok(Value::BigInt(a & b)),
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("The bit_and function takes integer arguments")),
+        _ => Err(ExpressionError::type_error(
+            "The bit_and function takes integer arguments",
+        )),
     }
 }
 
 fn execute_bit_or(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 2 {
-        return Err(ExpressionError::type_error("The bit_or function takes 2 arguments"));
+        return Err(ExpressionError::type_error(
+            "The bit_or function takes 2 arguments",
+        ));
     }
     match (&args[0], &args[1]) {
         (Value::SmallInt(a), Value::SmallInt(b)) => Ok(Value::SmallInt(a | b)),
         (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a | b)),
         (Value::BigInt(a), Value::BigInt(b)) => Ok(Value::BigInt(a | b)),
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("The bit_or function takes integer arguments")),
+        _ => Err(ExpressionError::type_error(
+            "The bit_or function takes integer arguments",
+        )),
     }
 }
 
 fn execute_bit_xor(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.len() != 2 {
-        return Err(ExpressionError::type_error("The bit_xor function takes 2 arguments"));
+        return Err(ExpressionError::type_error(
+            "The bit_xor function takes 2 arguments",
+        ));
     }
     match (&args[0], &args[1]) {
         (Value::SmallInt(a), Value::SmallInt(b)) => Ok(Value::SmallInt(a ^ b)),
         (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a ^ b)),
         (Value::BigInt(a), Value::BigInt(b)) => Ok(Value::BigInt(a ^ b)),
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("The bit_xor function takes integer arguments")),
+        _ => Err(ExpressionError::type_error(
+            "The bit_xor function takes integer arguments",
+        )),
     }
 }
 
@@ -368,7 +396,9 @@ mod tests {
     #[test]
     fn test_abs_int() {
         let func = MathFunction::Abs;
-        let result = func.execute(&[Value::Int(-5)]).expect("Abs Function Failure");
+        let result = func
+            .execute(&[Value::Int(-5)])
+            .expect("Abs Function Failure");
         assert_eq!(result, Value::Int(5));
     }
 
@@ -384,7 +414,9 @@ mod tests {
     #[test]
     fn test_sqrt() {
         let func = MathFunction::Sqrt;
-        let result = func.execute(&[Value::Int(16)]).expect("Sqrt function failed to execute");
+        let result = func
+            .execute(&[Value::Int(16)])
+            .expect("Sqrt function failed to execute");
         assert_eq!(result, Value::Float(4.0));
     }
 

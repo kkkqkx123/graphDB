@@ -69,7 +69,7 @@ impl SearchEngine for Bm25SearchEngine {
     }
 
     fn version(&self) -> &str {
-        "0.1.0"
+        "0.2.0"
     }
 
     async fn index(&self, doc_id: &str, content: &str) -> Result<(), SearchError> {
@@ -100,7 +100,22 @@ impl SearchEngine for Bm25SearchEngine {
                 doc_id: Value::String(r.document_id),
                 score: r.score,
                 highlights: r.highlights,
-                matched_fields: vec!["content".to_string()],
+                matched_fields: {
+                    let mut fields = Vec::new();
+                    if r.title.is_some() {
+                        fields.push("title".to_string());
+                    }
+                    if r.content.is_some() {
+                        fields.push("content".to_string());
+                    }
+                    if r.raw_name.is_some() {
+                        fields.push("raw_name".to_string());
+                    }
+                    if r.keywords.is_some() {
+                        fields.push("keywords".to_string());
+                    }
+                    fields
+                },
             })
             .collect())
     }

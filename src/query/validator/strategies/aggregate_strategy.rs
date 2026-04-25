@@ -381,7 +381,9 @@ mod tests {
         let result = strategy.validate_aggregate_expression(&ctx_expr);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.message.contains("Aggregate function nesting is not allowed"));
+        assert!(err
+            .message
+            .contains("Aggregate function nesting is not allowed"));
     }
 
     #[test]

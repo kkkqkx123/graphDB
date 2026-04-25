@@ -183,7 +183,8 @@ mod tests {
         let child_expr_meta = crate::core::types::expr::ExpressionMeta::new(child_condition);
         let child_id = expr_ctx.register_expression(child_expr_meta);
         let child_ctx_expr = ContextualExpression::new(child_id, expr_ctx.clone());
-        let child_filter = FilterNode::new(start, child_ctx_expr).expect("Failed to create FilterNode");
+        let child_filter =
+            FilterNode::new(start, child_ctx_expr).expect("Failed to create FilterNode");
         let child_node = PlanNodeEnum::Filter(child_filter);
 
         // Upper-level filter: col2 > 200
@@ -202,7 +203,9 @@ mod tests {
         // Application rules
         let rule = CombineFilterRule::new();
         let mut ctx = RewriteContext::new();
-        let result = rule.apply(&mut ctx, &top_node).expect("Failed to apply rule");
+        let result = rule
+            .apply(&mut ctx, &top_node)
+            .expect("Failed to apply rule");
 
         assert!(
             result.is_some(),

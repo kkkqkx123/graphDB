@@ -38,7 +38,10 @@ impl bb8::ManageConnection for RedisConnectionManager {
     }
 
     async fn is_valid(&self, conn: &mut Self::Connection) -> std::result::Result<(), Self::Error> {
-        redis::cmd("PING").query_async(conn).await.map(|_: String| ())
+        redis::cmd("PING")
+            .query_async(conn)
+            .await
+            .map(|_: String| ())
     }
 
     fn has_broken(&self, _: &mut Self::Connection) -> bool {
@@ -159,7 +162,9 @@ impl RedisStorage {
             .get()
             .await
             .map_err(|e| {
-                self.error_stats.connection_errors.fetch_add(1, Ordering::Relaxed);
+                self.error_stats
+                    .connection_errors
+                    .fetch_add(1, Ordering::Relaxed);
                 crate::error::StorageError::Connection(e.to_string())
             })
             .map_err(Into::into)
@@ -183,7 +188,9 @@ impl RedisStorage {
                 .query_async(&mut *conn)
                 .await
                 .map_err(|e| {
-                    self.error_stats.connection_errors.fetch_add(1, Ordering::Relaxed);
+                    self.error_stats
+                        .connection_errors
+                        .fetch_add(1, Ordering::Relaxed);
                     crate::error::StorageError::Connection(e.to_string())
                 })?;
 
@@ -219,7 +226,9 @@ impl RedisStorage {
             .query_async(&mut *conn)
             .await
             .map_err(|e| {
-                self.error_stats.connection_errors.fetch_add(1, Ordering::Relaxed);
+                self.error_stats
+                    .connection_errors
+                    .fetch_add(1, Ordering::Relaxed);
                 crate::error::StorageError::Connection(e.to_string())
             })?;
 
@@ -242,11 +251,31 @@ impl RedisStorage {
 
     fn record_error(&self, error_type: &str) {
         match error_type {
-            "connection" => { self.error_stats.connection_errors.fetch_add(1, Ordering::Relaxed); }
-            "serialization" => { self.error_stats.serialization_errors.fetch_add(1, Ordering::Relaxed); }
-            "deserialization" => { self.error_stats.deserialization_errors.fetch_add(1, Ordering::Relaxed); }
-            "timeout" => { self.error_stats.timeout_errors.fetch_add(1, Ordering::Relaxed); }
-            _ => { self.error_stats.other_errors.fetch_add(1, Ordering::Relaxed); }
+            "connection" => {
+                self.error_stats
+                    .connection_errors
+                    .fetch_add(1, Ordering::Relaxed);
+            }
+            "serialization" => {
+                self.error_stats
+                    .serialization_errors
+                    .fetch_add(1, Ordering::Relaxed);
+            }
+            "deserialization" => {
+                self.error_stats
+                    .deserialization_errors
+                    .fetch_add(1, Ordering::Relaxed);
+            }
+            "timeout" => {
+                self.error_stats
+                    .timeout_errors
+                    .fetch_add(1, Ordering::Relaxed);
+            }
+            _ => {
+                self.error_stats
+                    .other_errors
+                    .fetch_add(1, Ordering::Relaxed);
+            }
         }
     }
 }
@@ -295,11 +324,10 @@ impl StorageInterface for RedisStorage {
         for doc_ids in index.map.index.values() {
             for (term_str, ids) in doc_ids {
                 let key = self.make_index_key(term_str);
-                let serialized = serde_json::to_string(ids)
-                    .map_err(|e| {
-                        self.record_error("serialization");
-                        crate::error::StorageError::Serialization(e.to_string())
-                    })?;
+                let serialized = serde_json::to_string(ids).map_err(|e| {
+                    self.record_error("serialization");
+                    crate::error::StorageError::Serialization(e.to_string())
+                })?;
                 index_items.push((key, serialized));
             }
         }
@@ -307,11 +335,10 @@ impl StorageInterface for RedisStorage {
         for ctx_map in index.ctx.index.values() {
             for (ctx_term, doc_ids) in ctx_map {
                 let key = self.make_context_key("default", ctx_term);
-                let serialized = serde_json::to_string(doc_ids)
-                    .map_err(|e| {
-                        self.record_error("serialization");
-                        crate::error::StorageError::Serialization(e.to_string())
-                    })?;
+                let serialized = serde_json::to_string(doc_ids).map_err(|e| {
+                    self.record_error("serialization");
+                    crate::error::StorageError::Serialization(e.to_string())
+                })?;
                 index_items.push((key, serialized));
             }
         }
@@ -324,13 +351,10 @@ impl StorageInterface for RedisStorage {
             for (key, value) in chunk {
                 batch_pipe.cmd("SET").arg(key).arg(value);
             }
-            let _: () = batch_pipe
-                .query_async(&mut *conn)
-                .await
-                .map_err(|e| {
-                    self.record_error("connection");
-                    crate::error::StorageError::Connection(e.to_string())
-                })?;
+            let _: () = batch_pipe.query_async(&mut *conn).await.map_err(|e| {
+                self.record_error("connection");
+                crate::error::StorageError::Connection(e.to_string())
+            })?;
         }
 
         // 更新内存使用量
@@ -370,11 +394,10 @@ impl StorageInterface for RedisStorage {
             return Ok(Vec::new());
         }
 
-        let doc_ids: Vec<DocId> = serde_json::from_str(&serialized)
-            .map_err(|e| {
-                self.record_error("deserialization");
-                crate::error::StorageError::Deserialization(e.to_string())
-            })?;
+        let doc_ids: Vec<DocId> = serde_json::from_str(&serialized).map_err(|e| {
+            self.record_error("deserialization");
+            crate::error::StorageError::Deserialization(e.to_string())
+        })?;
 
         let start = offset.min(doc_ids.len());
         let end = if limit > 0 {
@@ -406,11 +429,10 @@ impl StorageInterface for RedisStorage {
         let mut results = Vec::new();
         for (i, serialized) in serialized_list.into_iter().enumerate() {
             if !serialized.is_empty() {
-                let doc: serde_json::Value = serde_json::from_str(&serialized)
-                    .map_err(|e| {
-                        self.record_error("deserialization");
-                        crate::error::StorageError::Deserialization(e.to_string())
-                    })?;
+                let doc: serde_json::Value = serde_json::from_str(&serialized).map_err(|e| {
+                    self.record_error("deserialization");
+                    crate::error::StorageError::Deserialization(e.to_string())
+                })?;
                 results.push(crate::r#type::EnrichedSearchResult {
                     id: ids[i],
                     doc: Some(doc),
@@ -512,9 +534,8 @@ impl RedisStorage {
     pub async fn health_check(&self) -> Result<bool> {
         match self.pool.get().await {
             Ok(mut conn) => {
-                let result: std::result::Result<String, redis::RedisError> = redis::cmd("PING")
-                    .query_async(&mut *conn)
-                    .await;
+                let result: std::result::Result<String, redis::RedisError> =
+                    redis::cmd("PING").query_async(&mut *conn).await;
                 Ok(result.is_ok())
             }
             Err(_) => Ok(false),
@@ -542,19 +563,29 @@ impl RedisStorage {
             memory_usage: self.get_memory_usage(),
             error_count: self.get_total_errors(),
             connection_errors: self.error_stats.connection_errors.load(Ordering::Relaxed) as usize,
-            serialization_errors: self.error_stats.serialization_errors.load(Ordering::Relaxed) as usize,
-            deserialization_errors: self.error_stats.deserialization_errors.load(Ordering::Relaxed) as usize,
+            serialization_errors: self
+                .error_stats
+                .serialization_errors
+                .load(Ordering::Relaxed) as usize,
+            deserialization_errors: self
+                .error_stats
+                .deserialization_errors
+                .load(Ordering::Relaxed) as usize,
         }
     }
 
     fn get_total_errors(&self) -> usize {
-        (
-            self.error_stats.connection_errors.load(Ordering::Relaxed) +
-            self.error_stats.serialization_errors.load(Ordering::Relaxed) +
-            self.error_stats.deserialization_errors.load(Ordering::Relaxed) +
-            self.error_stats.timeout_errors.load(Ordering::Relaxed) +
-            self.error_stats.other_errors.load(Ordering::Relaxed)
-        ) as usize
+        (self.error_stats.connection_errors.load(Ordering::Relaxed)
+            + self
+                .error_stats
+                .serialization_errors
+                .load(Ordering::Relaxed)
+            + self
+                .error_stats
+                .deserialization_errors
+                .load(Ordering::Relaxed)
+            + self.error_stats.timeout_errors.load(Ordering::Relaxed)
+            + self.error_stats.other_errors.load(Ordering::Relaxed)) as usize
     }
 
     /// 记录操作开始时间（内部使用）

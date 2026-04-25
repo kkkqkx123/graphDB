@@ -21,9 +21,9 @@
 //! └── background.rs       # 后台任务
 //! ```
 
+pub mod background;
 pub mod config;
 pub mod manager;
-pub mod background;
 
 pub use config::{ColdWarmCacheConfig, WALConfig};
 pub use manager::{CacheStats, ColdWarmCacheManager, IndexData, WALEntry, WALManager};

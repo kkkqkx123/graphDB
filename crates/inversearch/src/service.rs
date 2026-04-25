@@ -125,7 +125,10 @@ pub async fn create_storage_from_config(
             match WALStorage::new(wal_config).await {
                 Ok(storage) => Arc::new(storage),
                 Err(e) => {
-                    eprintln!("Failed to create WAL storage: {}, falling back to cold-warm cache", e);
+                    eprintln!(
+                        "Failed to create WAL storage: {}, falling back to cold-warm cache",
+                        e
+                    );
                     #[cfg(feature = "store-cold-warm-cache")]
                     {
                         return tokio::task::block_in_place(|| {
@@ -165,11 +168,12 @@ impl Default for InversearchService {
         // 创建同步版本，用于 Default trait
         let index = Index::new(IndexOptions::default()).expect("Failed to create index");
         let index = Arc::new(RwLock::new(index));
-        
+
         // 使用阻塞运行时创建存储
         let storage = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
-                StorageManagerBuilder::build_default().await
+                StorageManagerBuilder::build_default()
+                    .await
                     .expect("Failed to create storage")
             })
         });
@@ -195,9 +199,10 @@ impl InversearchService {
     pub async fn with_config_async(config: Config) -> Self {
         let index = Index::new(IndexOptions::default()).expect("Failed to create index");
         let index = Arc::new(RwLock::new(index));
-        let storage = StorageManagerBuilder::build_default().await
+        let storage = StorageManagerBuilder::build_default()
+            .await
             .expect("Failed to create storage");
-        
+
         // 尝试从存储恢复索引数据
         let storage_sync_enabled = if config.storage.enabled {
             match storage.mount(&*index.read().await).await {
@@ -206,7 +211,10 @@ impl InversearchService {
                     true
                 }
                 Err(e) => {
-                    tracing::warn!("Failed to mount storage: {}, continuing without persistence", e);
+                    tracing::warn!(
+                        "Failed to mount storage: {}, continuing without persistence",
+                        e
+                    );
                     false
                 }
             }
@@ -238,10 +246,7 @@ impl InversearchService {
     }
 
     /// Create a new service instance with custom storage and config
-    pub fn with_storage_and_config(
-        storage: StorageManager,
-        config: Config,
-    ) -> Self {
+    pub fn with_storage_and_config(storage: StorageManager, config: Config) -> Self {
         let index = Index::new(IndexOptions::default()).expect("Failed to create index");
         let index = Arc::new(RwLock::new(index));
         let storage_sync_enabled = config.storage.enabled;
@@ -261,7 +266,11 @@ impl InversearchService {
     }
 
     /// 同步索引到存储
-    async fn sync_to_storage(&self, replace: bool, append: bool) -> Result<(), crate::error::InversearchError> {
+    async fn sync_to_storage(
+        &self,
+        replace: bool,
+        append: bool,
+    ) -> Result<(), crate::error::InversearchError> {
         if !self.storage_sync_enabled {
             return Ok(());
         }
@@ -475,10 +484,10 @@ impl InversearchServiceTrait for InversearchService {
     ) -> Result<Response<GetStatsResponse>, Status> {
         let index = self.index.read().await;
         let document_count = index.document_count();
-        
+
         // 计算索引大小（主索引 + 上下文索引的条目数）
         let index_size = index.map.index.len() + index.ctx.index.len();
-        
+
         // 缓存大小（如果有缓存）
         let cache_size = index.cache.as_ref().map(|c| c.len()).unwrap_or(0);
 
@@ -496,11 +505,11 @@ impl InversearchServiceTrait for InversearchService {
     ) -> Result<Response<HealthCheckResponse>, Status> {
         let index = self.index.read().await;
         let document_count = index.document_count();
-        
+
         // 多维度健康检查
-        let is_healthy = !index.map.index.is_empty() || !index.ctx.index.is_empty()
-            && document_count < u32::MAX as usize;
-        
+        let is_healthy = !index.map.index.is_empty()
+            || !index.ctx.index.is_empty() && document_count < u32::MAX as usize;
+
         // 计算运行时间
         let uptime = self.start_time.elapsed().as_secs();
 
@@ -541,15 +550,13 @@ impl InversearchServiceTrait for InversearchService {
                     }
                 }
                 // Remove operation
-                2 => {
-                    match index.remove(op.document_id, false) {
-                        Ok(_) => success_count += 1,
-                        Err(e) => {
-                            failed_count += 1;
-                            errors.push(format!("Remove {} failed: {}", op.document_id, e));
-                        }
+                2 => match index.remove(op.document_id, false) {
+                    Ok(_) => success_count += 1,
+                    Err(e) => {
+                        failed_count += 1;
+                        errors.push(format!("Remove {} failed: {}", op.document_id, e));
                     }
-                }
+                },
                 // Update operation
                 3 => {
                     if let Some(doc) = op.document {

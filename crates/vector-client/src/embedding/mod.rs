@@ -8,14 +8,14 @@ mod config;
 mod error;
 mod preprocessor;
 mod provider;
-mod service;
 mod providers;
+mod service;
 
 pub use config::EmbeddingConfig;
 pub use error::EmbeddingError;
 pub use preprocessor::{
-    ChainedPreprocessor, NomicPreprocessor, NomicTaskType, NoopPreprocessor, Preprocessor, PreprocessorConfig,
-    PrefixPreprocessor, StellaPreprocessor, StellaTaskType, TemplatePreprocessor,
+    ChainedPreprocessor, NomicPreprocessor, NomicTaskType, NoopPreprocessor, PrefixPreprocessor,
+    Preprocessor, PreprocessorConfig, StellaPreprocessor, StellaTaskType, TemplatePreprocessor,
 };
 pub use provider::{EmbeddingProvider, ProviderType};
 pub use service::EmbeddingService;

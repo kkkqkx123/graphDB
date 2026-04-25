@@ -6,8 +6,8 @@
 //! - NOT 差集操作
 //! - XOR 异或操作
 
-use inversearch_service::resolver::{intersect_and, union_op, exclusion, xor_op};
 use inversearch_service::r#type::IntermediateSearchResults;
+use inversearch_service::resolver::{exclusion, intersect_and, union_op, xor_op};
 
 type SearchResults = Vec<u64>;
 
@@ -34,10 +34,8 @@ fn test_and_single_array() {
 /// 测试两个数组 AND 操作
 #[test]
 fn test_and_two_arrays() {
-    let arrays: Vec<IntermediateSearchResults> = vec![
-        vec![vec![1, 2, 3, 4]],
-        vec![vec![2, 3, 4, 5]],
-    ];
+    let arrays: Vec<IntermediateSearchResults> =
+        vec![vec![vec![1, 2, 3, 4]], vec![vec![2, 3, 4, 5]]];
     let result = intersect_and(arrays, 100);
     assert_eq!(result, vec![vec![2, 3, 4]]);
 }
@@ -45,10 +43,7 @@ fn test_and_two_arrays() {
 /// 测试无重叠 AND 操作
 #[test]
 fn test_and_no_overlap() {
-    let arrays: Vec<IntermediateSearchResults> = vec![
-        vec![vec![1, 2, 3]],
-        vec![vec![4, 5, 6]],
-    ];
+    let arrays: Vec<IntermediateSearchResults> = vec![vec![vec![1, 2, 3]], vec![vec![4, 5, 6]]];
     let result = intersect_and(arrays, 100);
     assert!(result[0].is_empty());
 }
@@ -56,10 +51,8 @@ fn test_and_no_overlap() {
 /// 测试 AND 操作带限制
 #[test]
 fn test_and_with_limit() {
-    let arrays: Vec<IntermediateSearchResults> = vec![
-        vec![vec![1, 2, 3, 4, 5]],
-        vec![vec![1, 2, 3, 4, 5]],
-    ];
+    let arrays: Vec<IntermediateSearchResults> =
+        vec![vec![vec![1, 2, 3, 4, 5]], vec![vec![1, 2, 3, 4, 5]]];
     let result = intersect_and(arrays, 2);
     assert_eq!(result[0].len(), 2);
 }
@@ -99,10 +92,7 @@ fn test_or_single_array() {
 /// 测试无重叠 OR 操作
 #[test]
 fn test_or_no_overlap() {
-    let arrays: Vec<IntermediateSearchResults> = vec![
-        vec![vec![1, 2, 3]],
-        vec![vec![4, 5, 6]],
-    ];
+    let arrays: Vec<IntermediateSearchResults> = vec![vec![vec![1, 2, 3]], vec![vec![4, 5, 6]]];
     let result = union_op(arrays, 0);
     assert_eq!(result.len(), 2);
 }
@@ -110,10 +100,7 @@ fn test_or_no_overlap() {
 /// 测试有重叠 OR 操作
 #[test]
 fn test_or_with_overlap() {
-    let arrays: Vec<IntermediateSearchResults> = vec![
-        vec![vec![1, 2, 3]],
-        vec![vec![3, 4, 5]],
-    ];
+    let arrays: Vec<IntermediateSearchResults> = vec![vec![vec![1, 2, 3]], vec![vec![3, 4, 5]]];
     let result = union_op(arrays, 0);
     assert_eq!(result, vec![vec![1, 2, 3, 4, 5]]);
 }
@@ -121,11 +108,8 @@ fn test_or_with_overlap() {
 /// 测试多个数组 OR 操作
 #[test]
 fn test_or_multiple_arrays() {
-    let arrays: Vec<IntermediateSearchResults> = vec![
-        vec![vec![1, 2]],
-        vec![vec![2, 3]],
-        vec![vec![3, 4]],
-    ];
+    let arrays: Vec<IntermediateSearchResults> =
+        vec![vec![vec![1, 2]], vec![vec![2, 3]], vec![vec![3, 4]]];
     let result = union_op(arrays, 0);
     assert_eq!(result, vec![vec![1, 2, 3, 4]]);
 }
@@ -202,10 +186,7 @@ fn test_xor_single_array() {
 /// 测试无重叠 XOR 操作
 #[test]
 fn test_xor_no_overlap() {
-    let arrays: Vec<IntermediateSearchResults> = vec![
-        vec![vec![1, 2]],
-        vec![vec![3, 4]],
-    ];
+    let arrays: Vec<IntermediateSearchResults> = vec![vec![vec![1, 2]], vec![vec![3, 4]]];
     let result = xor_op(arrays, 0);
     assert_eq!(result, vec![vec![1, 2], vec![3, 4]]);
 }
@@ -213,10 +194,7 @@ fn test_xor_no_overlap() {
 /// 测试有重叠 XOR 操作
 #[test]
 fn test_xor_with_overlap() {
-    let arrays: Vec<IntermediateSearchResults> = vec![
-        vec![vec![1, 2, 3]],
-        vec![vec![2, 3, 4]],
-    ];
+    let arrays: Vec<IntermediateSearchResults> = vec![vec![vec![1, 2, 3]], vec![vec![2, 3, 4]]];
     let result = xor_op(arrays, 0);
     assert_eq!(result, vec![vec![1], vec![4]]);
 }
@@ -224,10 +202,7 @@ fn test_xor_with_overlap() {
 /// 测试完全重叠 XOR 操作
 #[test]
 fn test_xor_all_overlap() {
-    let arrays: Vec<IntermediateSearchResults> = vec![
-        vec![vec![1, 2]],
-        vec![vec![1, 2]],
-    ];
+    let arrays: Vec<IntermediateSearchResults> = vec![vec![vec![1, 2]], vec![vec![1, 2]]];
     let result = xor_op(arrays, 0);
     assert!(result.iter().all(|arr| arr.is_empty()));
 }

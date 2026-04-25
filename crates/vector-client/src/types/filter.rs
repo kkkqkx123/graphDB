@@ -147,7 +147,12 @@ impl FilterCondition {
     }
 
     pub fn match_value(field: impl Into<String>, value: impl Into<String>) -> Self {
-        Self::new(field, ConditionType::Match { value: value.into() })
+        Self::new(
+            field,
+            ConditionType::Match {
+                value: value.into(),
+            },
+        )
     }
 
     pub fn match_any(field: impl Into<String>, values: Vec<String>) -> Self {
@@ -183,7 +188,12 @@ impl FilterCondition {
     }
 
     pub fn contains(field: impl Into<String>, value: impl Into<String>) -> Self {
-        Self::new(field, ConditionType::Contains { value: value.into() })
+        Self::new(
+            field,
+            ConditionType::Contains {
+                value: value.into(),
+            },
+        )
     }
 }
 

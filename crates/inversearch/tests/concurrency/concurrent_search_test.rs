@@ -5,15 +5,17 @@
 //! - 并发读写混合
 //! - 搜索结果一致性
 
+use inversearch_service::search::search;
+use inversearch_service::{Index, IndexOptions, SearchOptions};
 use std::sync::Arc;
 use std::thread;
-use inversearch_service::{Index, IndexOptions, SearchOptions};
-use inversearch_service::search::search;
 
 fn create_populated_index() -> Arc<Index> {
     let mut index = Index::new(IndexOptions::default()).unwrap();
     for i in 1..=100 {
-        index.add(i, &format!("Document {} with some content", i), false).unwrap();
+        index
+            .add(i, &format!("Document {} with some content", i), false)
+            .unwrap();
     }
     Arc::new(index)
 }
@@ -94,10 +96,11 @@ fn test_concurrent_read_write_mixed() {
     use std::sync::Mutex;
 
     let index = Arc::new(Mutex::new(Index::new(IndexOptions::default()).unwrap()));
-    
+
     for i in 1..=50 {
         let mut idx = index.lock().unwrap();
-        idx.add(i, &format!("Initial Document {}", i), false).unwrap();
+        idx.add(i, &format!("Initial Document {}", i), false)
+            .unwrap();
     }
 
     let mut handles = vec![];
@@ -117,7 +120,8 @@ fn test_concurrent_read_write_mixed() {
         let writer = thread::spawn(move || {
             for i in 1..=10 {
                 let mut idx = index_writer.lock().unwrap();
-                idx.add(100 + batch * 10 + i, &format!("New Document {}", i), false).unwrap();
+                idx.add(100 + batch * 10 + i, &format!("New Document {}", i), false)
+                    .unwrap();
             }
         });
         handles.push(writer);

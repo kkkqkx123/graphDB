@@ -383,13 +383,16 @@ mod tests {
         let expr_meta = crate::core::types::expr::ExpressionMeta::new(condition);
         let id = expr_ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx);
-        let filter = FilterNode::new(aggregate_enum, ctx_expr).expect("Failed to create FilterNode");
+        let filter =
+            FilterNode::new(aggregate_enum, ctx_expr).expect("Failed to create FilterNode");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
         // Application rules
         let rule = PushFilterDownAggregateRule::new();
         let mut ctx = RewriteContext::new();
-        let result = rule.apply(&mut ctx, &filter_enum).expect("Failed to apply rule");
+        let result = rule
+            .apply(&mut ctx, &filter_enum)
+            .expect("Failed to apply rule");
 
         // Verify that the conversion was successful.
         assert!(result.is_some());
@@ -421,13 +424,16 @@ mod tests {
         let expr_meta = crate::core::types::expr::ExpressionMeta::new(condition);
         let id = expr_ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx);
-        let filter = FilterNode::new(aggregate_enum, ctx_expr).expect("Failed to create FilterNode");
+        let filter =
+            FilterNode::new(aggregate_enum, ctx_expr).expect("Failed to create FilterNode");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
         // Application rules
         let rule = PushFilterDownAggregateRule::new();
         let mut ctx = RewriteContext::new();
-        let result = rule.apply(&mut ctx, &filter_enum).expect("Failed to apply rule");
+        let result = rule
+            .apply(&mut ctx, &filter_enum)
+            .expect("Failed to apply rule");
 
         // The conversion was not executed (because the conditions involved aggregated results).
         assert!(result.is_none());
@@ -457,7 +463,9 @@ mod tests {
         // Apply the rules
         let rule = PushFilterDownAggregateRule::new();
         let mut ctx = RewriteContext::new();
-        let result = rule.apply(&mut ctx, &filter_enum).expect("Failed to apply rule");
+        let result = rule
+            .apply(&mut ctx, &filter_enum)
+            .expect("Failed to apply rule");
 
         // The conversion was not performed (because the input is not of the “Aggregate” type).
         assert!(result.is_none());

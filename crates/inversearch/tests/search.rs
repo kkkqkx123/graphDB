@@ -7,7 +7,7 @@ mod common;
 
 mod search {
     mod basic_test;
-    mod pagination_test;
-    mod multi_term_test;
     mod edge_case_test;
+    mod multi_term_test;
+    mod pagination_test;
 }

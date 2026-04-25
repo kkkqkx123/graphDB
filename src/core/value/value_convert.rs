@@ -172,9 +172,9 @@ impl Value {
     pub fn to_list(&self) -> Value {
         match self {
             Value::List(list) => Value::List(list.clone()),
-            Value::Set(set) => {
-                Value::List(Box::new(List::from(set.iter().cloned().collect::<Vec<_>>())))}
-            ,
+            Value::Set(set) => Value::List(Box::new(List::from(
+                set.iter().cloned().collect::<Vec<_>>(),
+            ))),
             _ => Value::Null(NullType::BadData),
         }
     }
@@ -616,7 +616,6 @@ impl Value {
             _ => Value::Null(NullType::BadData),
         }
     }
-
 }
 
 impl From<&str> for Value {

@@ -24,9 +24,7 @@ pub use crate::compress::{
     CompressCache, RadixTable, DEFAULT_CACHE_SIZE,
 };
 
-pub use crate::config::{
-    Config, StorageBackend, StorageConfig,
-};
+pub use crate::config::{Config, StorageBackend, StorageConfig};
 
 pub use crate::document::{
     parse_tree, parse_tree_cached, Batch, BatchExecutor, BatchExecutorFn, BatchMetadata,
@@ -34,9 +32,7 @@ pub use crate::document::{
     FieldConfig, FieldType, Fields, PathCache, PathParseError, TagConfig, TagSystem, TreePath,
 };
 
-pub use crate::encoder::{
-    Encoder, EncoderValidator,
-};
+pub use crate::encoder::{Encoder, EncoderValidator};
 
 pub use crate::highlight::{
     highlight_document, highlight_document_structured, highlight_fields, highlight_results,
@@ -44,14 +40,11 @@ pub use crate::highlight::{
     highlight_single_document_structured, BoundaryState, BoundaryTerm, HighlightProcessor,
 };
 
-pub use crate::index::{
-    Index, Register, ScoreFn, TokenizeMode,
-};
+pub use crate::index::{Index, Register, ScoreFn, TokenizeMode};
 
 pub use crate::intersect::{
-    intersect, intersect_simple, intersect_union, union, union_simple,
-    SuggestionConfig, SuggestionEngine,
-    Bm25Scorer, ScoreConfig, ScoredId, TfIdfScorer,
+    intersect, intersect_simple, intersect_union, union, union_simple, Bm25Scorer, ScoreConfig,
+    ScoredId, SuggestionConfig, SuggestionEngine, TfIdfScorer,
 };
 
 pub use crate::keystore::{DocId, KeystoreMap, KeystoreSet};
@@ -65,34 +58,29 @@ pub use crate::resolver::{
 };
 
 pub use crate::search::{
-    multi_field_search, multi_field_search_with_weights, multi_term_search,
-    resolve_default_search, search, single_term_query, BoostStrategy, CacheKeyGenerator,
-    CacheStats, CachedSearch, CombineStrategy, FieldBoostConfig, FieldSearch,
-    MultiFieldSearchConfig, MultiFieldSearchOptions, SearchCache, SearchCoordinator,
-    SearchResult, SingleTermResult,
+    multi_field_search, multi_field_search_with_weights, multi_term_search, resolve_default_search,
+    search, single_term_query, BoostStrategy, CacheKeyGenerator, CacheStats, CachedSearch,
+    CombineStrategy, FieldBoostConfig, FieldSearch, MultiFieldSearchConfig,
+    MultiFieldSearchOptions, SearchCache, SearchCoordinator, SearchResult, SingleTermResult,
 };
 
 pub use crate::serialize::{
-    SerializeConfig, SerializeFormat, CompressionAlgorithm,
-    IndexExportData, IndexInfo, ExportData,
-    ChunkedSerializer, ChunkDataProvider,
+    ChunkDataProvider, ChunkedSerializer, CompressionAlgorithm, ExportData, IndexExportData,
+    IndexInfo, SerializeConfig, SerializeFormat,
 };
 
 pub use crate::storage::common::r#trait::StorageInterface;
 pub use crate::storage::common::types::StorageInfo;
 
-pub use crate::tokenizer::{
-    Tokenizer, TokenizerMode,
-};
+pub use crate::tokenizer::{Tokenizer, TokenizerMode};
 
 // Re-export types from r#type module
 pub use crate::r#type::{
-    ContextOptions, DocumentSearchResult, DocumentSearchResults,
-    EncoderOptions, EnrichedDocumentSearchResult, EnrichedDocumentSearchResults,
-    EnrichedSearchResult, EnrichedSearchResults, FieldOption, HighlightBoundaryOptions,
-    HighlightEllipsisOptions, HighlightOptions, IndexOptions, IntermediateSearchResults,
-    MergedDocumentSearchEntry, MergedDocumentSearchResults, SearchOptions, SearchResults,
-    TagOption,
+    ContextOptions, DocumentSearchResult, DocumentSearchResults, EncoderOptions,
+    EnrichedDocumentSearchResult, EnrichedDocumentSearchResults, EnrichedSearchResult,
+    EnrichedSearchResults, FieldOption, HighlightBoundaryOptions, HighlightEllipsisOptions,
+    HighlightOptions, IndexOptions, IntermediateSearchResults, MergedDocumentSearchEntry,
+    MergedDocumentSearchResults, SearchOptions, SearchResults, TagOption,
 };
 
 // Storage backends - conditionally available
@@ -103,12 +91,10 @@ pub use crate::storage::file::FileStorage;
 pub use crate::storage::redis::RedisStorage;
 
 #[cfg(feature = "store-wal")]
-pub use crate::storage::wal::{WALStorage, WALManager, IndexChange};
+pub use crate::storage::wal::{IndexChange, WALManager, WALStorage};
 
 #[cfg(feature = "store-wal")]
 pub use crate::config::WALConfig as StorageWalConfig;
 
 #[cfg(feature = "store-cold-warm-cache")]
-pub use crate::storage::cold_warm_cache::{
-    ColdWarmCacheConfig, ColdWarmCacheManager,
-};
+pub use crate::storage::cold_warm_cache::{ColdWarmCacheConfig, ColdWarmCacheManager};

@@ -65,10 +65,7 @@ impl<'de> Deserialize<'de> for Decimal128Value {
 }
 
 impl oxicode::Encode for Decimal128Value {
-    fn encode<E: oxicode::enc::Encoder>(
-        &self,
-        encoder: &mut E,
-    ) -> Result<(), oxicode::Error> {
+    fn encode<E: oxicode::enc::Encoder>(&self, encoder: &mut E) -> Result<(), oxicode::Error> {
         let bytes = self.inner.to_ne_bytes();
         oxicode::Encode::encode(&bytes, encoder)
     }
@@ -448,7 +445,9 @@ mod tests {
 
     #[test]
     fn test_round_dp() {
-        let d = "123.456789".parse::<Decimal128Value>().expect("parse failed");
+        let d = "123.456789"
+            .parse::<Decimal128Value>()
+            .expect("parse failed");
         let rounded = d.round_dp(2);
         assert_eq!(rounded.to_string(), "123.45");
     }

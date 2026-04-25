@@ -74,11 +74,15 @@ impl<'a, E: VectorEngine + ?Sized> PointApi<'a, E> {
     }
 
     pub async fn set_payload(&self, point_ids: Vec<&str>, payload: Payload) -> Result<()> {
-        self.engine.set_payload(&self.collection, point_ids, payload).await
+        self.engine
+            .set_payload(&self.collection, point_ids, payload)
+            .await
     }
 
     pub async fn delete_payload(&self, point_ids: Vec<&str>, keys: Vec<&str>) -> Result<()> {
-        self.engine.delete_payload(&self.collection, point_ids, keys).await
+        self.engine
+            .delete_payload(&self.collection, point_ids, keys)
+            .await
     }
 
     pub async fn scroll(
@@ -88,15 +92,21 @@ impl<'a, E: VectorEngine + ?Sized> PointApi<'a, E> {
         with_payload: Option<bool>,
         with_vector: Option<bool>,
     ) -> Result<(Vec<VectorPoint>, Option<String>)> {
-        self.engine.scroll(&self.collection, limit, offset, with_payload, with_vector).await
+        self.engine
+            .scroll(&self.collection, limit, offset, with_payload, with_vector)
+            .await
     }
 
     pub async fn create_payload_index(&self, field: &str, schema: PayloadSchemaType) -> Result<()> {
-        self.engine.create_payload_index(&self.collection, field, schema).await
+        self.engine
+            .create_payload_index(&self.collection, field, schema)
+            .await
     }
 
     pub async fn delete_payload_index(&self, field: &str) -> Result<()> {
-        self.engine.delete_payload_index(&self.collection, field).await
+        self.engine
+            .delete_payload_index(&self.collection, field)
+            .await
     }
 
     pub async fn list_payload_indexes(&self) -> Result<Vec<(String, PayloadSchemaType)>> {

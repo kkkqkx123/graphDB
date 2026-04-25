@@ -8,9 +8,7 @@
 
 use inversearch_service::search::search;
 
-use crate::common::{
-    create_empty_index, basic_search_options,
-};
+use crate::common::{basic_search_options, create_empty_index};
 
 /// 测试基本拉丁字符
 #[test]
@@ -24,7 +22,10 @@ fn test_basic_latin() {
     let result = search(&index, &options).unwrap();
 
     assert!(!result.results.is_empty(), "Expected non-empty results");
-    assert!(result.results.contains(&1), "Expected results to contain document 1");
+    assert!(
+        result.results.contains(&1),
+        "Expected results to contain document 1"
+    );
 }
 
 /// 测试大小写不敏感
@@ -50,7 +51,7 @@ fn test_case_insensitive() {
     assert!(!result_lower.results.is_empty(), "小写搜索应该有结果");
     assert!(!result_upper.results.is_empty(), "大写搜索应该有结果");
     assert!(!result_mixed.results.is_empty(), "混合大小写搜索应该有结果");
-    
+
     // 所有搜索都应该找到文档 1
     assert!(result_lower.results.contains(&1));
     assert!(result_upper.results.contains(&1));
@@ -71,7 +72,7 @@ fn test_accented_characters() {
     let result = search(&index, &options).unwrap();
 
     assert!(!result.results.is_empty(), "Expected non-empty results");
-    
+
     // 搜索不带重音符号的版本（取决于规范化实现）
     let options = basic_search_options("cafe");
     let _result = search(&index, &options);

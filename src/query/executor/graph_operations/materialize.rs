@@ -113,7 +113,9 @@ impl<S: StorageClient + Send + 'static> MaterializeExecutor<S> {
                 self.current_memory_usage, self.memory_limit
             ));
             return Err(crate::core::DBError::Query(
-                crate::core::QueryError::ExecutionError("Physical data exceeds memory limits".to_string()),
+                crate::core::QueryError::ExecutionError(
+                    "Physical data exceeds memory limits".to_string(),
+                ),
             ));
         }
 

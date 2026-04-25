@@ -53,7 +53,9 @@ pub fn core_value_to_graphdb(value: &Value) -> graphdb_value_t {
         },
         Value::Float(f) => graphdb_value_t {
             type_: graphdb_value_type_t::GRAPHDB_FLOAT,
-            data: graphdb_value_data_t { floating: *f as f64 },
+            data: graphdb_value_data_t {
+                floating: *f as f64,
+            },
         },
         Value::String(s) => {
             let string_t = graphdb_string_t {

@@ -4,8 +4,8 @@
 
 #![allow(dead_code)]
 
-use inversearch_service::{Index, SearchOptions};
 use inversearch_service::index::IndexOptions;
+use inversearch_service::{Index, SearchOptions};
 
 /// 创建测试索引并填充数据
 pub fn create_index_with_docs(docs: &[super::documents::TestDocument]) -> Index {
@@ -137,7 +137,11 @@ macro_rules! assert_result_count {
 #[macro_export]
 macro_rules! assert_empty_results {
     ($results:expr) => {
-        assert!($results.is_empty(), "Expected empty results, got {:?}", $results);
+        assert!(
+            $results.is_empty(),
+            "Expected empty results, got {:?}",
+            $results
+        );
     };
 }
 

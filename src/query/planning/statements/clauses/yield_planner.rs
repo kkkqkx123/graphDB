@@ -75,10 +75,9 @@ impl YieldClausePlanner {
         input_plan: &SubPlan,
         columns: &[YieldColumn],
     ) -> Result<PlanNodeEnum, PlannerError> {
-        let input_node = input_plan
-            .root()
-            .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
+        let input_node = input_plan.root().as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
+        })?;
 
         ProjectNode::new(input_node.clone(), columns.to_vec())
             .map_err(|e| {
@@ -96,10 +95,9 @@ impl YieldClausePlanner {
         input_plan: &SubPlan,
         condition: crate::core::types::ContextualExpression,
     ) -> Result<PlanNodeEnum, PlannerError> {
-        let input_node = input_plan
-            .root()
-            .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
+        let input_node = input_plan.root().as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
+        })?;
 
         FilterNode::new(input_node.clone(), condition)
             .map_err(|e| {
@@ -115,10 +113,9 @@ impl YieldClausePlanner {
         skip: Option<usize>,
         limit: Option<usize>,
     ) -> Result<SubPlan, PlannerError> {
-        let input_node = input_plan
-            .root()
-            .as_ref()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("The input plan has no root node".to_string()))?;
+        let input_node = input_plan.root().as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
+        })?;
 
         let offset = skip.unwrap_or(0) as i64;
         let count = limit.map(|l| l as i64).unwrap_or(i64::MAX);

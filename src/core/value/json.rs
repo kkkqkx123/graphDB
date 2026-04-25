@@ -65,8 +65,9 @@ pub struct JsonB {
 impl oxicode::Encode for Json {
     fn encode<E: oxicode::enc::Encoder>(&self, encoder: &mut E) -> Result<(), oxicode::Error> {
         // Serialize to JSON string first, then encode the string
-        let json_str = serde_json::to_string(self)
-            .map_err(|e| oxicode::Error::OwnedCustom { message: e.to_string() })?;
+        let json_str = serde_json::to_string(self).map_err(|e| oxicode::Error::OwnedCustom {
+            message: e.to_string(),
+        })?;
         oxicode::Encode::encode(&json_str, encoder)
     }
 }
@@ -77,8 +78,9 @@ impl oxicode::Decode for Json {
     ) -> Result<Self, oxicode::Error> {
         // Decode string first, then deserialize from JSON
         let json_str: String = oxicode::Decode::decode(decoder)?;
-        serde_json::from_str(&json_str)
-            .map_err(|e| oxicode::Error::OwnedCustom { message: e.to_string() })
+        serde_json::from_str(&json_str).map_err(|e| oxicode::Error::OwnedCustom {
+            message: e.to_string(),
+        })
     }
 }
 
@@ -88,16 +90,18 @@ impl<'de> oxicode::BorrowDecode<'de> for Json {
     ) -> Result<Self, oxicode::Error> {
         // Decode string first, then deserialize from JSON
         let json_str: String = oxicode::Decode::decode(decoder)?;
-        serde_json::from_str(&json_str)
-            .map_err(|e| oxicode::Error::OwnedCustom { message: e.to_string() })
+        serde_json::from_str(&json_str).map_err(|e| oxicode::Error::OwnedCustom {
+            message: e.to_string(),
+        })
     }
 }
 
 impl oxicode::Encode for JsonB {
     fn encode<E: oxicode::enc::Encoder>(&self, encoder: &mut E) -> Result<(), oxicode::Error> {
         // Serialize to JSON string first, then encode the string
-        let json_str = serde_json::to_string(self)
-            .map_err(|e| oxicode::Error::OwnedCustom { message: e.to_string() })?;
+        let json_str = serde_json::to_string(self).map_err(|e| oxicode::Error::OwnedCustom {
+            message: e.to_string(),
+        })?;
         oxicode::Encode::encode(&json_str, encoder)
     }
 }
@@ -108,8 +112,9 @@ impl oxicode::Decode for JsonB {
     ) -> Result<Self, oxicode::Error> {
         // Decode string first, then deserialize from JSON
         let json_str: String = oxicode::Decode::decode(decoder)?;
-        serde_json::from_str(&json_str)
-            .map_err(|e| oxicode::Error::OwnedCustom { message: e.to_string() })
+        serde_json::from_str(&json_str).map_err(|e| oxicode::Error::OwnedCustom {
+            message: e.to_string(),
+        })
     }
 }
 
@@ -119,8 +124,9 @@ impl<'de> oxicode::BorrowDecode<'de> for JsonB {
     ) -> Result<Self, oxicode::Error> {
         // Decode string first, then deserialize from JSON
         let json_str: String = oxicode::Decode::decode(decoder)?;
-        serde_json::from_str(&json_str)
-            .map_err(|e| oxicode::Error::OwnedCustom { message: e.to_string() })
+        serde_json::from_str(&json_str).map_err(|e| oxicode::Error::OwnedCustom {
+            message: e.to_string(),
+        })
     }
 }
 
@@ -128,8 +134,8 @@ impl Json {
     /// Create JSON from string
     pub fn parse(text: &str) -> Result<Self, JsonError> {
         // Optional: Validate JSON format
-        let value: JsonValue = serde_json::from_str(text)
-            .map_err(|e| JsonError::InvalidJson(e.to_string()))?;
+        let value: JsonValue =
+            serde_json::from_str(text).map_err(|e| JsonError::InvalidJson(e.to_string()))?;
 
         Ok(Self {
             text: text.to_string(),
@@ -157,8 +163,7 @@ impl Json {
             return Ok(value.clone());
         }
 
-        serde_json::from_str(&self.text)
-            .map_err(|e| JsonError::InvalidJson(e.to_string()))
+        serde_json::from_str(&self.text).map_err(|e| JsonError::InvalidJson(e.to_string()))
     }
 
     /// Get value at specified path
@@ -212,8 +217,8 @@ impl Hash for Json {
 impl JsonB {
     /// Create JSONB from string (must validate)
     pub fn parse(text: &str) -> Result<Self, JsonError> {
-        let value: JsonValue = serde_json::from_str(text)
-            .map_err(|e| JsonError::InvalidJson(e.to_string()))?;
+        let value: JsonValue =
+            serde_json::from_str(text).map_err(|e| JsonError::InvalidJson(e.to_string()))?;
 
         Ok(Self::from_value(value))
     }
@@ -223,9 +228,7 @@ impl JsonB {
         // Normalize JSON (sort keys, remove whitespace)
         let normalized = normalize_json(value);
 
-        Self {
-            value: normalized,
-        }
+        Self { value: normalized }
     }
 
     /// Get parsed value
@@ -323,9 +326,7 @@ fn normalize_json(value: JsonValue) -> JsonValue {
                 .collect();
             JsonValue::Object(normalized)
         }
-        JsonValue::Array(arr) => {
-            JsonValue::Array(arr.into_iter().map(normalize_json).collect())
-        }
+        JsonValue::Array(arr) => JsonValue::Array(arr.into_iter().map(normalize_json).collect()),
         // Other types remain unchanged
         other => other,
     }
@@ -478,11 +479,12 @@ fn estimate_json_size(value: &JsonValue) -> usize {
             arr.iter().map(estimate_json_size).sum::<usize>()
                 + arr.len() * std::mem::size_of::<JsonValue>()
         }
-        JsonValue::Object(map) => map
-            .iter()
-            .map(|(k, v)| k.len() + estimate_json_size(v))
-            .sum::<usize>()
-            + map.len() * std::mem::size_of::<(String, JsonValue)>(),
+        JsonValue::Object(map) => {
+            map.iter()
+                .map(|(k, v)| k.len() + estimate_json_size(v))
+                .sum::<usize>()
+                + map.len() * std::mem::size_of::<(String, JsonValue)>()
+        }
     }
 }
 

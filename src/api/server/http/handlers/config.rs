@@ -181,7 +181,9 @@ fn get_config_value(config: &crate::config::Config, section: &str, key: &str) ->
         "auth" => match key {
             "enable_authorize" => serde_json::json!(config.server.auth.enable_authorize),
             "failed_login_attempts" => serde_json::json!(config.server.auth.failed_login_attempts),
-            "session_idle_timeout_secs" => serde_json::json!(config.server.auth.session_idle_timeout_secs),
+            "session_idle_timeout_secs" => {
+                serde_json::json!(config.server.auth.session_idle_timeout_secs)
+            }
             "force_change_default_password" => {
                 serde_json::json!(config.server.auth.force_change_default_password)
             }
@@ -197,8 +199,12 @@ fn get_config_value(config: &crate::config::Config, section: &str, key: &str) ->
             _ => serde_json::Value::Null,
         },
         "optimizer" => match key {
-            "max_iteration_rounds" => serde_json::json!(config.common.optimizer.max_iteration_rounds),
-            "max_exploration_rounds" => serde_json::json!(config.common.optimizer.max_exploration_rounds),
+            "max_iteration_rounds" => {
+                serde_json::json!(config.common.optimizer.max_iteration_rounds)
+            }
+            "max_exploration_rounds" => {
+                serde_json::json!(config.common.optimizer.max_exploration_rounds)
+            }
             "enable_cost_model" => serde_json::json!(config.common.optimizer.enable_cost_model),
             "enable_multi_plan" => serde_json::json!(config.common.optimizer.enable_multi_plan),
             "enable_property_pruning" => {
@@ -208,7 +214,9 @@ fn get_config_value(config: &crate::config::Config, section: &str, key: &str) ->
                 serde_json::json!(config.common.optimizer.enable_adaptive_iteration)
             }
             "stable_threshold" => serde_json::json!(config.common.optimizer.stable_threshold),
-            "min_iteration_rounds" => serde_json::json!(config.common.optimizer.min_iteration_rounds),
+            "min_iteration_rounds" => {
+                serde_json::json!(config.common.optimizer.min_iteration_rounds)
+            }
             _ => serde_json::Value::Null,
         },
         "monitoring" => match key {

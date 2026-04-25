@@ -8,8 +8,7 @@
 use inversearch_service::search::search;
 
 use crate::common::{
-    create_english_index, create_full_index, create_empty_index,
-    basic_search_options,
+    basic_search_options, create_empty_index, create_english_index, create_full_index,
     PROGRAMMING_DOCS,
 };
 
@@ -20,9 +19,15 @@ fn test_basic_search() {
     let mut index = create_empty_index();
 
     // 添加测试文档
-    index.add(1, "Rust is a systems programming language", false).unwrap();
-    index.add(2, "Python is great for data science", false).unwrap();
-    index.add(3, "JavaScript runs in the browser", false).unwrap();
+    index
+        .add(1, "Rust is a systems programming language", false)
+        .unwrap();
+    index
+        .add(2, "Python is great for data science", false)
+        .unwrap();
+    index
+        .add(3, "JavaScript runs in the browser", false)
+        .unwrap();
 
     // 执行搜索
     let options = basic_search_options("Rust");
@@ -30,7 +35,10 @@ fn test_basic_search() {
 
     // 验证结果
     assert!(!result.results.is_empty(), "Expected non-empty results");
-    assert!(result.results.contains(&1), "Expected results to contain document 1");
+    assert!(
+        result.results.contains(&1),
+        "Expected results to contain document 1"
+    );
     assert!(!result.results.contains(&2));
     assert!(!result.results.contains(&3));
 }
@@ -60,13 +68,19 @@ fn test_search_results_accuracy() {
     let result = search(&index, &options).unwrap();
 
     // 验证只有包含 Rust 的文档被返回
-    assert!(result.results.contains(&1), "Expected results to contain document 1");
-    
+    assert!(
+        result.results.contains(&1),
+        "Expected results to contain document 1"
+    );
+
     // 验证其他文档不在结果中
     for doc in PROGRAMMING_DOCS.iter().filter(|d| d.id != 1) {
         if !doc.content.contains("Rust") {
-            assert!(!result.results.contains(&doc.id), 
-                "文档 {} 不应该出现在 Rust 搜索结果中", doc.id);
+            assert!(
+                !result.results.contains(&doc.id),
+                "文档 {} 不应该出现在 Rust 搜索结果中",
+                doc.id
+            );
         }
     }
 }

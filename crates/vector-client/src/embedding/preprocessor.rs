@@ -14,13 +14,9 @@ pub enum PreprocessorConfig {
     /// Template with {text} placeholder
     Template { template: String },
     /// Nomic-Embed task type
-    Nomic {
-        task_type: NomicTaskType,
-    },
+    Nomic { task_type: NomicTaskType },
     /// Stella task type
-    Stella {
-        task_type: StellaTaskType,
-    },
+    Stella { task_type: StellaTaskType },
 }
 
 /// Text preprocessor trait
@@ -144,10 +140,18 @@ impl StellaPreprocessor {
 
     fn get_prefix(&self) -> &'static str {
         match self.task_type {
-            StellaTaskType::S2PQuery => "Instruct: Given a web search query, retrieve relevant passages. Query: ",
-            StellaTaskType::S2SDocument => "Instruct: Given a web search query, retrieve relevant passages. Document: ",
-            StellaTaskType::P2PQuery => "Instruct: Given a passage, retrieve relevant passages. Query: ",
-            StellaTaskType::P2PDocument => "Instruct: Given a passage, retrieve relevant passages. Document: ",
+            StellaTaskType::S2PQuery => {
+                "Instruct: Given a web search query, retrieve relevant passages. Query: "
+            }
+            StellaTaskType::S2SDocument => {
+                "Instruct: Given a web search query, retrieve relevant passages. Document: "
+            }
+            StellaTaskType::P2PQuery => {
+                "Instruct: Given a passage, retrieve relevant passages. Query: "
+            }
+            StellaTaskType::P2PDocument => {
+                "Instruct: Given a passage, retrieve relevant passages. Document: "
+            }
         }
     }
 }

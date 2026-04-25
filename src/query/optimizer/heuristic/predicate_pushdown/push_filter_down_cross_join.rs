@@ -243,11 +243,12 @@ mod tests {
         let expr_meta = crate::core::types::expr::ExpressionMeta::new(condition);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
-        let filter = FilterNode::new(start_enum.clone(), ctx_expr).expect("Failed to create FilterNode");
+        let filter =
+            FilterNode::new(start_enum.clone(), ctx_expr).expect("Failed to create FilterNode");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
-        let join =
-            CrossJoinNode::new(start_enum.clone(), start_enum).expect("Failed to create CrossJoinNode");
+        let join = CrossJoinNode::new(start_enum.clone(), start_enum)
+            .expect("Failed to create CrossJoinNode");
         let join_enum = PlanNodeEnum::CrossJoin(join);
 
         assert!(rule.can_push_down(&filter_enum, &join_enum));

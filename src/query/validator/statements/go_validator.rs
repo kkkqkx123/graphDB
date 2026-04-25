@@ -282,7 +282,8 @@ impl GoValidator {
                 }
                 if max_i32 < min_i32 {
                     return Err(ValidationError::new(
-                        "The end value of the step range cannot be less than the start value.".to_string(),
+                        "The end value of the step range cannot be less than the start value."
+                            .to_string(),
                         ValidationErrorType::SemanticError,
                     ));
                 }
@@ -591,7 +592,9 @@ mod tests {
         let result = validator.validate(create_test_ast(Stmt::Go(go_stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.message.contains("The OVER clause must specify at least one edge"));
+        assert!(err
+            .message
+            .contains("The OVER clause must specify at least one edge"));
     }
 
     #[test]

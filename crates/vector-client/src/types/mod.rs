@@ -1,13 +1,13 @@
+mod config;
+pub mod distance_utils;
+mod filter;
 mod point;
 mod search;
-mod config;
-mod filter;
-pub mod distance_utils;
 
-pub use point::*;
-pub use search::*;
 pub use config::*;
 pub use filter::*;
+pub use point::*;
+pub use search::*;
 
 use std::collections::HashMap;
 

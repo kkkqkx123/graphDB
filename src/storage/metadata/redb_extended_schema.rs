@@ -219,11 +219,11 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
             let key_bytes = key.value().0.clone();
             let key_str = String::from_utf8_lossy(&key_bytes);
             if key_str.starts_with(&prefix) {
-                let change: SchemaChange =
-                    decode_from_slice(&value.value().0)
-                        .map_err(|e| {
-                            ManagerError::storage_error(format!("Deserialization failed: {}", e))
-                        })?.0;
+                let change: SchemaChange = decode_from_slice(&value.value().0)
+                    .map_err(|e| {
+                        ManagerError::storage_error(format!("Deserialization failed: {}", e))
+                    })?
+                    .0;
                 changes.push(change);
             }
         }
