@@ -234,3 +234,118 @@ impl Default for RetryConfig {
         Self::new(3, 100, 5000, 2.0)
     }
 }
+
+// Simple validation methods
+impl VectorClientConfig {
+    /// Validate configuration
+    ///
+    /// Returns Ok(()) if valid, Err(message) if invalid
+    pub fn validate(&self) -> Result<(), String> {
+        self.connection.validate()?;
+        self.timeout.validate()?;
+        self.retry.validate()?;
+        Ok(())
+    }
+}
+
+impl ConnectionConfig {
+    /// Validate connection configuration
+    /// u16 can't be greater than 65535, so only check 0
+    pub fn validate(&self) -> Result<(), String> {
+        if self.host.is_empty() {
+            return Err("connection.host cannot be empty".to_string());
+        }
+        if self.port == 0 {
+            return Err("connection.port must not be 0".to_string());
+        }
+        if self.connect_timeout_secs == 0 {
+            return Err("connection.connect_timeout_secs must be greater than 0".to_string());
+        }
+        if self.http_port == Some(0) {
+            return Err("connection.http_port must not be 0".to_string());
+        }
+        Ok(())
+    }
+}
+
+impl TimeoutConfig {
+    /// Validate timeout configuration
+    pub fn validate(&self) -> Result<(), String> {
+        if self.request_timeout_secs == 0 {
+            return Err("timeout.request_timeout_secs must be greater than 0".to_string());
+        }
+        if self.search_timeout_secs == 0 {
+            return Err("timeout.search_timeout_secs must be greater than 0".to_string());
+        }
+        if self.upsert_timeout_secs == 0 {
+            return Err("timeout.upsert_timeout_secs must be greater than 0".to_string());
+        }
+        Ok(())
+    }
+}
+
+impl RetryConfig {
+    /// Validate retry configuration
+    pub fn validate(&self) -> Result<(), String> {
+        if self.max_retries > 10 {
+            return Err("retry.max_retries must not exceed 10".to_string());
+        }
+        if self.multiplier < 1.0 || self.multiplier > 10.0 {
+            return Err("retry.multiplier must be in range [1.0, 10.0]".to_string());
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod validation_tests {
+    use super::*;
+
+    #[test]
+    fn test_connection_config_valid() {
+        let config = ConnectionConfig::new("localhost", 6333);
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_connection_config_empty_host() {
+        let config = ConnectionConfig::new("", 6333);
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_connection_config_invalid_port() {
+        let config = ConnectionConfig::new("localhost", 0);
+        assert!(config.validate().is_err());
+
+        let config = ConnectionConfig::new("localhost", 65536);
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_timeout_config_valid() {
+        let config = TimeoutConfig::new(30, 60, 30);
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_timeout_config_zero() {
+        let config = TimeoutConfig::new(0, 60, 30);
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_retry_config_valid() {
+        let config = RetryConfig::new(3, 100, 5000, 2.0);
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_retry_config_invalid_multiplier() {
+        let config = RetryConfig::new(3, 100, 5000, 0.5);
+        assert!(config.validate().is_err());
+
+        let config = RetryConfig::new(3, 100, 5000, 15.0);
+        assert!(config.validate().is_err());
+    }
+}
