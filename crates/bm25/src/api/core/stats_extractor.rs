@@ -88,18 +88,18 @@ mod tests {
     #[test]
     fn test_extract_chinese_stats() {
         let mut fields = HashMap::new();
-        fields.insert("content".to_string(), "Calculate the total price".to_string());
+        fields.insert("content".to_string(), "计算总价的方法".to_string());
 
         let stats = extract_tf_df_stats(&fields, 10, 100.0);
 
         assert!(
-            stats.tf.contains_key("count"),
-            "Expected 'calculation' in tf: {:?}",
+            stats.tf.contains_key("计算"),
+            "Expected '计算' in tf: {:?}",
             stats.tf
         );
         assert!(
-            stats.tf.contains_key("total price"),
-            "Expected 'total price' in tf: {:?}",
+            stats.tf.contains_key("总价"),
+            "Expected '总价' in tf: {:?}",
             stats.tf
         );
     }

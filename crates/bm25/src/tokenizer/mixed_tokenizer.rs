@@ -187,10 +187,11 @@ mod tests {
     #[test]
     fn test_chinese_tokenization() {
         let tokenizer = MixedTokenizer::new();
-        let tokens = tokenizer.tokenize_text("Calculate the total price");
+        let tokens = tokenizer.tokenize_text("计算总价的方法");
         let texts: Vec<&str> = tokens.iter().map(|(t, _, _)| t.as_str()).collect();
-        assert!(texts.contains(&"count"), "Expected 'calculation' in {:?}", texts);
-        assert!(texts.contains(&"total price"), "Expected 'total price' in {:?}", texts);
+        assert!(texts.contains(&"计算"), "Expected '计算' in {:?}", texts);
+        assert!(texts.contains(&"总价"), "Expected '总价' in {:?}", texts);
+        assert!(texts.contains(&"方法"), "Expected '方法' in {:?}", texts);
     }
 
     #[test]
@@ -210,9 +211,9 @@ mod tests {
     #[test]
     fn test_mixed_tokenization() {
         let tokenizer = MixedTokenizer::new();
-        let tokens = tokenizer.tokenize_text("Calculate total price");
+        let tokens = tokenizer.tokenize_text("计算 total price");
         let texts: Vec<&str> = tokens.iter().map(|(t, _, _)| t.as_str()).collect();
-        assert!(texts.contains(&"count"), "Expected 'calculation' in {:?}", texts);
+        assert!(texts.contains(&"计算"), "Expected '计算' in {:?}", texts);
         assert!(texts.contains(&"total"), "Expected 'total' in {:?}", texts);
         assert!(texts.contains(&"price"), "Expected 'price' in {:?}", texts);
     }
@@ -220,12 +221,12 @@ mod tests {
     #[test]
     fn test_complex_comment() {
         let tokenizer = MixedTokenizer::new();
-        let text = "Calculate total price";
+        let text = "计算总价 Calculate total price";
         let tokens = tokenizer.tokenize_text(text);
         let texts: Vec<&str> = tokens.iter().map(|(t, _, _)| t.as_str()).collect();
 
-        assert!(texts.contains(&"count"), "Expected 'calculation' in {:?}", texts);
-        assert!(texts.contains(&"total price"), "Expected 'total price' in {:?}", texts);
+        assert!(texts.contains(&"计算"), "Expected '计算' in {:?}", texts);
+        assert!(texts.contains(&"总价"), "Expected '总价' in {:?}", texts);
         assert!(
             texts.contains(&"calculate"),
             "Expected 'calculate' in {:?}",
@@ -270,7 +271,7 @@ mod tests {
             results
         );
         assert!(
-            results.iter().any(|r| r == "global"),
+            results.contains(&"world".to_string()),
             "Expected 'world' in {:?}",
             results
         );

@@ -236,12 +236,17 @@ impl StorageManagerBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::tempdir;
 
     #[tokio::test]
     async fn test_storage_manager_creation() {
         #[cfg(feature = "storage-tantivy")]
         {
-            let config = crate::storage::tantivy::TantivyStorageConfig::default();
+            let dir = tempdir().expect("Failed to create temp dir");
+            let config = crate::storage::tantivy::TantivyStorageConfig {
+                index_path: dir.path().to_path_buf(),
+                writer_memory_mb: 50,
+            };
             let manager = StorageManagerBuilder::build_tantivy(config);
             assert!(manager.is_ok());
         }
@@ -251,7 +256,11 @@ mod tests {
     async fn test_mutable_storage_manager() {
         #[cfg(feature = "storage-tantivy")]
         {
-            let config = crate::storage::tantivy::TantivyStorageConfig::default();
+            let dir = tempdir().expect("Failed to create temp dir");
+            let config = crate::storage::tantivy::TantivyStorageConfig {
+                index_path: dir.path().to_path_buf(),
+                writer_memory_mb: 50,
+            };
             let manager = StorageManagerBuilder::build_mutable_tantivy(config).unwrap();
 
             assert!(manager.init().await.is_ok());

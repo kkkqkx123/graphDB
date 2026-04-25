@@ -1,6 +1,5 @@
 use crate::api::core::{IndexManager, IndexSchema};
 use crate::error::Result;
-use std::collections::HashMap;
 use tantivy::query::QueryParser;
 use tantivy::schema::Value;
 
@@ -116,6 +115,7 @@ fn highlight_text(_text: &str, _query: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
     use tempfile::tempdir;
 
     #[test]

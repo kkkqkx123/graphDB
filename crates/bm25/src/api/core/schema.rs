@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use tantivy::schema::TantivyDocument;
 use tantivy::schema::{
-    Field, IndexRecordOption, Schema, TextFieldIndexing, TextOptions, STORED, STRING, TEXT,
+    Field, IndexRecordOption, Schema, TextFieldIndexing, TextOptions, STORED, STRING,
 };
 
 const MIXED_TOKENIZER_NAME: &str = "mixed";
