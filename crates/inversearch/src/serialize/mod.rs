@@ -1,9 +1,9 @@
-//! 序列化模块
+//! Serialization Module
 //!
-//! 提供索引和文档的导入导出功能，支持多种格式（JSON、Binary、MessagePack、CBOR）
-//! 和压缩算法（Zstd、Lz4）。
+//! Provide indexing and document import/export functionality, supporting multiple formats (JSON, Binary, MessagePack, CBOR)
+//! and compression algorithms (Zstd, Lz4).
 //!
-//! # 模块结构
+//! # Module Structure
 //!
 //! - `types`: 核心类型定义（配置、数据结构）
 //! - `format`: 格式处理（JSON/Binary/MessagePack/CBOR）
@@ -13,28 +13,28 @@
 //! - `async`: 异步序列化包装器
 //! - `chunked`: 分块序列化处理
 
-// 核心类型定义 - 数据的唯一来源
+// Core Type Definition - Unique Source of Data
 pub mod types;
 
-// 格式处理
+// format processing
 pub mod format;
 
-// 压缩工具
+// Compression tools
 pub mod compression;
 
-// Index 序列化实现
+// Index Serialization Implementation
 pub mod index;
 
-// Document 序列化实现
+// Document Serialization Implementation
 pub mod document;
 
-// 异步序列化
+// asynchronous serialization
 pub mod r#async;
 
-// 分块序列化
+// chunking serialization
 pub mod chunked;
 
-// 重新导出常用类型
+// Re-export common types
 pub use chunked::{ChunkDataProvider, ChunkedSerializer};
 pub use compression::*;
 pub use format::*;

@@ -231,7 +231,7 @@ fn test_extract_field_value() {
 }
 
 // ============================================================
-// 新增：结构化高亮结果的测试
+// Added: test for structured highlighting results
 // ============================================================
 
 #[test]
@@ -249,19 +249,19 @@ fn test_structured_highlight_basic() {
     let result =
         highlight_single_document_structured("hello", "hello world", &encoder, &config).unwrap();
 
-    // 验证基本结构
+    // Validation of the basic structure
     assert_eq!(result.total_matches, 1);
     assert_eq!(result.fields.len(), 1);
     assert_eq!(result.fields[0].matches.len(), 1);
 
-    // 验证匹配位置
+    // Verify Match Position
     let match_info = &result.fields[0].matches[0];
     assert_eq!(match_info.text, "hello");
     assert_eq!(match_info.start_pos, 0);
     assert_eq!(match_info.end_pos, 5);
     assert_eq!(match_info.matched_query, "hello");
 
-    // 验证高亮文本
+    // Verify highlighted text
     assert!(result.fields[0].highlighted_text.is_some());
     assert_eq!(
         result.fields[0].highlighted_text.as_ref().unwrap(),
@@ -289,26 +289,26 @@ fn test_structured_highlight_multiple_matches() {
     )
     .unwrap();
 
-    // 验证匹配数量
+    // Verify the number of matches
     assert_eq!(result.total_matches, 3);
     assert_eq!(result.fields[0].matches.len(), 3);
 
-    // 验证第一个匹配
+    // Verify the first match
     assert_eq!(result.fields[0].matches[0].text, "hello");
     assert_eq!(result.fields[0].matches[0].start_pos, 0);
     assert_eq!(result.fields[0].matches[0].end_pos, 5);
 
-    // 验证第二个匹配
+    // Verify the second match
     assert_eq!(result.fields[0].matches[1].text, "world");
     assert_eq!(result.fields[0].matches[1].start_pos, 6);
     assert_eq!(result.fields[0].matches[1].end_pos, 11);
 
-    // 验证第三个匹配
+    // Verify the third match
     assert_eq!(result.fields[0].matches[2].text, "hello");
     assert_eq!(result.fields[0].matches[2].start_pos, 17);
     assert_eq!(result.fields[0].matches[2].end_pos, 22);
 
-    // 验证匹配的查询词
+    // Validating matching query terms
     assert_eq!(result.fields[0].matched_queries.len(), 1);
     assert!(result.fields[0]
         .matched_queries
@@ -330,11 +330,11 @@ fn test_structured_highlight_no_match() {
     let result =
         highlight_single_document_structured("foo", "hello world", &encoder, &config).unwrap();
 
-    // 验证无匹配
+    // Verify no matches
     assert_eq!(result.total_matches, 0);
     assert_eq!(result.fields[0].matches.len(), 0);
 
-    // 高亮文本应该保持原样
+    // Highlighted text should remain as is
     assert_eq!(
         result.fields[0].highlighted_text.as_ref().unwrap(),
         "hello world"
@@ -366,15 +366,15 @@ fn test_structured_highlight_with_boundary() {
     )
     .unwrap();
 
-    // 验证有匹配
+    // Verify that there is a match
     assert_eq!(result.total_matches, 1);
 
-    // 验证高亮文本包含匹配项
+    // Verify that the highlighted text contains matches
     assert!(result.fields[0].highlighted_text.is_some());
     let highlighted = result.fields[0].highlighted_text.as_ref().unwrap();
     assert!(highlighted.contains("<b>hello</b>"));
-    // 验证边界处理后的长度限制
-    assert!(highlighted.len() <= 60); // 允许一定的弹性
+    // Validating length limits after boundary processing
+    assert!(highlighted.len() <= 60); // Allow some flexibility
 }
 
 #[test]
@@ -401,13 +401,13 @@ fn test_structured_highlight_document() {
     assert!(result.is_some());
     let highlight = result.unwrap();
 
-    // 验证文档ID
+    // Verify Document ID
     assert_eq!(highlight.id, 12345);
 
-    // 验证字段名
+    // Validation Field Name
     assert_eq!(highlight.fields[0].field, "title");
 
-    // 验证匹配
+    // Verify Match
     assert_eq!(highlight.total_matches, 1);
     assert_eq!(highlight.fields[0].matches[0].text, "Hello");
 }
@@ -428,7 +428,7 @@ fn test_highlight_results_batch() {
         ellipsis: None,
     };
 
-    // 准备搜索结果和文档
+    // Preparing search results and documents
     let search_results = vec![
         SearchResult {
             id: 1,
@@ -454,10 +454,10 @@ fn test_highlight_results_batch() {
     )
     .unwrap();
 
-    // 验证高亮结果数量
-    assert_eq!(highlights.len(), 1); // 只有第一个文档有匹配
+    // Verify the number of highlighted results
+    assert_eq!(highlights.len(), 1); // Only the first document has a match
 
-    // 验证第一个文档的高亮
+    // Verify first document highlighting
     assert_eq!(highlights[0].id, 1);
     assert_eq!(highlights[0].total_matches, 1);
     assert_eq!(highlights[0].fields[0].field, "title");
@@ -508,13 +508,13 @@ fn test_highlight_results_with_complete() {
     )
     .unwrap();
 
-    // 验证完整结果
+    // Validate full results
     assert_eq!(complete_result.total, 2);
     assert_eq!(complete_result.query, "hello");
     assert_eq!(complete_result.results.len(), 2);
     assert_eq!(complete_result.highlights.len(), 2);
 
-    // 验证第一个高亮
+    // Verify the first highlight
     assert_eq!(complete_result.highlights[0].id, 1);
     assert_eq!(complete_result.highlights[0].total_matches, 1);
     assert!(complete_result.highlights[0].fields[0]
@@ -536,14 +536,14 @@ fn test_highlight_match_serialization() {
         score: Some(0.95),
     };
 
-    // 测试序列化
+    // Test Serialization
     let json = serde_json::to_string(&match_info).unwrap();
     assert!(json.contains("\"text\":\"hello\""));
     assert!(json.contains("\"start_pos\":0"));
     assert!(json.contains("\"end_pos\":5"));
     assert!(json.contains("\"score\":0.95"));
 
-    // 测试反序列化
+    // Testing Deserialization
     let deserialized: HighlightMatch = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.text, "hello");
     assert_eq!(deserialized.start_pos, 0);
@@ -571,13 +571,13 @@ fn test_document_highlight_serialization() {
         total_matches: 1,
     };
 
-    // 测试序列化
+    // Test Serialization
     let json = serde_json::to_string(&doc_highlight).unwrap();
     assert!(json.contains("\"id\":12345"));
     assert!(json.contains("\"total_matches\":1"));
     assert!(json.contains("\"highlighted_text\""));
 
-    // 测试反序列化
+    // Testing Deserialization
     let deserialized: DocumentHighlight = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.id, 12345);
     assert_eq!(deserialized.total_matches, 1);

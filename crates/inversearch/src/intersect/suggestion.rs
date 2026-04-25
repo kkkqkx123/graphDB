@@ -1,10 +1,10 @@
-//! 建议系统模块
+//! Recommended System Modules
 //!
-//! 提供搜索建议和模糊匹配功能
+//! Provide search suggestion and fuzzy matching function
 
 use crate::r#type::IntermediateSearchResults;
 
-/// 建议配置
+/// Recommended configuration
 #[derive(Debug, Clone)]
 pub struct SuggestionConfig {
     pub max_suggestions: usize,
@@ -24,7 +24,7 @@ impl Default for SuggestionConfig {
     }
 }
 
-/// 建议结果
+/// Recommended results
 #[derive(Debug, Clone, Default)]
 pub struct SuggestionResult {
     pub suggestions: Vec<String>,
@@ -32,18 +32,18 @@ pub struct SuggestionResult {
     pub alternative_queries: Vec<String>,
 }
 
-/// 建议引擎
+/// Suggested Engines
 pub struct SuggestionEngine {
     config: SuggestionConfig,
 }
 
 impl SuggestionEngine {
-    /// 创建新的建议引擎
+    /// Creating a new suggestion engine
     pub fn new(config: SuggestionConfig) -> Self {
         SuggestionEngine { config }
     }
 
-    /// 生成建议
+    /// Generating recommendations
     pub fn generate_suggestions(
         &self,
         query: &str,
@@ -56,27 +56,27 @@ impl SuggestionEngine {
         }
     }
 
-    /// 生成查询建议
+    /// Generating query recommendations
     fn generate_query_suggestions(&self, query: &str) -> Vec<String> {
         let mut suggestions = Vec::new();
 
-        // 简单的拼写检查建议
+        // Simple Spell Checking Suggestions
         if query.len() > 3 {
-            // 生成一些常见的拼写变体
+            // Generate some common spelling variants
             let variants = self.generate_spelling_variants(query);
             suggestions.extend(variants);
         }
 
-        // 限制结果数量
+        // Limit the number of results
         suggestions.truncate(self.config.max_suggestions);
         suggestions
     }
 
-    /// 生成拼写变体
+    /// Generating Spelling Variants
     fn generate_spelling_variants(&self, query: &str) -> Vec<String> {
         let mut variants = Vec::new();
 
-        // 简单的字符交换建议
+        // Simple Character Exchange Recommendations
         let chars: Vec<char> = query.chars().collect();
         for i in 0..chars.len() - 1 {
             let mut new_chars = chars.clone();
@@ -87,15 +87,15 @@ impl SuggestionEngine {
         variants
     }
 
-    /// 生成替代查询
+    /// Generating Alternative Queries
     fn generate_alternative_queries(&self, query: &str) -> Vec<String> {
         let mut alternatives = Vec::new();
 
-        // 简单的查询扩展
+        // Simple Query Extension
         if query.contains(' ') {
             let parts: Vec<&str> = query.split_whitespace().collect();
             if parts.len() > 1 {
-                // 生成部分查询
+                // Generating partial queries
                 alternatives.push(parts[0].to_string());
                 if parts.len() > 2 {
                     alternatives.push(format!("{} {}", parts[0], parts[1]));
@@ -103,12 +103,12 @@ impl SuggestionEngine {
             }
         }
 
-        // 限制结果数量
+        // Limit the number of results
         alternatives.truncate(self.config.max_alternatives);
         alternatives
     }
 
-    /// 生成模糊匹配
+    /// Generate fuzzy matches
     fn generate_fuzzy_matches(
         &self,
         query: &str,
@@ -118,7 +118,7 @@ impl SuggestionEngine {
 
         for result_array in search_results.iter() {
             for &id in result_array {
-                // 简化的模糊匹配算法
+                // Simplified fuzzy matching algorithm
                 let similarity = self.calculate_similarity(query, &id.to_string());
                 if similarity >= self.config.fuzzy_threshold {
                     matches.push((id, similarity));
@@ -126,15 +126,15 @@ impl SuggestionEngine {
             }
         }
 
-        // 按相似度排序
+        // Sort by similarity
         matches.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
-        // 限制结果数量
+        // Limit the number of results
         matches.truncate(self.config.max_suggestions);
         matches
     }
 
-    /// 计算相似度（简化版本）
+    /// Calculating similarity (simplified version)
     fn calculate_similarity(&self, s1: &str, s2: &str) -> f32 {
         let longer = if s1.len() > s2.len() { s1 } else { s2 };
         let shorter = if s1.len() > s2.len() { s2 } else { s1 };
@@ -148,7 +148,7 @@ impl SuggestionEngine {
         1.0 - (edit_distance as f32 / max_len)
     }
 
-    /// 计算Levenshtein距离
+    /// Calculation of the distance Levenshtein
     fn levenshtein_distance(&self, s1: &str, s2: &str) -> usize {
         let len1 = s1.chars().count();
         let len2 = s2.chars().count();
@@ -187,25 +187,25 @@ impl SuggestionEngine {
     }
 }
 
-/// 建议评分器
+/// Suggestion Scorer
 pub struct SuggestionScorer {
     config: SuggestionConfig,
 }
 
 impl SuggestionScorer {
-    /// 创建新的建议评分器
+    /// Create a new suggestion rater
     pub fn new(config: SuggestionConfig) -> Self {
         SuggestionScorer { config }
     }
 
-    /// 评分建议
+    /// Recommendations for scoring
     pub fn score_suggestion(&self, original: &str, suggestion: &str) -> f32 {
         let engine = SuggestionEngine::new(self.config.clone());
         engine.calculate_similarity(original, suggestion)
     }
 }
 
-/// 生成建议的便捷函数
+/// Convenience Functions for Generating Suggestions
 pub fn generate_suggestions(
     query: &str,
     search_results: &IntermediateSearchResults,
@@ -255,9 +255,9 @@ mod tests {
         let scorer = SuggestionScorer::new(config);
 
         let score = scorer.score_suggestion("test", "tset");
-        assert!(score > 0.3); // 相似度应该比较高
+        assert!(score > 0.3); // The similarity should be higher
 
         let score2 = scorer.score_suggestion("test", "completely_different");
-        assert!(score2 < 0.3); // 相似度应该很低
+        assert!(score2 < 0.3); // The similarity should be very low
     }
 }

@@ -2,7 +2,7 @@ use super::{DocId, Index, TokenizeMode};
 use crate::error::Result;
 use std::collections::HashMap;
 
-/// 索引构建上下文，封装 add_strict 和 add_context 所需的参数
+/// Indexing the build context, encapsulating the parameters needed for add_strict and add_context
 struct IndexContext<'a> {
     index: &'a mut Index,
     dupes: &'a mut HashMap<String, bool>,
@@ -12,7 +12,7 @@ struct IndexContext<'a> {
     append: bool,
 }
 
-/// 上下文扩展参数，用于 add_context 函数
+/// Context extension parameter for the add_context function
 struct ContextParams<'a> {
     i: usize,
     depth: usize,

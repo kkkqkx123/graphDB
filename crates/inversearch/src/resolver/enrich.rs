@@ -6,7 +6,7 @@ use std::collections::HashMap;
 type TagTransformFn = Box<dyn Fn(&Value) -> Value + Send + Sync>;
 type TagFilterFn = Box<dyn Fn(&Value) -> bool + Send + Sync>;
 
-/// 字段选择配置
+/// Field Selection Configuration
 #[derive(Debug, Clone)]
 pub struct FieldSelector {
     pub field_path: String,
@@ -34,7 +34,7 @@ impl FieldSelector {
     }
 }
 
-/// 标签整合配置
+/// Label Integration Configuration
 pub struct TagIntegrationConfig {
     pub tag_field: String,
     pub transform_fn: Option<TagTransformFn>,
@@ -87,7 +87,7 @@ impl TagIntegrationConfig {
     }
 }
 
-/// 高亮配置
+/// Highlight Configuration
 #[derive(Debug, Clone)]
 pub struct HighlightConfig {
     pub fields: Vec<String>,
@@ -132,7 +132,7 @@ impl HighlightConfig {
     }
 }
 
-/// 元数据配置
+/// Metadata Configuration
 #[derive(Debug, Clone)]
 pub enum MetadataSource {
     Calculated(String),
@@ -140,7 +140,7 @@ pub enum MetadataSource {
     Statistical(String),
 }
 
-/// 文档丰富化器
+/// Document Enricher
 #[derive(Default)]
 pub struct Enricher {
     field_selectors: Vec<FieldSelector>,

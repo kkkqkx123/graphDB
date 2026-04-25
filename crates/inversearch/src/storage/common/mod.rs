@@ -1,6 +1,6 @@
-//! 存储模块公共组件
+//! Storage Module Public Components
 //!
-//! 提供所有存储实现共享的类型、工具函数和 trait
+//! Provides types, utility functions, and traits shared by all storage implementations.
 
 pub mod base;
 pub mod compression;
@@ -12,7 +12,7 @@ pub mod r#trait;
 pub mod types;
 pub mod utils;
 
-// 重新导出常用类型
+// Re-export common types
 pub use base::StorageBase;
 pub use compression::{compress_data, decompress_data};
 pub use config::{StorageConfig, StorageType};

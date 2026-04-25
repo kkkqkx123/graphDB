@@ -1,24 +1,24 @@
-//! 冷热缓存存储模块
+//! Hot and Cold Cache Storage Module
 //!
-//! 提供三层缓存架构 + WAL 的高性能持久化存储
+//! Provides three-tier caching architecture + WAL for high performance persistent storage
 //!
-//! ## 架构
+//! ## Architecture
 //!
 //! ```text
 //! ColdWarmCache
-//! ├── Hot Cache (L1) - 内存，最热数据，LRU 淘汰
-//! ├── Warm Cache (L2) - 内存映射文件，频繁访问
-//! └── Cold Storage   - 磁盘文件，冷数据，压缩存储
+//! Hot Cache (L1) - Memory, Hottest Data, LRU Elimination
+//Warm Cache (L2) - memory-mapped file, frequently accessed. Warm Cache (L2) - memory mapped file, frequently accessed
+//! └── Cold Storage - disk files, cold data, compressed storage
 //! ```
 //!
-//! ## 模块结构
+//! ## Module structure
 //!
 //! ```text
 //! cold_warm_cache/
-//! ├── mod.rs              # 主模块
-//! ├── config.rs           # 配置结构
-//! ├── manager.rs          # ColdWarmCacheManager 核心实现
-//! └── background.rs       # 后台任务
+//! ├── mod.rs # Main Module
+//! ├── config.rs # Configuration structure
+//! ├── manager.rs # ColdWarmCacheManager core implementation
+//! └── background.rs # Background tasks
 //! ```
 
 pub mod background;

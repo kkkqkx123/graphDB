@@ -1,33 +1,33 @@
-//! 存储接口定义
+//! Storage Interface Definition
 //!
-//! 定义存储模块的核心 trait 和抽象接口
+//! Define the core trait and abstract interfaces of the storage module
 
 use crate::error::Result;
 use crate::r#type::{DocId, EnrichedSearchResults, SearchResults};
 use crate::storage::common::types::StorageInfo;
 use crate::Index;
 
-/// 存储接口 - 类似JavaScript版本的StorageInterface
+/// StorageInterface - JavaScript-like version of StorageInterface
 ///
-/// 注意：所有方法都使用 &self，实现者需要使用内部可变性（如 RwLock/Mutex）
+/// Note: all methods use &self, implementations need to use internal mutability (e.g. RwLock/Mutex)
 #[async_trait::async_trait]
 pub trait StorageInterface: Send + Sync {
-    /// 挂载索引到存储
+    /// Mounting Indexes to Storage
     async fn mount(&self, index: &Index) -> Result<()>;
 
-    /// 打开连接
+    /// Open the connection
     async fn open(&self) -> Result<()>;
 
-    /// 关闭连接
+    /// Close connection
     async fn close(&self) -> Result<()>;
 
-    /// 销毁数据库
+    /// Destruction of databases
     async fn destroy(&self) -> Result<()>;
 
-    /// 提交索引变更
+    /// Submitting Index Changes
     async fn commit(&self, index: &Index, replace: bool, append: bool) -> Result<()>;
 
-    /// 获取术语结果
+    /// Get terminology results
     async fn get(
         &self,
         key: &str,
@@ -38,18 +38,18 @@ pub trait StorageInterface: Send + Sync {
         enrich: bool,
     ) -> Result<SearchResults>;
 
-    /// 富化结果
+    /// Enrichment results
     async fn enrich(&self, ids: &[DocId]) -> Result<EnrichedSearchResults>;
 
-    /// 检查ID是否存在
+    /// Check if the ID exists
     async fn has(&self, id: DocId) -> Result<bool>;
 
-    /// 删除ID
+    /// Delete ID
     async fn remove(&self, ids: &[DocId]) -> Result<()>;
 
-    /// 清空数据
+    /// Empty data
     async fn clear(&self) -> Result<()>;
 
-    /// 获取存储信息
+    /// Getting storage information
     async fn info(&self) -> Result<StorageInfo>;
 }

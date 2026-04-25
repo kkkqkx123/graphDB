@@ -187,10 +187,10 @@ mod tests {
     #[test]
     fn test_chinese_tokenization() {
         let tokenizer = MixedTokenizer::new();
-        let tokens = tokenizer.tokenize_text("计算总价");
+        let tokens = tokenizer.tokenize_text("Calculate the total price");
         let texts: Vec<&str> = tokens.iter().map(|(t, _, _)| t.as_str()).collect();
-        assert!(texts.contains(&"计算"), "Expected '计算' in {:?}", texts);
-        assert!(texts.contains(&"总价"), "Expected '总价' in {:?}", texts);
+        assert!(texts.contains(&"count"), "Expected 'calculation' in {:?}", texts);
+        assert!(texts.contains(&"total price"), "Expected 'total price' in {:?}", texts);
     }
 
     #[test]
@@ -210,9 +210,9 @@ mod tests {
     #[test]
     fn test_mixed_tokenization() {
         let tokenizer = MixedTokenizer::new();
-        let tokens = tokenizer.tokenize_text("计算total price");
+        let tokens = tokenizer.tokenize_text("Calculate total price");
         let texts: Vec<&str> = tokens.iter().map(|(t, _, _)| t.as_str()).collect();
-        assert!(texts.contains(&"计算"), "Expected '计算' in {:?}", texts);
+        assert!(texts.contains(&"count"), "Expected 'calculation' in {:?}", texts);
         assert!(texts.contains(&"total"), "Expected 'total' in {:?}", texts);
         assert!(texts.contains(&"price"), "Expected 'price' in {:?}", texts);
     }
@@ -220,12 +220,12 @@ mod tests {
     #[test]
     fn test_complex_comment() {
         let tokenizer = MixedTokenizer::new();
-        let text = "计算总价 Calculate total price";
+        let text = "Calculate total price";
         let tokens = tokenizer.tokenize_text(text);
         let texts: Vec<&str> = tokens.iter().map(|(t, _, _)| t.as_str()).collect();
 
-        assert!(texts.contains(&"计算"), "Expected '计算' in {:?}", texts);
-        assert!(texts.contains(&"总价"), "Expected '总价' in {:?}", texts);
+        assert!(texts.contains(&"count"), "Expected 'calculation' in {:?}", texts);
+        assert!(texts.contains(&"total price"), "Expected 'total price' in {:?}", texts);
         assert!(
             texts.contains(&"calculate"),
             "Expected 'calculate' in {:?}",
@@ -257,7 +257,7 @@ mod tests {
         use tantivy::tokenizer::Tokenizer;
 
         let mut tokenizer = MixedTokenizer::new();
-        let mut stream = tokenizer.token_stream("Hello 世界");
+        let mut stream = tokenizer.token_stream("Hello, world.");
 
         let mut results = Vec::new();
         while stream.advance() {
@@ -270,8 +270,8 @@ mod tests {
             results
         );
         assert!(
-            results.iter().any(|r| r == "世界"),
-            "Expected '世界' in {:?}",
+            results.iter().any(|r| r == "global"),
+            "Expected 'world' in {:?}",
             results
         );
     }

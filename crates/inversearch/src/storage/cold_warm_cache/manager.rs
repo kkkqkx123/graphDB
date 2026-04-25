@@ -1,6 +1,6 @@
-//! 冷热缓存管理器
+//! Hot and Cold Cache Manager
 //!
-//! 核心管理器，实现三层缓存架构的数据流转和管理
+//! Core Manager for data flow and management of the three-tier caching architecture
 
 use crate::error::Result;
 use crate::r#type::{DocId, EnrichedSearchResults, SearchResults};

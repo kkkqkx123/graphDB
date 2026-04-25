@@ -16,11 +16,11 @@ pub enum TokenizeMode {
     Bidirectional,
 }
 
-// 定义对索引数组的引用枚举，包含定位信息
+// Define enumeration of references to indexed arrays, containing locality information
 #[derive(Clone)]
 pub enum IndexRef {
-    MapRef(String),         // 普通索引的键
-    CtxRef(String, String), // 上下文索引的键 (keyword, term)
+    MapRef(String),         // Keys for general indexes
+    CtxRef(String, String), // Key of the context index (keyword, term)
 }
 
 #[derive(Clone)]
@@ -74,7 +74,7 @@ impl Index {
             Register::Set(KeystoreSet::<DocId>::new(8))
         };
 
-        // 初始化缓存（可选）
+        // Initialize cache (optional)
         let cache = if let Some(size) = options.cache_size {
             if size > 0 {
                 Some(SearchCache::new(size, options.cache_ttl))
@@ -263,7 +263,7 @@ impl Index {
         crate::search::search(self, options)
     }
 
-    /// 带缓存的搜索
+    /// Search with cache
     pub fn search_cached(
         &mut self,
         options: &crate::r#type::SearchOptions,
@@ -277,10 +277,10 @@ impl Index {
             });
         }
 
-        // 首先执行搜索
+        // First perform a search
         let result = self.search(options)?;
 
-        // 如果有缓存，缓存结果
+        // Cache results, if cached
         if let Some(ref mut cache) = self.cache {
             use crate::search::CacheKeyGenerator;
             let cache_key = CacheKeyGenerator::generate_search_key(query, options);
@@ -299,19 +299,19 @@ impl Index {
         Ok(result.results)
     }
 
-    /// 获取缓存统计信息
+    /// Getting Cache Statistics
     pub fn cache_stats(&self) -> Option<crate::search::CacheStats> {
         self.cache.as_ref().map(|cache| cache.stats())
     }
 
-    /// 清空缓存
+    /// Empty the cache
     pub fn clear_cache(&mut self) {
         if let Some(ref mut cache) = self.cache {
             cache.clear();
         }
     }
 
-    /// 获取文档数量
+    /// Get the number of documents
     pub fn document_count(&self) -> usize {
         match &self.reg {
             Register::Set(set) => set.size(),
@@ -347,8 +347,8 @@ impl Default for IndexOptions {
             score: None,
             encoder: None,
             rtl: None,
-            cache_size: Some(1000), // 默认启用缓存，大小1000
-            cache_ttl: None,        // 默认无过期时间
+            cache_size: Some(1000), // Cache enabled by default, size 1000
+            cache_ttl: None,        // No expiration time by default
         }
     }
 }

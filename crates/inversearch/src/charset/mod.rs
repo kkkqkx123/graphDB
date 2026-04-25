@@ -3,7 +3,7 @@ pub mod exact;
 pub mod latin;
 pub mod normalize;
 
-// ========== 主要导出 ==========
+// ========== Main export ==========
 
 // Basic charsets
 pub use cjk::get_charset_cjk as charset_cjk;
@@ -16,7 +16,7 @@ pub use latin::get_charset_latin_balance as charset_latin_balance;
 pub use latin::get_charset_latin_extra as charset_latin_extra;
 pub use latin::get_charset_latin_soundex as charset_latin_soundex;
 
-// ========== 便捷函数 ==========
+// ========== Convenience Functions ==========
 
 pub fn get_charset_exact() -> crate::r#type::EncoderOptions {
     exact::get_charset_exact()
@@ -51,7 +51,7 @@ pub fn get_charset_latin_soundex() -> crate::r#type::EncoderOptions {
     latin::get_charset_latin_soundex()
 }
 
-// ========== 测试 ==========
+// ========== Testing ==========
 #[cfg(test)]
 mod tests {
     use super::*;

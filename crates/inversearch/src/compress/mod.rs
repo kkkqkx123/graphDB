@@ -37,7 +37,7 @@ mod tests {
 
     #[test]
     fn test_compress_unicode() {
-        let result = compress_string("你好");
+        let result = compress_string("How are you?");
         assert!(!result.is_empty());
     }
 

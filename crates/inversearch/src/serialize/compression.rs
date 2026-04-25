@@ -1,11 +1,11 @@
-//! 压缩/解压缩模块
+//! Compression/Decompression Module
 //!
-//! 提供不同压缩算法（Zstd、Lz4）的数据压缩和解压缩功能
+//! Provide data compression and decompression functions with different compression algorithms (Zstd, Lz4)
 
 use crate::error::Result;
 use crate::serialize::types::CompressionAlgorithm;
 
-/// 压缩数据
+/// Compressed data
 pub fn compress_data(data: &[u8], algorithm: CompressionAlgorithm, level: i32) -> Result<Vec<u8>> {
     match algorithm {
         CompressionAlgorithm::None => Ok(data.to_vec()),
@@ -16,7 +16,7 @@ pub fn compress_data(data: &[u8], algorithm: CompressionAlgorithm, level: i32) -
     }
 }
 
-/// 解压缩数据
+/// Decompression data
 pub fn decompress_data(data: &[u8], algorithm: CompressionAlgorithm) -> Result<Vec<u8>> {
     match algorithm {
         CompressionAlgorithm::None => Ok(data.to_vec()),

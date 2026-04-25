@@ -17,17 +17,17 @@ pub fn delete_document(
     Ok(())
 }
 
-/// 删除文档并同步到存储层
+/// Delete documents and synchronize them to the storage tier
 pub async fn delete_document_with_storage(
     manager: &IndexManager,
     storage: &MutableStorageManager,
     schema: &IndexSchema,
     document_id: &str,
 ) -> Result<()> {
-    // 1. 从存储层删除统计信息
+    // 1. Deletion of statistical information from the storage layer
     storage.delete_doc_stats(document_id).await?;
 
-    // 2. 从索引中删除文档
+    // 2. Delete documents from the index
     let mut writer = manager.writer()?;
     let term = Term::from_field_text(schema.document_id, document_id);
     writer.delete_term(term);

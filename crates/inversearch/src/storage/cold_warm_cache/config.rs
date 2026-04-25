@@ -1,4 +1,4 @@
-//! 冷热缓存配置
+//! Hot and Cold Cache Configuration
 
 use std::path::PathBuf;
 use std::time::Duration;

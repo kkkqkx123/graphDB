@@ -1,6 +1,6 @@
-//! 缓存模块
+//! Cache Module
 //!
-//! 提供搜索结果缓存功能，提高查询性能
+//! Provide search result caching function to improve query performance
 
 use crate::error::Result;
 use crate::r#type::{SearchOptions, SearchResults};
@@ -11,11 +11,11 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 
-/// 缓存键生成器
+/// Cache Key Generator
 pub struct CacheKeyGenerator;
 
 impl CacheKeyGenerator {
-    /// 生成搜索缓存键
+    /// Generate search cache keys
     pub fn generate_search_key(query: &str, options: &SearchOptions) -> String {
         let mut key_parts = vec![query.to_lowercase()];
 
@@ -35,13 +35,13 @@ impl CacheKeyGenerator {
         key_parts.join("|")
     }
 
-    /// 生成文档缓存键
+    /// Generate Document Cache Keys
     pub fn generate_document_key(doc_id: u64) -> String {
         format!("doc:{}", doc_id)
     }
 }
 
-/// 缓存条目
+/// cache entry
 #[derive(Clone)]
 struct CacheEntry {
     data: SearchResults,
@@ -49,7 +49,7 @@ struct CacheEntry {
     access_count: u64,
 }
 
-/// 搜索缓存（异步版本）
+/// Search cache (asynchronous version)
 #[derive(Clone)]
 pub struct SearchCache {
     store: Arc<RwLock<LruCache<String, CacheEntry>>>,
@@ -60,7 +60,7 @@ pub struct SearchCache {
 }
 
 impl SearchCache {
-    /// 创建新的搜索缓存
+    /// Creating a new search cache
     pub fn new(max_size: usize, default_ttl: Option<Duration>) -> Self {
         let cap = NonZeroUsize::new(max_size.max(1))
             .or_else(|| NonZeroUsize::new(1000))
@@ -74,7 +74,7 @@ impl SearchCache {
         }
     }
 
-    /// 异步获取缓存项
+    /// Asynchronous fetching of cache entries
     pub async fn get_async(&self, key: &str) -> Option<SearchResults> {
         let mut store = self.store.write().await;
 
@@ -96,7 +96,7 @@ impl SearchCache {
         }
     }
 
-    /// 异步设置缓存项
+    /// Setting cache items asynchronously
     pub async fn set_async(&self, key: String, data: SearchResults) {
         let mut store = self.store.write().await;
         let entry = CacheEntry {
@@ -107,13 +107,13 @@ impl SearchCache {
         store.put(key, entry);
     }
 
-    /// 异步删除缓存项
+    /// Deleting cache entries asynchronously
     pub async fn remove_async(&self, key: &str) -> bool {
         let mut store = self.store.write().await;
         store.pop(key).is_some()
     }
 
-    /// 异步清空缓存
+    /// Asynchronous Cache Emptying
     pub async fn clear_async(&self) {
         let mut store = self.store.write().await;
         store.clear();
@@ -121,7 +121,7 @@ impl SearchCache {
         self.miss_count.store(0, Ordering::Relaxed);
     }
 
-    /// 同步获取缓存项（用于向后兼容，可能阻塞）
+    /// Synchronized fetch of cache entries (for backward compatibility, may block)
     pub fn get(&self, key: &str) -> Option<SearchResults> {
         if let Ok(mut store) = self.store.try_write() {
             if let Some(entry) = store.get_mut(key) {
@@ -145,7 +145,7 @@ impl SearchCache {
         }
     }
 
-    /// 同步设置缓存项（用于向后兼容，可能阻塞）
+    /// Synchronized setup of cache entries (for backward compatibility, possible blocking)
     pub fn set(&self, key: String, data: SearchResults) {
         if let Ok(mut store) = self.store.try_write() {
             let entry = CacheEntry {
@@ -157,7 +157,7 @@ impl SearchCache {
         }
     }
 
-    /// 同步删除缓存项（用于向后兼容，可能阻塞）
+    /// Synchronized deletion of cache entries (for backward compatibility, may block)
     pub fn remove(&self, key: &str) -> bool {
         if let Ok(mut store) = self.store.try_write() {
             store.pop(key).is_some()
@@ -166,7 +166,7 @@ impl SearchCache {
         }
     }
 
-    /// 同步清空缓存（用于向后兼容，可能阻塞）
+    /// Synchronized cache clearing (for backward compatibility, may block)
     pub fn clear(&self) {
         if let Ok(mut store) = self.store.try_write() {
             store.clear();
@@ -175,7 +175,7 @@ impl SearchCache {
         self.miss_count.store(0, Ordering::Relaxed);
     }
 
-    /// 获取缓存统计
+    /// Getting Cache Statistics
     pub fn stats(&self) -> CacheStats {
         let hit_count = self.hit_count.load(Ordering::Relaxed);
         let miss_count = self.miss_count.load(Ordering::Relaxed);
@@ -202,7 +202,7 @@ impl SearchCache {
         }
     }
 
-    /// 异步获取缓存统计
+    /// Asynchronous fetching of cached statistics
     pub async fn stats_async(&self) -> CacheStats {
         let hit_count = self.hit_count.load(Ordering::Relaxed);
         let miss_count = self.miss_count.load(Ordering::Relaxed);
@@ -226,7 +226,7 @@ impl SearchCache {
         }
     }
 
-    /// 检查缓存是否包含键
+    /// Check if the cache contains keys
     pub fn contains(&self, key: &str) -> bool {
         if let Ok(store) = self.store.try_read() {
             store.contains(key)
@@ -235,13 +235,13 @@ impl SearchCache {
         }
     }
 
-    /// 异步检查缓存是否包含键
+    /// Asynchronously check if the cache contains keys
     pub async fn contains_async(&self, key: &str) -> bool {
         let store = self.store.read().await;
         store.contains(key)
     }
 
-    /// 获取当前缓存大小
+    /// Get current cache size
     pub fn len(&self) -> usize {
         if let Ok(store) = self.store.try_read() {
             store.len()
@@ -250,7 +250,7 @@ impl SearchCache {
         }
     }
 
-    /// 检查缓存是否为空
+    /// Check if the cache is empty
     pub fn is_empty(&self) -> bool {
         if let Ok(store) = self.store.try_read() {
             store.is_empty()
@@ -260,7 +260,7 @@ impl SearchCache {
     }
 }
 
-/// 缓存统计信息
+/// Cache Statistics
 #[derive(Debug, Clone)]
 pub struct CacheStats {
     pub size: usize,
@@ -271,7 +271,7 @@ pub struct CacheStats {
     pub total_requests: u64,
 }
 
-/// 带缓存的搜索包装器（异步版本）
+/// Search wrapper with cache (asynchronous version)
 pub struct CachedSearch<F>
 where
     F: Fn(&str, &SearchOptions) -> Result<SearchResults> + Send + Sync,
@@ -284,7 +284,7 @@ impl<F> CachedSearch<F>
 where
     F: Fn(&str, &SearchOptions) -> Result<SearchResults> + Send + Sync,
 {
-    /// 创建新的缓存搜索包装器
+    /// Creating a new cache search wrapper
     pub fn new(search_fn: F, cache_size: usize, ttl: Option<Duration>) -> Self {
         Self {
             cache: SearchCache::new(cache_size, ttl),
@@ -292,7 +292,7 @@ where
         }
     }
 
-    /// 执行带缓存的搜索（同步版本）
+    /// Perform search with cache (synchronized version)
     pub fn search(&self, query: &str, options: &SearchOptions) -> Result<SearchResults> {
         let cache_key = CacheKeyGenerator::generate_search_key(query, options);
 
@@ -307,7 +307,7 @@ where
         Ok(results)
     }
 
-    /// 执行带缓存的搜索（异步版本）
+    /// Perform search with cache (asynchronous version)
     pub async fn search_async(
         &self,
         query: &str,
@@ -326,22 +326,22 @@ where
         Ok(results)
     }
 
-    /// 获取缓存统计
+    /// Getting Cache Statistics
     pub fn cache_stats(&self) -> CacheStats {
         self.cache.stats()
     }
 
-    /// 异步获取缓存统计
+    /// Asynchronous fetching of cached statistics
     pub async fn cache_stats_async(&self) -> CacheStats {
         self.cache.stats_async().await
     }
 
-    /// 清空缓存
+    /// Empty the cache
     pub fn clear_cache(&self) {
         self.cache.clear();
     }
 
-    /// 异步清空缓存
+    /// Asynchronous Cache Emptying
     pub async fn clear_cache_async(&self) {
         self.cache.clear_async().await;
     }

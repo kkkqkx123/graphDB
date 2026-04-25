@@ -1,11 +1,11 @@
-//! 多字段搜索
+//! Multi-Field Search
 //!
-//! 提供跨多个字段的统一搜索接口
+//! Provide a unified search interface across multiple fields
 
 use crate::error::Result;
 use crate::{Document, SearchOptions, SearchResult};
 
-/// 多字段搜索配置
+/// Multi-field search configuration
 #[derive(Clone)]
 pub struct MultiFieldSearchConfig<'a> {
     document: &'a Document,
@@ -17,7 +17,7 @@ pub struct MultiFieldSearchConfig<'a> {
 }
 
 impl<'a> MultiFieldSearchConfig<'a> {
-    /// 创建新的配置
+    /// Creating a new configuration
     pub fn new(document: &'a Document) -> Self {
         MultiFieldSearchConfig {
             document,
@@ -29,21 +29,21 @@ impl<'a> MultiFieldSearchConfig<'a> {
         }
     }
 
-    /// 添加字段
+    /// Adding Fields
     pub fn add_field(mut self, name: &str) -> Self {
         self.fields.push(name.to_string());
         self.weights.push(1.0);
         self
     }
 
-    /// 添加带权重的字段
+    /// Adding fields with weights
     pub fn add_field_with_weight(mut self, name: &str, weight: f32) -> Self {
         self.fields.push(name.to_string());
         self.weights.push(weight);
         self
     }
 
-    /// 设置字段权重
+    /// Setting field weights
     pub fn set_weight(mut self, field: &str, weight: f32) -> Self {
         if let Some(idx) = self.fields.iter().position(|f| f == field) {
             self.weights[idx] = weight;
@@ -51,25 +51,25 @@ impl<'a> MultiFieldSearchConfig<'a> {
         self
     }
 
-    /// 设置 boost
+    /// Setting up boost
     pub fn set_boost(mut self, field: &str, boost: f32) -> Self {
         self.boost.insert(field.to_string(), boost);
         self
     }
 
-    /// 设置限制
+    /// Setting Limits
     pub fn limit(mut self, limit: usize) -> Self {
         self.limit = limit;
         self
     }
 
-    /// 设置偏移
+    /// Setting the offset
     pub fn offset(mut self, offset: usize) -> Self {
         self.offset = offset;
         self
     }
 
-    /// 执行搜索
+    /// Perform a search
     pub fn search(&self, query: &str) -> Result<SearchResult> {
         if query.is_empty() {
             return Ok(SearchResult {
@@ -125,7 +125,7 @@ impl<'a> MultiFieldSearchConfig<'a> {
     }
 }
 
-/// 便捷的多字段搜索函数
+/// Convenient multi-field search function
 pub fn multi_field_search(
     document: &Document,
     query: &str,
@@ -141,7 +141,7 @@ pub fn multi_field_search(
     config.search(query)
 }
 
-/// 带权重配置的多字段搜索
+/// Multi-field search with weight configuration
 pub fn multi_field_search_with_weights(
     document: &Document,
     query: &str,
@@ -243,7 +243,7 @@ mod tests {
 
         let result = multi_field_search(&doc, "Rust", &["title", "content"]).unwrap();
 
-        // 应该找到2个包含 Rust 的文档
+        // There should be 2 documents found that contain Rust
         assert_eq!(result.results.len(), 2);
     }
 }

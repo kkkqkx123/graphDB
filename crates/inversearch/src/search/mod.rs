@@ -1,6 +1,6 @@
-//! 搜索模块
+//! Search Module
 //!
-//! 提供搜索功能，包括单术语搜索、多术语搜索和多字段搜索协调
+//! Provides search functionality, including single term search, multi-term search and multi-field search coordination
 
 mod cache;
 mod coordinator;
@@ -20,7 +20,7 @@ pub use multi_field::{
 };
 pub use single_term::{multi_term_search, single_term_query, SingleTermResult};
 
-/// 搜索结果结构体
+/// Search Result Structures
 #[derive(Debug, Clone)]
 pub struct SearchResult {
     pub results: SearchResults,
@@ -28,7 +28,7 @@ pub struct SearchResult {
     pub query: String,
 }
 
-/// 执行搜索 - 完整实现
+/// Execute Search - Full Implementation
 pub fn search(index: &Index, options: &SearchOptions) -> Result<SearchResult> {
     let query = options.query.as_deref().unwrap_or("");
     if query.is_empty() {
@@ -39,7 +39,7 @@ pub fn search(index: &Index, options: &SearchOptions) -> Result<SearchResult> {
         });
     }
 
-    // 解析查询词
+    // Parse search terms
     let encoded_terms = index.encoder.encode(query)?;
     if encoded_terms.is_empty() {
         return Ok(SearchResult {
@@ -53,9 +53,9 @@ pub fn search(index: &Index, options: &SearchOptions) -> Result<SearchResult> {
     let offset = options.offset.unwrap_or(0);
     let context = options.context.unwrap_or(false);
 
-    // 根据术语数量选择不同的搜索策略
+    // Choose different search strategies based on the number of terms
     let results = if encoded_terms.len() == 1 {
-        // 单术语快速路径
+        // Single Term Fast Path
         let result = single_term_query(
             index,
             &encoded_terms[0],
@@ -68,7 +68,7 @@ pub fn search(index: &Index, options: &SearchOptions) -> Result<SearchResult> {
         )?;
         result.results
     } else {
-        // 多术语搜索
+        // Multi-term search
         let terms: Vec<&str> = encoded_terms.iter().map(|s| s.as_str()).collect();
         multi_term_search(index, terms, options)?
     };
@@ -82,7 +82,7 @@ pub fn search(index: &Index, options: &SearchOptions) -> Result<SearchResult> {
     })
 }
 
-/// 默认解析函数（兼容函数）
+/// Default parsing function (compatible function)
 pub fn resolve_default_search(
     results: &IntermediateSearchResults,
     limit: usize,
@@ -92,13 +92,13 @@ pub fn resolve_default_search(
         return Vec::new();
     }
 
-    // 展平结果
+    // Flattening results
     let mut flattened = Vec::new();
     for array in results {
         flattened.extend_from_slice(array);
     }
 
-    // 应用限制和偏移
+    // Applying Limits and Offsets
     if offset > 0 {
         if offset >= flattened.len() {
             return Vec::new();

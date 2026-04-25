@@ -1,7 +1,7 @@
-//! 持久化管理器
+//! Persistence Manager
 //!
-//! 提供索引的持久化管理功能，包括备份、恢复、导出等
-//! 参考 BM25 的 persistence.rs 实现
+//! Provide index persistence management functions, including backup, restore, export, etc.
+//! Refer to the persistence.rs implementation of BM25.
 
 use crate::error::Result;
 use crate::storage::manager::StorageManager;
@@ -13,7 +13,7 @@ use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
-/// 索引元数据
+/// Indexing metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexMetadata {
     pub name: String,
@@ -37,7 +37,7 @@ impl Default for IndexMetadata {
     }
 }
 
-/// 备份信息
+/// Backup Information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupInfo {
     pub index_name: String,
@@ -48,7 +48,7 @@ pub struct BackupInfo {
     pub document_count: u64,
 }
 
-/// 持久化管理器
+/// Persistence Manager
 pub struct PersistenceManager {
     base_path: PathBuf,
     #[allow(dead_code)]
@@ -56,7 +56,7 @@ pub struct PersistenceManager {
 }
 
 impl PersistenceManager {
-    /// 创建新的持久化管理器
+    /// Creating a New Persistence Manager
     pub fn new<P: AsRef<Path>>(base_path: P) -> Self {
         Self {
             base_path: base_path.as_ref().to_path_buf(),
@@ -64,7 +64,7 @@ impl PersistenceManager {
         }
     }
 
-    /// 创建带有存储管理器的持久化管理器
+    /// Creating a Persistence Manager with a Storage Manager
     pub fn with_storage<P: AsRef<Path>>(base_path: P, storage_manager: StorageManager) -> Self {
         Self {
             base_path: base_path.as_ref().to_path_buf(),
@@ -72,12 +72,12 @@ impl PersistenceManager {
         }
     }
 
-    /// 获取基础路径
+    /// Getting the base path
     pub fn base_path(&self) -> &Path {
         &self.base_path
     }
 
-    /// 保存索引元数据
+    /// Save index metadata
     pub fn save_metadata(&self, metadata: &IndexMetadata) -> Result<()> {
         let metadata_path = self.base_path.join("metadata.json");
         fs::create_dir_all(&self.base_path)?;
@@ -89,7 +89,7 @@ impl PersistenceManager {
         Ok(())
     }
 
-    /// 加载索引元数据
+    /// Load index metadata
     pub fn load_metadata(&self) -> Result<IndexMetadata> {
         let metadata_path = self.base_path.join("metadata.json");
 
@@ -105,7 +105,7 @@ impl PersistenceManager {
         Ok(metadata)
     }
 
-    /// 创建备份
+    /// Creating a Backup
     pub fn create_backup(&self, index: &Index, index_name: &str) -> Result<BackupInfo> {
         let backup_dir = self.base_path.join("backups").join(index_name);
         fs::create_dir_all(&backup_dir)?;
@@ -113,16 +113,16 @@ impl PersistenceManager {
         let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S_%3f").to_string();
         let backup_path = backup_dir.join(format!("backup_{}", timestamp));
 
-        // 序列化索引数据
+        // Serialized Index Data
         let index_data = self.serialize_index(index)?;
 
-        // 保存到备份目录
+        // Save to backup directory
         fs::create_dir_all(&backup_path)?;
         let data_file = backup_path.join("index_data.bin");
         let mut file = File::create(&data_file)?;
         file.write_all(&index_data)?;
 
-        // 计算备份大小
+        // Calculating Backup Size
         let size_bytes = self.get_dir_size(&backup_path)?;
         let document_count = index.documents.len() as u64;
 
@@ -135,7 +135,7 @@ impl PersistenceManager {
             document_count,
         };
 
-        // 创建独立的元数据文件
+        // Creating a separate metadata file
         let info_file = backup_dir.join(format!("backup_info_{}.json", timestamp));
         let json = serde_json::to_string_pretty(&backup_info)?;
         let mut file = File::create(info_file)?;
@@ -144,7 +144,7 @@ impl PersistenceManager {
         Ok(backup_info)
     }
 
-    /// 从备份恢复
+    /// Restore from backup
     pub fn restore_backup(&self, index: &mut Index, backup_path: &Path) -> Result<()> {
         let data_file = backup_path.join("index_data.bin");
 
@@ -163,7 +163,7 @@ impl PersistenceManager {
         Ok(())
     }
 
-    /// 列出所有备份
+    /// List all backups
     pub fn list_backups(&self, index_name: &str) -> Result<Vec<BackupInfo>> {
         let backup_dir = self.base_path.join("backups").join(index_name);
 
@@ -177,7 +177,7 @@ impl PersistenceManager {
             let entry = entry?;
             let path = entry.path();
 
-            // 查找 backup_info_*.json 文件
+            // Find the backup_info_*.json file
             if let Some(filename) = path.file_name() {
                 let filename_str = filename.to_string_lossy();
                 if filename_str.starts_with("backup_info_") && filename_str.ends_with(".json") {
@@ -197,7 +197,7 @@ impl PersistenceManager {
         Ok(backups)
     }
 
-    /// 删除旧备份
+    /// Deleting old backups
     pub fn delete_old_backups(&self, index_name: &str, keep_count: u32) -> Result<u32> {
         let backups = self.list_backups(index_name)?;
 
@@ -209,7 +209,7 @@ impl PersistenceManager {
         let mut deleted = 0u32;
 
         for backup in backups.into_iter().take(to_delete) {
-            // 删除备份目录
+            // Delete the backup directory
             if backup.backup_path.is_dir() {
                 if fs::remove_dir_all(&backup.backup_path).is_ok() {
                     deleted += 1;
@@ -218,7 +218,7 @@ impl PersistenceManager {
                 deleted += 1;
             }
 
-            // 删除对应的元数据文件
+            // Delete the corresponding metadata file
             let backup_dir = self.base_path.join("backups").join(index_name);
             let info_file = backup_dir.join(format!("backup_info_{}.json", backup.backup_id));
 
@@ -230,7 +230,7 @@ impl PersistenceManager {
         Ok(deleted)
     }
 
-    /// 导出索引到文件
+    /// Exporting an Index to a File
     pub fn export_index(&self, index: &Index, output_file: &Path) -> Result<()> {
         let data = self.serialize_index(index)?;
 
@@ -241,7 +241,7 @@ impl PersistenceManager {
         Ok(())
     }
 
-    /// 从文件导入索引
+    /// Importing an index from a file
     pub fn import_index(&self, index: &mut Index, input_file: &Path) -> Result<()> {
         let mut file = File::open(input_file)?;
         let mut data = Vec::new();
@@ -252,7 +252,7 @@ impl PersistenceManager {
         Ok(())
     }
 
-    /// 序列化索引
+    /// Serialized Indexes
     fn serialize_index(&self, index: &Index) -> Result<Vec<u8>> {
         use crate::serialize::IndexExportData;
 
@@ -263,7 +263,7 @@ impl PersistenceManager {
         Ok(data)
     }
 
-    /// 反序列化索引
+    /// Deserialized indexes
     fn deserialize_index(&self, index: &mut Index, data: &[u8]) -> Result<()> {
         use crate::serialize::IndexExportData;
 
@@ -275,7 +275,7 @@ impl PersistenceManager {
         Ok(())
     }
 
-    /// 递归复制目录
+    /// Recursive Copy Catalog
     #[allow(dead_code)]
     fn copy_dir(&self, src: &Path, dst: &Path) -> Result<()> {
         fs::create_dir_all(dst)?;
@@ -295,7 +295,7 @@ impl PersistenceManager {
         Ok(())
     }
 
-    /// 获取目录大小
+    /// Get directory size
     fn get_dir_size(&self, path: &Path) -> Result<u64> {
         let mut size = 0u64;
 
@@ -313,23 +313,23 @@ impl PersistenceManager {
         Ok(size)
     }
 
-    /// 同步索引到存储（异步）
+    /// Synchronized index to storage (asynchronous)
     pub async fn sync_to_storage(&self, index: &Index, storage: &StorageManager) -> Result<()> {
         storage.commit(index, false, true).await
     }
 
-    /// 从存储恢复索引（异步）
+    /// Recovering indexes from storage (asynchronous)
     pub async fn restore_from_storage(
         &self,
         index: &mut Index,
         storage: &StorageManager,
     ) -> Result<()> {
-        // 使用 storage manager 挂载索引
+        // Mounting indexes with storage manager
         storage.mount_index(index).await
     }
 }
 
-/// 索引导出数据（简化版本，用于 PersistenceManager）
+/// Index Export Data (simplified version for PersistenceManager)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexSnapshot {
     pub documents: Vec<(DocId, String)>,
@@ -339,7 +339,7 @@ pub struct IndexSnapshot {
 }
 
 impl IndexSnapshot {
-    /// 从索引创建快照
+    /// Creating a Snapshot from an Index
     pub fn from_index(index: &Index) -> Self {
         let documents: Vec<(DocId, String)> = index
             .documents
@@ -347,7 +347,7 @@ impl IndexSnapshot {
             .map(|(&id, content)| (id, content.clone()))
             .collect();
 
-        // 注意：这里简化处理，实际实现需要遍历 KeystoreMap
+        // Note: This simplifies the process, and the actual implementation requires traversing the KeystoreMap.
         let map_entries = Vec::new();
         let ctx_entries = Vec::new();
 
@@ -359,7 +359,7 @@ impl IndexSnapshot {
         }
     }
 
-    /// 应用快照到索引
+    /// Applying Snapshots to Indexes
     pub fn apply_to_index(&self, index: &mut Index) -> Result<()> {
         index.clear();
 
@@ -367,8 +367,8 @@ impl IndexSnapshot {
             index.documents.insert(*id, content.clone());
         }
 
-        // 注意：需要重建索引映射
-        // 这里简化处理，实际实现需要重新索引所有文档
+        // Note: Index mapping needs to be rebuilt
+        // Here the processing is simplified, the actual implementation requires re-indexing all documents
 
         Ok(())
     }

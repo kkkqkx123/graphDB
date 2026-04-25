@@ -1,6 +1,6 @@
-//! 异步支持模块
+//! Asynchronous Support Module
 //!
-//! 提供异步索引操作和搜索功能
+//! Provides asynchronous indexing operations and search capabilities
 
 use crate::error::Result;
 use crate::r#type::SearchOptions;
@@ -10,13 +10,13 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::task::JoinHandle;
 
-/// 异步搜索任务
+/// Asynchronous search tasks
 pub struct AsyncSearchTask {
     handle: JoinHandle<Result<crate::search::SearchResult>>,
 }
 
 impl AsyncSearchTask {
-    /// 创建新的异步搜索任务
+    /// Create a new asynchronous search task
     pub fn new<F>(future: F) -> Self
     where
         F: Future<Output = Result<crate::search::SearchResult>> + Send + 'static,
@@ -40,13 +40,13 @@ impl Future for AsyncSearchTask {
     }
 }
 
-/// 异步索引构建任务
+/// Asynchronous Index Building Tasks
 pub struct AsyncIndexTask {
     handle: JoinHandle<Result<()>>,
 }
 
 impl AsyncIndexTask {
-    /// 创建新的异步索引任务
+    /// Creating a new asynchronous indexing task
     pub fn new<F>(future: F) -> Self
     where
         F: Future<Output = Result<()>> + Send + 'static,
@@ -70,21 +70,21 @@ impl Future for AsyncIndexTask {
     }
 }
 
-/// 异步索引包装器
+/// Asynchronous Index Wrapper
 #[derive(Clone)]
 pub struct AsyncIndex {
     pub(crate) index: std::sync::Arc<tokio::sync::RwLock<Index>>,
 }
 
 impl AsyncIndex {
-    /// 创建新的异步索引
+    /// Creating a new asynchronous index
     pub fn new(index: Index) -> Self {
         Self {
             index: std::sync::Arc::new(tokio::sync::RwLock::new(index)),
         }
     }
 
-    /// 异步添加文档
+    /// Add documents asynchronously
     pub async fn add_async(&self, id: u64, content: &str, append: bool) -> Result<()> {
         let content = content.to_string();
         let index = self.index.clone();
@@ -96,7 +96,7 @@ impl AsyncIndex {
         .await?
     }
 
-    /// 异步删除文档
+    /// Deleting documents asynchronously
     pub async fn remove_async(&self, id: u64) -> Result<()> {
         let index = self.index.clone();
 
@@ -107,7 +107,7 @@ impl AsyncIndex {
         .await?
     }
 
-    /// 异步搜索
+    /// asynchronous search
     pub async fn search_async(
         &self,
         options: SearchOptions,
@@ -122,7 +122,7 @@ impl AsyncIndex {
         .await?
     }
 
-    /// 异步带缓存搜索
+    /// Asynchronous Search with Cache
     pub async fn search_cached_async(
         &self,
         options: SearchOptions,
@@ -137,7 +137,7 @@ impl AsyncIndex {
         .await?
     }
 
-    /// 异步更新文档
+    /// Updating documentation asynchronously
     pub async fn update_async(&self, id: u64, content: &str) -> Result<()> {
         let content = content.to_string();
         let index = self.index.clone();
@@ -149,7 +149,7 @@ impl AsyncIndex {
         .await?
     }
 
-    /// 异步清空索引
+    /// Asynchronous index clearing
     pub async fn clear_async(&self) -> Result<()> {
         let index = self.index.clone();
 
@@ -161,13 +161,13 @@ impl AsyncIndex {
         .await?
     }
 
-    /// 异步获取缓存统计
+    /// Asynchronous fetching of cached statistics
     pub async fn cache_stats_async(&self) -> Option<crate::search::CacheStats> {
         let index = self.index.read().await;
         index.cache_stats()
     }
 
-    /// 异步清空缓存
+    /// Asynchronous Cache Emptying
     pub async fn clear_cache_async(&self) -> Result<()> {
         let mut index = self.index.write().await;
         index.clear_cache();
@@ -175,14 +175,14 @@ impl AsyncIndex {
     }
 }
 
-/// 异步搜索构建器
+/// Asynchronous Search Builder
 pub struct AsyncSearchBuilder {
     query: String,
     options: SearchOptions,
 }
 
 impl AsyncSearchBuilder {
-    /// 创建新的异步搜索构建器
+    /// Creating a new asynchronous search builder
     pub fn new(query: impl Into<String>) -> Self {
         Self {
             query: query.into(),
@@ -190,31 +190,31 @@ impl AsyncSearchBuilder {
         }
     }
 
-    /// 设置限制
+    /// Setting Limits
     pub fn limit(mut self, limit: usize) -> Self {
         self.options.limit = Some(limit);
         self
     }
 
-    /// 设置偏移
+    /// Setting the offset
     pub fn offset(mut self, offset: usize) -> Self {
         self.options.offset = Some(offset);
         self
     }
 
-    /// 设置上下文
+    /// Setting the context
     pub fn context(mut self, context: bool) -> Self {
         self.options.context = Some(context);
         self
     }
 
-    /// 设置建议
+    /// Setting Recommendations
     pub fn suggest(mut self, suggest: bool) -> Self {
         self.options.suggest = Some(suggest);
         self
     }
 
-    /// 执行搜索
+    /// Perform a search
     pub async fn execute(self, index: &AsyncIndex) -> Result<crate::search::SearchResult> {
         let mut options = self.options;
         options.query = Some(self.query);
@@ -223,7 +223,7 @@ impl AsyncSearchBuilder {
     }
 }
 
-/// 批量异步操作
+/// batch asynchronous operation
 pub struct BatchAsyncOperations {
     operations: Vec<BatchOperation>,
 }
@@ -244,19 +244,19 @@ pub enum BatchOperation {
 }
 
 impl BatchAsyncOperations {
-    /// 创建新的批量操作
+    /// Creating a new batch operation
     pub fn new() -> Self {
         Self {
             operations: Vec::new(),
         }
     }
 
-    /// 添加操作
+    /// Add operation
     pub fn add_operation(&mut self, operation: BatchOperation) {
         self.operations.push(operation);
     }
 
-    /// 添加文档
+    /// Adding Documents
     pub fn add(&mut self, id: u64, content: impl Into<String>, append: bool) {
         self.add_operation(BatchOperation::Add {
             id,
@@ -265,12 +265,12 @@ impl BatchAsyncOperations {
         });
     }
 
-    /// 删除文档
+    /// Delete Document
     pub fn remove(&mut self, id: u64) {
         self.add_operation(BatchOperation::Remove { id });
     }
 
-    /// 更新文档
+    /// Update Documentation
     pub fn update(&mut self, id: u64, content: impl Into<String>) {
         self.add_operation(BatchOperation::Update {
             id,
@@ -278,7 +278,7 @@ impl BatchAsyncOperations {
         });
     }
 
-    /// 执行批量操作
+    /// Perform batch operations
     pub async fn execute(self, index: &AsyncIndex) -> Result<Vec<Result<()>>> {
         let mut results = Vec::new();
 
@@ -305,25 +305,25 @@ impl Default for BatchAsyncOperations {
     }
 }
 
-/// 并发搜索
+/// concurrent search
 pub struct ConcurrentSearch {
     searches: Vec<(String, SearchOptions)>,
 }
 
 impl ConcurrentSearch {
-    /// 创建新的并发搜索
+    /// Create a new concurrent search
     pub fn new() -> Self {
         Self {
             searches: Vec::new(),
         }
     }
 
-    /// 添加搜索
+    /// Add Search
     pub fn add_search(&mut self, query: impl Into<String>, options: SearchOptions) {
         self.searches.push((query.into(), options));
     }
 
-    /// 执行并发搜索
+    /// Perform concurrent searches
     pub async fn execute(self, index: &AsyncIndex) -> Result<Vec<crate::search::SearchResult>> {
         let mut handles = Vec::new();
 
@@ -362,7 +362,7 @@ mod tests {
         let index = Index::default();
         let async_index = AsyncIndex::new(index);
 
-        // 异步添加文档
+        // Add documents asynchronously
         async_index
             .add_async(1, "hello world", false)
             .await
@@ -372,7 +372,7 @@ mod tests {
             .await
             .unwrap();
 
-        // 异步搜索
+        // asynchronous search
         let options = SearchOptions {
             query: Some("hello".to_string()),
             ..Default::default()
@@ -393,7 +393,7 @@ mod tests {
             .await
             .unwrap();
 
-        // 使用搜索构建器
+        // Using the search builder
         let result = AsyncSearchBuilder::new("test")
             .limit(10)
             .offset(0)
@@ -418,7 +418,7 @@ mod tests {
         let results = batch.execute(&async_index).await.unwrap();
         assert_eq!(results.len(), 3);
 
-        // 验证结果
+        // Verification results
         for result in results {
             assert!(result.is_ok());
         }
@@ -443,16 +443,16 @@ mod tests {
         let results = concurrent.execute(&async_index).await.unwrap();
         assert_eq!(results.len(), 3);
 
-        // hello应该找到文档1
+        // hello should find document 1
         assert_eq!(results[0].results.len(), 1);
         assert!(results[0].results.contains(&1));
 
-        // world应该找到文档1和2
+        // World should find files 1 and 2.
         assert_eq!(results[1].results.len(), 2);
         assert!(results[1].results.contains(&1));
         assert!(results[1].results.contains(&2));
 
-        // rust应该找到文档2
+        // rust should find document 2
         assert_eq!(results[2].results.len(), 1);
         assert!(results[2].results.contains(&2));
     }

@@ -1,11 +1,11 @@
-//! 评分模块
+//! Scoring Module
 //!
-//! 实现高级评分算法，包括TF-IDF、BM25等
+//! Implement advanced scoring algorithms, including TF-IDF, BM25, etc.
 
 use crate::r#type::IntermediateSearchResults;
 use std::collections::HashMap;
 
-/// 带评分的ID
+/// ID with rating
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScoredId {
     pub id: u64,
@@ -14,13 +14,13 @@ pub struct ScoredId {
     pub positions: Vec<usize>,
 }
 
-/// 评分算法trait
+/// Scoring algorithm trait
 pub trait ScoringAlgorithm {
     fn calculate_score(&self, doc: &ScoredId, query_terms: &[String], config: &ScoreConfig) -> f32;
     fn name(&self) -> &str;
 }
 
-/// 评分配置
+/// Scoring configuration
 #[derive(Debug, Clone)]
 pub struct ScoreConfig {
     pub boost_factor: f32,
@@ -40,7 +40,7 @@ impl Default for ScoreConfig {
     }
 }
 
-/// TF-IDF评分算法
+/// TF-IDF scoring algorithm
 pub struct TfIdfScorer {
     document_frequency: HashMap<String, usize>,
     total_documents: usize,
@@ -54,13 +54,13 @@ impl TfIdfScorer {
         }
     }
 
-    /// 计算词频
+    /// Calculate word frequency
     fn calculate_tf(&self, _term: &str, doc: &ScoredId) -> f32 {
-        // 简化实现：使用计数作为词频
+        // Simplified implementation: using counts as word frequencies
         doc.count as f32
     }
 
-    /// 计算逆文档频率
+    /// Calculate the inverse document frequency
     fn calculate_idf(&self, term: &str) -> f32 {
         let df = self.document_frequency.get(term).unwrap_or(&1);
         ((self.total_documents as f32) / (*df as f32)).ln().max(0.0)
@@ -77,7 +77,7 @@ impl ScoringAlgorithm for TfIdfScorer {
             score += tf * idf;
         }
 
-        // 应用配置
+        // Application Configuration
         score
             * config
                 .boost_factor
@@ -90,7 +90,7 @@ impl ScoringAlgorithm for TfIdfScorer {
     }
 }
 
-/// BM25评分算法
+/// BM25 scoring algorithm
 pub struct Bm25Scorer {
     document_length: HashMap<u64, usize>,
     average_document_length: f32,
@@ -113,7 +113,7 @@ impl Bm25Scorer {
         }
     }
 
-    /// 计算BM25分数
+    /// Calculating BM25 scores
     fn calculate_bm25(&self, term_freq: usize, doc_id: u64, _doc_count: usize) -> f32 {
         let doc_len = *self.document_length.get(&doc_id).unwrap_or(&0) as f32;
         let normalized_length = doc_len / self.average_document_length;
@@ -134,13 +134,13 @@ impl ScoringAlgorithm for Bm25Scorer {
         let mut score = 0.0;
 
         for _term in query_terms {
-            // 简化实现：假设每个查询词出现一次
+            // Simplified implementation: assume one occurrence of each query term
             let term_freq = 1;
             let bm25_score = self.calculate_bm25(term_freq, doc.id, 0);
             score += bm25_score;
         }
 
-        // 应用配置
+        // Application Configuration
         score
             * config
                 .boost_factor
@@ -153,7 +153,7 @@ impl ScoringAlgorithm for Bm25Scorer {
     }
 }
 
-/// 评分管理器
+/// Rating Manager
 pub struct ScoreManager {
     algorithms: HashMap<String, Box<dyn ScoringAlgorithm>>,
     default_algorithm: String,
@@ -166,7 +166,7 @@ impl Default for ScoreManager {
             default_algorithm: "tfidf".to_string(),
         };
 
-        // 添加默认算法
+        // Add default algorithm
         manager.add_algorithm("tfidf", Box::new(TfIdfScorer::new(HashMap::new(), 1000)));
         manager.add_algorithm(
             "bm25",
@@ -213,7 +213,7 @@ impl ScoreManager {
     }
 }
 
-/// 对搜索结果进行评分
+/// Rate search results
 pub fn score_search_results(
     results: &IntermediateSearchResults,
     query_terms: &[String],
@@ -226,7 +226,7 @@ pub fn score_search_results(
         for (pos, &id) in result_array.iter().enumerate() {
             let scored_id = ScoredId {
                 id,
-                score: 0.5, // 默认分数
+                score: 0.5, // Default Score
                 count: result_array.len(),
                 positions: vec![pos],
             };
@@ -234,7 +234,7 @@ pub fn score_search_results(
         }
     }
 
-    // 使用评分管理器进行评分
+    // Scoring with the Scoring Manager
     let manager = ScoreManager::new();
     manager.score_documents(scored_results, query_terms, algorithm, config)
 }

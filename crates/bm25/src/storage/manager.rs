@@ -1,7 +1,7 @@
-//! 存储管理器
+//! Storage Manager
 //!
-//! 提供统一的存储管理接口，集成存储到业务逻辑
-//! 使用条件编译确定具体存储类型，零运行时开销
+//! Provide a unified storage management interface, Integrate storage into business the business logic
+//! Use conditional compilation to determine the specific storage type, zero runtime overhead
 
 use crate::error::Result;
 use crate::storage::common::r#trait::StorageInterface;
@@ -9,14 +9,14 @@ use crate::storage::common::types::{Bm25Stats, StorageInfo};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-// 根据特性导入具体存储类型
+// Import specific storage types based on their-demand
 #[cfg(feature = "storage-tantivy")]
 use crate::storage::tantivy::TantivyStorage;
 
 #[cfg(all(feature = "storage-redis", not(feature = "storage-tantivy")))]
 use crate::storage::redis::RedisStorage;
 
-// 定义默认存储类型 - 当两个特性都启用时，优先使用 TantivyStorage
+// Define default storage type - When both features are enabled, prioritize using TantivyStorage
 #[cfg(feature = "storage-tantivy")]
 pub type DefaultStorage = TantivyStorage;
 
@@ -28,54 +28,54 @@ compile_error!(
     "At least one storage backend must be enabled: 'storage-tantivy' or 'storage-redis'"
 );
 
-/// 存储管理器（只读操作）
+/// Storage Manager (Read-Only Operations)
 ///
-/// 使用条件编译确定具体存储类型，提供零成本抽象的存储管理
+/// Use conditional compilation to determine the specific storage type, providing zero-cost abstraction for storage management
 #[derive(Clone)]
 pub struct StorageManager {
     storage: Arc<DefaultStorage>,
 }
 
 impl StorageManager {
-    /// 创建新的存储管理器
+    /// Create a new storage manager
     pub fn new(storage: Arc<DefaultStorage>) -> Self {
         Self { storage }
     }
 
-    /// 获取底层存储
+    /// Get underlying storage
     pub fn storage(&self) -> Arc<DefaultStorage> {
         self.storage.clone()
     }
 
-    /// 获取词项统计
+    /// Get term statistics
     pub async fn get_stats(&self, term: &str) -> Result<Option<Bm25Stats>> {
         self.storage.get_stats(term).await
     }
 
-    /// 获取文档频率
+    /// Get document frequency
     pub async fn get_df(&self, term: &str) -> Result<Option<u64>> {
         self.storage.get_df(term).await
     }
 
-    /// 获取词项频率
+    /// Get term frequency
     pub async fn get_tf(&self, term: &str, doc_id: &str) -> Result<Option<f32>> {
         self.storage.get_tf(term, doc_id).await
     }
 
-    /// 获取存储信息
+    /// Get storage information
     pub async fn info(&self) -> Result<StorageInfo> {
         self.storage.info().await
     }
 
-    /// 健康检查
+    /// Health check
     pub async fn health_check(&self) -> Result<bool> {
         self.storage.health_check().await
     }
 }
 
-/// 可变的存储管理器，支持修改操作
+/// Variable storage manager, supports modification operations
 ///
-/// 使用条件编译确定具体存储类型
+/// Use conditional compilation to determine the specific storage type
 pub struct MutableStorageManager {
     storage: Arc<RwLock<DefaultStorage>>,
 }
@@ -89,22 +89,22 @@ impl Clone for MutableStorageManager {
 }
 
 impl MutableStorageManager {
-    /// 创建新的可变存储管理器
+    /// Create a new variable storage manager
     pub fn new(storage: DefaultStorage) -> Self {
         Self {
             storage: Arc::new(RwLock::new(storage)),
         }
     }
 
-    /// 从 Arc 创建可变存储管理器
+    /// Create a variable storage manager from Arc
     pub fn from_arc(storage: Arc<DefaultStorage>) -> Self {
         Self {
             storage: Arc::new(RwLock::new(Arc::try_unwrap(storage).unwrap_or_else(
                 |_arc| {
-                    // 如果 Arc 有多个引用，克隆内部数据
+                    // If Arc has multiple references, clone internal data
                     #[cfg(feature = "storage-tantivy")]
                     {
-                        // TantivyStorage 需要特殊处理，这里简化处理
+                        // TantivyStorage requires special handling,简化处理 here
                         panic!(
                             "Cannot create MutableStorageManager from shared Arc<TantivyStorage>"
                         )
@@ -118,85 +118,85 @@ impl MutableStorageManager {
         }
     }
 
-    /// 获取存储 Arc（用于共享）
+    /// Get storage Arc (for sharing)
     pub fn storage_arc(&self) -> Arc<RwLock<DefaultStorage>> {
         self.storage.clone()
     }
 
-    /// 初始化存储
+    /// Initialize storage
     pub async fn init(&self) -> Result<()> {
         let mut storage = self.storage.write().await;
         storage.init().await
     }
 
-    /// 提交词项统计
+    /// Submit term statistics
     pub async fn commit_stats(&self, term: &str, tf: f32, df: u64) -> Result<()> {
         let mut storage = self.storage.write().await;
         storage.commit_stats(term, tf, df).await
     }
 
-    /// 批量提交统计
+    /// Batch submission statistics
     pub async fn commit_batch(&self, stats: &Bm25Stats) -> Result<()> {
         let mut storage = self.storage.write().await;
         storage.commit_batch(stats).await
     }
 
-    /// 获取词项统计
+    /// Get term statistics
     pub async fn get_stats(&self, term: &str) -> Result<Option<Bm25Stats>> {
         let storage = self.storage.read().await;
         storage.get_stats(term).await
     }
 
-    /// 获取文档频率
+    /// Get document frequency
     pub async fn get_df(&self, term: &str) -> Result<Option<u64>> {
         let storage = self.storage.read().await;
         storage.get_df(term).await
     }
 
-    /// 获取词项频率
+    /// Get term frequency
     pub async fn get_tf(&self, term: &str, doc_id: &str) -> Result<Option<f32>> {
         let storage = self.storage.read().await;
         storage.get_tf(term, doc_id).await
     }
 
-    /// 清空所有数据
+    /// Clear all data
     pub async fn clear(&self) -> Result<()> {
         let mut storage = self.storage.write().await;
         storage.clear().await
     }
 
-    /// 获取存储信息
+    /// Getting storage information
     pub async fn info(&self) -> Result<StorageInfo> {
         let storage = self.storage.read().await;
         storage.info().await
     }
 
-    /// 健康检查
+    /// health checkup
     pub async fn health_check(&self) -> Result<bool> {
         let storage = self.storage.read().await;
         storage.health_check().await
     }
 
-    /// 删除特定文档的统计信息
+    /// Delete statistics for a specific document
     pub async fn delete_doc_stats(&self, doc_id: &str) -> Result<()> {
         let mut storage = self.storage.write().await;
         storage.delete_doc_stats(doc_id).await
     }
 
-    /// 关闭存储
+    /// Close Storage
     pub async fn close(&self) -> Result<()> {
         let mut storage = self.storage.write().await;
         storage.close().await
     }
 }
 
-/// 存储管理器构建器
+/// Storage Manager Builder
 ///
-/// 用于根据配置创建存储管理器
+/// Used to create a storage manager based on the configuration
 pub struct StorageManagerBuilder;
 
 impl StorageManagerBuilder {
-    /// 创建默认存储管理器（只读）
+    /// Creating a default storage manager (read-only)
     #[cfg(feature = "storage-tantivy")]
     pub fn build_tantivy(
         config: crate::storage::tantivy::TantivyStorageConfig,
@@ -205,7 +205,7 @@ impl StorageManagerBuilder {
         Ok(StorageManager::new(Arc::new(storage)))
     }
 
-    /// 创建默认存储管理器（只读）- 仅在 Redis 作为默认存储时可用
+    /// Create Default Storage Manager (read-only) - available only when Redis is the default storage
     #[cfg(all(feature = "storage-redis", not(feature = "storage-tantivy")))]
     pub async fn build_redis(
         config: crate::storage::redis::RedisStorageConfig,
@@ -214,7 +214,7 @@ impl StorageManagerBuilder {
         Ok(StorageManager::new(Arc::new(storage)))
     }
 
-    /// 创建可变存储管理器
+    /// Creating a Variable Storage Manager
     #[cfg(feature = "storage-tantivy")]
     pub fn build_mutable_tantivy(
         config: crate::storage::tantivy::TantivyStorageConfig,
@@ -223,7 +223,7 @@ impl StorageManagerBuilder {
         Ok(MutableStorageManager::new(storage))
     }
 
-    /// 创建可变存储管理器 - 仅在 Redis 作为默认存储时可用
+    /// Create Variable Storage Manager - available only when Redis is the default storage
     #[cfg(all(feature = "storage-redis", not(feature = "storage-tantivy")))]
     pub async fn build_mutable_redis(
         config: crate::storage::redis::RedisStorageConfig,

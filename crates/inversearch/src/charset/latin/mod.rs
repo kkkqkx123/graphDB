@@ -1,11 +1,11 @@
 use crate::r#type::EncoderOptions;
 use std::collections::HashMap;
 
-// ========== 基础字符映射 ==========
+// ========== Basic Character Mapping ==========
 fn get_soundex_map() -> HashMap<char, char> {
     let mut map = HashMap::new();
 
-    // 声音相似字符映射
+    // Sound-alike character mapping
     map.insert('b', 'p');
     map.insert('v', 'f');
     map.insert('w', 'f');
@@ -24,7 +24,7 @@ fn get_soundex_map() -> HashMap<char, char> {
     map
 }
 
-// ========== 高级匹配规则 ==========
+// ========== Advanced Matching Rules ==========
 fn get_advanced_matcher() -> HashMap<String, String> {
     let mut matcher = HashMap::new();
 
@@ -39,7 +39,7 @@ fn get_advanced_matcher() -> HashMap<String, String> {
     matcher
 }
 
-// ========== 替换规则 ==========
+// ========== Replacement rules ==========
 fn get_advanced_replacer() -> Vec<(String, String)> {
     vec![(r"([^aeo])h(.)", "$1$2"), (r"([aeo])h([^aeo]|$)", "$1$2")]
         .into_iter()
@@ -54,7 +54,7 @@ fn get_compact_replacer() -> Vec<(String, String)> {
         .collect()
 }
 
-// ========== Soundex 编码 ==========
+// ========== Soundex Code ==========
 pub fn soundex_encode(string_to_encode: &str) -> String {
     let codes = get_soundex_codes();
 
@@ -141,9 +141,9 @@ fn get_soundex_codes() -> HashMap<char, i32> {
     codes
 }
 
-// ========== 预设配置 ==========
+// ========== Preset Configuration ==========
 
-/// 基础拉丁字符集 - 简单的字符映射
+/// Basic Latin Character Set - Simple Character Mapping
 pub fn get_charset_latin_balance() -> EncoderOptions {
     EncoderOptions {
         mapper: Some(get_soundex_map()),
@@ -164,14 +164,14 @@ pub fn get_charset_latin_balance() -> EncoderOptions {
     }
 }
 
-/// 高级拉丁字符集 - 包含匹配和替换规则
+/// Advanced Latin Character Set - includes match and replace rules
 pub fn get_charset_latin_advanced() -> EncoderOptions {
     let mut mapper = HashMap::new();
     mapper.insert('t', 't');
     mapper.insert('e', 'e');
     mapper.insert('s', 's');
 
-    // 合并基础声音映射
+    // Merge base sound mapping
     mapper.extend(get_soundex_map());
 
     EncoderOptions {
@@ -193,7 +193,7 @@ pub fn get_charset_latin_advanced() -> EncoderOptions {
     }
 }
 
-/// 扩展拉丁字符集 - 最完整的规则集合
+/// Extended Latin Character Set - the most complete set of rules available
 pub fn get_charset_latin_extra() -> EncoderOptions {
     let mut replacer = get_advanced_replacer();
     replacer.extend(get_compact_replacer());
@@ -220,7 +220,7 @@ pub fn get_charset_latin_extra() -> EncoderOptions {
     }
 }
 
-/// Soundex 编码配置
+/// Soundex Encoding Configuration
 pub fn get_charset_latin_soundex() -> EncoderOptions {
     EncoderOptions {
         dedupe: Some(false),
@@ -228,9 +228,9 @@ pub fn get_charset_latin_soundex() -> EncoderOptions {
     }
 }
 
-// ========== 字符集工具函数 ==========
+// ========== Character set utility function ==========
 
-/// 获取拉丁字符填充映射表 - 用于字符标准化
+/// Get Latin character padding mapping table - for character normalization
 pub fn get_latin_polyfill() -> HashMap<char, &'static str> {
     let mut map = HashMap::new();
 
@@ -327,7 +327,7 @@ pub fn get_latin_polyfill() -> HashMap<char, &'static str> {
     map
 }
 
-/// 标准化拉丁字符串中的特殊字符
+/// Special characters in standardized Latin strings
 pub fn normalize_latin(str: &str) -> String {
     let polyfill = get_latin_polyfill();
     let mut result = String::new();
@@ -343,7 +343,7 @@ pub fn normalize_latin(str: &str) -> String {
     result
 }
 
-// ========== 测试 ==========
+// ========== Testing ==========
 #[cfg(test)]
 mod tests {
     use super::*;

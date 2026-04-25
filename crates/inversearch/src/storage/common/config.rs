@@ -1,27 +1,27 @@
-//! 存储配置类型
+//! Storage configuration type
 //!
-//! 定义各种存储后端的配置选项
+//! Define configuration options for various storage backends
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;
 
-/// 存储配置
+/// storage configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageConfig {
-    /// 存储类型
+    /// storage type
     pub storage_type: StorageType,
-    /// 基础路径（文件存储使用）
+    /// Basic path (file storage usage)
     pub base_path: Option<PathBuf>,
-    /// Redis 连接字符串（Redis 存储使用）
+    /// Redis connection string (Redis storage used)
     pub redis_url: Option<String>,
-    /// 是否启用 WAL
+    /// Whether to enable WAL
     pub enable_wal: bool,
-    /// WAL 目录
+    /// WAL Directory
     pub wal_dir: Option<PathBuf>,
-    /// 缓存大小（字节）
+    /// Cache size (bytes)
     pub cache_size: usize,
-    /// 刷新间隔
+    /// refresh interval
     pub flush_interval: Duration,
 }
 
@@ -39,18 +39,18 @@ impl Default for StorageConfig {
     }
 }
 
-/// 存储类型枚举
+/// Storage type enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StorageType {
-    /// 文件存储
+    /// file storage
     File,
-    /// Redis 存储
+    /// Redis storage
     Redis,
-    /// 内存存储（测试用）
+    /// Memory storage (for testing)
     Memory,
-    /// WAL 存储
+    /// WAL Storage
     WAL,
-    /// 冷热缓存存储
+    /// hot and cold cache storage
     ColdWarmCache,
 }
 

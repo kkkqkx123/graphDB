@@ -1,6 +1,6 @@
-//! Document 序列化模块
+//! Document Serialization Module
 //!
-//! 提供 Document 类型的导入导出功能
+//! Provide Document type import and export function
 
 use crate::document::Document;
 use crate::error::Result;
@@ -9,7 +9,7 @@ use oxicode::config::standard;
 use oxicode::serde::{decode_from_slice, encode_to_vec};
 
 impl Document {
-    /// 导出 Document 数据
+    /// Exporting Document Data
     pub fn export(&self, config: &SerializeConfig) -> Result<DocumentExportData> {
         let store_enabled = self.has_store();
         let fastupdate = self.is_fastupdate();
@@ -21,17 +21,17 @@ impl Document {
             tag_enabled: self.has_tag_system(),
         };
 
-        // 导出字段数据
+        // Exporting field data
         let mut fields = Vec::new();
         for field_name in self.field_names() {
             let field_config = FieldConfigExport {
                 field_type: "string".to_string(),
                 index: true,
                 optimize: false,
-                resolution: 9, // 默认分辨率
+                resolution: 9, // Default Resolution
             };
 
-            // 获取字段的索引数据
+            // Getting index data for a field
             if let Some(field) = self.field(field_name) {
                 let index_data = field.index().export(config)?;
 
@@ -43,7 +43,7 @@ impl Document {
             }
         }
 
-        // 导出store数据
+        // Exporting Store Data
         let store = if let Some(store) = self.get_store() {
             let mut documents = std::collections::HashMap::new();
             for (doc_id, value) in store {
@@ -59,7 +59,7 @@ impl Document {
             None
         };
 
-        // 导出registry数据
+        // Exporting registry data
         let next_doc_id = match self.get_reg() {
             crate::document::Register::Set(set) => {
                 let mut max_id = 0u64;
@@ -94,7 +94,7 @@ impl Document {
         })
     }
 
-    /// 导入 Document 数据
+    /// Importing Document Data
     pub fn import(&mut self, data: DocumentExportData, _config: &SerializeConfig) -> Result<()> {
         if data.version != "0.1.0" {
             return Err(crate::error::InversearchError::Serialization(format!(
@@ -105,11 +105,11 @@ impl Document {
 
         self.clear();
 
-        // 导入字段数据
+        // Importing field data
         for field_export in &data.fields {
             if let Some(field) = self.field_mut(&field_export.name) {
                 let index: &mut crate::Index = field.index_mut();
-                // 导入索引数据
+                // Importing Indexed Data
                 for (term, doc_ids) in &field_export.index_data.data.main_index {
                     for doc_id in doc_ids {
                         index.add(*doc_id, term, false).ok();
@@ -118,7 +118,7 @@ impl Document {
             }
         }
 
-        // 导入store数据
+        // Importing Store Data
         if let Some(store_data) = data.store {
             if store_data.enabled {
                 if let Some(store) = self.get_store_mut() {
@@ -131,7 +131,7 @@ impl Document {
             }
         }
 
-        // 导入registry数据
+        // Importing registry data
         for doc_id in 0..data.registry.next_doc_id {
             match self.get_reg_mut() {
                 crate::document::Register::Set(set) => {
@@ -146,13 +146,13 @@ impl Document {
         Ok(())
     }
 
-    /// 序列化为 JSON 字符串
+    /// Serialized to JSON string
     pub fn to_json(&self, config: &SerializeConfig) -> Result<String> {
         let data = self.export(config)?;
         Ok(serde_json::to_string_pretty(&data)?)
     }
 
-    /// 从 JSON 字符串反序列化
+    /// Deserialization from a JSON string
     pub fn from_json(json_str: &str, config: &SerializeConfig) -> Result<Document> {
         let data: DocumentExportData = serde_json::from_str(json_str)?;
 
@@ -173,14 +173,14 @@ impl Document {
         Ok(document)
     }
 
-    /// 序列化为二进制数据（高性能）
+    /// Serialization to binary data (high performance)
     pub fn to_binary(&self, config: &SerializeConfig) -> Result<Vec<u8>> {
         let data = self.export(config)?;
         let serialized = encode_to_vec(&data, standard())?;
         Ok(serialized)
     }
 
-    /// 从二进制数据反序列化
+    /// Deserialization from binary data
     pub fn from_binary(data: &[u8], config: &SerializeConfig) -> Result<Document> {
         let (data, _) = decode_from_slice::<DocumentExportData, _>(data, standard())?;
 

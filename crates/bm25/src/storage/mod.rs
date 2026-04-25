@@ -1,20 +1,20 @@
-//! 存储接口模块
+//! Storage Interface Module
 //!
-//! 提供 BM25 存储的抽象接口和实现
+//! Provide abstract interfaces and implementations of BM25 storage
 //!
-//! ## 模块结构
+//! ## Module structure
 //!
 //! ```text
 //! storage/
 //! ├── common/
-//! │   ├── types.rs         # 共享类型定义
-//! │   └── trait.rs         # 存储接口 trait
-//! ├── factory.rs           # 存储工厂
-//! ├── redis.rs             # Redis 存储实现（可选）
-//! └── tantivy.rs           # Tantivy 本地存储（默认）
+//! │ ├── types.rs # Shared type definitions
+//! │ └── trait.rs # Store interface trait
+//! ├── factory.rs # store factory
+//! ├── redis.rs # Redis storage implementation (optional)
+//! └── tantivy.rs # Tantivy local storage (default)
 //! ```
 //!
-//! ## 条件编译特性
+//! ## Conditional compilation features
 //!
 //! - `storage-redis`: Redis 存储
 //! - `storage-tantivy`: Tantivy 本地文件存储（默认启用）

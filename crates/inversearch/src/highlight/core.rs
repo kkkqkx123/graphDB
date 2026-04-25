@@ -6,7 +6,7 @@ use crate::highlight::types::*;
 use crate::DocId;
 use serde_json::Value;
 
-/// 从文档中提取字段值的内部工具函数
+/// Internal utility function to extract field values from documents
 fn extract_field_value(document: &Value, field_path: &str) -> Result<String> {
     let mut marker = vec![];
     let tree_path = parse_tree(field_path, &mut marker);
@@ -107,7 +107,7 @@ pub fn highlight_single_document(
     }
 }
 
-/// 高亮单个文档并返回结构化结果（新函数）
+/// Highlight individual documents and return structured results (new function)
 pub fn highlight_single_document_structured(
     query: &str,
     content: &str,
@@ -123,7 +123,7 @@ pub fn highlight_single_document_structured(
     let mut first_match_pos = -1i32;
     let mut last_match_pos = -1i32;
     let mut total_match_length = 0usize;
-    let mut current_char_pos = 0usize; // 跟踪当前字符位置
+    let mut current_char_pos = 0usize; // Tracks the current character position
 
     for (term_idx, doc_term) in doc_terms.iter().enumerate() {
         let doc_term_trimmed = doc_term.trim();
@@ -141,11 +141,11 @@ pub fn highlight_single_document_structured(
         );
 
         if match_result.found {
-            // 计算匹配项在原文中的位置
+            // Calculate the position of a match in the original text
             let start_pos = current_char_pos;
             let end_pos = current_char_pos + doc_term_trimmed.len();
 
-            // 记录匹配信息
+            // Record matching information
             matches.push(HighlightMatch {
                 text: doc_term_trimmed.to_string(),
                 start_pos,
@@ -180,7 +180,7 @@ pub fn highlight_single_document_structured(
             });
         }
 
-        // 更新字符位置（+1 表示空格）
+        // Update character positions (+1 for spaces)
         current_char_pos += doc_term_trimmed.len() + 1;
 
         // Early termination if we exceed boundary
@@ -192,7 +192,7 @@ pub fn highlight_single_document_structured(
         }
     }
 
-    // 构建高亮后的文本
+    // Constructing the highlighted text
     let highlighted_text = highlighted_terms
         .iter()
         .map(|term: &HighlightedTerm| term.content.as_str())
@@ -212,7 +212,7 @@ pub fn highlight_single_document_structured(
         highlighted_text
     };
 
-    // 应用合并逻辑
+    // Apply merge logic
     let final_highlighted_text = if let Some(merge_pattern) = &config.merge {
         let regex = regex::Regex::new(&regex::escape(merge_pattern)).map_err(|e| {
             crate::error::InversearchError::Highlight(format!("Invalid merge pattern: {}", e))
@@ -222,7 +222,7 @@ pub fn highlight_single_document_structured(
         final_text
     };
 
-    // 收集匹配的查询词
+    // Collect matching query terms
     let matched_queries: Vec<String> = matches
         .iter()
         .map(|m| m.matched_query.clone())
@@ -231,7 +231,7 @@ pub fn highlight_single_document_structured(
         .collect();
 
     let field_highlight = FieldHighlight {
-        field: "content".to_string(), // 默认字段名
+        field: "content".to_string(), // Default Field Name
         matches,
         highlighted_text: Some(final_highlighted_text),
         matched_queries,
@@ -240,7 +240,7 @@ pub fn highlight_single_document_structured(
     let total_matches = field_highlight.matches.len();
 
     Ok(DocumentHighlight {
-        id: 0, // 调用方需要设置
+        id: 0, // The caller needs to set the
         fields: vec![field_highlight],
         total_matches,
     })
@@ -271,7 +271,7 @@ pub fn highlight_document(
     }
 }
 
-/// 高亮文档并返回结构化结果（新函数）
+/// Highlight documents and return structured results (new function)
 pub fn highlight_document_structured(
     query: &str,
     document: &Value,
@@ -287,7 +287,7 @@ pub fn highlight_document_structured(
 
     let mut highlight = highlight_single_document_structured(query, &content, encoder, config)?;
 
-    // 如果没有匹配，返回 None
+    // Returns None if there is no match
     if highlight.total_matches == 0 {
         return Ok(None);
     }

@@ -7,7 +7,7 @@ use tantivy::indexer::{LogMergePolicy, MergePolicy};
 use tantivy::schema::*;
 use tantivy::{Index, IndexReader, IndexWriter, ReloadPolicy};
 
-/// 重载策略配置
+/// Overloaded Policy Configuration
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ReloadPolicyConfig {
@@ -25,7 +25,7 @@ impl From<ReloadPolicyConfig> for ReloadPolicy {
     }
 }
 
-/// 合并策略类型
+/// Type of merger strategy
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum MergePolicyType {
@@ -34,22 +34,22 @@ pub enum MergePolicyType {
     NoMerge,
 }
 
-/// LogMergePolicy 详细配置
+/// LogMergePolicy Detailed Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogMergePolicyConfig {
-    /// 最小合并段数
+    /// Minimum number of merged segments
     #[serde(default = "default_min_num_segments")]
     pub min_num_segments: usize,
-    /// 合并前最大文档数
+    /// Maximum number of documents before merging
     #[serde(default = "default_max_docs_before_merge")]
     pub max_docs_before_merge: usize,
-    /// 最小层大小
+    /// Minimum layer size
     #[serde(default = "default_min_layer_size")]
     pub min_layer_size: u32,
-    /// 层大小对数比率
+    /// Layer size logarithmic ratio
     #[serde(default = "default_level_log_size")]
     pub level_log_size: f64,
-    /// 合并前删除文档比率
+    /// Ratio of documents deleted before merging
     #[serde(default = "default_del_docs_ratio")]
     pub del_docs_ratio_before_merge: f32,
 }
@@ -82,25 +82,25 @@ impl Default for LogMergePolicyConfig {
     }
 }
 
-/// 索引管理器配置（扩展版）
+/// Index Manager Configuration (Extended Version)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexManagerConfig {
-    /// 写入器内存预算（字节）
+    /// Writer memory budget (bytes)
     #[serde(default = "default_writer_memory_budget")]
     pub writer_memory_budget: usize,
-    /// 写入器线程数（None 表示自动检测）
+    /// Number of writer threads (None means auto-detect)
     #[serde(default)]
     pub writer_num_threads: Option<usize>,
-    /// 是否启用 Reader 缓存
+    /// Enable or disable Reader caching
     #[serde(default = "default_reader_cache_enabled")]
     pub reader_cache_enabled: bool,
-    /// Reader 重载策略
+    /// Reader overloading strategy
     #[serde(default)]
     pub reader_reload_policy: ReloadPolicyConfig,
-    /// 合并策略类型
+    /// Type of merger strategy
     #[serde(default)]
     pub merge_policy: MergePolicyType,
-    /// LogMergePolicy 详细配置
+    /// LogMergePolicy Detailed Configuration
     #[serde(default)]
     pub log_merge_policy: LogMergePolicyConfig,
 }
@@ -307,7 +307,7 @@ impl IndexManagerConfig {
         vars
     }
 
-    /// 构建合并策略
+    /// Building a merger strategy
     pub fn build_merge_policy(&self) -> Box<dyn MergePolicy> {
         match self.merge_policy {
             MergePolicyType::NoMerge => Box::new(tantivy::indexer::NoMergePolicy),
@@ -531,18 +531,18 @@ mod tests {
 
         let manager = IndexManager::create(&path)?;
 
-        // 获取 reader 两次，应该返回相同的实例（从缓存）
+        // Getting the reader twice should return the same instance (from the cache)
         let reader1 = manager.reader()?;
         let reader2 = manager.reader()?;
 
-        // 由于 IndexReader 实现了 Clone，我们验证它们指向相同的内部状态
-        // 通过比较它们的 searcher 数量来验证
+        // Since IndexReader implements Clone, we verify that they point to the same internal state
+        // Verify this by comparing their searcher counts
         assert_eq!(reader1.searcher().num_docs(), reader2.searcher().num_docs());
 
-        // 验证缓存确实被使用：清除缓存后应该创建新的 reader
+        // Verify that the cache is actually being used: a new reader should be created after the cache is cleared.
         manager.clear_reader_cache();
         let reader3 = manager.reader()?;
-        // reader3 是一个新的实例，但功能相同
+        // reader3 is a new instance, but with the same functionality
         assert_eq!(reader1.searcher().num_docs(), reader3.searcher().num_docs());
 
         Ok(())

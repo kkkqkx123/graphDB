@@ -1,11 +1,11 @@
-//! 兼容层模块
+//! Compatibility layer module
 //!
-//! 提供新旧接口之间的兼容性支持
+//! Provides compatibility between new and old interfaces
 
 use crate::intersect::core;
 use crate::r#type::{IntermediateSearchResults, SearchResults};
 
-/// 兼容的交集函数
+/// Compatible intersection function
 pub fn intersect_compatible(
     arrays: &IntermediateSearchResults,
     resolution: usize,
@@ -15,11 +15,11 @@ pub fn intersect_compatible(
     boost: i32,
     resolve: bool,
 ) -> IntermediateSearchResults {
-    // 直接使用新的核心函数
+    // Use the new new core functions directly
     core::intersect(arrays, resolution, limit, offset, suggest, boost, resolve)
 }
 
-/// 兼容的并集函数
+/// Compatible union function
 pub fn union_compatible(
     arrays: &IntermediateSearchResults,
     _limit: usize,
@@ -27,11 +27,11 @@ pub fn union_compatible(
     _sort_by_score: bool,
     _boost: i32,
 ) -> IntermediateSearchResults {
-    // 直接使用新的核心函数
+    // Use the new core function directly
     core::union(arrays)
 }
 
-/// 兼容的交集并集函数
+/// Compatible intersection and union functions
 pub fn intersect_union_compatible(
     arrays: &IntermediateSearchResults,
     mandatory: &IntermediateSearchResults,
@@ -40,21 +40,21 @@ pub fn intersect_union_compatible(
     _sort_by_score: bool,
     _boost: i32,
 ) -> SearchResults {
-    // 使用新的核心函数
+    // Use new core functions
     core::intersect_union(arrays, mandatory, true)
 }
 
-/// 类型转换函数：从旧格式到新格式
+/// Type conversion functions: from old format to new format
 pub fn convert_old_to_new(old_format: Vec<Vec<u64>>) -> IntermediateSearchResults {
     old_format
 }
 
-/// 类型转换函数：从新格式到旧格式
+/// Type Conversion Functions: From New Format to Old Format
 pub fn convert_new_to_old(new_format: &IntermediateSearchResults) -> Vec<Vec<u64>> {
     new_format.clone()
 }
 
-/// 展平函数：将多层结构展平为单层
+/// Spreading function: Spreading a multi-story structure into a single story.
 pub fn flatten_intermediate(results: &IntermediateSearchResults) -> SearchResults {
     let mut flattened = Vec::new();
     for array in results {
@@ -63,7 +63,7 @@ pub fn flatten_intermediate(results: &IntermediateSearchResults) -> SearchResult
     flattened
 }
 
-/// 重建函数：将单层结构重建为多层
+/// Reconstruction Functions: Reconstructing Single-Layer Structures into Multiple Layers
 pub fn rebuild_intermediate(
     flattened: &SearchResults,
     chunk_size: usize,

@@ -1,6 +1,6 @@
-//! 内存存储实现
+//! In-memory storage implementation
 //!
-//! 提供基于内存的存储后端，数据不持久化
+//! Provides memory-based storage backend, data is not persistent
 
 use crate::error::Result;
 use crate::r#type::{DocId, EnrichedSearchResults, SearchResults};
@@ -9,14 +9,14 @@ use crate::storage::common::{StorageInfo, StorageInterface, StorageMetrics};
 use crate::Index;
 use tokio::sync::RwLock;
 
-/// 内存存储
+/// memory storage
 pub struct MemoryStorage {
     base: RwLock<StorageBase>,
     is_open: RwLock<bool>,
 }
 
 impl MemoryStorage {
-    /// 创建新的内存存储
+    /// Creating a new memory store
     pub fn new() -> Self {
         Self {
             base: RwLock::new(StorageBase::new()),
@@ -24,12 +24,12 @@ impl MemoryStorage {
         }
     }
 
-    /// 获取内存使用情况
+    /// Getting Memory Usage
     pub fn get_memory_usage(&self) -> usize {
         self.base.blocking_read().get_memory_usage()
     }
 
-    /// 获取操作统计
+    /// Get Operation Statistics
     pub async fn get_operation_stats(&self) -> StorageMetrics {
         let base = self.base.read().await;
         StorageMetrics {
@@ -155,10 +155,10 @@ mod tests {
         index.add(1, "hello world", false).unwrap();
         index.add(2, "rust programming", false).unwrap();
 
-        // 提交到存储
+        // Commit to Storage
         storage.commit(&index, false, false).await.unwrap();
 
-        // 测试获取
+        // Test Acquisition
         let results = storage
             .get("hello", None, 10, 0, true, false)
             .await
@@ -167,14 +167,14 @@ mod tests {
         assert_eq!(results.len(), 1);
         assert!(results.contains(&1));
 
-        // 测试存在检查
+        // Test presence check
         println!("Checking has(1)");
         let has_result = storage.has(1).await.unwrap();
         println!("has(1) result: {}", has_result);
         assert!(has_result);
         assert!(!storage.has(3).await.unwrap());
 
-        // 测试删除
+        // Test deletion
         storage.remove(&[1]).await.unwrap();
         assert!(!storage.has(1).await.unwrap());
 

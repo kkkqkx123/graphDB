@@ -1,6 +1,6 @@
-//! 异步序列化模块
+//! Asynchronous Serialization Module
 //!
-//! 提供异步的索引导入导出功能
+//! Provides asynchronous index import and export functionality
 
 use crate::async_::AsyncIndex;
 use crate::error::Result;
@@ -8,18 +8,18 @@ use crate::serialize::types::{IndexExportData, SerializeConfig};
 use oxicode::config::standard;
 use oxicode::serde::decode_from_slice;
 
-/// 异步序列化器
+/// asynchronous serializer
 pub struct AsyncSerializer {
     config: SerializeConfig,
 }
 
 impl AsyncSerializer {
-    /// 创建新的异步序列化器
+    /// Creating a new asynchronous serializer
     pub fn new(config: SerializeConfig) -> Self {
         Self { config }
     }
 
-    /// 异步导出为 JSON
+    /// Asynchronous export to JSON
     pub async fn to_json_async(&self, index: &AsyncIndex) -> Result<String> {
         let config = self.config.clone();
         let index_clone = index.clone();
@@ -32,7 +32,7 @@ impl AsyncSerializer {
         .await?
     }
 
-    /// 异步导出为二进制
+    /// Asynchronous export to binary
     pub async fn to_binary_async(&self, index: &AsyncIndex) -> Result<Vec<u8>> {
         let config = self.config.clone();
         let index_clone = index.clone();
@@ -44,7 +44,7 @@ impl AsyncSerializer {
         .await?
     }
 
-    /// 异步从 JSON 导入
+    /// Asynchronous Import from JSON
     pub async fn from_json_async(&self, index: &AsyncIndex, json_str: &str) -> Result<()> {
         let config = self.config.clone();
         let json_str = json_str.to_string();
@@ -59,7 +59,7 @@ impl AsyncSerializer {
         .await?
     }
 
-    /// 异步从二进制导入
+    /// Asynchronous import from binary
     pub async fn from_binary_async(&self, index: &AsyncIndex, binary_data: Vec<u8>) -> Result<()> {
         let config = self.config.clone();
         let index_clone = index.clone();
@@ -73,7 +73,7 @@ impl AsyncSerializer {
         .await?
     }
 
-    /// 异步导出到文件
+    /// Asynchronous export to file
     pub async fn export_to_file_async(&self, index: &AsyncIndex, path: &str) -> Result<()> {
         let json_str = self.to_json_async(index).await?;
 
@@ -82,7 +82,7 @@ impl AsyncSerializer {
         Ok(())
     }
 
-    /// 异步从文件导入
+    /// Asynchronous import from file
     pub async fn import_from_file_async(&self, index: &mut AsyncIndex, path: &str) -> Result<()> {
         let contents = tokio::fs::read_to_string(path).await?;
         self.from_json_async(index, &contents).await
@@ -95,18 +95,18 @@ impl Default for AsyncSerializer {
     }
 }
 
-/// 异步 Document 序列化器
+/// Asynchronous Document Serializer
 pub struct AsyncDocumentSerializer {
     config: SerializeConfig,
 }
 
 impl AsyncDocumentSerializer {
-    /// 创建新的异步 Document 序列化器
+    /// Creating a New Asynchronous Document Serializer
     pub fn new(config: SerializeConfig) -> Self {
         Self { config }
     }
 
-    /// 异步导出 Document 为 JSON
+    /// Asynchronous Export of Document to JSON
     pub async fn to_json_async(&self, document: &crate::document::Document) -> Result<String> {
         let config = self.config.clone();
         let document_data = document.export(&config)?;
@@ -117,7 +117,7 @@ impl AsyncDocumentSerializer {
         .await?
     }
 
-    /// 异步从 JSON 导入 Document
+    /// Importing a Document from JSON asynchronously
     pub async fn from_json_async(&self, json_str: &str) -> Result<crate::document::Document> {
         let config = self.config.clone();
         let json_str = json_str.to_string();
@@ -128,7 +128,7 @@ impl AsyncDocumentSerializer {
         .await?
     }
 
-    /// 异步导出到文件
+    /// Asynchronous export to file
     pub async fn export_to_file_async(
         &self,
         document: &crate::document::Document,
@@ -141,7 +141,7 @@ impl AsyncDocumentSerializer {
         Ok(())
     }
 
-    /// 异步从文件导入
+    /// Asynchronous import from file
     pub async fn import_from_file_async(&self, path: &str) -> Result<crate::document::Document> {
         let contents = tokio::fs::read_to_string(path).await?;
         self.from_json_async(&contents).await

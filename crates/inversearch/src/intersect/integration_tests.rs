@@ -1,6 +1,6 @@
-//! 集成测试
+//! Integration Testing
 //! 
-//! 测试交集模块的完整功能
+//! Test the full functionality of the intersection module
 
 #[cfg(test)]
 mod integration_tests {
@@ -11,17 +11,17 @@ mod integration_tests {
 
     #[test]
     fn test_full_intersection_workflow() {
-        // 创建测试数据
+        // Creating Test Data
         let arrays = vec![
             vec![vec![1, 2, 3, 4, 5]],
             vec![vec![2, 3, 4, 6, 7]],
             vec![vec![3, 4, 8, 9, 10]],
         ];
         
-        // 执行交集
+        // implementation intersection
         let result = intersect(&arrays, 9, 10, 0, false, 0, true);
         
-        // 验证结果
+        // Verification results
         assert!(!result.is_empty());
         
         let flat_result: Vec<u64> = result.iter().flatten().cloned().collect();
@@ -31,7 +31,7 @@ mod integration_tests {
 
     #[test]
     fn test_scoring_system() {
-        // 测试评分系统
+        // Test scoring system
         let score_manager = ScoreManager::new();
         let config = ScoreConfig::default();
         
@@ -48,10 +48,10 @@ mod integration_tests {
 
     #[test]
     fn test_suggestion_system() {
-        // 测试建议系统
+        // Test recommendation system
         let mut suggestion_engine = SuggestionEngine::default();
         
-        // 更新一些数据
+        // Update some data
         suggestion_engine.update_term_frequency("test", 10);
         suggestion_engine.update_co_occurrence("test", "testing", 3);
         suggestion_engine.update_co_occurrence("test", "tests", 2);
@@ -72,7 +72,7 @@ mod integration_tests {
 
     #[test]
     fn test_empty_arrays() {
-        // 测试空数组
+        // Testing empty arrays
         let empty_arrays: Vec<IntermediateSearchResults> = vec![];
         let result = intersect(&empty_arrays, 9, 10, 0, false, 0, true);
         assert!(result.is_empty());
@@ -84,17 +84,17 @@ mod integration_tests {
 
     #[test]
     fn test_limit_and_offset() {
-        // 测试限制和偏移
+        // Test limits and offsets
         let arrays = vec![
             vec![vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]],
         ];
         
-        // 测试限制
+        // Test Limitations
         let result = intersect(&arrays, 9, 5, 0, false, 0, true);
         let flat_result: Vec<u64> = result.iter().flatten().cloned().collect();
         assert!(flat_result.len() <= 5);
         
-        // 测试偏移
+        // Test Offset
         let result = intersect(&arrays, 9, 10, 3, false, 0, true);
         let flat_result: Vec<u64> = result.iter().flatten().cloned().collect();
         assert!(!flat_result.contains(&1));

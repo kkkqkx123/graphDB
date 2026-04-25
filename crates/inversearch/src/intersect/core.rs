@@ -1,11 +1,11 @@
-//! 核心交集函数模块
+//! Core Intersection Function Module
 //!
-//! 提供基本的交集、并集和交集并集操作
+//! Provides basic intersection, union and intersection-merge operations
 
 use crate::r#type::IntermediateSearchResults;
 use std::collections::HashMap;
 
-/// 交集函数 - 与JavaScript版本逻辑保持一致
+/// Intersection Functions - Consistent with JavaScript Version Logic
 pub fn intersect(
     arrays: &IntermediateSearchResults,
     _resolution: usize,
@@ -23,10 +23,10 @@ pub fn intersect(
         return arrays.clone();
     }
 
-    // 使用HashMap进行高效的交集计算
+    // Efficient intersection computation using HashMap
     let mut common_ids = HashMap::new();
 
-    // 统计每个ID出现的次数
+    // Count the number of times each ID appears
     for array in arrays {
         let mut seen = HashMap::new();
         for &id in array {
@@ -38,7 +38,7 @@ pub fn intersect(
         }
     }
 
-    // 找出在所有数组中都出现的ID
+    // Find the ID that occurs in all the arrays
     let threshold = arrays.len();
     let mut result = Vec::new();
 
@@ -48,13 +48,13 @@ pub fn intersect(
         }
     }
 
-    // 排序结果
+    // Sorting results
     result.sort_unstable();
 
     vec![result]
 }
 
-/// 并集函数 - 与JavaScript版本逻辑保持一致
+/// Concatenation Functions - Consistent with JavaScript Version Logic
 pub fn union(arrays: &IntermediateSearchResults) -> IntermediateSearchResults {
     if arrays.is_empty() {
         return Vec::new();
@@ -67,7 +67,7 @@ pub fn union(arrays: &IntermediateSearchResults) -> IntermediateSearchResults {
     let mut seen = HashMap::new();
     let mut result = Vec::new();
 
-    // 收集所有唯一的ID
+    // Collect all unique IDs
     for array in arrays {
         for &id in array {
             if seen.insert(id, true).is_none() {
@@ -76,51 +76,51 @@ pub fn union(arrays: &IntermediateSearchResults) -> IntermediateSearchResults {
         }
     }
 
-    // 排序结果
+    // Sorting results
     result.sort_unstable();
 
     vec![result]
 }
 
-/// intersect_union函数，与JavaScript版本逻辑保持一致
+/// intersect_union function, consistent with JavaScript version logic
 pub fn intersect_union(
     arrays: &IntermediateSearchResults,
     mandatory: &IntermediateSearchResults,
     _resolve: bool,
 ) -> Vec<u64> {
-    // 首先计算arrays的交集
+    // First calculate the intersection of arrays
     let intersection = if arrays.is_empty() {
         Vec::new()
     } else if arrays.len() == 1 {
         arrays[0].clone()
     } else {
-        // 简化实现：取第一个数组作为交集结果
+        // Simplified implementation: take the first array as the intersection result
         arrays[0].clone()
     };
 
-    // 合并mandatory数组
+    // Merge mandatory arrays
     let mut union_result = Vec::new();
 
-    // 添加交集结果
+    // Add intersection result
     for item in &intersection {
         union_result.push(*item);
     }
 
-    // 添加mandatory结果
+    // Add mandatory results
     for mandatory_array in mandatory {
         for &id in mandatory_array {
             union_result.push(id);
         }
     }
 
-    // 去重并排序
+    // De-emphasize and sort
     union_result.sort_unstable();
     union_result.dedup();
 
     union_result
 }
 
-/// 兼容的交集函数（简化版本）
+/// Compatible intersection function (simplified version)
 pub fn intersect_simple(arrays: &[Vec<u64>]) -> Vec<u64> {
     if arrays.is_empty() {
         return Vec::new();
@@ -130,10 +130,10 @@ pub fn intersect_simple(arrays: &[Vec<u64>]) -> Vec<u64> {
         return arrays[0].clone();
     }
 
-    // 使用HashMap进行高效的交集计算
+    // Efficient intersection computation using HashMap
     let mut common_ids = HashMap::new();
 
-    // 统计每个ID出现的次数
+    // Count the number of times each ID appears
     for array in arrays {
         let mut seen = HashMap::new();
         for &id in array {
@@ -145,7 +145,7 @@ pub fn intersect_simple(arrays: &[Vec<u64>]) -> Vec<u64> {
         }
     }
 
-    // 找出在所有数组中都出现的ID
+    // Find the ID that occurs in all the arrays
     let threshold = arrays.len();
     let mut result = Vec::new();
 
@@ -155,12 +155,12 @@ pub fn intersect_simple(arrays: &[Vec<u64>]) -> Vec<u64> {
         }
     }
 
-    // 排序结果
+    // Sorting results
     result.sort_unstable();
     result
 }
 
-/// 兼容的并集函数（简化版本）
+/// Compatible concatenation function (simplified version)
 pub fn union_simple(arrays: &[Vec<u64>]) -> Vec<u64> {
     if arrays.is_empty() {
         return Vec::new();
@@ -173,7 +173,7 @@ pub fn union_simple(arrays: &[Vec<u64>]) -> Vec<u64> {
     let mut seen = HashMap::new();
     let mut result = Vec::new();
 
-    // 收集所有唯一的ID
+    // Collect all unique IDs
     for array in arrays {
         for &id in array {
             if seen.insert(id, true).is_none() {
@@ -182,7 +182,7 @@ pub fn union_simple(arrays: &[Vec<u64>]) -> Vec<u64> {
         }
     }
 
-    // 排序结果
+    // Sorting results
     result.sort_unstable();
     result
 }

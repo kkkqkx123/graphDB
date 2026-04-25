@@ -1,13 +1,13 @@
-//! 序列化格式处理模块
+//! Serialized Format Processing Module
 //!
-//! 提供不同格式（JSON、Binary、MessagePack、CBOR）的序列化和反序列化功能
+//! Provide serialization and deserialization functions in different formats (JSON, Binary, MessagePack, CBOR)
 
 use crate::error::Result;
 use crate::serialize::types::{IndexExportData, SerializeFormat};
 use oxicode::config::standard;
 use oxicode::serde::{decode_from_slice, encode_to_vec};
 
-/// 将数据序列化为字节数组（根据格式选择序列化方式）
+/// Serialize data into byte arrays (choose serialization method based on format)
 pub fn serialize_to_bytes(data: &IndexExportData, format: &SerializeFormat) -> Result<Vec<u8>> {
     let serialized = match format {
         SerializeFormat::Json => serde_json::to_vec(data)?,
@@ -26,7 +26,7 @@ pub fn serialize_to_bytes(data: &IndexExportData, format: &SerializeFormat) -> R
     Ok(serialized)
 }
 
-/// 从字节数组反序列化数据（根据格式选择反序列化方式）
+/// Deserialize data from byte arrays (choose deserialization method based on format)
 pub fn deserialize_from_bytes(bytes: &[u8], format: &SerializeFormat) -> Result<IndexExportData> {
     let data: IndexExportData = match format {
         SerializeFormat::Json => serde_json::from_slice(bytes)?,
@@ -44,12 +44,12 @@ pub fn deserialize_from_bytes(bytes: &[u8], format: &SerializeFormat) -> Result<
     Ok(data)
 }
 
-/// 将数据序列化为 JSON 字符串
+/// Serialize data to a JSON string
 pub fn to_json_string(data: &IndexExportData) -> Result<String> {
     Ok(serde_json::to_string_pretty(data)?)
 }
 
-/// 从 JSON 字符串反序列化数据
+/// Deserializing data from a JSON string
 pub fn from_json_str(json_str: &str) -> Result<IndexExportData> {
     Ok(serde_json::from_str(json_str)?)
 }

@@ -1,28 +1,28 @@
-//! 存储接口模块
+//! Storage Interface Module
 //!
-//! 提供持久化存储的抽象接口和实现
+//! Provide abstract interfaces and implementations for persistent storage
 //!
-//! ## 模块结构
+//! ## Module structure
 //!
 //! ```text
 //! storage/
-//! ├── common/              # 公共组件（类型、trait、工具函数）
+//! ├── common/ # public components (types, traits, utility functions)
 //! │   ├── mod.rs
-//! │   ├── base.rs          # 存储基类
-//! │   ├── config.rs        # 存储配置
-//! │   ├── compression.rs   # 压缩/解压缩
-//! │   ├── error.rs         # 存储错误类型
-//! │   ├── io.rs            # 文件 I/O 操作
-//! │   ├── metrics.rs       # 性能指标
-//! │   ├── trait.rs         # 存储接口 trait
-//! │   ├── types.rs         # 共享类型定义
-//! │   └── utils.rs         # 工具函数
-//! ├── file.rs              # 文件存储实现
-//! ├── redis.rs             # Redis 存储实现
-//! ├── wal.rs               # WAL 预写日志
-//! ├── memory.rs            # 内存存储实现（测试用）
-//! ├── factory.rs           # 存储工厂
-//! └── cold_warm_cache/     # 冷热缓存存储实现（默认）
+//! │ ├── base.rs # Store the base class
+//! │ ├── config.rs # store configuration
+//! │ ├── compression.rs # 压缩/解压缩
+//! │ ├── error.rs # Store the type of error
+//! │ ├── io.rs # File I/O operations
+//! │ ├── metrics.rs # Performance metrics
+//! │ ├── trait.rs # Storage interface trait
+//! │ ├── types.rs # Shared type definitions
+//! │ └── utils.rs # utility functions
+//! ├── file.rs # File storage implementation
+//! ├── redis.rs # Redis storage implementation
+//! ├── wal.rs # WAL prewriting logs
+//! ├── memory.rs # Memory storage implementation (for testing)
+//! ├── factory.rs # store factory
+//! └── cold_warm_cache/ # Hot and cold cache storage implementation (default)
 //!     ├── mod.rs
 //!     ├── config.rs
 //!     ├── manager.rs
@@ -31,17 +31,17 @@
 //!     └── background.rs
 //! ```
 //!
-//! ## 条件编译特性
+//! ## Conditional compilation features
 //!
 //! - `store-cold-warm-cache`: 冷热缓存存储（默认启用）
 //! - `store-file`: 文件存储
 //! - `store-redis`: Redis 存储
 //! - `store-wal`: WAL 预写日志存储
 
-// 公共组件 - 所有存储实现共享
+// Public Component - all storage is shared
 pub mod common;
 
-// 条件编译的存储实现
+// Stored Implementations of Conditional Compilation
 #[cfg(feature = "store-file")]
 pub mod file;
 
@@ -51,22 +51,22 @@ pub mod redis;
 #[cfg(feature = "store-wal")]
 pub mod wal;
 
-// 冷热缓存存储实现（默认）
+// Hot and cold cache storage implementation (default)
 pub mod cold_warm_cache;
 
-// 测试用内存存储（仅用于测试）
+// Memory storage for testing (for testing only)
 pub mod memory;
 
-// 存储工厂
+// storage plant
 pub mod factory;
 
-// 存储管理器
+// Storage Manager
 pub mod manager;
 
-// 持久化管理器
+// Persistence Manager
 pub mod persistence;
 
-// 重新导出常用类型和 trait，方便使用
+// Re-export commonly used types and traits for ease of use
 pub use common::{
     compression::{compress_data, decompress_data},
     config::{StorageConfig, StorageType},
@@ -76,11 +76,11 @@ pub use common::{
     FileStorageData, StorageInfo, StorageInterface, StorageMetrics,
 };
 
-// 重新导出工厂
+// Re-export factory
 pub use factory::StorageFactory;
 
-// 重新导出存储管理器
+// Re-export Storage Manager
 pub use manager::{DefaultStorage, StorageManager, StorageManagerBuilder};
 
-// 重新导出持久化管理器
+// Re-export Persistence Manager
 pub use persistence::{BackupInfo, IndexMetadata, IndexSnapshot, PersistenceManager};

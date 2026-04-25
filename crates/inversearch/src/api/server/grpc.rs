@@ -380,10 +380,10 @@ impl InversearchServiceTrait for InversearchService {
         let index = self.index.read().await;
         let document_count = index.document_count();
 
-        // 计算索引大小（主索引 + 上下文索引的条目数）
+        // Calculate index size (primary index + number of entries in context index)
         let index_size = index.map.index.len() + index.ctx.index.len();
 
-        // 缓存大小（如果有缓存）
+        // Cache size (if cached)
         let cache_size = index.cache.as_ref().map(|c| c.len()).unwrap_or(0);
 
         Ok(Response::new(GetStatsResponse {
@@ -401,11 +401,11 @@ impl InversearchServiceTrait for InversearchService {
         let index = self.index.read().await;
         let document_count = index.document_count();
 
-        // 多维度健康检查
+        // Multi-dimensional Health Screening
         let is_healthy = !index.map.index.is_empty()
             || !index.ctx.index.is_empty() && document_count < u32::MAX as usize;
 
-        // 计算运行时间
+        // Calculating Runtime
         let uptime = self.start_time.elapsed().as_secs();
 
         Ok(Response::new(HealthCheckResponse {

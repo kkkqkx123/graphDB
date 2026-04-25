@@ -1,41 +1,41 @@
-//! 存储错误类型
+//! Stored Error Type
 //!
-//! 定义存储操作可能返回的错误
+//! Defines the errors that may be returned by a store operation
 
 use thiserror::Error;
 
-/// 存储错误
+/// storage error
 #[derive(Debug, Error)]
 pub enum StorageError {
-    /// IO 错误
+    /// IO error
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
-    /// 序列化错误
+    /// serialization error
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
 
-    /// Redis 错误（仅在使用 Redis 特性时可用）
+    /// Redis errors (only available when using Redis features)
     #[cfg(feature = "store-redis")]
     #[error("Redis error: {0}")]
     Redis(#[from] redis::RedisError),
 
-    /// 存储未打开
+    /// Storage not open
     #[error("Storage is not open")]
     NotOpen,
 
-    /// 存储已打开
+    /// Storage is open
     #[error("Storage is already open")]
     AlreadyOpen,
 
-    /// 配置错误
+    /// misconfiguration
     #[error("Configuration error: {0}")]
     Configuration(String),
 
-    /// 数据损坏
+    /// data corruption
     #[error("Data corruption detected: {0}")]
     Corruption(String),
 }
 
-/// 存储结果类型别名
+/// Store the result type alias
 pub type StorageResult<T> = Result<T, StorageError>;

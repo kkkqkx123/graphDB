@@ -1,6 +1,6 @@
-//! 文件存储实现
+//! File Storage Implementation
 //!
-//! 提供基于文件的持久化存储后端
+//! Provides a file-based persistent storage backend
 
 use crate::error::Result;
 use crate::r#type::{DocId, EnrichedSearchResults, SearchResults};
@@ -11,7 +11,7 @@ use crate::Index;
 use std::path::PathBuf;
 use tokio::sync::RwLock;
 
-/// 文件存储
+/// File Storage
 pub struct FileStorage {
     base: RwLock<StorageBase>,
     base_path: PathBuf,
@@ -19,7 +19,7 @@ pub struct FileStorage {
 }
 
 impl FileStorage {
-    /// 创建新的文件存储
+    /// Creating a new file store
     pub fn new(base_path: impl Into<PathBuf>) -> Self {
         Self {
             base: RwLock::new(StorageBase::new()),
@@ -28,12 +28,12 @@ impl FileStorage {
         }
     }
 
-    /// 获取内存使用情况
+    /// Getting Memory Usage
     pub fn get_memory_usage(&self) -> usize {
         self.base.blocking_read().get_memory_usage()
     }
 
-    /// 获取操作统计
+    /// Get Operation Statistics
     pub fn get_operation_stats(&self) -> StorageMetrics {
         let base = self.base.blocking_read();
         StorageMetrics {
@@ -44,13 +44,13 @@ impl FileStorage {
         }
     }
 
-    /// 获取文件大小
+    /// Get file size
     pub fn get_file_size(&self) -> u64 {
         let data_file = self.base_path.join("data.bin");
         crate::storage::common::io::get_file_size(&data_file)
     }
 
-    /// 保存到文件
+    /// Save to file
     pub async fn save_to_file(&self) -> Result<()> {
         let data = {
             let base = self.base.read().await;
@@ -67,7 +67,7 @@ impl FileStorage {
         save_to_file(&data_file, &data).await
     }
 
-    /// 从文件加载
+    /// Load from file
     pub async fn load_from_file(&self) -> Result<()> {
         let data_file = self.base_path.join("data.bin");
         let data = load_from_file(&data_file).await?;
@@ -216,19 +216,19 @@ mod tests {
         index.add(1, "test document", false).unwrap();
         index.add(2, "another test", false).unwrap();
 
-        // 提交到存储
+        // Commit to Storage
         storage.commit(&index, false, false).await.unwrap();
 
-        // 测试获取
+        // Test Acquisition
         let results = storage.get("test", None, 10, 0, true, false).await.unwrap();
         assert_eq!(results.len(), 2);
         assert!(results.contains(&1));
         assert!(results.contains(&2));
 
-        // 关闭存储（会保存到文件）
+        // Turn off storage (will save to file)
         storage.close().await.unwrap();
 
-        // 重新打开并验证数据还在
+        // Reopen and verify that the data is still there
         let storage2 = FileStorage::new(dir_path.to_str().unwrap().to_string());
         storage2.open().await.unwrap();
 

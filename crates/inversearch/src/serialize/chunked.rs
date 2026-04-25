@@ -1,6 +1,6 @@
-//! 分块序列化模块
+//! Chunked Serialization Module
 //!
-//! 提供大数据的分块导入导出功能
+//! Provide chunked import and export functions for big data
 
 use crate::error::Result;
 use crate::serialize::types::*;
@@ -13,18 +13,18 @@ const CHUNK_SIZE_REG: usize = 250000;
 const CHUNK_SIZE_MAP: usize = 5000;
 const CHUNK_SIZE_CTX: usize = 1000;
 
-/// 分块序列化器
+/// chunking serializer
 pub struct ChunkedSerializer {
     config: SerializeConfig,
 }
 
 impl ChunkedSerializer {
-    /// 创建新的分块序列化器
+    /// Creating a new chunked serializer
     pub fn new(config: SerializeConfig) -> Self {
         Self { config }
     }
 
-    /// 计算动态块大小
+    /// Calculating Dynamic Block Size
     fn calculate_chunk_size(&self, total_size: usize, base_size: usize) -> usize {
         if total_size <= base_size {
             return base_size;
@@ -32,7 +32,7 @@ impl ChunkedSerializer {
         base_size
     }
 
-    /// 分块导出
+    /// Chunk Export
     pub fn export_chunked<F>(&self, index: &Index, callback: F) -> Result<()>
     where
         F: FnMut(ChunkData) -> Result<()>,
@@ -41,19 +41,19 @@ impl ChunkedSerializer {
 
         let mut callback = callback;
 
-        // 分块导出注册表
+        // Exporting the registry in chunks
         self.export_registry_chunked(&export_data.data.registry, &mut callback)?;
 
-        // 分块导出主索引
+        // Chunked export of primary indexes
         self.export_main_index_chunked(&export_data.data.main_index, &mut callback)?;
 
-        // 分块导出上下文索引
+        // Exporting Context Indexes in Chunks
         self.export_context_index_chunked(&export_data.data.context_index, &mut callback)?;
 
         Ok(())
     }
 
-    /// 分块导出注册表
+    /// Exporting the registry in chunks
     fn export_registry_chunked<F>(&self, registry: &RegistryData, callback: &mut F) -> Result<()>
     where
         F: FnMut(ChunkData) -> Result<()>,
@@ -89,7 +89,7 @@ impl ChunkedSerializer {
         Ok(())
     }
 
-    /// 分块导出主索引
+    /// Chunked export of primary indexes
     fn export_main_index_chunked<F>(
         &self,
         main_index: &HashMap<String, Vec<u64>>,
@@ -119,7 +119,7 @@ impl ChunkedSerializer {
         Ok(())
     }
 
-    /// 分块导出上下文索引
+    /// Exporting Context Indexes in Chunks
     fn export_context_index_chunked<F>(
         &self,
         context_index: &HashMap<String, HashMap<String, Vec<u64>>>,
@@ -149,7 +149,7 @@ impl ChunkedSerializer {
         Ok(())
     }
 
-    /// 分块导入
+    /// chunking
     pub fn import_chunked<F>(&self, index: &mut Index, mut provider: F) -> Result<()>
     where
         F: FnMut() -> Result<Option<ChunkData>>,
@@ -191,7 +191,7 @@ impl ChunkedSerializer {
             }
         }
 
-        // 导入收集的数据
+        // Importing collected data
         if let Some(registry) = registry_data {
             index.import_registry(&registry)?;
         }
@@ -208,14 +208,14 @@ impl Default for ChunkedSerializer {
     }
 }
 
-/// 分块数据提供器
+/// chunking data provider
 pub struct ChunkDataProvider {
     chunks: Vec<ChunkData>,
     current_index: usize,
 }
 
 impl ChunkDataProvider {
-    /// 创建新的分块数据提供器
+    /// Creating a new chunked data provider
     pub fn new(chunks: Vec<ChunkData>) -> Self {
         Self {
             chunks,
@@ -223,7 +223,7 @@ impl ChunkDataProvider {
         }
     }
 
-    /// 获取下一个分块
+    /// Get the next chunk
     pub fn fetch_next(&mut self) -> Result<Option<ChunkData>> {
         if self.current_index < self.chunks.len() {
             let chunk = self.chunks[self.current_index].clone();
@@ -234,17 +234,17 @@ impl ChunkDataProvider {
         }
     }
 
-    /// 检查是否还有更多分块
+    /// Check if there are more chunks
     pub fn has_more(&self) -> bool {
         self.current_index < self.chunks.len()
     }
 
-    /// 获取总块数
+    /// Get the total number of blocks
     pub fn total_chunks(&self) -> usize {
         self.chunks.len()
     }
 
-    /// 重置提供器
+    /// reset provider
     pub fn reset(&mut self) {
         self.current_index = 0;
     }
@@ -264,7 +264,7 @@ mod tests {
         let serializer = ChunkedSerializer::default();
         let mut chunks = Vec::new();
 
-        // 分块导出
+        // Chunk Export
         serializer
             .export_chunked(&index, |chunk| {
                 chunks.push(chunk);
@@ -272,17 +272,17 @@ mod tests {
             })
             .unwrap();
 
-        // 验证分块
+        // validate chunking
         assert!(!chunks.is_empty());
 
-        // 分块导入
+        // chunking
         let mut imported_index = Index::default();
         let mut provider = ChunkDataProvider::new(chunks);
         serializer
             .import_chunked(&mut imported_index, || provider.fetch_next())
             .unwrap();
 
-        // 验证导入结果
+        // Verify import results
         let results = imported_index.search_simple("hello").unwrap();
         assert!(results.contains(&1));
         assert!(results.contains(&3));

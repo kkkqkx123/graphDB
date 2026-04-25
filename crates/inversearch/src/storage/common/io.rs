@@ -1,6 +1,6 @@
-//! 存储 I/O 操作
+//! Memory I/O Operations
 //!
-//! 提供文件读写、序列化等存储实现共享的操作
+//! Provide file read/write, serialization, and other storage-enabling shared operations
 
 use crate::error::Result;
 use crate::storage::common::types::FileStorageData;
@@ -10,9 +10,9 @@ use std::path::Path;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-/// 保存数据到文件
+/// Save data to file
 ///
-/// 使用 bincode 序列化数据并写入文件
+/// Serialize data and write to file using bincode
 pub async fn save_to_file(path: &Path, data: &FileStorageData) -> Result<()> {
     let serialized = encode_to_vec(data, standard())
         .map_err(|e| crate::error::StorageError::Serialization(e.to_string()))?;
@@ -24,14 +24,14 @@ pub async fn save_to_file(path: &Path, data: &FileStorageData) -> Result<()> {
     Ok(())
 }
 
-/// 从文件加载数据
+/// Load data from file
 ///
-/// 从文件读取并使用 bincode 反序列化
+/// Read from file and deserialize using bincode
 pub async fn load_from_file(path: &Path) -> Result<FileStorageData> {
     let mut file = match File::open(path).await {
         Ok(f) => f,
         Err(_) => {
-            // 文件不存在，返回空数据
+            // File does not exist, return empty data
             return Ok(FileStorageData {
                 version: "1.0.0".to_string(),
                 timestamp: chrono::Utc::now().to_rfc3339(),
@@ -61,41 +61,41 @@ pub async fn load_from_file(path: &Path) -> Result<FileStorageData> {
     Ok(data)
 }
 
-/// 原子写入文件
+/// Atomic Write Files
 ///
-/// 先写入临时文件，然后原子重命名到目标文件
+/// Write to temporary file first, then atomically rename to target file
 pub async fn atomic_write(path: &Path, data: &[u8]) -> Result<()> {
-    // 确保父目录存在
+    // Make sure the parent directory exists
     if let Some(parent) = path.parent() {
         tokio::fs::create_dir_all(parent).await?;
     }
 
-    // 创建临时文件路径
+    // Creating a temporary file path
     let temp_path = path.with_extension("tmp");
 
-    // 写入临时文件
+    // Write to temporary files
     let mut file = File::create(&temp_path).await?;
     file.write_all(data).await?;
     file.sync_all().await?;
     drop(file);
 
-    // 原子重命名
+    // rename an atom
     tokio::fs::rename(&temp_path, path).await?;
 
     Ok(())
 }
 
-/// 安全删除文件
+/// Secure file deletion
 ///
-/// 忽略文件不存在的错误
+/// Ignore file not existing error
 pub async fn remove_file_safe(path: &Path) -> Result<()> {
     let _ = tokio::fs::remove_file(path).await;
     Ok(())
 }
 
-/// 获取文件大小
+/// Get file size
 ///
-/// 如果文件不存在返回 0
+/// Returns 0 if the file does not exist
 pub fn get_file_size(path: &Path) -> u64 {
     std::fs::metadata(path).map(|m| m.len()).unwrap_or(0)
 }

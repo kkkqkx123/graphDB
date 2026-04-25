@@ -1,8 +1,8 @@
-//! 标签系统
+//! labeling system
 //!
-//! 为文档添加标签，支持基于标签的过滤和搜索
+//! Add tags to documents, support tag-based filtering and searching
 //!
-//! # 示例
+//! # Example
 //!
 //! ```rust
 //! use inversearch_service::document::{TagSystem, TagConfig};
@@ -11,11 +11,11 @@
 //! let mut tag_system = TagSystem::new();
 //! tag_system.add_config("category", None);
 //!
-//! // 添加标签
+//! // Add tags
 //! let tag_value = json!("tech");
 //! tag_system.add_tags(1, &[("category", &tag_value)]);
 //!
-//! // 按标签查询
+//! // Search by tag
 //! let ids = tag_system.query("category", "tech");
 //! ```
 
@@ -25,14 +25,14 @@ use std::collections::HashMap;
 
 type TagFilterFn = Box<dyn Fn(&Value) -> bool + Send + Sync>;
 
-/// 标签配置
+/// Label Configuration
 pub struct TagConfig {
     pub field: String,
     pub filter: Option<TagFilterFn>,
 }
 
 impl TagConfig {
-    /// 创建新的标签配置
+    /// Creating a new label configuration
     pub fn new(field: &str) -> Self {
         TagConfig {
             field: field.to_string(),
@@ -40,7 +40,7 @@ impl TagConfig {
         }
     }
 
-    /// 添加过滤器
+    /// Add Filter
     pub fn with_filter<F>(mut self, filter: F) -> Self
     where
         F: Fn(&Value) -> bool + 'static + Send + Sync,
@@ -50,7 +50,7 @@ impl TagConfig {
     }
 }
 
-/// 标签系统
+/// labeling system
 #[derive(Default)]
 pub struct TagSystem {
     configs: Vec<TagConfig>,
@@ -59,31 +59,31 @@ pub struct TagSystem {
 }
 
 impl TagSystem {
-    /// 创建新的标签系统
+    /// Creating a new labeling system
     pub fn new() -> Self {
         TagSystem::default()
     }
 
-    /// 添加标签配置
+    /// Adding Label Configuration
     pub fn add_config(&mut self, field: &str, config: Option<TagConfig>) {
         let config = config.unwrap_or_else(|| TagConfig::new(field));
         self.configs.push(config);
         self.indexes.push(HashMap::new());
     }
 
-    /// 添加标签配置（简化版）
+    /// Adding label configuration (simplified version)
     pub fn add_config_str(&mut self, field: String, filter: Option<TagFilterFn>) {
         let config = TagConfig { field, filter };
         self.configs.push(config);
         self.indexes.push(HashMap::new());
     }
 
-    /// 获取所有配置字段名
+    /// Get all configuration field names
     pub fn config_fields(&self) -> Vec<&str> {
         self.configs.iter().map(|c| c.field.as_str()).collect()
     }
 
-    /// 为文档添加标签
+    /// Adding Tags to Documents
     pub fn add_tags(&mut self, doc_id: DocId, tags: &[(&str, &Value)]) {
         let mut doc_tag_list = Vec::new();
 
@@ -112,7 +112,7 @@ impl TagSystem {
         }
     }
 
-    /// 移除文档的标签
+    /// Removing tags from documents
     pub fn remove_tags(&mut self, doc_id: DocId) {
         if let Some(tags) = self.doc_tags.remove(&doc_id) {
             for (idx, tag) in tags {
@@ -127,13 +127,13 @@ impl TagSystem {
         }
     }
 
-    /// 按标签查询文档
+    /// Search documents by tag
     pub fn query(&self, field: &str, tag: &str) -> Option<&Vec<DocId>> {
         let idx = self.configs.iter().position(|c| c.field == field)?;
         self.indexes[idx].get(tag)
     }
 
-    /// 按多个标签查询（交集）
+    /// Query by multiple tags (intersection)
     pub fn query_multi(&self, field: &str, tags: &[&str]) -> Vec<DocId> {
         let idx = match self.configs.iter().position(|c| c.field == field) {
             Some(i) => i,
@@ -155,7 +155,7 @@ impl TagSystem {
         result.unwrap_or_default()
     }
 
-    /// 按多个标签查询（并集）
+    /// Query by multiple tags (concatenation)
     pub fn query_any(&self, field: &str, tags: &[&str]) -> Vec<DocId> {
         let idx = match self.configs.iter().position(|c| c.field == field) {
             Some(i) => i,
@@ -172,12 +172,12 @@ impl TagSystem {
         result.into_iter().collect()
     }
 
-    /// 获取文档的所有标签
+    /// Get all tags of a document
     pub fn get_doc_tags(&self, doc_id: DocId) -> Option<&Vec<(usize, String)>> {
         self.doc_tags.get(&doc_id)
     }
 
-    /// 清空所有标签
+    /// Empty all tags
     pub fn clear(&mut self) {
         for index in &mut self.indexes {
             index.clear();
@@ -185,12 +185,12 @@ impl TagSystem {
         self.doc_tags.clear();
     }
 
-    /// 获取配置数量
+    /// Getting the number of configurations
     pub fn len(&self) -> usize {
         self.configs.len()
     }
 
-    /// 检查是否为空
+    /// Check if it is empty
     pub fn is_empty(&self) -> bool {
         self.configs.is_empty()
     }

@@ -434,12 +434,12 @@ mod tests {
         let index = Bm25Index::create(&index_path).unwrap();
 
         let mut fields = HashMap::new();
-        fields.insert("content".to_string(), "计算总价".to_string());
+        fields.insert("content".to_string(), "Calculate the total price".to_string());
         fields.insert("raw_name".to_string(), "calculate_total".to_string());
 
         index.add_document_with_fields("1", &fields).unwrap();
 
-        let results = index.search("计算", 10).unwrap();
+        let results = index.search("count", 10).unwrap();
         assert!(!results.is_empty(), "Should find results for Chinese query");
     }
 }

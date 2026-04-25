@@ -1,10 +1,10 @@
-//! Redis 存储实现（使用 bb8 连接池优化版本）
+//! Redis storage implementation (using bb8 connection pool optimized version)
 //!
-//! 主要改进：
-//! - 使用 bb8 连接池管理多个 Redis 连接
-//! - 动态调整 Pipeline 批次大小
-//! - 优化的内存使用量计算
-//! - 增强的错误分类统计
+//! Major improvements:
+//! - Managing Multiple Redis Connections with bb8 Connection Pooling
+//! - Dynamically resize Pipeline batches
+//! - Optimized memory usage calculation
+//! - Enhanced error classification statistics
 
 use crate::error::Result;
 use crate::r#type::{DocId, EnrichedSearchResults, SearchResults};
@@ -17,7 +17,7 @@ use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-/// Redis 连接池管理器
+/// Redis Connection Pool Manager
 pub struct RedisConnectionManager {
     client: RedisClient,
 }
@@ -74,7 +74,7 @@ impl Default for RedisStorageConfig {
     }
 }
 
-/// 错误类型统计
+/// Error Type Statistics
 #[derive(Debug, Default)]
 pub struct ErrorStats {
     pub connection_errors: AtomicU64,
@@ -112,7 +112,7 @@ impl RedisStorage {
             .await
             .map_err(|e| crate::error::StorageError::Connection(e.to_string()))?;
 
-        // 验证连接池可用性
+        // Verifying Connection Pool Availability
         {
             let mut conn = pool
                 .get()
@@ -175,7 +175,7 @@ impl RedisStorage {
         let mut cursor = 0u64;
         let mut all_keys = Vec::new();
 
-        // 动态调整 COUNT 值
+        // Dynamically adjusting the COUNT value
         let count = if pattern.contains("*") { 1000 } else { 100 };
 
         loop {
@@ -205,7 +205,7 @@ impl RedisStorage {
         Ok(all_keys)
     }
 
-    /// 计算最优批次大小
+    /// Calculate the optimal batch size
     fn calculate_batch_size(&self, total_items: usize) -> usize {
         if total_items > 10000 {
             2000
@@ -216,11 +216,11 @@ impl RedisStorage {
         }
     }
 
-    /// 优化的内存使用量计算
+    /// Optimized memory usage calculation
     async fn update_memory_usage(&self) -> Result<()> {
         let mut conn = self.get_connection().await?;
 
-        // 使用 Redis INFO memory 命令获取整体内存使用
+        // Use the Redis INFO memory command to get overall memory usage
         let info: String = redis::cmd("INFO")
             .arg("memory")
             .query_async(&mut *conn)
@@ -232,7 +232,7 @@ impl RedisStorage {
                 crate::error::StorageError::Connection(e.to_string())
             })?;
 
-        // 解析 used_memory 字段
+        // Parsing the used_memory field
         let memory = self.parse_redis_memory_info(&info);
         self.memory_usage.store(memory, Ordering::Relaxed);
         Ok(())
@@ -318,7 +318,7 @@ impl StorageInterface for RedisStorage {
 
         let mut conn = self.get_connection().await?;
 
-        // 收集所有索引项
+        // Collect all index entries
         let mut index_items: Vec<(String, String)> = Vec::new();
 
         for doc_ids in index.map.index.values() {
@@ -343,7 +343,7 @@ impl StorageInterface for RedisStorage {
             }
         }
 
-        // 使用动态批次大小的 Pipeline
+        // Pipeline with Dynamic Batch Sizing
         let batch_size = self.calculate_batch_size(index_items.len());
 
         for chunk in index_items.chunks(batch_size) {
@@ -357,7 +357,7 @@ impl StorageInterface for RedisStorage {
             })?;
         }
 
-        // 更新内存使用量
+        // Update memory usage
         self.update_memory_usage().await?;
         self.record_operation_completion(start_time);
 
@@ -494,7 +494,7 @@ impl StorageInterface for RedisStorage {
         let index_pattern = format!("{}:index:*", self.key_prefix);
         let index_keys = self.scan_keys(&index_pattern).await?;
 
-        // 使用内存使用量
+        // Using Memory Usage
         let total_size = self.memory_usage.load(Ordering::Relaxed) as u64;
 
         Ok(StorageInfo {
@@ -509,7 +509,7 @@ impl StorageInterface for RedisStorage {
 }
 
 impl RedisStorage {
-    /// 批量删除文档（优化版本，使用 pipeline）
+    /// Batch delete documents (optimized version, using pipeline)
     pub async fn remove_batch(&self, ids: &[DocId]) -> Result<()> {
         if ids.is_empty() {
             return Ok(());
@@ -530,7 +530,7 @@ impl RedisStorage {
         Ok(())
     }
 
-    /// 健康检查
+    /// health checkup
     pub async fn health_check(&self) -> Result<bool> {
         match self.pool.get().await {
             Ok(mut conn) => {
@@ -542,12 +542,12 @@ impl RedisStorage {
         }
     }
 
-    /// 获取内存使用情况
+    /// Getting Memory Usage
     pub fn get_memory_usage(&self) -> usize {
         self.memory_usage.load(Ordering::Relaxed)
     }
 
-    /// 获取操作统计
+    /// Get Operation Statistics
     pub fn get_operation_stats(&self) -> StorageMetrics {
         let operation_count = self.operation_count.load(Ordering::Relaxed) as usize;
         let total_latency = self.total_latency.load(Ordering::Relaxed) as usize;
@@ -588,7 +588,7 @@ impl RedisStorage {
             + self.error_stats.other_errors.load(Ordering::Relaxed)) as usize
     }
 
-    /// 记录操作开始时间（内部使用）
+    /// Record operation start time (internal use)
     fn record_operation_start(&self) -> Instant {
         let start_time = Instant::now();
         if let Ok(mut last_op) = self.last_operation_time.lock() {
@@ -597,7 +597,7 @@ impl RedisStorage {
         start_time
     }
 
-    /// 记录操作完成（内部使用）
+    /// Record operation completion (internal use)
     fn record_operation_completion(&self, start_time: Instant) {
         let latency = start_time.elapsed().as_micros() as u64;
         self.operation_count.fetch_add(1, Ordering::Relaxed);
@@ -605,11 +605,11 @@ impl RedisStorage {
     }
 }
 
-/// 存储性能指标
+/// Storage Performance Metrics
 #[derive(Debug, Clone, Default)]
 pub struct StorageMetrics {
     pub operation_count: usize,
-    pub average_latency: usize, // 微秒
+    pub average_latency: usize, // microsecond
     pub memory_usage: usize,
     pub error_count: usize,
     pub connection_errors: usize,
@@ -618,12 +618,12 @@ pub struct StorageMetrics {
 }
 
 impl StorageMetrics {
-    /// 创建空的指标
+    /// Creating empty indicators
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// 重置所有指标
+    /// Reset all indicators
     pub fn reset(&mut self) {
         self.operation_count = 0;
         self.average_latency = 0;

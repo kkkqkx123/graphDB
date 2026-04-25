@@ -1,24 +1,24 @@
-//! 存储接口定义
+//! Storage interface definition
 //!
-//! 定义 BM25 存储模块的核心 trait 和抽象接口
+//! Define the core traits and abstract interfaces of the BM25 storage module
 
 use crate::error::Result;
 use std::collections::HashMap;
 
-/// 词项统计信息
+/// Term statistics
 #[derive(Debug, Clone, Default)]
 pub struct Bm25Stats {
-    /// 词项频率 (Term Frequency)
+    /// Term Frequency
     pub tf: HashMap<String, f32>,
-    /// 文档频率 (Document Frequency)
+    /// Document Frequency
     pub df: HashMap<String, u64>,
-    /// 总文档数
+    /// Total number of documents
     pub total_docs: u64,
-    /// 平均文档长度
+    /// Average document length
     pub avg_doc_length: f32,
 }
 
-/// 存储信息
+/// store information
 #[derive(Debug, Clone)]
 pub struct StorageInfo {
     pub name: String,
@@ -29,39 +29,39 @@ pub struct StorageInfo {
     pub is_connected: bool,
 }
 
-/// 存储接口 - BM25 词频统计存储
+/// Storage interface-BM25 word frequency statistical storage
 #[async_trait::async_trait]
 pub trait StorageInterface: Send + Sync {
-    /// 初始化存储
+    /// initialize the storage
     async fn init(&mut self) -> Result<()>;
 
-    /// 关闭存储
+    /// shut down the storage
     async fn close(&mut self) -> Result<()>;
 
-    /// 提交词项统计
+    /// Submission term statistics
     async fn commit_stats(&mut self, term: &str, tf: f32, df: u64) -> Result<()>;
 
-    /// 批量提交统计
+    /// Batch submission statistics
     async fn commit_batch(&mut self, stats: &Bm25Stats) -> Result<()>;
 
-    /// 获取词项统计
+    /// Get term statistics
     async fn get_stats(&self, term: &str) -> Result<Option<Bm25Stats>>;
 
-    /// 获取文档频率
+    /// Frequency of obtaining documents
     async fn get_df(&self, term: &str) -> Result<Option<u64>>;
 
-    /// 获取词项频率
+    /// Get term frequencies
     async fn get_tf(&self, term: &str, doc_id: &str) -> Result<Option<f32>>;
 
-    /// 清空所有数据
+    /// Clear all data
     async fn clear(&mut self) -> Result<()>;
 
-    /// 删除特定文档的统计信息
+    /// Delete statistics for specific documents
     async fn delete_doc_stats(&mut self, doc_id: &str) -> Result<()>;
 
-    /// 获取存储信息
+    /// Get storage information
     async fn info(&self) -> Result<StorageInfo>;
 
-    /// 健康检查
+    /// health check
     async fn health_check(&self) -> Result<bool>;
 }

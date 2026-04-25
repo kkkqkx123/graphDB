@@ -1,8 +1,8 @@
-//! 搜索协调器
+//! Search Coordinator
 //!
-//! 协调多字段搜索，管理字段权重和结果合并
+//! Coordinate multi-field searches, manage field weights and merge results
 //!
-//! # 使用示例
+//! # Example of use
 //!
 //! ```rust
 //! use inversearch_service::document::{Document, DocumentConfig};
@@ -28,7 +28,7 @@ use std::collections::{HashMap, HashSet};
 // Type alias for complex type
 type FieldBoostCondition = Box<dyn Fn(&serde_json::Value) -> bool + Send + Sync>;
 
-/// 字段搜索配置
+/// Field Search Configuration
 #[derive(Debug, Clone)]
 pub struct FieldSearch {
     name: String,
@@ -51,21 +51,21 @@ impl FieldSearch {
     }
 }
 
-/// 权重应用策略
+/// Weighting Application Strategy
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum BoostStrategy {
-    /// 乘法策略：将字段原始得分乘以权重值
+    /// Multiplication strategy: multiply the field's raw score by the weight value
     #[default]
     Multiply,
-    /// 加法策略：将权重值作为得分偏移量
+    /// Additive strategy: weight values as score offsets
     Add,
-    /// 指数策略：将权重作为指数
+    /// Index strategy: weights as indices
     Exponential,
-    /// 对数策略：使用对数函数调整得分
+    /// Logarithmic strategy: using logarithmic functions to adjust scores
     Logarithmic,
 }
 
-/// 字段权重配置
+/// Field Weight Configuration
 pub struct FieldBoostConfig {
     pub field_name: String,
     pub weight: f32,
@@ -119,7 +119,7 @@ impl FieldBoostConfig {
     }
 }
 
-/// 多字段搜索选项
+/// Multi-field search options
 #[derive(Debug, Clone, Default)]
 pub struct MultiFieldSearchOptions {
     pub query: String,
@@ -201,21 +201,21 @@ impl MultiFieldSearchOptions {
     }
 }
 
-/// 结果合并策略
+/// Results Consolidation Strategy
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum CombineStrategy {
-    /// 任一字段匹配即可（并集）
+    /// Either field match is sufficient (concatenation)
     #[default]
     Or,
-    /// 所有字段都必须匹配（交集）
+    /// All fields must match (intersection)
     And,
-    /// 按权重组合评分
+    /// Scoring by weighting combinations
     Weight,
-    /// 最佳字段匹配
+    /// Best Field Matching
     BestField,
 }
 
-/// 搜索协调器
+/// Search coordinator
 #[derive(Clone)]
 pub struct SearchCoordinator<'a> {
     document: &'a Document,
@@ -223,7 +223,7 @@ pub struct SearchCoordinator<'a> {
 }
 
 impl<'a> SearchCoordinator<'a> {
-    /// 创建新的搜索协调器
+    /// Creating a new search coordinator
     pub fn new(document: &'a Document) -> Self {
         SearchCoordinator {
             document,
@@ -231,29 +231,29 @@ impl<'a> SearchCoordinator<'a> {
         }
     }
 
-    /// 配置搜索选项
+    /// Configuring Search Options
     pub fn options(&mut self) -> &mut MultiFieldSearchOptions {
         &mut self.options
     }
 
-    /// 添加搜索字段
+    /// Adding a search field
     pub fn add_field(&mut self, name: &str, weight: f32) {
         self.options.fields.push(FieldSearch::new(name, weight));
     }
 
-    /// 设置字段的搜索查询（用于不同字段不同查询）
+    /// Setting up search queries for fields (for different queries for different fields)
     pub fn set_field_query(&mut self, name: &str, query: &str) {
         if let Some(field) = self.options.fields.iter_mut().find(|f| f.name == name) {
             field.query = Some(query.to_string());
         }
     }
 
-    /// 设置字段权重
+    /// Setting field weights
     pub fn set_boost(&mut self, name: &str, boost: f32) {
         self.options.boost.insert(name.to_string(), boost);
     }
 
-    /// 执行多字段搜索
+    /// Perform a multi-field search
     pub fn search(&self) -> Result<SearchResult> {
         if self.options.query.is_empty() {
             return Ok(SearchResult {
@@ -310,7 +310,7 @@ impl<'a> SearchCoordinator<'a> {
         })
     }
 
-    /// 应用权重策略
+    /// Applying weighting strategies
     fn apply_weight_strategy(&self, base_weight: f32, boost: f32) -> f32 {
         match self.options.boost_strategy {
             BoostStrategy::Multiply => base_weight * boost,
@@ -332,7 +332,7 @@ impl<'a> SearchCoordinator<'a> {
         }
     }
 
-    /// 执行搜索并返回评分
+    /// Perform a search and return a rating
     pub fn search_with_scores(&self) -> Result<Vec<(DocId, f32)>> {
         if self.options.query.is_empty() {
             return Ok(Vec::new());
@@ -378,7 +378,7 @@ impl<'a> SearchCoordinator<'a> {
         Ok(scored)
     }
 
-    /// 合并多字段结果
+    /// Merging multi-field results
     fn merge_results(&self, results: &[(String, Vec<DocId>, f32)]) -> Vec<DocId> {
         match self.options.combine {
             CombineStrategy::Or => self.merge_or(results),
@@ -388,7 +388,7 @@ impl<'a> SearchCoordinator<'a> {
         }
     }
 
-    /// 并集合并
+    /// union (symbol ∪) (set theory)
     fn merge_or(&self, results: &[(String, Vec<DocId>, f32)]) -> Vec<DocId> {
         let mut seen = HashSet::new();
         let mut result = Vec::new();
@@ -404,7 +404,7 @@ impl<'a> SearchCoordinator<'a> {
         result
     }
 
-    /// 交集合并
+    /// intersection merger
     fn merge_and(&self, results: &[(String, Vec<DocId>, f32)]) -> Vec<DocId> {
         if results.is_empty() {
             return Vec::new();
@@ -423,7 +423,7 @@ impl<'a> SearchCoordinator<'a> {
         result.into_iter().collect()
     }
 
-    /// 加权合并
+    /// weighted consolidation
     fn merge_weight(&self, results: &[(String, Vec<DocId>, f32)]) -> Vec<DocId> {
         let mut scored: Vec<(DocId, f32)> = Vec::new();
         let mut seen: HashMap<DocId, usize> = HashMap::new();
@@ -446,13 +446,13 @@ impl<'a> SearchCoordinator<'a> {
         scored.into_iter().map(|(id, _)| id).collect()
     }
 
-    /// 最佳字段合并
+    /// Optimal field merging
     fn merge_best(&self, results: &[(String, Vec<DocId>, f32)]) -> Vec<DocId> {
         if results.is_empty() {
             return Vec::new();
         }
 
-        // 找到结果最多的字段作为主字段
+        // Find the field with the most results as the primary field
         let mut best_field = &results[0];
         for result in results {
             if result.1.len() > best_field.1.len() {
@@ -463,7 +463,7 @@ impl<'a> SearchCoordinator<'a> {
         best_field.1.clone()
     }
 
-    /// 计算文档评分
+    /// Calculating Document Scores
     fn calculate_scores(&self, results: &[(String, Vec<DocId>, f32)], docs: &[DocId]) -> Vec<f32> {
         let mut doc_scores: HashMap<DocId, f32> = HashMap::new();
         let mut doc_counts: HashMap<DocId, usize> = HashMap::new();
@@ -533,7 +533,7 @@ mod tests {
 
         let result = coordinator.search().expect("search should succeed");
 
-        // 应该找到包含 "Rust" 的文档 (1 和 3)
+        // You should find documents (1 and 3) that contain "Rust".
         assert!(result.results.contains(&1));
         assert!(result.results.contains(&3));
     }
@@ -552,7 +552,7 @@ mod tests {
             .expect("search_with_scores should succeed");
 
         assert!(!scored.is_empty());
-        // 文档1和3都包含 Rust
+        // Documents 1 and 3 both contain Rust
         for s in &scored {
             assert!(s.1 > 0.0);
         }

@@ -46,19 +46,19 @@ fn remove_fastupdate(
     refs: Vec<crate::index::IndexRef>,
     id: DocId,
 ) -> Result<()> {
-    // 根据 JavaScript 版本的实现，我们直接操作存储在 reg 中的索引数组
-    // 通过 IndexRef 中的键信息来定位到对应的索引数组
+    // Based on the implementation in the JavaScript version, we directly manipulate the indexed array stored in the reg
+    // Use the key information in IndexRef to locate to the corresponding index array
     for index_ref in refs {
         match index_ref {
             crate::index::IndexRef::MapRef(term) => {
                 let term_hash = index.keystore_hash_str(&term);
                 if let Some(term_map) = index.map.index.get_mut(&term_hash) {
                     if let Some(doc_ids) = term_map.get_mut(&term) {
-                        // 检查数组最后一个元素是否是目标ID，如果是则直接移除（JavaScript 版本的优化）
+                        // Check whether the last element of the array is the target ID, and if it is, remove it directly (optimization for the JavaScript version)
                         if doc_ids.last() == Some(&id) {
                             doc_ids.pop();
                         } else {
-                            // 否则查找并移除指定ID
+                            // Otherwise find and remove the specified ID
                             if let Some(pos) = doc_ids.iter().position(|x| x == &id) {
                                 if doc_ids.len() > 1 {
                                     doc_ids.swap_remove(pos);
@@ -74,11 +74,11 @@ fn remove_fastupdate(
                 let kw_hash = index.keystore_hash_str(&keyword);
                 if let Some(term_map) = index.ctx.index.get_mut(&kw_hash) {
                     if let Some(doc_ids) = term_map.get_mut(&term) {
-                        // 检查数组最后一个元素是否是目标ID，如果是则直接移除（JavaScript 版本的优化）
+                        // Check whether the last element of the array is the target ID, and if it is, remove it directly (optimization for the JavaScript version)
                         if doc_ids.last() == Some(&id) {
                             doc_ids.pop();
                         } else {
-                            // 否则查找并移除指定ID
+                            // Otherwise find and remove the specified ID
                             if let Some(pos) = doc_ids.iter().position(|x| x == &id) {
                                 if doc_ids.len() > 1 {
                                     doc_ids.swap_remove(pos);

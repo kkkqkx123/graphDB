@@ -1,8 +1,8 @@
-//! 批量操作
+//! Batch operation
 //!
-//! 提供高效的批量文档添加、更新、删除操作
+//! Provide efficient batch document adding, updating, deleting operations
 //!
-//! # 使用示例
+//! # Example of use
 //!
 //! ```rust
 //! use inversearch_service::document::Batch;
@@ -10,13 +10,13 @@
 //!
 //! let mut batch = Batch::new(1000); // 批量大小 1000
 //!
-//! // 添加操作
+//! // Add operation
 //! let doc1 = json!({"title": "Doc 1"});
 //! let doc2 = json!({"title": "Doc 2"});
 //! batch.add(1, &doc1);
 //! batch.add(2, &doc2);
 //!
-//! // 执行批量操作
+//! // Perform batch operations
 //! // index.execute_batch(&mut batch)?;
 //! ```
 
@@ -24,15 +24,15 @@ use crate::DocId;
 use serde_json::{json, Value};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-/// 全局批量操作 ID 计数器
+/// Global Batch Operation ID Counter
 static BATCH_ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 
-/// 生成唯一的批量操作 ID
+/// Generate unique batch operation IDs
 fn generate_batch_id() -> usize {
     BATCH_ID_COUNTER.fetch_add(1, Ordering::SeqCst)
 }
 
-/// 批量操作类型
+/// Batch operation type
 #[derive(Debug, Clone)]
 pub enum BatchOperation<'a> {
     Add(DocId, &'a Value),
@@ -41,7 +41,7 @@ pub enum BatchOperation<'a> {
     Replace(DocId, &'a Value),
 }
 
-/// 批量操作状态
+/// Batch operation status
 #[derive(Debug, Clone, PartialEq)]
 pub enum BatchStatus {
     Pending,
@@ -51,7 +51,7 @@ pub enum BatchStatus {
     RolledBack,
 }
 
-/// 批量操作元数据
+/// Batch manipulation of metadata
 #[derive(Debug, Clone)]
 pub struct BatchMetadata {
     pub batch_id: usize,
@@ -62,7 +62,7 @@ pub struct BatchMetadata {
     pub failed_operations: usize,
 }
 
-/// 批量操作缓冲
+/// batch operation buffer
 #[derive(Debug, Clone)]
 pub struct Batch<'a> {
     operations: Vec<BatchOperation<'a>>,
@@ -74,7 +74,7 @@ pub struct Batch<'a> {
 }
 
 impl<'a> Batch<'a> {
-    /// 创建新的批量操作
+    /// Creating a new batch operation
     pub fn new(max_size: usize) -> Self {
         Batch {
             operations: Vec::with_capacity(max_size),
@@ -86,92 +86,92 @@ impl<'a> Batch<'a> {
         }
     }
 
-    /// 创建原子性批量操作
+    /// Creating Atomic Batch Operations
     pub fn new_atomic(max_size: usize) -> Self {
         let mut batch = Self::new(max_size);
         batch.atomic = true;
         batch
     }
 
-    /// 创建事务性批量操作
+    /// Creating Transactional Batch Operations
     pub fn new_transactional(max_size: usize) -> Self {
         let mut batch = Self::new(max_size);
         batch.transactional = true;
         batch
     }
 
-    /// 添加文档
+    /// Adding Documents
     pub fn add(&mut self, id: DocId, content: &'a Value) {
         self.operations.push(BatchOperation::Add(id, content));
     }
 
-    /// 更新文档
+    /// Update Documentation
     pub fn update(&mut self, id: DocId, content: &'a Value) {
         self.operations.push(BatchOperation::Update(id, content));
     }
 
-    /// 删除文档
+    /// Delete Document
     pub fn remove(&mut self, id: DocId) {
         self.operations.push(BatchOperation::Remove(id));
     }
 
-    /// 替换文档
+    /// Replacement Document
     pub fn replace(&mut self, id: DocId, content: &'a Value) {
         self.operations.push(BatchOperation::Replace(id, content));
     }
 
-    /// 检查是否需要刷新
+    /// Check if a refresh is needed
     pub fn should_flush(&self) -> bool {
         self.operations.len() >= self.max_size
     }
 
-    /// 获取操作数量
+    /// Get the number of operations
     pub fn len(&self) -> usize {
         self.operations.len()
     }
 
-    /// 检查是否为空
+    /// Check if it is empty
     pub fn is_empty(&self) -> bool {
         self.operations.is_empty()
     }
 
-    /// 清空操作队列
+    /// Empty the operation queue.
     pub fn clear(&mut self) {
         self.operations.clear();
     }
 
-    /// 取出所有操作
+    /// Remove all operations
     pub fn drain(&mut self) -> Vec<BatchOperation<'a>> {
         self.operations.drain(..).collect()
     }
 
-    /// 获取操作引用
+    /// Get Operation References
     pub fn operations(&self) -> &[BatchOperation<'a>] {
         &self.operations
     }
 
-    /// 设置批量元数据
+    /// Setting up batch metadata
     pub fn set_metadata(&mut self, metadata: BatchMetadata) {
         self.metadata = Some(metadata);
     }
 
-    /// 获取批量元数据
+    /// Getting bulk metadata
     pub fn metadata(&self) -> Option<&BatchMetadata> {
         self.metadata.as_ref()
     }
 
-    /// 检查是否为原子性
+    /// Check for atomicity
     pub fn is_atomic(&self) -> bool {
         self.atomic
     }
 
-    /// 检查是否为事务性
+    /// Check if it is transactional
     pub fn is_transactional(&self) -> bool {
         self.transactional
     }
 }
 
-/// 批量操作执行器（泛型版本）
+/// Batch operation actuator (generalized version)
 pub struct BatchExecutorFn<'a, A, U, R>
 where
     A: FnMut(DocId, &Value) -> Result<(), crate::error::InversearchError>,
@@ -190,7 +190,7 @@ where
     U: FnMut(DocId, &Value) -> Result<(), crate::error::InversearchError>,
     R: FnMut(DocId, &Value) -> Result<(), crate::error::InversearchError>,
 {
-    /// 创建新的执行器
+    /// Creating a new actuator
     pub fn new(add_fn: A, update_fn: U, remove_fn: R) -> Self {
         BatchExecutorFn {
             add_fn,
@@ -200,7 +200,7 @@ where
         }
     }
 
-    /// 执行单个操作
+    /// Perform a single operation
     pub fn execute(&mut self, op: &BatchOperation) -> Result<(), crate::error::InversearchError> {
         match op {
             BatchOperation::Add(id, content) => (self.add_fn)(*id, content),
@@ -210,7 +210,7 @@ where
         }
     }
 
-    /// 执行批量操作
+    /// Perform batch operations
     pub fn execute_batch(&mut self, batch: &Batch) -> Result<(), crate::error::InversearchError> {
         for op in &batch.operations {
             self.execute(op)?;
@@ -218,7 +218,7 @@ where
         Ok(())
     }
 
-    /// 执行并清空
+    /// Execute and clear
     pub fn execute_and_clear(
         &mut self,
         batch: &mut Batch,
@@ -229,7 +229,7 @@ where
     }
 }
 
-/// 批量操作结果
+/// Batch operation results
 #[derive(Debug, Clone)]
 pub struct BatchResult {
     pub batch_id: usize,
@@ -240,16 +240,16 @@ pub struct BatchResult {
     pub duration_ms: u64,
 }
 
-/// 批量操作执行器
+/// Batch Operated Actuators
 ///
-/// 用于执行批量文档操作，支持并行处理和自定义工作线程数
+/// Used to perform batch document operations, supporting parallel processing and customizing the number of worker threads
 pub struct BatchExecutor {
     parallel: bool,
     max_workers: usize,
 }
 
 impl BatchExecutor {
-    /// 创建新的批量操作执行器
+    /// Creating a new batch operation executor
     pub fn new(_batch_size: usize) -> Self {
         BatchExecutor {
             parallel: false,
@@ -257,19 +257,19 @@ impl BatchExecutor {
         }
     }
 
-    /// 启用并行处理
+    /// Enable parallel processing
     pub fn with_parallel(mut self, parallel: bool) -> Self {
         self.parallel = parallel;
         self
     }
 
-    /// 设置最大工作线程数
+    /// Setting the maximum number of worker threads
     pub fn with_max_workers(mut self, max_workers: usize) -> Self {
         self.max_workers = max_workers;
         self
     }
 
-    /// 执行批量添加操作
+    /// Perform a batch add operation
     pub fn execute_batch_add(
         &self,
         operations: &[(DocId, &Value)],
@@ -300,7 +300,7 @@ impl BatchExecutor {
         }
     }
 
-    /// 执行批量更新操作
+    /// Perform batch update operations
     pub fn execute_batch_update(
         &self,
         operations: &[(DocId, &Value)],
@@ -331,7 +331,7 @@ impl BatchExecutor {
         }
     }
 
-    /// 执行批量删除操作
+    /// Performing batch deletion operations
     pub fn execute_batch_remove(
         &self,
         operations: &[DocId],
@@ -362,7 +362,7 @@ impl BatchExecutor {
         }
     }
 
-    /// 执行混合批量操作
+    /// Perform mixed batch operations
     pub fn execute_batch_mixed<'a>(
         &self,
         operations: &[BatchOperation<'a>],

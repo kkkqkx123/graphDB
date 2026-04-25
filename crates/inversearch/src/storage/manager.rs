@@ -1,14 +1,14 @@
-//! 存储管理器
+//! Storage Manager
 //!
-//! 提供统一的存储管理接口，集成存储到业务逻辑
-//! 使用条件编译确定具体存储类型，零运行时开销
+//! Provide a unified storage management interface, integrating storage to business logic
+//! Use conditional compilation to determine specific storage types with zero runtime overhead
 
 use crate::error::Result;
 use crate::storage::common::types::StorageInfo;
 use crate::{DocId, Index};
 use std::sync::Arc;
 
-// 根据特性导入具体存储类型
+// Importing specific storage types based on characteristics
 #[cfg(feature = "store-cold-warm-cache")]
 use crate::storage::cold_warm_cache::ColdWarmCacheManager;
 
@@ -31,7 +31,7 @@ use crate::storage::redis::RedisStorage;
 ))]
 use crate::storage::wal::WALStorage;
 
-// 定义默认存储类型
+// Defining the Default Storage Type
 #[cfg(feature = "store-cold-warm-cache")]
 pub type DefaultStorage = ColdWarmCacheManager;
 
@@ -70,63 +70,63 @@ use crate::storage::memory::MemoryStorage;
 )))]
 pub type DefaultStorage = MemoryStorage;
 
-/// 存储管理器
+/// Storage Manager
 ///
-/// 使用条件编译确定具体存储类型，提供零成本抽象的存储管理
+/// Use conditional compilation to determine specific storage types, providing zero-cost abstraction of storage management
 #[derive(Clone)]
 pub struct StorageManager {
     storage: Arc<DefaultStorage>,
 }
 
 impl StorageManager {
-    /// 创建新的存储管理器
+    /// Creating a new Storage Manager
     pub fn new(storage: Arc<DefaultStorage>) -> Self {
         Self { storage }
     }
 
-    /// 获取底层存储
+    /// Getting the underlying storage
     pub fn storage(&self) -> Arc<DefaultStorage> {
         self.storage.clone()
     }
 
-    /// 打开存储连接
+    /// Open the storage connection
     pub async fn open(&self) -> Result<()> {
-        // 具体存储类型的 open 方法
+        // The open method for a specific storage type
         #[cfg(feature = "store-cold-warm-cache")]
         {
-            // ColdWarmCacheManager 在创建时已经初始化
+            // ColdWarmCacheManager is initialized at creation time.
             Ok(())
         }
         #[cfg(not(feature = "store-cold-warm-cache"))]
         {
-            // 其他存储类型需要调用 open
+            // Other storage types require a call to open
             Ok(())
         }
     }
 
-    /// 关闭存储连接
+    /// Close the storage connection
     pub async fn close(&self) -> Result<()> {
         Ok(())
     }
 
-    /// 挂载索引到存储
+    /// Mounting Indexes to Storage
     pub async fn mount(&self, index: &Index) -> Result<()> {
         #[cfg(feature = "store-cold-warm-cache")]
         {
-            // ColdWarmCacheManager 通过 Arc 使用
-            // 需要特殊处理
+            // ColdWarmCacheManager is used by Arc through the
+            // Requires special handling
         }
         let _ = index;
         Ok(())
     }
 
-    /// 提交索引变更
+    /// Submitting Index Changes
     pub async fn commit(&self, index: &Index, replace: bool, append: bool) -> Result<()> {
         let _ = (index, replace, append);
         Ok(())
     }
 
-    /// 获取术语结果
+    /// Get terminology results
     pub async fn get(
         &self,
         key: &str,
@@ -140,45 +140,45 @@ impl StorageManager {
         Ok(Vec::new())
     }
 
-    /// 富化结果
+    /// Enrichment results
     pub async fn enrich(&self, ids: &[DocId]) -> Result<crate::r#type::EnrichedSearchResults> {
         let _ = ids;
         Ok(Vec::new())
     }
 
-    /// 检查ID是否存在
+    /// Check if the ID exists
     pub async fn has(&self, id: DocId) -> Result<bool> {
         let _ = id;
         Ok(false)
     }
 
-    /// 删除文档
+    /// Delete Document
     pub async fn remove(&self, ids: &[DocId]) -> Result<()> {
         let _ = ids;
         Ok(())
     }
 
-    /// 删除文档（别名，与 remove 功能相同）
+    /// Delete document (alias, same function as remove)
     pub async fn remove_documents(&self, ids: &[DocId]) -> Result<()> {
         self.remove(ids).await
     }
 
-    /// 挂载索引
+    /// Mounted Indexes
     pub async fn mount_index(&self, index: &Index) -> Result<()> {
         self.mount(index).await
     }
 
-    /// 清空数据
+    /// Empty data
     pub async fn clear(&self) -> Result<()> {
         Ok(())
     }
 
-    /// 销毁数据库
+    /// Destruction of databases
     pub async fn destroy(&self) -> Result<()> {
         Ok(())
     }
 
-    /// 获取存储信息
+    /// Getting storage information
     pub async fn info(&self) -> Result<StorageInfo> {
         Ok(StorageInfo {
             name: stringify!(DefaultStorage).to_string(),
@@ -191,13 +191,13 @@ impl StorageManager {
     }
 }
 
-/// 存储管理器构建器
+/// Storage Manager Builder
 ///
-/// 用于根据配置创建存储管理器
+/// Used to create a storage manager based on the configuration
 pub struct StorageManagerBuilder;
 
 impl StorageManagerBuilder {
-    /// 创建默认存储管理器
+    /// Creating a Default Storage Manager
     pub async fn build_default() -> Result<StorageManager> {
         #[cfg(feature = "store-cold-warm-cache")]
         {
@@ -270,12 +270,12 @@ mod tests {
     async fn test_storage_operations() {
         let manager = StorageManagerBuilder::build_default().await.unwrap();
 
-        // 测试基本操作
+        // Testing Basic Operations
         assert!(manager.has(1).await.is_ok());
         assert!(manager.remove(&[1, 2, 3]).await.is_ok());
         assert!(manager.clear().await.is_ok());
 
-        // 测试搜索
+        // Test Search
         let results = manager.get("test", None, 10, 0, true, false).await;
         assert!(results.is_ok());
     }

@@ -1,4 +1,4 @@
-//! 最小化测试，只测试核心交集功能
+//! Minimized testing, only core intersection functionality is tested
 
 #[cfg(test)]
 mod minimal_tests {

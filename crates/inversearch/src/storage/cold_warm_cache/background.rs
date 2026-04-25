@@ -1,10 +1,10 @@
-//! 后台任务管理器
+//! Background Task Manager
 //!
-//! 管理定期执行的后台任务：
-//! - Flush: 将热缓存数据降级到温缓存
-//! - Merge: 将温缓存数据合并到冷存储
-//! - Cleanup: 清理过期数据
-//! - Checkpoint: 创建检查点
+//! Manage regularly executed background tasks:
+//! - Flush: downgrade hot cache data to warm cache
+//! - Merge: Merge warm cache data into cold storage
+//! - Cleanup: Clean up expired data
+//! - Checkpoint: Create a checkpoint
 
 use crate::storage::cold_warm_cache::manager::ColdWarmCacheManager;
 use std::sync::Arc;

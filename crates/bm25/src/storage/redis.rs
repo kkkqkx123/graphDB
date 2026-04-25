@@ -1,16 +1,16 @@
-//! Redis 存储实现（使用 bb8 连接池优化版本）
+//! Redis storage implementation (using bb8 connection pool optimized version)
 //!
-//! 使用 Redis 存储 BM25 词频统计信息
-//! 数据结构：
+//! Storing BM25 word frequency statistics using Redis
+//! Data structure:
 //! - BM25:tf:{term} -> Hash { doc_id: tf_value }
 //! - BM25:df:{term} -> String (df_value)
 //!
-//! 主要改进：
-//! - 使用 bb8 连接池管理多个 Redis 连接
-//! - TF 原子累加操作（HINCRBYFLOAT）
-//! - 优化的内存使用量计算
-//! - 增强的错误分类统计
-//! - 动态批次大小调整
+//! Major improvements:
+//! - Managing Multiple Redis Connections with bb8 Connection Pooling
+//! - TF Atomic accumulation operation (HINCRBYFLOAT)
+//! - Optimized memory usage calculation
+//! - Enhanced error classification statistics
+//! - Dynamic batch resizing
 
 use crate::error::{Bm25Error, Result};
 use crate::storage::common::r#trait::{Bm25Stats, StorageInterface};
@@ -22,7 +22,7 @@ use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-/// Redis 连接池管理器
+/// Redis Connection Pool Manager
 pub struct RedisConnectionManager {
     client: RedisClient,
 }
@@ -54,7 +54,7 @@ impl bb8::ManageConnection for RedisConnectionManager {
     }
 }
 
-/// Redis 存储配置
+/// Redis Storage Configuration
 #[derive(Debug, Clone)]
 pub struct RedisStorageConfig {
     pub url: String,
@@ -80,7 +80,7 @@ impl Default for RedisStorageConfig {
     }
 }
 
-/// 错误类型统计
+/// Error Type Statistics
 #[derive(Debug, Default)]
 pub struct ErrorStats {
     pub connection_errors: AtomicU64,
@@ -90,7 +90,7 @@ pub struct ErrorStats {
     pub other_errors: AtomicU64,
 }
 
-/// Redis 存储实现
+/// Redis Storage Implementation
 pub struct RedisStorage {
     pool: Pool<RedisConnectionManager>,
     key_prefix: String,
@@ -117,7 +117,7 @@ impl RedisStorage {
             .await
             .map_err(|e| Bm25Error::StorageError(e.to_string()))?;
 
-        // 验证连接池可用性
+        // Verifying Connection Pool Availability
         {
             let mut conn = pool
                 .get()
@@ -165,7 +165,7 @@ impl RedisStorage {
         let mut cursor = 0u64;
         let mut all_keys = Vec::new();
 
-        // 动态调整 COUNT 值
+        // Dynamically adjusting the COUNT value
         let count = if pattern.contains("*") { 1000 } else { 100 };
 
         loop {
@@ -195,7 +195,7 @@ impl RedisStorage {
         Ok(all_keys)
     }
 
-    /// 计算最优批次大小
+    /// Calculate the optimal batch size
     #[allow(dead_code)]
     fn calculate_batch_size(&self, total_items: usize) -> usize {
         if total_items > 10000 {
@@ -207,11 +207,11 @@ impl RedisStorage {
         }
     }
 
-    /// 优化的内存使用量计算
+    /// Optimized memory usage calculation
     async fn update_memory_usage(&self) -> Result<()> {
         let mut conn = self.get_connection().await?;
 
-        // 使用 Redis INFO memory 命令获取整体内存使用
+        // Use the Redis INFO memory command to get overall memory usage
         let info: String = redis::cmd("INFO")
             .arg("memory")
             .query_async(&mut *conn)
@@ -223,7 +223,7 @@ impl RedisStorage {
                 Bm25Error::StorageError(e.to_string())
             })?;
 
-        // 解析 used_memory 字段
+        // Parsing the used_memory field
         let memory = self.parse_redis_memory_info(&info);
         self.memory_usage.store(memory, Ordering::Relaxed);
         Ok(())
@@ -294,13 +294,13 @@ impl StorageInterface for RedisStorage {
 
         let mut pipe = redis::pipe();
 
-        // 使用 HINCRBYFLOAT 实现 TF 的原子累加，使用 "default" 作为默认 doc_id
+        // Use HINCRBYFLOAT for atomic accumulation of TFs, use "default" as default doc_id.
         pipe.cmd("HINCRBYFLOAT")
             .arg(self.make_tf_key(term))
             .arg("default")
             .arg(tf);
 
-        // 设置 DF 值
+        // Setting the DF value
         pipe.cmd("SET").arg(self.make_df_key(term)).arg(df as usize);
 
         let _: () = pipe.query_async(&mut *conn).await.map_err(|e| {
@@ -319,7 +319,7 @@ impl StorageInterface for RedisStorage {
         let mut conn = self.get_connection().await?;
         let mut pipe = redis::pipe();
 
-        // 批量 TF 操作 - 使用 HINCRBYFLOAT
+        // Batch TF Operations - Using HINCRBYFLOAT
         for (term, tf) in &stats.tf {
             pipe.cmd("HINCRBYFLOAT")
                 .arg(self.make_tf_key(term))
@@ -327,7 +327,7 @@ impl StorageInterface for RedisStorage {
                 .arg(*tf);
         }
 
-        // 批量 DF 操作 - 使用 SET
+        // Batch DF operations - using SET
         for (term, df) in &stats.df {
             pipe.cmd("SET")
                 .arg(self.make_df_key(term))
@@ -339,7 +339,7 @@ impl StorageInterface for RedisStorage {
             Bm25Error::StorageError(e.to_string())
         })?;
 
-        // 更新内存使用量
+        // Update memory usage
         self.update_memory_usage().await?;
 
         Ok(())
@@ -402,7 +402,7 @@ impl StorageInterface for RedisStorage {
     async fn get_tf(&self, term: &str, doc_id: &str) -> Result<Option<f32>> {
         let mut conn = self.get_connection().await?;
 
-        // 从 Hash 中获取特定 doc_id 的 TF 值
+        // Get the TF value for a specific doc_id from the hash
         let tf: Option<f32> = redis::cmd("HGET")
             .arg(self.make_tf_key(term))
             .arg(doc_id)
@@ -443,7 +443,7 @@ impl StorageInterface for RedisStorage {
         let df_pattern = format!("{}:df:*", self.key_prefix);
         let df_keys = self.scan_keys(&df_pattern).await?;
 
-        // 使用内存使用量
+        // Using Memory Usage
         let total_size = self.memory_usage.load(Ordering::Relaxed) as u64;
 
         Ok(StorageInfo {
@@ -468,8 +468,8 @@ impl StorageInterface for RedisStorage {
     }
 
     async fn delete_doc_stats(&mut self, doc_id: &str) -> Result<()> {
-        // 删除特定文档的 TF 统计需要从所有词项中删除该 doc_id
-        // 这是一个比较耗时的操作，需要扫描所有 TF key
+        // Deleting a TF statistic for a specific document requires that the doc_id be removed from all lexical items
+        // This is a time-consuming operation that requires scanning all TF keys
         let pattern = format!("{}:tf:*", self.key_prefix);
         let tf_keys = self.scan_keys(&pattern).await?;
 
@@ -477,7 +477,7 @@ impl StorageInterface for RedisStorage {
             let mut conn = self.get_connection().await?;
             let mut pipe = redis::pipe();
 
-            // 从每个 TF Hash 中删除 doc_id field
+            // Remove doc_id field from each TF Hash
             for tf_key in tf_keys {
                 pipe.cmd("HDEL").arg(tf_key).arg(doc_id);
             }
@@ -493,7 +493,7 @@ impl StorageInterface for RedisStorage {
 }
 
 impl RedisStorage {
-    /// 健康检查
+    /// health checkup
     pub async fn health_check(&self) -> Result<bool> {
         match self.pool.get().await {
             Ok(mut conn) => {
@@ -505,12 +505,12 @@ impl RedisStorage {
         }
     }
 
-    /// 获取内存使用情况
+    /// Getting Memory Usage
     pub fn get_memory_usage(&self) -> usize {
         self.memory_usage.load(Ordering::Relaxed)
     }
 
-    /// 获取操作统计
+    /// Get Operation Statistics
     pub fn get_operation_stats(&self) -> StorageMetrics {
         let operation_count = self.operation_count.load(Ordering::Relaxed) as usize;
         let total_latency = self.total_latency.load(Ordering::Relaxed) as usize;
@@ -551,13 +551,13 @@ impl RedisStorage {
             + self.error_stats.other_errors.load(Ordering::Relaxed)) as usize
     }
 
-    /// 记录操作开始时间（内部使用）
+    /// Record operation start time (internal use)
     #[allow(dead_code)]
     fn record_operation_start(&self) -> Instant {
         Instant::now()
     }
 
-    /// 记录操作完成（内部使用）
+    /// Record operation completion (internal use)
     #[allow(dead_code)]
     fn record_operation_completion(&self, start_time: Instant) {
         let latency = start_time.elapsed().as_micros() as u64;
@@ -565,7 +565,7 @@ impl RedisStorage {
         self.total_latency.fetch_add(latency, Ordering::Relaxed);
     }
 
-    /// 提交特定文档的 TF 统计（Redis 特有方法）
+    /// Submit document-specific TF statistics (Redis-specific method)
     pub async fn commit_doc_tf(&mut self, term: &str, doc_id: &str, tf: f32) -> Result<()> {
         let mut conn = self.get_connection().await?;
 
@@ -583,7 +583,7 @@ impl RedisStorage {
         Ok(())
     }
 
-    /// 批量提交多个文档的 TF 统计（Redis 特有方法）
+    /// TF statistics for batch submission of multiple documents (Redis-specific approach)
     pub async fn commit_batch_doc_tf(
         &mut self,
         term: &str,
@@ -611,7 +611,7 @@ impl RedisStorage {
         Ok(())
     }
 
-    /// 获取词项下所有文档的 TF（Redis 特有方法）
+    /// Get the TF of all documents under the term (Redis-specific method)
     pub async fn get_all_doc_tf(&self, term: &str) -> Result<HashMap<String, f32>> {
         let mut conn = self.get_connection().await?;
 
@@ -629,11 +629,11 @@ impl RedisStorage {
     }
 }
 
-/// 存储性能指标
+/// Storage Performance Metrics
 #[derive(Debug, Clone, Default)]
 pub struct StorageMetrics {
     pub operation_count: usize,
-    pub average_latency: usize, // 微秒
+    pub average_latency: usize, // microsecond
     pub memory_usage: usize,
     pub error_count: usize,
     pub connection_errors: usize,
@@ -642,12 +642,12 @@ pub struct StorageMetrics {
 }
 
 impl StorageMetrics {
-    /// 创建空的指标
+    /// Creating empty indicators
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// 重置所有指标
+    /// Reset all indicators
     pub fn reset(&mut self) {
         self.operation_count = 0;
         self.average_latency = 0;

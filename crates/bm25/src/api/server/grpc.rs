@@ -35,11 +35,11 @@ impl BM25Service {
         }
     }
 
-    /// 创建服务并初始化存储层
+    /// Create a service and initialize the storage tier
     pub async fn with_storage(config: Config) -> Result<Self, anyhow::Error> {
         let index_path = PathBuf::from(&config.index.index_path);
 
-        // 根据配置创建存储管理器
+        // Create a storage manager based on the configuration
         let storage_manager = match config.storage.storage_type {
             StorageType::Tantivy => {
                 #[cfg(feature = "storage-tantivy")]
@@ -81,9 +81,9 @@ impl BM25Service {
                 }
                 #[cfg(feature = "storage-tantivy")]
                 {
-                    // 当 storage-tantivy 启用时（无论是否启用 storage-redis），
-                    // DefaultStorage 是 TantivyStorage，所以无法使用 Redis 存储管理器
-                    // 此时使用 Tantivy 作为回退
+                    // When storage-tantivy is enabled (whether storage-redis is enabled or not), the
+                    // DefaultStorage is TantivyStorage, so it can't use the Redis storage manager
+                    // This uses Tantivy as a fallback
                     let tantivy_config = crate::storage::tantivy::TantivyStorageConfig {
                         index_path: std::path::PathBuf::from(&config.storage.tantivy.index_path),
                         writer_memory_mb: config.storage.tantivy.writer_memory_mb,
@@ -99,7 +99,7 @@ impl BM25Service {
             }
         };
 
-        // 初始化存储
+        // Initializing Storage
         storage_manager.init().await?;
 
         Ok(Self {
@@ -146,7 +146,7 @@ impl Bm25ServiceTrait for BM25Service {
         let (manager, schema) = self.get_or_create_index(&req.index_name).await?;
         let fields: HashMap<String, String> = req.fields.into_iter().collect();
 
-        // 使用存储层集成
+        // Using Storage Layer Integration
         if let Some(ref storage) = self.storage {
             let avg_doc_length = self._config.bm25.avg_doc_length;
             document::add_document_with_storage(
@@ -191,7 +191,7 @@ impl Bm25ServiceTrait for BM25Service {
             })
             .collect();
 
-        // 使用存储层集成
+        // Using Storage Layer Integration
         let count = if let Some(ref storage) = self.storage {
             let avg_doc_length = self._config.bm25.avg_doc_length;
             batch::batch_add_documents_with_storage(
@@ -273,7 +273,7 @@ impl Bm25ServiceTrait for BM25Service {
 
         let (manager, schema) = self.get_or_create_index(&req.index_name).await?;
 
-        // 使用存储层集成
+        // Using Storage Layer Integration
         if let Some(ref storage) = self.storage {
             delete::delete_document_with_storage(&manager, storage, &schema, &req.document_id)
                 .await
@@ -388,7 +388,7 @@ pub async fn run_server(config: Config) -> anyhow::Result<()> {
     let addr = config.server.address;
     tracing::info!("BM25 service listening on {}", addr);
 
-    // 创建服务并初始化存储层
+    // Create a service and initialize the storage tier
     let bm25_service = BM25Service::with_storage(config).await?;
 
     Server::builder()

@@ -1,12 +1,12 @@
-//! 序列化类型定义模块
+//! Serialized Type Definition Module
 //!
-//! 提供所有序列化相关的核心类型定义，作为数据的唯一来源
+//! Provides all serialization-related core type definitions as the sole source of data
 
 use crate::r#type::{EncoderOptions, IndexOptions};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// 序列化配置
+/// Serialized Configuration
 #[derive(Debug, Clone)]
 pub struct SerializeConfig {
     pub format: SerializeFormat,
@@ -31,7 +31,7 @@ impl Default for SerializeConfig {
 }
 
 impl SerializeConfig {
-    /// 创建带压缩的配置
+    /// Creating a configuration with compression
     pub fn with_compression(algorithm: CompressionAlgorithm, level: i32) -> Self {
         Self {
             format: SerializeFormat::MessagePack,
@@ -43,7 +43,7 @@ impl SerializeConfig {
         }
     }
 
-    /// 创建快速配置（低延迟，适合频繁操作）
+    /// Create fast configurations (low latency for frequent operations)
     pub fn fast() -> Self {
         Self {
             format: SerializeFormat::MessagePack,
@@ -55,7 +55,7 @@ impl SerializeConfig {
         }
     }
 
-    /// 创建紧凑配置（高压缩比，适合存储）
+    /// Create compact configurations (high compression ratio, suitable for storage)
     pub fn compact() -> Self {
         Self {
             format: SerializeFormat::MessagePack,
@@ -68,7 +68,7 @@ impl SerializeConfig {
     }
 }
 
-/// 序列化格式
+/// serialization format
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SerializeFormat {
     Json,
@@ -77,7 +77,7 @@ pub enum SerializeFormat {
     Cbor,
 }
 
-/// 压缩算法
+/// compression algorithm
 #[derive(Debug, Clone, Copy)]
 pub enum CompressionAlgorithm {
     None,
@@ -86,7 +86,7 @@ pub enum CompressionAlgorithm {
 }
 
 impl CompressionAlgorithm {
-    /// 获取算法名称
+    /// Get Algorithm Name
     pub fn name(&self) -> &'static str {
         match self {
             CompressionAlgorithm::None => "none",
@@ -96,7 +96,7 @@ impl CompressionAlgorithm {
     }
 }
 
-/// 索引数据导出结构
+/// Indexed Data Export Structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexExportData {
     pub version: String,
@@ -106,7 +106,7 @@ pub struct IndexExportData {
     pub data: ExportData,
 }
 
-/// 索引信息
+/// Indexing Information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexInfo {
     pub resolution: usize,
@@ -119,7 +119,7 @@ pub struct IndexInfo {
     pub encoder_type: String,
 }
 
-/// 导出数据
+/// Export data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExportData {
     pub main_index: HashMap<String, Vec<u64>>,
@@ -127,14 +127,14 @@ pub struct ExportData {
     pub registry: RegistryData,
 }
 
-/// 注册表数据
+/// Registry data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RegistryData {
     Set(Vec<u64>),                        // fastupdate = false
     Map(HashMap<u64, Vec<IndexRefData>>), // fastupdate = true
 }
 
-/// 索引引用数据（序列化格式）
+/// Index reference data (serialized format)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IndexRefData {
     MapRef(String),
@@ -157,7 +157,7 @@ impl IndexRefData {
     }
 }
 
-/// 增量序列化数据
+/// Incremental serialized data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IncrementalData {
     pub version: String,
@@ -166,7 +166,7 @@ pub struct IncrementalData {
     pub base_snapshot: Option<String>,
 }
 
-/// 索引变更（用于增量序列化）
+/// Index changes (for incremental serialization)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IndexChange {
     Add { doc_id: u64, content: String },
@@ -174,7 +174,7 @@ pub enum IndexChange {
     Update { doc_id: u64, content: String },
 }
 
-/// 索引配置导出
+/// Index Configuration Export
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexConfigExport {
     pub index_options: IndexOptions,
@@ -182,7 +182,7 @@ pub struct IndexConfigExport {
     pub tokenizer_config: TokenizerConfig,
 }
 
-/// 分词器配置
+/// Splitter Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenizerConfig {
     pub mode: String,
@@ -190,7 +190,7 @@ pub struct TokenizerConfig {
     pub normalize: bool,
 }
 
-/// Document 数据导出结构
+/// Document Data export structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentExportData {
     pub version: String,
@@ -202,7 +202,7 @@ pub struct DocumentExportData {
     pub registry: DocumentRegistryData,
 }
 
-/// Document 信息
+/// Document Information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentInfo {
     pub field_count: usize,
@@ -211,7 +211,7 @@ pub struct DocumentInfo {
     pub tag_enabled: bool,
 }
 
-/// 字段导出数据
+/// Field Export Data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldExportData {
     pub name: String,
@@ -219,7 +219,7 @@ pub struct FieldExportData {
     pub index_data: IndexExportData,
 }
 
-/// 字段配置导出
+/// Field Configuration Export
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldConfigExport {
     pub field_type: String,
@@ -228,35 +228,35 @@ pub struct FieldConfigExport {
     pub resolution: usize,
 }
 
-/// 标签导出数据
+/// Tag Export Data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TagExportData {
     pub tags: HashMap<String, Vec<u64>>,
     pub config: TagConfigExport,
 }
 
-/// 标签配置导出
+/// Tag Configuration Export
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TagConfigExport {
     pub enabled: bool,
     pub case_sensitive: bool,
 }
 
-/// 存储导出数据
+/// Store exported data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoreExportData {
     pub documents: HashMap<u64, String>,
     pub enabled: bool,
 }
 
-/// Document 注册表数据
+/// Document Registry Data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentRegistryData {
     pub doc_count: usize,
     pub next_doc_id: u64,
 }
 
-/// 分块数据类型
+/// chunked data type
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ChunkDataType {
     Registry,
@@ -264,7 +264,7 @@ pub enum ChunkDataType {
     ContextIndex,
 }
 
-/// 分块数据
+/// chunk data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChunkData {
     pub chunk_index: usize,
@@ -274,7 +274,7 @@ pub struct ChunkData {
 }
 
 impl IndexExportData {
-    /// 从索引创建导出数据
+    /// Creating exported data from an index
     pub fn from_index(index: &crate::Index) -> crate::error::Result<Self> {
         use chrono::Utc;
 
@@ -308,21 +308,21 @@ impl IndexExportData {
         })
     }
 
-    /// 将导出数据应用到索引
+    /// Applying exported data to an index
     pub fn apply_to_index(&self, index: &mut crate::Index) -> crate::error::Result<()> {
-        // 应用配置
+        // Application Configuration
         index.apply_config(&self.config)?;
 
-        // 清空当前索引
+        // Clear the current index
         index.clear();
 
-        // 恢复主索引
+        // Recovering the Primary Index
         index.import_main_index(&self.data.main_index)?;
 
-        // 恢复上下文索引
+        // Restore Context Index
         index.import_context_index(&self.data.context_index)?;
 
-        // 恢复注册表
+        // Recovering the registry
         index.import_registry(&self.data.registry)?;
 
         Ok(())

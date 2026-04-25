@@ -1,8 +1,8 @@
-//! Document 模块
+//! Document Module
 //!
-//! 提供多字段文档索引的统一管理
+//! Provide unified management of multi-field document indexing
 //!
-//! # 模块结构
+//! # Module Structure
 //!
 //! - `mod.rs`: Document 主结构和公共接口
 //! - `field.rs`: 字段定义和配置
@@ -26,7 +26,7 @@ pub use tree::{
     parse_tree, parse_tree_cached, EvaluationStrategy, PathCache, PathParseError, TreePath,
 };
 
-// 从 serialize 模块导出 Document 序列化相关类型
+// Exporting Document serialization-related types from the serialize module
 pub use crate::serialize::types::{
     DocumentExportData, DocumentInfo, DocumentRegistryData, FieldConfigExport, FieldExportData,
     StoreExportData, TagConfigExport, TagExportData,
@@ -42,7 +42,7 @@ use std::collections::HashMap;
 
 type TagFilterFn = Box<dyn Fn(&Value) -> bool + Send + Sync>;
 
-/// 文档搜索引擎主结构
+/// Document search engine main structure
 pub struct Document {
     fields: Vec<Field>,
     name_to_index: HashMap<String, usize>,
@@ -53,7 +53,7 @@ pub struct Document {
     fastupdate: bool,
 }
 
-/// 注册表类型
+/// Registry Type
 #[derive(Debug, Clone)]
 pub enum Register {
     Set(KeystoreSet<DocId>),
@@ -61,7 +61,7 @@ pub enum Register {
 }
 
 impl Document {
-    /// 创建新的 Document 实例
+    /// Creating a New Document Instance
     pub fn new(config: DocumentConfig) -> Result<Self> {
         let mut fields: Vec<Field> = Vec::new();
         let mut name_to_index = HashMap::new();
@@ -111,7 +111,7 @@ impl Document {
         })
     }
 
-    /// 添加文档
+    /// Adding Documents
     pub fn add(&mut self, id: DocId, content: &Value) -> Result<()> {
         for field in &mut self.fields {
             field.add(id, content)?;
@@ -146,14 +146,14 @@ impl Document {
         Ok(())
     }
 
-    /// 更新文档
+    /// Update Documentation
     pub fn update(&mut self, id: DocId, content: &Value) -> Result<()> {
         self.remove(id)?;
         self.add(id, content)?;
         Ok(())
     }
 
-    /// 删除文档
+    /// Delete Document
     pub fn remove(&mut self, id: DocId) -> Result<()> {
         for field in &mut self.fields {
             field.remove(id)?;
@@ -179,7 +179,7 @@ impl Document {
         Ok(())
     }
 
-    /// 搜索
+    /// look for sth.
     pub fn search(&self, options: &SearchOptions) -> Result<SearchResult> {
         let query = options.query.as_deref().unwrap_or("");
         if query.is_empty() {
@@ -236,12 +236,12 @@ impl Document {
         })
     }
 
-    /// 获取文档
+    /// Get Documentation
     pub fn get(&self, id: DocId) -> Option<&Value> {
         self.store.as_ref()?.get(&id)
     }
 
-    /// 检查文档是否存在
+    /// Check if the document exists
     pub fn contains(&self, id: DocId) -> bool {
         match &self.reg {
             Register::Set(set) => set.has(&id),
@@ -249,42 +249,42 @@ impl Document {
         }
     }
 
-    /// 获取store的引用（用于序列化）
+    /// Getting a reference to store (for serialization)
     pub fn get_store(&self) -> Option<&HashMap<DocId, Value>> {
         self.store.as_ref()
     }
 
-    /// 获取store的可变引用（用于序列化）
+    /// Getting a mutable reference to store (for serialization)
     pub fn get_store_mut(&mut self) -> Option<&mut HashMap<DocId, Value>> {
         self.store.as_mut()
     }
 
-    /// 获取register的引用（用于序列化）
+    /// Get a reference to register (for serialization)
     pub fn get_reg(&self) -> &Register {
         &self.reg
     }
 
-    /// 获取register的可变引用（用于序列化）
+    /// Get a mutable reference to register (for serialization)
     pub fn get_reg_mut(&mut self) -> &mut Register {
         &mut self.reg
     }
 
-    /// 检查是否启用了store
+    /// Check if store is enabled
     pub fn has_store(&self) -> bool {
         self.store.is_some()
     }
 
-    /// 检查是否启用了tag system
+    /// Check if tag system is enabled
     pub fn has_tag_system(&self) -> bool {
         self.tag_system.is_some()
     }
 
-    /// 检查是否启用了fastupdate
+    /// Check if fastupdate is enabled
     pub fn is_fastupdate(&self) -> bool {
         matches!(self.reg, Register::Map(_))
     }
 
-    /// 清空所有索引
+    /// Empty all indexes
     pub fn clear(&mut self) {
         for field in &mut self.fields {
             field.clear();
@@ -305,27 +305,27 @@ impl Document {
         }
     }
 
-    /// 获取字段数量
+    /// Get the number of fields
     pub fn len(&self) -> usize {
         self.fields.len()
     }
 
-    /// 检查是否为空
+    /// Check if it is empty
     pub fn is_empty(&self) -> bool {
         self.fields.is_empty()
     }
 
-    /// 获取所有字段名
+    /// Get all field names
     pub fn field_names(&self) -> Vec<&str> {
         self.name_to_index.keys().map(|s| s.as_str()).collect()
     }
 
-    /// 获取字段引用
+    /// Getting field references
     pub fn field(&self, name: &str) -> Option<&Field> {
         self.name_to_index.get(name).map(|&idx| &self.fields[idx])
     }
 
-    /// 获取可变字段引用（内部使用）
+    /// Getting variable field references (internal use)
     pub fn field_mut(&mut self, name: &str) -> Option<&mut Field> {
         self.name_to_index
             .get(name)
@@ -333,7 +333,7 @@ impl Document {
             .map(|idx| &mut self.fields[idx])
     }
 
-    /// 执行批量操作
+    /// Perform batch operations
     pub fn execute_batch(
         &mut self,
         batch: &crate::document::Batch,
@@ -342,26 +342,26 @@ impl Document {
         executor.execute_batch_mixed(batch.operations(), self)
     }
 
-    /// 批量添加文档
+    /// Add documents in bulk
     pub fn batch_add(&mut self, operations: &[(DocId, &Value)]) -> crate::document::BatchResult {
         let executor = crate::document::BatchExecutor::new(0);
         executor.execute_batch_add(operations, self)
     }
 
-    /// 批量更新文档
+    /// Batch update documents
     pub fn batch_update(&mut self, operations: &[(DocId, &Value)]) -> crate::document::BatchResult {
         let executor = crate::document::BatchExecutor::new(0);
         executor.execute_batch_update(operations, self)
     }
 
-    /// 批量删除文档
+    /// Batch Delete Documents
     pub fn batch_remove(&mut self, operations: &[DocId]) -> crate::document::BatchResult {
         let executor = crate::document::BatchExecutor::new(0);
         executor.execute_batch_remove(operations, self)
     }
 }
 
-/// 文档配置
+/// Document Configuration
 #[derive(Default)]
 pub struct DocumentConfig {
     pub fields: Vec<FieldConfig>,
@@ -372,7 +372,7 @@ pub struct DocumentConfig {
 }
 
 impl DocumentConfig {
-    /// 创建新的配置
+    /// Creating a new configuration
     pub fn new() -> Self {
         DocumentConfig {
             fields: Vec::new(),
@@ -383,19 +383,19 @@ impl DocumentConfig {
         }
     }
 
-    /// 添加字段
+    /// Adding Fields
     pub fn add_field(mut self, field: FieldConfig) -> Self {
         self.fields.push(field);
         self
     }
 
-    /// 添加标签配置（字符串形式）
+    /// Add label configuration (in string form)
     pub fn add_tag(mut self, field: &str) -> Self {
         self.tags.push((field.to_string(), None));
         self
     }
 
-    /// 添加带过滤器的标签配置
+    /// Adding Label Configuration with Filters
     pub fn add_tag_with_filter(
         mut self,
         field: &str,
@@ -405,26 +405,26 @@ impl DocumentConfig {
         self
     }
 
-    /// 启用文档存储
+    /// Enabling Document Storage
     pub fn with_store(mut self) -> Self {
         self.store = true;
         self
     }
 
-    /// 启用快速更新
+    /// Enable Fast Updates
     pub fn with_fastupdate(mut self) -> Self {
         self.fastupdate = true;
         self
     }
 
-    /// 设置缓存大小
+    /// Setting the cache size
     pub fn with_cache(mut self, size: usize) -> Self {
         self.cache = Some(size);
         self
     }
 }
 
-/// 从文档中提取简单路径的值
+/// Extracting the value of a simple path from a document
 fn extract_simple(document: &Value, path: &str) -> Option<Value> {
     let parts: Vec<&str> = path.split('.').collect();
     let mut current = document;

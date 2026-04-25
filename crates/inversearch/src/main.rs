@@ -33,7 +33,7 @@ fn main() {
 
 #[cfg(feature = "service")]
 fn run() -> anyhow::Result<()> {
-    // 尝试从配置文件加载
+    // Try loading from a configuration file
     let config_path =
         std::env::var("INVSEARCH_CONFIG").unwrap_or_else(|_| "configs/config.toml".to_string());
 
@@ -46,7 +46,7 @@ fn run() -> anyhow::Result<()> {
             .map_err(|e| anyhow::anyhow!("Failed to load configuration: {}", e))?
     };
 
-    // 使用 tokio 运行时
+    // Using the tokio runtime
     let rt = tokio::runtime::Runtime::new()?;
     rt.block_on(async {
         match run_server(config).await {
@@ -60,6 +60,6 @@ fn run() -> anyhow::Result<()> {
 mod tests {
     #[test]
     fn test_main() {
-        // 主函数入口测试
+        // Main function entry test
     }
 }

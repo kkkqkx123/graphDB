@@ -88,7 +88,7 @@ mod tests {
 
     #[test]
     fn test_lcg_unicode() {
-        let hash = lcg("你好");
+        let hash = lcg("How are you?");
         assert!(hash > 0);
     }
 

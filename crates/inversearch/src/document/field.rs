@@ -1,6 +1,6 @@
-//! 字段定义
+//! Field Definitions
 //!
-//! 定义文档字段的配置和操作
+//! Define the configuration and operation of document fields
 
 use crate::document::tree::{extract_value, parse_tree, TreePath};
 use crate::index::IndexOptions;
@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 type FieldFilterFn = Box<dyn Fn(&Value) -> bool + Send + Sync>;
 
-/// 字段类型
+/// Field type
 #[derive(Debug, Clone, PartialEq)]
 pub enum FieldType {
     String,
@@ -21,7 +21,7 @@ pub enum FieldType {
     Object,
 }
 
-/// 字段配置
+/// Field Configuration
 pub struct FieldConfig {
     pub name: String,
     pub field_type: FieldType,
@@ -45,7 +45,7 @@ impl Default for FieldConfig {
 }
 
 impl FieldConfig {
-    /// 创建新的字段配置
+    /// Creating a new field configuration
     pub fn new(name: &str) -> Self {
         let mut marker = vec![];
         let extract = parse_tree(name, &mut marker);
@@ -60,19 +60,19 @@ impl FieldConfig {
         }
     }
 
-    /// 设置字段类型
+    /// Setting the field type
     pub fn with_type(mut self, field_type: FieldType) -> Self {
         self.field_type = field_type;
         self
     }
 
-    /// 设置编码器选项
+    /// Setting Encoder Options
     pub fn with_encoder(mut self, encoder: EncoderOptions) -> Self {
         self.encoder = Some(encoder);
         self
     }
 
-    /// 设置过滤器
+    /// Setting up filters
     pub fn with_filter<F>(mut self, filter: F) -> Self
     where
         F: Fn(&Value) -> bool + 'static + Send + Sync,
@@ -81,26 +81,26 @@ impl FieldConfig {
         self
     }
 
-    /// 设置权重
+    /// weights
     pub fn with_boost(mut self, boost: i32) -> Self {
         self.boost = Some(boost);
         self
     }
 
-    /// 从文档中提取字段值
+    /// Extracting field values from documents
     pub fn extract_value(&self, document: &Value) -> Option<String> {
         extract_value(document, &self.extract)
     }
 }
 
-/// 字段实例
+/// Examples of fields
 pub struct Field {
     config: FieldConfig,
     index: Index,
 }
 
 impl Field {
-    /// 创建新的字段实例
+    /// Creating a new field instance
     pub fn new(config: FieldConfig) -> Result<Self, crate::error::InversearchError> {
         let index_options = IndexOptions {
             encoder: config.encoder.clone(),
@@ -113,17 +113,17 @@ impl Field {
         Ok(Field { config, index })
     }
 
-    /// 获取字段名
+    /// Get field name
     pub fn name(&self) -> &str {
         &self.config.name
     }
 
-    /// 获取字段权重
+    /// Getting field weights
     pub fn boost(&self) -> Option<i32> {
         self.config.boost
     }
 
-    /// 添加文档到字段索引
+    /// Adding Documents to a Field Index
     pub fn add(
         &mut self,
         id: DocId,
@@ -140,36 +140,36 @@ impl Field {
         Ok(())
     }
 
-    /// 从字段索引移除文档
+    /// Removing documents from a field index
     pub fn remove(&mut self, id: DocId) -> Result<(), crate::error::InversearchError> {
         self.index.remove(id, false)?;
         Ok(())
     }
 
-    /// 清空字段索引
+    /// Clearing field indexes
     pub fn clear(&mut self) {
         self.index.clear();
     }
 
-    /// 获取内部索引引用（用于搜索协调器）
+    /// Get internal index reference (for search coordinator)
     pub fn index(&self) -> &Index {
         &self.index
     }
 
-    /// 获取可变内部索引引用
+    /// Get variable internal index reference
     pub fn index_mut(&mut self) -> &mut Index {
         &mut self.index
     }
 }
 
-/// 字段集合
+/// set of fields
 pub struct Fields {
     fields: Vec<Field>,
     name_to_index: HashMap<String, usize>,
 }
 
 impl Fields {
-    /// 创建新的字段集合
+    /// Creating a new collection of fields
     pub fn new() -> Self {
         Fields {
             fields: Vec::new(),
@@ -177,52 +177,52 @@ impl Fields {
         }
     }
 
-    /// 添加字段
+    /// Adding Fields
     pub fn add(&mut self, field: Field) {
         let name = field.name().to_string();
         self.name_to_index.insert(name.clone(), self.fields.len());
         self.fields.push(field);
     }
 
-    /// 按名称获取字段
+    /// Get fields by name
     pub fn get(&self, name: &str) -> Option<&Field> {
         self.name_to_index.get(name).map(|&idx| &self.fields[idx])
     }
 
-    /// 按名称获取可变字段
+    /// Get variable fields by name
     pub fn get_mut(&mut self, name: &str) -> Option<&mut Field> {
         self.name_to_index
             .get(name)
             .map(|&idx| &mut self.fields[idx])
     }
 
-    /// 获取所有字段
+    /// Get all fields
     pub fn all(&self) -> &[Field] {
         &self.fields
     }
 
-    /// 获取字段数量
+    /// Get the number of fields
     pub fn len(&self) -> usize {
         self.fields.len()
     }
 
-    /// 检查是否为空
+    /// Check if it is empty
     pub fn is_empty(&self) -> bool {
         self.fields.is_empty()
     }
 
-    /// 清空所有字段
+    /// Clear all fields
     pub fn clear(&mut self) {
         self.fields.clear();
         self.name_to_index.clear();
     }
 
-    /// 迭代所有字段
+    /// Iterate over all fields
     pub fn iter(&self) -> impl Iterator<Item = &Field> {
         self.fields.iter()
     }
 
-    /// 可变迭代
+    /// (math.) variable iteration
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Field> {
         self.fields.iter_mut()
     }

@@ -1,10 +1,10 @@
-//! 存储模块共享类型
+//! Storage Module Sharing Types
 //!
-//! 定义所有存储实现共享的通用数据结构和类型
+//! Define common data structures and types shared by all storage implementations
 
 use serde::{Deserialize, Serialize};
 
-/// 存储信息
+/// Storing Information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageInfo {
     pub name: String,
@@ -15,9 +15,9 @@ pub struct StorageInfo {
     pub is_connected: bool,
 }
 
-/// 文件存储数据格式
+/// File storage data format
 ///
-/// 用于文件存储和缓存存储的序列化格式
+/// Serialization formats for file storage and cache storage
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileStorageData {
     pub version: String,

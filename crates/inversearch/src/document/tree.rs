@@ -1,22 +1,22 @@
-//! 树形结构解析
+//! Tree structure analysis
 //!
-//! 解析嵌套字段路径，支持数组索引和属性访问
+//! Parses nested field paths, supports array indexing and attribute access
 //!
-//! # 支持的语法
+//! # Supported syntax
 //!
 //! ```rust
 //! use inversearch_service::parse_tree;
 //!
-//! // 嵌套属性
+//! // Nested properties
 //! parse_tree("user.name", &mut vec![]);
 //!
-//! // 数组索引
+//! // Array index
 //! parse_tree("items[0].title", &mut vec![]);
 //!
-//! // 负数索引
+//! // Negative index
 //! parse_tree("items[-1].name", &mut vec![]);
 //!
-//! // 范围索引
+//! // Range index
 //! parse_tree("items[0-2].title", &mut vec![]);
 //! ```
 
@@ -24,47 +24,47 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-/// 树形路径项
+/// tree path entry
 #[derive(Debug, Clone, PartialEq)]
 pub enum TreePath {
-    /// 普通字段
+    /// General Fields
     Field(String),
-    /// 数组索引
+    /// Array index
     Index(usize, String),
-    /// 负数索引（倒数）
+    /// Negative index (inverse)
     NegativeIndex(usize, String),
-    /// 范围索引 [start-end]
+    /// Range index [start-end]
     Range(usize, usize, String),
-    /// 通配符字段
+    /// wildcard field
     Wildcard(String),
 }
 
-/// 路径解析错误
+/// Path resolution error
 #[derive(Debug, Clone, PartialEq)]
 pub enum PathParseError {
-    /// 语法错误
+    /// grammatical error
     SyntaxError(String),
-    /// 类型错误
+    /// type error
     TypeError(String),
-    /// 越界错误
+    /// transborder error
     OutOfBoundsError(String),
-    /// 不存在错误
+    /// No errors
     NotFoundError(String),
 }
 
-/// 求值策略
+/// numerical strategy
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EvaluationStrategy {
-    /// 严格求值：遇到错误立即返回
+    /// Strict evaluation: return immediately if an error is encountered
     #[default]
     Strict,
-    /// 宽松求值：遇到错误时返回默认值并继续
+    /// Loose evaluation: return to the default value and continue if an error is encountered
     Lenient,
-    /// 部分求值：返回已成功求值的部分结果
+    /// Partial evaluation: Returns the partial result of a successful evaluation.
     Partial,
 }
 
-/// 路径解析缓存
+/// Path resolution cache
 pub struct PathCache {
     cache: Arc<RwLock<HashMap<String, Vec<TreePath>>>>,
 }
@@ -100,7 +100,7 @@ impl Default for PathCache {
     }
 }
 
-/// 解析树形路径（带缓存）
+/// Parsing tree paths (with caching)
 pub fn parse_tree_cached(key: &str, marker: &mut Vec<bool>, cache: &PathCache) -> Vec<TreePath> {
     if let Some(cached) = cache.get(key) {
         return cached;
@@ -111,9 +111,9 @@ pub fn parse_tree_cached(key: &str, marker: &mut Vec<bool>, cache: &PathCache) -
     result
 }
 
-/// 解析树形路径
+/// Parsing Tree Paths
 ///
-/// # 示例
+/// # Examples
 ///
 /// ```rust
 /// use inversearch_service::document::tree::parse_tree;
@@ -201,7 +201,7 @@ pub fn parse_tree(key: &str, marker: &mut Vec<bool>) -> Vec<TreePath> {
     result
 }
 
-/// 从嵌套结构中提取字符串值（带策略）
+/// Extracting String Values from Nested Structures (with Strategies)
 pub fn extract_value_with_strategy(
     document: &Value,
     path: &[TreePath],
@@ -377,7 +377,7 @@ pub fn extract_value_with_strategy(
     }
 }
 
-/// 从嵌套结构中提取字符串值
+/// Extracting String Values from Nested Structures
 pub fn extract_value(document: &Value, path: &[TreePath]) -> Option<String> {
     match extract_value_with_strategy(document, path, EvaluationStrategy::Lenient) {
         Ok(value) if !value.is_empty() => Some(value),

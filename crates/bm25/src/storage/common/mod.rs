@@ -1,4 +1,4 @@
-//! 存储公共模块
+//! Storage Common Module
 
 pub mod r#trait;
 pub mod types;

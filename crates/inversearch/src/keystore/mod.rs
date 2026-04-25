@@ -26,7 +26,7 @@ where
     }
 
     fn crc(&self, key: &K) -> usize {
-        // 使用与 Index::keystore_hash_str 相同的哈希算法
+        // Uses the same hash algorithm as Index::keystore_hash_str
         let key_str = key.to_string();
         let mut crc: u32 = 0;
         for c in key_str.chars() {
@@ -159,7 +159,7 @@ where
     }
 
     fn crc(&self, key: &T) -> usize {
-        // 使用与 Index::keystore_hash_str 相同的哈希算法
+        // Uses the same hash algorithm as Index::keystore_hash_str
         let key_str = key.to_string();
         let mut crc: u32 = 0;
         for c in key_str.chars() {

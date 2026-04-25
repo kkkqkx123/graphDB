@@ -429,7 +429,7 @@ impl Config {
     pub fn from_file(path: &str) -> anyhow::Result<Self> {
         let content = std::fs::read_to_string(path)?;
         let config: Config = toml::from_str(&content)?;
-        config.validate()?; // 添加配置验证
+        config.validate()?; // Adding Configuration Validation
         Ok(config)
     }
 

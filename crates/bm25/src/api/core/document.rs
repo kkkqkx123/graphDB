@@ -19,7 +19,7 @@ pub fn add_document(
     Ok(())
 }
 
-/// 添加文档并同步到存储层
+/// Add documents and synchronize them to the storage tier
 pub async fn add_document_with_storage(
     manager: &IndexManager,
     storage: &MutableStorageManager,
@@ -28,17 +28,17 @@ pub async fn add_document_with_storage(
     fields: &HashMap<String, String>,
     avg_doc_length: f32,
 ) -> Result<()> {
-    // 1. 提取 TF/DF 统计
+    // 1. Extraction of TF/DF statistics
     let stats = extract_tf_df_stats(
         fields,
-        0, // total_docs 从存储层获取，暂时设为 0
+        0, // total_docs is retrieved from the storage tier and is set to 0 for now.
         avg_doc_length,
     );
 
-    // 2. 提交到存储层
+    // 2. Submission to the storage layer
     storage.commit_batch(&stats).await?;
 
-    // 3. 写入索引
+    // 3. Write index
     let mut writer = manager.writer()?;
     let doc = schema.to_document(document_id, fields);
     writer.add_document(doc)?;
@@ -77,7 +77,7 @@ pub fn update_document(
     Ok(())
 }
 
-/// 更新文档并同步到存储层
+/// Update documents and synchronize them to the storage tier
 pub async fn update_document_with_storage(
     manager: &IndexManager,
     storage: &MutableStorageManager,
@@ -86,20 +86,20 @@ pub async fn update_document_with_storage(
     fields: &HashMap<String, String>,
     avg_doc_length: f32,
 ) -> Result<()> {
-    // 1. 从存储层删除旧文档的统计信息
+    // 1. Delete statistics of old documents from the storage layer
     storage.delete_doc_stats(document_id).await?;
 
-    // 2. 提取新文档的 TF/DF 统计
+    // 2. Extract TF/DF statistics for new documents
     let new_stats = extract_tf_df_stats(
         fields,
-        0, // total_docs 从存储层获取，暂时设为 0
+        0, // total_docs is retrieved from the storage tier and is set to 0 for now.
         avg_doc_length,
     );
 
-    // 3. 提交新统计到存储层
+    // 3. Submission of new statistics to the storage layer
     storage.commit_batch(&new_stats).await?;
 
-    // 4. 更新索引
+    // 4. Updating of indexes
     let mut writer = manager.writer()?;
     let term = tantivy::Term::from_field_text(schema.document_id, document_id);
     writer.delete_term(term);

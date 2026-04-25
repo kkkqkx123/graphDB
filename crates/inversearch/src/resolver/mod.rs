@@ -1,8 +1,8 @@
-//! Resolver模块
+//! Resolver Module
 //!
-//! 提供搜索结果的解析和处理功能
+//! Provides parsing and processing of search results
 //!
-//! # 模块结构
+//! # Module Structure
 //!
 //! - `resolver.rs`: 主Resolver结构体和核心方法
 //! - `handler.rs`: 集合操作处理器(and/or/xor/not)
@@ -87,7 +87,7 @@ mod tests {
         let result: IntermediateSearchResults = vec![vec![1, 2, 3]];
         let resolver = Resolver::new(result, None);
 
-        // 测试异步方法存在且可调用
+        // Test that the asynchronous method exists and can be called
         assert_eq!(resolver.result.len(), 1);
     }
 

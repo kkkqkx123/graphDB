@@ -141,7 +141,7 @@ mod tests {
     fn test_metrics_collector() {
         let collector = MetricsCollector::new();
 
-        // 模拟操作
+        // simulation
         let start = collector.start_timer();
         thread::sleep(Duration::from_millis(1));
         collector.record_operation(start);

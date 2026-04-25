@@ -1,6 +1,6 @@
-//! Index 序列化实现模块
+//! Index Serialization Implementation Module
 //!
-//! 提供 Index 类型的导入导出功能实现
+//! Provide Index-type import/export functionality.
 
 use crate::error::Result;
 use crate::serialize::compression;
@@ -10,7 +10,7 @@ use crate::Index;
 use std::collections::HashMap;
 
 impl Index {
-    /// 导出索引数据
+    /// Exporting Indexed Data
     pub fn export(&self, _config: &SerializeConfig) -> Result<IndexExportData> {
         let index_info = IndexInfo {
             resolution: self.resolution,
@@ -48,7 +48,7 @@ impl Index {
         })
     }
 
-    /// 导出主索引
+    /// Exporting the Primary Index
     fn export_main_index(&self) -> HashMap<String, Vec<u64>> {
         let mut result = HashMap::new();
 
@@ -61,7 +61,7 @@ impl Index {
         result
     }
 
-    /// 导出上下文索引
+    /// Exporting Context Indexes
     fn export_context_index(&self) -> HashMap<String, HashMap<String, Vec<u64>>> {
         let mut result = HashMap::new();
 
@@ -77,7 +77,7 @@ impl Index {
         result
     }
 
-    /// 导出注册表
+    /// Exporting the registry
     fn export_registry(&self) -> RegistryData {
         match &self.reg {
             crate::index::Register::Set(set) => {
@@ -103,9 +103,9 @@ impl Index {
         }
     }
 
-    /// 导入索引数据
+    /// Importing Indexed Data
     pub fn import(&mut self, data: IndexExportData, _config: &SerializeConfig) -> Result<()> {
-        // 验证版本兼容性
+        // Verify version compatibility
         if data.version != "0.1.0" {
             return Err(crate::error::InversearchError::Serialization(format!(
                 "Unsupported version: {}",
@@ -113,25 +113,25 @@ impl Index {
             )));
         }
 
-        // 应用导入的配置
+        // Configuration of the application import
         self.apply_config(&data.config)?;
 
-        // 清空当前索引
+        // Clear the current index
         self.clear();
 
-        // 导入主索引
+        // Importing the Primary Index
         self.import_main_index(&data.data.main_index)?;
 
-        // 导入上下文索引
+        // Importing Context Indexes
         self.import_context_index(&data.data.context_index)?;
 
-        // 导入注册表
+        // Importing the registry
         self.import_registry(&data.data.registry)?;
 
         Ok(())
     }
 
-    /// 导入主索引
+    /// Importing the Primary Index
     pub fn import_main_index(&mut self, data: &HashMap<String, Vec<u64>>) -> Result<()> {
         for (term, doc_ids) in data {
             let term_hash = self.keystore_hash_str(term);
@@ -143,7 +143,7 @@ impl Index {
         Ok(())
     }
 
-    /// 导入上下文索引
+    /// Importing Context Indexes
     pub fn import_context_index(
         &mut self,
         data: &HashMap<String, HashMap<String, Vec<u64>>>,
@@ -160,7 +160,7 @@ impl Index {
         Ok(())
     }
 
-    /// 导入注册表
+    /// Importing the registry
     pub fn import_registry(&mut self, data: &RegistryData) -> Result<()> {
         match data {
             RegistryData::Set(doc_ids) => {
@@ -203,13 +203,13 @@ impl Index {
         Ok(())
     }
 
-    /// 序列化为JSON字符串
+    /// Serialize to JSON string
     pub fn to_json(&self, config: &SerializeConfig) -> Result<String> {
         let data = self.export(config)?;
         format::to_json_string(&data)
     }
 
-    /// 从JSON字符串反序列化
+    /// Deserialization from JSON strings
     pub fn from_json(json_str: &str, config: &SerializeConfig) -> Result<Index> {
         let data = format::from_json_str(json_str)?;
 
@@ -219,7 +219,7 @@ impl Index {
         Ok(index)
     }
 
-    /// 序列化为二进制格式
+    /// Serialization to binary format
     pub fn to_binary(&self, config: &SerializeConfig) -> Result<Vec<u8>> {
         let data = self.export(config)?;
 
@@ -236,7 +236,7 @@ impl Index {
         }
     }
 
-    /// 从二进制格式反序列化
+    /// Deserialization from binary format
     pub fn from_binary(binary_data: &[u8], config: &SerializeConfig) -> Result<Index> {
         let decompressed = if config.compression {
             compression::decompress_data(binary_data, config.compression_algorithm)?
@@ -252,19 +252,19 @@ impl Index {
         Ok(index)
     }
 
-    /// 序列化为压缩的二进制格式（便捷方法）
+    /// Serialization to compressed binary format (convenience method)
     pub fn to_binary_compressed(&self, level: i32) -> Result<Vec<u8>> {
         let config = SerializeConfig::with_compression(CompressionAlgorithm::Zstd, level);
         self.to_binary(&config)
     }
 
-    /// 从压缩的二进制格式反序列化（便捷方法）
+    /// Deserialization from compressed binary format (convenience method)
     pub fn from_binary_compressed(binary_data: &[u8]) -> Result<Index> {
         let config = SerializeConfig::with_compression(CompressionAlgorithm::Zstd, 3);
         Self::from_binary(binary_data, &config)
     }
 
-    /// 获取索引选项
+    /// Get Indexing Options
     fn get_index_options(&self) -> crate::r#type::IndexOptions {
         crate::r#type::IndexOptions {
             preset: None,
@@ -285,7 +285,7 @@ impl Index {
         }
     }
 
-    /// 获取分词器配置
+    /// Get Splitter Configuration
     fn get_tokenizer_config(&self) -> TokenizerConfig {
         TokenizerConfig {
             mode: format!("{:?}", self.tokenize).to_lowercase(),
@@ -294,8 +294,8 @@ impl Index {
         }
     }
 
-    /// 应用导入的配置
-    /// 应用配置到索引
+    /// Configuration of the application import
+    /// Applying Configuration to Indexes
     pub fn apply_config(&mut self, config: &IndexConfigExport) -> Result<()> {
         self.resolution = config.index_options.resolution.unwrap_or(9);
         self.resolution_ctx = config

@@ -7,7 +7,7 @@ use crate::highlight::types::*;
 use serde_json::Value;
 use std::collections::HashMap;
 
-/// 从文档中提取字段值的内部工具函数
+/// Internal utility function to extract field values from documents
 fn extract_field_value(document: &Value, field_path: &str) -> Result<String> {
     let mut marker = vec![];
     let tree_path = parse_tree(field_path, &mut marker);
@@ -235,12 +235,12 @@ pub fn highlight_fields(
 }
 
 // ============================================================
-// 新增：批量处理函数 - 返回结构化高亮结果（方案 A - 并行架构）
+// Added: Batch Processing Function - Returns Structured Highlighted Results (Scenario A - Parallel Architecture)
 // ============================================================
 
-/// 批量高亮处理搜索结果，返回结构化的文档高亮信息
+/// Batch highlighting of search results, returning structured document highlights
 ///
-/// # 参数
+/// # Parameters
 /// * `query` - 查询字符串
 /// * `results` - 搜索结果列表（不含高亮）
 /// * `documents` - 对应的文档内容列表（与 results 一一对应）
@@ -248,8 +248,8 @@ pub fn highlight_fields(
 /// * `encoders` - 编码器映射
 /// * `options` - 高亮选项
 ///
-/// # 返回
-/// 文档高亮结果列表
+/// # Back
+/// Document Highlighting Results List
 pub fn highlight_results(
     query: &str,
     results: &[SearchResult],
@@ -262,7 +262,7 @@ pub fn highlight_results(
 
     let config = HighlightConfig::from_options(options)?;
 
-    // 获取编码器（使用第一个可用的编码器）
+    // Get encoder (use the first available encoder)
     let encoder = encoders.values().next().ok_or_else(|| {
         crate::error::InversearchError::Highlight(
             "No encoder available for highlighting".to_string(),
@@ -287,9 +287,9 @@ pub fn highlight_results(
     Ok(highlights)
 }
 
-/// 批量高亮处理并返回完整的搜索结果（含高亮）
+/// Batch highlighting and return complete search results (with highlighting)
 ///
-/// # 参数
+/// # Parameters
 /// * `query` - 查询字符串
 /// * `results` - 搜索结果列表（不含高亮）
 /// * `documents` - 对应的文档内容列表
@@ -297,8 +297,8 @@ pub fn highlight_results(
 /// * `encoders` - 编码器映射
 /// * `options` - 高亮选项
 ///
-/// # 返回
-/// 包含高亮的完整搜索结果
+/// # Back
+/// Full search results with highlighting
 pub fn highlight_results_with_complete(
     query: &str,
     results: Vec<SearchResult>,

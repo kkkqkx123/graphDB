@@ -49,7 +49,7 @@ pub async fn create_storage_from_config(
     config: &Config,
 ) -> Arc<dyn StorageInterface + Send + Sync> {
     if !config.storage.enabled {
-        // 存储未启用时，默认使用冷热缓存
+        // When storage is not enabled, hot and cold caching is used by default
         #[cfg(feature = "store-cold-warm-cache")]
         {
             return tokio::task::block_in_place(|| {
@@ -144,10 +144,10 @@ pub async fn create_storage_from_config(
             }
         }
         StorageBackend::ColdWarmCache => {
-            // ColdWarmCacheManager 已经是 Arc<Self> 且实现了 StorageInterface
-            // 直接返回即可，不需要额外的 RwLock 包装
+            // ColdWarmCacheManager is already an Arc<Self> and implements StorageInterface.
+            // Just return to it, no need for additional RwLock wrappers.
             let manager = ColdWarmCacheManager::new().await.unwrap();
-            // 将 Arc<ColdWarmCacheManager> 转换为 Arc<dyn StorageInterface + Send + Sync>
+            // Converting Arc<ColdWarmCacheManager> to Arc<dyn StorageInterface + Send + Sync>
             manager as Arc<dyn StorageInterface + Send + Sync>
         }
     }
@@ -158,18 +158,18 @@ pub struct InversearchService {
     index: Arc<RwLock<Index>>,
     storage: StorageManager,
     config: Config,
-    /// 是否启用存储同步
+    /// Whether to enable storage synchronization
     storage_sync_enabled: bool,
     start_time: Instant,
 }
 
 impl Default for InversearchService {
     fn default() -> Self {
-        // 创建同步版本，用于 Default trait
+        // Create a synchronized version for use with the Default trait
         let index = Index::new(IndexOptions::default()).expect("Failed to create index");
         let index = Arc::new(RwLock::new(index));
 
-        // 使用阻塞运行时创建存储
+        // Creating a store using the blocking runtime
         let storage = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
                 StorageManagerBuilder::build_default()
@@ -203,7 +203,7 @@ impl InversearchService {
             .await
             .expect("Failed to create storage");
 
-        // 尝试从存储恢复索引数据
+        // Attempting to recover indexed data from storage
         let storage_sync_enabled = if config.storage.enabled {
             match storage.mount(&*index.read().await).await {
                 Ok(_) => {
@@ -265,7 +265,7 @@ impl InversearchService {
         &self.config
     }
 
-    /// 同步索引到存储
+    /// Synchronizing Indexes to Storage
     async fn sync_to_storage(
         &self,
         replace: bool,
@@ -288,7 +288,7 @@ impl InversearchService {
         }
     }
 
-    /// 从存储同步索引
+    /// Synchronizing Indexes from Storage
     #[allow(dead_code)]
     async fn sync_from_storage(&self) -> Result<(), crate::error::InversearchError> {
         if !self.storage_sync_enabled {
@@ -317,19 +317,19 @@ impl InversearchServiceTrait for InversearchService {
     ) -> Result<Response<AddDocumentResponse>, Status> {
         let req = request.into_inner();
 
-        // 先修改索引
+        // Modify the index first
         let add_result = {
             let mut index = self.index.write().await;
             index.add(req.id, &req.content, false)
         };
 
-        // 如果索引修改成功，同步到存储
+        // If the index modification is successful, synchronize to the storage
         match add_result {
             Ok(_) => {
                 if self.storage_sync_enabled {
                     if let Err(e) = self.sync_to_storage(false, true).await {
                         tracing::warn!("Failed to sync to storage after add: {}", e);
-                        // 继续返回成功，因为索引操作已成功
+                        // Continue to return success because the indexing operation was successful
                     }
                 }
                 Ok(Response::new(AddDocumentResponse {
@@ -350,13 +350,13 @@ impl InversearchServiceTrait for InversearchService {
     ) -> Result<Response<UpdateDocumentResponse>, Status> {
         let req = request.into_inner();
 
-        // 先修改索引
+        // Modify the index first
         let update_result = {
             let mut index = self.index.write().await;
             index.update(req.id, &req.content)
         };
 
-        // 如果索引修改成功，同步到存储
+        // If the index modification is successful, synchronize to the storage
         match update_result {
             Ok(_) => {
                 if self.storage_sync_enabled {
@@ -382,21 +382,21 @@ impl InversearchServiceTrait for InversearchService {
     ) -> Result<Response<RemoveDocumentResponse>, Status> {
         let req = request.into_inner();
 
-        // 先修改索引
+        // Modify the index first
         let remove_result = {
             let mut index = self.index.write().await;
             index.remove(req.id, false)
         };
 
-        // 如果索引修改成功，同步到存储
+        // If the index modification is successful, synchronize to the storage
         match remove_result {
             Ok(_) => {
                 if self.storage_sync_enabled {
-                    // 从存储中删除文档
+                    // Deleting documents from storage
                     if let Err(e) = self.storage.remove_documents(&[req.id]).await {
                         tracing::warn!("Failed to remove document from storage: {}", e);
                     }
-                    // 同步索引状态
+                    // Synchronized Index Status
                     if let Err(e) = self.sync_to_storage(false, true).await {
                         tracing::warn!("Failed to sync to storage after remove: {}", e);
                     }
@@ -465,7 +465,7 @@ impl InversearchServiceTrait for InversearchService {
             index.clear();
         }
 
-        // 同步清空存储
+        // Synchronized Empty Storage
         if self.storage_sync_enabled {
             if let Err(e) = self.storage.clear().await {
                 tracing::warn!("Failed to clear storage: {}", e);
@@ -485,10 +485,10 @@ impl InversearchServiceTrait for InversearchService {
         let index = self.index.read().await;
         let document_count = index.document_count();
 
-        // 计算索引大小（主索引 + 上下文索引的条目数）
+        // Calculate index size (primary index + number of entries in context index)
         let index_size = index.map.index.len() + index.ctx.index.len();
 
-        // 缓存大小（如果有缓存）
+        // Cache size (if cached)
         let cache_size = index.cache.as_ref().map(|c| c.len()).unwrap_or(0);
 
         Ok(Response::new(GetStatsResponse {
@@ -506,11 +506,11 @@ impl InversearchServiceTrait for InversearchService {
         let index = self.index.read().await;
         let document_count = index.document_count();
 
-        // 多维度健康检查
+        // Multi-dimensional Health Screening
         let is_healthy = !index.map.index.is_empty()
             || !index.ctx.index.is_empty() && document_count < u32::MAX as usize;
 
-        // 计算运行时间
+        // Calculating Runtime
         let uptime = self.start_time.elapsed().as_secs();
 
         Ok(Response::new(HealthCheckResponse {

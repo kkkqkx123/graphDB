@@ -1,6 +1,6 @@
-//! 简单测试
+//! Simple test
 //! 
-//! 测试交集模块的基本功能
+//! Test the basic functionality of the intersection module
 
 #[cfg(test)]
 mod simple_tests {
@@ -15,7 +15,7 @@ mod simple_tests {
         let result = intersect(&arrays, 9, 10, 0, false, 0, true);
         assert!(!result.is_empty());
         
-        // 验证交集结果
+        // Verify the intersection result
         let flat_result: Vec<u64> = result.iter().flatten().cloned().collect();
         println!("Intersection result: {:?}", flat_result);
     }

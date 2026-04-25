@@ -1,6 +1,6 @@
-//! Tantivy 本地文件存储实现
+//! Tantivy Local File Storage Implementation
 //!
-//! 使用 Tantivy 作为底层存储，提供 BM25 词频统计的持久化
+//! Persistence of BM25 word frequency statistics using Tantivy as the underlying storage
 
 use crate::error::{Bm25Error, Result};
 use crate::storage::common::r#trait::{Bm25Stats, StorageInterface};
@@ -12,7 +12,7 @@ use tantivy::schema::{Schema, STORED, STRING, TEXT};
 use tantivy::{Index, IndexReader, IndexWriter, Term};
 use tokio::sync::RwLock;
 
-/// Tantivy 存储配置
+/// Tantivy Storage Configuration
 #[derive(Debug, Clone)]
 pub struct TantivyStorageConfig {
     pub index_path: PathBuf,
@@ -28,7 +28,7 @@ impl Default for TantivyStorageConfig {
     }
 }
 
-/// Tantivy 存储实现
+/// Tantivy Storage Implementation
 pub struct TantivyStorage {
     config: TantivyStorageConfig,
     index: Option<Arc<RwLock<Index>>>,
@@ -96,12 +96,12 @@ impl StorageInterface for TantivyStorage {
     }
 
     async fn commit_stats(&mut self, _term: &str, _tf: f32, _df: u64) -> Result<()> {
-        // Tantivy 自动管理词频统计，无需手动提交
+        // Tantivy manages word frequency statistics automatically, eliminating the need for manual submissions
         Ok(())
     }
 
     async fn commit_batch(&mut self, _stats: &Bm25Stats) -> Result<()> {
-        // Tantivy 自动管理词频统计，无需手动提交
+        // Tantivy manages word frequency statistics automatically, eliminating the need for manual submissions
         Ok(())
     }
 
@@ -188,8 +188,8 @@ impl StorageInterface for TantivyStorage {
     }
 
     async fn delete_doc_stats(&mut self, _doc_id: &str) -> Result<()> {
-        // Tantivy 中统计信息是动态计算的，不需要显式删除
-        // 文档删除由 IndexManager 处理
+        // Statistics are dynamically calculated in Tantivy and do not need to be explicitly deleted.
+        // Document deletion is handled by IndexManager
         Ok(())
     }
 

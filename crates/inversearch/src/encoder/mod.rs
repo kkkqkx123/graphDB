@@ -28,7 +28,7 @@ lazy_static::lazy_static! {
     // ぀-ゟ: Hiragana (Japanese)
     // ゠-ヿ: Katakana (Japanese)
     // 가-힯: Hangul Syllables (Korean)
-    // 㐀-䶿: CJK Extension A
+    // CJK Extension A: CJK Extension A
     //  0-⩭f: CJK Extension B
     static ref CJK_REGEX: Regex = Regex::new(r"[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af\u3400-\u4dbf]")
         .expect("Failed to compile CJK regex");
@@ -653,7 +653,7 @@ impl Encoder {
         self.set_prepare_transformer(CachedTransformer::new(transformer, max_cache_size));
     }
 
-    /// 获取编码器选项
+    /// Getting Encoder Options
     pub fn get_options(&self) -> crate::r#type::EncoderOptions {
         crate::r#type::EncoderOptions {
             rtl: Some(self.rtl),
