@@ -8,29 +8,24 @@ use tantivy::schema::Value;
 pub struct SearchResult {
     pub document_id: String,
     pub score: f32,
-    pub fields: HashMap<String, String>,
-    pub highlights: HashMap<String, String>,
+    pub tag_name: String,
+    pub field_name: String,
+    pub content: String,
+    pub highlights: Option<Vec<String>>,
 }
 
 #[derive(Debug)]
 pub struct SearchOptions {
     pub limit: usize,
     pub offset: usize,
-    pub field_weights: HashMap<String, f32>,
     pub highlight: bool,
 }
 
 impl Default for SearchOptions {
     fn default() -> Self {
-        let mut field_weights = HashMap::new();
-        field_weights.insert("raw_name".to_string(), 3.0);
-        field_weights.insert("keywords".to_string(), 2.0);
-        field_weights.insert("title".to_string(), 1.5);
-        field_weights.insert("content".to_string(), 1.0);
         Self {
             limit: 10,
             offset: 0,
-            field_weights,
             highlight: false,
         }
     }
@@ -45,7 +40,7 @@ pub fn search(
     let reader = manager.reader()?;
     let searcher = reader.searcher();
 
-    let query = parse_query(query_text, manager, schema, &options.field_weights)?;
+    let query = parse_query(query_text, manager, schema)?;
 
     let limit = options.limit + options.offset;
     let top_docs = tantivy::collector::TopDocs::with_limit(limit);
@@ -62,56 +57,22 @@ pub fn search(
 
         let doc = searcher.doc(doc_address)?;
         let document_id = extract_field_value(&doc, schema.document_id);
+        let tag_name = extract_field_value(&doc, schema.tag_name);
+        let field_name = extract_field_value(&doc, schema.field_name);
+        let content = extract_field_value(&doc, schema.content);
 
-        let mut fields = HashMap::new();
-        let title_value = extract_field_value(&doc, schema.title);
-        let content_value = extract_field_value(&doc, schema.content);
-        let entity_type_value = extract_field_value(&doc, schema.entity_type);
-        let raw_name_value = extract_field_value(&doc, schema.raw_name);
-        let keywords_value = extract_field_value(&doc, schema.keywords);
-        let file_path_value = extract_field_value(&doc, schema.file_path);
-        let module_name_value = extract_field_value(&doc, schema.module_name);
-
-        fields.insert("title".to_string(), title_value.clone());
-        fields.insert("content".to_string(), content_value.clone());
-        fields.insert("entity_type".to_string(), entity_type_value);
-        fields.insert("raw_name".to_string(), raw_name_value.clone());
-        fields.insert("keywords".to_string(), keywords_value.clone());
-        fields.insert("file_path".to_string(), file_path_value);
-        fields.insert("module_name".to_string(), module_name_value);
-
-        let mut highlights = HashMap::new();
-        if options.highlight {
-            if !title_value.is_empty() {
-                highlights.insert(
-                    "title".to_string(),
-                    highlight_text(&title_value, query_text),
-                );
-            }
-            if !content_value.is_empty() {
-                highlights.insert(
-                    "content".to_string(),
-                    highlight_text(&content_value, query_text),
-                );
-            }
-            if !raw_name_value.is_empty() {
-                highlights.insert(
-                    "raw_name".to_string(),
-                    highlight_text(&raw_name_value, query_text),
-                );
-            }
-            if !keywords_value.is_empty() {
-                highlights.insert(
-                    "keywords".to_string(),
-                    highlight_text(&keywords_value, query_text),
-                );
-            }
-        }
+        let highlights = if options.highlight && !content.is_empty() {
+            Some(vec![highlight_text(&content, query_text)])
+        } else {
+            None
+        };
 
         search_results.push(SearchResult {
             document_id,
             score,
-            fields,
+            tag_name,
+            field_name,
+            content,
             highlights,
         });
     }
@@ -123,17 +84,9 @@ fn parse_query(
     query_text: &str,
     manager: &IndexManager,
     schema: &IndexSchema,
-    field_weights: &HashMap<String, f32>,
 ) -> Result<Box<dyn tantivy::query::Query>> {
     let searchable_fields = schema.searchable_fields();
-    let mut query_parser = QueryParser::for_index(manager.index(), searchable_fields.clone());
-
-    for field in &searchable_fields {
-        let field_name = schema.schema().get_field_name(*field).to_string();
-        if let Some(weight) = field_weights.get(&field_name) {
-            query_parser.set_field_boost(*field, *weight);
-        }
-    }
+    let query_parser = QueryParser::for_index(manager.index(), searchable_fields.clone());
 
     let query = query_parser
         .parse_query(query_text)
@@ -170,18 +123,7 @@ mod tests {
         let options = SearchOptions::default();
         assert_eq!(options.limit, 10);
         assert_eq!(options.offset, 0);
-        assert!(options.field_weights.contains_key("raw_name"));
-        assert!(options.field_weights.contains_key("content"));
-        assert!(
-            *options
-                .field_weights
-                .get("raw_name")
-                .expect("raw_name weight")
-                > *options
-                    .field_weights
-                    .get("content")
-                    .expect("content weight")
-        );
+        assert!(!options.highlight);
     }
 
     #[test]
@@ -194,7 +136,8 @@ mod tests {
         let mut writer = manager.writer()?;
         let doc = schema.to_document("1", &{
             let mut fields = HashMap::new();
-            fields.insert("title".to_string(), "Rust Programming".to_string());
+            fields.insert("tag_name".to_string(), "person".to_string());
+            fields.insert("field_name".to_string(), "description".to_string());
             fields.insert(
                 "content".to_string(),
                 "Rust is a systems programming language".to_string(),

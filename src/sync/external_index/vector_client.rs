@@ -4,6 +4,7 @@
 //! It includes retry mechanism, timeout control, and dead letter queue support
 //! for handling network-related failures.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -11,7 +12,7 @@ use async_trait::async_trait;
 use tracing::{debug, warn};
 
 use super::error::{ExternalIndexError, IndexResult};
-use super::trait_def::{ExternalIndexClient, IndexData, IndexStats};
+use super::trait_def::{ExternalIndexClient, IndexData, IndexKey, IndexOperation, IndexStats};
 use crate::sync::dead_letter_queue::DeadLetterQueue;
 use crate::sync::retry::{with_retry, RetryConfig};
 
@@ -132,23 +133,20 @@ impl VectorClient {
         format!("{}_{}_{}", self.space_id, self.tag_name, self.field_name)
     }
 
-    fn add_to_dlq(&self, operation: &str, error: &str) {
+    fn index_key(&self) -> IndexKey {
+        IndexKey::new(self.space_id, self.tag_name.clone(), self.field_name.clone())
+    }
+
+    fn add_to_dlq(&self, operation: IndexOperation, error: &str) {
         if let Some(ref dlq) = self.dead_letter_queue {
             if self.config.use_dead_letter_queue {
                 let entry = crate::sync::dead_letter_queue::DeadLetterEntry::new(
-                    super::trait_def::IndexOperation::Delete {
-                        key: super::trait_def::IndexKey::new(
-                            self.space_id,
-                            self.tag_name.clone(),
-                            self.field_name.clone(),
-                        ),
-                        id: operation.to_string(),
-                    },
+                    operation,
                     format!("Vector index operation failed: {}", error),
                     self.config.retry_config.max_retries,
                 );
                 dlq.add(entry);
-                debug!("Added failed operation to dead letter queue: {}", operation);
+                debug!("Added failed operation to dead letter queue");
             }
         }
     }
@@ -193,7 +191,15 @@ impl ExternalIndexClient for VectorClient {
                         "Vector insert failed after {} retries for id {}: {}",
                         self.config.retry_config.max_retries, id, error_msg
                     );
-                    self.add_to_dlq(id, &error_msg);
+                    self.add_to_dlq(
+                        IndexOperation::Insert {
+                            key: self.index_key(),
+                            id: id.to_string(),
+                            data: data.clone(),
+                            payload: HashMap::new(),
+                        },
+                        &error_msg,
+                    );
                     Err(ExternalIndexError::InsertError(error_msg))
                 }
             }
@@ -209,10 +215,7 @@ impl ExternalIndexClient for VectorClient {
             .iter()
             .filter_map(|(id, data)| {
                 if let IndexData::Vector(vector) = data {
-                    Some(vector_client::types::VectorPoint::new(
-                        id.clone(),
-                        vector.clone(),
-                    ))
+                    Some(vector_client::types::VectorPoint::new(id.clone(), vector.clone()))
                 } else {
                     None
                 }
@@ -246,8 +249,16 @@ impl ExternalIndexClient for VectorClient {
                     "Vector batch insert failed after {} retries: {}",
                     self.config.retry_config.max_retries, error_msg
                 );
-                for (id, _) in items {
-                    self.add_to_dlq(&id, &error_msg);
+                for (id, data) in items {
+                    self.add_to_dlq(
+                        IndexOperation::Insert {
+                            key: self.index_key(),
+                            id,
+                            data,
+                            payload: HashMap::new(),
+                        },
+                        &error_msg,
+                    );
                 }
                 Err(ExternalIndexError::InsertError(error_msg))
             }
@@ -278,7 +289,13 @@ impl ExternalIndexClient for VectorClient {
                     "Vector delete failed after {} retries for id {}: {}",
                     self.config.retry_config.max_retries, id, error_msg
                 );
-                self.add_to_dlq(id, &error_msg);
+                self.add_to_dlq(
+                    IndexOperation::Delete {
+                        key: self.index_key(),
+                        id: id.to_string(),
+                    },
+                    &error_msg,
+                );
                 Err(ExternalIndexError::DeleteError(error_msg))
             }
         }
@@ -309,7 +326,13 @@ impl ExternalIndexClient for VectorClient {
                     self.config.retry_config.max_retries, error_msg
                 );
                 for id in ids {
-                    self.add_to_dlq(id, &error_msg);
+                    self.add_to_dlq(
+                        IndexOperation::Delete {
+                            key: self.index_key(),
+                            id: id.to_string(),
+                        },
+                        &error_msg,
+                    );
                 }
                 Err(ExternalIndexError::DeleteError(error_msg))
             }
@@ -322,9 +345,7 @@ impl ExternalIndexClient for VectorClient {
     }
 
     async fn rollback(&self) -> IndexResult<()> {
-        debug!(
-            "VectorClient rollback: no-op for remote vector store (no real transaction support)"
-        );
+        debug!("VectorClient rollback: no-op for remote vector store (no real transaction support)");
         Ok(())
     }
 
@@ -376,16 +397,21 @@ mod tests {
     #[test]
     fn test_config_builder() {
         let config = VectorClientConfig::default()
-            .with_retry_config(RetryConfig::new(
-                5,
-                Duration::from_millis(200),
-                Duration::from_secs(20),
-            ))
+            .with_retry_config(RetryConfig::new(5, Duration::from_millis(200), Duration::from_secs(20)))
             .with_operation_timeout(Duration::from_secs(60))
             .with_dead_letter_queue(false);
 
         assert_eq!(config.retry_config.max_retries, 5);
         assert_eq!(config.operation_timeout, Duration::from_secs(60));
         assert!(!config.use_dead_letter_queue);
+    }
+
+    #[test]
+    fn test_index_key() {
+        let config = VectorClientConfig::default();
+        let key = IndexKey::new(1, "tag".to_string(), "field".to_string());
+        assert_eq!(key.space_id, 1);
+        assert_eq!(key.tag_name, "tag");
+        assert_eq!(key.field_name, "field");
     }
 }

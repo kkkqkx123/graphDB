@@ -131,16 +131,9 @@ impl Bm25Config {
         }
 
         if let Some(val) = vars.get("field_weights") {
-            // Parse as "title,content" format
-            let parts: Vec<&str> = val.split(',').collect();
-            if parts.len() == 2 {
-                self.field_weights.title = parts[0]
-                    .parse::<f32>()
-                    .map_err(|e| LoaderError::ParseError(format!("field_weights.title: {}", e)))?;
-                self.field_weights.content = parts[1].parse::<f32>().map_err(|e| {
-                    LoaderError::ParseError(format!("field_weights.content: {}", e))
-                })?;
-            }
+            self.field_weights.content = val
+                .parse::<f32>()
+                .map_err(|e| LoaderError::ParseError(format!("field_weights.content: {}", e)))?;
         }
 
         Ok(())
@@ -161,16 +154,14 @@ impl Default for Bm25Config {
 /// Field weights for search scoring
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldWeights {
-    pub title: f32,
     pub content: f32,
 }
 
 impl FieldWeights {
-    /// Create a new FieldWeights with the specified weights
+    /// Create a new FieldWeights with the specified weight
     ///
     /// # Arguments
     ///
-    /// * `title` - Weight for title field
     /// * `content` - Weight for content field
     ///
     /// # Examples
@@ -178,19 +169,16 @@ impl FieldWeights {
     /// ```rust
     /// use bm25_service::config::FieldWeights;
     ///
-    /// let weights = FieldWeights::new(2.5, 1.0);
+    /// let weights = FieldWeights::new(1.0);
     /// ```
-    pub fn new(title: f32, content: f32) -> Self {
-        Self { title, content }
+    pub fn new(content: f32) -> Self {
+        Self { content }
     }
 }
 
 impl Default for FieldWeights {
     fn default() -> Self {
-        FieldWeights {
-            title: 2.0,
-            content: 1.0,
-        }
+        FieldWeights { content: 1.0 }
     }
 }
 
@@ -458,16 +446,6 @@ impl ConfigValidator for Bm25Config {
 
 impl ConfigValidator for FieldWeights {
     fn validate(&self) -> ValidationResult<()> {
-        // Validate title weight (must be non-negative)
-        if self.title < 0.0 {
-            return Err(ValidationError::InvalidValue {
-                field: "title".to_string(),
-                value: self.title.to_string(),
-                reason: "must be non-negative".to_string(),
-            });
-        }
-
-        // Validate content weight (must be non-negative)
         if self.content < 0.0 {
             return Err(ValidationError::InvalidValue {
                 field: "content".to_string(),

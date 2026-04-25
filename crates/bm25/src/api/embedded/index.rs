@@ -6,13 +6,9 @@ use tantivy::schema::Value;
 #[derive(Debug, Clone)]
 pub struct SearchResult {
     pub document_id: String,
-    pub title: Option<String>,
+    pub tag_name: Option<String>,
+    pub field_name: Option<String>,
     pub content: Option<String>,
-    pub entity_type: Option<String>,
-    pub raw_name: Option<String>,
-    pub keywords: Option<String>,
-    pub file_path: Option<String>,
-    pub module_name: Option<String>,
     pub score: f32,
     pub highlights: Option<Vec<String>>,
 }
@@ -20,13 +16,9 @@ pub struct SearchResult {
 #[derive(Debug, Clone)]
 pub struct SearchResultWithHighlights {
     pub document_id: String,
-    pub title: Option<String>,
+    pub tag_name: Option<String>,
+    pub field_name: Option<String>,
     pub content: Option<String>,
-    pub entity_type: Option<String>,
-    pub raw_name: Option<String>,
-    pub keywords: Option<String>,
-    pub file_path: Option<String>,
-    pub module_name: Option<String>,
     pub score: f32,
     pub highlights: Option<Vec<String>>,
 }
@@ -67,13 +59,10 @@ impl Bm25Index {
         Ok(Self { manager, schema })
     }
 
-    pub fn add_document(&self, document_id: &str, title: &str, content: &str) -> Result<()> {
+    pub fn add_document(&self, document_id: &str, content: &str) -> Result<()> {
         use crate::api::core::document::add_document;
 
         let mut fields = HashMap::new();
-        if !title.is_empty() {
-            fields.insert("title".to_string(), title.to_string());
-        }
         if !content.is_empty() {
             fields.insert("content".to_string(), content.to_string());
         }
@@ -94,16 +83,13 @@ impl Bm25Index {
         Ok(())
     }
 
-    pub fn update_document(&self, document_id: &str, title: &str, content: &str) -> Result<()> {
+    pub fn update_document(&self, document_id: &str, content: &str) -> Result<()> {
         use crate::api::core::delete::delete_document;
         use crate::api::core::document::add_document;
 
         delete_document(&self.manager, &self.schema, document_id)?;
 
         let mut fields = HashMap::new();
-        if !title.is_empty() {
-            fields.insert("title".to_string(), title.to_string());
-        }
         if !content.is_empty() {
             fields.insert("content".to_string(), content.to_string());
         }
@@ -137,30 +123,23 @@ impl Bm25Index {
     fn extract_doc_fields(
         &self,
         doc: &tantivy::TantivyDocument,
-    ) -> (
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-    ) {
-        let mut title: Option<String> = None;
+    ) -> (Option<String>, Option<String>, Option<String>) {
+        let mut tag_name: Option<String> = None;
+        let mut field_name: Option<String> = None;
         let mut content: Option<String> = None;
-        let mut entity_type: Option<String> = None;
-        let mut raw_name: Option<String> = None;
-        let mut keywords: Option<String> = None;
-        let mut file_path: Option<String> = None;
-        let mut module_name: Option<String> = None;
 
         let schema = self.schema.schema();
         for (field, value) in doc.field_values() {
-            let field_name = schema.get_field_name(field);
-            match field_name {
-                "title" => {
+            let field_name_str = schema.get_field_name(field);
+            match field_name_str {
+                "tag_name" => {
                     if let Some(t) = value.as_str() {
-                        title = Some(t.to_string());
+                        tag_name = Some(t.to_string());
+                    }
+                }
+                "field_name" => {
+                    if let Some(f) = value.as_str() {
+                        field_name = Some(f.to_string());
                     }
                 }
                 "content" => {
@@ -168,44 +147,11 @@ impl Bm25Index {
                         content = Some(c.to_string());
                     }
                 }
-                "entity_type" => {
-                    if let Some(e) = value.as_str() {
-                        entity_type = Some(e.to_string());
-                    }
-                }
-                "raw_name" => {
-                    if let Some(r) = value.as_str() {
-                        raw_name = Some(r.to_string());
-                    }
-                }
-                "keywords" => {
-                    if let Some(k) = value.as_str() {
-                        keywords = Some(k.to_string());
-                    }
-                }
-                "file_path" => {
-                    if let Some(f) = value.as_str() {
-                        file_path = Some(f.to_string());
-                    }
-                }
-                "module_name" => {
-                    if let Some(m) = value.as_str() {
-                        module_name = Some(m.to_string());
-                    }
-                }
                 _ => {}
             }
         }
 
-        (
-            title,
-            content,
-            entity_type,
-            raw_name,
-            keywords,
-            file_path,
-            module_name,
-        )
+        (tag_name, field_name, content)
     }
 
     pub fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>> {
@@ -240,18 +186,13 @@ impl Bm25Index {
                     }
                 }
 
-                let (title, content, entity_type, raw_name, keywords, file_path, module_name) =
-                    self.extract_doc_fields(&doc);
+                let (tag_name, field_name, content) = self.extract_doc_fields(&doc);
 
                 document_id.map(|id| SearchResult {
                     document_id: id,
-                    title,
+                    tag_name,
+                    field_name,
                     content,
-                    entity_type,
-                    raw_name,
-                    keywords,
-                    file_path,
-                    module_name,
                     score,
                     highlights: None,
                 })
@@ -298,8 +239,7 @@ impl Bm25Index {
                     }
                 }
 
-                let (title, content, entity_type, raw_name, keywords, file_path, module_name) =
-                    self.extract_doc_fields(&doc);
+                let (tag_name, field_name, content) = self.extract_doc_fields(&doc);
 
                 if let Some(id) = document_id {
                     let mut highlights = Vec::new();
@@ -319,13 +259,9 @@ impl Bm25Index {
 
                     results.push(SearchResultWithHighlights {
                         document_id: id,
-                        title,
+                        tag_name,
+                        field_name,
                         content,
-                        entity_type,
-                        raw_name,
-                        keywords,
-                        file_path,
-                        module_name,
                         score,
                         highlights: if highlights.is_empty() {
                             None
@@ -377,20 +313,23 @@ mod tests {
 
         let index = Bm25Index::create(&index_path).unwrap();
 
-        index
-            .add_document(
-                "1",
-                "Rust Programming",
-                "Rust is a systems programming language",
-            )
-            .unwrap();
-        index
-            .add_document(
-                "2",
-                "Java Programming",
-                "Java is an object-oriented language",
-            )
-            .unwrap();
+        let mut fields = HashMap::new();
+        fields.insert("tag_name".to_string(), "person".to_string());
+        fields.insert("field_name".to_string(), "description".to_string());
+        fields.insert(
+            "content".to_string(),
+            "Rust is a systems programming language".to_string(),
+        );
+        index.add_document_with_fields("1", &fields).unwrap();
+
+        let mut fields2 = HashMap::new();
+        fields2.insert("tag_name".to_string(), "person".to_string());
+        fields2.insert("field_name".to_string(), "description".to_string());
+        fields2.insert(
+            "content".to_string(),
+            "Java is an object-oriented language".to_string(),
+        );
+        index.add_document_with_fields("2", &fields2).unwrap();
 
         let results = index.search("Rust", 10).unwrap();
 
@@ -407,23 +346,19 @@ mod tests {
         let index = Bm25Index::create(&index_path).unwrap();
 
         let mut fields = HashMap::new();
-        fields.insert("title".to_string(), "calculate_total".to_string());
+        fields.insert("tag_name".to_string(), "person".to_string());
+        fields.insert("field_name".to_string(), "bio".to_string());
         fields.insert(
             "content".to_string(),
-            "Calculates the total price".to_string(),
+            "A software engineer who loves Rust".to_string(),
         );
-        fields.insert("entity_type".to_string(), "function".to_string());
-        fields.insert("raw_name".to_string(), "calculate_total".to_string());
-        fields.insert("keywords".to_string(), "calculate total price".to_string());
-        fields.insert("file_path".to_string(), "src/calculator.rs".to_string());
-        fields.insert("module_name".to_string(), "math".to_string());
 
         index.add_document_with_fields("1", &fields).unwrap();
 
-        let results = index.search("calculate", 10).unwrap();
+        let results = index.search("Rust", 10).unwrap();
         assert!(!results.is_empty());
-        assert_eq!(results[0].entity_type, Some("function".to_string()));
-        assert_eq!(results[0].raw_name, Some("calculate_total".to_string()));
+        assert_eq!(results[0].tag_name, Some("person".to_string()));
+        assert_eq!(results[0].field_name, Some("bio".to_string()));
     }
 
     #[test]
@@ -434,12 +369,13 @@ mod tests {
         let index = Bm25Index::create(&index_path).unwrap();
 
         let mut fields = HashMap::new();
-        fields.insert("content".to_string(), "Calculate the total price".to_string());
-        fields.insert("raw_name".to_string(), "calculate_total".to_string());
+        fields.insert("tag_name".to_string(), "person".to_string());
+        fields.insert("field_name".to_string(), "description".to_string());
+        fields.insert("content".to_string(), "计算总价的方法".to_string());
 
         index.add_document_with_fields("1", &fields).unwrap();
 
-        let results = index.search("count", 10).unwrap();
+        let results = index.search("计算", 10).unwrap();
         assert!(!results.is_empty(), "Should find results for Chinese query");
     }
 }

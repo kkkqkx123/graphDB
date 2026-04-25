@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use bm25_service::api::embedded::Bm25Index;
 use bm25_service::config::IndexManagerConfig;
+use std::collections::HashMap;
 use std::path::Path;
 
 use crate::core::Value;
@@ -73,16 +74,24 @@ impl SearchEngine for Bm25SearchEngine {
     }
 
     async fn index(&self, doc_id: &str, content: &str) -> Result<(), SearchError> {
+        let mut fields = HashMap::new();
+        if !content.is_empty() {
+            fields.insert("content".to_string(), content.to_string());
+        }
         self.index
-            .add_document(doc_id, "", content)
+            .add_document_with_fields(doc_id, &fields)
             .map_err(|e| SearchError::Bm25Error(e.to_string()))?;
         Ok(())
     }
 
     async fn index_batch(&self, docs: Vec<(String, String)>) -> Result<(), SearchError> {
         for (doc_id, content) in docs {
+            let mut fields = HashMap::new();
+            if !content.is_empty() {
+                fields.insert("content".to_string(), content);
+            }
             self.index
-                .add_document(&doc_id, "", &content)
+                .add_document_with_fields(&doc_id, &fields)
                 .map_err(|e| SearchError::Bm25Error(e.to_string()))?;
         }
         Ok(())
@@ -102,17 +111,8 @@ impl SearchEngine for Bm25SearchEngine {
                 highlights: r.highlights,
                 matched_fields: {
                     let mut fields = Vec::new();
-                    if r.title.is_some() {
-                        fields.push("title".to_string());
-                    }
                     if r.content.is_some() {
                         fields.push("content".to_string());
-                    }
-                    if r.raw_name.is_some() {
-                        fields.push("raw_name".to_string());
-                    }
-                    if r.keywords.is_some() {
-                        fields.push("keywords".to_string());
                     }
                     fields
                 },

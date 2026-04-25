@@ -52,7 +52,7 @@ async fn create_client(conn_config: &ConnectionConfig) -> Result<Qdrant> {
 }
 ```
 
-### 1.3 Current Synchronization Flow
+### 1.3 Synchronization Flow (After Fix)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -71,26 +71,106 @@ async fn create_client(conn_config: &ConnectionConfig) -> Result<Qdrant> {
     │ FulltextClient  │             │ VectorClient    │
     │ - SearchEngine  │             │ - VectorManager │
     │ - Local call    │             │ - Network call  │
-    │ - With retry    │             │ - NO retry      │
-    │ - With DLQ      │             │ - NO DLQ        │
+    │ - 2 retries     │             │ - 3 retries     │
+    │ - With DLQ      │             │ - With DLQ      │
     │ - Real txn      │             │ - Fake txn      │
     └─────────────────┘             └─────────────────┘
 ```
 
-## 2. Current Issues
+## 2. Issues Found and Fixed
 
-### 2.1 Architecture Duplication
+### 2.1 Missing Retry Mechanism for Vector Index (FIXED)
 
-Two independent coordinators exist:
+**Before:**
+```rust
+// No retry for vector operations
+self.vector_manager.upsert(&collection_name, point).await?;
+```
+
+**After:**
+```rust
+// With retry mechanism
+let result = with_retry(
+    || {
+        let point_clone = point.clone();
+        let collection_name_clone = collection_name.clone();
+        let vm = vector_manager.clone();
+        async move { vm.upsert(&collection_name_clone, point_clone).await }
+    },
+    &self.config.retry_config,
+).await;
+```
+
+### 2.2 Missing Dead Letter Queue for Vector Index (FIXED)
+
+**Before:**
+```rust
+// Failed operations were lost
+Err(e) => {
+    return Err(ExternalIndexError::InsertError(e.to_string()));
+}
+```
+
+**After:**
+```rust
+// Failed operations are saved to DLQ with full operation data
+Err(e) => {
+    let error_msg = e.to_string();
+    self.add_to_dlq(
+        IndexOperation::Insert {
+            key: self.index_key(),
+            id: id.to_string(),
+            data: data.clone(),  // Full data preserved
+            payload: HashMap::new(),
+        },
+        &error_msg,
+    );
+    Err(ExternalIndexError::InsertError(error_msg))
+}
+```
+
+### 2.3 Inconsistent Retry Configuration (FIXED)
+
+**Before:** Both local and remote indexes used the same retry configuration.
+
+**After:** Differentiated retry strategies:
+- **Local (Fulltext):** 2 retries, 50ms initial delay, 2s max delay
+- **Remote (Vector):** 3 retries, 100ms initial delay, 10s max delay
+
+```rust
+fn default_local_retry_config() -> RetryConfig {
+    RetryConfig::new(2, Duration::from_millis(50), Duration::from_secs(2))
+}
+
+fn default_remote_retry_config() -> RetryConfig {
+    RetryConfig::new(3, Duration::from_millis(100), Duration::from_secs(10))
+}
+```
+
+### 2.4 Missing Circuit Breaker (ADDED)
+
+Added circuit breaker module (`src/sync/circuit_breaker.rs`) for protecting remote service calls:
+
+```rust
+pub struct CircuitBreakerConfig {
+    pub failure_threshold: u64,     // Default: 5
+    pub recovery_timeout: Duration, // Default: 30s
+    pub success_threshold: u64,     // Default: 3
+    pub failure_window: Duration,   // Default: 60s
+}
+```
+
+## 3. Remaining Issues
+
+### 3.1 Architecture Duplication
+
+Two independent coordinators still exist:
 - `SyncCoordinator` handles fulltext index
 - `VectorSyncCoordinator` handles vector index
 
-**Problems:**
-- Code duplication
-- Increased maintenance cost
-- Risk of inconsistent behavior
+**Recommendation:** Consider merging into a unified coordinator in a future refactor.
 
-### 2.2 Inconsistent Transaction Semantics
+### 3.2 Inconsistent Transaction Semantics
 
 **Fulltext Index** (`src/sync/external_index/fulltext_client.rs`):
 ```rust
@@ -106,260 +186,74 @@ async fn rollback(&self) -> IndexResult<()> {
 **Vector Index** (`src/sync/external_index/vector_client.rs`):
 ```rust
 async fn commit(&self) -> IndexResult<()> {
-    Ok(())  // Empty operation!
+    debug!("VectorClient commit: no-op for remote vector store");
+    Ok(())
 }
 
 async fn rollback(&self) -> IndexResult<()> {
-    Ok(())  // Empty operation!
+    debug!("VectorClient rollback: no-op for remote vector store");
+    Ok(())
 }
 ```
 
-**Problem:** When transaction rolls back, fulltext index can rollback but vector index operations cannot be undone, leading to data inconsistency.
+**Issue:** When transaction rolls back, fulltext index can rollback but vector index operations cannot be undone, leading to potential data inconsistency.
 
-### 2.3 Missing Retry Mechanism for Vector Index
+**Recommendation:** Implement compensation transactions or document this limitation clearly.
 
-**Fulltext Index** has retry (`src/sync/coordinator/coordinator.rs`):
-```rust
-match with_retry(
-    || async { processor.add_batch(ops_clone.clone()).await },
-    &retry_config_clone,
-).await { ... }
-```
+## 4. New Features Added
 
-**Vector Index** has no retry:
-```rust
-self.vector_manager.upsert(&collection_name, point).await?;
-```
-
-**Problem:** Vector index operations fail without retry, reducing reliability.
-
-### 2.4 Missing Dead Letter Queue for Vector Index
-
-**Fulltext Index** sends failed operations to DLQ:
-```rust
-for op in operations {
-    let entry = DeadLetterEntry::new(op, format!("Index sync failed..."), retry_config.max_retries);
-    dlq_clone.add(entry);
-}
-```
-
-**Vector Index** has no DLQ - failed operations are lost.
-
-### 2.5 Inconsistent Batch Processing
-
-- Fulltext index uses `GenericBatchProcessor` for unified batch processing
-- Vector index manually implements grouping logic in `on_vector_change_batch`
-
-### 2.6 Transaction Isolation Issue
-
-Two coordinators maintain independent buffers:
-- `SyncCoordinator.transaction_buffers`
-- `VectorSyncCoordinator.transaction_buffer`
-
-When the same transaction involves both fulltext and vector indexes, they must be managed separately, increasing complexity and error risk.
-
-## 3. Should They Be Differentiated?
-
-### 3.1 Reasons to Differentiate
-
-**1. Completely Different Failure Modes**
-
-| Failure Type | Fulltext Index | Vector Index |
-|--------------|----------------|--------------|
-| Network timeout | ❌ N/A | ✅ Common |
-| Connection loss | ❌ N/A | ✅ Common |
-| Service unavailable | ❌ N/A | ✅ Possible |
-| Local I/O error | ✅ Possible | ❌ N/A |
-
-**2. Different Retry Strategies**
-
-- **Local operations**: Failure usually means serious error, retry is not meaningful
-- **Network operations**: Failure may be temporary, retry is necessary
-
-**3. Different Transaction Semantics**
-
-- **Local index**: Can implement real ACID transactions
-- **Remote index**: Cannot guarantee distributed transaction consistency
-
-**4. Different Performance Characteristics**
-
-- **Local operations**: Stable, predictable latency
-- **Network operations**: High latency variance, needs timeout control
-
-### 3.2 Reasons Not to Differentiate
-
-**1. Upper Layer Abstraction Can Be Unified**
-
-Current `ExternalIndexClient` trait provides unified interface, upper layer callers don't need to care about implementation.
-
-**2. Similar Synchronization Flow**
-
-Both have the same synchronization flow (change capture → buffer → execute).
-
-### 3.3 Conclusion
-
-**Should retain differentiation, but within a unified framework.**
-
-## 4. Improvement Plan
-
-### 4.1 Unified Architecture
-
-```
-                    ┌─────────────────────────┐
-                    │   ExternalIndexClient   │  Unified Interface
-                    └───────────┬─────────────┘
-                                │
-            ┌───────────────────┴───────────────────┐
-            ↓                                       ↓
-    ┌───────────────┐                     ┌───────────────┐
-    │ FulltextClient│                     │ VectorClient  │
-    │  (Local)      │                     │  (Remote)     │
-    └───────┬───────┘                     └───────┬───────┘
-            │                                     │
-    ┌───────┴───────┐                     ┌───────┴───────┐
-    │ LocalExecutor │                     │ RemoteExecutor│
-    │ - No retry    │                     │ - With retry  │
-    │ - Real txn    │                     │ - No real txn │
-    │ - Low latency │                     │ - Timeout ctrl│
-    └───────────────┘                     │ - DLQ support │
-                                          └───────────────┘
-```
-
-### 4.2 Features to Add for Vector Index
-
-#### a) Retry Mechanism
-
-```rust
-pub struct VectorClient {
-    // ... existing fields
-    retry_config: RetryConfig,  // NEW
-}
-
-async fn insert_with_retry(&self, id: &str, data: &IndexData) -> IndexResult<()> {
-    with_retry(
-        || self.insert(id, data),
-        &self.retry_config,
-    ).await
-}
-```
-
-#### b) Timeout Control
+### 4.1 VectorClientConfig
 
 ```rust
 pub struct VectorClientConfig {
-    // ... existing config
-    pub operation_timeout: Duration,    // Operation timeout
-    pub connection_timeout: Duration,   // Connection timeout
+    pub retry_config: RetryConfig,
+    pub operation_timeout: Duration,
+    pub use_dead_letter_queue: bool,
+}
+
+impl VectorClientConfig {
+    pub fn with_retry_config(mut self, retry_config: RetryConfig) -> Self;
+    pub fn with_operation_timeout(mut self, timeout: Duration) -> Self;
+    pub fn with_dead_letter_queue(mut self, use_dlq: bool) -> Self;
 }
 ```
 
-#### c) Dead Letter Queue
+### 4.2 Circuit Breaker
 
 ```rust
-impl VectorClient {
-    async fn handle_failure(&self, operation: IndexOperation, error: Error) {
-        let entry = DeadLetterEntry::new(operation, error.to_string(), self.max_retries);
-        self.dead_letter_queue.add(entry);
-    }
+pub struct CircuitBreaker {
+    // ...
 }
+
+pub enum CircuitState {
+    Closed,    // Normal operation
+    Open,      // Failing, requests blocked
+    HalfOpen,  // Testing recovery
+}
+
+// Usage
+let result = with_circuit_breaker(&circuit_breaker, || async {
+    some_remote_operation().await
+}).await;
 ```
 
-#### d) Circuit Breaker
+## 5. Files Modified
 
-```rust
-pub struct VectorClient {
-    // ... existing fields
-    circuit_breaker: CircuitBreaker,  // NEW
-}
-
-async fn check_health(&self) -> HealthStatus {
-    // Periodically check Qdrant service status
-}
-```
-
-### 4.3 Features to Add for Unified Framework
-
-#### a) Unified Coordinator
-
-```rust
-pub struct UnifiedSyncCoordinator {
-    local_index_handler: LocalIndexHandler,    // Handle local indexes
-    remote_index_handler: RemoteIndexHandler,  // Handle remote indexes
-}
-
-impl UnifiedSyncCoordinator {
-    pub async fn on_change(&self, ctx: ChangeContext) -> Result<()> {
-        match ctx.index_type {
-            IndexType::Fulltext => {
-                self.local_index_handler.handle(ctx).await
-            }
-            IndexType::Vector => {
-                self.remote_index_handler.handle(ctx).await
-            }
-        }
-    }
-}
-```
-
-#### b) Unified Transaction Management
-
-```rust
-pub struct TransactionManager {
-    local_txns: LocalTransactionManager,    // Local transactions
-    remote_txns: RemoteTransactionManager,  // Remote transactions (compensation)
-}
-
-impl TransactionManager {
-    pub async fn commit(&self, txn_id: TransactionId) -> Result<()> {
-        // 1. Commit local transactions first
-        self.local_txns.commit(txn_id).await?;
-        
-        // 2. Then commit remote transactions (may need compensation)
-        match self.remote_txns.commit(txn_id).await {
-            Ok(_) => Ok(()),
-            Err(e) => {
-                // Remote transaction failed, log compensation
-                self.log_compensation(txn_id, e);
-                Err(e)
-            }
-        }
-    }
-}
-```
-
-## 5. Implementation Checklist
-
-### Phase 1: Vector Client Enhancement
-
-- [ ] Add retry mechanism to `VectorClient`
-- [ ] Add timeout configuration
-- [ ] Add dead letter queue support
-- [ ] Add circuit breaker pattern
-
-### Phase 2: Unified Coordinator
-
-- [ ] Create `LocalIndexHandler` and `RemoteIndexHandler`
-- [ ] Merge `VectorSyncCoordinator` into `SyncCoordinator`
-- [ ] Unified transaction buffer management
-
-### Phase 3: Transaction Improvement
-
-- [ ] Implement compensation transaction for vector index
-- [ ] Add transaction logging for recovery
-- [ ] Document transaction semantics clearly
-
-### Phase 4: Monitoring & Metrics
-
-- [ ] Add unified metrics for both index types
-- [ ] Add health check endpoints
-- [ ] Add alerting for remote index failures
+| File | Changes |
+|------|---------|
+| `src/sync/external_index/vector_client.rs` | Added retry, DLQ support, VectorClientConfig |
+| `src/sync/external_index/mod.rs` | Export VectorClientConfig |
+| `src/sync/coordinator/coordinator.rs` | Differentiated retry configs for local/remote |
+| `src/sync/circuit_breaker.rs` | New file - circuit breaker implementation |
+| `src/sync/mod.rs` | Export circuit breaker module |
 
 ## 6. Summary
 
-| Aspect | Recommendation |
-|--------|----------------|
-| **Differentiate?** | ✅ Yes, different failure modes, transaction semantics, performance |
-| **Unified Framework** | ✅ Need unified upper framework with differentiated internal logic |
-| **Vector Index Additions** | Retry, timeout control, DLQ, circuit breaker |
-| **Fulltext Index Additions** | Better error recovery |
-| **Framework Additions** | Unified coordinator, unified transaction management (with compensation), unified monitoring |
+| Aspect | Status |
+|--------|--------|
+| **Retry for Vector Index** | ✅ Fixed |
+| **DLQ for Vector Index** | ✅ Fixed |
+| **Differentiated Retry Config** | ✅ Fixed |
+| **Circuit Breaker** | ✅ Added |
+| **Unified Coordinator** | ⏳ Future work |
+| **Compensation Transactions** | ⏳ Future work |

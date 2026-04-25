@@ -367,7 +367,6 @@ impl Bm25ConfigBuilder {
     ///
     /// # Arguments
     ///
-    /// * `title` - Weight for title field
     /// * `content` - Weight for content field
     ///
     /// # Examples
@@ -375,10 +374,10 @@ impl Bm25ConfigBuilder {
     /// ```rust
     /// use bm25_service::config::Bm25Config;
     ///
-    /// let config = Bm25Config::builder().field_weights(2.5, 1.0).build();
+    /// let config = Bm25Config::builder().field_weights(1.0).build();
     /// ```
-    pub fn field_weights(mut self, title: f32, content: f32) -> Self {
-        self.field_weights = FieldWeights { title, content };
+    pub fn field_weights(mut self, content: f32) -> Self {
+        self.field_weights = FieldWeights { content };
         self
     }
 
@@ -393,7 +392,7 @@ impl Bm25ConfigBuilder {
     /// ```rust
     /// use bm25_service::config::{Bm25Config, FieldWeights};
     ///
-    /// let weights = FieldWeights::new(2.5, 1.0);
+    /// let weights = FieldWeights::new(1.0);
     /// let config = Bm25Config::builder().field_weights_struct(weights).build();
     /// ```
     pub fn field_weights_struct(mut self, weights: FieldWeights) -> Self {
@@ -652,7 +651,6 @@ mod bm25_builder_tests {
         assert_eq!(config.k1, 1.2);
         assert_eq!(config.b, 0.75);
         assert_eq!(config.avg_doc_length, 100.0);
-        assert_eq!(config.field_weights.title, 2.0);
         assert_eq!(config.field_weights.content, 1.0);
     }
 
@@ -662,13 +660,12 @@ mod bm25_builder_tests {
             .k1(1.5)
             .b(0.8)
             .avg_doc_length(150.0)
-            .field_weights(2.5, 1.0)
+            .field_weights(1.5)
             .build();
         assert_eq!(config.k1, 1.5);
         assert_eq!(config.b, 0.8);
         assert_eq!(config.avg_doc_length, 150.0);
-        assert_eq!(config.field_weights.title, 2.5);
-        assert_eq!(config.field_weights.content, 1.0);
+        assert_eq!(config.field_weights.content, 1.5);
     }
 
     #[test]

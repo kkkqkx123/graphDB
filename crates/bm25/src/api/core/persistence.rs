@@ -218,7 +218,8 @@ impl PersistenceManager {
 
         let mut doc = TantivyDocument::new();
         doc.add_text(schema.document_id, "imported_0");
-        doc.add_text(schema.title, "");
+        doc.add_text(schema.tag_name, "");
+        doc.add_text(schema.field_name, "");
         doc.add_text(schema.content, "");
 
         let mut writer = manager.writer()?;

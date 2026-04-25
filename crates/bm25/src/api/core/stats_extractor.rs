@@ -69,13 +69,12 @@ mod tests {
     #[test]
     fn test_extract_single_doc_stats() {
         let mut fields = HashMap::new();
-        fields.insert("title".to_string(), "Hello World".to_string());
         fields.insert("content".to_string(), "Hello Rust World".to_string());
 
         let stats = extract_tf_df_stats(&fields, 10, 100.0);
 
-        assert_eq!(stats.tf.get("hello"), Some(&2.0));
-        assert_eq!(stats.tf.get("world"), Some(&2.0));
+        assert_eq!(stats.tf.get("hello"), Some(&1.0));
+        assert_eq!(stats.tf.get("world"), Some(&1.0));
         assert_eq!(stats.tf.get("rust"), Some(&1.0));
 
         assert_eq!(stats.df.get("hello"), Some(&1));

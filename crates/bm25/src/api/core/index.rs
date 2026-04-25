@@ -377,7 +377,8 @@ impl IndexManager {
     fn build_schema() -> Schema {
         let mut schema_builder = Schema::builder();
         schema_builder.add_text_field("document_id", STRING | STORED);
-        schema_builder.add_text_field("title", TEXT | STORED);
+        schema_builder.add_text_field("tag_name", STRING | STORED);
+        schema_builder.add_text_field("field_name", STRING | STORED);
 
         let content_options = TextOptions::default()
             .set_indexing_options(
@@ -387,29 +388,6 @@ impl IndexManager {
             )
             .set_stored();
         schema_builder.add_text_field("content", content_options);
-
-        schema_builder.add_text_field("entity_type", STRING | STORED);
-
-        let raw_name_options = TextOptions::default()
-            .set_indexing_options(
-                TextFieldIndexing::default()
-                    .set_tokenizer("mixed")
-                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
-            )
-            .set_stored();
-        schema_builder.add_text_field("raw_name", raw_name_options);
-
-        let keywords_options = TextOptions::default()
-            .set_indexing_options(
-                TextFieldIndexing::default()
-                    .set_tokenizer("mixed")
-                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
-            )
-            .set_stored();
-        schema_builder.add_text_field("keywords", keywords_options);
-
-        schema_builder.add_text_field("file_path", STRING | STORED);
-        schema_builder.add_text_field("module_name", STRING | STORED);
         schema_builder.build()
     }
 
