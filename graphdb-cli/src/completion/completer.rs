@@ -1,8 +1,17 @@
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+use colored::Colorize;
 use rustyline::completion::{Candidate, Completer};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
 use rustyline::{Helper, Result};
+
+use crate::completion::context::{
+    detect_context, get_function_completions, CompletionContext, FunctionEntry, SharedSchemaCache,
+};
 
 const GQL_KEYWORDS: &[&str] = &[
     "MATCH",
@@ -151,7 +160,14 @@ const META_COMMANDS: &[&str] = &[
     "\\begin",
     "\\commit",
     "\\rollback",
+    "\\e",
+    "\\p",
+    "\\r",
+    "\\w",
+    "\\history",
 ];
+
+const FORMAT_VALUES: &[&str] = &["table", "csv", "json", "vertical", "html"];
 
 #[derive(Debug)]
 pub struct StringCandidate {
@@ -173,6 +189,9 @@ impl Candidate for StringCandidate {
 pub struct GraphDBCompleter {
     keywords: Vec<String>,
     meta_commands: Vec<String>,
+    functions: Vec<FunctionEntry>,
+    schema_cache: SharedSchemaCache,
+    variables: Arc<Mutex<HashMap<String, String>>>,
 }
 
 impl Default for GraphDBCompleter {
@@ -186,6 +205,23 @@ impl GraphDBCompleter {
         Self {
             keywords: GQL_KEYWORDS.iter().map(|s| s.to_string()).collect(),
             meta_commands: META_COMMANDS.iter().map(|s| s.to_string()).collect(),
+            functions: get_function_completions(),
+            schema_cache: Arc::new(Mutex::new(crate::completion::context::SchemaCache::new())),
+            variables: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    pub fn set_schema_cache(&mut self, cache: SharedSchemaCache) {
+        self.schema_cache = cache;
+    }
+
+    pub fn set_variables(&mut self, vars: Arc<Mutex<HashMap<String, String>>>) {
+        self.variables = vars;
+    }
+
+    pub fn update_variables(&self, vars: HashMap<String, String>) {
+        if let Ok(mut v) = self.variables.lock() {
+            *v = vars;
         }
     }
 }
@@ -202,7 +238,72 @@ impl Completer for GraphDBCompleter {
         let line_to_pos = &line[..pos];
 
         if line_to_pos.starts_with('\\') {
-            let partial = line_to_pos.trim_start_matches('\\');
+            return self.complete_meta(line_to_pos, pos);
+        }
+
+        let vars = self.variables.lock().ok();
+        let empty_vars = HashMap::new();
+        let var_map = vars.as_deref().unwrap_or(&empty_vars);
+        let context = detect_context(line, pos, var_map);
+        drop(vars);
+
+        match context {
+            CompletionContext::Keyword => self.complete_keyword(line_to_pos, pos),
+            CompletionContext::TagName => self.complete_tag(line_to_pos, pos),
+            CompletionContext::EdgeName => self.complete_edge(line_to_pos, pos),
+            CompletionContext::SpaceName => self.complete_space(line_to_pos, pos),
+            CompletionContext::FunctionName => self.complete_function(line_to_pos, pos),
+            CompletionContext::VariableName => self.complete_variable(line_to_pos, pos),
+            CompletionContext::PropertyName => self.complete_keyword(line_to_pos, pos),
+            CompletionContext::MetaCommandArg => self.complete_meta_arg(line_to_pos, pos),
+        }
+    }
+}
+
+impl GraphDBCompleter {
+    fn complete_meta(
+        &self,
+        line_to_pos: &str,
+        pos: usize,
+    ) -> Result<(usize, Vec<StringCandidate>)> {
+        let partial = line_to_pos.trim_start_matches('\\');
+
+        let after_cmd = if let Some(space_pos) = partial.find(|c: char| c.is_whitespace()) {
+            let cmd = &partial[..space_pos];
+            let arg = partial[space_pos..].trim();
+            if !arg.is_empty() {
+                let cmd_lower = cmd.to_lowercase();
+                match cmd_lower.as_str() {
+                    "format" => {
+                        let completions: Vec<StringCandidate> = FORMAT_VALUES
+                            .iter()
+                            .filter(|v| v.starts_with(arg))
+                            .map(|v| StringCandidate {
+                                display: v.to_string(),
+                                replacement: v[arg.len()..].to_string(),
+                            })
+                            .collect();
+                        let start = pos - arg.len();
+                        return Ok((start, completions));
+                    }
+                    "connect" | "c" => {
+                        return self.complete_space_after_meta(arg, pos);
+                    }
+                    "describe" | "d" => {
+                        return self.complete_tag_after_meta(arg, pos);
+                    }
+                    "describe_edge" => {
+                        return self.complete_edge_after_meta(arg, pos);
+                    }
+                    _ => {}
+                }
+            }
+            false
+        } else {
+            false
+        };
+
+        if !after_cmd {
             let completions: Vec<StringCandidate> = self
                 .meta_commands
                 .iter()
@@ -221,12 +322,20 @@ impl Completer for GraphDBCompleter {
             return Ok((start, completions));
         }
 
+        Ok((pos, Vec::new()))
+    }
+
+    fn complete_keyword(
+        &self,
+        line_to_pos: &str,
+        pos: usize,
+    ) -> Result<(usize, Vec<StringCandidate>)> {
         let last_word = get_last_word(line_to_pos);
         if last_word.is_empty() {
             return Ok((pos, Vec::new()));
         }
 
-        let completions: Vec<StringCandidate> = self
+        let mut completions: Vec<StringCandidate> = self
             .keywords
             .iter()
             .filter(|kw| kw.starts_with(&last_word.to_uppercase()))
@@ -236,24 +345,315 @@ impl Completer for GraphDBCompleter {
             })
             .collect();
 
+        let func_completions: Vec<StringCandidate> = self
+            .functions
+            .iter()
+            .filter(|f| f.name.starts_with(&last_word.to_lowercase()))
+            .map(|f| StringCandidate {
+                display: format!("{}(", f.name),
+                replacement: format!("{}(", f.name)[last_word.len()..].to_string(),
+            })
+            .collect();
+
+        completions.extend(func_completions);
+
         let start = pos - last_word.len();
         Ok((start, completions))
+    }
+
+    fn complete_tag(&self, line_to_pos: &str, pos: usize) -> Result<(usize, Vec<StringCandidate>)> {
+        let last_word = get_last_word(line_to_pos);
+        let names = self.get_tag_names();
+        let completions = filter_names(&names, &last_word);
+        let start = pos - last_word.len();
+        Ok((start, completions))
+    }
+
+    fn complete_edge(
+        &self,
+        line_to_pos: &str,
+        pos: usize,
+    ) -> Result<(usize, Vec<StringCandidate>)> {
+        let last_word = get_last_word(line_to_pos);
+        let names = self.get_edge_names();
+        let completions = filter_names(&names, &last_word);
+        let start = pos - last_word.len();
+        Ok((start, completions))
+    }
+
+    fn complete_space(
+        &self,
+        line_to_pos: &str,
+        pos: usize,
+    ) -> Result<(usize, Vec<StringCandidate>)> {
+        let last_word = get_last_word(line_to_pos);
+        let names = self.get_space_names();
+        let completions = filter_names(&names, &last_word);
+        let start = pos - last_word.len();
+        Ok((start, completions))
+    }
+
+    fn complete_function(
+        &self,
+        line_to_pos: &str,
+        pos: usize,
+    ) -> Result<(usize, Vec<StringCandidate>)> {
+        let last_word = get_last_word(line_to_pos);
+        if last_word.is_empty() {
+            return Ok((pos, Vec::new()));
+        }
+
+        let mut completions: Vec<StringCandidate> = self
+            .functions
+            .iter()
+            .filter(|f| f.name.starts_with(&last_word.to_lowercase()))
+            .map(|f| StringCandidate {
+                display: format!("{}(", f.name),
+                replacement: format!("{}(", f.name)[last_word.len()..].to_string(),
+            })
+            .collect();
+
+        let kw_completions: Vec<StringCandidate> = self
+            .keywords
+            .iter()
+            .filter(|kw| kw.starts_with(&last_word.to_uppercase()))
+            .map(|kw| StringCandidate {
+                display: kw.clone(),
+                replacement: kw[last_word.len()..].to_string(),
+            })
+            .collect();
+
+        completions.extend(kw_completions);
+
+        let start = pos - last_word.len();
+        Ok((start, completions))
+    }
+
+    fn complete_variable(
+        &self,
+        line_to_pos: &str,
+        pos: usize,
+    ) -> Result<(usize, Vec<StringCandidate>)> {
+        let vars = self.variables.lock().ok();
+        let empty_vars = HashMap::new();
+        let var_map = vars.as_deref().unwrap_or(&empty_vars);
+
+        let after_colon = line_to_pos
+            .rfind(':')
+            .map(|i| &line_to_pos[i + 1..])
+            .unwrap_or("");
+
+        let completions: Vec<StringCandidate> = var_map
+            .keys()
+            .filter(|k| k.starts_with(after_colon))
+            .map(|k| StringCandidate {
+                display: k.clone(),
+                replacement: k[after_colon.len()..].to_string(),
+            })
+            .collect();
+
+        let start = pos - after_colon.len();
+        Ok((start, completions))
+    }
+
+    fn complete_meta_arg(
+        &self,
+        _line_to_pos: &str,
+        pos: usize,
+    ) -> Result<(usize, Vec<StringCandidate>)> {
+        Ok((pos, Vec::new()))
+    }
+
+    fn complete_space_after_meta(
+        &self,
+        arg: &str,
+        pos: usize,
+    ) -> Result<(usize, Vec<StringCandidate>)> {
+        let names = self.get_space_names();
+        let completions = filter_names(&names, arg);
+        let start = pos - arg.len();
+        Ok((start, completions))
+    }
+
+    fn complete_tag_after_meta(
+        &self,
+        arg: &str,
+        pos: usize,
+    ) -> Result<(usize, Vec<StringCandidate>)> {
+        let names = self.get_tag_names();
+        let completions = filter_names(&names, arg);
+        let start = pos - arg.len();
+        Ok((start, completions))
+    }
+
+    fn complete_edge_after_meta(
+        &self,
+        arg: &str,
+        pos: usize,
+    ) -> Result<(usize, Vec<StringCandidate>)> {
+        let names = self.get_edge_names();
+        let completions = filter_names(&names, arg);
+        let start = pos - arg.len();
+        Ok((start, completions))
+    }
+
+    fn get_tag_names(&self) -> Vec<String> {
+        self.schema_cache
+            .lock()
+            .ok()
+            .map(|c| c.tag_names())
+            .unwrap_or_default()
+    }
+
+    fn get_edge_names(&self) -> Vec<String> {
+        self.schema_cache
+            .lock()
+            .ok()
+            .map(|c| c.edge_names())
+            .unwrap_or_default()
+    }
+
+    fn get_space_names(&self) -> Vec<String> {
+        self.schema_cache
+            .lock()
+            .ok()
+            .map(|c| c.space_names())
+            .unwrap_or_default()
     }
 }
 
 impl Hinter for GraphDBCompleter {
     type Hint = String;
 
-    fn hint(&self, _line: &str, _pos: usize, _ctx: &rustyline::Context<'_>) -> Option<String> {
+    fn hint(&self, line: &str, pos: usize, _ctx: &rustyline::Context<'_>) -> Option<String> {
+        if line.is_empty() || pos != line.len() {
+            return None;
+        }
+
+        if line.starts_with('\\') {
+            return None;
+        }
+
+        let last_word = get_last_word(line);
+        if last_word.is_empty() {
+            return None;
+        }
+
+        let upper = last_word.to_uppercase();
+        let matches: Vec<&String> = self
+            .keywords
+            .iter()
+            .filter(|kw| kw.starts_with(&upper) && kw.len() > upper.len())
+            .collect();
+
+        if matches.len() == 1 {
+            let hint = &matches[0][last_word.len()..];
+            return Some(hint.to_string());
+        }
+
         None
     }
 }
 
-impl Highlighter for GraphDBCompleter {}
+impl Highlighter for GraphDBCompleter {
+    fn highlight<'l>(&self, line: &'l str, _pos: usize) -> Cow<'l, str> {
+        if line.starts_with('\\') {
+            return Cow::Owned(line.cyan().to_string());
+        }
+
+        let mut result = String::with_capacity(line.len() + 32);
+        let mut in_single_quote = false;
+        let mut in_double_quote = false;
+        let mut word_start = 0;
+        let mut in_comment = false;
+        let chars: Vec<char> = line.chars().collect();
+
+        for (i, &ch) in chars.iter().enumerate() {
+            if in_comment {
+                result.push(ch);
+                continue;
+            }
+
+            if ch == '-' && !in_single_quote && !in_double_quote && i > 0 && chars[i - 1] == '-' {
+                in_comment = true;
+                result.push(ch);
+                continue;
+            }
+
+            if ch == '\'' && !in_double_quote {
+                in_single_quote = !in_single_quote;
+                result.push(ch);
+                continue;
+            }
+
+            if ch == '"' && !in_single_quote {
+                in_double_quote = !in_double_quote;
+                result.push(ch);
+                continue;
+            }
+
+            if in_single_quote || in_double_quote {
+                result.push(ch);
+                continue;
+            }
+
+            let is_separator = ch.is_whitespace()
+                || ch == '('
+                || ch == ')'
+                || ch == '['
+                || ch == ']'
+                || ch == '{'
+                || ch == '}'
+                || ch == ','
+                || ch == ':'
+                || ch == '='
+                || ch == '<'
+                || ch == '>'
+                || ch == ';';
+
+            if is_separator {
+                if word_start < i {
+                    let word: String = chars[word_start..i].iter().collect();
+                    if is_gql_keyword(&word) {
+                        result.push_str(&word.to_uppercase().blue().to_string());
+                    } else if word.parse::<f64>().is_ok() {
+                        result.push_str(&word.yellow().to_string());
+                    } else {
+                        result.push_str(&word);
+                    }
+                }
+                result.push(ch);
+                word_start = i + ch.len_utf8();
+            }
+        }
+
+        if word_start < chars.len() {
+            let word: String = chars[word_start..].iter().collect();
+            if is_gql_keyword(&word) {
+                result.push_str(&word.to_uppercase().blue().to_string());
+            } else if word.parse::<f64>().is_ok() {
+                result.push_str(&word.yellow().to_string());
+            } else {
+                result.push_str(&word);
+            }
+        }
+
+        Cow::Owned(result)
+    }
+
+    fn highlight_char(&self, _line: &str, _pos: usize, _forced: bool) -> bool {
+        true
+    }
+}
 
 impl Validator for GraphDBCompleter {}
 
 impl Helper for GraphDBCompleter {}
+
+fn is_gql_keyword(word: &str) -> bool {
+    let upper = word.to_uppercase();
+    GQL_KEYWORDS.contains(&upper.as_str())
+}
 
 fn get_last_word(input: &str) -> String {
     let trimmed = input.trim_end();
@@ -277,4 +677,16 @@ fn get_last_word(input: &str) -> String {
         .unwrap_or(0);
 
     trimmed[word_start..].to_string()
+}
+
+fn filter_names(names: &[String], prefix: &str) -> Vec<StringCandidate> {
+    let lower_prefix = prefix.to_lowercase();
+    names
+        .iter()
+        .filter(|n| n.to_lowercase().starts_with(&lower_prefix))
+        .map(|n| StringCandidate {
+            display: n.clone(),
+            replacement: n[prefix.len()..].to_string(),
+        })
+        .collect()
 }

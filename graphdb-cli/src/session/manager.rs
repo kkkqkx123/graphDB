@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use crate::client::http::{GraphDBHttpClient, QueryResult};
+use crate::session::variables::VariableStore;
 use crate::utils::error::{CliError, Result};
 
 #[derive(Debug, Clone)]
@@ -11,7 +10,7 @@ pub struct Session {
     pub host: String,
     pub port: u16,
     pub connected: bool,
-    pub variables: HashMap<String, String>,
+    pub variable_store: VariableStore,
 }
 
 impl Session {
@@ -23,7 +22,7 @@ impl Session {
             host,
             port,
             connected: true,
-            variables: HashMap::new(),
+            variable_store: VariableStore::new(),
         }
     }
 
@@ -57,24 +56,20 @@ impl Session {
         }
     }
 
-    pub fn set_variable(&mut self, name: String, value: String) {
-        self.variables.insert(name, value);
+    pub fn set_variable(&mut self, name: String, value: String) -> crate::utils::error::Result<()> {
+        self.variable_store.set(name, value)
     }
 
     pub fn get_variable(&self, name: &str) -> Option<&String> {
-        self.variables.get(name)
+        self.variable_store.get(name)
     }
 
-    pub fn remove_variable(&mut self, name: &str) {
-        self.variables.remove(name);
+    pub fn remove_variable(&mut self, name: &str) -> bool {
+        self.variable_store.remove(name)
     }
 
-    pub fn substitute_variables(&self, input: &str) -> String {
-        let mut result = input.to_string();
-        for (name, value) in &self.variables {
-            result = result.replace(&format!(":{}", name), value);
-        }
-        result
+    pub fn substitute_variables(&self, input: &str) -> crate::utils::error::Result<String> {
+        self.variable_store.substitute(input)
     }
 
     pub fn conninfo(&self) -> String {
@@ -88,6 +83,11 @@ impl Session {
         info.push(format!("Session ID: {}", self.session_id));
         info.push(format!("Connected: {}", self.connected));
         info.join("\n")
+    }
+
+    #[deprecated(note = "Use variable_store directly")]
+    pub fn variables(&self) -> &std::collections::HashMap<String, String> {
+        self.variable_store.user_variables()
     }
 }
 
@@ -164,10 +164,15 @@ impl SessionManager {
     pub async fn execute_query(&self, query: &str) -> Result<QueryResult> {
         let session = self.session.as_ref().ok_or(CliError::NotConnected)?;
 
-        let substituted = session.substitute_variables(query);
+        let substituted = session.substitute_variables(query)?;
         self.client
             .execute_query(&substituted, session.session_id)
             .await
+    }
+
+    pub async fn execute_query_raw(&self, query: &str) -> Result<QueryResult> {
+        let session = self.session.as_ref().ok_or(CliError::NotConnected)?;
+        self.client.execute_query(query, session.session_id).await
     }
 
     pub async fn health_check(&self) -> Result<bool> {

@@ -33,7 +33,7 @@ pub struct Cli {
     #[clap(short, long, help = "Execute single command and exit")]
     pub command: Option<String>,
 
-    #[clap(short, long, help = "Execute commands from file")]
+    #[clap(short = 'f', long = "file", help = "Execute commands from file")]
     pub file: Option<String>,
 
     #[clap(short, long, help = "Output file for query results")]
@@ -48,4 +48,22 @@ pub struct Cli {
 
     #[clap(short, long, help = "Quiet mode - suppress non-essential output")]
     pub quiet: bool,
+
+    #[clap(
+        short = '1',
+        long = "single-transaction",
+        help = "Execute commands in a single transaction"
+    )]
+    pub single_transaction: bool,
+
+    #[clap(long = "force", help = "Continue processing after errors")]
+    pub force: bool,
+
+    #[clap(
+        short = 'v',
+        long = "variable",
+        value_name = "NAME=VALUE",
+        help = "Set variable before execution"
+    )]
+    pub variables: Vec<String>,
 }

@@ -38,8 +38,44 @@ pub enum CliError {
     #[error("Script file not found: {0}")]
     ScriptNotFound(String),
 
+    #[error("Transaction already active")]
+    TransactionAlreadyActive,
+
+    #[error("No active transaction")]
+    NoActiveTransaction,
+
+    #[error("Savepoint not found: {0}")]
+    SavepointNotFound(String),
+
+    #[error("Transaction timeout")]
+    TransactionTimeout,
+
+    #[error("Transaction is in failed state: {0}")]
+    TransactionFailed(String),
+
+    #[error("Cannot change autocommit while transaction is active")]
+    CannotChangeAutocommit,
+
+    #[error("Invalid value: {0}")]
+    InvalidValue(String),
+
+    #[error("Import error: {0}")]
+    ImportError(String),
+
+    #[error("Export error: {0}")]
+    ExportError(String),
+
+    #[error("{0}")]
+    AnyhowError(String),
+
     #[error("{0}")]
     Other(String),
+}
+
+impl From<anyhow::Error> for CliError {
+    fn from(err: anyhow::Error) -> Self {
+        CliError::AnyhowError(err.to_string())
+    }
 }
 
 impl CliError {
@@ -65,6 +101,14 @@ impl CliError {
 
     pub fn command(msg: impl Into<String>) -> Self {
         CliError::CommandError(msg.into())
+    }
+
+    pub fn import(msg: impl Into<String>) -> Self {
+        CliError::ImportError(msg.into())
+    }
+
+    pub fn export(msg: impl Into<String>) -> Self {
+        CliError::ExportError(msg.into())
     }
 }
 

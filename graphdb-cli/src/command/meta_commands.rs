@@ -100,11 +100,51 @@ fn show_general_help() -> String {
     ));
     output.push_str(&format!(
         "  {:25} {}\n",
+        "\\ir <file>", "Execute commands from file (raw, no substitution)"
+    ));
+    output.push_str(&format!(
+        "  {:25} {}\n",
         "\\o [file]", "Redirect output to file (or close)"
     ));
     output.push_str(&format!(
         "  {:25} {}\n",
         "\\! <command>", "Execute a shell command"
+    ));
+
+    output.push_str(&format!("\n{}\n", "Query Buffer".yellow().bold()));
+    output.push_str(&format!(
+        "  {:25} {}\n",
+        "\\e [file] [+line]", "Edit query buffer in external editor"
+    ));
+    output.push_str(&format!(
+        "  {:25} {}\n",
+        "\\p", "Print the current query buffer"
+    ));
+    output.push_str(&format!(
+        "  {:25} {}\n",
+        "\\r", "Reset (clear) the query buffer"
+    ));
+    output.push_str(&format!(
+        "  {:25} {}\n",
+        "\\w <file>", "Write query buffer to file"
+    ));
+
+    output.push_str(&format!("\n{}\n", "History".yellow().bold()));
+    output.push_str(&format!(
+        "  {:25} {}\n",
+        "\\history [N]", "Show last N history entries (default 20)"
+    ));
+    output.push_str(&format!(
+        "  {:25} {}\n",
+        "\\history search <pat>", "Search history for pattern"
+    ));
+    output.push_str(&format!(
+        "  {:25} {}\n",
+        "\\history exec <id>", "Re-execute history entry by ID"
+    ));
+    output.push_str(&format!(
+        "  {:25} {}\n",
+        "\\history clear", "Clear command history"
     ));
 
     output.push_str(&format!("\n{}\n", "Transaction".yellow().bold()));
@@ -117,6 +157,18 @@ fn show_general_help() -> String {
         "  {:25} {}\n",
         "\\rollback", "Rollback current transaction"
     ));
+
+    output.push_str(&format!("\n{}\n", "Conditional Execution".yellow().bold()));
+    output.push_str(&format!(
+        "  {:25} {}\n",
+        "\\if <condition>", "Begin conditional block"
+    ));
+    output.push_str(&format!(
+        "  {:25} {}\n",
+        "\\elif <condition>", "Else-if branch"
+    ));
+    output.push_str(&format!("  {:25} {}\n", "\\else", "Else branch"));
+    output.push_str(&format!("  {:25} {}\n", "\\endif", "End conditional block"));
 
     output.push_str(&format!("\n{}\n", "General".yellow().bold()));
     output.push_str(&format!(
@@ -199,6 +251,83 @@ fn show_topic_help(topic: &str) -> String {
             s.push_str("  USE space_name\n\n");
             s.push_str("Example:\n");
             s.push_str("  USE my_graph\n");
+            s
+        }
+        "variables" | "set" => {
+            let mut s = String::new();
+            s.push_str("Variable Management\n\n");
+            s.push_str("Set a variable:\n");
+            s.push_str("  \\set NAME VALUE\n\n");
+            s.push_str("Show a variable:\n");
+            s.push_str("  \\set NAME\n\n");
+            s.push_str("Show all variables:\n");
+            s.push_str("  \\set\n\n");
+            s.push_str("Delete a variable:\n");
+            s.push_str("  \\unset NAME\n\n");
+            s.push_str("Use variables in queries:\n");
+            s.push_str("  MATCH (p:person) WHERE p.age > :min_age RETURN p\n");
+            s.push_str("  MATCH (p:person) WHERE p.name = :'name' RETURN p\n\n");
+            s.push_str("Special variables (marked with *):\n");
+            s.push_str("  ON_ERROR_STOP  - Stop on error (on/off)\n");
+            s.push_str("  ECHO           - Echo mode (none/queries/all)\n");
+            s.push_str("  TIMING         - Show execution time (on/off)\n");
+            s.push_str("  EDITOR         - External editor command\n");
+            s.push_str("  FORMAT         - Output format\n");
+            s.push_str("  HISTSIZE       - Max history entries\n");
+            s.push_str("  AUTOCOMMIT     - Auto-commit mode (on/off)\n");
+            s
+        }
+        "if" | "conditional" => {
+            let mut s = String::new();
+            s.push_str("Conditional Execution\n\n");
+            s.push_str("Syntax:\n");
+            s.push_str("  \\if <condition>\n");
+            s.push_str("    <commands>\n");
+            s.push_str("  \\elif <condition>\n");
+            s.push_str("    <commands>\n");
+            s.push_str("  \\else\n");
+            s.push_str("    <commands>\n");
+            s.push_str("  \\endif\n\n");
+            s.push_str("Conditions:\n");
+            s.push_str("  VAR          - True if variable is set\n");
+            s.push_str("  ?VAR         - True if variable is set\n");
+            s.push_str("  !?VAR        - True if variable is not set\n");
+            s.push_str("  VAR == VALUE - True if variable equals value\n");
+            s.push_str("  VAR != VALUE - True if variable not equals value\n\n");
+            s.push_str("Example:\n");
+            s.push_str("  \\set mode test\n");
+            s.push_str("  \\if mode == test\n");
+            s.push_str("    MATCH (p:person) RETURN p LIMIT 10;\n");
+            s.push_str("  \\else\n");
+            s.push_str("    MATCH (p:person) RETURN p;\n");
+            s.push_str("  \\endif\n");
+            s
+        }
+        "history" => {
+            let mut s = String::new();
+            s.push_str("Command History\n\n");
+            s.push_str("Commands:\n");
+            s.push_str("  \\history [N]          - Show last N entries (default 20)\n");
+            s.push_str("  \\history search <pat> - Search history for pattern\n");
+            s.push_str("  \\history exec <id>    - Re-execute entry by ID\n");
+            s.push_str("  \\history clear        - Clear all history\n\n");
+            s.push_str("History is saved to ~/.graphdb/cli_history\n");
+            s.push_str("Use UP/DOWN arrows to navigate history in the REPL.\n");
+            s
+        }
+        "edit" | "buffer" => {
+            let mut s = String::new();
+            s.push_str("Query Buffer and External Editor\n\n");
+            s.push_str("Commands:\n");
+            s.push_str("  \\e [file] [+line]  - Edit in external editor\n");
+            s.push_str("  \\p                  - Print current buffer\n");
+            s.push_str("  \\r                  - Reset (clear) buffer\n");
+            s.push_str("  \\w <file>           - Write buffer to file\n\n");
+            s.push_str("The editor is determined by:\n");
+            s.push_str("  1. \\set EDITOR <cmd>\n");
+            s.push_str("  2. EDITOR environment variable\n");
+            s.push_str("  3. VISUAL environment variable\n");
+            s.push_str("  4. Default: vi (or notepad on Windows)\n");
             s
         }
         _ => format!(
