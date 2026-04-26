@@ -14,12 +14,7 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(
-        session_id: i64,
-        username: String,
-        host: String,
-        port: u16,
-    ) -> Self {
+    pub fn new(session_id: i64, username: String, host: String, port: u16) -> Self {
         Self {
             session_id,
             username,
@@ -105,9 +100,7 @@ pub struct SessionManager {
 impl SessionManager {
     /// Create a new SessionManager with HTTP connection
     pub fn new_http(host: &str, port: u16) -> Result<Self> {
-        let config = ClientConfig::new()
-            .with_host(host)
-            .with_port(port);
+        let config = ClientConfig::new().with_host(host).with_port(port);
         let client = ClientFactory::create(config.clone())?;
 
         Ok(Self {

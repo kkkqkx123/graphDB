@@ -10,12 +10,7 @@ use clap::Parser;
                   schema inspection, and various output formats."
 )]
 pub struct Cli {
-    #[clap(
-        short,
-        long,
-        default_value = "127.0.0.1",
-        help = "Server host"
-    )]
+    #[clap(short, long, default_value = "127.0.0.1", help = "Server host")]
     pub host: String,
 
     #[clap(short, long, default_value_t = 8080, help = "Server port")]

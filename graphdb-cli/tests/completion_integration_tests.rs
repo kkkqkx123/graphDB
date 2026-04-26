@@ -1,8 +1,8 @@
-use graphdb_cli::completion::context::{
-    detect_context, get_function_completions, new_shared_cache, CompletionContext, FunctionCategory,
-    FunctionEntry, SchemaCache,
-};
 use graphdb_cli::completion::completer::GraphDBCompleter;
+use graphdb_cli::completion::context::{
+    detect_context, get_function_completions, new_shared_cache, CompletionContext,
+    FunctionCategory, FunctionEntry, SchemaCache,
+};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -161,12 +161,24 @@ fn test_function_completions_integration() {
     assert!(!functions.is_empty());
 
     let categories: Vec<_> = functions.iter().map(|f| &f.category).collect();
-    assert!(categories.iter().any(|c| matches!(c, FunctionCategory::Aggregate)));
-    assert!(categories.iter().any(|c| matches!(c, FunctionCategory::String)));
-    assert!(categories.iter().any(|c| matches!(c, FunctionCategory::Numeric)));
-    assert!(categories.iter().any(|c| matches!(c, FunctionCategory::List)));
-    assert!(categories.iter().any(|c| matches!(c, FunctionCategory::Type)));
-    assert!(categories.iter().any(|c| matches!(c, FunctionCategory::Date)));
+    assert!(categories
+        .iter()
+        .any(|c| matches!(c, FunctionCategory::Aggregate)));
+    assert!(categories
+        .iter()
+        .any(|c| matches!(c, FunctionCategory::String)));
+    assert!(categories
+        .iter()
+        .any(|c| matches!(c, FunctionCategory::Numeric)));
+    assert!(categories
+        .iter()
+        .any(|c| matches!(c, FunctionCategory::List)));
+    assert!(categories
+        .iter()
+        .any(|c| matches!(c, FunctionCategory::Type)));
+    assert!(categories
+        .iter()
+        .any(|c| matches!(c, FunctionCategory::Date)));
 
     let aggregate_functions: Vec<_> = functions
         .iter()
@@ -331,25 +343,21 @@ fn test_schema_cache_with_data_integration() {
     cache.edges = vec![
         EdgeTypeInfo {
             name: "FRIEND".to_string(),
-            fields: vec![
-                FieldInfo {
-                    name: "since".to_string(),
-                    data_type: "DATE".to_string(),
-                    nullable: true,
-                    default_value: None,
-                },
-            ],
+            fields: vec![FieldInfo {
+                name: "since".to_string(),
+                data_type: "DATE".to_string(),
+                nullable: true,
+                default_value: None,
+            }],
         },
         EdgeTypeInfo {
             name: "WORKS_AT".to_string(),
-            fields: vec![
-                FieldInfo {
-                    name: "position".to_string(),
-                    data_type: "STRING".to_string(),
-                    nullable: true,
-                    default_value: None,
-                },
-            ],
+            fields: vec![FieldInfo {
+                name: "position".to_string(),
+                data_type: "STRING".to_string(),
+                nullable: true,
+                default_value: None,
+            }],
         },
     ];
 
@@ -387,13 +395,21 @@ fn test_complex_query_context_detection() {
     let vars = HashMap::new();
 
     // Complex query context detection tests with positions within bounds
-    let ctx = detect_context("MATCH (v:Person)-[:KNOWS]->(f) WHERE v.age > 18 RETURN f.na", 56, &vars);
+    let ctx = detect_context(
+        "MATCH (v:Person)-[:KNOWS]->(f) WHERE v.age > 18 RETURN f.na",
+        56,
+        &vars,
+    );
     let _ = ctx;
 
     let ctx = detect_context("MATCH (v:Person)-[e:KNOWS]->() RETURN e.", 39, &vars);
     let _ = ctx;
 
-    let ctx = detect_context("INSERT VERTEX Person(name, age) VALUES \"1\":(\"Alice\", 30)", 20, &vars);
+    let ctx = detect_context(
+        "INSERT VERTEX Person(name, age) VALUES \"1\":(\"Alice\", 30)",
+        20,
+        &vars,
+    );
     let _ = ctx;
 
     let ctx = detect_context("GO 1 STEPS FROM \"1\" OVER ", 25, &vars);

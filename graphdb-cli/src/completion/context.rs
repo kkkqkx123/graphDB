@@ -541,25 +541,23 @@ mod tests {
     #[test]
     fn test_schema_cache_tag_properties() {
         let mut cache = SchemaCache::new();
-        cache.tags = vec![
-            TagInfo {
-                name: "Person".to_string(),
-                fields: vec![
-                    FieldInfo {
-                        name: "name".to_string(),
-                        data_type: "STRING".to_string(),
-                        nullable: false,
-                        default_value: None,
-                    },
-                    FieldInfo {
-                        name: "age".to_string(),
-                        data_type: "INT".to_string(),
-                        nullable: true,
-                        default_value: None,
-                    },
-                ],
-            },
-        ];
+        cache.tags = vec![TagInfo {
+            name: "Person".to_string(),
+            fields: vec![
+                FieldInfo {
+                    name: "name".to_string(),
+                    data_type: "STRING".to_string(),
+                    nullable: false,
+                    default_value: None,
+                },
+                FieldInfo {
+                    name: "age".to_string(),
+                    data_type: "INT".to_string(),
+                    nullable: true,
+                    default_value: None,
+                },
+            ],
+        }];
         let props = cache.tag_properties("Person");
         assert_eq!(props.len(), 2);
         assert!(props.contains(&"name".to_string()));

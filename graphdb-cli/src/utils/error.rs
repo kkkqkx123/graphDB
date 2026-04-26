@@ -14,6 +14,9 @@ pub enum CliError {
     #[error("Session error: {0}")]
     SessionError(String),
 
+    #[error("Transaction error: {0}")]
+    TransactionError(String),
+
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
 
@@ -109,6 +112,10 @@ impl CliError {
 
     pub fn export(msg: impl Into<String>) -> Self {
         CliError::ExportError(msg.into())
+    }
+
+    pub fn transaction(msg: impl Into<String>) -> Self {
+        CliError::TransactionError(msg.into())
     }
 }
 

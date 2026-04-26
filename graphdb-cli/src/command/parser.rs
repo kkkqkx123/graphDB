@@ -1277,7 +1277,9 @@ mod tests {
         }
 
         match parse_command("\\import json data.json edge Friend 100") {
-            Command::MetaCommand(MetaCommand::Import { batch_size, target, .. }) => {
+            Command::MetaCommand(MetaCommand::Import {
+                batch_size, target, ..
+            }) => {
                 assert_eq!(batch_size, Some(100));
                 assert!(matches!(target, ImportTarget::Edge { .. }));
             }
@@ -1289,9 +1291,7 @@ mod tests {
     fn test_parse_meta_command_export() {
         match parse_command("\\export csv output.csv MATCH (v) RETURN v") {
             Command::MetaCommand(MetaCommand::Export {
-                file_path,
-                query,
-                ..
+                file_path, query, ..
             }) => {
                 assert_eq!(file_path, "output.csv");
                 assert_eq!(query, "MATCH (v) RETURN v");

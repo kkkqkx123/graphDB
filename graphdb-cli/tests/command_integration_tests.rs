@@ -1,11 +1,9 @@
-use graphdb_cli::command::parser::{
-    parse_command, Command, CopyDirection, HistoryAction,
-};
-use graphdb_cli::command::script::{
-    is_statement_complete, ConditionExpr, ConditionalStack, ScriptExecutionContext,
-    ScriptParser, StatementKind,
-};
 use graphdb_cli::command::meta_commands::{show_copyright, show_help, show_version};
+use graphdb_cli::command::parser::{parse_command, Command, CopyDirection, HistoryAction};
+use graphdb_cli::command::script::{
+    is_statement_complete, ConditionExpr, ConditionalStack, ScriptExecutionContext, ScriptParser,
+    StatementKind,
+};
 
 #[test]
 fn test_parse_command_integration_empty_and_whitespace() {
@@ -109,10 +107,7 @@ fn test_parse_command_integration_meta_commands_variants() {
         let result = parse_command(input);
         match result {
             Command::MetaCommand(_) => {}
-            other => panic!(
-                "Expected MetaCommand for '{}', got {:?}",
-                input, other
-            ),
+            other => panic!("Expected MetaCommand for '{}', got {:?}", input, other),
         }
     }
 }
@@ -193,10 +188,7 @@ fn test_conditional_stack_integration() {
     assert!(stack.is_active(), "After popping, should be active again");
 
     stack.push_elif(true);
-    assert!(
-        !stack.is_active(),
-        "Elif after true if should be inactive"
-    );
+    assert!(!stack.is_active(), "Elif after true if should be inactive");
 
     stack.pop();
     stack.push_if(false);
@@ -296,11 +288,7 @@ fn test_is_statement_complete_integration() {
     ];
 
     for stmt in complete_statements {
-        assert!(
-            is_statement_complete(stmt),
-            "'{}' should be complete",
-            stmt
-        );
+        assert!(is_statement_complete(stmt), "'{}' should be complete", stmt);
     }
 
     let incomplete_statements = vec![
