@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::client::http::{EdgeTypeInfo, SpaceInfo, TagInfo};
+use crate::client::{EdgeTypeInfo, SpaceInfo, TagInfo};
 
 #[derive(Debug, Clone)]
 pub struct SchemaCache {

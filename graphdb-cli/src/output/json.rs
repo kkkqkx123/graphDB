@@ -1,4 +1,4 @@
-use crate::client::http::QueryResult;
+use crate::client::QueryResult;
 
 pub fn format_json(result: &QueryResult) -> String {
     let mut rows_out = Vec::new();

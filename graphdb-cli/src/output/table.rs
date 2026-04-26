@@ -1,4 +1,4 @@
-use crate::client::http::QueryResult;
+use crate::client::QueryResult;
 
 fn value_to_string(val: &serde_json::Value, null_string: &str) -> String {
     match val {

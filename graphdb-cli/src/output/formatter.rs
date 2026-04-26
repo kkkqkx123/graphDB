@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::client::http::QueryResult;
+use crate::client::QueryResult;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum OutputFormat {
@@ -108,7 +108,7 @@ impl OutputFormatter {
         message.to_string()
     }
 
-    pub fn format_spaces(&self, spaces: &[crate::client::http::SpaceInfo]) -> String {
+    pub fn format_spaces(&self, spaces: &[crate::client::SpaceInfo]) -> String {
         if spaces.is_empty() {
             return "(0 spaces)".to_string();
         }
@@ -131,7 +131,7 @@ impl OutputFormatter {
         format!("{}\n\n({} spaces)", table, spaces.len())
     }
 
-    pub fn format_tags(&self, tags: &[crate::client::http::TagInfo]) -> String {
+    pub fn format_tags(&self, tags: &[crate::client::TagInfo]) -> String {
         if tags.is_empty() {
             return "(0 tags)".to_string();
         }
@@ -149,7 +149,7 @@ impl OutputFormatter {
         format!("{}\n\n({} tags)", table, tags.len())
     }
 
-    pub fn format_edge_types(&self, edge_types: &[crate::client::http::EdgeTypeInfo]) -> String {
+    pub fn format_edge_types(&self, edge_types: &[crate::client::EdgeTypeInfo]) -> String {
         if edge_types.is_empty() {
             return "(0 edge types)".to_string();
         }
@@ -167,7 +167,7 @@ impl OutputFormatter {
         format!("{}\n\n({} edge types)", table, edge_types.len())
     }
 
-    pub fn format_describe_tag(&self, tag: &crate::client::http::TagInfo) -> String {
+    pub fn format_describe_tag(&self, tag: &crate::client::TagInfo) -> String {
         let mut output = format!("Tag: {}\n", tag.name);
 
         if tag.fields.is_empty() {
@@ -194,7 +194,7 @@ impl OutputFormatter {
         output
     }
 
-    pub fn format_describe_edge(&self, edge: &crate::client::http::EdgeTypeInfo) -> String {
+    pub fn format_describe_edge(&self, edge: &crate::client::EdgeTypeInfo) -> String {
         let mut output = format!("Edge Type: {}\n", edge.name);
 
         if edge.fields.is_empty() {

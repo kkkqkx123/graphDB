@@ -1,4 +1,4 @@
-use crate::client::{ClientConfig, ClientFactory, GraphDbClient, QueryResult};
+use crate::client::{ClientConfig, HttpClient, QueryResult};
 use crate::session::variables::VariableStore;
 use crate::utils::error::{CliError, Result};
 
@@ -92,7 +92,7 @@ impl Session {
 }
 
 pub struct SessionManager {
-    client: Box<dyn GraphDbClient>,
+    client: HttpClient,
     session: Option<Session>,
     config: ClientConfig,
 }
@@ -101,7 +101,7 @@ impl SessionManager {
     /// Create a new SessionManager with HTTP connection
     pub fn new_http(host: &str, port: u16) -> Result<Self> {
         let config = ClientConfig::new().with_host(host).with_port(port);
-        let client = ClientFactory::create(config.clone())?;
+        let client = HttpClient::with_config(config.clone())?;
 
         Ok(Self {
             client,
@@ -112,7 +112,7 @@ impl SessionManager {
 
     /// Create a new SessionManager with custom configuration
     pub fn with_config(config: ClientConfig) -> Result<Self> {
-        let client = ClientFactory::create(config.clone())?;
+        let client = HttpClient::with_config(config.clone())?;
 
         Ok(Self {
             client,
@@ -133,7 +133,7 @@ impl SessionManager {
         self.config.password = password.to_string();
 
         // Re-create client with new credentials
-        self.client = ClientFactory::create(self.config.clone())?;
+        self.client = HttpClient::with_config(self.config.clone())?;
 
         let session_info = self.client.connect().await?;
 
@@ -253,8 +253,8 @@ impl SessionManager {
     }
 
     /// Get client reference
-    pub fn client(&self) -> &dyn GraphDbClient {
-        self.client.as_ref()
+    pub fn client(&self) -> &HttpClient {
+        &self.client
     }
 
     /// Get connection string

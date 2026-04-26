@@ -1,4 +1,4 @@
-use crate::client::http::QueryResult;
+use crate::client::QueryResult;
 
 pub fn format_csv(result: &QueryResult, null_string: &str) -> String {
     let mut output = String::new();
