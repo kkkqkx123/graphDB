@@ -65,13 +65,20 @@ pub async fn execute_export(
     format: ExportFormat,
     file_path: String,
     query: &str,
+    streaming: bool,
+    chunk_size: Option<usize>,
     session_mgr: &mut SessionManager,
 ) -> Result<bool> {
     if !executor.conditional_stack().is_active() {
         return Ok(true);
     }
 
-    let config = ExportConfig::new(file_path.into(), format);
+    let mut config = ExportConfig::new(file_path.into(), format)
+        .with_streaming(streaming);
+
+    if let Some(size) = chunk_size {
+        config = config.with_chunk_size(size);
+    }
 
     let stats = match &config.format {
         ExportFormat::Csv { .. } => {
@@ -93,6 +100,8 @@ pub async fn execute_copy(
     direction: CopyDirection,
     target: String,
     file_path: String,
+    streaming: bool,
+    chunk_size: Option<usize>,
     session_mgr: &mut SessionManager,
 ) -> Result<bool> {
     if !executor.conditional_stack().is_active() {
@@ -135,7 +144,12 @@ pub async fn execute_copy(
                 ExportFormat::csv()
             };
 
-            let config = ExportConfig::new(file_path.into(), export_format);
+            let mut config = ExportConfig::new(file_path.into(), export_format)
+                .with_streaming(streaming);
+
+            if let Some(size) = chunk_size {
+                config = config.with_chunk_size(size);
+            }
 
             let stats = match &config.format {
                 ExportFormat::Csv { .. } => {

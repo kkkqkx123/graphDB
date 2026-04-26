@@ -6,6 +6,7 @@ pub struct ProgressBar {
     start_time: Instant,
     width: usize,
     last_update: usize,
+    quiet: bool,
 }
 
 impl ProgressBar {
@@ -16,7 +17,13 @@ impl ProgressBar {
             start_time: Instant::now(),
             width: 50,
             last_update: 0,
+            quiet: false,
         }
+    }
+
+    pub fn with_quiet(mut self, quiet: bool) -> Self {
+        self.quiet = quiet;
+        self
     }
 
     pub fn update(&mut self, current: usize) {
@@ -36,13 +43,16 @@ impl ProgressBar {
     }
 
     pub fn finish(&mut self) {
+        if self.quiet {
+            return;
+        }
         self.current = self.total;
         self.render();
         eprintln!();
     }
 
     fn render(&self) {
-        if self.total == 0 {
+        if self.quiet || self.total == 0 {
             return;
         }
 
@@ -82,7 +92,9 @@ impl ProgressBar {
 
 impl Drop for ProgressBar {
     fn drop(&mut self) {
-        eprintln!();
+        if !self.quiet {
+            eprintln!();
+        }
     }
 }
 

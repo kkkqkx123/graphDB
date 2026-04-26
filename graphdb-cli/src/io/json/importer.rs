@@ -1,24 +1,24 @@
-use std::collections::HashMap;
 use std::fs::{self, File};
-use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::io::{BufRead, BufReader};
 use std::time::Instant;
 
 use anyhow::Result;
 
-use crate::io::{ImportConfig, ImportError, ImportStats, ImportTarget};
+use crate::io::{BatchProcessor, ErrorHandling, ImportConfig, ImportError, ImportStats, ImportTarget};
 use crate::session::manager::SessionManager;
 
 pub struct JsonImporter {
     config: ImportConfig,
-    batch_buffer: Vec<String>,
+    batch_processor: BatchProcessor,
     start_time: Instant,
 }
 
 impl JsonImporter {
     pub fn new(config: ImportConfig) -> Self {
+        let batch_processor = BatchProcessor::new(config.batch_size);
         Self {
             config,
-            batch_buffer: Vec::new(),
+            batch_processor,
             start_time: Instant::now(),
         }
     }
@@ -30,6 +30,7 @@ impl JsonImporter {
         if self.config.format.is_array_mode() {
             let items: Vec<serde_json::Value> = serde_json::from_str(&content)?;
             for (idx, item) in items.iter().enumerate() {
+                stats.total_rows += 1;
                 match self.process_json_item(item, session).await {
                     Ok(_) => stats.success_rows += 1,
                     Err(e) => {
@@ -37,9 +38,13 @@ impl JsonImporter {
                         stats
                             .errors
                             .push(ImportError::new(idx, item.to_string(), e.to_string()));
+
+                        if matches!(self.config.on_error, ErrorHandling::Stop) {
+                            self.batch_processor.flush(session).await?;
+                            return Err(e);
+                        }
                     }
                 }
-                stats.total_rows += 1;
             }
         } else {
             let file = File::open(&self.config.file_path)?;
@@ -51,6 +56,7 @@ impl JsonImporter {
                     continue;
                 }
 
+                stats.total_rows += 1;
                 let item: serde_json::Value = serde_json::from_str(&line)?;
                 match self.process_json_item(&item, session).await {
                     Ok(_) => stats.success_rows += 1,
@@ -59,13 +65,17 @@ impl JsonImporter {
                         stats
                             .errors
                             .push(ImportError::new(idx, line.clone(), e.to_string()));
+
+                        if matches!(self.config.on_error, ErrorHandling::Stop) {
+                            self.batch_processor.flush(session).await?;
+                            return Err(e);
+                        }
                     }
                 }
-                stats.total_rows += 1;
             }
         }
 
-        self.flush_batch(session).await?;
+        self.batch_processor.flush(session).await?;
         stats.duration_ms = self.start_time.elapsed().as_millis() as u64;
         Ok(stats)
     }
@@ -76,10 +86,8 @@ impl JsonImporter {
         session: &mut SessionManager,
     ) -> Result<()> {
         let query = self.build_insert_from_json(json)?;
-        self.batch_buffer.push(query);
-
-        if self.batch_buffer.len() >= self.config.batch_size {
-            self.flush_batch(session).await?;
+        if self.batch_processor.add(query) {
+            self.batch_processor.flush(session).await?;
         }
 
         Ok(())
@@ -148,20 +156,6 @@ impl JsonImporter {
             }
         }
     }
-
-    async fn flush_batch(&mut self, session: &mut SessionManager) -> Result<()> {
-        if self.batch_buffer.is_empty() {
-            return Ok(());
-        }
-
-        let queries: Vec<&str> = self.batch_buffer.iter().map(|s| s.as_str()).collect();
-        let combined = queries.join("; ");
-
-        session.execute_query(&combined).await?;
-        self.batch_buffer.clear();
-
-        Ok(())
-    }
 }
 
 fn json_value_to_gql(value: &serde_json::Value) -> String {
@@ -177,91 +171,5 @@ fn json_value_to_gql(value: &serde_json::Value) -> String {
         serde_json::Value::Object(_) => {
             format!("\"{}\"", serde_json::to_string(value).unwrap_or_default())
         }
-    }
-}
-
-pub struct JsonExporter {
-    config: crate::io::ExportConfig,
-    start_time: Instant,
-}
-
-impl JsonExporter {
-    pub fn new(config: crate::io::ExportConfig) -> Self {
-        Self {
-            config,
-            start_time: Instant::now(),
-        }
-    }
-
-    pub async fn export(
-        &self,
-        query: &str,
-        session: &mut SessionManager,
-    ) -> Result<crate::io::ExportStats> {
-        let result = session.execute_query(query).await?;
-        let mut stats = crate::io::ExportStats::new();
-
-        let file = File::create(&self.config.file_path)?;
-        let mut writer = BufWriter::new(file);
-
-        match &self.config.format {
-            crate::io::ExportFormat::Json {
-                pretty,
-                array_wrapper,
-            } => {
-                if *array_wrapper {
-                    writer.write_all(b"[\n")?;
-                }
-
-                for (idx, row) in result.rows.iter().enumerate() {
-                    let obj = self.row_to_json_object(&result.columns, row);
-
-                    let json_str = if *pretty {
-                        serde_json::to_string_pretty(&obj)?
-                    } else {
-                        serde_json::to_string(&obj)?
-                    };
-
-                    if *array_wrapper && idx > 0 {
-                        writer.write_all(b",\n")?;
-                    }
-                    writer.write_all(json_str.as_bytes())?;
-
-                    stats.total_rows += 1;
-                }
-
-                if *array_wrapper {
-                    writer.write_all(b"\n]")?;
-                }
-            }
-            crate::io::ExportFormat::JsonLines => {
-                for row in &result.rows {
-                    let obj = self.row_to_json_object(&result.columns, row);
-                    let json_str = serde_json::to_string(&obj)?;
-                    writeln!(writer, "{}", json_str)?;
-                    stats.total_rows += 1;
-                }
-            }
-            _ => return Err(anyhow::anyhow!("Invalid format for JSON exporter")),
-        }
-
-        writer.flush()?;
-        stats.bytes_written = writer.get_ref().metadata()?.len();
-        stats.duration_ms = self.start_time.elapsed().as_millis() as u64;
-
-        Ok(stats)
-    }
-
-    fn row_to_json_object(
-        &self,
-        columns: &[String],
-        row: &HashMap<String, serde_json::Value>,
-    ) -> serde_json::Value {
-        let mut obj = serde_json::Map::new();
-        for col in columns {
-            let value = row.get(col).cloned().unwrap_or(serde_json::Value::Null);
-            obj.insert(col.clone(), value);
-        }
-        serde_json::Value::Object(obj)
     }
 }

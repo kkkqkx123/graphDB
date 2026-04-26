@@ -125,11 +125,15 @@ pub enum MetaCommand {
         format: ExportFormat,
         file_path: String,
         query: String,
+        streaming: bool,
+        chunk_size: Option<usize>,
     },
     Copy {
         direction: CopyDirection,
         target: String,
         file_path: String,
+        streaming: bool,
+        chunk_size: Option<usize>,
     },
 }
 

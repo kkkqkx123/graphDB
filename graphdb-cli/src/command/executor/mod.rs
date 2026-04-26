@@ -318,15 +318,19 @@ impl CommandExecutor {
                 format,
                 file_path,
                 query,
+                streaming,
+                chunk_size,
             } => {
-                meta::io::execute_export(self, format, file_path, &query, session_mgr).await
+                meta::io::execute_export(self, format, file_path, &query, streaming, chunk_size, session_mgr).await
             }
             MetaCommand::Copy {
                 direction,
                 target,
                 file_path,
+                streaming,
+                chunk_size,
             } => {
-                meta::io::execute_copy(self, direction, target, file_path, session_mgr).await
+                meta::io::execute_copy(self, direction, target, file_path, streaming, chunk_size, session_mgr).await
             }
         }
     }

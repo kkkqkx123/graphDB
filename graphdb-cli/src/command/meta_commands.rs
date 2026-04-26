@@ -110,6 +110,18 @@ fn show_general_help() -> String {
         "  {:25} {}\n",
         "\\! <command>", "Execute a shell command"
     ));
+    output.push_str(&format!(
+        "  {:25} {}\n",
+        "\\import <fmt> <file> <type> <name>", "Import data from file"
+    ));
+    output.push_str(&format!(
+        "  {:25} {}\n",
+        "\\export <fmt> <file> <query> [opts]", "Export query results to file"
+    ));
+    output.push_str(&format!(
+        "  {:25} {}\n",
+        "\\copy <target> from|to <file> [opts]", "Copy data to/from file"
+    ));
 
     output.push_str(&format!("\n{}\n", "Query Buffer".yellow().bold()));
     output.push_str(&format!(
@@ -251,6 +263,56 @@ fn show_topic_help(topic: &str) -> String {
             s.push_str("  USE space_name\n\n");
             s.push_str("Example:\n");
             s.push_str("  USE my_graph\n");
+            s
+        }
+        "export" => {
+            let mut s = String::new();
+            s.push_str("Export query results to file\n\n");
+            s.push_str("Syntax:\n");
+            s.push_str("  \\export <format> <file> <query> [options]\n\n");
+            s.push_str("Formats:\n");
+            s.push_str("  csv    - CSV format\n");
+            s.push_str("  json   - JSON array format\n");
+            s.push_str("  jsonl  - JSON Lines format\n\n");
+            s.push_str("Options:\n");
+            s.push_str("  --stream, -s          - Enable streaming export (memory efficient)\n");
+            s.push_str("  --chunk-size <n>, -c  - Set chunk size for streaming (default: 1000)\n\n");
+            s.push_str("Examples:\n");
+            s.push_str("  \\export csv output.csv 'MATCH (p:person) RETURN p.name, p.age'\n");
+            s.push_str("  \\export json output.json 'MATCH (p:person) RETURN p' --stream\n");
+            s.push_str("  \\export jsonl output.jsonl 'MATCH (p:person) RETURN p' -s -c 500\n");
+            s
+        }
+        "import" => {
+            let mut s = String::new();
+            s.push_str("Import data from file\n\n");
+            s.push_str("Syntax:\n");
+            s.push_str("  \\import <format> <file> <type> <name> [batch_size]\n\n");
+            s.push_str("Formats:\n");
+            s.push_str("  csv    - CSV format\n");
+            s.push_str("  json   - JSON array format\n");
+            s.push_str("  jsonl  - JSON Lines format\n\n");
+            s.push_str("Types:\n");
+            s.push_str("  tag, vertex  - Import as vertices\n");
+            s.push_str("  edge         - Import as edges\n\n");
+            s.push_str("Examples:\n");
+            s.push_str("  \\import csv data.csv tag person 100\n");
+            s.push_str("  \\import json data.json vertex person\n");
+            s.push_str("  \\import jsonl edges.jsonl edge friend 50\n");
+            s
+        }
+        "copy" => {
+            let mut s = String::new();
+            s.push_str("Copy data to/from file\n\n");
+            s.push_str("Syntax:\n");
+            s.push_str("  \\copy <target> from|to <file> [options]\n\n");
+            s.push_str("Options:\n");
+            s.push_str("  --stream, -s          - Enable streaming export (for 'to' direction)\n");
+            s.push_str("  --chunk-size <n>, -c  - Set chunk size for streaming\n\n");
+            s.push_str("Examples:\n");
+            s.push_str("  \\copy person from 'data.csv'\n");
+            s.push_str("  \\copy person to 'output.csv' --stream\n");
+            s.push_str("  \\copy person to 'output.json' -s -c 500\n");
             s
         }
         "variables" | "set" => {

@@ -7,6 +7,8 @@ pub struct ExportConfig {
     pub encoding: String,
     pub include_header: bool,
     pub append_mode: bool,
+    pub streaming: bool,
+    pub chunk_size: usize,
 }
 
 impl ExportConfig {
@@ -17,6 +19,8 @@ impl ExportConfig {
             encoding: "utf-8".to_string(),
             include_header: true,
             append_mode: false,
+            streaming: false,
+            chunk_size: 1000,
         }
     }
 
@@ -32,6 +36,16 @@ impl ExportConfig {
 
     pub fn with_encoding(mut self, encoding: &str) -> Self {
         self.encoding = encoding.to_string();
+        self
+    }
+
+    pub fn with_streaming(mut self, streaming: bool) -> Self {
+        self.streaming = streaming;
+        self
+    }
+
+    pub fn with_chunk_size(mut self, chunk_size: usize) -> Self {
+        self.chunk_size = chunk_size;
         self
     }
 }

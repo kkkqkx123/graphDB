@@ -68,7 +68,7 @@ pub fn parse_export(arg: &str) -> Result<MetaCommand, String> {
     let parts: Vec<&str> = arg.split_whitespace().collect();
 
     if parts.len() < 3 {
-        return Err("Usage: \\export <csv|json|jsonl> <file> <query>".to_string());
+        return Err("Usage: \\export <csv|json|jsonl> <file> <query> [--stream] [--chunk-size <n>]".to_string());
     }
 
     let format = match parts[0].to_lowercase().as_str() {
@@ -79,12 +79,43 @@ pub fn parse_export(arg: &str) -> Result<MetaCommand, String> {
     };
 
     let file_path = parts[1].to_string();
-    let query = parts[2..].join(" ");
+
+    let mut streaming = false;
+    let mut chunk_size: Option<usize> = None;
+    let mut query_parts: Vec<&str> = Vec::new();
+
+    let mut i = 2;
+    while i < parts.len() {
+        match parts[i] {
+            "--stream" | "-s" => {
+                streaming = true;
+            }
+            "--chunk-size" | "-c" => {
+                i += 1;
+                if i >= parts.len() {
+                    return Err("Missing value for --chunk-size".to_string());
+                }
+                chunk_size = Some(parts[i].parse().map_err(|_| "Invalid chunk size")?);
+            }
+            _ => {
+                query_parts.push(parts[i]);
+            }
+        }
+        i += 1;
+    }
+
+    if query_parts.is_empty() {
+        return Err("Query is required".to_string());
+    }
+
+    let query = query_parts.join(" ");
 
     Ok(MetaCommand::Export {
         format,
         file_path,
         query,
+        streaming,
+        chunk_size,
     })
 }
 
@@ -92,7 +123,7 @@ pub fn parse_copy(arg: &str) -> Result<MetaCommand, String> {
     let parts: Vec<&str> = arg.split_whitespace().collect();
 
     if parts.len() < 4 {
-        return Err("Usage: \\copy <target> from|to '<file>'".to_string());
+        return Err("Usage: \\copy <target> from|to '<file>' [--stream] [--chunk-size <n>]".to_string());
     }
 
     let target = parts[0].to_string();
@@ -109,9 +140,32 @@ pub fn parse_copy(arg: &str) -> Result<MetaCommand, String> {
 
     let file_path = parts[2].trim_matches('\'').to_string();
 
+    let mut streaming = false;
+    let mut chunk_size: Option<usize> = None;
+
+    let mut i = 3;
+    while i < parts.len() {
+        match parts[i] {
+            "--stream" | "-s" => {
+                streaming = true;
+            }
+            "--chunk-size" | "-c" => {
+                i += 1;
+                if i >= parts.len() {
+                    return Err("Missing value for --chunk-size".to_string());
+                }
+                chunk_size = Some(parts[i].parse().map_err(|_| "Invalid chunk size")?);
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+
     Ok(MetaCommand::Copy {
         direction,
         target,
         file_path,
+        streaming,
+        chunk_size,
     })
 }

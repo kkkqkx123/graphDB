@@ -65,16 +65,10 @@ impl ImportConfig {
 
     pub fn format_value(&self, value: &str) -> String {
         if value.is_empty() {
-            "NULL".to_string()
-        } else if value.parse::<i64>().is_ok() {
-            value.to_string()
-        } else if value.parse::<f64>().is_ok() {
-            value.to_string()
-        } else if value == "true" || value == "false" {
-            value.to_string()
-        } else {
-            format!("\"{}\"", value.replace('\"', "\\\""))
+            return "NULL".to_string();
         }
+
+        format!("\"{}\"", value.replace('\"', "\\\""))
     }
 }
 

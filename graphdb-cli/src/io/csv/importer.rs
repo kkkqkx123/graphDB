@@ -1,24 +1,25 @@
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Write};
+use std::io::BufReader;
 use std::time::Instant;
 
 use anyhow::Result;
 use csv::ReaderBuilder;
 
-use crate::io::{ErrorHandling, ImportConfig, ImportError, ImportStats, ImportTarget};
+use crate::io::{BatchProcessor, ErrorHandling, ImportConfig, ImportError, ImportStats, ImportTarget};
 use crate::session::manager::SessionManager;
 
 pub struct CsvImporter {
     config: ImportConfig,
-    batch_buffer: Vec<String>,
+    batch_processor: BatchProcessor,
     start_time: Instant,
 }
 
 impl CsvImporter {
     pub fn new(config: ImportConfig) -> Self {
+        let batch_processor = BatchProcessor::new(config.batch_size);
         Self {
             config,
-            batch_buffer: Vec::new(),
+            batch_processor,
             start_time: Instant::now(),
         }
     }
@@ -41,6 +42,8 @@ impl CsvImporter {
                 continue;
             }
 
+            stats.total_rows += 1;
+
             match result {
                 Ok(record) => match self.process_record(&headers, &record, session).await {
                     Ok(_) => stats.success_rows += 1,
@@ -53,22 +56,22 @@ impl CsvImporter {
                         ));
 
                         if matches!(self.config.on_error, ErrorHandling::Stop) {
-                            break;
+                            self.batch_processor.flush(session).await?;
+                            return Err(e);
                         }
                     }
                 },
                 Err(e) => {
                     stats.failed_rows += 1;
                     if matches!(self.config.on_error, ErrorHandling::Stop) {
+                        self.batch_processor.flush(session).await?;
                         return Err(e.into());
                     }
                 }
             }
-
-            stats.total_rows += 1;
         }
 
-        self.flush_batch(session).await?;
+        self.batch_processor.flush(session).await?;
         stats.duration_ms = self.start_time.elapsed().as_millis() as u64;
         Ok(stats)
     }
@@ -80,10 +83,8 @@ impl CsvImporter {
         session: &mut SessionManager,
     ) -> Result<()> {
         let query = self.build_insert_query(headers, record)?;
-        self.batch_buffer.push(query);
-
-        if self.batch_buffer.len() >= self.config.batch_size {
-            self.flush_batch(session).await?;
+        if self.batch_processor.add(query) {
+            self.batch_processor.flush(session).await?;
         }
 
         Ok(())
@@ -149,92 +150,6 @@ impl CsvImporter {
             Ok(vid.to_string())
         } else {
             Ok(format!("vid_{}", uuid::Uuid::new_v4()))
-        }
-    }
-
-    async fn flush_batch(&mut self, session: &mut SessionManager) -> Result<()> {
-        if self.batch_buffer.is_empty() {
-            return Ok(());
-        }
-
-        let queries: Vec<&str> = self.batch_buffer.iter().map(|s| s.as_str()).collect();
-        let combined = queries.join("; ");
-
-        session.execute_query(&combined).await?;
-        self.batch_buffer.clear();
-
-        Ok(())
-    }
-}
-
-pub struct CsvExporter {
-    config: crate::io::ExportConfig,
-    start_time: Instant,
-}
-
-impl CsvExporter {
-    pub fn new(config: crate::io::ExportConfig) -> Self {
-        Self {
-            config,
-            start_time: Instant::now(),
-        }
-    }
-
-    pub async fn export(
-        &self,
-        query: &str,
-        session: &mut SessionManager,
-    ) -> Result<crate::io::ExportStats> {
-        let result = session.execute_query(query).await?;
-        let mut stats = crate::io::ExportStats::new();
-
-        let file = File::create(&self.config.file_path)?;
-        let mut writer = BufWriter::new(file);
-
-        let delimiter = self.config.format.delimiter();
-
-        if self.config.include_header {
-            let header = result.columns.join(&delimiter.to_string());
-            writeln!(writer, "{}", header)?;
-        }
-
-        for row in &result.rows {
-            let values: Vec<String> = result
-                .columns
-                .iter()
-                .map(|col| {
-                    row.get(col)
-                        .map(|v| self.format_csv_value(v))
-                        .unwrap_or_default()
-                })
-                .collect();
-
-            writeln!(writer, "{}", values.join(&delimiter.to_string()))?;
-            stats.total_rows += 1;
-        }
-
-        writer.flush()?;
-        stats.bytes_written = writer.get_ref().metadata()?.len();
-        stats.duration_ms = self.start_time.elapsed().as_millis() as u64;
-
-        Ok(stats)
-    }
-
-    fn format_csv_value(&self, value: &serde_json::Value) -> String {
-        match value {
-            serde_json::Value::Null => String::new(),
-            serde_json::Value::Bool(b) => b.to_string(),
-            serde_json::Value::Number(n) => n.to_string(),
-            serde_json::Value::String(s) => {
-                if s.contains(',') || s.contains('"') || s.contains('\n') {
-                    format!("\"{}\"", s.replace('\"', "\"\""))
-                } else {
-                    s.clone()
-                }
-            }
-            serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
-                serde_json::to_string(value).unwrap_or_default()
-            }
         }
     }
 }
