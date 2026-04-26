@@ -5,7 +5,7 @@ use super::error::{EmbeddingError, Result};
 use super::provider::{EmbeddingProvider, ProviderType};
 
 #[cfg(feature = "llama_cpp")]
-use super::providers::local::llama_cpp_provider::LlamaCppProvider;
+use super::providers::local::llama_cpp_provider::{LlamaCppConfig, LlamaCppProvider};
 use super::providers::OpenAICompatibleProvider;
 
 /// Embedding service wrapper
@@ -87,24 +87,48 @@ impl EmbeddingService {
         dimension: Option<usize>,
         n_gpu_layers: Option<u32>,
     ) -> Result<Self> {
-        let provider = LlamaCppProvider::new(
-            model_path,
-            pooling_type,
-            dimension,
-            None, // n_ctx
-            None, // n_threads
-            None, // n_threads_batch
-            None, // n_batch
-            None, // n_ubatch
-            None, // offload_kqv
-            n_gpu_layers,
-        )?;
+        let config = LlamaCppConfig::new(model_path)
+            .with_pooling_type(pooling_type)
+            .with_dimension(dimension.unwrap_or(768))
+            .with_n_gpu_layers(n_gpu_layers.unwrap_or(1000));
+
+        Self::from_llama_cpp_full_config(config)
+    }
+
+    /// Create from full llama.cpp configuration
+    ///
+    /// This method allows full control over all llama.cpp parameters.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use vector_client::EmbeddingService;
+    /// use vector_client::embedding::providers::local::llama_cpp_provider::LlamaCppConfig;
+    ///
+    /// #[cfg(feature = "llama_cpp")]
+    /// {
+    ///     let config = LlamaCppConfig::new("models/nomic-embed-text.gguf")
+    ///         .with_pooling_type("mean")
+    ///         .with_dimension(768)
+    ///         .with_n_ctx(4096)
+    ///         .with_n_threads(8)
+    ///         .with_n_threads_batch(16)
+    ///         .with_n_batch(512)
+    ///         .with_n_gpu_layers(1000);
+    ///
+    ///     let service = EmbeddingService::from_llama_cpp_full_config(config)
+    ///         .expect("Failed to create service");
+    /// }
+    /// ```
+    #[cfg(feature = "llama_cpp")]
+    pub fn from_llama_cpp_full_config(config: LlamaCppConfig) -> Result<Self> {
+        let provider = LlamaCppProvider::from_config(config)?;
         let provider_dimension = provider.dimension();
 
-        let config = EmbeddingConfig::default();
+        let embedding_config = EmbeddingConfig::default();
         Ok(Self {
             provider: Box::new(provider),
-            config,
+            config: embedding_config,
             dimension: provider_dimension,
         })
     }

@@ -24,6 +24,7 @@
 //! See `docs/llama_cpp_embedding_design.md` for detailed analysis.
 
 use std::num::NonZeroU32;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use llama_cpp_2::context::params::{LlamaContextParams, LlamaPoolingType};
@@ -34,6 +35,115 @@ use llama_cpp_2::model::{AddBos, LlamaModel};
 
 use crate::embedding::error::{EmbeddingError, Result};
 use crate::embedding::provider::{EmbeddingProvider, ProviderType};
+
+/// Configuration for llama.cpp embedding provider
+///
+/// This struct encapsulates all configuration parameters for the provider,
+/// avoiding the "too many arguments" anti-pattern.
+#[derive(Debug, Clone)]
+pub struct LlamaCppConfig {
+    /// Path to the GGUF model file
+    pub model_path: PathBuf,
+    /// Pooling strategy: "cls", "mean", "last", "rank", or "none"
+    pub pooling_type: String,
+    /// Embedding dimension (will be inferred from model if None)
+    pub dimension: Option<usize>,
+    /// Context window size (default: 4096)
+    pub n_ctx: u32,
+    /// Number of threads for generation (default: 8)
+    pub n_threads: u32,
+    /// Number of threads for prompt processing (default: 16)
+    pub n_threads_batch: u32,
+    /// Physical batch size (default: 512)
+    pub n_batch: u32,
+    /// Micro-batch size (default: 256)
+    pub n_ubatch: u32,
+    /// Whether to offload K, Q, V to GPU (default: true)
+    pub offload_kqv: bool,
+    /// Number of layers to offload to GPU (default: 1000 for full offload)
+    pub n_gpu_layers: u32,
+}
+
+impl Default for LlamaCppConfig {
+    fn default() -> Self {
+        Self {
+            model_path: PathBuf::new(),
+            pooling_type: "mean".to_string(),
+            dimension: None,
+            n_ctx: 4096,
+            n_threads: 8,
+            n_threads_batch: 16,
+            n_batch: 512,
+            n_ubatch: 256,
+            offload_kqv: true,
+            n_gpu_layers: 1000,
+        }
+    }
+}
+
+impl LlamaCppConfig {
+    /// Create a new config with the specified model path
+    pub fn new(model_path: impl Into<PathBuf>) -> Self {
+        Self {
+            model_path: model_path.into(),
+            ..Default::default()
+        }
+    }
+
+    /// Set the pooling type
+    pub fn with_pooling_type(mut self, pooling_type: impl Into<String>) -> Self {
+        self.pooling_type = pooling_type.into();
+        self
+    }
+
+    /// Set the embedding dimension
+    pub fn with_dimension(mut self, dimension: usize) -> Self {
+        self.dimension = Some(dimension);
+        self
+    }
+
+    /// Set the context window size
+    pub fn with_n_ctx(mut self, n_ctx: u32) -> Self {
+        self.n_ctx = n_ctx;
+        self
+    }
+
+    /// Set the number of threads for generation
+    pub fn with_n_threads(mut self, n_threads: u32) -> Self {
+        self.n_threads = n_threads;
+        self
+    }
+
+    /// Set the number of threads for batch processing
+    pub fn with_n_threads_batch(mut self, n_threads_batch: u32) -> Self {
+        self.n_threads_batch = n_threads_batch;
+        self
+    }
+
+    /// Set the batch size
+    pub fn with_n_batch(mut self, n_batch: u32) -> Self {
+        self.n_batch = n_batch;
+        self
+    }
+
+    /// Set the micro-batch size
+    pub fn with_n_ubatch(mut self, n_ubatch: u32) -> Self {
+        self.n_ubatch = n_ubatch;
+        self
+    }
+
+    /// Set whether to offload KQV to GPU
+    pub fn with_offload_kqv(mut self, offload_kqv: bool) -> Self {
+        self.offload_kqv = offload_kqv;
+        self
+    }
+
+    /// Set the number of GPU layers
+    pub fn with_n_gpu_layers(mut self, n_gpu_layers: u32) -> Self {
+        self.n_gpu_layers = n_gpu_layers;
+        self
+    }
+}
 
 /// llama.cpp local library provider with Vulkan GPU acceleration support
 ///
@@ -51,86 +161,47 @@ pub struct LlamaCppProvider {
     backend: Arc<LlamaBackend>,
     /// Shared model instance. Thread-safe and can be used across multiple contexts.
     model: Arc<LlamaModel>,
-    /// Context window size for embedding generation
-    n_ctx: NonZeroU32,
-    /// Pooling type: "cls", "mean", "last", "rank", or "none"
-    pooling_type: String,
-    /// Embedding dimension
+    /// Configuration for the provider
+    config: LlamaCppConfig,
+    /// Embedding dimension (cached for performance)
     dimension: usize,
-    /// Number of threads for generation
-    n_threads: u32,
-    /// Number of threads for batch processing
-    n_threads_batch: u32,
-    /// Physical batch size
-    n_batch: u32,
-    /// Micro-batch size
-    n_ubatch: u32,
-    /// Whether to offload K, Q, V to GPU
-    offload_kqv: bool,
-    /// Number of layers to offload to GPU
-    n_gpu_layers: u32,
+    /// Model name extracted from path
+    model_name: String,
 }
 
 impl std::fmt::Debug for LlamaCppProvider {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LlamaCppProvider")
-            .field("n_ctx", &self.n_ctx)
-            .field("pooling_type", &self.pooling_type)
+            .field("config", &self.config)
             .field("dimension", &self.dimension)
-            .field("n_threads", &self.n_threads)
-            .field("n_gpu_layers", &self.n_gpu_layers)
+            .field("model_name", &self.model_name)
             .finish()
     }
 }
 
 impl LlamaCppProvider {
-    /// Create a new llama.cpp provider with GPU support
-    ///
-    /// # Arguments
-    ///
-    /// * `model_path` - Path to the GGUF model file
-    /// * `pooling_type` - Pooling strategy: "cls", "mean", "last", "rank", or "none"
-    /// * `dimension` - Embedding dimension (will be inferred from model if None)
-    /// * `n_ctx` - Context window size (default: 4096)
-    /// * `n_threads` - Number of threads for generation (default: 8)
-    /// * `n_threads_batch` - Number of threads for prompt processing (default: 16)
-    /// * `n_batch` - Physical batch size (default: 512)
-    /// * `n_ubatch` - Micro-batch size (default: 256)
-    /// * `offload_kqv` - Offload K, Q, V to GPU (default: true)
-    /// * `n_gpu_layers` - Number of layers to offload to GPU (default: 1000 for full offload)
+    /// Create a new llama.cpp provider from configuration
     ///
     /// # Example
     ///
     /// ```no_run
-    /// use vector_client::embedding::providers::local::llama_cpp_provider::LlamaCppProvider;
+    /// use vector_client::embedding::providers::local::llama_cpp_provider::{LlamaCppProvider, LlamaCppConfig};
     ///
-    /// // Create provider with full GPU offloading (Vulkan)
-    /// let provider = LlamaCppProvider::new(
-    ///     "models/nomic-embed-text.gguf".to_string(),
-    ///     "mean".to_string(),
-    ///     Some(768),
-    ///     None,  // n_ctx
-    ///     None,  // n_threads
-    ///     None,  // n_threads_batch
-    ///     None,  // n_batch
-    ///     None,  // n_ubatch
-    ///     None,  // offload_kqv
-    ///     Some(1000),  // n_gpu_layers - full offload to GPU
-    /// ).expect("Failed to create provider");
+    /// let config = LlamaCppConfig::new("models/nomic-embed-text.gguf")
+    ///     .with_pooling_type("mean")
+    ///     .with_dimension(768)
+    ///     .with_n_gpu_layers(1000);
+    ///
+    /// let provider = LlamaCppProvider::from_config(config)
+    ///     .expect("Failed to create provider");
     /// ```
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        model_path: String,
-        pooling_type: String,
-        dimension: Option<usize>,
-        n_ctx: Option<u32>,
-        n_threads: Option<u32>,
-        n_threads_batch: Option<u32>,
-        n_batch: Option<u32>,
-        n_ubatch: Option<u32>,
-        offload_kqv: Option<bool>,
-        n_gpu_layers: Option<u32>,
-    ) -> Result<Self> {
+    pub fn from_config(config: LlamaCppConfig) -> Result<Self> {
+        if config.model_path.as_os_str().is_empty() {
+            return Err(EmbeddingError::Config(
+                "Model path cannot be empty".to_string(),
+            ));
+        }
+
         // Initialize backend
         let backend = LlamaBackend::init().map_err(|e| {
             EmbeddingError::Internal(format!("Failed to initialize llama.cpp backend: {}", e))
@@ -138,35 +209,41 @@ impl LlamaCppProvider {
 
         // Configure model parameters with GPU offloading
         let model_params =
-            LlamaModelParams::default().with_n_gpu_layers(n_gpu_layers.unwrap_or(1000));
+            LlamaModelParams::default().with_n_gpu_layers(config.n_gpu_layers);
 
         // Load model
         let model =
-            LlamaModel::load_from_file(&backend, &model_path, &model_params).map_err(|e| {
-                EmbeddingError::Internal(format!("Failed to load model from {}: {}", model_path, e))
+            LlamaModel::load_from_file(&backend, &config.model_path, &model_params).map_err(|e| {
+                EmbeddingError::Internal(format!(
+                    "Failed to load model from {}: {}",
+                    config.model_path.display(),
+                    e
+                ))
             })?;
 
         // Use provided dimension or default
-        let dim = dimension.unwrap_or(768);
+        let dimension = config.dimension.unwrap_or(768);
+
+        // Extract model name from path
+        let model_name = config
+            .model_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown")
+            .to_string();
 
         Ok(Self {
             backend: Arc::new(backend),
             model: Arc::new(model),
-            n_ctx: NonZeroU32::new(n_ctx.unwrap_or(4096)).expect("n_ctx must be > 0"),
-            pooling_type,
-            dimension: dim,
-            n_threads: n_threads.unwrap_or(8),
-            n_threads_batch: n_threads_batch.unwrap_or(16),
-            n_batch: n_batch.unwrap_or(512),
-            n_ubatch: n_ubatch.unwrap_or(256),
-            offload_kqv: offload_kqv.unwrap_or(true),
-            n_gpu_layers: n_gpu_layers.unwrap_or(1000),
+            config,
+            dimension,
+            model_name,
         })
     }
 
     /// Create a context with the configured parameters
     fn create_context(&self) -> Result<llama_cpp_2::context::LlamaContext<'_>> {
-        let pooling = match self.pooling_type.as_str() {
+        let pooling = match self.config.pooling_type.as_str() {
             "cls" => LlamaPoolingType::Cls,
             "mean" => LlamaPoolingType::Mean,
             "last" => LlamaPoolingType::Last,
@@ -175,15 +252,18 @@ impl LlamaCppProvider {
             _ => LlamaPoolingType::Mean,
         };
 
+        let n_ctx = NonZeroU32::new(self.config.n_ctx)
+            .ok_or_else(|| EmbeddingError::Config("n_ctx must be > 0".to_string()))?;
+
         let ctx_params = LlamaContextParams::default()
-            .with_n_ctx(Some(self.n_ctx))
-            .with_n_batch(self.n_batch)
-            .with_n_ubatch(self.n_ubatch)
-            .with_n_threads(self.n_threads as i32)
-            .with_n_threads_batch(self.n_threads_batch as i32)
+            .with_n_ctx(Some(n_ctx))
+            .with_n_batch(self.config.n_batch)
+            .with_n_ubatch(self.config.n_ubatch)
+            .with_n_threads(self.config.n_threads as i32)
+            .with_n_threads_batch(self.config.n_threads_batch as i32)
             .with_embeddings(true)
             .with_pooling_type(pooling)
-            .with_offload_kqv(self.offload_kqv);
+            .with_offload_kqv(self.config.offload_kqv);
 
         self.model
             .new_context(&self.backend, ctx_params)
@@ -276,42 +356,6 @@ impl LlamaCppProvider {
             embedding.iter().map(|&x| x / magnitude).collect()
         }
     }
-
-    /// Get the context window size
-    #[allow(dead_code)]
-    pub fn context_window(&self) -> u32 {
-        self.n_ctx.get()
-    }
-
-    /// Get the pooling type used for embeddings
-    #[allow(dead_code)]
-    pub fn pooling_type(&self) -> &str {
-        &self.pooling_type
-    }
-
-    /// Get the number of threads used for generation
-    #[allow(dead_code)]
-    pub fn n_threads(&self) -> u32 {
-        self.n_threads
-    }
-
-    /// Get the number of threads used for batch processing
-    #[allow(dead_code)]
-    pub fn n_threads_batch(&self) -> u32 {
-        self.n_threads_batch
-    }
-
-    /// Check if GPU acceleration is available
-    #[allow(dead_code)]
-    pub fn is_gpu_accelerated(&self) -> bool {
-        self.n_gpu_layers > 0
-    }
-
-    /// Get the number of GPU layers
-    #[allow(dead_code)]
-    pub fn n_gpu_layers(&self) -> u32 {
-        self.n_gpu_layers
-    }
 }
 
 #[async_trait::async_trait]
@@ -321,15 +365,9 @@ impl EmbeddingProvider for LlamaCppProvider {
         let this = Self {
             backend: Arc::clone(&self.backend),
             model: Arc::clone(&self.model),
-            n_ctx: self.n_ctx,
-            pooling_type: self.pooling_type.clone(),
+            config: self.config.clone(),
             dimension: self.dimension,
-            n_threads: self.n_threads,
-            n_threads_batch: self.n_threads_batch,
-            n_batch: self.n_batch,
-            n_ubatch: self.n_ubatch,
-            offload_kqv: self.offload_kqv,
-            n_gpu_layers: self.n_gpu_layers,
+            model_name: self.model_name.clone(),
         };
 
         let texts_owned: Vec<String> = texts.iter().map(|s| (*s).to_string()).collect();
@@ -347,7 +385,7 @@ impl EmbeddingProvider for LlamaCppProvider {
     }
 
     fn model_name(&self) -> &str {
-        "llama.cpp embedding model"
+        &self.model_name
     }
 
     fn provider_type(&self) -> ProviderType {
@@ -376,5 +414,33 @@ mod tests {
 
         // Zero vector should remain unchanged
         assert_eq!(normalized, vec![0.0, 0.0]);
+    }
+
+    #[test]
+    fn test_config_builder() {
+        let config = LlamaCppConfig::new("models/test.gguf")
+            .with_pooling_type("cls")
+            .with_dimension(512)
+            .with_n_ctx(2048)
+            .with_n_gpu_layers(33);
+
+        assert_eq!(config.model_path, PathBuf::from("models/test.gguf"));
+        assert_eq!(config.pooling_type, "cls");
+        assert_eq!(config.dimension, Some(512));
+        assert_eq!(config.n_ctx, 2048);
+        assert_eq!(config.n_gpu_layers, 33);
+    }
+
+    #[test]
+    fn test_config_default() {
+        let config = LlamaCppConfig::default();
+
+        assert_eq!(config.n_ctx, 4096);
+        assert_eq!(config.n_threads, 8);
+        assert_eq!(config.n_threads_batch, 16);
+        assert_eq!(config.n_batch, 512);
+        assert_eq!(config.n_ubatch, 256);
+        assert!(config.offload_kqv);
+        assert_eq!(config.n_gpu_layers, 1000);
     }
 }
