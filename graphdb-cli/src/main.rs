@@ -2,9 +2,8 @@ use clap::Parser;
 use colored::Colorize;
 
 use graphdb_cli::cli::Cli;
-use graphdb_cli::client::ConnectionMode;
 use graphdb_cli::command::executor::CommandExecutor;
-use graphdb_cli::command::parser::{self, HistoryAction, MetaCommand};
+use graphdb_cli::command::parser::{self};
 use graphdb_cli::command::script::is_statement_complete;
 use graphdb_cli::config::settings::Config;
 use graphdb_cli::input::handler::InputHandler;
@@ -25,35 +24,19 @@ async fn main() {
 async fn run(cli: Cli) -> Result<()> {
     let config = Config::load().unwrap_or_default();
 
-    let mode: ConnectionMode = cli.mode.into();
-
-    let mut session_mgr = match mode {
-        ConnectionMode::Http => {
-            let host = if cli.host == "127.0.0.1" && config.connection.default_host != "127.0.0.1" {
-                config.connection.default_host.clone()
-            } else {
-                cli.host.clone()
-            };
-
-            let port = if cli.port == 8080 && config.connection.default_port != 8080 {
-                config.connection.default_port
-            } else {
-                cli.port
-            };
-
-            SessionManager::new_http(&host, port)?
-        }
-        ConnectionMode::Embedded => {
-            let db_path = cli.db_path.clone().unwrap_or_else(|| {
-                config
-                    .connection
-                    .default_db_path
-                    .clone()
-                    .unwrap_or_else(|| "graph.db".to_string())
-            });
-            SessionManager::new_embedded(&db_path)?
-        }
+    let host = if cli.host == "127.0.0.1" && config.connection.default_host != "127.0.0.1" {
+        config.connection.default_host.clone()
+    } else {
+        cli.host.clone()
     };
+
+    let port = if cli.port == 8080 && config.connection.default_port != 8080 {
+        config.connection.default_port
+    } else {
+        cli.port
+    };
+
+    let mut session_mgr = SessionManager::new_http(&host, port)?;
 
     let user = if cli.user == "root" && config.connection.default_user != "root" {
         config.connection.default_user.clone()
@@ -90,33 +73,7 @@ async fn run(cli: Cli) -> Result<()> {
     match session_mgr.connect(&user, &password).await {
         Ok(()) => {
             if !cli.quiet {
-                match mode {
-                    ConnectionMode::Http => {
-                        let host = if cli.host == "127.0.0.1"
-                            && config.connection.default_host != "127.0.0.1"
-                        {
-                            &config.connection.default_host
-                        } else {
-                            &cli.host
-                        };
-                        let port = if cli.port == 8080 && config.connection.default_port != 8080 {
-                            config.connection.default_port
-                        } else {
-                            cli.port
-                        };
-                        println!("Connected to GraphDB at {}:{} as {}", host, port, user);
-                    }
-                    ConnectionMode::Embedded => {
-                        let db_path = cli.db_path.unwrap_or_else(|| {
-                            config
-                                .connection
-                                .default_db_path
-                                .clone()
-                                .unwrap_or_else(|| "graph.db".to_string())
-                        });
-                        println!("Connected to embedded database: {}", db_path);
-                    }
-                }
+                println!("Connected to GraphDB at {}:{} as {}", host, port, user);
             }
         }
         Err(e) => {
@@ -199,36 +156,11 @@ async fn run_repl(session_mgr: &mut SessionManager, executor: &mut CommandExecut
             None => break,
         };
 
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
+        if line.trim().is_empty() {
             continue;
         }
 
-        if trimmed.starts_with('\\') {
-            let command = parser::parse_command(trimmed);
-
-            if let parser::Command::MetaCommand(MetaCommand::History { ref action }) = command {
-                handle_history_repl(action, &mut input_handler, session_mgr, executor)?;
-                continue;
-            }
-
-            match executor.execute(command, session_mgr).await {
-                Ok(should_continue) => {
-                    if !should_continue {
-                        break;
-                    }
-                }
-                Err(e) => {
-                    eprintln!("{}: {}", "ERROR".red().bold(), e);
-                }
-            }
-
-            let space = session_mgr.current_space();
-            input_handler.add_history(trimmed, space);
-            continue;
-        }
-
-        let mut full_input = line.clone();
+        let mut full_input = line;
 
         while !is_statement_complete(&full_input) {
             let cont_prompt = session_mgr
@@ -236,19 +168,27 @@ async fn run_repl(session_mgr: &mut SessionManager, executor: &mut CommandExecut
                 .map(|s| s.continuation_prompt())
                 .unwrap_or_else(|| "graphdb-# ".to_string());
 
-            match input_handler.read_line(&cont_prompt)? {
-                Some(next_line) => {
-                    full_input.push('\n');
-                    full_input.push_str(&next_line);
-                }
+            let next_line = match input_handler.read_line(&cont_prompt)? {
+                Some(line) => line,
                 None => break,
-            }
+            };
+
+            full_input.push('\n');
+            full_input.push_str(&next_line);
+        }
+
+        if full_input.trim().eq_ignore_ascii_case("exit")
+            || full_input.trim().eq_ignore_ascii_case("quit")
+            || full_input.trim() == "\\q"
+        {
+            break;
         }
 
         let command = parser::parse_command(&full_input);
+
         match executor.execute(command, session_mgr).await {
-            Ok(should_continue) => {
-                if !should_continue {
+            Ok(should_exit) => {
+                if should_exit {
                     break;
                 }
             }
@@ -256,87 +196,14 @@ async fn run_repl(session_mgr: &mut SessionManager, executor: &mut CommandExecut
                 eprintln!("{}: {}", "ERROR".red().bold(), e);
             }
         }
-
-        let space = session_mgr.current_space();
-        input_handler.add_history(&full_input, space);
     }
 
-    input_handler.save_history();
-    Ok(())
-}
-
-fn handle_history_repl(
-    action: &HistoryAction,
-    input_handler: &mut InputHandler,
-    session_mgr: &mut SessionManager,
-    _executor: &mut CommandExecutor,
-) -> Result<()> {
-    let mgr = input_handler.history_manager();
-    match action {
-        HistoryAction::Show { count } => {
-            let entries = match count {
-                Some(n) => mgr.recent(*n),
-                None => mgr.recent(20),
-            };
-            if entries.is_empty() {
-                println!("(history is empty)");
-            } else {
-                for entry in entries {
-                    let space_info = entry
-                        .space
-                        .as_deref()
-                        .map(|s| format!("[{}]", s))
-                        .unwrap_or_default();
-                    println!("  {} {}{}", entry.id, space_info, entry.command);
-                }
-            }
-        }
-        HistoryAction::Search { pattern } => {
-            let results = mgr.search(pattern);
-            if results.is_empty() {
-                println!("(no matching history entries)");
-            } else {
-                for entry in results {
-                    let space_info = entry
-                        .space
-                        .as_deref()
-                        .map(|s| format!("[{}]", s))
-                        .unwrap_or_default();
-                    println!("  {} {}{}", entry.id, space_info, entry.command);
-                }
-            }
-        }
-        HistoryAction::Clear => {
-            input_handler.history_manager_mut().clear()?;
-            println!("History cleared.");
-        }
-        HistoryAction::Exec { id } => {
-            if let Some(entry) = mgr.get_by_id(*id) {
-                let cmd = entry.command.clone();
-                let command = parser::parse_command(&cmd);
-                let space = session_mgr.current_space();
-                input_handler.add_history(&cmd, space);
-
-                let rt = tokio::runtime::Handle::current();
-                rt.block_on(async {
-                    match _executor.execute(command, session_mgr).await {
-                        Ok(_) => {}
-                        Err(e) => {
-                            eprintln!("{}: {}", "ERROR".red().bold(), e);
-                        }
-                    }
-                });
-            } else {
-                println!("History entry #{} not found.", id);
-            }
-        }
-    }
+    let _ = session_mgr.disconnect().await;
     Ok(())
 }
 
 fn read_password() -> Result<String> {
-    let password = rpassword::prompt_password("Password: ").map_err(|e| {
-        graphdb_cli::utils::error::CliError::Other(format!("Failed to read password: {}", e))
-    })?;
-    Ok(password)
+    rpassword::prompt_password("Password: ").map_err(|e| {
+        graphdb_cli::utils::error::CliError::auth(format!("Failed to read password: {}", e))
+    })
 }

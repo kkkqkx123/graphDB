@@ -1,7 +1,6 @@
-//! GraphDbClient trait - Abstract interface for database connections
+//! GraphDbClient trait - HTTP client interface for database connections
 //!
-//! This trait provides a unified interface for both HTTP remote connections
-//! and embedded local database access.
+//! This trait provides an interface for HTTP remote connections to GraphDB server.
 
 use async_trait::async_trait;
 
@@ -17,43 +16,11 @@ pub struct SessionInfo {
     pub port: u16,
 }
 
-/// Connection mode - HTTP remote or Embedded local
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ConnectionMode {
-    /// Connect to remote server via HTTP
-    Http,
-    /// Use embedded database (direct file access)
-    Embedded,
-}
-
-impl std::str::FromStr for ConnectionMode {
-    type Err = String;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "http" => Ok(ConnectionMode::Http),
-            "embedded" => Ok(ConnectionMode::Embedded),
-            _ => Err(format!("Unknown connection mode: {}", s)),
-        }
-    }
-}
-
-impl std::fmt::Display for ConnectionMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ConnectionMode::Http => write!(f, "http"),
-            ConnectionMode::Embedded => write!(f, "embedded"),
-        }
-    }
-}
-
 /// Configuration for client connections
 #[derive(Debug, Clone)]
 pub struct ClientConfig {
-    pub mode: ConnectionMode,
     pub host: String,
     pub port: u16,
-    pub database_path: Option<String>,
     pub username: String,
     pub password: String,
     pub timeout_seconds: u64,
@@ -62,10 +29,8 @@ pub struct ClientConfig {
 impl Default for ClientConfig {
     fn default() -> Self {
         Self {
-            mode: ConnectionMode::Http,
             host: "127.0.0.1".to_string(),
             port: 8080,
-            database_path: None,
             username: "root".to_string(),
             password: String::new(),
             timeout_seconds: 30,
@@ -78,11 +43,6 @@ impl ClientConfig {
         Self::default()
     }
 
-    pub fn with_mode(mut self, mode: ConnectionMode) -> Self {
-        self.mode = mode;
-        self
-    }
-
     pub fn with_host(mut self, host: impl Into<String>) -> Self {
         self.host = host.into();
         self
@@ -90,11 +50,6 @@ impl ClientConfig {
 
     pub fn with_port(mut self, port: u16) -> Self {
         self.port = port;
-        self
-    }
-
-    pub fn with_database_path(mut self, path: impl Into<String>) -> Self {
-        self.database_path = Some(path.into());
         self
     }
 
@@ -116,21 +71,15 @@ impl ClientConfig {
 
 /// Core trait for GraphDB client operations
 ///
-/// Implementations:
-/// - `HttpClient`: Connects to remote GraphDB server via HTTP API
-/// - `EmbeddedClient`: Direct access to local database file
+/// Implementation: `HttpClient` connects to remote GraphDB server via HTTP API
 #[async_trait]
 pub trait GraphDbClient: Send + Sync {
-    /// Get the connection mode
-    fn connection_mode(&self) -> ConnectionMode;
-
     /// Check if client is currently connected
     fn is_connected(&self) -> bool;
 
     /// Connect to the database
     ///
-    /// For HTTP mode: authenticates with server
-    /// For Embedded mode: opens database file
+    /// Authenticates with HTTP server
     async fn connect(&mut self) -> Result<SessionInfo>;
 
     /// Disconnect from the database
@@ -157,7 +106,7 @@ pub trait GraphDbClient: Send + Sync {
     /// Check server/database health
     async fn health_check(&self) -> Result<bool>;
 
-    /// Get base URL or database path
+    /// Get base URL
     fn connection_string(&self) -> String;
 }
 
@@ -165,34 +114,17 @@ pub trait GraphDbClient: Send + Sync {
 pub struct ClientFactory;
 
 impl ClientFactory {
-    /// Create a client based on configuration
+    /// Create HTTP client based on configuration
     pub fn create(config: ClientConfig) -> Result<Box<dyn GraphDbClient>> {
-        match config.mode {
-            ConnectionMode::Http => {
-                let client = super::http::HttpClient::with_config(config)?;
-                Ok(Box::new(client))
-            }
-            ConnectionMode::Embedded => {
-                let client = super::embedded::EmbeddedClient::with_config(config)?;
-                Ok(Box::new(client))
-            }
-        }
+        let client = super::http::HttpClient::with_config(config)?;
+        Ok(Box::new(client))
     }
 
     /// Create HTTP client with default settings
     pub fn create_http(host: &str, port: u16) -> Result<Box<dyn GraphDbClient>> {
         let config = ClientConfig::new()
-            .with_mode(ConnectionMode::Http)
             .with_host(host)
             .with_port(port);
-        Self::create(config)
-    }
-
-    /// Create embedded client with database path
-    pub fn create_embedded(db_path: &str) -> Result<Box<dyn GraphDbClient>> {
-        let config = ClientConfig::new()
-            .with_mode(ConnectionMode::Embedded)
-            .with_database_path(db_path);
         Self::create(config)
     }
 }

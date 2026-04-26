@@ -22,8 +22,6 @@ pub struct ConnectionConfig {
     pub default_port: u16,
     #[serde(default = "default_user")]
     pub default_user: String,
-    #[serde(default)]
-    pub default_db_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -86,7 +84,6 @@ impl Default for ConnectionConfig {
             default_host: default_host(),
             default_port: default_port(),
             default_user: default_user(),
-            default_db_path: None,
         }
     }
 }

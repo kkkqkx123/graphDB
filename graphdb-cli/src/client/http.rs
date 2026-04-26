@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
 
-use crate::client::client_trait::{ClientConfig, ConnectionMode, GraphDbClient, SessionInfo};
+use crate::client::client_trait::{ClientConfig, GraphDbClient, SessionInfo};
 use crate::utils::error::{CliError, Result};
 
 /// HTTP client for connecting to remote GraphDB server
@@ -98,10 +98,6 @@ impl HttpClient {
 
 #[async_trait]
 impl GraphDbClient for HttpClient {
-    fn connection_mode(&self) -> ConnectionMode {
-        ConnectionMode::Http
-    }
-
     fn is_connected(&self) -> bool {
         self.connected
     }

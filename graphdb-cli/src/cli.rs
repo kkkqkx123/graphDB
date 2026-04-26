@@ -1,42 +1,25 @@
 use clap::Parser;
 
-use crate::client::ConnectionMode;
-
 #[derive(Parser, Debug)]
 #[clap(
     name = "graphdb-cli",
     version = env!("CARGO_PKG_VERSION"),
     about = "GraphDB CLI - Interactive command-line client for GraphDB",
-    long_about = "GraphDB CLI is an interactive command-line client for GraphDB,\n\
-                  similar to PostgreSQL's psql. It supports GQL query execution,\n\
-                  schema inspection, and various output formats.\n\
-                  \n\
-                  Connection modes:\n\
-                  - HTTP mode (default): Connect to a remote GraphDB server\n\
-                  - Embedded mode: Direct access to local database file"
+    long_about = "GraphDB CLI is an interactive command-line client for GraphDB,\
+                  similar to PostgreSQL's psql. It supports GQL query execution,\
+                  schema inspection, and various output formats."
 )]
 pub struct Cli {
     #[clap(
         short,
         long,
-        default_value = "http",
-        help = "Connection mode: http or embedded"
-    )]
-    pub mode: ConnectionModeArg,
-
-    #[clap(
-        short,
-        long,
         default_value = "127.0.0.1",
-        help = "Server host (HTTP mode)"
+        help = "Server host"
     )]
     pub host: String,
 
-    #[clap(short, long, default_value_t = 8080, help = "Server port (HTTP mode)")]
+    #[clap(short, long, default_value_t = 8080, help = "Server port")]
     pub port: u16,
-
-    #[clap(short, long, help = "Database file path (embedded mode)")]
-    pub db_path: Option<String>,
 
     #[clap(
         short,
@@ -88,44 +71,4 @@ pub struct Cli {
         help = "Set variable before execution"
     )]
     pub variables: Vec<String>,
-}
-
-/// Wrapper for ConnectionMode to implement clap::ValueEnum
-#[derive(Debug, Clone, Copy)]
-pub enum ConnectionModeArg {
-    Http,
-    Embedded,
-}
-
-impl std::str::FromStr for ConnectionModeArg {
-    type Err = String;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "http" => Ok(ConnectionModeArg::Http),
-            "embedded" => Ok(ConnectionModeArg::Embedded),
-            _ => Err(format!(
-                "Unknown connection mode: {}. Use 'http' or 'embedded'",
-                s
-            )),
-        }
-    }
-}
-
-impl std::fmt::Display for ConnectionModeArg {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ConnectionModeArg::Http => write!(f, "http"),
-            ConnectionModeArg::Embedded => write!(f, "embedded"),
-        }
-    }
-}
-
-impl From<ConnectionModeArg> for ConnectionMode {
-    fn from(arg: ConnectionModeArg) -> Self {
-        match arg {
-            ConnectionModeArg::Http => ConnectionMode::Http,
-            ConnectionModeArg::Embedded => ConnectionMode::Embedded,
-        }
-    }
 }

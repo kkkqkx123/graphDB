@@ -1,4 +1,4 @@
-use crate::client::{ClientConfig, ClientFactory, ConnectionMode, GraphDbClient, QueryResult};
+use crate::client::{ClientConfig, ClientFactory, GraphDbClient, QueryResult};
 use crate::session::variables::VariableStore;
 use crate::utils::error::{CliError, Result};
 
@@ -11,7 +11,6 @@ pub struct Session {
     pub port: u16,
     pub connected: bool,
     pub variable_store: VariableStore,
-    pub connection_mode: ConnectionMode,
 }
 
 impl Session {
@@ -20,7 +19,6 @@ impl Session {
         username: String,
         host: String,
         port: u16,
-        mode: ConnectionMode,
     ) -> Self {
         Self {
             session_id,
@@ -30,7 +28,6 @@ impl Session {
             port,
             connected: true,
             variable_store: VariableStore::new(),
-            connection_mode: mode,
         }
     }
 
@@ -90,7 +87,6 @@ impl Session {
         ));
         info.push(format!("Session ID: {}", self.session_id));
         info.push(format!("Connected: {}", self.connected));
-        info.push(format!("Mode: {}", self.connection_mode));
         info.join("\n")
     }
 
@@ -110,7 +106,6 @@ impl SessionManager {
     /// Create a new SessionManager with HTTP connection
     pub fn new_http(host: &str, port: u16) -> Result<Self> {
         let config = ClientConfig::new()
-            .with_mode(ConnectionMode::Http)
             .with_host(host)
             .with_port(port);
         let client = ClientFactory::create(config.clone())?;
@@ -138,20 +133,6 @@ impl SessionManager {
         Self::new_http(host, port).expect("Failed to create HTTP client")
     }
 
-    /// Create a new SessionManager with embedded connection
-    pub fn new_embedded(db_path: &str) -> Result<Self> {
-        let config = ClientConfig::new()
-            .with_mode(ConnectionMode::Embedded)
-            .with_database_path(db_path);
-        let client = ClientFactory::create(config.clone())?;
-
-        Ok(Self {
-            client,
-            session: None,
-            config,
-        })
-    }
-
     /// Connect to the database
     pub async fn connect(&mut self, username: &str, password: &str) -> Result<()> {
         // Update credentials in config
@@ -168,7 +149,6 @@ impl SessionManager {
             session_info.username,
             session_info.host,
             session_info.port,
-            self.config.mode,
         );
 
         self.session = Some(session);
@@ -277,11 +257,6 @@ impl SessionManager {
         self.session
             .as_ref()
             .and_then(|s| s.current_space.as_deref())
-    }
-
-    /// Get connection mode
-    pub fn connection_mode(&self) -> ConnectionMode {
-        self.config.mode
     }
 
     /// Get client reference
