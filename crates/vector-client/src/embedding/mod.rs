@@ -22,6 +22,3 @@ pub use service::EmbeddingService;
 
 // Re-export providers for advanced usage
 pub use providers::OpenAICompatibleProvider;
-
-#[cfg(feature = "llama_cpp")]
-pub use providers::LlamaCppProvider;

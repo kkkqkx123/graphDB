@@ -5,7 +5,7 @@ use super::error::{EmbeddingError, Result};
 use super::provider::{EmbeddingProvider, ProviderType};
 
 #[cfg(feature = "llama_cpp")]
-use super::providers::LlamaCppProvider;
+use super::providers::local::llama_cpp_provider::LlamaCppProvider;
 use super::providers::OpenAICompatibleProvider;
 
 /// Embedding service wrapper
@@ -87,7 +87,7 @@ impl EmbeddingService {
         dimension: Option<usize>,
         n_gpu_layers: Option<u32>,
     ) -> Result<Self> {
-        let provider = Box::new(LlamaCppProvider::new(
+        let provider = LlamaCppProvider::new(
             model_path,
             pooling_type,
             dimension,
@@ -98,13 +98,14 @@ impl EmbeddingService {
             None, // n_ubatch
             None, // offload_kqv
             n_gpu_layers,
-        )?);
+        )?;
+        let provider_dimension = provider.dimension();
 
         let config = EmbeddingConfig::default();
         Ok(Self {
-            provider,
+            provider: Box::new(provider),
             config,
-            dimension: provider.dimension(),
+            dimension: provider_dimension,
         })
     }
 

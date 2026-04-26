@@ -9,6 +9,3 @@ pub mod http;
 pub mod local;
 
 pub use http::openai_compatible_provider::OpenAICompatibleProvider;
-
-#[cfg(feature = "llama_cpp")]
-pub use local::llama_cpp_provider::LlamaCppProvider;

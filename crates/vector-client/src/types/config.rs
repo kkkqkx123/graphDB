@@ -1,17 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum DistanceMetric {
+    #[default]
     Cosine,
     Euclid,
     Dot,
     Manhattan,
-}
-
-impl Default for DistanceMetric {
-    fn default() -> Self {
-        Self::Cosine
-    }
 }
 
 impl DistanceMetric {
@@ -80,16 +75,11 @@ impl HnswConfig {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum IndexType {
+    #[default]
     HNSW,
     FLAT,
-}
-
-impl Default for IndexType {
-    fn default() -> Self {
-        Self::HNSW
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -116,19 +106,10 @@ pub enum QuantizationType {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct QuantizationConfig {
     pub enabled: bool,
     pub quant_type: Option<QuantizationType>,
-}
-
-impl Default for QuantizationConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            quant_type: None,
-        }
-    }
 }
 
 impl QuantizationConfig {
