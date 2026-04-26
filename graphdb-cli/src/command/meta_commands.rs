@@ -350,3 +350,193 @@ pub fn show_copyright() -> String {
      Licensed under the Apache License, Version 2.0"
         .to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_show_help_general() {
+        let help = show_help(None);
+        assert!(help.contains("GraphDB CLI"));
+        assert!(help.contains("Connection"));
+        assert!(help.contains("Object Inspection"));
+        assert!(help.contains("Output Format"));
+        assert!(help.contains("Variables"));
+        assert!(help.contains("Script and I/O"));
+        assert!(help.contains("Query Buffer"));
+        assert!(help.contains("History"));
+        assert!(help.contains("Transaction"));
+        assert!(help.contains("Conditional Execution"));
+        assert!(help.contains("General"));
+    }
+
+    #[test]
+    fn test_show_help_match() {
+        let help = show_help(Some("match"));
+        assert!(help.contains("MATCH"));
+        assert!(help.contains("Pattern matching"));
+    }
+
+    #[test]
+    fn test_show_help_go() {
+        let help = show_help(Some("go"));
+        assert!(help.contains("GO"));
+        assert!(help.contains("traversal"));
+    }
+
+    #[test]
+    fn test_show_help_insert() {
+        let help = show_help(Some("insert"));
+        assert!(help.contains("INSERT"));
+        assert!(help.contains("vertex"));
+        assert!(help.contains("edge"));
+    }
+
+    #[test]
+    fn test_show_help_create() {
+        let help = show_help(Some("create"));
+        assert!(help.contains("CREATE"));
+        assert!(help.contains("space"));
+        assert!(help.contains("tag"));
+    }
+
+    #[test]
+    fn test_show_help_show() {
+        let help = show_help(Some("show"));
+        assert!(help.contains("SHOW"));
+        assert!(help.contains("SPACES"));
+        assert!(help.contains("TAGS"));
+    }
+
+    #[test]
+    fn test_show_help_use() {
+        let help = show_help(Some("use"));
+        assert!(help.contains("USE"));
+        assert!(help.contains("space"));
+    }
+
+    #[test]
+    fn test_show_help_variables() {
+        let help = show_help(Some("variables"));
+        assert!(help.contains("Variable"));
+        assert!(help.contains("\\set"));
+        assert!(help.contains("\\unset"));
+    }
+
+    #[test]
+    fn test_show_help_set() {
+        let help = show_help(Some("set"));
+        assert!(help.contains("Variable"));
+    }
+
+    #[test]
+    fn test_show_help_if() {
+        let help = show_help(Some("if"));
+        assert!(help.contains("Conditional"));
+        assert!(help.contains("\\if"));
+        assert!(help.contains("\\elif"));
+        assert!(help.contains("\\else"));
+        assert!(help.contains("\\endif"));
+    }
+
+    #[test]
+    fn test_show_help_conditional() {
+        let help = show_help(Some("conditional"));
+        assert!(help.contains("Conditional"));
+    }
+
+    #[test]
+    fn test_show_help_history() {
+        let help = show_help(Some("history"));
+        assert!(help.contains("History"));
+        assert!(help.contains("\\history"));
+    }
+
+    #[test]
+    fn test_show_help_edit() {
+        let help = show_help(Some("edit"));
+        assert!(help.contains("Buffer"));
+        assert!(help.contains("\\e"));
+    }
+
+    #[test]
+    fn test_show_help_buffer() {
+        let help = show_help(Some("buffer"));
+        assert!(help.contains("Buffer"));
+    }
+
+    #[test]
+    fn test_show_help_unknown() {
+        let help = show_help(Some("unknown_topic"));
+        assert!(help.contains("No help available"));
+        assert!(help.contains("unknown_topic"));
+    }
+
+    #[test]
+    fn test_show_help_case_insensitive() {
+        let help_lower = show_help(Some("match"));
+        let help_upper = show_help(Some("MATCH"));
+        let help_mixed = show_help(Some("Match"));
+        assert_eq!(help_lower, help_upper);
+        assert_eq!(help_lower, help_mixed);
+    }
+
+    #[test]
+    fn test_show_version() {
+        let version = show_version();
+        assert!(version.contains("GraphDB CLI"));
+        assert!(version.contains("v"));
+        assert!(version.contains("graph database"));
+    }
+
+    #[test]
+    fn test_show_copyright() {
+        let copyright = show_copyright();
+        assert!(copyright.contains("GraphDB CLI"));
+        assert!(copyright.contains("Copyright"));
+        assert!(copyright.contains("Apache License"));
+    }
+
+    #[test]
+    fn test_general_help_contains_commands() {
+        let help = show_general_help();
+
+        assert!(help.contains("\\connect"));
+        assert!(help.contains("\\disconnect"));
+        assert!(help.contains("\\conninfo"));
+        assert!(help.contains("\\show_spaces") || help.contains("\\l"));
+        assert!(help.contains("\\show_tags") || help.contains("\\dt"));
+        assert!(help.contains("\\show_edges") || help.contains("\\de"));
+        assert!(help.contains("\\show_indexes") || help.contains("\\di"));
+        assert!(help.contains("\\show_users") || help.contains("\\du"));
+        assert!(help.contains("\\show_functions") || help.contains("\\df"));
+        assert!(help.contains("\\describe") || help.contains("\\d"));
+        assert!(help.contains("\\format"));
+        assert!(help.contains("\\pager"));
+        assert!(help.contains("\\timing"));
+        assert!(help.contains("\\x"));
+        assert!(help.contains("\\set"));
+        assert!(help.contains("\\unset"));
+        assert!(help.contains("\\i "));
+        assert!(help.contains("\\ir"));
+        assert!(help.contains("\\o"));
+        assert!(help.contains("\\!"));
+        assert!(help.contains("\\e") || help.contains("\\edit"));
+        assert!(help.contains("\\p"));
+        assert!(help.contains("\\r"));
+        assert!(help.contains("\\w"));
+        assert!(help.contains("\\history"));
+        assert!(help.contains("\\begin"));
+        assert!(help.contains("\\commit"));
+        assert!(help.contains("\\rollback"));
+        assert!(help.contains("\\if"));
+        assert!(help.contains("\\elif"));
+        assert!(help.contains("\\else"));
+        assert!(help.contains("\\endif"));
+        assert!(help.contains("\\help"));
+        assert!(help.contains("\\version"));
+        assert!(help.contains("\\copyright"));
+        assert!(help.contains("\\q"));
+    }
+}

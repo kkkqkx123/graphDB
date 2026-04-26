@@ -10,7 +10,8 @@ use rustyline::validate::Validator;
 use rustyline::{Helper, Result};
 
 use crate::completion::context::{
-    detect_context, get_function_completions, CompletionContext, FunctionEntry, SharedSchemaCache,
+    detect_context, get_function_completions, CompletionContext, FunctionEntry, SchemaCache,
+    SharedSchemaCache,
 };
 
 const GQL_KEYWORDS: &[&str] = &[
@@ -689,4 +690,299 @@ fn filter_names(names: &[String], prefix: &str) -> Vec<StringCandidate> {
             replacement: n[prefix.len()..].to_string(),
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_string_candidate() {
+        let candidate = StringCandidate {
+            display: "MATCH".to_string(),
+            replacement: "CH".to_string(),
+        };
+        assert_eq!(candidate.display(), "MATCH");
+        assert_eq!(candidate.replacement(), "CH");
+    }
+
+    #[test]
+    fn test_graphdb_completer_new() {
+        let completer = GraphDBCompleter::new();
+        assert!(!completer.keywords.is_empty());
+        assert!(!completer.meta_commands.is_empty());
+        assert!(!completer.functions.is_empty());
+    }
+
+    #[test]
+    fn test_graphdb_completer_default() {
+        let completer: GraphDBCompleter = Default::default();
+        assert!(!completer.keywords.is_empty());
+        assert!(!completer.meta_commands.is_empty());
+    }
+
+    #[test]
+    fn test_get_last_word() {
+        // When input ends with space, trim_end() removes it, then no separator found
+        assert_eq!(get_last_word("MATCH "), "MATCH");
+        assert_eq!(get_last_word("MATCH v"), "v");
+        assert_eq!(get_last_word("MATCH (v:Pers"), "Pers");
+        assert_eq!(get_last_word(""), "");
+        assert_eq!(get_last_word("   "), "");
+        assert_eq!(get_last_word("RETURN cou"), "cou");
+        assert_eq!(get_last_word("WHERE p."), "p.");
+    }
+
+    #[test]
+    fn test_is_gql_keyword() {
+        assert!(is_gql_keyword("MATCH"));
+        assert!(is_gql_keyword("match"));
+        assert!(is_gql_keyword("RETURN"));
+        assert!(is_gql_keyword("WHERE"));
+        assert!(!is_gql_keyword("unknown"));
+        assert!(!is_gql_keyword("xyz"));
+    }
+
+    #[test]
+    fn test_filter_names() {
+        let names = vec![
+            "Person".to_string(),
+            "Company".to_string(),
+            "Product".to_string(),
+        ];
+
+        let filtered = filter_names(&names, "Per");
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].display, "Person");
+
+        let filtered_lower = filter_names(&names, "per");
+        assert_eq!(filtered_lower.len(), 1);
+        assert_eq!(filtered_lower[0].display, "Person");
+
+        let filtered_all = filter_names(&names, "");
+        assert_eq!(filtered_all.len(), 3);
+
+        let filtered_none = filter_names(&names, "xyz");
+        assert!(filtered_none.is_empty());
+    }
+
+    #[test]
+    fn test_completer_update_variables() {
+        let completer = GraphDBCompleter::new();
+        let mut vars = HashMap::new();
+        vars.insert("var1".to_string(), "value1".to_string());
+        completer.update_variables(vars);
+
+        let locked_vars = completer.variables.lock().expect("Failed to lock");
+        assert_eq!(locked_vars.get("var1"), Some(&"value1".to_string()));
+    }
+
+    #[test]
+    fn test_completer_set_schema_cache() {
+        let mut completer = GraphDBCompleter::new();
+        let new_cache = Arc::new(Mutex::new(SchemaCache::new()));
+        completer.set_schema_cache(new_cache.clone());
+
+        let locked = completer.schema_cache.lock().expect("Failed to lock");
+        assert!(locked.spaces.is_empty());
+    }
+
+    #[test]
+    fn test_completer_get_tag_names() {
+        let completer = GraphDBCompleter::new();
+        let names = completer.get_tag_names();
+        assert!(names.is_empty());
+    }
+
+    #[test]
+    fn test_completer_get_edge_names() {
+        let completer = GraphDBCompleter::new();
+        let names = completer.get_edge_names();
+        assert!(names.is_empty());
+    }
+
+    #[test]
+    fn test_completer_get_space_names() {
+        let completer = GraphDBCompleter::new();
+        let names = completer.get_space_names();
+        assert!(names.is_empty());
+    }
+
+    #[test]
+    fn test_highlighter_highlight_meta_command() {
+        let completer = GraphDBCompleter::new();
+        let highlighted = completer.highlight("\\help", 0);
+        assert!(highlighted.contains("\\help"));
+    }
+
+    #[test]
+    fn test_highlighter_highlight_keywords() {
+        let completer = GraphDBCompleter::new();
+        let highlighted = completer.highlight("MATCH (v)", 0);
+        assert!(highlighted.contains("MATCH"));
+    }
+
+    #[test]
+    fn test_highlighter_highlight_char() {
+        let completer = GraphDBCompleter::new();
+        assert!(completer.highlight_char("", 0, false));
+    }
+
+    #[test]
+    fn test_complete_keyword() {
+        let completer = GraphDBCompleter::new();
+        let (pos, candidates) = completer
+            .complete_keyword("MATC", 4)
+            .expect("complete_keyword failed");
+        assert_eq!(pos, 0);
+        assert!(!candidates.is_empty());
+        assert!(candidates.iter().any(|c| c.display() == "MATCH"));
+    }
+
+    #[test]
+    fn test_complete_keyword_empty() {
+        let completer = GraphDBCompleter::new();
+        let (pos, candidates) = completer
+            .complete_keyword("   ", 3)
+            .expect("complete_keyword failed");
+        assert_eq!(pos, 3);
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn test_complete_function() {
+        let completer = GraphDBCompleter::new();
+        let (pos, candidates) = completer
+            .complete_function("cou", 3)
+            .expect("complete_function failed");
+        assert_eq!(pos, 0);
+        assert!(!candidates.is_empty());
+        assert!(candidates.iter().any(|c| c.display().contains("count")));
+    }
+
+    #[test]
+    fn test_complete_function_empty() {
+        let completer = GraphDBCompleter::new();
+        let (pos, candidates) = completer
+            .complete_function("   ", 3)
+            .expect("complete_function failed");
+        assert_eq!(pos, 3);
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn test_complete_variable() {
+        let completer = GraphDBCompleter::new();
+        let mut vars = HashMap::new();
+        vars.insert("myvar".to_string(), "value".to_string());
+        completer.update_variables(vars);
+
+        let (_pos, candidates) = completer
+            .complete_variable("LIMIT :my", 9)
+            .expect("complete_variable failed");
+        assert!(!candidates.is_empty());
+        assert!(candidates.iter().any(|c| c.display() == "myvar"));
+    }
+
+    #[test]
+    fn test_complete_variable_empty() {
+        let completer = GraphDBCompleter::new();
+        let (_pos, candidates) = completer
+            .complete_variable("LIMIT :", 7)
+            .expect("complete_variable failed");
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn test_complete_meta_empty() {
+        let completer = GraphDBCompleter::new();
+        let (_pos, candidates) = completer
+            .complete_meta("\\", 1)
+            .expect("complete_meta failed");
+        assert!(!candidates.is_empty());
+        assert!(candidates.iter().any(|c| c.display() == "\\help"));
+    }
+
+    #[test]
+    fn test_complete_meta_with_partial() {
+        let completer = GraphDBCompleter::new();
+        let (_pos, candidates) = completer
+            .complete_meta("\\he", 3)
+            .expect("complete_meta failed");
+        assert!(!candidates.is_empty());
+        assert!(candidates.iter().any(|c| c.display() == "\\help"));
+    }
+
+    #[test]
+    fn test_complete_meta_format() {
+        let completer = GraphDBCompleter::new();
+        let (_pos, candidates) = completer
+            .complete_meta("\\format tab", 11)
+            .expect("complete_meta failed");
+        assert!(!candidates.is_empty());
+        assert!(candidates.iter().any(|c| c.display() == "table"));
+    }
+
+    #[test]
+    fn test_complete_tag() {
+        let completer = GraphDBCompleter::new();
+        let (_pos, candidates) = completer
+            .complete_tag("MATCH (v:Pers", 13)
+            .expect("complete_tag failed");
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn test_complete_edge() {
+        let completer = GraphDBCompleter::new();
+        let (_pos, candidates) = completer
+            .complete_edge("OVER FRI", 8)
+            .expect("complete_edge failed");
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn test_complete_space() {
+        let completer = GraphDBCompleter::new();
+        let (_pos, candidates) = completer
+            .complete_space("USE test", 8)
+            .expect("complete_space failed");
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn test_complete_meta_arg() {
+        let completer = GraphDBCompleter::new();
+        let (_pos, candidates) = completer
+            .complete_meta_arg("test", 4)
+            .expect("complete_meta_arg failed");
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn test_complete_space_after_meta() {
+        let completer = GraphDBCompleter::new();
+        let (_pos, candidates) = completer
+            .complete_space_after_meta("myspace", 7)
+            .expect("complete_space_after_meta failed");
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn test_complete_tag_after_meta() {
+        let completer = GraphDBCompleter::new();
+        let (_pos, candidates) = completer
+            .complete_tag_after_meta("Person", 6)
+            .expect("complete_tag_after_meta failed");
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn test_complete_edge_after_meta() {
+        let completer = GraphDBCompleter::new();
+        let (_pos, candidates) = completer
+            .complete_edge_after_meta("FRIEND", 6)
+            .expect("complete_edge_after_meta failed");
+        assert!(candidates.is_empty());
+    }
 }
