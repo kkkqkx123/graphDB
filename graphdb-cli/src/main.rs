@@ -2,6 +2,7 @@ use clap::Parser;
 use colored::Colorize;
 
 use graphdb_cli::cli::Cli;
+use graphdb_cli::client::ConnectionMode;
 use graphdb_cli::command::executor::CommandExecutor;
 use graphdb_cli::command::parser::{self, HistoryAction, MetaCommand};
 use graphdb_cli::command::script::is_statement_complete;
@@ -24,22 +25,40 @@ async fn main() {
 async fn run(cli: Cli) -> Result<()> {
     let config = Config::load().unwrap_or_default();
 
-    let host = if cli.host == "127.0.0.1" && config.connection.default_host != "127.0.0.1" {
-        &config.connection.default_host
-    } else {
-        &cli.host
-    };
+    let mode: ConnectionMode = cli.mode.into();
 
-    let port = if cli.port == 8080 && config.connection.default_port != 8080 {
-        config.connection.default_port
-    } else {
-        cli.port
+    let mut session_mgr = match mode {
+        ConnectionMode::Http => {
+            let host = if cli.host == "127.0.0.1" && config.connection.default_host != "127.0.0.1" {
+                config.connection.default_host.clone()
+            } else {
+                cli.host.clone()
+            };
+
+            let port = if cli.port == 8080 && config.connection.default_port != 8080 {
+                config.connection.default_port
+            } else {
+                cli.port
+            };
+
+            SessionManager::new_http(&host, port)?
+        }
+        ConnectionMode::Embedded => {
+            let db_path = cli.db_path.clone().unwrap_or_else(|| {
+                config
+                    .connection
+                    .default_db_path
+                    .clone()
+                    .unwrap_or_else(|| "graph.db".to_string())
+            });
+            SessionManager::new_embedded(&db_path)?
+        }
     };
 
     let user = if cli.user == "root" && config.connection.default_user != "root" {
-        &config.connection.default_user
+        config.connection.default_user.clone()
     } else {
-        &cli.user
+        cli.user.clone()
     };
 
     let password = if cli.password {
@@ -47,8 +66,6 @@ async fn run(cli: Cli) -> Result<()> {
     } else {
         String::new()
     };
-
-    let mut session_mgr = SessionManager::new(host, port);
 
     let mut formatter = OutputFormatter::new();
 
@@ -70,10 +87,36 @@ async fn run(cli: Cli) -> Result<()> {
         }
     }
 
-    match session_mgr.connect(user, &password).await {
+    match session_mgr.connect(&user, &password).await {
         Ok(()) => {
             if !cli.quiet {
-                println!("Connected to GraphDB at {}:{} as {}", host, port, user);
+                match mode {
+                    ConnectionMode::Http => {
+                        let host = if cli.host == "127.0.0.1"
+                            && config.connection.default_host != "127.0.0.1"
+                        {
+                            &config.connection.default_host
+                        } else {
+                            &cli.host
+                        };
+                        let port = if cli.port == 8080 && config.connection.default_port != 8080 {
+                            config.connection.default_port
+                        } else {
+                            cli.port
+                        };
+                        println!("Connected to GraphDB at {}:{} as {}", host, port, user);
+                    }
+                    ConnectionMode::Embedded => {
+                        let db_path = cli.db_path.unwrap_or_else(|| {
+                            config
+                                .connection
+                                .default_db_path
+                                .clone()
+                                .unwrap_or_else(|| "graph.db".to_string())
+                        });
+                        println!("Connected to embedded database: {}", db_path);
+                    }
+                }
             }
         }
         Err(e) => {

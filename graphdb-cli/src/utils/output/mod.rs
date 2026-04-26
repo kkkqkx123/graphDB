@@ -1,25 +1,29 @@
-//! Output stream module for GraphDB
+//! General output infrastructure module
 //!
-//! Provides unified output control with support for multiple formats and destinations.
+//! This module provides low-level output primitives for the CLI.
+//! It handles output destinations (stdout, stderr, files), formatting utilities,
+//! and stream management.
 //!
-//! # Examples
+//! # Modules
+//! - `manager`: Centralized output control with format selection
+//! - `writer`: Various writer implementations (stdout, stderr, file, multi)
+//! - `stream`: Stream output for file and console redirection
+//! - `config`: Output configuration and modes
+//! - `json`: JSON serialization utilities
+//! - `table`: Table formatting utilities
 //!
+//! # Usage
 //! ```rust
-//! use graphdb::utils::output;
+//! use graphdb_cli::utils::output;
 //!
-//! // Global convenience functions
+//! // Simple output
 //! output::println("Hello, World!").unwrap();
 //! output::print_success("Operation completed").unwrap();
-//! output::print_error("Something went wrong").unwrap();
-//! ```
 //!
-//! ```rust
-//! use graphdb::utils::output::{OutputManager, Format};
-//!
-//! // Instance-based usage for customization
+//! // With custom manager
+//! use graphdb_cli::utils::output::{OutputManager, Format};
 //! let manager = OutputManager::new()
 //!     .with_format(Format::Json);
-//!
 //! manager.println("{ \"status\": \"ok\" }").unwrap();
 //! ```
 
@@ -34,26 +38,26 @@ pub use writer::{FileWriter, MultiWriter, StderrWriter, StdoutWriter};
 // Manager and format
 mod manager;
 pub use manager::{
-    get_global_format, print, print_error, print_info, print_success, print_warning, println,
-    set_global_format, Format, OutputManager,
+    get_default_manager, get_global_format, print, print_error, print_info, print_success,
+    print_warning, println, set_global_format, Format, OutputManager,
 };
 
-// JSON formatter (Phase 2)
+// JSON formatter
 mod json;
 pub use json::{
-    print_json, print_json_compact, print_json_to, to_json_string, to_json_string_compact,
-    JsonFormatter,
+    print_json, print_json_compact, print_json_compact_to, print_json_to, to_json_string,
+    to_json_string_compact, JsonFormatter,
 };
 
-// Table formatter (Phase 2)
+// Table formatter
 mod table;
 pub use table::{print_table, print_table_to, TableFormatter};
 
-// Configuration (Phase 3)
+// Configuration
 mod config;
 pub use config::{OutputConfig, OutputMode};
 
-// Stream output (Phase 3)
+// Stream output
 mod stream;
 pub use stream::StreamOutput;
 

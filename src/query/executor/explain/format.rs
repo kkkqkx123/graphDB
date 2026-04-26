@@ -309,82 +309,129 @@ fn truncate_or_pad(s: &str, width: usize) -> String {
     }
 }
 
-/// Format plan description using output module's table formatter
+/// Format plan description using simple table formatter
 pub fn format_plan_with_output_table(
     plan_desc: &PlanDescription,
-) -> crate::utils::output::Result<String> {
-    use crate::utils::output::TableFormatter;
+) -> Result<String, serde_json::Error> {
+    // Use the built-in table formatter
+    let mut output = String::new();
 
-    let mut formatter = TableFormatter::new();
+    // Calculate column widths
+    let headers = ["id", "name", "deps", "profiling_data", "operator_info", "output_var"];
+    let mut widths = headers.iter().map(|h| h.len()).collect::<Vec<_>>();
 
-    // Set headers
-    formatter.set_headers(&[
-        "id",
-        "name",
-        "deps",
-        "profiling_data",
-        "operator_info",
-        "output_var",
-    ]);
-
-    // Add rows
-    for node in &plan_desc.plan_node_descs {
-        let id = node.id.to_string();
-
-        let deps = node
-            .dependencies
-            .as_ref()
-            .map(|d| {
-                if d.is_empty() {
-                    "-".to_string()
-                } else {
-                    d.iter()
-                        .map(|id| id.to_string())
+    let rows: Vec<Vec<String>> = plan_desc
+        .plan_node_descs
+        .iter()
+        .map(|node| {
+            let id = node.id.to_string();
+            let deps = node
+                .dependencies
+                .as_ref()
+                .map(|d| {
+                    if d.is_empty() {
+                        "-".to_string()
+                    } else {
+                        d.iter()
+                            .map(|id| id.to_string())
+                            .collect::<Vec<_>>()
+                            .join(",")
+                    }
+                })
+                .unwrap_or_else(|| "-".to_string());
+            let profile = if let Some(ref profiles) = node.profiles {
+                profiles
+                    .iter()
+                    .map(|p| format!("rows:{},time:{}us", p.rows, p.exec_duration_in_us))
+                    .collect::<Vec<_>>()
+                    .join(";")
+            } else {
+                "-".to_string()
+            };
+            let info = node
+                .description
+                .as_ref()
+                .map(|descs| {
+                    descs
+                        .iter()
+                        .map(|p| format!("{}:{}", p.key, p.value))
                         .collect::<Vec<_>>()
                         .join(",")
-                }
-            })
-            .unwrap_or_else(|| "-".to_string());
+                })
+                .unwrap_or_else(|| "-".to_string());
+            let output_var_str = if node.output_var.is_empty() {
+                "-".to_string()
+            } else {
+                node.output_var.clone()
+            };
+            vec![id, node.name.clone(), deps, profile, info, output_var_str]
+        })
+        .collect();
 
-        let profile = if let Some(ref profiles) = node.profiles {
-            profiles
-                .iter()
-                .map(|p| format!("rows:{},time:{}us", p.rows, p.exec_duration_in_us))
-                .collect::<Vec<_>>()
-                .join(";")
-        } else {
-            "-".to_string()
-        };
-
-        let info = node
-            .description
-            .as_ref()
-            .map(|descs| {
-                descs
-                    .iter()
-                    .map(|p| format!("{}:{}", p.key, p.value))
-                    .collect::<Vec<_>>()
-                    .join(",")
-            })
-            .unwrap_or_else(|| "-".to_string());
-
-        let output_var_str = if node.output_var.is_empty() {
-            "-".to_string()
-        } else {
-            node.output_var.clone()
-        };
-
-        formatter.add_row(&[&id, &node.name, &deps, &profile, &info, &output_var_str]);
+    // Update column widths based on content
+    for row in &rows {
+        for (i, cell) in row.iter().enumerate() {
+            if i < widths.len() {
+                widths[i] = widths[i].max(cell.len());
+            }
+        }
     }
 
-    formatter.render_to_string()
+    let total_width = widths.iter().sum::<usize>() + widths.len() * 3 + 1;
+
+    // Helper function to format a cell
+    fn format_cell(content: &str, width: usize) -> String {
+        if content.len() > width {
+            if width > 3 {
+                format!("{}...", &content[..width - 3])
+            } else {
+                content[..width].to_string()
+            }
+        } else {
+            format!("{:width$}", content, width = width)
+        }
+    }
+
+    // Top border
+    output.push_str(&"-".repeat(total_width));
+    output.push('\n');
+
+    // Headers
+    output.push_str("| ");
+    for (i, header) in headers.iter().enumerate() {
+        let width = widths.get(i).copied().unwrap_or(10);
+        output.push_str(&format_cell(header, width));
+        output.push_str(" | ");
+    }
+    output.push('\n');
+
+    // Header separator
+    output.push_str(&"-".repeat(total_width));
+    output.push('\n');
+
+    // Rows
+    for row in &rows {
+        output.push_str("| ");
+        for (i, cell) in row.iter().enumerate() {
+            let width = widths.get(i).copied().unwrap_or(10);
+            output.push_str(&format_cell(cell, width));
+            output.push_str(" | ");
+        }
+        output.push('\n');
+    }
+
+    // Bottom border
+    output.push_str(&"-".repeat(total_width));
+    output.push('\n');
+
+    Ok(output)
 }
 
-/// Format plan description as JSON using output module
+/// Format plan description as JSON
 pub fn format_plan_as_json(
     plan_desc: &PlanDescription,
     pretty: bool,
-) -> crate::utils::output::Result<String> {
+) -> Result<String, serde_json::Error> {
     use serde::Serialize;
 
     #[derive(Serialize)]
@@ -452,9 +499,9 @@ pub fn format_plan_as_json(
     };
 
     if pretty {
-        crate::utils::output::to_json_string(&serializable_plan)
+        serde_json::to_string_pretty(&serializable_plan)
     } else {
-        crate::utils::output::to_json_string_compact(&serializable_plan)
+        serde_json::to_string(&serializable_plan)
     }
 }
 

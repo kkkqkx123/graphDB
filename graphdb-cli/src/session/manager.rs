@@ -1,4 +1,4 @@
-use crate::client::http::{GraphDBHttpClient, QueryResult};
+use crate::client::{ClientConfig, ClientFactory, ConnectionMode, GraphDbClient, QueryResult};
 use crate::session::variables::VariableStore;
 use crate::utils::error::{CliError, Result};
 
@@ -11,10 +11,17 @@ pub struct Session {
     pub port: u16,
     pub connected: bool,
     pub variable_store: VariableStore,
+    pub connection_mode: ConnectionMode,
 }
 
 impl Session {
-    pub fn new(session_id: i64, username: String, host: String, port: u16) -> Self {
+    pub fn new(
+        session_id: i64,
+        username: String,
+        host: String,
+        port: u16,
+        mode: ConnectionMode,
+    ) -> Self {
         Self {
             session_id,
             username,
@@ -23,6 +30,7 @@ impl Session {
             port,
             connected: true,
             variable_store: VariableStore::new(),
+            connection_mode: mode,
         }
     }
 
@@ -82,6 +90,7 @@ impl Session {
         ));
         info.push(format!("Session ID: {}", self.session_id));
         info.push(format!("Connected: {}", self.connected));
+        info.push(format!("Mode: {}", self.connection_mode));
         info.join("\n")
     }
 
@@ -92,47 +101,81 @@ impl Session {
 }
 
 pub struct SessionManager {
-    client: GraphDBHttpClient,
+    client: Box<dyn GraphDbClient>,
     session: Option<Session>,
+    config: ClientConfig,
 }
 
 impl SessionManager {
-    pub fn new(host: &str, port: u16) -> Self {
-        let client = GraphDBHttpClient::new(host, port);
-        Self {
+    /// Create a new SessionManager with HTTP connection
+    pub fn new_http(host: &str, port: u16) -> Result<Self> {
+        let config = ClientConfig::new()
+            .with_mode(ConnectionMode::Http)
+            .with_host(host)
+            .with_port(port);
+        let client = ClientFactory::create(config.clone())?;
+
+        Ok(Self {
             client,
             session: None,
-        }
+            config,
+        })
     }
 
+    /// Create a new SessionManager with custom configuration
+    pub fn with_config(config: ClientConfig) -> Result<Self> {
+        let client = ClientFactory::create(config.clone())?;
+
+        Ok(Self {
+            client,
+            session: None,
+            config,
+        })
+    }
+
+    /// Create a new SessionManager (legacy method, defaults to HTTP)
+    pub fn new(host: &str, port: u16) -> Self {
+        Self::new_http(host, port).expect("Failed to create HTTP client")
+    }
+
+    /// Create a new SessionManager with embedded connection
+    pub fn new_embedded(db_path: &str) -> Result<Self> {
+        let config = ClientConfig::new()
+            .with_mode(ConnectionMode::Embedded)
+            .with_database_path(db_path);
+        let client = ClientFactory::create(config.clone())?;
+
+        Ok(Self {
+            client,
+            session: None,
+            config,
+        })
+    }
+
+    /// Connect to the database
     pub async fn connect(&mut self, username: &str, password: &str) -> Result<()> {
-        let (session_id, _) = self.client.login(username, password).await?;
+        // Update credentials in config
+        self.config.username = username.to_string();
+        self.config.password = password.to_string();
+
+        // Re-create client with new credentials
+        self.client = ClientFactory::create(self.config.clone())?;
+
+        let session_info = self.client.connect().await?;
 
         let session = Session::new(
-            session_id,
-            username.to_string(),
-            self.client
-                .base_url()
-                .trim_start_matches("http://")
-                .trim_end_matches("/v1")
-                .split(':')
-                .next()
-                .unwrap_or("127.0.0.1")
-                .to_string(),
-            self.client
-                .base_url()
-                .trim_start_matches("http://")
-                .trim_end_matches("/v1")
-                .split(':')
-                .nth(1)
-                .and_then(|p| p.parse().ok())
-                .unwrap_or(8080),
+            session_info.session_id,
+            session_info.username,
+            session_info.host,
+            session_info.port,
+            self.config.mode,
         );
 
         self.session = Some(session);
         Ok(())
     }
 
+    /// Connect with specific host and port
     pub async fn connect_with_host(
         &mut self,
         host: &str,
@@ -140,27 +183,33 @@ impl SessionManager {
         username: &str,
         password: &str,
     ) -> Result<()> {
-        self.client = GraphDBHttpClient::new(host, port);
+        self.config.host = host.to_string();
+        self.config.port = port;
         self.connect(username, password).await
     }
 
-    pub fn disconnect(&mut self) -> Result<()> {
+    /// Disconnect from the database
+    pub async fn disconnect(&mut self) -> Result<()> {
         if self.session.is_none() {
             return Err(CliError::NotConnected);
         }
+
+        self.client.disconnect().await?;
         self.session = None;
         Ok(())
     }
 
+    /// Switch to a different space
     pub async fn switch_space(&mut self, space: &str) -> Result<()> {
         let session = self.session.as_mut().ok_or(CliError::NotConnected)?;
 
-        self.client.use_space(space).await?;
+        self.client.switch_space(space).await?;
         session.current_space = Some(space.to_string());
 
         Ok(())
     }
 
+    /// Execute a query with variable substitution
     pub async fn execute_query(&self, query: &str) -> Result<QueryResult> {
         let session = self.session.as_ref().ok_or(CliError::NotConnected)?;
 
@@ -170,20 +219,26 @@ impl SessionManager {
             .await
     }
 
+    /// Execute a query without variable substitution
     pub async fn execute_query_raw(&self, query: &str) -> Result<QueryResult> {
         let session = self.session.as_ref().ok_or(CliError::NotConnected)?;
-        self.client.execute_query(query, session.session_id).await
+        self.client
+            .execute_query_raw(query, session.session_id)
+            .await
     }
 
+    /// Check server/database health
     pub async fn health_check(&self) -> Result<bool> {
         self.client.health_check().await
     }
 
-    pub async fn list_spaces(&self) -> Result<Vec<crate::client::http::SpaceInfo>> {
+    /// List all available spaces
+    pub async fn list_spaces(&self) -> Result<Vec<crate::client::SpaceInfo>> {
         self.client.list_spaces().await
     }
 
-    pub async fn list_tags(&self) -> Result<Vec<crate::client::http::TagInfo>> {
+    /// List all tags in current space
+    pub async fn list_tags(&self) -> Result<Vec<crate::client::TagInfo>> {
         let session = self.session.as_ref().ok_or(CliError::NotConnected)?;
         let space = session
             .current_space
@@ -192,7 +247,8 @@ impl SessionManager {
         self.client.list_tags(space).await
     }
 
-    pub async fn list_edge_types(&self) -> Result<Vec<crate::client::http::EdgeTypeInfo>> {
+    /// List all edge types in current space
+    pub async fn list_edge_types(&self) -> Result<Vec<crate::client::EdgeTypeInfo>> {
         let session = self.session.as_ref().ok_or(CliError::NotConnected)?;
         let space = session
             .current_space
@@ -201,25 +257,40 @@ impl SessionManager {
         self.client.list_edge_types(space).await
     }
 
+    /// Get current session reference
     pub fn session(&self) -> Option<&Session> {
         self.session.as_ref()
     }
 
+    /// Get mutable session reference
     pub fn session_mut(&mut self) -> Option<&mut Session> {
         self.session.as_mut()
     }
 
+    /// Check if connected
     pub fn is_connected(&self) -> bool {
-        self.session.is_some()
+        self.session.is_some() && self.client.is_connected()
     }
 
+    /// Get current space name
     pub fn current_space(&self) -> Option<&str> {
         self.session
             .as_ref()
             .and_then(|s| s.current_space.as_deref())
     }
 
-    pub fn client(&self) -> &GraphDBHttpClient {
-        &self.client
+    /// Get connection mode
+    pub fn connection_mode(&self) -> ConnectionMode {
+        self.config.mode
+    }
+
+    /// Get client reference
+    pub fn client(&self) -> &dyn GraphDbClient {
+        self.client.as_ref()
+    }
+
+    /// Get connection string
+    pub fn connection_string(&self) -> String {
+        self.client.connection_string()
     }
 }

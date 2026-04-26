@@ -54,7 +54,10 @@ impl ImportConfig {
 
     pub fn map_field_name(&self, original: &str) -> String {
         if let Some(mapping) = &self.field_mapping {
-            mapping.get(original).cloned().unwrap_or_else(|| original.to_string())
+            mapping
+                .get(original)
+                .cloned()
+                .unwrap_or_else(|| original.to_string())
         } else {
             original.to_string()
         }
@@ -83,11 +86,15 @@ pub enum ImportTarget {
 
 impl ImportTarget {
     pub fn vertex(tag: &str) -> Self {
-        ImportTarget::Vertex { tag: tag.to_string() }
+        ImportTarget::Vertex {
+            tag: tag.to_string(),
+        }
     }
 
     pub fn edge(edge_type: &str) -> Self {
-        ImportTarget::Edge { edge_type: edge_type.to_string() }
+        ImportTarget::Edge {
+            edge_type: edge_type.to_string(),
+        }
     }
 }
 
@@ -100,17 +107,26 @@ pub enum ImportFormat {
 
 impl Default for ImportFormat {
     fn default() -> Self {
-        ImportFormat::Csv { delimiter: ',', has_header: true }
+        ImportFormat::Csv {
+            delimiter: ',',
+            has_header: true,
+        }
     }
 }
 
 impl ImportFormat {
     pub fn csv() -> Self {
-        ImportFormat::Csv { delimiter: ',', has_header: true }
+        ImportFormat::Csv {
+            delimiter: ',',
+            has_header: true,
+        }
     }
 
     pub fn csv_with_delimiter(delimiter: char) -> Self {
-        ImportFormat::Csv { delimiter, has_header: true }
+        ImportFormat::Csv {
+            delimiter,
+            has_header: true,
+        }
     }
 
     pub fn json_array() -> Self {
@@ -167,7 +183,7 @@ impl ImportStats {
 
     pub fn format_summary(&self) -> String {
         let mut output = String::new();
-        
+
         output.push_str("─────────────────────────────────────────────────────────────\n");
         output.push_str("Import Statistics\n");
         output.push_str("─────────────────────────────────────────────────────────────\n");
@@ -175,23 +191,29 @@ impl ImportStats {
         output.push_str(&format!("Success:         {}\n", self.success_rows));
         output.push_str(&format!("Failed:          {}\n", self.failed_rows));
         output.push_str(&format!("Skipped:         {}\n", self.skipped_rows));
-        output.push_str(&format!("Duration:        {:.3} s\n", self.duration_ms as f64 / 1000.0));
-        
+        output.push_str(&format!(
+            "Duration:        {:.3} s\n",
+            self.duration_ms as f64 / 1000.0
+        ));
+
         if self.duration_ms > 0 {
             let rate = self.success_rows as f64 / (self.duration_ms as f64 / 1000.0);
             output.push_str(&format!("Rate:            {:.0} rows/s\n", rate));
         }
-        
+
         if !self.errors.is_empty() {
             output.push_str(&format!("\nErrors (showing first 5):\n"));
             for err in self.errors.iter().take(5) {
                 output.push_str(&format!("  Row {}: {}\n", err.row_number, err.error));
             }
             if self.errors.len() > 5 {
-                output.push_str(&format!("  ... and {} more errors\n", self.errors.len() - 5));
+                output.push_str(&format!(
+                    "  ... and {} more errors\n",
+                    self.errors.len() - 5
+                ));
             }
         }
-        
+
         output
     }
 }
@@ -205,6 +227,10 @@ pub struct ImportError {
 
 impl ImportError {
     pub fn new(row_number: usize, line: String, error: String) -> Self {
-        Self { row_number, line, error }
+        Self {
+            row_number,
+            line,
+            error,
+        }
     }
 }

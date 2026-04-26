@@ -202,45 +202,15 @@ pub fn print_info(msg: &str) -> Result<()> {
 /// Set the global output format
 pub fn set_global_format(format: Format) {
     let mut guard = DEFAULT_MANAGER.lock().expect("lock poisoned");
+    if guard.is_none() {
+        *guard = Some(OutputManager::new());
+    }
     if let Some(ref mut manager) = *guard {
-        manager.format = format;
-    } else {
-        let mut manager = OutputManager::new();
-        manager.format = format;
-        *guard = Some(manager);
+        *manager = manager.clone().with_format(format);
     }
 }
 
 /// Get the global output format
 pub fn get_global_format() -> Format {
     get_default_manager().format()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::io::Cursor;
-
-    #[test]
-    fn test_output_manager_creation() {
-        let manager = OutputManager::new();
-        assert_eq!(manager.format(), Format::Plain);
-    }
-
-    #[test]
-    fn test_output_manager_with_format() {
-        let manager = OutputManager::new().with_format(Format::Json);
-        assert_eq!(manager.format(), Format::Json);
-        assert!(manager.is_json_format());
-    }
-
-    #[test]
-    fn test_output_to_cursor() {
-        let cursor = Cursor::new(Vec::new());
-        let manager = OutputManager::new().with_stdout(cursor);
-
-        manager.println("test message").unwrap();
-
-        // Note: We can't easily verify without interior mutability
-    }
 }

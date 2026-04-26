@@ -113,7 +113,7 @@ impl QueryPlan {
     fn format_tree_with_indent(&self, indent: usize) -> String {
         let mut output = String::new();
         let prefix = "  ".repeat(indent);
-        
+
         let mut line = format!(
             "{}{}  (cost={:.2}..{:.2} rows={} width={})",
             prefix,
@@ -125,20 +125,23 @@ impl QueryPlan {
         );
 
         if let (Some(actual_rows), Some(actual_time)) = (self.actual_rows, self.actual_time_ms) {
-            line.push_str(&format!(" (actual rows={} time={:.3}ms)", actual_rows, actual_time));
+            line.push_str(&format!(
+                " (actual rows={} time={:.3}ms)",
+                actual_rows, actual_time
+            ));
         }
-        
+
         output.push_str(&line);
         output.push('\n');
-        
+
         for (key, value) in &self.details {
             output.push_str(&format!("{}  {}: {}\n", prefix, key, value));
         }
-        
+
         for child in &self.children {
             output.push_str(&child.format_tree_with_indent(indent + 1));
         }
-        
+
         output
     }
 
@@ -167,7 +170,12 @@ impl QueryPlan {
         if self.children.is_empty() {
             1
         } else {
-            1 + self.children.iter().map(|c| c.max_depth()).max().unwrap_or(0)
+            1 + self
+                .children
+                .iter()
+                .map(|c| c.max_depth())
+                .max()
+                .unwrap_or(0)
         }
     }
 }

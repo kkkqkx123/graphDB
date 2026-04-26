@@ -203,19 +203,19 @@ mod tests {
 
     #[test]
     fn test_print_table_to() {
-        let headers = ["ID", "Name"];
+        let headers = ["Name", "Value"];
         let rows = vec![
-            vec!["1".to_string(), "Alice".to_string()],
-            vec!["2".to_string(), "Bob".to_string()],
+            vec!["Item1".to_string(), "100".to_string()],
+            vec!["Item2".to_string(), "200".to_string()],
         ];
 
         let mut cursor = Cursor::new(Vec::new());
         print_table_to(&mut cursor, &headers, &rows).unwrap();
 
         let output = String::from_utf8(cursor.into_inner()).unwrap();
-        assert!(output.contains("ID"));
-        assert!(output.contains("Alice"));
-        assert!(output.contains("Bob"));
+        assert!(output.contains("Name"));
+        assert!(output.contains("Item1"));
+        assert!(output.contains("Item2"));
     }
 
     #[test]

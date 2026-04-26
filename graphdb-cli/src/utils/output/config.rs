@@ -149,11 +149,37 @@ mod tests {
     }
 
     #[test]
+    fn test_output_mode_display() {
+        assert_eq!(OutputMode::Console.to_string(), "console");
+        assert_eq!(OutputMode::File.to_string(), "file");
+        assert_eq!(OutputMode::Both.to_string(), "both");
+    }
+
+    #[test]
+    fn test_output_config_default() {
+        let config = OutputConfig::default();
+        assert_eq!(config.mode, OutputMode::Console);
+        assert!(config.file_path.is_none());
+        assert!(!config.append);
+        assert_eq!(config.buffer_size, 8192);
+    }
+
+    #[test]
+    fn test_output_config_file() {
+        let path = std::path::PathBuf::from("/tmp/test.log");
+        let config = OutputConfig::file(&path);
+
+        assert_eq!(config.mode, OutputMode::File);
+        assert_eq!(config.file_path, Some(path));
+    }
+
+    #[test]
     fn test_output_config_validation() {
-        let config = OutputConfig::new();
+        let config = OutputConfig::default();
         assert!(config.validate().is_ok());
 
-        let config = OutputConfig::new().with_mode(OutputMode::File);
+        let mut config = OutputConfig::default();
+        config.mode = OutputMode::File;
         assert!(config.validate().is_err());
 
         let config = OutputConfig::file("/tmp/test.log");
@@ -169,9 +195,8 @@ mod tests {
             .with_buffer_size(16384);
 
         assert_eq!(config.mode, OutputMode::Both);
+        assert!(config.file_path.is_some());
         assert!(config.append);
         assert_eq!(config.buffer_size, 16384);
-        assert!(config.has_file_output());
-        assert!(config.has_console_output());
     }
 }

@@ -15,7 +15,11 @@ impl QueryTimer {
 
     pub fn record_phase(&mut self, name: &str) {
         let elapsed = self.start.elapsed();
-        let last = self.phases.last().map(|(_, d)| *d).unwrap_or(Duration::ZERO);
+        let last = self
+            .phases
+            .last()
+            .map(|(_, d)| *d)
+            .unwrap_or(Duration::ZERO);
         let phase_time = elapsed - last;
         self.phases.push((name.to_string(), phase_time));
     }
@@ -54,15 +58,19 @@ impl QueryTimer {
     pub fn format_phases(&self) -> String {
         let mut output = String::new();
         output.push_str("Time Breakdown:\n");
-        
+
         for (name, duration) in &self.phases {
             let ms = duration.as_millis();
             if ms > 0 {
                 output.push_str(&format!("  {:20} {:.3} ms\n", name, ms as f64));
             }
         }
-        
-        output.push_str(&format!("  {:20} {:.3} ms\n", "Total", self.total_ms() as f64));
+
+        output.push_str(&format!(
+            "  {:20} {:.3} ms\n",
+            "Total",
+            self.total_ms() as f64
+        ));
         output
     }
 
@@ -88,7 +96,7 @@ mod tests {
         let mut timer = QueryTimer::new();
         sleep(Duration::from_millis(10));
         timer.record_phase("phase1");
-        
+
         assert!(timer.total_ms() >= 10);
         assert!(timer.phase_ms("phase1").unwrap() >= 10);
     }
@@ -100,7 +108,7 @@ mod tests {
         timer.record_phase("phase1");
         sleep(Duration::from_millis(5));
         timer.record_phase("phase2");
-        
+
         assert!(timer.total_ms() >= 10);
         assert!(timer.phase_ms("phase1").unwrap() >= 5);
         assert!(timer.phase_ms("phase2").unwrap() >= 5);

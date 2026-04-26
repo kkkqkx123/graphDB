@@ -453,9 +453,11 @@ fn parse_explain_command(arg: &str) -> Result<MetaCommand, String> {
 
 fn parse_import_command(arg: &str) -> Result<MetaCommand, String> {
     let parts: Vec<&str> = arg.split_whitespace().collect();
-    
+
     if parts.len() < 4 {
-        return Err("Usage: \\import <csv|json|jsonl> <file> <tag|edge> <name> [batch_size]".to_string());
+        return Err(
+            "Usage: \\import <csv|json|jsonl> <file> <tag|edge> <name> [batch_size]".to_string(),
+        );
     }
 
     let format = match parts[0].to_lowercase().as_str() {
@@ -485,7 +487,7 @@ fn parse_import_command(arg: &str) -> Result<MetaCommand, String> {
 
 fn parse_export_command(arg: &str) -> Result<MetaCommand, String> {
     let parts: Vec<&str> = arg.split_whitespace().collect();
-    
+
     if parts.len() < 3 {
         return Err("Usage: \\export <csv|json|jsonl> <file> <query>".to_string());
     }
@@ -509,7 +511,7 @@ fn parse_export_command(arg: &str) -> Result<MetaCommand, String> {
 
 fn parse_copy_command(arg: &str) -> Result<MetaCommand, String> {
     let parts: Vec<&str> = arg.split_whitespace().collect();
-    
+
     if parts.len() < 4 {
         return Err("Usage: \\copy <target> from|to '<file>'".to_string());
     }
@@ -518,9 +520,14 @@ fn parse_copy_command(arg: &str) -> Result<MetaCommand, String> {
     let direction = match parts[1].to_lowercase().as_str() {
         "from" => CopyDirection::From,
         "to" => CopyDirection::To,
-        _ => return Err(format!("Invalid direction: {}. Use 'from' or 'to'", parts[1])),
+        _ => {
+            return Err(format!(
+                "Invalid direction: {}. Use 'from' or 'to'",
+                parts[1]
+            ))
+        }
     };
-    
+
     let file_path = parts[2].trim_matches('\'').to_string();
 
     Ok(MetaCommand::Copy {

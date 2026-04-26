@@ -73,9 +73,9 @@ impl TransactionManager {
             "BEGIN TRANSACTION ISOLATION LEVEL {}",
             self.isolation_level.as_str()
         );
-        
+
         session.execute_query(&query).await?;
-        
+
         self.state = TransactionState::Active {
             id: format!("tx_{}", uuid::Uuid::new_v4()),
             space: session.current_space().unwrap_or("").to_string(),
@@ -93,7 +93,7 @@ impl TransactionManager {
         }
 
         session.execute_query("COMMIT").await?;
-        
+
         self.state = TransactionState::Idle;
         self.started_at = None;
         self.savepoints.clear();
@@ -107,7 +107,7 @@ impl TransactionManager {
         }
 
         session.execute_query("ROLLBACK").await?;
-        
+
         self.state = TransactionState::Idle;
         self.started_at = None;
         self.savepoints.clear();
@@ -124,9 +124,12 @@ impl TransactionManager {
             return Err(CliError::NoActiveTransaction);
         }
 
-        session.execute_query(&format!("SAVEPOINT {}", name)).await?;
-        
-        self.savepoints.push(Savepoint::new(name.to_string(), self.query_count));
+        session
+            .execute_query(&format!("SAVEPOINT {}", name))
+            .await?;
+
+        self.savepoints
+            .push(Savepoint::new(name.to_string(), self.query_count));
 
         Ok(())
     }
@@ -140,12 +143,16 @@ impl TransactionManager {
             return Err(CliError::NoActiveTransaction);
         }
 
-        let pos = self.savepoints.iter()
+        let pos = self
+            .savepoints
+            .iter()
             .position(|s| s.name == name)
             .ok_or_else(|| CliError::SavepointNotFound(name.to_string()))?;
 
-        session.execute_query(&format!("ROLLBACK TO SAVEPOINT {}", name)).await?;
-        
+        session
+            .execute_query(&format!("ROLLBACK TO SAVEPOINT {}", name))
+            .await?;
+
         let savepoint = &self.savepoints[pos];
         self.query_count = savepoint.query_count;
         self.savepoints.truncate(pos + 1);
@@ -162,12 +169,16 @@ impl TransactionManager {
             return Err(CliError::NoActiveTransaction);
         }
 
-        let pos = self.savepoints.iter()
+        let pos = self
+            .savepoints
+            .iter()
             .position(|s| s.name == name)
             .ok_or_else(|| CliError::SavepointNotFound(name.to_string()))?;
 
-        session.execute_query(&format!("RELEASE SAVEPOINT {}", name)).await?;
-        
+        session
+            .execute_query(&format!("RELEASE SAVEPOINT {}", name))
+            .await?;
+
         self.savepoints.remove(pos);
 
         Ok(())

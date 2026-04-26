@@ -1,14 +1,12 @@
 //! The GraphDB API module
 //!
 //! Provide multiple access methods:
-//! “core” refers to the core API, which is independent of the transport layer.
-//! “server” refers to a network service API (HTTP).
-//! “Embedded” refers to an API that is designed to be used on a standalone device (i.e., without the need for any additional servers or networks).
+//! "core" refers to the core API, which is independent of the transport layer.
+//! "server" refers to a network service API (HTTP).
+//! "Embedded" refers to an API that is designed to be used on a standalone device (i.e., without the need for any additional servers or networks).
 
-use log::info;
+use log::{info, error};
 use std::sync::Arc;
-
-use crate::utils::output;
 
 pub mod core;
 
@@ -43,10 +41,10 @@ pub fn start_service(config_path: String) -> DBResult<()> {
     let config = match Config::load(&config_path) {
         Ok(config) => config,
         Err(e) => {
-            let _ = output::print_error(&format!(
+            error!(
                 "Failed to load config from '{}': {}, using default config",
                 config_path, e
-            ));
+            );
             Config::default()
         }
     };
@@ -56,8 +54,8 @@ pub fn start_service(config_path: String) -> DBResult<()> {
 /// Start the service using the configuration object.
 #[cfg(feature = "server")]
 pub fn start_service_with_config(config: Config) -> DBResult<()> {
-    let _ = output::print_info("Initializing GraphDB service...");
-    let _ = output::print_info(&format!("Configuration loaded: {:?}", config));
+    info!("Initializing GraphDB service...");
+    info!("Configuration loaded: {:?}", config);
 
     info!(
         "Log system has been initialized: {}/{}",
@@ -66,7 +64,7 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
     );
 
     let inner_storage = Arc::new(DefaultStorage::new()?);
-    let _ = output::print_success("Storage initialized (memory mode)");
+    info!("Storage initialized (memory mode)");
 
     // 如果配置启用了全文索引或向量索引，初始化 SyncManager
     let storage = if config.fulltext.enabled || config.vector.enabled {
@@ -109,7 +107,7 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
                     crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
                 );
                 sync_manager = sync_manager.with_vector_coordinator(vector_coordinator);
-                let _ = output::print_info("Vector index sync enabled");
+                info!("Vector index sync enabled");
             }
 
             (sync_coordinator.clone(), Arc::new(sync_manager))
@@ -139,16 +137,16 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
                     crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
                 );
                 sync_manager = sync_manager.with_vector_coordinator(vector_coordinator);
-                let _ = output::print_info("Vector index sync enabled");
+                info!("Vector index sync enabled");
             }
 
             (sync_coordinator.clone(), Arc::new(sync_manager))
         };
 
-        let _ = output::print_success("SyncManager initialized");
+        info!("SyncManager initialized");
 
         let sync_storage = SyncStorage::with_sync_manager((*inner_storage).clone(), sync_manager);
-        let _ = output::print_success("Sync enabled for fulltext and vector indexes");
+        info!("Sync enabled for fulltext and vector indexes");
 
         Arc::new(sync_storage)
     } else {
@@ -164,16 +162,16 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
         auto_cleanup: true,
     };
     let transaction_manager = Arc::new(TransactionManager::new(db, txn_config));
-    let _ = output::print_success("Transaction manager initialized");
+    info!("Transaction manager initialized");
 
     // Create Tokio runtime for async initialization
     // Initialize telemetry recorder and set as global
     let telemetry_recorder = Arc::new(crate::api::core::telemetry::TelemetryRecorder::new());
     if let Err(e) = crate::api::core::telemetry::set_global_recorder((*telemetry_recorder).clone())
     {
-        let _ = output::print_error(&format!("Failed to set global telemetry recorder: {}", e));
+        error!("Failed to set global telemetry recorder: {}", e);
     } else {
-        let _ = output::print_success("Telemetry recorder initialized");
+        info!("Telemetry recorder initialized");
     }
 
     let rt = tokio::runtime::Runtime::new()?;
@@ -190,13 +188,13 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
                 telemetry_config,
                 telemetry_recorder.clone(),
             );
-            let _ = output::print_info(&format!(
+            info!(
                 "Starting telemetry server on {}:{}",
                 config.server.telemetry.bind_address, config.server.telemetry.port
-            ));
+            );
             Some(telemetry_server.spawn())
         } else {
-            let _ = output::print_info("Telemetry server disabled");
+            info!("Telemetry server disabled");
             None
         };
 
@@ -207,7 +205,7 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
                 transaction_manager.clone(),
             )
             .await;
-        let _ = output::print_success("Graph service initialized with transaction management");
+        info!("Graph service initialized with transaction management");
 
         // Create HTTP server
         let http_server = Arc::new(HttpServer::new(
@@ -216,34 +214,34 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
             transaction_manager,
             &config,
         ));
-        let _ = output::print_info("HTTP server created");
+        info!("HTTP server created");
 
-        let _ = output::print_info(&format!(
+        info!(
             "Starting HTTP server on {}:{}",
             config.host(),
             config.port()
-        ));
+        );
 
         // Start HTTP server
         if let Err(e) = start_http_server(http_server, &config).await {
-            let _ = output::print_error(&format!("HTTP server error: {}", e));
+            error!("HTTP server error: {}", e);
         }
     });
 
     shutdown_signal();
 
-    let _ = output::print_info("Shutting down GraphDB service...");
+    info!("Shutting down GraphDB service...");
     Ok(())
 }
 
 #[cfg(feature = "server")]
 pub async fn execute_query(query_str: &str) -> DBResult<()> {
-    let _ = output::print_info(&format!("Executing query: {}", query_str));
+    info!("Executing query: {}", query_str);
 
     let config = crate::config::Config::default();
     let inner_storage = Arc::new(DefaultStorage::new()?);
 
-    // 初始化存储（简化版本，不启用全文索引）
+    // Initialize storage (simplified version without fulltext index)
     let sync_storage = SyncStorage::new((*inner_storage).clone());
     let storage = Arc::new(sync_storage);
 
@@ -257,7 +255,7 @@ pub async fn execute_query(query_str: &str) -> DBResult<()> {
     {
         Ok(session) => session,
         Err(e) => {
-            let _ = output::print_error(&format!("Failed to create session: {}", e));
+            error!("Failed to create session: {}", e);
             return Err(crate::core::error::DBError::Session(
                 crate::core::error::SessionError::ManagerError(format!(
                     "Failed to create session: {}",
@@ -271,10 +269,10 @@ pub async fn execute_query(query_str: &str) -> DBResult<()> {
 
     match graph_service.execute(session_id, query_str) {
         Ok(result) => {
-            let _ = output::print_success(&format!("Query executed successfully: {:?}", result));
+            info!("Query executed successfully: {:?}", result);
         }
         Err(e) => {
-            let _ = output::print_error(&format!("Query execution error: {}", e));
+            error!("Query execution error: {}", e);
         }
     }
 
@@ -288,7 +286,7 @@ pub async fn execute_query(query_str: &str) -> DBResult<()> {
 pub fn shutdown_signal() {
     use tokio::runtime::Runtime;
 
-    let _ = output::print_info("Waiting for shutdown signal (Ctrl+C or SIGTERM)...");
+    info!("Waiting for shutdown signal (Ctrl+C or SIGTERM)...");
 
     // Create a temporary runtime to wait for asynchronous signals.
     let rt = Runtime::new().expect("Failed to create temporary runtime");
@@ -296,7 +294,7 @@ pub fn shutdown_signal() {
         async_shutdown_signal().await;
     });
 
-    let _ = output::print_info("Received shutdown signal");
+    info!("Received shutdown signal");
 }
 
 // Additional API endpoints can be added here

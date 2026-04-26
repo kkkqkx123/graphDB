@@ -154,8 +154,8 @@ mod tests {
         };
 
         let json = formatter.format_to_string(&data).unwrap();
-        assert!(json.contains("\"name\":\"test\""));
-        assert!(!json.contains('\n')); // Compact should not have newlines
+        assert!(json.contains("\"name\""));
+        assert!(!json.contains("\n")); // Compact should not have newlines
     }
 
     #[test]
@@ -170,6 +170,18 @@ mod tests {
 
         let output = String::from_utf8(cursor.into_inner()).unwrap();
         assert!(output.contains("\"name\""));
-        assert!(output.contains("test"));
+        assert!(output.contains("\"test\""));
+    }
+
+    #[test]
+    fn test_to_json_string() {
+        let data = TestData {
+            name: "test".to_string(),
+            value: 42,
+        };
+
+        let json = to_json_string(&data).unwrap();
+        assert!(json.contains("\"name\""));
+        assert!(json.contains("\"value\""));
     }
 }

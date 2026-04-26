@@ -11,7 +11,7 @@ use crate::query::executor::expression::functions::{
     AggregateFinalCallback, AggregateStepCallback, CFunctionContext, CustomFunction,
     ScalarFunctionCallback,
 };
-use crate::utils::output;
+use log::error;
 use std::ffi::{c_char, c_int, c_void, CStr};
 
 /// Scalar function callback type
@@ -105,7 +105,7 @@ pub unsafe extern "C" fn graphdb_create_function(
 
         // Register for the session.
         if let Err(e) = handle.inner.register_custom_function(func) {
-            let _ = output::print_error(&format!("Registration function failed: {:?}", e));
+            error!("Registration function failed: {:?}", e);
             return graphdb_error_code_t::GRAPHDB_ERROR as c_int;
         }
     }
@@ -174,10 +174,10 @@ pub unsafe extern "C" fn graphdb_create_aggregate(
 
         // Register for the session.
         if let Err(e) = handle.inner.register_custom_function(func) {
-            let _ = output::print_error(&format!(
+            error!(
                 "Registration of the aggregate function failed: {:?}",
                 e
-            ));
+            );
             return graphdb_error_code_t::GRAPHDB_ERROR as c_int;
         }
     }

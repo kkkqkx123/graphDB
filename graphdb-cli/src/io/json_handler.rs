@@ -26,7 +26,7 @@ impl JsonImporter {
     pub async fn import(&mut self, session: &mut SessionManager) -> Result<ImportStats> {
         let content = fs::read_to_string(&self.config.file_path)?;
         let mut stats = ImportStats::new();
-        
+
         if self.config.format.is_array_mode() {
             let items: Vec<serde_json::Value> = serde_json::from_str(&content)?;
             for (idx, item) in items.iter().enumerate() {
@@ -34,11 +34,9 @@ impl JsonImporter {
                     Ok(_) => stats.success_rows += 1,
                     Err(e) => {
                         stats.failed_rows += 1;
-                        stats.errors.push(ImportError::new(
-                            idx,
-                            item.to_string(),
-                            e.to_string(),
-                        ));
+                        stats
+                            .errors
+                            .push(ImportError::new(idx, item.to_string(), e.to_string()));
                     }
                 }
                 stats.total_rows += 1;
@@ -46,29 +44,27 @@ impl JsonImporter {
         } else {
             let file = File::open(&self.config.file_path)?;
             let reader = BufReader::new(file);
-            
+
             for (idx, line) in reader.lines().enumerate() {
                 let line = line?;
                 if line.trim().is_empty() {
                     continue;
                 }
-                
+
                 let item: serde_json::Value = serde_json::from_str(&line)?;
                 match self.process_json_item(&item, session).await {
                     Ok(_) => stats.success_rows += 1,
                     Err(e) => {
                         stats.failed_rows += 1;
-                        stats.errors.push(ImportError::new(
-                            idx,
-                            line.clone(),
-                            e.to_string(),
-                        ));
+                        stats
+                            .errors
+                            .push(ImportError::new(idx, line.clone(), e.to_string()));
                     }
                 }
                 stats.total_rows += 1;
             }
         }
-        
+
         self.flush_batch(session).await?;
         stats.duration_ms = self.start_time.elapsed().as_millis() as u64;
         Ok(stats)
@@ -81,27 +77,29 @@ impl JsonImporter {
     ) -> Result<()> {
         let query = self.build_insert_from_json(json)?;
         self.batch_buffer.push(query);
-        
+
         if self.batch_buffer.len() >= self.config.batch_size {
             self.flush_batch(session).await?;
         }
-        
+
         Ok(())
     }
 
     fn build_insert_from_json(&self, json: &serde_json::Value) -> Result<String> {
-        let obj = json.as_object()
+        let obj = json
+            .as_object()
             .ok_or_else(|| anyhow::anyhow!("Expected JSON object"))?;
-        
+
         match &self.config.target_type {
             ImportTarget::Vertex { tag } => {
-                let vid = obj.get("_id")
+                let vid = obj
+                    .get("_id")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| anyhow::anyhow!("Missing _id field"))?;
-                
+
                 let mut fields = Vec::new();
                 let mut values = Vec::new();
-                
+
                 for (key, value) in obj.iter() {
                     if key == "_id" {
                         continue;
@@ -109,7 +107,7 @@ impl JsonImporter {
                     fields.push(self.config.map_field_name(key));
                     values.push(json_value_to_gql(value));
                 }
-                
+
                 Ok(format!(
                     "INSERT VERTEX {} ({}) VALUES \"{}\":({})",
                     tag,
@@ -119,16 +117,18 @@ impl JsonImporter {
                 ))
             }
             ImportTarget::Edge { edge_type } => {
-                let src = obj.get("_src")
+                let src = obj
+                    .get("_src")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| anyhow::anyhow!("Missing _src field"))?;
-                let dst = obj.get("_dst")
+                let dst = obj
+                    .get("_dst")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| anyhow::anyhow!("Missing _dst field"))?;
-                
+
                 let mut fields = Vec::new();
                 let mut values = Vec::new();
-                
+
                 for (key, value) in obj.iter() {
                     if key == "_src" || key == "_dst" {
                         continue;
@@ -136,7 +136,7 @@ impl JsonImporter {
                     fields.push(self.config.map_field_name(key));
                     values.push(json_value_to_gql(value));
                 }
-                
+
                 Ok(format!(
                     "INSERT EDGE {} ({}) VALUES \"{}\"->\"{}\":({})",
                     edge_type,
@@ -156,10 +156,10 @@ impl JsonImporter {
 
         let queries: Vec<&str> = self.batch_buffer.iter().map(|s| s.as_str()).collect();
         let combined = queries.join("; ");
-        
+
         session.execute_query(&combined).await?;
         self.batch_buffer.clear();
-        
+
         Ok(())
     }
 }
@@ -200,33 +200,36 @@ impl JsonExporter {
     ) -> Result<crate::io::ExportStats> {
         let result = session.execute_query(query).await?;
         let mut stats = crate::io::ExportStats::new();
-        
+
         let file = File::create(&self.config.file_path)?;
         let mut writer = BufWriter::new(file);
-        
+
         match &self.config.format {
-            crate::io::ExportFormat::Json { pretty, array_wrapper } => {
+            crate::io::ExportFormat::Json {
+                pretty,
+                array_wrapper,
+            } => {
                 if *array_wrapper {
                     writer.write_all(b"[\n")?;
                 }
-                
+
                 for (idx, row) in result.rows.iter().enumerate() {
                     let obj = self.row_to_json_object(&result.columns, row);
-                    
+
                     let json_str = if *pretty {
                         serde_json::to_string_pretty(&obj)?
                     } else {
                         serde_json::to_string(&obj)?
                     };
-                    
+
                     if *array_wrapper && idx > 0 {
                         writer.write_all(b",\n")?;
                     }
                     writer.write_all(json_str.as_bytes())?;
-                    
+
                     stats.total_rows += 1;
                 }
-                
+
                 if *array_wrapper {
                     writer.write_all(b"\n]")?;
                 }
@@ -241,11 +244,11 @@ impl JsonExporter {
             }
             _ => return Err(anyhow::anyhow!("Invalid format for JSON exporter")),
         }
-        
+
         writer.flush()?;
         stats.bytes_written = writer.get_ref().metadata()?.len();
         stats.duration_ms = self.start_time.elapsed().as_millis() as u64;
-        
+
         Ok(stats)
     }
 

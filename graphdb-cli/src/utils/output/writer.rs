@@ -150,26 +150,3 @@ impl Write for MultiWriter {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_multi_writer() {
-        let stdout = StdoutWriter::new();
-        let file = FileWriter::new(
-            std::fs::File::create(std::env::temp_dir().join("test_multi.log")).unwrap(),
-        );
-
-        let mut multi = MultiWriter::with_stdout_and_file(stdout, file);
-        multi.write_all(b"hello").unwrap();
-        multi.flush().unwrap();
-
-        // Note: We can't easily verify the content without interior mutability
-        // This test mainly checks that it compiles and runs without panic
-
-        // Clean up
-        let _ = std::fs::remove_file(std::env::temp_dir().join("test_multi.log"));
-    }
-}

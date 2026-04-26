@@ -5,7 +5,7 @@ use std::time::Instant;
 use anyhow::Result;
 use csv::ReaderBuilder;
 
-use crate::io::{ImportConfig, ImportError, ImportStats, ImportTarget, ErrorHandling};
+use crate::io::{ErrorHandling, ImportConfig, ImportError, ImportStats, ImportTarget};
 use crate::session::manager::SessionManager;
 
 pub struct CsvImporter {
@@ -26,39 +26,37 @@ impl CsvImporter {
     pub async fn import(&mut self, session: &mut SessionManager) -> Result<ImportStats> {
         let file = File::open(&self.config.file_path)?;
         let reader = BufReader::new(file);
-        
+
         let mut csv_reader = ReaderBuilder::new()
             .delimiter(self.config.format.delimiter() as u8)
             .has_headers(self.config.format.has_header())
             .from_reader(reader);
-        
+
         let headers = csv_reader.headers()?.clone();
         let mut stats = ImportStats::new();
-        
+
         for (idx, result) in csv_reader.records().enumerate() {
             if idx < self.config.skip_rows {
                 stats.skipped_rows += 1;
                 continue;
             }
-            
+
             match result {
-                Ok(record) => {
-                    match self.process_record(&headers, &record, session).await {
-                        Ok(_) => stats.success_rows += 1,
-                        Err(e) => {
-                            stats.failed_rows += 1;
-                            stats.errors.push(ImportError::new(
-                                idx,
-                                record.iter().collect::<Vec<_>>().join(","),
-                                e.to_string(),
-                            ));
-                            
-                            if matches!(self.config.on_error, ErrorHandling::Stop) {
-                                break;
-                            }
+                Ok(record) => match self.process_record(&headers, &record, session).await {
+                    Ok(_) => stats.success_rows += 1,
+                    Err(e) => {
+                        stats.failed_rows += 1;
+                        stats.errors.push(ImportError::new(
+                            idx,
+                            record.iter().collect::<Vec<_>>().join(","),
+                            e.to_string(),
+                        ));
+
+                        if matches!(self.config.on_error, ErrorHandling::Stop) {
+                            break;
                         }
                     }
-                }
+                },
                 Err(e) => {
                     stats.failed_rows += 1;
                     if matches!(self.config.on_error, ErrorHandling::Stop) {
@@ -66,10 +64,10 @@ impl CsvImporter {
                     }
                 }
             }
-            
+
             stats.total_rows += 1;
         }
-        
+
         self.flush_batch(session).await?;
         stats.duration_ms = self.start_time.elapsed().as_millis() as u64;
         Ok(stats)
@@ -83,11 +81,11 @@ impl CsvImporter {
     ) -> Result<()> {
         let query = self.build_insert_query(headers, record)?;
         self.batch_buffer.push(query);
-        
+
         if self.batch_buffer.len() >= self.config.batch_size {
             self.flush_batch(session).await?;
         }
-        
+
         Ok(())
     }
 
@@ -98,15 +96,15 @@ impl CsvImporter {
     ) -> Result<String> {
         match &self.config.target_type {
             ImportTarget::Vertex { tag } => {
-                let fields: Vec<String> = headers.iter()
+                let fields: Vec<String> = headers
+                    .iter()
                     .map(|h| self.config.map_field_name(h))
                     .collect();
-                let values: Vec<String> = record.iter()
-                    .map(|v| self.config.format_value(v))
-                    .collect();
-                
+                let values: Vec<String> =
+                    record.iter().map(|v| self.config.format_value(v)).collect();
+
                 let vid = self.generate_vid(record)?;
-                
+
                 Ok(format!(
                     "INSERT VERTEX {} ({}) VALUES \"{}\":({})",
                     tag,
@@ -116,18 +114,24 @@ impl CsvImporter {
                 ))
             }
             ImportTarget::Edge { edge_type } => {
-                let src_vid = record.get(0)
+                let src_vid = record
+                    .get(0)
                     .ok_or_else(|| anyhow::anyhow!("Missing source VID"))?;
-                let dst_vid = record.get(1)
+                let dst_vid = record
+                    .get(1)
                     .ok_or_else(|| anyhow::anyhow!("Missing destination VID"))?;
-                
-                let fields: Vec<String> = headers.iter().skip(2)
+
+                let fields: Vec<String> = headers
+                    .iter()
+                    .skip(2)
                     .map(|h| self.config.map_field_name(h))
                     .collect();
-                let values: Vec<String> = record.iter().skip(2)
+                let values: Vec<String> = record
+                    .iter()
+                    .skip(2)
                     .map(|v| self.config.format_value(v))
                     .collect();
-                
+
                 Ok(format!(
                     "INSERT EDGE {} ({}) VALUES \"{}\"->\"{}\":({})",
                     edge_type,
@@ -155,10 +159,10 @@ impl CsvImporter {
 
         let queries: Vec<&str> = self.batch_buffer.iter().map(|s| s.as_str()).collect();
         let combined = queries.join("; ");
-        
+
         session.execute_query(&combined).await?;
         self.batch_buffer.clear();
-        
+
         Ok(())
     }
 }
@@ -183,34 +187,36 @@ impl CsvExporter {
     ) -> Result<crate::io::ExportStats> {
         let result = session.execute_query(query).await?;
         let mut stats = crate::io::ExportStats::new();
-        
+
         let file = File::create(&self.config.file_path)?;
         let mut writer = BufWriter::new(file);
-        
+
         let delimiter = self.config.format.delimiter();
-        
+
         if self.config.include_header {
             let header = result.columns.join(&delimiter.to_string());
             writeln!(writer, "{}", header)?;
         }
-        
+
         for row in &result.rows {
-            let values: Vec<String> = result.columns.iter()
+            let values: Vec<String> = result
+                .columns
+                .iter()
                 .map(|col| {
                     row.get(col)
                         .map(|v| self.format_csv_value(v))
                         .unwrap_or_default()
                 })
                 .collect();
-            
+
             writeln!(writer, "{}", values.join(&delimiter.to_string()))?;
             stats.total_rows += 1;
         }
-        
+
         writer.flush()?;
         stats.bytes_written = writer.get_ref().metadata()?.len();
         stats.duration_ms = self.start_time.elapsed().as_millis() as u64;
-        
+
         Ok(stats)
     }
 

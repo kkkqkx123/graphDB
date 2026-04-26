@@ -156,7 +156,10 @@ impl CommandExecutor {
         }
 
         if self.tx_manager.is_failed() {
-            let error = self.tx_manager.state().error_message()
+            let error = self
+                .tx_manager
+                .state()
+                .error_message()
                 .unwrap_or("Transaction is in failed state")
                 .to_string();
             return Err(CliError::TransactionFailed(error));
@@ -169,15 +172,15 @@ impl CommandExecutor {
         }
 
         let mut timer = QueryTimer::new();
-        
+
         let result = session_mgr.execute_query(query).await?;
         timer.record_phase("execution");
-        
+
         self.tx_manager.record_query();
 
         let output = self.formatter.format_result(&result);
         self.write_output(&output)?;
-        
+
         if self.formatter.timing_enabled() {
             self.write_output(&timer.format_time())?;
         }
@@ -237,7 +240,7 @@ impl CommandExecutor {
                 if !self.conditional_stack.is_active() {
                     return Ok(true);
                 }
-                session_mgr.disconnect()?;
+                session_mgr.disconnect().await?;
                 self.write_output("Disconnected.")?;
                 Ok(true)
             }
@@ -509,13 +512,18 @@ impl CommandExecutor {
                     let enabled = match v.to_lowercase().as_str() {
                         "on" | "true" | "1" => true,
                         "off" | "false" | "0" => false,
-                        _ => return Err(CliError::InvalidValue(format!("Invalid autocommit value: {}", v))),
+                        _ => {
+                            return Err(CliError::InvalidValue(format!(
+                                "Invalid autocommit value: {}",
+                                v
+                            )))
+                        }
                     };
-                    
+
                     if !enabled && self.tx_manager.is_active() {
                         return Err(CliError::CannotChangeAutocommit);
                     }
-                    
+
                     self.tx_manager.set_autocommit(enabled);
                     self.write_output(&format!(
                         "Autocommit {}.",
@@ -524,25 +532,27 @@ impl CommandExecutor {
                 } else {
                     self.write_output(&format!(
                         "Autocommit is {}.",
-                        if self.tx_manager.autocommit() { "on" } else { "off" }
+                        if self.tx_manager.autocommit() {
+                            "on"
+                        } else {
+                            "off"
+                        }
                     ))?;
                 }
                 Ok(true)
             }
             MetaCommand::Isolation { level } => {
                 if let Some(l) = level {
-                    let isolation = IsolationLevel::from_str(&l)
-                        .ok_or_else(|| CliError::InvalidValue(format!("Invalid isolation level: {}", l)))?;
-                    
+                    let isolation = IsolationLevel::from_str(&l).ok_or_else(|| {
+                        CliError::InvalidValue(format!("Invalid isolation level: {}", l))
+                    })?;
+
                     if self.tx_manager.is_active() {
                         return Err(CliError::TransactionAlreadyActive);
                     }
-                    
+
                     self.tx_manager.set_isolation_level(isolation);
-                    self.write_output(&format!(
-                        "Isolation level set to: {}",
-                        isolation.as_str()
-                    ))?;
+                    self.write_output(&format!("Isolation level set to: {}", isolation.as_str()))?;
                 } else {
                     self.write_output(&format!(
                         "Current isolation level: {}",
@@ -563,7 +573,9 @@ impl CommandExecutor {
                 if !self.conditional_stack.is_active() {
                     return Ok(true);
                 }
-                self.tx_manager.rollback_to_savepoint(&name, session_mgr).await?;
+                self.tx_manager
+                    .rollback_to_savepoint(&name, session_mgr)
+                    .await?;
                 self.write_output(&format!("Rolled back to savepoint '{}'.", name))?;
                 Ok(true)
             }
@@ -571,7 +583,9 @@ impl CommandExecutor {
                 if !self.conditional_stack.is_active() {
                     return Ok(true);
                 }
-                self.tx_manager.release_savepoint(&name, session_mgr).await?;
+                self.tx_manager
+                    .release_savepoint(&name, session_mgr)
+                    .await?;
                 self.write_output(&format!("Savepoint '{}' released.", name))?;
                 Ok(true)
             }
@@ -638,14 +652,22 @@ impl CommandExecutor {
                 self.conditional_stack.pop();
                 Ok(true)
             }
-            MetaCommand::Explain { query, analyze, format: _ } => {
+            MetaCommand::Explain {
+                query,
+                analyze,
+                format: _,
+            } => {
                 if !self.conditional_stack.is_active() {
                     return Ok(true);
                 }
                 if analyze {
-                    self.write_output("EXPLAIN ANALYZE is not yet implemented. Showing plan only.")?;
+                    self.write_output(
+                        "EXPLAIN ANALYZE is not yet implemented. Showing plan only.",
+                    )?;
                 }
-                let result = session_mgr.execute_query(&format!("EXPLAIN {}", query)).await?;
+                let result = session_mgr
+                    .execute_query(&format!("EXPLAIN {}", query))
+                    .await?;
                 let output = self.formatter.format_result(&result);
                 self.write_output(&output)?;
                 Ok(true)
@@ -657,21 +679,26 @@ impl CommandExecutor {
                 let mut timer = QueryTimer::new();
                 let result = session_mgr.execute_query(&query).await?;
                 timer.record_phase("execution");
-                
+
                 let output = self.formatter.format_result(&result);
                 self.write_output(&output)?;
                 self.write_output(&timer.format_phases())?;
                 Ok(true)
             }
-            MetaCommand::Import { format, file_path, target, batch_size } => {
+            MetaCommand::Import {
+                format,
+                file_path,
+                target,
+                batch_size,
+            } => {
                 if !self.conditional_stack.is_active() {
                     return Ok(true);
                 }
-                
+
                 let config = ImportConfig::new(file_path.into(), target)
                     .with_format(format)
                     .with_batch_size(batch_size.unwrap_or(100));
-                
+
                 let stats = match config.format {
                     crate::io::ImportFormat::Csv { .. } => {
                         let mut importer = CsvImporter::new(config);
@@ -686,17 +713,21 @@ impl CommandExecutor {
                         importer.import(session_mgr).await?
                     }
                 };
-                
+
                 self.write_output(&stats.format_summary())?;
                 Ok(true)
             }
-            MetaCommand::Export { format, file_path, query } => {
+            MetaCommand::Export {
+                format,
+                file_path,
+                query,
+            } => {
                 if !self.conditional_stack.is_active() {
                     return Ok(true);
                 }
-                
+
                 let config = ExportConfig::new(file_path.into(), format);
-                
+
                 let stats = match &config.format {
                     crate::io::ExportFormat::Csv { .. } => {
                         let exporter = CsvExporter::new(config);
@@ -707,26 +738,34 @@ impl CommandExecutor {
                         exporter.export(&query, session_mgr).await?
                     }
                 };
-                
+
                 self.write_output(&stats.format_summary())?;
                 Ok(true)
             }
-            MetaCommand::Copy { direction, target, file_path } => {
+            MetaCommand::Copy {
+                direction,
+                target,
+                file_path,
+            } => {
                 if !self.conditional_stack.is_active() {
                     return Ok(true);
                 }
-                
+
                 match direction {
                     CopyDirection::From => {
-                        let import_format = if file_path.ends_with(".json") || file_path.ends_with(".jsonl") {
-                            crate::io::ImportFormat::json_array()
-                        } else {
-                            crate::io::ImportFormat::csv()
-                        };
-                        
-                        let config = ImportConfig::new(file_path.into(), crate::io::ImportTarget::vertex(&target))
-                            .with_format(import_format.clone());
-                        
+                        let import_format =
+                            if file_path.ends_with(".json") || file_path.ends_with(".jsonl") {
+                                crate::io::ImportFormat::json_array()
+                            } else {
+                                crate::io::ImportFormat::csv()
+                            };
+
+                        let config = ImportConfig::new(
+                            file_path.into(),
+                            crate::io::ImportTarget::vertex(&target),
+                        )
+                        .with_format(import_format.clone());
+
                         let stats = match import_format {
                             crate::io::ImportFormat::Csv { .. } => {
                                 let mut importer = CsvImporter::new(config);
@@ -737,7 +776,7 @@ impl CommandExecutor {
                                 importer.import(session_mgr).await?
                             }
                         };
-                        
+
                         self.write_output(&stats.format_summary())?;
                     }
                     CopyDirection::To => {
@@ -747,9 +786,9 @@ impl CommandExecutor {
                         } else {
                             crate::io::ExportFormat::csv()
                         };
-                        
+
                         let config = ExportConfig::new(file_path.into(), export_format);
-                        
+
                         let stats = match &config.format {
                             crate::io::ExportFormat::Csv { .. } => {
                                 let exporter = CsvExporter::new(config);
@@ -760,7 +799,7 @@ impl CommandExecutor {
                                 exporter.export(&query, session_mgr).await?
                             }
                         };
-                        
+
                         self.write_output(&stats.format_summary())?;
                     }
                 }

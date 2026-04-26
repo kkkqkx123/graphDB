@@ -5,14 +5,8 @@ use super::IsolationLevel;
 #[derive(Debug, Clone, PartialEq)]
 pub enum TransactionState {
     Idle,
-    Active {
-        id: String,
-        space: String,
-    },
-    Failed {
-        id: String,
-        error: String,
-    },
+    Active { id: String, space: String },
+    Failed { id: String, error: String },
 }
 
 impl TransactionState {
@@ -79,11 +73,11 @@ pub struct TransactionInfo {
 impl TransactionInfo {
     pub fn format_status(&self) -> String {
         let mut output = String::new();
-        
+
         output.push_str("─────────────────────────────────────────────────────────────\n");
         output.push_str("Transaction Status\n");
         output.push_str("─────────────────────────────────────────────────────────────\n");
-        
+
         match &self.state {
             TransactionState::Idle => {
                 output.push_str("State:           Idle\n");
@@ -99,20 +93,32 @@ impl TransactionInfo {
                 output.push_str(&format!("Error:           {}\n", error));
             }
         }
-        
-        output.push_str(&format!("Autocommit:      {}\n", if self.autocommit { "on" } else { "off" }));
-        output.push_str(&format!("Isolation:       {}\n", self.isolation_level.as_str()));
-        
+
+        output.push_str(&format!(
+            "Autocommit:      {}\n",
+            if self.autocommit { "on" } else { "off" }
+        ));
+        output.push_str(&format!(
+            "Isolation:       {}\n",
+            self.isolation_level.as_str()
+        ));
+
         if let Some(duration) = self.duration_ms {
-            output.push_str(&format!("Duration:        {:.3} s\n", duration as f64 / 1000.0));
+            output.push_str(&format!(
+                "Duration:        {:.3} s\n",
+                duration as f64 / 1000.0
+            ));
         }
-        
+
         output.push_str(&format!("Queries:         {}\n", self.query_count));
-        
+
         if !self.savepoints.is_empty() {
-            output.push_str(&format!("Savepoints:      {}\n", self.savepoints.join(", ")));
+            output.push_str(&format!(
+                "Savepoints:      {}\n",
+                self.savepoints.join(", ")
+            ));
         }
-        
+
         output
     }
 }

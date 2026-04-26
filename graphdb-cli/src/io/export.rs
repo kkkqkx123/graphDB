@@ -53,11 +53,17 @@ impl ExportFormat {
     }
 
     pub fn json() -> Self {
-        ExportFormat::Json { pretty: false, array_wrapper: true }
+        ExportFormat::Json {
+            pretty: false,
+            array_wrapper: true,
+        }
     }
 
     pub fn json_pretty() -> Self {
-        ExportFormat::Json { pretty: true, array_wrapper: true }
+        ExportFormat::Json {
+            pretty: true,
+            array_wrapper: true,
+        }
     }
 
     pub fn json_lines() -> Self {
@@ -100,19 +106,25 @@ impl ExportStats {
 
     pub fn format_summary(&self) -> String {
         let mut output = String::new();
-        
+
         output.push_str("─────────────────────────────────────────────────────────────\n");
         output.push_str("Export Statistics\n");
         output.push_str("─────────────────────────────────────────────────────────────\n");
         output.push_str(&format!("Total rows:      {}\n", self.total_rows));
-        output.push_str(&format!("Bytes written:   {}\n", format_bytes(self.bytes_written)));
-        output.push_str(&format!("Duration:        {:.3} s\n", self.duration_ms as f64 / 1000.0));
-        
+        output.push_str(&format!(
+            "Bytes written:   {}\n",
+            format_bytes(self.bytes_written)
+        ));
+        output.push_str(&format!(
+            "Duration:        {:.3} s\n",
+            self.duration_ms as f64 / 1000.0
+        ));
+
         if self.duration_ms > 0 {
             let rate = self.total_rows as f64 / (self.duration_ms as f64 / 1000.0);
             output.push_str(&format!("Rate:            {:.0} rows/s\n", rate));
         }
-        
+
         output
     }
 }
@@ -121,7 +133,7 @@ fn format_bytes(bytes: u64) -> String {
     const KB: u64 = 1024;
     const MB: u64 = KB * 1024;
     const GB: u64 = MB * 1024;
-    
+
     if bytes >= GB {
         format!("{:.2} GB", bytes as f64 / GB as f64)
     } else if bytes >= MB {

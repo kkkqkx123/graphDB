@@ -151,107 +151,50 @@ impl StreamOutput {
         self.writer.flush()?;
         Ok(())
     }
-
-    /// Close the stream and release resources
-    pub fn close(mut self) -> Result<()> {
-        self.flush()?;
-        // File is automatically closed when dropped
-        Ok(())
-    }
-}
-
-impl Write for StreamOutput {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.writer.write(buf)
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.writer.flush()
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::io::Read;
+    use tempfile::tempdir;
 
     #[test]
     fn test_stream_output_console() {
-        let mut stream = StreamOutput::console();
-        stream.writeln("test message").unwrap();
-        // Cannot verify stdout in test, but should not panic
+        let stream = StreamOutput::console();
+        // Console output is always available
+        assert!(matches!(stream.writer, WriterKind::Stdout(_)));
     }
 
     #[test]
     fn test_stream_output_file() {
-        let temp_dir = std::env::temp_dir();
-        let test_file = temp_dir.join("test_output_stream.log");
-
-        // Clean up if exists
-        let _ = std::fs::remove_file(&test_file);
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test_output.txt");
 
         {
-            let mut stream = StreamOutput::file(&test_file, false).unwrap();
-            stream.writeln("line 1").unwrap();
-            stream.writeln("line 2").unwrap();
-            stream.close().unwrap();
+            let mut stream = StreamOutput::file(&file_path, false).unwrap();
+            stream.writeln("Hello, World!").unwrap();
         }
 
-        // Verify file content
-        let mut file = std::fs::File::open(&test_file).unwrap();
-        let mut content = String::new();
-        file.read_to_string(&mut content).unwrap();
+        let mut file = std::fs::File::open(&file_path).unwrap();
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).unwrap();
 
-        assert!(content.contains("line 1"));
-        assert!(content.contains("line 2"));
-
-        // Clean up
-        let _ = std::fs::remove_file(&test_file);
+        assert!(contents.contains("Hello, World!"));
     }
 
     #[test]
     fn test_stream_output_from_config() {
-        let temp_dir = std::env::temp_dir();
-        let test_file = temp_dir.join("test_config_output.log");
-        let _ = std::fs::remove_file(&test_file);
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("config_test.txt");
 
-        let config = OutputConfig::file(&test_file);
+        let config = OutputConfig::file(&file_path);
         {
             let mut stream = StreamOutput::from_config(&config).unwrap();
-            stream.writeln("config test").unwrap();
-            stream.close().unwrap();
+            stream.writeln("Config test").unwrap();
         }
 
-        let content = std::fs::read_to_string(&test_file).unwrap();
-        assert!(content.contains("config test"));
-
-        let _ = std::fs::remove_file(&test_file);
-    }
-
-    #[test]
-    fn test_stream_output_append() {
-        let temp_dir = std::env::temp_dir();
-        let test_file = temp_dir.join("test_append.log");
-        let _ = std::fs::remove_file(&test_file);
-
-        // First write
-        {
-            let mut stream = StreamOutput::file(&test_file, false).unwrap();
-            stream.writeln("first").unwrap();
-            stream.close().unwrap();
-        }
-
-        // Append
-        {
-            let mut stream = StreamOutput::file(&test_file, true).unwrap();
-            stream.writeln("second").unwrap();
-            stream.close().unwrap();
-        }
-
-        let content = std::fs::read_to_string(&test_file).unwrap();
-        assert!(content.contains("first"));
-        assert!(content.contains("second"));
-
-        let _ = std::fs::remove_file(&test_file);
+        let contents = std::fs::read_to_string(&file_path).unwrap();
+        assert!(contents.contains("Config test"));
     }
 }

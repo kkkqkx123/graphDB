@@ -45,24 +45,24 @@ impl ProgressBar {
         if self.total == 0 {
             return;
         }
-        
+
         let percent = self.current as f64 / self.total as f64;
         let filled = (percent * self.width as f64) as usize;
         let empty = self.width.saturating_sub(filled);
-        
+
         let elapsed = self.start_time.elapsed().as_secs();
         let rate = if elapsed > 0 {
             self.current as f64 / elapsed as f64
         } else {
             0.0
         };
-        
+
         let eta = if rate > 0.0 {
             ((self.total - self.current) as f64 / rate) as u64
         } else {
             0
         };
-        
+
         eprint!(
             "\r[{}{}] {}/{} ({:.1}%) {:.0} rows/s ETA: {}s   ",
             "=".repeat(filled),
@@ -90,10 +90,7 @@ pub fn format_progress(current: usize, total: usize, rate: f64) -> String {
     if total == 0 {
         return format!("{} rows ({:.0} rows/s)", current, rate);
     }
-    
+
     let percent = current as f64 / total as f64 * 100.0;
-    format!(
-        "{}/{} ({:.1}%) {:.0} rows/s",
-        current, total, percent, rate
-    )
+    format!("{}/{} ({:.1}%) {:.0} rows/s", current, total, percent, rate)
 }

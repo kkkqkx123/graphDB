@@ -13,7 +13,7 @@ use crate::storage::operations::{RedbReader, RedbWriter};
 use crate::storage::shared_state::{StorageInner, StorageSharedState};
 use crate::sync::SyncManager;
 use crate::transaction::TransactionContext;
-use crate::utils::output;
+use log::debug;
 use parking_lot::Mutex;
 use redb::Database;
 use std::path::PathBuf;
@@ -293,20 +293,20 @@ impl StorageClient for RedbStorage {
     }
 
     fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
-        let _ = output::print(&format!(
-            "[RedbStorage::delete_vertex] space={}, id={:?}\n",
+        debug!(
+            "[RedbStorage::delete_vertex] space={}, id={:?}",
             space, id
-        ));
+        );
         let space_id = self.get_space_id_internal(space)?;
-        let _ = output::print(&format!(
-            "[RedbStorage::delete_vertex] space_id={}\n",
+        debug!(
+            "[RedbStorage::delete_vertex] space_id={}",
             space_id
-        ));
+        );
         let result = self.vertex_storage.delete_vertex(space, space_id, id);
-        let _ = output::print(&format!(
-            "[RedbStorage::delete_vertex] result={:?}\n",
+        debug!(
+            "[RedbStorage::delete_vertex] result={:?}",
             result
-        ));
+        );
         result
     }
 
