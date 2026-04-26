@@ -1,4 +1,4 @@
-import { post, get } from '@/utils/http';
+import { post, get, _delete } from '@/utils/http';
 
 export interface LoginParams {
   username: string;
@@ -21,6 +21,25 @@ export interface HealthResponse {
   version: string;
 }
 
+export interface CreateSessionParams {
+  username: string;
+  client_ip?: string;
+}
+
+export interface CreateSessionResponse {
+  session_id: number;
+  username: string;
+  created_at: number;
+}
+
+export interface SessionDetail {
+  session_id: number;
+  username: string;
+  space_name?: string;
+  graph_addr?: string;
+  timezone?: string;
+}
+
 export const connectionService = {
   login: async (params: LoginParams): Promise<LoginResponse> => {
     const response = await post('/v1/auth/login')(params) as LoginResponse;
@@ -34,5 +53,22 @@ export const connectionService = {
   health: async (): Promise<HealthResponse> => {
     const response = await get('/v1/health')() as HealthResponse;
     return response;
+  },
+
+  // Session Management APIs
+  sessions: {
+    create: async (params: CreateSessionParams): Promise<CreateSessionResponse> => {
+      const response = await post('/v1/sessions')(params) as CreateSessionResponse;
+      return response;
+    },
+
+    get: async (id: number): Promise<SessionDetail> => {
+      const response = await get(`/v1/sessions/${id}`)() as SessionDetail;
+      return response;
+    },
+
+    delete: async (id: number): Promise<void> => {
+      await _delete(`/v1/sessions/${id}`)();
+    },
   },
 };

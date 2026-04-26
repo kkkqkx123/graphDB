@@ -7,6 +7,7 @@ import type {
   EdgeType,
   EdgeTypeDetail,
   IndexInfo,
+  CreateSpaceParams,
   CreateTagParams,
   CreateEdgeTypeParams,
   CreateIndexParams,
@@ -20,6 +21,16 @@ export const schemaService = {
       return response;
     },
 
+    create: async (params: CreateSpaceParams): Promise<{ message: string; space_name: string }> => {
+      const response = await post('/v1/schema/spaces')(params) as { message: string; space_name: string };
+      return response;
+    },
+
+    get: async (name: string): Promise<{ space: Space }> => {
+      const response = await get(`/v1/schema/spaces/${name}`)() as { space: Space };
+      return response;
+    },
+
     getDetail: async (name: string): Promise<SpaceDetail> => {
       const response = await get(`/v1/schema/spaces/${name}/details`)() as SpaceDetail;
       return response;
@@ -27,6 +38,11 @@ export const schemaService = {
 
     getStatistics: async (name: string): Promise<SpaceDetail['statistics']> => {
       const response = await get(`/v1/schema/spaces/${name}/statistics`)() as SpaceDetail['statistics'];
+      return response;
+    },
+
+    delete: async (name: string): Promise<{ message: string; space_name: string }> => {
+      const response = await _delete(`/v1/schema/spaces/${name}`)() as { message: string; space_name: string };
       return response;
     },
   },

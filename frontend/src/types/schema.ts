@@ -71,6 +71,12 @@ export interface IndexInfo {
   created_at: number;
 }
 
+export interface CreateSpaceParams {
+  name: string;
+  vid_type?: string;
+  comment?: string;
+}
+
 export interface CreateTagParams {
   name: string;
   properties: PropertyDef[];

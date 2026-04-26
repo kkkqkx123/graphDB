@@ -4,7 +4,7 @@ import type { VertexDetail, EdgeDetail, Neighbor, NeighborParams } from '@/types
 export const graphService = {
   vertices: {
     get: async (vid: string | number, space: string): Promise<VertexDetail> => {
-      const response = await get(`/v1/graph/vertices/${vid}`)({ space }) as VertexDetail;
+      const response = await get(`/api/vertices/${vid}`)({ space }) as VertexDetail;
       return response;
     },
 
@@ -13,7 +13,7 @@ export const graphService = {
       space: string,
       params?: NeighborParams
     ): Promise<Neighbor[]> => {
-      const response = await get(`/v1/graph/vertices/${vid}/neighbors`)({ space, ...params }) as Neighbor[];
+      const response = await get(`/api/vertices/${vid}/neighbors`)({ space, ...params }) as Neighbor[];
       return response;
     },
   },
@@ -26,7 +26,7 @@ export const graphService = {
       edgeType: string,
       rank?: number
     ): Promise<EdgeDetail> => {
-      const response = await get('/v1/graph/edges')({
+      const response = await get('/api/edges')({
         space,
         src,
         dst,
