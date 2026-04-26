@@ -10,7 +10,7 @@ use rustyline::validate::Validator;
 use rustyline::{Helper, Result};
 
 use crate::completion::context::{
-    detect_context, get_function_completions, CompletionContext, FunctionEntry, SchemaCache,
+    detect_context, get_function_completions, CompletionContext, FunctionEntry,
     SharedSchemaCache,
 };
 

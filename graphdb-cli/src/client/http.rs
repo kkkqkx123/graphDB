@@ -51,29 +51,6 @@ impl HttpClient {
         &self.inner
     }
 
-    /// Create a session (low-level API)
-    async fn create_session(&self, username: &str) -> Result<i64> {
-        let url = format!("{}/sessions", self.base_url);
-        let request = CreateSessionRequest {
-            username: username.to_string(),
-            client_ip: "127.0.0.1".to_string(),
-        };
-
-        let response = self.inner.post(&url).json(&request).send().await?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            return Err(CliError::session(format!(
-                "Failed to create session ({}): {}",
-                status, body
-            )));
-        }
-
-        let session_resp: SessionResponse = response.json().await?;
-        Ok(session_resp.session_id)
-    }
-
     /// Login and authenticate (low-level API)
     async fn login(&self, username: &str, password: &str) -> Result<(i64, String)> {
         let url = format!("{}/auth/login", self.base_url);
