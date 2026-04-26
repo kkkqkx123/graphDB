@@ -33,9 +33,9 @@ Key Features:
 - Generates a single executable file for straightforward deployment
 - Supports fundamental graph database functionality (nodes, edges, properties)
 
-## Architecture-GraphDB
+## Architecture
 
-The new codebase is organized into several main components:
+The codebase is organized into several main components:
 
 - `src` - Rust graphDB src director
 - `src/core` - core data structure and type definition
@@ -46,6 +46,13 @@ The new codebase is organized into several main components:
 - `src/api` - API interfaces layer
 - `src/utils` - Utility functions and helpers
 - `src/config` - Configuration management
+
+outside crates:
+
+- `crates/inversearch` - Inverted search engine
+- `crates/bm25` - BM25 search engine
+- `crates/qdrant-client` - HTTP client for qdrant vector database
+- `./graphdb-cli` - HTTP CLI client for graphDB(completely independent)
 
 ## Key Directories and Files
 
@@ -65,8 +72,8 @@ The graphDB project utilises Cargo as its build system. To build the project:
 2. **Compile check**
 
 ```shell
-analyze_cargo --full  # (a cli program to run clippy check and generate report docs)
-cargo fmt
+# full compile check
+& 'D:\softwares\Visual Studio\Common7\Tools\Launch-VsDevShell.ps1'; cargo clippy --all-targets --all-features
 ```
 
 ## Development Conventions
@@ -83,13 +90,11 @@ The project includes a comprehensive test suite utilising Rust's standard testin
 1. **Running tests**:
 
    ```shell
-   cargo test # Run all tests
    cargo test --lib -- --nocapture # Run lib tests
+   cargo test --test '*' -- --nocapture # Run integration tests
    cargo test <test_name> # Run specific test(s) matching pattern
    cargo test --test <integration_test_file> # Run specific integration test
    ```
-
-   It is not recommended to run all tests in one time.
 
 2. **Test organization**:
    - Unit tests: Located in the same file as the code being tested, marked with `#[cfg(test)]`
