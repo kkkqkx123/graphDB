@@ -72,6 +72,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     pub async fn with_vector_search(
         storage: Arc<Mutex<S>>,
         vector_config: VectorClientConfig,
+        schema_manager: Option<Arc<RedbSchemaManager>>,
     ) -> Result<Self, String> {
         let stats_manager = Arc::new(StatsManager::new());
         let optimizer_engine = Arc::new(OptimizerEngine::default());
@@ -93,10 +94,15 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         // Create cached metadata provider
         let cached_provider = Arc::new(CachedMetadataProvider::new(metadata_provider));
 
-        // Create pipeline manager with metadata provider
-        let pipeline_manager =
+        // Create pipeline manager with metadata provider and schema manager
+        let mut pipeline_manager =
             QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer_engine)
                 .with_metadata_provider(cached_provider);
+
+        // Add schema manager if provided
+        if let Some(sm) = schema_manager {
+            pipeline_manager = pipeline_manager.with_schema_manager(sm);
+        }
 
         Ok(Self { pipeline_manager })
     }

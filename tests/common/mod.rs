@@ -20,6 +20,7 @@ pub mod validation_helpers;
 pub mod c_api_helpers;
 
 use graphdb::core::error::DBResult;
+use graphdb::storage::metadata::redb_schema_manager::RedbSchemaManager;
 use graphdb::storage::RedbStorage;
 use parking_lot::Mutex;
 use std::path::PathBuf;
@@ -50,6 +51,12 @@ impl TestStorage {
     /// Getting a Reference to a Storage Instance
     pub fn storage(&self) -> Arc<Mutex<RedbStorage>> {
         self.storage.clone()
+    }
+
+    /// Getting the Schema Manager from Storage
+    pub fn schema_manager(&self) -> Arc<RedbSchemaManager> {
+        let storage = self.storage.lock();
+        storage.state().schema_manager.clone()
     }
 }
 

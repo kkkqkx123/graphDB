@@ -134,6 +134,29 @@ class TestRunner:
 
         all_passed = True
 
+        # First run schema manager initialization tests
+        # These tests verify the core functionality works regardless of vector search config
+        try:
+            from test_schema_manager_init import (
+                TestSchemaManagerInitialization,
+                TestSchemaManagerErrorHandling
+            )
+
+            schema_classes = [
+                TestSchemaManagerInitialization,
+                TestSchemaManagerErrorHandling
+            ]
+
+            if not self.run_suite("Schema Manager Init", schema_classes):
+                all_passed = False
+                print("\n⚠ WARNING: Schema manager initialization tests failed!")
+                print("   This indicates a server configuration issue.")
+                print("   Subsequent tests may also fail.\n")
+
+        except Exception as e:
+            print(f"Error running schema manager tests: {e}")
+            all_passed = False
+
         # Import test modules
         try:
             from test_social_network import (

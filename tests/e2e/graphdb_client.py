@@ -72,7 +72,7 @@ class GraphDBClient:
         try:
             response = self.session.post(
                 f"{self.base_url}/v1/auth/login",
-                json={"username": "root", "password": "nebula"},
+                json={"username": "root", "password": "root"},
                 timeout=self.timeout
             )
             if response.status_code == 200:

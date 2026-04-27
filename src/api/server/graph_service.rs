@@ -85,6 +85,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             match QueryApi::with_vector_search(
                 Arc::new(Mutex::new((*storage).clone())),
                 config.vector.clone(),
+                schema_manager.clone(),
             )
             .await
             {

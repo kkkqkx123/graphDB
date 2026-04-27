@@ -86,6 +86,44 @@ connection_timeout_secs = 10
 # 请求超时时间（秒，0 表示禁用）
 request_timeout_secs = 60
 
+[vector]
+# 是否启用向量搜索
+enabled = true
+# 向量搜索引擎类型
+engine = "Qdrant"
+
+[vector.connection]
+# Qdrant 服务器地址
+host = "localhost"
+# gRPC 端口
+port = 6334
+# HTTP 端口（用于健康检查）
+http_port = 6333
+# 是否使用 TLS
+use_tls = false
+# API 密钥（如果需要）
+# api_key = "your-api-key"
+# 连接超时时间（秒）
+connect_timeout_secs = 5
+
+[vector.timeout]
+# 请求超时时间（秒）
+request_timeout_secs = 30
+# 搜索超时时间（秒）
+search_timeout_secs = 10
+# 插入/更新超时时间（秒）
+upsert_timeout_secs = 30
+
+[vector.retry]
+# 最大重试次数
+max_retries = 3
+# 初始重试延迟（毫秒）
+initial_delay_ms = 100
+# 最大重试延迟（毫秒）
+max_delay_ms = 5000
+# 重试延迟倍数
+multiplier = 2.0
+
 [profile.release]
 opt-level = 3
 lto = true
