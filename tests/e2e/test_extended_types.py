@@ -11,6 +11,7 @@ Tests extended type functionality including:
 import unittest
 import time
 import json
+import random
 from typing import List
 from graphdb_client import GraphDBClient
 
@@ -24,6 +25,12 @@ class TestGeography(unittest.TestCase):
         cls.client.connect()
         cls.space_name = "e2e_geography"
         cls._setup_data()
+
+    def setUp(self):
+        """Ensure client is authenticated before each test."""
+        if not self.client.ensure_authenticated():
+            self.client.connect()
+        self.client.execute(f"USE {self.space_name}")
 
     @classmethod
     def _setup_data(cls):
@@ -167,7 +174,6 @@ class TestVector(unittest.TestCase):
         time.sleep(1)
 
         # Insert products with vectors
-        import random
         for i in range(100):
             vector = [round(random.gauss(0, 0.1), 4) for _ in range(128)]
             vector_str = ", ".join(str(v) for v in vector)
@@ -178,6 +184,12 @@ class TestVector(unittest.TestCase):
             ''')
 
         time.sleep(1)
+
+    def setUp(self):
+        """Ensure client is authenticated before each test."""
+        if not self.client.ensure_authenticated():
+            self.client.connect()
+        self.client.execute(f"USE {self.space_name}")
 
     @classmethod
     def tearDownClass(cls):
@@ -249,6 +261,12 @@ class TestFullText(unittest.TestCase):
         cls.client.connect()
         cls.space_name = "e2e_fulltext"
         cls._setup_data()
+
+    def setUp(self):
+        """Ensure client is authenticated before each test."""
+        if not self.client.ensure_authenticated():
+            self.client.connect()
+        self.client.execute(f"USE {self.space_name}")
 
     @classmethod
     def _setup_data(cls):
@@ -340,6 +358,11 @@ class TestExtendedTypesCleanup(unittest.TestCase):
         cls.client = GraphDBClient()
         cls.client.connect()
 
+    def setUp(self):
+        """Ensure client is authenticated before each test."""
+        if not self.client.ensure_authenticated():
+            self.client.connect()
+
     @classmethod
     def tearDownClass(cls):
         cls.client.disconnect()
@@ -369,6 +392,5 @@ def run_tests():
 
 
 if __name__ == "__main__":
-    import random
     success = run_tests()
     exit(0 if success else 1)

@@ -2,7 +2,7 @@
 host = "127.0.0.1"
 port = 9758
 storage_path = "D:/项目/database/graphDB/data/graphdb"
-max_connections = 10
+max_connections = 100
 
 [transaction]
 # 默认事务超时时间（秒）

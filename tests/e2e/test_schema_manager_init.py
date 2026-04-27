@@ -90,8 +90,11 @@ class TestSchemaManagerInitialization(unittest.TestCase):
         """TC-SCHEMA-006: Insert vertex should work."""
         self.client.execute(f"USE {self.test_space}")
 
-        result = self.client.execute("""
-            INSERT VERTEX test_person(name, age) VALUES 'p1': ('Alice', 30)
+        # Use a unique vertex ID to avoid conflicts
+        import time
+        vertex_id = f"p1_{int(time.time() * 1000)}"
+        result = self.client.execute(f"""
+            INSERT VERTEX test_person(name, age) VALUES '{vertex_id}': ('Alice', 30)
         """)
         self.assertTrue(
             result.success,
@@ -102,7 +105,14 @@ class TestSchemaManagerInitialization(unittest.TestCase):
         """TC-SCHEMA-007: Fetch vertex should work."""
         self.client.execute(f"USE {self.test_space}")
 
-        result = self.client.execute("FETCH PROP ON test_person 'p1'")
+        # First insert a vertex to fetch
+        import time
+        vertex_id = f"p_fetch_{int(time.time() * 1000)}"
+        self.client.execute(f"""
+            INSERT VERTEX test_person(name, age) VALUES '{vertex_id}': ('Bob', 25)
+        """)
+
+        result = self.client.execute(f"FETCH PROP ON test_person '{vertex_id}'")
         self.assertTrue(
             result.success,
             f"FETCH PROP failed - schema_manager may not be initialized: {result.error}"

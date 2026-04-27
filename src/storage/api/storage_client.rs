@@ -3,7 +3,9 @@ use crate::core::types::{
     TagInfo, UpdateInfo, UserAlterInfo, UserInfo,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
+use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 use crate::storage::metadata::Schema;
+use std::sync::Arc;
 
 pub trait StorageClient: Send + Sync + std::fmt::Debug {
     /// Get a reference to self as Any for downcasting
@@ -219,6 +221,12 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     /// Get sync manager (if available)
     /// Default implementation returns None for storage clients that don't support sync
     fn get_sync_manager(&self) -> Option<std::sync::Arc<crate::sync::SyncManager>> {
+        None
+    }
+
+    /// Get schema manager (if available)
+    /// Default implementation returns None for storage clients that don't have schema manager
+    fn get_schema_manager(&self) -> Option<Arc<RedbSchemaManager>> {
         None
     }
 }

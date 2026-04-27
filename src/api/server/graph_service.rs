@@ -8,7 +8,6 @@ use crate::core::stats::StatsManager;
 use crate::core::{MetricType, Permission};
 use crate::query::executor::ExecutionResult;
 use crate::query::DataSet;
-use crate::storage::engine::redb_storage::RedbStorage;
 use crate::storage::StorageClient;
 use crate::transaction::TransactionManager;
 use log::{info, warn};
@@ -75,11 +74,8 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         // Use core layer QueryApi instead of directly using QueryPipelineManager
         // Support vector search with metadata provider if enabled
-        // Try to get schema_manager from storage if it's RedbStorage
-        let schema_manager = storage
-            .as_any()
-            .downcast_ref::<RedbStorage>()
-            .map(|redb_storage| redb_storage.state().schema_manager.clone());
+        // Get schema_manager from storage using the trait method
+        let schema_manager = storage.get_schema_manager();
 
         let (query_api, vector_api) = if config.vector.enabled {
             match QueryApi::with_vector_search(

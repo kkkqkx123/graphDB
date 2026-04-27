@@ -1,5 +1,5 @@
 -- Full-Text Search E2E Test Data
--- Generated: 2026-04-27T21:04:14.575802
+-- Generated: 2026-04-27T22:54:46.254534
 
 -- Create test space
 CREATE SPACE IF NOT EXISTS e2e_fulltext (vid_type=STRING)

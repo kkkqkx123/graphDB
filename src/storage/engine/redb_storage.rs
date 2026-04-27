@@ -260,6 +260,10 @@ impl StorageClient for RedbStorage {
         self
     }
 
+    fn get_schema_manager(&self) -> Option<Arc<RedbSchemaManager>> {
+        Some(self.state.schema_manager.clone())
+    }
+
     fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
         self.vertex_storage.get_vertex(space, id)
     }

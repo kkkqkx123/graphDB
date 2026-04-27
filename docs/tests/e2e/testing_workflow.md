@@ -159,8 +159,8 @@ Get-Process graphdb-server -ErrorAction SilentlyContinue | Stop-Process -Force
 & 'D:\softwares\Visual Studio\Common7\Tools\Launch-VsDevShell.ps1'
 cargo build --release --features server
 
-# 4. 复制新的可执行文件到 bin 目录
-Copy-Item .\target\release\graphdb-server.exe .\bin\graphdb-server.exe -Force
+# 4. 删除旧文件，复制新的可执行文件到 bin 目录(直接复制会被OS拦截)
+Remove-Item .\bin\graphdb-server.exe; Copy-Item .\target\release\graphdb-server.exe .\bin\graphdb-server.exe -Force
 
 # 5. 运行启动测试验证
 python tests\server_startup_test.py

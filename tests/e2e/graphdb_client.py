@@ -105,6 +105,38 @@ class GraphDBClient:
         except:
             return False
 
+    def ensure_authenticated(self) -> bool:
+        """Ensure the session is authenticated, re-authenticate if needed."""
+        if not self.session:
+            return self.connect()
+
+        # Test if current session is valid by executing a simple query
+        try:
+            payload = {
+                "query": "SHOW SPACES",
+                "session_id": self.session_id,
+                "parameters": {}
+            }
+            response = self.session.post(
+                f"{self.base_url}/v1/query",
+                json=payload,
+                timeout=5
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                error = result.get("error", {}).get("message", "") if result.get("error") else ""
+                if "not authenticated" in error.lower() or "session" in error.lower():
+                    # Session expired, re-authenticate
+                    return self._authenticate()
+                return True
+            elif response.status_code == 401:
+                # Unauthorized, re-authenticate
+                return self._authenticate()
+            return True
+        except Exception:
+            return False
+
     def execute(self, gql: str, params: Optional[Dict[str, Any]] = None) -> TestResult:
         """Execute a GQL statement."""
         if not self.session:

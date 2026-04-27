@@ -13,6 +13,7 @@ Tests optimizer behavior including:
 import unittest
 import time
 import json
+import random
 from typing import Dict, Any
 from graphdb_client import GraphDBClient
 
@@ -393,9 +394,6 @@ class TestOptimizerCleanup(unittest.TestCase):
         for space in spaces:
             result = self.client.execute(f"DROP SPACE IF EXISTS {space}")
             self.assertTrue(result.success or "not exist" in str(result.error).lower())
-
-
-import random
 
 
 def run_tests():

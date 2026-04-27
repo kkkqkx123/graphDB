@@ -4,6 +4,7 @@
 
 use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::storage::api::StorageClient;
+use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 use crate::sync::coordinator::ChangeType;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -116,6 +117,10 @@ impl<S: StorageClient> SyncStorage<S> {
 impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+
+    fn get_schema_manager(&self) -> Option<Arc<RedbSchemaManager>> {
+        self.inner.get_schema_manager()
     }
 
     fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
