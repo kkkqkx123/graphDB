@@ -1,6 +1,6 @@
 use crate::core::value::{
     date_time::{DateTimeValue, DateValue, TimeValue},
-    geography::GeographyValue,
+    geography::Geography,
     interval::IntervalValue,
     list::List,
     null::NullType,
@@ -484,16 +484,79 @@ impl Value {
     }
 
     // Geographic comparison helper functions
-    fn cmp_geography(a: &GeographyValue, b: &GeographyValue) -> CmpOrdering {
-        // Compare by latitude first, then longitude
-        // Using partial_cmp and treating NaN as less than any other value
-        match a.latitude.partial_cmp(&b.latitude) {
-            Some(CmpOrdering::Equal) => a
-                .longitude
-                .partial_cmp(&b.longitude)
-                .unwrap_or(CmpOrdering::Equal),
-            Some(ord) => ord,
-            None => CmpOrdering::Equal, // Both NaN case
+    fn cmp_geography(a: &Geography, b: &Geography) -> CmpOrdering {
+        use crate::core::value::geography::Geography::*;
+
+        fn type_priority(geo: &Geography) -> u8 {
+            match geo {
+                Point(_) => 0,
+                LineString(_) => 1,
+                Polygon(_) => 2,
+                MultiPoint(_) => 3,
+                MultiLineString(_) => 4,
+                MultiPolygon(_) => 5,
+            }
+        }
+
+        fn cmp_points(a: &[crate::core::value::geography::GeographyValue], b: &[crate::core::value::geography::GeographyValue]) -> CmpOrdering {
+            a.len().cmp(&b.len()).then_with(|| {
+                for (pa, pb) in a.iter().zip(b.iter()) {
+                    match pa.latitude.partial_cmp(&pb.latitude) {
+                        Some(CmpOrdering::Equal) => {
+                            match pa.longitude.partial_cmp(&pb.longitude) {
+                                Some(CmpOrdering::Equal) => continue,
+                                Some(ord) => return ord,
+                                None => return CmpOrdering::Equal,
+                            }
+                        }
+                        Some(ord) => return ord,
+                        None => continue,
+                    }
+                }
+                CmpOrdering::Equal
+            })
+        }
+
+        match (a, b) {
+            (Point(pa), Point(pb)) => match pa.latitude.partial_cmp(&pb.latitude) {
+                Some(CmpOrdering::Equal) => pa
+                    .longitude
+                    .partial_cmp(&pb.longitude)
+                    .unwrap_or(CmpOrdering::Equal),
+                Some(ord) => ord,
+                None => CmpOrdering::Equal,
+            },
+            (LineString(la), LineString(lb)) => cmp_points(&la.points, &lb.points),
+            (Polygon(pa), Polygon(pb)) => cmp_points(&pa.exterior.points, &pb.exterior.points)
+                .then_with(|| pa.holes.len().cmp(&pb.holes.len())),
+            (MultiPoint(ma), MultiPoint(mb)) => cmp_points(&ma.points, &mb.points),
+            (MultiLineString(ma), MultiLineString(mb)) => ma
+                .linestrings
+                .len()
+                .cmp(&mb.linestrings.len())
+                .then_with(|| {
+                    for (la, lb) in ma.linestrings.iter().zip(mb.linestrings.iter()) {
+                        let ord = cmp_points(&la.points, &lb.points);
+                        if ord != CmpOrdering::Equal {
+                            return ord;
+                        }
+                    }
+                    CmpOrdering::Equal
+                }),
+            (MultiPolygon(ma), MultiPolygon(mb)) => ma
+                .polygons
+                .len()
+                .cmp(&mb.polygons.len())
+                .then_with(|| {
+                    for (pa, pb) in ma.polygons.iter().zip(mb.polygons.iter()) {
+                        let ord = cmp_points(&pa.exterior.points, &pb.exterior.points);
+                        if ord != CmpOrdering::Equal {
+                            return ord;
+                        }
+                    }
+                    CmpOrdering::Equal
+                }),
+            _ => type_priority(a).cmp(&type_priority(b)),
         }
     }
 

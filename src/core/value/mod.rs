@@ -35,7 +35,10 @@ pub mod vector;
 // Re-export all public types
 pub use date_time::{DateTimeValue, DateValue, TimeValue};
 pub use decimal128::Decimal128Value;
-pub use geography::GeographyValue;
+pub use geography::{
+    GeoJsonFeature, GeoJsonFeatureCollection, GeoJsonGeometry, Geography, GeographyValue,
+    LineStringValue, MultiLineStringValue, MultiPointValue, MultiPolygonValue, PolygonValue,
+};
 pub use interval::{IntervalError, IntervalValue};
 pub use json::{Json, JsonB, JsonError};
 pub use list::List;

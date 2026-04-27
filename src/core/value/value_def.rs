@@ -5,7 +5,7 @@ use crate::core::{
     value::{
         date_time::{DateTimeValue, DateValue, TimeValue},
         decimal128::Decimal128Value,
-        geography::GeographyValue,
+        geography::Geography,
         interval::IntervalValue,
         json::{Json, JsonB, JsonError},
         list::List,
@@ -55,7 +55,7 @@ pub enum Value {
     List(Box<List>),
     Map(Box<HashMap<String, Value>>),
     Set(Box<HashSet<Value>>),
-    Geography(GeographyValue),
+    Geography(Geography),
     Vector(VectorValue),
     DataSet(Box<DataSet>),
 
@@ -395,9 +395,7 @@ impl std::fmt::Display for Value {
                 }
                 write!(f, "}}")
             }
-            Value::Geography(g) => {
-                write!(f, "Geography(lat: {}, lon: {})", g.latitude, g.longitude)
-            }
+            Value::Geography(g) => write!(f, "{}", g),
             Value::Vector(v) => write!(f, "{}", v),
             Value::DataSet(ds) => write!(f, "DataSet({} rows)", ds.row_count()),
             Value::Json(j) => write!(f, "Json({})", j.as_str()),
