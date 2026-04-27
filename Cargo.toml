@@ -5,8 +5,8 @@ edition = "2021"
 description = "A lightweight single-node graph database implemented in Rust"
 authors = ["GraphDB Contributors"]
 license = "Apache-2.0"
-repository = "https://github.com/vesoft-inc/nebula"
-homepage = "https://github.com/vesoft-inc/nebula"
+repository = "https://github.com/kkkqkx123/graphDB"
+homepage = "https://github.com/kkkqkx123/graphDB"
 
 [dependencies]
 serde = { version = "1.0.228", features = ["derive"] }
@@ -42,25 +42,15 @@ axum = { version = "0.8", features = ["macros"], optional = true }
 tower = { version = "0.5", optional = true }
 tower-http = { version = "0.6", features = ["cors", "trace", "timeout", "limit"], optional = true }
 http = { version = "1.1", optional = true }
-
-# gRPC dependencies
 tonic = { version = "0.12", optional = true }
 prost = { version = "0.13", optional = true }
-
-# Web management dependencies (SQLite for metadata storage)
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate", "chrono"], optional = true }
 async-trait = { version = "0.1", optional = true }
 
-# Full-text search engines
-bm25-service = { path = "crates/bm25", default-features = false, features = ["embedded", "storage-tantivy"] }
-inversearch-service = { path = "crates/inversearch", default-features = false, features = ["embedded", "store"] }
-tantivy = "0.24"
-
-# Vector search engine
-vector-client = { path = "crates/vector-client", features = ["qdrant"] }
-
-# To enable llama-cpp with Vulkan GPU acceleration, use:
-# vector-client = { path = "crates/vector-client", features = ["qdrant", "llama_cpp"] }
+bm25-service = { path = "crates/bm25", default-features = false, features = ["embedded", "storage-tantivy"], optional = true }
+inversearch-service = { path = "crates/inversearch", default-features = false, features = ["embedded", "store"], optional = true }
+tantivy = { version = "0.24", optional = true }
+vector-client = { path = "crates/vector-client", features = ["qdrant"], optional = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
@@ -83,43 +73,22 @@ tonic-build = { version = "0.12", optional = true }
 prost-build = { version = "0.13", optional = true }
 
 [features]
-default = ["server", "redb"]
-
-# Storage backend
+default = ["server", "redb", "fulltext-search", "qdrant", "c-api", "grpc"]
 redb = ["dep:redb"]
-
-# Vector search backend
-qdrant = ["vector-client/qdrant"]
-
-# Embedded API for standalone/embedded usage (Rust API only)
+qdrant = ["dep:vector-client"]
 embedded = []
-
-# C API bindings (requires embedded, enables cdylib generation and cbindgen)
 c-api = ["embedded", "dep:cbindgen"]
-
-# Server API (HTTP/Web interface)
-server = [
-    "dep:axum",
-    "dep:tower",
-    "dep:tower-http",
-    "dep:http",
-    "dep:sqlx",
-    "dep:async-trait",
-]
-
-# gRPC API (requires server feature)
+server = ["dep:axum", "dep:tower", "dep:tower-http", "dep:http", "dep:sqlx", "dep:async-trait"]
 grpc = ["server", "dep:tonic", "dep:prost", "dep:tonic-build", "dep:prost-build"]
+fulltext-search = ["dep:bm25-service", "dep:inversearch-service", "dep:tantivy"]
 
-# UUID generation support
-uuid-gen = []
+[profile.dev]
+opt-level = 0
+debug = true
+codegen-units = 64
 
 [dev-dependencies]
 tokio-test = "0.4.4"
 tempfile = "3.23.0"
 criterion = { version = "0.5", features = ["async_tokio"] }
 serial_test = "3.0"
-
-[profile.dev]
-opt-level = 0
-debug = true
-codegen-units = 64

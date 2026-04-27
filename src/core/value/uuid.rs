@@ -61,8 +61,7 @@ impl UuidValue {
         Ok(Self(bytes))
     }
 
-    /// Generate a new UUID v4 (random)
-    #[cfg(feature = "uuid-gen")]
+    /// Generate a new UUID v4 (random)]
     pub fn new_v4() -> Self {
         use rand::Rng;
         let mut bytes = [0u8; 16];
