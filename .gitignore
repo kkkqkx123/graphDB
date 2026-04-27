@@ -12,3 +12,4 @@ tests/c_api/build
 Cargo.lock
 __pycache__
 *.pyc
+*.log

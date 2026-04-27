@@ -206,6 +206,7 @@ pub unsafe extern "C" fn graphdb_txn_execute(
 
     let ctx = crate::api::core::QueryRequest {
         space_id: session.inner.space_id(),
+        space_name: session.inner.space_name().map(|s| s.to_string()),
         auto_commit: false,
         transaction_id: Some(txn_handle.0),
         parameters: None,

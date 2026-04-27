@@ -810,9 +810,33 @@ async fn test_graph_service_execute_query() {
         .expect("认证失败");
     let session_id = session.id();
 
-    // perform a search
-    let _result = graph_service.execute(session_id, "SHOW SPACES");
-    // The query may succeed or fail, but should not be panic
+    // Test SHOW SPACES
+    let result = graph_service.execute(session_id, "SHOW SPACES");
+    assert!(result.is_ok(), "SHOW SPACES should succeed: {:?}", result.err());
+
+    // Test CREATE SPACE
+    let result = graph_service.execute(session_id, "CREATE SPACE IF NOT EXISTS test_space (vid_type = FIXED_STRING(32))");
+    assert!(result.is_ok(), "CREATE SPACE should succeed: {:?}", result.err());
+
+    // Test USE SPACE
+    let result = graph_service.execute(session_id, "USE test_space");
+    assert!(result.is_ok(), "USE SPACE should succeed: {:?}", result.err());
+
+    // Test CREATE TAG after USE SPACE
+    let result = graph_service.execute(session_id, "CREATE TAG IF NOT EXISTS Person(name STRING, age INT)");
+    assert!(result.is_ok(), "CREATE TAG should succeed after USE: {:?}", result.err());
+
+    // Test SHOW TAGS
+    let result = graph_service.execute(session_id, "SHOW TAGS");
+    assert!(result.is_ok(), "SHOW TAGS should succeed: {:?}", result.err());
+
+    // Test CREATE EDGE
+    let result = graph_service.execute(session_id, "CREATE EDGE IF NOT EXISTS KNOWS(created_at TIMESTAMP)");
+    assert!(result.is_ok(), "CREATE EDGE should succeed: {:?}", result.err());
+
+    // Test SHOW EDGES
+    let result = graph_service.execute(session_id, "SHOW EDGES");
+    assert!(result.is_ok(), "SHOW EDGES should succeed: {:?}", result.err());
 }
 
 #[tokio::test]

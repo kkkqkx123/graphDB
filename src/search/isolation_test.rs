@@ -347,7 +347,7 @@ mod tests {
             .expect("Failed to create manager")
             .with_schema_manager(Arc::new(mock_schema));
 
-        let index_id = manager
+        let _index_id = manager
             .create_index(1, "Article", "content", None)
             .await
             .expect("Failed to create index");
@@ -384,7 +384,7 @@ mod tests {
             .expect("Failed to create manager")
             .with_schema_manager(Arc::new(mock_schema));
 
-        let index_id = manager
+        let _index_id = manager
             .create_index(1, "Article", "content", None)
             .await
             .expect("Failed to create index");
@@ -423,7 +423,7 @@ mod tests {
             .expect("Failed to create manager")
             .with_schema_manager(Arc::new(mock_schema));
 
-        let index_id = manager
+        let _index_id = manager
             .create_index(1, "Article", "content", None)
             .await
             .expect("Failed to create index");

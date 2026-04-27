@@ -189,6 +189,7 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
 
         let ctx = QueryRequest {
             space_id: self.session.space_id(),
+            space_name: self.session.space_name().map(|s| s.to_string()),
             auto_commit: false,
             transaction_id: Some(self.txn_handle.0),
             parameters: None,
@@ -217,6 +218,7 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
 
         let ctx = QueryRequest {
             space_id: self.session.space_id(),
+            space_name: self.session.space_name().map(|s| s.to_string()),
             auto_commit: false,
             transaction_id: Some(self.txn_handle.0),
             parameters: Some(params),

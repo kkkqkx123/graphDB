@@ -970,7 +970,7 @@ impl DdlParser {
     }
 
     /// Parse vid_type value for CREATE SPACE statement.
-    /// Accepts data type keywords (STRING, INT, INT64, etc.) or identifiers.
+    /// Accepts data type keywords (STRING, INT, INT64, FIXED_STRING, etc.) or identifiers.
     fn parse_vid_type_value(&mut self, ctx: &mut ParseContext) -> Result<String, ParseError> {
         let token = ctx.current_token();
         match token.kind {
@@ -986,6 +986,35 @@ impl DdlParser {
             TokenKind::Float | TokenKind::Double => {
                 ctx.next_token();
                 Ok("FLOAT".to_string())
+            }
+            TokenKind::FixedString => {
+                ctx.next_token();
+                // Handle FIXED_STRING(n) format
+                if ctx.current_token().kind == TokenKind::LParen {
+                    ctx.next_token();
+                    if let TokenKind::IntegerLiteral(length) = ctx.current_token().kind {
+                        let len = length;
+                        ctx.next_token();
+                        if ctx.current_token().kind == TokenKind::RParen {
+                            ctx.next_token();
+                            Ok(format!("FIXED_STRING({})", len))
+                        } else {
+                            Err(ParseError::new(
+                                ParseErrorKind::SyntaxError,
+                                "FIXED_STRING right parenthesis required".to_string(),
+                                ctx.current_position(),
+                            ))
+                        }
+                    } else {
+                        Err(ParseError::new(
+                            ParseErrorKind::SyntaxError,
+                            "FIXED_STRING requires length parameter".to_string(),
+                            ctx.current_position(),
+                        ))
+                    }
+                } else {
+                    Ok("FIXED_STRING(32)".to_string())
+                }
             }
             TokenKind::Identifier(ref s) => {
                 let type_name = s.clone();

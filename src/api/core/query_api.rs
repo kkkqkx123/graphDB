@@ -9,6 +9,7 @@ use crate::query::metadata::{
     CachedMetadataProvider, MetadataProvider, VectorIndexMetadataProvider,
 };
 use crate::query::{OptimizerEngine, QueryPipelineManager};
+use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 use crate::storage::StorageClient;
 use crate::sync::vector_sync::VectorSyncCoordinator;
 use crate::sync::SyncManager;
@@ -47,6 +48,23 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
                 optimizer_engine,
             )
             .with_sync_manager(sync_manager),
+        }
+    }
+
+    /// Create a new QueryApi instance with schema manager support
+    pub fn with_schema_manager(
+        storage: Arc<Mutex<S>>,
+        schema_manager: Arc<RedbSchemaManager>,
+    ) -> Self {
+        let stats_manager = Arc::new(StatsManager::new());
+        let optimizer_engine = Arc::new(OptimizerEngine::default());
+        Self {
+            pipeline_manager: QueryPipelineManager::with_optimizer(
+                storage,
+                stats_manager,
+                optimizer_engine,
+            )
+            .with_schema_manager(schema_manager),
         }
     }
 
@@ -101,7 +119,8 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
 
         // Build space info from request context if space_id is provided
         let space_info = ctx.space_id.map(|id| {
-            let mut space_info = crate::core::types::SpaceInfo::new(String::new());
+            let space_name = ctx.space_name.clone().unwrap_or_default();
+            let mut space_info = crate::core::types::SpaceInfo::new(space_name);
             space_info.space_id = id;
             space_info
         });
@@ -129,6 +148,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         // Create new QueryRequest with parameters
         let new_ctx = QueryRequest {
             space_id: ctx.space_id,
+            space_name: ctx.space_name,
             auto_commit: ctx.auto_commit,
             transaction_id: ctx.transaction_id,
             parameters: Some(params),

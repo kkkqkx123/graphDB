@@ -673,7 +673,7 @@ impl CreateValidator {
                 }
 
                 // Verify whether vid_type is valid.
-                let valid_vid_types = ["INT64", "INT32", "INT16", "INT8", "FIXEDSTRING", "STRING"];
+                let valid_vid_types = ["INT64", "INT32", "INT16", "INT8", "FIXEDSTRING", "STRING", "FIXED_STRING"];
                 let vid_type_upper = vid_type.to_uppercase();
                 let is_valid_vid_type = valid_vid_types
                     .iter()
@@ -682,7 +682,7 @@ impl CreateValidator {
                 if !is_valid_vid_type {
                     return Err(ValidationError::new(
                         format!(
-                            "Invalid vid_type '{}'. Supported types: INT64, INT32, INT16, INT8, FIXEDSTRING(N), STRING",
+                            "Invalid vid_type '{}'. Supported types: INT64, INT32, INT16, INT8, FIXEDSTRING(N), FIXED_STRING(N), STRING",
                             vid_type
                         ),
                         ValidationErrorType::SemanticError,

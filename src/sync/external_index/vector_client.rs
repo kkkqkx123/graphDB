@@ -424,7 +424,7 @@ mod tests {
 
     #[test]
     fn test_index_key() {
-        let config = VectorClientConfig::default();
+        let _config = VectorClientConfig::default();
         let key = IndexKey::new(1, "tag".to_string(), "field".to_string());
         assert_eq!(key.space_id, 1);
         assert_eq!(key.tag_name, "tag");

@@ -169,6 +169,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
 
         let ctx = QueryRequest {
             space_id: self.space_id,
+            space_name: self.space_name.clone(),
             auto_commit: self.auto_commit,
             transaction_id: None,
             parameters: None,
@@ -200,6 +201,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     ) -> CoreResult<QueryResult> {
         let ctx = QueryRequest {
             space_id: self.space_id,
+            space_name: self.space_name.clone(),
             auto_commit: self.auto_commit,
             transaction_id: None,
             parameters: Some(params),

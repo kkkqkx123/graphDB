@@ -9,6 +9,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct QueryRequest {
     pub space_id: Option<u64>,
+    pub space_name: Option<String>,
     pub auto_commit: bool,
     pub transaction_id: Option<u64>,
     pub parameters: Option<HashMap<String, Value>>,
@@ -18,6 +19,7 @@ impl Default for QueryRequest {
     fn default() -> Self {
         Self {
             space_id: None,
+            space_name: None,
             auto_commit: true,
             transaction_id: None,
             parameters: None,

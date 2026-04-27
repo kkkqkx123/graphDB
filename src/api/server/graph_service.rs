@@ -8,6 +8,7 @@ use crate::core::stats::StatsManager;
 use crate::core::{MetricType, Permission};
 use crate::query::executor::ExecutionResult;
 use crate::query::DataSet;
+use crate::storage::engine::redb_storage::RedbStorage;
 use crate::storage::StorageClient;
 use crate::transaction::TransactionManager;
 use log::{info, warn};
@@ -74,6 +75,12 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         // Use core layer QueryApi instead of directly using QueryPipelineManager
         // Support vector search with metadata provider if enabled
+        // Try to get schema_manager from storage if it's RedbStorage
+        let schema_manager = storage
+            .as_any()
+            .downcast_ref::<RedbStorage>()
+            .map(|redb_storage| redb_storage.state().schema_manager.clone());
+
         let (query_api, vector_api) = if config.vector.enabled {
             match QueryApi::with_vector_search(
                 Arc::new(Mutex::new((*storage).clone())),
@@ -96,21 +103,21 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                         "Failed to initialize vector search, falling back to basic QueryApi: {}",
                         e
                     );
-                    (
-                        Arc::new(Mutex::new(QueryApi::new(Arc::new(Mutex::new(
-                            (*storage).clone(),
-                        ))))),
-                        None,
-                    )
+                    let api = if let Some(sm) = schema_manager.clone() {
+                        QueryApi::with_schema_manager(Arc::new(Mutex::new((*storage).clone())), sm)
+                    } else {
+                        QueryApi::new(Arc::new(Mutex::new((*storage).clone())))
+                    };
+                    (Arc::new(Mutex::new(api)), None)
                 }
             }
         } else {
-            (
-                Arc::new(Mutex::new(QueryApi::new(Arc::new(Mutex::new(
-                    (*storage).clone(),
-                ))))),
-                None,
-            )
+            let api = if let Some(sm) = schema_manager {
+                QueryApi::with_schema_manager(Arc::new(Mutex::new((*storage).clone())), sm)
+            } else {
+                QueryApi::new(Arc::new(Mutex::new((*storage).clone())))
+            };
+            (Arc::new(Mutex::new(api)), None)
         };
 
         let authenticator = AuthenticatorFactory::create_default(&config.server.auth);
@@ -287,6 +294,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         // Use core layer QueryApi to execute query
         let query_request = crate::api::core::QueryRequest {
             space_id: session.space().map(|s| s.id as u64),
+            space_name: session.space().map(|s| s.name),
             auto_commit: session.is_auto_commit(),
             transaction_id: session.current_transaction(),
             parameters: None,

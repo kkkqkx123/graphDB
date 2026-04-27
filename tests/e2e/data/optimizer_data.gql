@@ -1,5 +1,5 @@
 -- Optimizer E2E Test Data
--- Generated: 2026-04-27T16:19:50.600430
+-- Generated: 2026-04-27T18:27:45.244980
 
 -- Create test space
 CREATE SPACE IF NOT EXISTS e2e_optimizer (vid_type=STRING)

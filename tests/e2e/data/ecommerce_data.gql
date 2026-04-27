@@ -1,5 +1,5 @@
 -- E-Commerce E2E Test Data
--- Generated: 2026-04-27T16:19:49.023639
+-- Generated: 2026-04-27T18:27:43.247770
 
 -- Create test space
 CREATE SPACE IF NOT EXISTS e2e_ecommerce (vid_type=STRING)
