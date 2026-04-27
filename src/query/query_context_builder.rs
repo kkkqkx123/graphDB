@@ -121,6 +121,8 @@ mod tests {
             edge_types: Vec::new(),
             version: crate::core::types::MetadataVersion::default(),
             comment: None,
+            storage_path: None,
+            isolation_level: crate::core::types::IsolationLevel::default(),
         };
 
         let query_context = QueryContextBuilder::new(rctx)
@@ -164,6 +166,8 @@ mod tests {
             edge_types: Vec::new(),
             version: crate::core::types::MetadataVersion::default(),
             comment: None,
+            storage_path: None,
+            isolation_level: crate::core::types::IsolationLevel::default(),
         };
 
         let query_context = QueryContextBuilder::new(rctx)

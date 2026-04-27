@@ -10,6 +10,9 @@ pub mod metrics;
 pub mod result;
 pub mod warmup;
 
+#[cfg(test)]
+mod isolation_test;
+
 pub use config::{FulltextConfig, SyncConfig, SyncFailurePolicy};
 pub use engine::{EngineType, SearchEngine};
 pub use error::{Result, SearchError};

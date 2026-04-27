@@ -119,7 +119,7 @@ pub use self::fulltext_query::{
     SortOrder,
 };
 pub use self::property::PropertyDef;
-pub use self::space::{generate_space_id, reset_space_id_counter, SpaceInfo};
+pub use self::space::{generate_space_id, reset_space_id_counter, IsolationLevel, SpaceInfo};
 pub use self::tag::TagInfo;
 
 // Exporting version types from metadata_version

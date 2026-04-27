@@ -127,6 +127,15 @@ impl From<crate::search::error::SearchError> for FulltextError {
             crate::search::error::SearchError::IndexAlreadyExists(msg) => {
                 FulltextError::IndexAlreadyExists(msg)
             }
+            crate::search::error::SearchError::SpaceNotFound(space_id) => {
+                FulltextError::Internal(format!("Space not found: {}", space_id))
+            }
+            crate::search::error::SearchError::TagNotFound(tag) => {
+                FulltextError::Internal(format!("Tag not found: {}", tag))
+            }
+            crate::search::error::SearchError::FieldNotFound(field) => {
+                FulltextError::Internal(format!("Field not found: {}", field))
+            }
             crate::search::error::SearchError::EngineUnavailable => {
                 FulltextError::EngineUnavailable("engine unavailable".to_string())
             }

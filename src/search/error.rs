@@ -11,6 +11,15 @@ pub enum SearchError {
     #[error("Index already exists: {0}")]
     IndexAlreadyExists(String),
 
+    #[error("Space not found: {0}")]
+    SpaceNotFound(u64),
+
+    #[error("Tag not found: {0}")]
+    TagNotFound(String),
+
+    #[error("Field not found: {0}")]
+    FieldNotFound(String),
+
     #[error("Engine unavailable")]
     EngineUnavailable,
 

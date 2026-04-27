@@ -46,6 +46,8 @@ pub struct IndexKey {
     pub field_name: String,
 }
 
+const FULLTEXT_INDEX_PREFIX: &str = "space_ft";
+
 impl IndexKey {
     pub fn new(space_id: u64, tag_name: &str, field_name: &str) -> Self {
         Self {
@@ -56,6 +58,9 @@ impl IndexKey {
     }
 
     pub fn to_index_id(&self) -> String {
-        format!("{}_{}_{}", self.space_id, self.tag_name, self.field_name)
+        format!(
+            "{}_{}_{}_{}",
+            FULLTEXT_INDEX_PREFIX, self.space_id, self.tag_name, self.field_name
+        )
     }
 }

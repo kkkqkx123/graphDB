@@ -92,6 +92,8 @@ pub struct VectorIndexLocation {
     pub field_name: String,
 }
 
+const VECTOR_INDEX_PREFIX: &str = "space_vec";
+
 impl VectorIndexLocation {
     pub fn new(space_id: u64, tag_name: impl Into<String>, field_name: impl Into<String>) -> Self {
         Self {
@@ -101,11 +103,10 @@ impl VectorIndexLocation {
         }
     }
 
-    /// Generate collection name (for Qdrant etc.)
     pub fn to_collection_name(&self) -> String {
         format!(
-            "space_{}_{}_{}",
-            self.space_id, self.tag_name, self.field_name
+            "{}_{}_{}_{}",
+            VECTOR_INDEX_PREFIX, self.space_id, self.tag_name, self.field_name
         )
     }
 }

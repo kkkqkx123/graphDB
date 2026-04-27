@@ -130,7 +130,10 @@ impl VectorClient {
     }
 
     fn collection_name(&self) -> String {
-        format!("{}_{}_{}", self.space_id, self.tag_name, self.field_name)
+        format!(
+            "space_vec_{}_{}_{}",
+            self.space_id, self.tag_name, self.field_name
+        )
     }
 
     fn index_key(&self) -> IndexKey {

@@ -3,6 +3,7 @@
 use crate::core::types::{DataType, EdgeTypeInfo, MetadataVersion, TagInfo};
 use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Charset and collation information
@@ -10,6 +11,18 @@ use std::sync::atomic::{AtomicU64, Ordering};
 pub struct CharsetInfo {
     pub charset: String,
     pub collation: String,
+}
+
+/// Isolation level for space storage
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Encode, Decode)]
+pub enum IsolationLevel {
+    /// Shared storage (default) - all spaces share the same base path
+    #[default]
+    Shared,
+    /// Independent subdirectory - each space has its own subdirectory
+    Directory,
+    /// Independent storage device - each space can have a custom storage path
+    Device,
 }
 
 static SPACE_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
@@ -31,6 +44,10 @@ pub struct SpaceInfo {
     pub edge_types: Vec<EdgeTypeInfo>,
     pub version: MetadataVersion,
     pub comment: Option<String>,
+    /// Custom storage path for this space (optional)
+    pub storage_path: Option<PathBuf>,
+    /// Isolation level for storage
+    pub isolation_level: IsolationLevel,
 }
 
 impl SpaceInfo {
@@ -43,6 +60,8 @@ impl SpaceInfo {
             edge_types: Vec::new(),
             version: MetadataVersion::default(),
             comment: None,
+            storage_path: None,
+            isolation_level: IsolationLevel::default(),
         }
     }
 
@@ -53,6 +72,19 @@ impl SpaceInfo {
 
     pub fn with_comment(mut self, comment: Option<String>) -> Self {
         self.comment = comment;
+        self
+    }
+
+    pub fn with_storage_path(mut self, storage_path: Option<PathBuf>) -> Self {
+        self.storage_path = storage_path;
+        if self.storage_path.is_some() {
+            self.isolation_level = IsolationLevel::Device;
+        }
+        self
+    }
+
+    pub fn with_isolation_level(mut self, isolation_level: IsolationLevel) -> Self {
+        self.isolation_level = isolation_level;
         self
     }
 }

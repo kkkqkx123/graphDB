@@ -31,6 +31,8 @@ impl SpaceInfo {
             edge_types: Vec::new(),
             version: crate::core::types::MetadataVersion::default(),
             comment: None,
+            storage_path: None,
+            isolation_level: crate::core::types::IsolationLevel::default(),
         }
     }
 }

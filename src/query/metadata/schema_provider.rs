@@ -334,6 +334,8 @@ mod tests {
                     edge_types: vec![],
                     version: Default::default(),
                     comment: None,
+                    storage_path: None,
+                    isolation_level: crate::core::types::IsolationLevel::default(),
                 }))
             } else {
                 Ok(None)
@@ -350,6 +352,8 @@ mod tests {
                     edge_types: vec![],
                     version: Default::default(),
                     comment: None,
+                    storage_path: None,
+                    isolation_level: crate::core::types::IsolationLevel::default(),
                 }))
             } else {
                 Ok(None)

@@ -8,6 +8,7 @@ use crate::search::error::SearchError;
 use crate::search::factory::SearchEngineFactory;
 use crate::search::metadata::{IndexKey, IndexMetadata, IndexStatus};
 use crate::search::result::{IndexStats, SearchResult};
+use crate::storage::metadata::SchemaManager;
 
 #[derive(Debug)]
 pub struct FulltextIndexManager {
@@ -16,6 +17,7 @@ pub struct FulltextIndexManager {
     base_path: PathBuf,
     default_engine: EngineType,
     config: FulltextConfig,
+    schema_manager: Option<Arc<dyn SchemaManager>>,
 }
 
 impl FulltextIndexManager {
@@ -32,7 +34,89 @@ impl FulltextIndexManager {
             base_path,
             default_engine: config.default_engine,
             config,
+            schema_manager: None,
         })
+    }
+
+    pub fn with_schema_manager(mut self, schema_manager: Arc<dyn SchemaManager>) -> Self {
+        self.schema_manager = Some(schema_manager);
+        self
+    }
+
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<dyn SchemaManager>) {
+        self.schema_manager = Some(schema_manager);
+    }
+
+    fn validate_space_exists(&self, space_id: u64) -> Result<(), SearchError> {
+        if let Some(ref schema_manager) = self.schema_manager {
+            let space_exists = schema_manager
+                .get_space_by_id(space_id)
+                .map_err(|e| SearchError::Internal(format!("Failed to validate space: {}", e)))?
+                .is_some();
+
+            if !space_exists {
+                return Err(SearchError::SpaceNotFound(space_id));
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_tag_exists(&self, space_id: u64, tag_name: &str) -> Result<(), SearchError> {
+        if let Some(ref schema_manager) = self.schema_manager {
+            let space = schema_manager
+                .get_space_by_id(space_id)
+                .map_err(|e| SearchError::Internal(format!("Failed to validate tag: {}", e)))?;
+
+            if let Some(space_info) = space {
+                let tag_exists = space_info.tags.iter().any(|t| t.tag_name == tag_name);
+                if !tag_exists {
+                    return Err(SearchError::TagNotFound(format!(
+                        "{}.{}",
+                        space_id, tag_name
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn get_space_storage_path(&self, space_id: u64) -> Result<PathBuf, SearchError> {
+        if let Some(ref schema_manager) = self.schema_manager {
+            if let Some(space_info) = schema_manager
+                .get_space_by_id(space_id)
+                .map_err(|e| SearchError::Internal(format!("Failed to get space: {}", e)))?
+            {
+                if let Some(ref custom_path) = space_info.storage_path {
+                    let fulltext_path = custom_path.join("fulltext");
+                    if !fulltext_path.exists() {
+                        std::fs::create_dir_all(&fulltext_path)?;
+                    }
+                    return Ok(fulltext_path);
+                }
+
+                use crate::core::types::space::IsolationLevel;
+                match space_info.isolation_level {
+                    IsolationLevel::Device => {
+                        if let Some(ref custom_path) = space_info.storage_path {
+                            let fulltext_path = custom_path.join("fulltext");
+                            if !fulltext_path.exists() {
+                                std::fs::create_dir_all(&fulltext_path)?;
+                            }
+                            return Ok(fulltext_path);
+                        }
+                    }
+                    IsolationLevel::Directory => {
+                        let space_path = self.base_path.join(format!("space_{}", space_id));
+                        if !space_path.exists() {
+                            std::fs::create_dir_all(&space_path)?;
+                        }
+                        return Ok(space_path);
+                    }
+                    IsolationLevel::Shared => {}
+                }
+            }
+        }
+        Ok(self.base_path.clone())
     }
 
     pub async fn create_index(
@@ -42,6 +126,9 @@ impl FulltextIndexManager {
         field_name: &str,
         engine_type: Option<EngineType>,
     ) -> Result<String, SearchError> {
+        self.validate_space_exists(space_id)?;
+        self.validate_tag_exists(space_id, tag_name)?;
+
         let key = IndexKey::new(space_id, tag_name, field_name);
         let index_id = key.to_index_id();
 
@@ -51,10 +138,12 @@ impl FulltextIndexManager {
 
         let engine_type = engine_type.unwrap_or(self.default_engine);
 
+        let storage_path = self.get_space_storage_path(space_id)?;
+
         let engine = SearchEngineFactory::from_config(
             engine_type,
             &index_id,
-            &self.base_path,
+            &storage_path,
             &self.config,
         )?;
 
@@ -65,7 +154,7 @@ impl FulltextIndexManager {
             tag_name: tag_name.to_string(),
             field_name: field_name.to_string(),
             engine_type,
-            storage_path: self.base_path.join(&index_id).to_string_lossy().to_string(),
+            storage_path: storage_path.join(&index_id).to_string_lossy().to_string(),
             created_at: chrono::Utc::now(),
             last_updated: chrono::Utc::now(),
             doc_count: 0,
@@ -234,6 +323,57 @@ impl FulltextIndexManager {
         for key in edge_indexes {
             if let Some(engine) = self.engines.get(&key) {
                 engine.delete(doc_id).await.ok(); // 忽略删除失败
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Drop all indexes for a space
+    ///
+    /// This method should be called when dropping a space to ensure
+    /// all associated index data is cleaned up.
+    pub async fn drop_space_indexes(&self, space_id: u64) -> Result<(), SearchError> {
+        let space_indexes: Vec<(IndexKey, IndexMetadata)> = self
+            .metadata
+            .iter()
+            .filter(|entry| entry.value().space_id == space_id)
+            .map(|entry| (entry.key().clone(), entry.value().clone()))
+            .collect();
+
+        for (key, metadata) in space_indexes {
+            if let Some((_, engine)) = self.engines.remove(&key) {
+                engine.close().await.ok();
+            }
+            self.metadata.remove(&key);
+
+            let storage_path = PathBuf::from(&metadata.storage_path);
+            if storage_path.exists() {
+                tokio::fs::remove_dir_all(&storage_path).await.ok();
+            }
+
+            let bin_path = storage_path.with_extension("bin");
+            if bin_path.exists() {
+                tokio::fs::remove_file(&bin_path).await.ok();
+            }
+        }
+
+        if let Some(ref schema_manager) = self.schema_manager {
+            if let Some(space_info) = schema_manager
+                .get_space_by_id(space_id)
+                .map_err(|e| SearchError::Internal(format!("Failed to get space: {}", e)))?
+            {
+                if let Some(ref custom_path) = space_info.storage_path {
+                    let fulltext_path = custom_path.join("fulltext");
+                    if fulltext_path.exists() {
+                        tokio::fs::remove_dir_all(&fulltext_path).await.ok();
+                    }
+                } else if space_info.isolation_level == crate::core::types::space::IsolationLevel::Directory {
+                    let space_path = self.base_path.join(format!("space_{}", space_id));
+                    if space_path.exists() {
+                        tokio::fs::remove_dir_all(&space_path).await.ok();
+                    }
+                }
             }
         }
 
