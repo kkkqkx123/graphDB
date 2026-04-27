@@ -5,7 +5,7 @@
 //! "server" refers to a network service API (HTTP).
 //! "Embedded" refers to an API that is designed to be used on a standalone device (i.e., without the need for any additional servers or networks).
 
-use log::{info, error};
+use log::{info, error, warn};
 use std::sync::Arc;
 
 pub mod core;
@@ -37,7 +37,7 @@ use crate::transaction::{TransactionManager, TransactionManagerConfig};
 
 /// Start the service using the configuration file path (deprecated; please use start_service_with_config).
 #[cfg(feature = "server")]
-pub fn start_service(config_path: String) -> DBResult<()> {
+pub async fn start_service(config_path: String) -> DBResult<()> {
     let config = match Config::load(&config_path) {
         Ok(config) => config,
         Err(e) => {
@@ -48,12 +48,12 @@ pub fn start_service(config_path: String) -> DBResult<()> {
             Config::default()
         }
     };
-    start_service_with_config(config)
+    start_service_with_config(config).await
 }
 
 /// Start the service using the configuration object.
 #[cfg(feature = "server")]
-pub fn start_service_with_config(config: Config) -> DBResult<()> {
+pub async fn start_service_with_config(config: Config) -> DBResult<()> {
     info!("Initializing GraphDB service...");
     info!("Configuration loaded: {:?}", config);
 
@@ -98,16 +98,19 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
                 SyncManager::with_sync_config(sync_coordinator.clone(), sync_config);
 
             if config.vector.enabled {
-                let rt = tokio::runtime::Handle::current();
-                let vector_manager = Arc::new(
-                    rt.block_on(VectorManager::new(config.vector.clone()))
-                        .expect("Failed to create VectorManager"),
-                );
-                let vector_coordinator = Arc::new(
-                    crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
-                );
-                sync_manager = sync_manager.with_vector_coordinator(vector_coordinator);
-                info!("Vector index sync enabled");
+                match VectorManager::new(config.vector.clone()).await {
+                    Ok(vm) => {
+                        let vector_manager = Arc::new(vm);
+                        let vector_coordinator = Arc::new(
+                            crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
+                        );
+                        sync_manager = sync_manager.with_vector_coordinator(vector_coordinator);
+                        info!("Vector index sync enabled");
+                    }
+                    Err(e) => {
+                        warn!("Failed to create VectorManager: {}. Vector search will be disabled.", e);
+                    }
+                }
             }
 
             (sync_coordinator.clone(), Arc::new(sync_manager))
@@ -128,16 +131,19 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
                 SyncManager::with_sync_config(sync_coordinator.clone(), sync_config);
 
             if config.vector.enabled {
-                let rt = tokio::runtime::Handle::current();
-                let vector_manager = Arc::new(
-                    rt.block_on(VectorManager::new(config.vector.clone()))
-                        .expect("Failed to create VectorManager"),
-                );
-                let vector_coordinator = Arc::new(
-                    crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
-                );
-                sync_manager = sync_manager.with_vector_coordinator(vector_coordinator);
-                info!("Vector index sync enabled");
+                match VectorManager::new(config.vector.clone()).await {
+                    Ok(vm) => {
+                        let vector_manager = Arc::new(vm);
+                        let vector_coordinator = Arc::new(
+                            crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
+                        );
+                        sync_manager = sync_manager.with_vector_coordinator(vector_coordinator);
+                        info!("Vector index sync enabled");
+                    }
+                    Err(e) => {
+                        warn!("Failed to create VectorManager: {}. Vector search will be disabled.", e);
+                    }
+                }
             }
 
             (sync_coordinator.clone(), Arc::new(sync_manager))
@@ -174,61 +180,58 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
         info!("Telemetry recorder initialized");
     }
 
-    let rt = tokio::runtime::Runtime::new()?;
-    rt.block_on(async {
-        // Start telemetry server if enabled
-        let _telemetry_handle = if config.server.telemetry.enabled {
-            let telemetry_config = crate::api::server::telemetry_server::TelemetryConfig {
-                bind_address: config.server.telemetry.bind_address.clone(),
-                port: config.server.telemetry.port,
-                max_histogram_entries: config.server.telemetry.max_histogram_entries,
-                cleanup_interval_secs: config.server.telemetry.cleanup_interval_secs,
-            };
-            let telemetry_server = crate::api::server::telemetry_server::TelemetryServer::new(
-                telemetry_config,
-                telemetry_recorder.clone(),
-            );
-            info!(
-                "Starting telemetry server on {}:{}",
-                config.server.telemetry.bind_address, config.server.telemetry.port
-            );
-            Some(telemetry_server.spawn())
-        } else {
-            info!("Telemetry server disabled");
-            None
+    // Start telemetry server if enabled
+    let _telemetry_handle = if config.server.telemetry.enabled {
+        let telemetry_config = crate::api::server::telemetry_server::TelemetryConfig {
+            bind_address: config.server.telemetry.bind_address.clone(),
+            port: config.server.telemetry.port,
+            max_histogram_entries: config.server.telemetry.max_histogram_entries,
+            cleanup_interval_secs: config.server.telemetry.cleanup_interval_secs,
         };
-
-        let graph_service =
-            GraphService::<SyncStorage<DefaultStorage>>::new_with_transaction_manager(
-                config.clone(),
-                storage.clone(),
-                transaction_manager.clone(),
-            )
-            .await;
-        info!("Graph service initialized with transaction management");
-
-        // Create HTTP server
-        let http_server = Arc::new(HttpServer::new(
-            graph_service,
-            Arc::new(parking_lot::Mutex::new((*storage).clone())),
-            transaction_manager,
-            &config,
-        ));
-        info!("HTTP server created");
-
-        info!(
-            "Starting HTTP server on {}:{}",
-            config.host(),
-            config.port()
+        let telemetry_server = crate::api::server::telemetry_server::TelemetryServer::new(
+            telemetry_config,
+            telemetry_recorder.clone(),
         );
+        info!(
+            "Starting telemetry server on {}:{}",
+            config.server.telemetry.bind_address, config.server.telemetry.port
+        );
+        Some(telemetry_server.spawn())
+    } else {
+        info!("Telemetry server disabled");
+        None
+    };
 
-        // Start HTTP server
-        if let Err(e) = start_http_server(http_server, &config).await {
-            error!("HTTP server error: {}", e);
-        }
-    });
+    let graph_service =
+        GraphService::<SyncStorage<DefaultStorage>>::new_with_transaction_manager(
+            config.clone(),
+            storage.clone(),
+            transaction_manager.clone(),
+        )
+        .await;
+    info!("Graph service initialized with transaction management");
 
-    shutdown_signal();
+    // Create HTTP server
+    let http_server = Arc::new(HttpServer::new(
+        graph_service,
+        Arc::new(parking_lot::Mutex::new((*storage).clone())),
+        transaction_manager,
+        &config,
+    ));
+    info!("HTTP server created");
+
+    info!(
+        "Starting HTTP server on {}:{}",
+        config.host(),
+        config.port()
+    );
+
+    // Start HTTP server
+    if let Err(e) = start_http_server(http_server, &config).await {
+        error!("HTTP server error: {}", e);
+    }
+
+    shutdown_signal().await;
 
     info!("Shutting down GraphDB service...");
     Ok(())
@@ -279,20 +282,13 @@ pub async fn execute_query(query_str: &str) -> DBResult<()> {
     Ok(())
 }
 
-/// Waiting for the shutdown signal (synchronous implementation)
+/// Waiting for the shutdown signal (asynchronous implementation)
 ///
-/// This function is used externally when running asynchronously; it blocks the current thread in order to wait for the signal.
-/// The internal implementation uses `tokio::signal`, which requires a brief initialization of the runtime.
-pub fn shutdown_signal() {
-    use tokio::runtime::Runtime;
-
+/// This function waits for the shutdown signal in an async context.
+pub async fn shutdown_signal() {
     info!("Waiting for shutdown signal (Ctrl+C or SIGTERM)...");
 
-    // Create a temporary runtime to wait for asynchronous signals.
-    let rt = Runtime::new().expect("Failed to create temporary runtime");
-    rt.block_on(async {
-        async_shutdown_signal().await;
-    });
+    async_shutdown_signal().await;
 
     info!("Received shutdown signal");
 }

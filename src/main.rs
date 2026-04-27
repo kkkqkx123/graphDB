@@ -46,8 +46,11 @@ mod server_main {
                     eprintln!("Failed to initialize logging system: {}", e);
                 }
 
-                // Initialize and start service
-                let result = api::start_service_with_config(cfg);
+                // Create Tokio runtime and start service
+                let rt = tokio::runtime::Runtime::new()?;
+                let result = rt.block_on(async {
+                    api::start_service_with_config(cfg).await
+                });
 
                 // Ensure logging is flushed before exiting
                 logging::shutdown();

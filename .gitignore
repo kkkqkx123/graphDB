@@ -10,3 +10,5 @@ tests/c_api/build
 *.exe
 *.db
 Cargo.lock
+__pycache__
+*.pyc

@@ -3,8 +3,8 @@ use axum::{
     http::StatusCode,
     response::Json as JsonResponse,
 };
+use log::info;
 use serde::{Deserialize, Serialize};
-use tokio::task;
 
 use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::storage::StorageClient;
@@ -23,22 +23,28 @@ pub struct LoginResponse {
 }
 
 pub async fn login<S: StorageClient + Clone + Send + Sync + 'static>(
-    State(_state): State<AppState<S>>,
+    State(state): State<AppState<S>>,
     Json(request): Json<LoginRequest>,
 ) -> Result<JsonResponse<LoginResponse>, HttpError> {
-    let result = task::spawn_blocking(move || {
-        // The authenticate method of the GraphService is required.
-        // The current architecture needs to be adjusted to return to the simulation results for the time being
-        Ok::<_, HttpError>(LoginResponse {
-            session_id: 12345,
-            username: request.username,
-            expires_at: None,
-        })
-    })
-    .await
-    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
+    // TODO: Implement proper authentication with password verification
+    // For now, accept any username/password and create a session
 
-    Ok(JsonResponse(result?))
+    let session_manager = state.server.get_session_manager();
+
+    // Create a new session for the user
+    let session = session_manager
+        .create_session(request.username.clone(), "127.0.0.1".to_string())
+        .await
+        .map_err(|e| HttpError::InternalError(format!("Failed to create session: {}", e)))?;
+
+    let session_id = session.id();
+    info!("Created session {} for user {}", session_id, request.username);
+
+    Ok(JsonResponse(LoginResponse {
+        session_id,
+        username: request.username,
+        expires_at: None,
+    }))
 }
 
 #[derive(Debug, Deserialize)]

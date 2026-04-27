@@ -40,9 +40,10 @@ class GraphDBClient:
         self.base_url = f"http://{host}:{port}"
         self.session: Optional[requests.Session] = None
         self.current_space: Optional[str] = None
+        self.session_id: Optional[int] = None
 
     def connect(self) -> bool:
-        """Establish connection to GraphDB server."""
+        """Establish connection to GraphDB server and authenticate."""
         self.session = requests.Session()
         self.session.headers.update({
             "Content-Type": "application/json",
@@ -57,13 +58,33 @@ class GraphDBClient:
                     timeout=self.timeout
                 )
                 if response.status_code == 200:
-                    return True
+                    # Authenticate and get session
+                    return self._authenticate()
             except requests.exceptions.ConnectionError:
                 if attempt < self.retry_count - 1:
                     time.sleep(1)
                 continue
 
         return False
+
+    def _authenticate(self) -> bool:
+        """Authenticate and obtain session ID."""
+        try:
+            response = self.session.post(
+                f"{self.base_url}/v1/auth/login",
+                json={"username": "root", "password": "nebula"},
+                timeout=self.timeout
+            )
+            if response.status_code == 200:
+                result = response.json()
+                self.session_id = result.get("session_id")
+                # Update headers with session ID for subsequent requests
+                self.session.headers.update({"X-Session-ID": str(self.session_id)})
+                return True
+            return False
+        except Exception as e:
+            print(f"Authentication failed: {e}")
+            return False
 
     def disconnect(self):
         """Close connection."""
@@ -92,16 +113,23 @@ class GraphDBClient:
                 error="Not connected to server"
             )
 
+        if not self.session_id:
+            return TestResult(
+                success=False,
+                error="Not authenticated"
+            )
+
         start_time = time.time()
 
         try:
             payload = {
-                "gql": gql,
-                "params": params or {}
+                "query": gql,
+                "session_id": self.session_id,
+                "parameters": params or {}
             }
 
             response = self.session.post(
-                f"{self.base_url}/v1/execute",
+                f"{self.base_url}/v1/query",
                 json=payload,
                 timeout=self.timeout
             )
@@ -113,7 +141,7 @@ class GraphDBClient:
                 return TestResult(
                     success=result.get("success", False),
                     data=result.get("data"),
-                    error=result.get("error"),
+                    error=result.get("error", {}).get("message") if result.get("error") else None,
                     execution_time_ms=execution_time
                 )
             else:
