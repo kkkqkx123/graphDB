@@ -92,7 +92,7 @@ impl DdlParser {
 
                     if ctx.match_token(TokenKind::VIdType) {
                         ctx.expect_token(TokenKind::Assign)?;
-                        vid_type = ctx.expect_identifier()?;
+                        vid_type = self.parse_vid_type_value(ctx)?;
                     } else if ctx.match_token(TokenKind::Comment) {
                         ctx.expect_token(TokenKind::Assign)?;
                         comment = Some(ctx.expect_string_literal()?);
@@ -292,7 +292,7 @@ impl DdlParser {
 
                     if ctx.match_token(TokenKind::VIdType) {
                         ctx.expect_token(TokenKind::Assign)?;
-                        vid_type = ctx.expect_identifier()?;
+                        vid_type = self.parse_vid_type_value(ctx)?;
                     } else if ctx.match_token(TokenKind::Comment) {
                         ctx.expect_token(TokenKind::Assign)?;
                         comment = Some(ctx.expect_string_literal()?);
@@ -967,6 +967,37 @@ impl DdlParser {
             default,
             comment,
         })
+    }
+
+    /// Parse vid_type value for CREATE SPACE statement.
+    /// Accepts data type keywords (STRING, INT, INT64, etc.) or identifiers.
+    fn parse_vid_type_value(&mut self, ctx: &mut ParseContext) -> Result<String, ParseError> {
+        let token = ctx.current_token();
+        match token.kind {
+            // Accept data type keywords as vid_type values
+            TokenKind::String => {
+                ctx.next_token();
+                Ok("STRING".to_string())
+            }
+            TokenKind::Int | TokenKind::Int8 | TokenKind::Int16 | TokenKind::Int32 | TokenKind::Int64 => {
+                ctx.next_token();
+                Ok("INT64".to_string())
+            }
+            TokenKind::Float | TokenKind::Double => {
+                ctx.next_token();
+                Ok("FLOAT".to_string())
+            }
+            TokenKind::Identifier(ref s) => {
+                let type_name = s.clone();
+                ctx.next_token();
+                Ok(type_name.to_uppercase())
+            }
+            _ => Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
+                format!("Expected vid_type value, found {:?}", token.kind),
+                ctx.current_position(),
+            )),
+        }
     }
 
     /// Parse data types, supporting keywords (such as STRING, INT) or identifiers.

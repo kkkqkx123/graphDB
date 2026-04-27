@@ -11,7 +11,7 @@ use crate::query::planning::plan::core::nodes::management::space_nodes::{
 use crate::query::planning::plan::core::nodes::management::tag_nodes::TagAlterInfo;
 use crate::query::planning::plan::core::nodes::{
     AlterEdgeNode, AlterTagNode, CreateEdgeNode, CreateTagNode, EdgeManageInfo, ShowCreateTagNode,
-    TagManageInfo,
+    ShowEdgesNode, ShowTagsNode, TagManageInfo,
 };
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id, AlterSpaceNode, ArgumentNode, ClearSpaceNode, PlanNodeEnum,
@@ -44,16 +44,39 @@ impl Planner for MaintainPlanner {
 
         // 3. Different types of operations may require different processing methods.
         let final_node = if stmt_type == "SHOW" {
-            // Processing the SHOW STATS statement
+            // Processing the SHOW statements
             if let Stmt::Show(show_stmt) = validated.stmt() {
-                if show_stmt.target == ShowTarget::Stats {
-                    let stats_node = ShowStatsNode::new(next_node_id(), ShowStatsType::Storage);
-                    PlanNodeEnum::ShowStats(stats_node)
-                } else {
-                    // Other SHOW statements use PassThrough nodes.
-                    PlanNodeEnum::PassThrough(
-                        crate::query::planning::plan::core::PassThroughNode::new(1),
-                    )
+                match show_stmt.target {
+                    ShowTarget::Stats => {
+                        let stats_node = ShowStatsNode::new(next_node_id(), ShowStatsType::Storage);
+                        PlanNodeEnum::ShowStats(stats_node)
+                    }
+                    ShowTarget::Tags => {
+                        let current_space = validated
+                            .validation_info
+                            .semantic_info
+                            .space_name
+                            .clone()
+                            .unwrap_or_default();
+                        let show_tags_node = ShowTagsNode::new(next_node_id(), current_space);
+                        PlanNodeEnum::ShowTags(show_tags_node)
+                    }
+                    ShowTarget::Edges => {
+                        let current_space = validated
+                            .validation_info
+                            .semantic_info
+                            .space_name
+                            .clone()
+                            .unwrap_or_default();
+                        let show_edges_node = ShowEdgesNode::new(next_node_id(), current_space);
+                        PlanNodeEnum::ShowEdges(show_edges_node)
+                    }
+                    _ => {
+                        // Other SHOW statements use PassThrough nodes.
+                        PlanNodeEnum::PassThrough(
+                            crate::query::planning::plan::core::PassThroughNode::new(1),
+                        )
+                    }
                 }
             } else {
                 PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(

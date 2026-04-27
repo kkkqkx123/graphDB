@@ -2,12 +2,9 @@
 
 use std::sync::Arc;
 
-use graphdb::sync::task::VectorPointData;
-use graphdb::sync::vector_sync::{
-    VectorChangeContext, VectorChangeType, VectorIndexLocation, VectorSyncCoordinator,
-};
-use graphdb::sync::vector_transaction_buffer::{
-    PendingVectorUpdate, VectorTransactionBuffer, VectorTransactionBufferConfig,
+use graphdb::sync::{
+    PendingVectorUpdate, VectorChangeContext, VectorChangeType, VectorIndexLocation,
+    VectorPointData, VectorSyncCoordinator, VectorTransactionBuffer, VectorTransactionBufferConfig,
 };
 use graphdb::transaction::types::TransactionId;
 use vector_client::{VectorClientConfig, VectorManager};
@@ -258,29 +255,28 @@ async fn test_vector_transaction_multiple_transactions() {
     }
 
     // Verify all transactions have pending updates
-    let txn_ids = buffer.get_all_txn_ids();
-    assert_eq!(txn_ids.len(), 3);
+    for txn_num in 0..3 {
+        let txn_id = TransactionId::from(txn_num as u64);
+        assert!(buffer.has_pending_updates(txn_id));
+    }
 
     // Take updates for specific transaction
     let updates = buffer.take_updates(TransactionId::from(1u64));
     assert_eq!(updates.len(), 1);
 
-    // Verify remaining transactions
-    let txn_ids = buffer.get_all_txn_ids();
-    assert_eq!(txn_ids.len(), 2);
+    // Verify transaction 1 no longer has pending updates
+    assert!(!buffer.has_pending_updates(TransactionId::from(1u64)));
+    // Verify transactions 0 and 2 still have pending updates
+    assert!(buffer.has_pending_updates(TransactionId::from(0u64)));
+    assert!(buffer.has_pending_updates(TransactionId::from(2u64)));
 }
 
 #[tokio::test]
-async fn test_vector_buffer_stats() {
+async fn test_vector_buffer_cleanup() {
     let config = VectorTransactionBufferConfig::default();
     let buffer = VectorTransactionBuffer::new(config);
 
-    // Initial stats
-    let stats = buffer.stats();
-    assert_eq!(stats.active_transactions, 0);
-    assert_eq!(stats.total_pending_updates, 0);
-
-    // Add updates
+    // Add updates for multiple transactions
     for txn_num in 0..2 {
         let txn_id = TransactionId::from(txn_num as u64);
 
@@ -302,8 +298,17 @@ async fn test_vector_buffer_stats() {
         }
     }
 
-    // Verify stats
-    let stats = buffer.stats();
-    assert_eq!(stats.active_transactions, 2);
-    assert_eq!(stats.total_pending_updates, 6);
+    // Verify transactions have pending updates
+    assert!(buffer.has_pending_updates(TransactionId::from(0u64)));
+    assert!(buffer.has_pending_updates(TransactionId::from(1u64)));
+
+    // Cleanup transaction 0
+    buffer.cleanup(TransactionId::from(0u64));
+    assert!(!buffer.has_pending_updates(TransactionId::from(0u64)));
+    assert!(buffer.has_pending_updates(TransactionId::from(1u64)));
+
+    // Take updates for transaction 1
+    let updates = buffer.take_updates(TransactionId::from(1u64));
+    assert_eq!(updates.len(), 3);
+    assert!(!buffer.has_pending_updates(TransactionId::from(1u64)));
 }

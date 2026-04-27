@@ -160,13 +160,10 @@ async fn test_sync_batch_processing() {
     let batch_config = BatchConfig {
         batch_size: 5,
         flush_interval: Duration::from_millis(100),
-        commit_interval: Duration::from_millis(100),
         max_buffer_size: 100,
         enable_persistence: false,
         persistence_path: None,
         failure_policy: graphdb::search::SyncFailurePolicy::FailOpen,
-        queue_capacity: 1000,
-        max_wait_time: Duration::from_millis(500),
     };
 
     let ctx = SyncTestContext::with_batch_config(batch_config);
@@ -382,13 +379,10 @@ async fn test_custom_batch_size() {
     let batch_config = BatchConfig {
         batch_size: 2,
         flush_interval: Duration::from_millis(50),
-        commit_interval: Duration::from_millis(50),
         max_buffer_size: 10,
         enable_persistence: false,
         persistence_path: None,
         failure_policy: graphdb::search::SyncFailurePolicy::FailOpen,
-        queue_capacity: 100,
-        max_wait_time: Duration::from_millis(200),
     };
 
     let ctx = SyncTestContext::with_batch_config(batch_config);

@@ -91,7 +91,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     ///
     /// # Return
     /// Structured Search Results
-    pub fn execute(&mut self, query: &str, _ctx: QueryRequest) -> CoreResult<QueryResult> {
+    pub fn execute(&mut self, query: &str, ctx: QueryRequest) -> CoreResult<QueryResult> {
         let start_time = Instant::now();
 
         // Constructing a QueryRequestContext
@@ -99,10 +99,17 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
             crate::query::query_request_context::QueryRequestContext::new(query.to_string()),
         );
 
+        // Build space info from request context if space_id is provided
+        let space_info = ctx.space_id.map(|id| {
+            let mut space_info = crate::core::types::SpaceInfo::new(String::new());
+            space_info.space_id = id;
+            space_info
+        });
+
         // Execute the query (using the new execute_query_with_request method).
         let execution_result = self
             .pipeline_manager
-            .execute_query_with_request(query, rctx, None)
+            .execute_query_with_request(query, rctx, space_info)
             .map_err(|e| CoreError::QueryExecutionFailed(e.to_string()))?;
 
         // Conversion to structured results
@@ -119,7 +126,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         params: std::collections::HashMap<String, crate::core::Value>,
         ctx: QueryRequest,
     ) -> CoreResult<QueryResult> {
-        // 创建新的 QueryRequest，包含参数
+        // Create new QueryRequest with parameters
         let new_ctx = QueryRequest {
             space_id: ctx.space_id,
             auto_commit: ctx.auto_commit,

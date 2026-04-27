@@ -55,13 +55,10 @@ impl SyncTestHarness {
         let batch_config = BatchConfig {
             batch_size: 100,
             flush_interval: Duration::from_millis(100),
-            commit_interval: Duration::from_millis(100),
             max_buffer_size: 1000,
             enable_persistence: false,
             persistence_path: None,
             failure_policy: graphdb::search::SyncFailurePolicy::FailOpen,
-            queue_capacity: 1000,
-            max_wait_time: Duration::from_millis(500),
         };
 
         let sync_coordinator =

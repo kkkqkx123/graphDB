@@ -1084,16 +1084,16 @@ fn test_st_point_function() {
 #[test]
 fn test_st_distance_function() {
     let registry = FunctionRegistry::new();
-    use graphdb::core::value::geography::GeographyValue;
+    use graphdb::core::value::geography::{Geography, GeographyValue};
 
-    let beijing = Value::Geography(GeographyValue {
+    let beijing = Value::Geography(Geography::Point(GeographyValue {
         longitude: 116.4074,
         latitude: 39.9042,
-    });
-    let shanghai = Value::Geography(GeographyValue {
+    }));
+    let shanghai = Value::Geography(Geography::Point(GeographyValue {
         longitude: 121.4737,
         latitude: 31.2304,
-    });
+    }));
 
     let result = registry.execute("st_distance", &[beijing, shanghai]);
     assert!(result.is_ok());
@@ -1108,12 +1108,12 @@ fn test_st_distance_function() {
 #[test]
 fn test_st_isvalid_function() {
     let registry = FunctionRegistry::new();
-    use graphdb::core::value::geography::GeographyValue;
+    use graphdb::core::value::geography::{Geography, GeographyValue};
 
-    let valid_point = Value::Geography(GeographyValue {
+    let valid_point = Value::Geography(Geography::Point(GeographyValue {
         longitude: 116.4074,
         latitude: 39.9042,
-    });
+    }));
 
     let result = registry.execute("st_isvalid", &[valid_point]);
     assert!(result.is_ok());
@@ -1123,16 +1123,16 @@ fn test_st_isvalid_function() {
 #[test]
 fn test_st_dwithin_function() {
     let registry = FunctionRegistry::new();
-    use graphdb::core::value::geography::GeographyValue;
+    use graphdb::core::value::geography::{Geography, GeographyValue};
 
-    let point1 = Value::Geography(GeographyValue {
+    let point1 = Value::Geography(Geography::Point(GeographyValue {
         longitude: 116.4074,
         latitude: 39.9042,
-    });
-    let point2 = Value::Geography(GeographyValue {
+    }));
+    let point2 = Value::Geography(Geography::Point(GeographyValue {
         longitude: 116.4075,
         latitude: 39.9043,
-    });
+    }));
 
     let result = registry.execute("st_dwithin", &[point1, point2, Value::Float(1.0)]);
     assert!(result.is_ok());
@@ -1142,12 +1142,12 @@ fn test_st_dwithin_function() {
 #[test]
 fn test_st_astext_function() {
     let registry = FunctionRegistry::new();
-    use graphdb::core::value::geography::GeographyValue;
+    use graphdb::core::value::geography::{Geography, GeographyValue};
 
-    let point = Value::Geography(GeographyValue {
+    let point = Value::Geography(Geography::Point(GeographyValue {
         longitude: 116.4074,
         latitude: 39.9042,
-    });
+    }));
 
     let result = registry.execute("st_astext", &[point]);
     assert!(result.is_ok());
