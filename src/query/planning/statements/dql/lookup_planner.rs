@@ -416,6 +416,7 @@ impl LookupPlanner {
             Expression::Literal(value) => match value {
                 crate::core::Value::String(s) => Some(s.clone()),
                 crate::core::Value::Int(i) => Some(i.to_string()),
+                crate::core::Value::BigInt(i) => Some(i.to_string()),
                 crate::core::Value::Float(f) => Some(f.to_string()),
                 crate::core::Value::Bool(b) => Some(b.to_string()),
                 _ => None,

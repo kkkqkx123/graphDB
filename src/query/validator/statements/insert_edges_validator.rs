@@ -147,6 +147,10 @@ impl InsertEdgesValidator {
                 if let Value::Int(_) = value {
                     return Ok(());
                 }
+                // Accept BigInt vertex IDs
+                if let Value::BigInt(_) = value {
+                    return Ok(());
+                }
                 return Err(ValidationError::new(
                     format!("{} vertex ID must be a string, integer, or variable", role),
                     ValidationErrorType::SemanticError,

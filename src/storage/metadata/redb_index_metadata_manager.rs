@@ -40,7 +40,12 @@ impl RedbIndexMetadataManager {
 impl IndexMetadataManager for RedbIndexMetadataManager {
     fn create_tag_index(&self, space_id: u64, index: &Index) -> Result<bool, StorageError> {
         let key = Self::make_tag_index_key(space_id, &index.name);
-        let index_bytes = encode_to_vec(index)?;
+
+        // Update the space_id in the index before storing
+        let mut index_with_space_id = index.clone();
+        index_with_space_id.space_id = space_id;
+
+        let index_bytes = encode_to_vec(&index_with_space_id)?;
 
         let write_txn = self
             .db
@@ -212,7 +217,12 @@ impl IndexMetadataManager for RedbIndexMetadataManager {
 
     fn create_edge_index(&self, space_id: u64, index: &Index) -> Result<bool, StorageError> {
         let key = Self::make_edge_index_key(space_id, &index.name);
-        let index_bytes = encode_to_vec(index)?;
+
+        // Update the space_id in the index before storing
+        let mut index_with_space_id = index.clone();
+        index_with_space_id.space_id = space_id;
+
+        let index_bytes = encode_to_vec(&index_with_space_id)?;
 
         let write_txn = self
             .db

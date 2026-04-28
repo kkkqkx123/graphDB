@@ -278,6 +278,20 @@ impl TestScenario {
         self.assert_result_count(0)
     }
 
+    /// Print current space info for debugging
+    #[cfg(test)]
+    pub fn debug_print_space(self) -> Self {
+        eprintln!("\n=== Debug: Current Space ===");
+        if let Some(ref space) = self.current_space {
+            eprintln!("Space ID: {}", space.space_id);
+            eprintln!("Space Name: {}", space.space_name);
+        } else {
+            eprintln!("No space selected");
+        }
+        eprintln!("================================\n");
+        self
+    }
+
     /// Assert result columns
     pub fn assert_result_columns(self, expected: &[&str]) -> Self {
         if let Some(ref result) = self.last_result {

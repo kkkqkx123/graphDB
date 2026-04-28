@@ -65,6 +65,9 @@ impl Planner for FetchVerticesPlanner {
                         crate::core::Expression::Literal(crate::core::Value::Int(i)) => {
                             i.to_string()
                         }
+                        crate::core::Expression::Literal(crate::core::Value::BigInt(i)) => {
+                            i.to_string()
+                        }
                         crate::core::Expression::Literal(crate::core::Value::String(s)) => {
                             s.clone()
                         }

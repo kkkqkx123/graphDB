@@ -84,9 +84,12 @@ impl<S: StorageClient> IndexScanExecutor<S> {
 
     /// Get space name
     fn get_space_name(&self, storage: &S) -> DBResult<String> {
+        log::debug!("IndexScanExecutor: Getting space name for space_id: {}", self.space_id);
         if let Ok(Some(space_info)) = storage.get_space_by_id(self.space_id) {
+            log::debug!("IndexScanExecutor: Found space name: {}", space_info.space_name);
             Ok(space_info.space_name)
         } else {
+            log::debug!("IndexScanExecutor: Space not found, using default");
             Ok("default".to_string())
         }
     }
@@ -94,6 +97,9 @@ impl<S: StorageClient> IndexScanExecutor<S> {
     /// Perform an index lookup
     fn lookup_by_index(&self, storage: &S) -> DBResult<Vec<Value>> {
         let space_name = self.get_space_name(storage)?;
+        log::debug!("IndexScanExecutor: space_name={}, scan_type={}, schema_name={}, index_name={}",
+            space_name, self.scan_type, self.schema_name, self.index_name);
+        log::debug!("IndexScanExecutor: scan_limits={:?}", self.scan_limits);
 
         match self.scan_type.as_str() {
             "UNIQUE" => {
@@ -490,9 +496,14 @@ impl<S: StorageClient> IndexScanExecutor<S> {
 
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
+        eprintln!("IndexScanExecutor::execute called");
+        eprintln!("  space_id={}, tag_id={}, index_id={}", self.space_id, self.tag_id, self.index_id);
+        eprintln!("  index_name={}, schema_name={}, scan_type={}", self.index_name, self.schema_name, self.scan_type);
+        eprintln!("  scan_limits={:?}", self.scan_limits);
         let storage = self.get_storage().lock();
 
         let index_results = self.lookup_by_index(&storage)?;
+        eprintln!("  index_results count: {}", index_results.len());
 
         let entities = self.fetch_entities(&storage, index_results)?;
 

@@ -377,11 +377,20 @@ fn test_lookup_execution_with_condition() {
     TestScenario::new()
         .expect("Failed to create test scenario")
         .setup_space("test_space")
+        .debug_print_space()
         .exec_ddl("CREATE TAG Person(name: STRING, age: INT)")
+        .assert_success()
+        .query("SHOW TAGS")
+        .assert_success()
+        .debug_print_result()
         .exec_ddl("CREATE TAG INDEX person_age_index ON Person(age)")
+        .assert_success()
+        .debug_print_space()
         .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35)")
+        .assert_success()
         .query("LOOKUP ON Person WHERE Person.age > 25")
         .assert_success()
+        .debug_print_result()
         .assert_result_count(2);
 }
 
@@ -457,9 +466,12 @@ fn test_fetch_execution_vertex() {
         .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name: STRING, age: INT)")
+        .assert_success()
         .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)")
+        .assert_success()
         .query("FETCH PROP ON Person 1")
         .assert_success()
+        .debug_print_result()
         .assert_result_count(1);
 }
 
