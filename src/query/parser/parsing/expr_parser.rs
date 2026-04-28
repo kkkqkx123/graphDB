@@ -469,6 +469,19 @@ impl<'a> ExprParser<'a> {
                     })
                 }
             }
+            TokenKind::User | TokenKind::Order | TokenKind::Status | TokenKind::Contains => {
+                let name = token.lexeme.clone();
+                ctx.next_token();
+                let span = ctx.merge_span(start_pos, ctx.current_position());
+                if ctx.match_token(TokenKind::LParen) {
+                    self.parse_function_call(name, span, ctx)
+                } else {
+                    Ok(ParseResult {
+                        expr: Expression::variable(name),
+                        span,
+                    })
+                }
+            }
             TokenKind::List => {
                 ctx.next_token();
                 let elements = self.parse_expression_list(ctx)?;

@@ -217,6 +217,22 @@ impl<'a> ParseContext<'a> {
                 self.next_token();
                 Ok("weight".to_string())
             }
+            TokenKind::User => {
+                self.next_token();
+                Ok("User".to_string())
+            }
+            TokenKind::Order => {
+                self.next_token();
+                Ok("Order".to_string())
+            }
+            TokenKind::Status => {
+                self.next_token();
+                Ok("status".to_string())
+            }
+            TokenKind::Contains => {
+                self.next_token();
+                Ok("CONTAINS".to_string())
+            }
             _ => {
                 let pos = self.current_position();
                 Err(ParseError::new(
@@ -299,7 +315,20 @@ impl<'a> ParseContext<'a> {
     }
 
     pub fn is_identifier_token(&self) -> bool {
-        matches!(self.current_token.kind, TokenKind::Identifier(_))
+        matches!(
+            self.current_token.kind,
+            TokenKind::Identifier(_)
+                | TokenKind::Count
+                | TokenKind::Sum
+                | TokenKind::Avg
+                | TokenKind::Min
+                | TokenKind::Max
+                | TokenKind::Weight
+                | TokenKind::User
+                | TokenKind::Order
+                | TokenKind::Status
+                | TokenKind::Contains
+        )
     }
 
     pub fn check_keyword(&mut self, keyword: &str) -> bool {

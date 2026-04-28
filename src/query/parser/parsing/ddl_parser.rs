@@ -436,20 +436,35 @@ impl DdlParser {
                 if_exists,
             }));
         } else if ctx.match_token(TokenKind::Tag) {
-            let mut if_exists = false;
-            if ctx.match_token(TokenKind::If) {
-                ctx.expect_token(TokenKind::Exists)?;
-                if_exists = true;
+            // Check if it's DROP TAG INDEX
+            if ctx.check_token(TokenKind::Index) {
+                ctx.next_token(); // consume INDEX
+                let index_name = ctx.expect_identifier()?;
+                let space_name = if ctx.match_token(TokenKind::On) {
+                    Some(ctx.expect_identifier()?)
+                } else {
+                    None
+                };
+                DropTarget::TagIndex {
+                    space_name: space_name.unwrap_or_default(),
+                    index_name,
+                }
+            } else {
+                let mut if_exists = false;
+                if ctx.match_token(TokenKind::If) {
+                    ctx.expect_token(TokenKind::Exists)?;
+                    if_exists = true;
+                }
+                let mut tag_names = vec![ctx.expect_identifier()?];
+                while ctx.match_token(TokenKind::Comma) {
+                    tag_names.push(ctx.expect_identifier()?);
+                }
+                return Ok(Stmt::Drop(DropStmt {
+                    span: start_span,
+                    target: DropTarget::Tags(tag_names),
+                    if_exists,
+                }));
             }
-            let mut tag_names = vec![ctx.expect_identifier()?];
-            while ctx.match_token(TokenKind::Comma) {
-                tag_names.push(ctx.expect_identifier()?);
-            }
-            return Ok(Stmt::Drop(DropStmt {
-                span: start_span,
-                target: DropTarget::Tags(tag_names),
-                if_exists,
-            }));
         } else if ctx.check_token(TokenKind::Edge) {
             ctx.next_token();
             if ctx.check_token(TokenKind::Index) {

@@ -40,7 +40,8 @@ impl FunctionRegistry {
 
     /// Check whether the function exists.
     pub fn contains(&self, name: &str) -> bool {
-        self.builtin_functions.contains_key(name) || self.custom_functions.contains_key(name)
+        let upper_name = name.to_uppercase();
+        self.builtin_functions.contains_key(&upper_name) || self.custom_functions.contains_key(&upper_name)
     }
 
     /// Obtain all function names
@@ -52,35 +53,41 @@ impl FunctionRegistry {
 
     /// Registering built-in functions
     pub fn register_builtin(&mut self, function: BuiltinFunction) {
-        self.builtin_functions
-            .insert(function.name().to_string(), function);
+        let upper_name = function.name().to_uppercase();
+        self.builtin_functions.insert(upper_name, function);
     }
 
     /// Obtaining built-in functions
     pub fn get_builtin(&self, name: &str) -> Option<&BuiltinFunction> {
-        self.builtin_functions.get(name)
+        // Convert to uppercase for case-insensitive lookup
+        let upper_name = name.to_uppercase();
+        self.builtin_functions.get(&upper_name)
     }
 
     /// Registering a custom function (full form)
     pub fn register_custom_full(&mut self, function: CustomFunction) {
-        self.custom_functions
-            .insert(function.name.clone(), function);
+        let upper_name = function.name.to_uppercase();
+        self.custom_functions.insert(upper_name, function);
     }
 
     /// Obtaining a custom function
     pub fn get_custom(&self, name: &str) -> Option<&CustomFunction> {
-        self.custom_functions.get(name)
+        // Convert to uppercase for case-insensitive lookup
+        let upper_name = name.to_uppercase();
+        self.custom_functions.get(&upper_name)
     }
 
     /// Execute a function (based on its name)
     pub fn execute(&self, name: &str, args: &[Value]) -> Result<Value, ExpressionError> {
+        // Convert to uppercase for case-insensitive lookup
+        let upper_name = name.to_uppercase();
         // Try to find the built-in functions first.
-        if let Some(func) = self.builtin_functions.get(name) {
+        if let Some(func) = self.builtin_functions.get(&upper_name) {
             return func.execute(args);
         }
 
         // Try to find the custom function again.
-        if let Some(func) = self.custom_functions.get(name) {
+        if let Some(func) = self.custom_functions.get(&upper_name) {
             return func.execute(args);
         }
 
@@ -189,6 +196,16 @@ impl FunctionRegistry {
         self.register_builtin(BuiltinFunction::Utility(UtilityFunction::Coalesce));
         self.register_builtin(BuiltinFunction::Utility(UtilityFunction::Hash));
         self.register_builtin(BuiltinFunction::Utility(UtilityFunction::JsonExtract));
+
+        // Register aggregate functions
+        use crate::core::types::operators::AggregateFunction;
+        self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Count(None)));
+        self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Sum(String::new())));
+        self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Avg(String::new())));
+        self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Min(String::new())));
+        self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Max(String::new())));
+        self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Collect(String::new())));
+        self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Distinct(String::new())));
 
         // Registering functions related to graphics
         use super::GraphFunction;

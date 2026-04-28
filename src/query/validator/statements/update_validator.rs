@@ -388,7 +388,9 @@ impl UpdateValidator {
                         }
                         return Ok(());
                     }
-                    crate::core::Value::Int(_) => {
+                    crate::core::Value::SmallInt(_)
+                    | crate::core::Value::Int(_)
+                    | crate::core::Value::BigInt(_) => {
                         return Ok(());
                     }
                     _ => {}

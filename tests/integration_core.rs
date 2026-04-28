@@ -11,7 +11,7 @@ mod common;
 
 use graphdb::core::types::expr::Expression;
 use graphdb::core::types::DataType;
-use graphdb::core::value::{DateTimeValue, DateValue, GeographyValue, NullType, TimeValue, Value};
+use graphdb::core::value::{DateTimeValue, DateValue, GeographyValue, List, NullType, TimeValue, Value};
 use graphdb::query::executor::expression::evaluation_context::DefaultExpressionContext;
 use graphdb::query::executor::expression::functions::FunctionRegistry;
 use graphdb::query::executor::expression::{ExpressionContext, ExpressionEvaluator};
@@ -113,8 +113,18 @@ fn test_value_boolean_conversion() {
         Value::Null(NullType::Null)
     );
 
+    // Numeric types convert to boolean (non-zero = true, zero = false)
+    assert_eq!(Value::Int(1).to_bool(), Value::Bool(true));
+    assert_eq!(Value::Int(0).to_bool(), Value::Bool(false));
+    assert_eq!(Value::SmallInt(1).to_bool(), Value::Bool(true));
+    assert_eq!(Value::BigInt(1).to_bool(), Value::Bool(true));
+    assert_eq!(Value::Float(1.0_f32).to_bool(), Value::Bool(true));
+    assert_eq!(Value::Float(0.0_f32).to_bool(), Value::Bool(false));
+    assert_eq!(Value::Double(1.0).to_bool(), Value::Bool(true));
+    assert_eq!(Value::Double(0.0).to_bool(), Value::Bool(false));
+
     // Other types return BadData
-    assert_eq!(Value::Int(1).to_bool(), Value::Null(NullType::BadData));
+    assert_eq!(Value::List(Box::new(List::new())).to_bool(), Value::Null(NullType::BadData));
 }
 
 #[test]
