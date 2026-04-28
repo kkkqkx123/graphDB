@@ -80,6 +80,10 @@ impl InsertVerticesValidator {
         self
     }
 
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<RedbSchemaManager>) {
+        self.schema_manager = Some(schema_manager);
+    }
+
     /// Verify the Tag name
     fn validate_tag_name(&self, tag_name: &str) -> Result<(), ValidationError> {
         if tag_name.is_empty() {

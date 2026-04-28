@@ -90,6 +90,10 @@ impl FetchVerticesValidator {
         self
     }
 
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<RedbSchemaManager>) {
+        self.schema_manager = Some(schema_manager);
+    }
+
     /// Obtain the verification results.
     pub fn validated_result(&self) -> Option<&ValidatedFetchVertices> {
         self.validated_result.as_ref()

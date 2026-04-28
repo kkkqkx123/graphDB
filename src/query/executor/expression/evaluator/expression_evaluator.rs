@@ -230,6 +230,16 @@ impl ExpressionEvaluator {
                 Self::eval_type_cast(&value, target_type)
             }
 
+            // Edge attribute access - look up edge variable and access property
+            Expression::EdgeProperty { edge_name, property } => {
+                // First try to get the edge value from context using edge_name
+                let edge_value = context
+                    .get_variable(edge_name)
+                    .ok_or_else(|| ExpressionError::undefined_variable(edge_name))?;
+                // Then access the property on the edge
+                CollectionOperationEvaluator::eval_property_access(&edge_value, property)
+            }
+
             // Other types of expressions that require runtime context to be executed
             Expression::Label(_) => {
                 Err(ExpressionError::type_error("Unsolved labeled expressions"))
@@ -240,12 +250,14 @@ impl ExpressionEvaluator {
             Expression::LabelTagProperty { .. } => Err(ExpressionError::type_error(
                 "Tagged attribute expressions require runtime context",
             )),
-            Expression::TagProperty { .. } => Err(ExpressionError::type_error(
-                "Tagged attribute expressions require runtime context",
-            )),
-            Expression::EdgeProperty { .. } => Err(ExpressionError::type_error(
-                "Edge attribute expressions require runtime context",
-            )),
+            Expression::TagProperty { tag_name, property } => {
+                // Try to get the tag/vertex value from context using tag_name
+                let tag_value = context
+                    .get_variable(tag_name)
+                    .ok_or_else(|| ExpressionError::undefined_variable(tag_name))?;
+                // Then access the property on the tag/vertex
+                CollectionOperationEvaluator::eval_property_access(&tag_value, property)
+            }
             Expression::Predicate { .. } => Err(ExpressionError::type_error(
                 "Predicate expressions require a runtime context",
             )),

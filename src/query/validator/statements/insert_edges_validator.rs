@@ -62,6 +62,10 @@ impl InsertEdgesValidator {
         self
     }
 
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<RedbSchemaManager>) {
+        self.schema_manager = Some(schema_manager);
+    }
+
     /// Verify the existence of the edge type.
     fn validate_edge_type_exists(&self, edge_name: &str) -> Result<(), ValidationError> {
         if edge_name.is_empty() {

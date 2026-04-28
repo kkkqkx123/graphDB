@@ -255,6 +255,11 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
 
         let target_depth = self.max_depth.unwrap_or(1);
 
+        // Determine if we have additional columns beyond src/edge/dst
+        // These are typically edge type aliases for property access (e.g., KNOWS.since)
+        let has_edge_alias = self.col_names.len() > 3;
+        let edge_alias_index = if has_edge_alias { Some(3) } else { None };
+
         for path in &paths {
             // Skip empty paths if include_empty_paths is false
             if !self.include_empty_paths && path.steps.is_empty() {
@@ -267,31 +272,47 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             if self.include_empty_paths {
                 // For each step in the path, create a row with src, edge, dst
                 for step in &path.steps {
-                    let row = vec![
+                    let mut row = vec![
                         Value::Vertex(path.src.clone()),
                         Value::edge((*step.edge).clone()),
                         Value::Vertex(Box::new((*step.dst).clone())),
                     ];
+                    // Add edge alias column if present (duplicates edge value for property access)
+                    if let Some(idx) = edge_alias_index {
+                        if idx < self.col_names.len() {
+                            row.push(Value::edge((*step.edge).clone()));
+                        }
+                    }
                     dataset.rows.push(row);
                 }
 
                 // If include_empty_paths is true and path has no steps, add a row with just src
                 if path.steps.is_empty() {
-                    let row = vec![
+                    let mut row = vec![
                         Value::Vertex(path.src.clone()),
                         Value::Null(crate::core::NullType::Null),
                         Value::Null(crate::core::NullType::Null),
                     ];
+                    // Add null for edge alias column if present
+                    if edge_alias_index.is_some() {
+                        row.push(Value::Null(crate::core::NullType::Null));
+                    }
                     dataset.rows.push(row);
                 }
             } else if path.steps.len() == target_depth {
                 // For GO queries, only add the last step
                 if let Some(last_step) = path.steps.last() {
-                    let row = vec![
+                    let mut row = vec![
                         Value::Vertex(path.src.clone()),
                         Value::edge((*last_step.edge).clone()),
                         Value::Vertex(Box::new((*last_step.dst).clone())),
                     ];
+                    // Add edge alias column if present (duplicates edge value for property access)
+                    if let Some(idx) = edge_alias_index {
+                        if idx < self.col_names.len() {
+                            row.push(Value::edge((*last_step.edge).clone()));
+                        }
+                    }
                     dataset.rows.push(row);
                 }
             }

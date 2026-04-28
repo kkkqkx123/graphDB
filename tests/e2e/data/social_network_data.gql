@@ -1,5 +1,5 @@
 -- Social Network E2E Test Data
--- Generated: 2026-04-27T22:54:44.729709
+-- Generated: 2026-04-28T12:18:48.902299
 
 -- Create test space
 CREATE SPACE IF NOT EXISTS e2e_social_network (vid_type=STRING)
@@ -99,65 +99,65 @@ INSERT VERTEX company(name, industry, founded_year, headquarters) VALUES "c5":
     ("WebPlus", "Internet", 2016, "Guangzhou")
 
 -- Generate 30 friend relationships
-INSERT EDGE friend(degree, since, trust_level) VALUES "p3" -> "p2" @0:
-    (0.69, date("2018-09-10"), 5)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p4" -> "p1" @0:
-    (0.79, date("2020-02-04"), 5)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p18" -> "p6" @0:
-    (0.75, date("2019-08-21"), 4)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p8" -> "p2" @0:
-    (0.73, date("2018-05-22"), 5)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p9" -> "p8" @0:
-    (0.77, date("2020-02-13"), 1)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p11" -> "p13" @0:
-    (0.9, date("2018-06-06"), 2)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p16" -> "p5" @0:
-    (0.88, date("2019-03-09"), 5)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p6" -> "p1" @0:
-    (0.62, date("2019-01-26"), 5)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p11" -> "p3" @0:
-    (0.95, date("2019-06-26"), 3)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p16" -> "p13" @0:
-    (0.94, date("2020-05-31"), 1)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p6" -> "p15" @0:
-    (0.84, date("2018-04-28"), 5)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p17" -> "p3" @0:
-    (0.86, date("2020-02-27"), 3)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p7" -> "p19" @0:
-    (0.64, date("2019-03-22"), 2)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p20" -> "p8" @0:
-    (0.76, date("2020-09-03"), 3)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p5" -> "p2" @0:
-    (0.94, date("2020-02-20"), 2)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p7" -> "p4" @0:
-    (0.78, date("2018-04-19"), 3)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p13" -> "p9" @0:
-    (0.89, date("2019-06-04"), 5)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p15" -> "p11" @0:
-    (0.67, date("2019-01-18"), 2)
 INSERT EDGE friend(degree, since, trust_level) VALUES "p8" -> "p3" @0:
-    (0.79, date("2020-03-08"), 5)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p13" -> "p6" @0:
-    (0.92, date("2019-09-06"), 3)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p18" -> "p8" @0:
-    (0.77, date("2018-04-25"), 3)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p10" -> "p6" @0:
-    (0.91, date("2020-05-01"), 3)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p14" -> "p4" @0:
-    (0.68, date("2018-09-04"), 5)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p12" -> "p6" @0:
-    (0.93, date("2018-03-29"), 4)
+    (0.69, date("2018-09-10"), 5)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p18" -> "p6" @0:
+    (0.79, date("2020-02-04"), 5)
 INSERT EDGE friend(degree, since, trust_level) VALUES "p19" -> "p18" @0:
-    (0.89, date("2020-02-18"), 5)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p2" -> "p1" @0:
-    (0.87, date("2018-05-12"), 4)
-INSERT EDGE friend(degree, since, trust_level) VALUES "p9" -> "p3" @0:
-    (0.93, date("2018-06-19"), 3)
+    (0.75, date("2019-08-21"), 4)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p14" -> "p4" @0:
+    (0.73, date("2018-05-22"), 5)
 INSERT EDGE friend(degree, since, trust_level) VALUES "p15" -> "p5" @0:
-    (0.78, date("2019-09-14"), 4)
+    (0.77, date("2020-02-13"), 1)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p9" -> "p3" @0:
+    (0.9, date("2018-06-06"), 2)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p16" -> "p13" @0:
+    (0.88, date("2019-03-09"), 5)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p18" -> "p8" @0:
+    (0.62, date("2019-01-26"), 5)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p4" -> "p1" @0:
+    (0.95, date("2019-06-26"), 3)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p10" -> "p6" @0:
+    (0.94, date("2020-05-31"), 1)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p13" -> "p6" @0:
+    (0.84, date("2018-04-28"), 5)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p7" -> "p4" @0:
+    (0.86, date("2020-02-27"), 3)
 INSERT EDGE friend(degree, since, trust_level) VALUES "p11" -> "p2" @0:
-    (0.94, date("2020-08-09"), 5)
+    (0.64, date("2019-03-22"), 2)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p13" -> "p9" @0:
+    (0.76, date("2020-09-03"), 3)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p20" -> "p8" @0:
+    (0.94, date("2020-02-20"), 2)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p9" -> "p8" @0:
+    (0.78, date("2018-04-19"), 3)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p3" -> "p2" @0:
+    (0.89, date("2019-06-04"), 5)
 INSERT EDGE friend(degree, since, trust_level) VALUES "p11" -> "p7" @0:
+    (0.67, date("2019-01-18"), 2)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p17" -> "p3" @0:
+    (0.79, date("2020-03-08"), 5)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p11" -> "p13" @0:
+    (0.92, date("2019-09-06"), 3)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p8" -> "p2" @0:
+    (0.77, date("2018-04-25"), 3)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p5" -> "p2" @0:
+    (0.91, date("2020-05-01"), 3)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p2" -> "p1" @0:
+    (0.68, date("2018-09-04"), 5)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p11" -> "p3" @0:
+    (0.93, date("2018-03-29"), 4)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p16" -> "p5" @0:
+    (0.89, date("2020-02-18"), 5)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p6" -> "p15" @0:
+    (0.87, date("2018-05-12"), 4)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p6" -> "p1" @0:
+    (0.93, date("2018-06-19"), 3)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p12" -> "p6" @0:
+    (0.78, date("2019-09-14"), 4)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p15" -> "p11" @0:
+    (0.94, date("2020-08-09"), 5)
+INSERT EDGE friend(degree, since, trust_level) VALUES "p7" -> "p19" @0:
     (0.86, date("2019-12-08"), 2)
 
 -- Generate work relationships

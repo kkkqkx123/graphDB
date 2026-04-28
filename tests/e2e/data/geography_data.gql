@@ -1,5 +1,5 @@
 -- Geography E2E Test Data
--- Generated: 2026-04-27T22:54:44.768724
+-- Generated: 2026-04-28T12:18:48.939940
 
 -- Create test space
 CREATE SPACE IF NOT EXISTS e2e_geography (vid_type=STRING)

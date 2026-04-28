@@ -54,6 +54,10 @@ impl LimitValidator {
         self
     }
 
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<RedbSchemaManager>) {
+        self.schema_manager = Some(schema_manager);
+    }
+
     pub fn set_skip(mut self, skip: ContextualExpression) -> Self {
         self.skip_expr = Some(skip);
         self

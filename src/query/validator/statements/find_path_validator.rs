@@ -61,6 +61,10 @@ impl FindPathValidator {
         self
     }
 
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<RedbSchemaManager>) {
+        self.schema_manager = Some(schema_manager);
+    }
+
     pub fn validated_result(&self) -> Option<&ValidatedFindPath> {
         self.validated_result.as_ref()
     }

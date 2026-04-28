@@ -1128,6 +1128,29 @@ fn test_go_traversal_edge_property_access() {
         .assert_result_count(1);
 }
 
+/// Additional test for GO query with edge property access in WHERE clause
+/// Verifies that WHERE clause can access edge properties
+#[test]
+fn test_go_query_edge_property_in_where() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since: STRING, strength: INT)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
+        .exec_dml("INSERT EDGE KNOWS(since, strength) VALUES 1 -> 2:('2020-01-01', 5), 1 -> 3:('2021-01-01', 8)")
+        // First test without WHERE to see all results
+        .query("GO FROM 1 OVER KNOWS YIELD target.name, KNOWS.strength")
+        .assert_success()
+        .debug_print_result()
+        // Test WHERE clause with edge property
+        // Filter for edges with strength > 5, should return only 1 result (Alice -> Charlie)
+        .query("GO FROM 1 OVER KNOWS WHERE KNOWS.strength > 5 YIELD target.name, KNOWS.strength")
+        .assert_success()
+        .debug_print_result()
+        .assert_result_count(1);
+}
+
 /// Test for explain_index_schema_manager fix
 /// Verifies that EXPLAIN with LOOKUP query works without "Schema manager not available" error
 #[test]
