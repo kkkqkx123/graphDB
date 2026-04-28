@@ -65,6 +65,11 @@ impl DefaultExpressionContext {
             ctx.set_variable(name, value);
         }
     }
+
+    /// Get all variables for debugging
+    pub fn get_all_variables(&self) -> &HashMap<String, Value> {
+        &self.variables
+    }
 }
 
 impl Default for DefaultExpressionContext {

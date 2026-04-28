@@ -113,6 +113,8 @@ mod tests {
             false,
             Some(2),
             expr_context,
+            1,
+            "default".to_string(),
         );
 
         assert_eq!(executor.name(), "ExpandAllExecutor");

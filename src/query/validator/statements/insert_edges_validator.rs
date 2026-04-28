@@ -13,6 +13,7 @@ use crate::query::validator::validator_trait::{
 };
 use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use crate::storage::metadata::schema_manager::SchemaManager;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -97,8 +98,17 @@ impl InsertEdgesValidator {
         &self,
         expr: &ContextualExpression,
         role: &str,
+        space_name: Option<&str>,
     ) -> Result<(), ValidationError> {
-        let vid_type = crate::core::types::DataType::String;
+        // Get vid_type from schema_manager if available, otherwise default to String
+        let vid_type = if let (Some(ref schema_manager), Some(space_name)) = (&self.schema_manager, space_name) {
+            match schema_manager.get_space(space_name) {
+                Ok(Some(space_info)) => space_info.vid_type,
+                _ => crate::core::types::DataType::String,
+            }
+        } else {
+            crate::core::types::DataType::String
+        };
 
         if let Some(ref schema_manager) = self.schema_manager {
             let schema_validator =
@@ -355,11 +365,14 @@ impl StatementValidator for InsertEdgesValidator {
         // 5. Verify the attribute names
         self.validate_property_names(&prop_names)?;
 
+        // Get space_name for vid_type lookup
+        let space_name = qctx.space_name();
+
         // 6. Verify each edge.
         let mut validated_edges = Vec::new();
         for (src, dst, rank, values) in &edges {
-            self.validate_vertex_id_format(src, "source")?;
-            self.validate_vertex_id_format(dst, "destination")?;
+            self.validate_vertex_id_format(src, "source", space_name.as_deref())?;
+            self.validate_vertex_id_format(dst, "destination", space_name.as_deref())?;
             self.validate_rank(rank)?;
             self.validate_values_count(&prop_names, values)?;
             self.validate_property_values(&edge_name, &prop_names, values)?;

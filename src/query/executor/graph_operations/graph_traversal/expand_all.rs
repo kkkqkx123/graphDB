@@ -2,10 +2,13 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::core::error::DBResult;
-use crate::core::{Edge, NPath, Path, Value, Vertex};
+use crate::core::types::ContextualExpression;
+use crate::core::{Edge, Expression, NPath, Path, Value, Vertex};
 use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::query::executor::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
 use crate::query::QueryError;
@@ -41,6 +44,8 @@ pub struct ExpandAllExecutor<S: StorageClient + Send + 'static> {
     pub space_id: u64,
     // Space name for storage operations
     pub space_name: String,
+    // Filter condition pushed down from FilterNode
+    filter: Option<Expression>,
 }
 
 // Manual Debug implementation for ExpandAllExecutor to avoid requiring Debug trait for Executor trait object
@@ -86,6 +91,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             col_names: vec!["src".to_string(), "edge".to_string(), "dst".to_string()],
             space_id,
             space_name,
+            filter: None,
         }
     }
 
@@ -116,6 +122,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             col_names: vec!["src".to_string(), "edge".to_string(), "dst".to_string()],
             space_id,
             space_name,
+            filter: None,
         }
     }
 
@@ -136,6 +143,11 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
 
     pub fn with_col_names(mut self, col_names: Vec<String>) -> Self {
         self.col_names = col_names;
+        self
+    }
+
+    pub fn with_filter(mut self, filter: Option<ContextualExpression>) -> Self {
+        self.filter = filter.and_then(|ctx_expr| ctx_expr.expression().map(|meta| meta.inner().clone()));
         self
     }
 
@@ -283,7 +295,11 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                             row.push(Value::edge((*step.edge).clone()));
                         }
                     }
-                    dataset.rows.push(row);
+                    
+                    // Apply filter if present
+                    if self.should_include_row(&row, &dataset.col_names) {
+                        dataset.rows.push(row);
+                    }
                 }
 
                 // If include_empty_paths is true and path has no steps, add a row with just src
@@ -297,7 +313,11 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                     if edge_alias_index.is_some() {
                         row.push(Value::Null(crate::core::NullType::Null));
                     }
-                    dataset.rows.push(row);
+                    
+                    // Apply filter if present
+                    if self.should_include_row(&row, &dataset.col_names) {
+                        dataset.rows.push(row);
+                    }
                 }
             } else if path.steps.len() == target_depth {
                 // For GO queries, only add the last step
@@ -313,12 +333,60 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                             row.push(Value::edge((*last_step.edge).clone()));
                         }
                     }
-                    dataset.rows.push(row);
+                    
+                    // Apply filter if present
+                    if self.should_include_row(&row, &dataset.col_names) {
+                        dataset.rows.push(row);
+                    }
                 }
             }
         }
 
         ExecutionResult::DataSet(dataset)
+    }
+    
+    /// Check if a row should be included based on the filter condition
+    fn should_include_row(&self, row: &[Value], col_names: &[String]) -> bool {
+        if let Some(ref filter) = self.filter {
+            let mut context = DefaultExpressionContext::new();
+            
+            // Set column values as variables
+            for (i, col_name) in col_names.iter().enumerate() {
+                if i < row.len() {
+                    context.set_variable(col_name.clone(), row[i].clone());
+                }
+            }
+            
+            // Map GO query special variables: $$ -> dst, $^ -> src, target -> dst, edge -> edge
+            if let Some(dst_idx) = col_names.iter().position(|c| c == "dst") {
+                if dst_idx < row.len() {
+                    context.set_variable("$$".to_string(), row[dst_idx].clone());
+                    context.set_variable("target".to_string(), row[dst_idx].clone());
+                }
+            }
+            if let Some(src_idx) = col_names.iter().position(|c| c == "src") {
+                if src_idx < row.len() {
+                    context.set_variable("$^".to_string(), row[src_idx].clone());
+                }
+            }
+            if let Some(edge_idx) = col_names.iter().position(|c| c == "edge") {
+                if edge_idx < row.len() {
+                    context.set_variable("edge".to_string(), row[edge_idx].clone());
+                    // Map edge type name to the edge value for GO queries like WHERE friend.strength > 5
+                    if let Value::Edge(ref edge_val) = row[edge_idx] {
+                        context.set_variable(edge_val.edge_type().to_string(), row[edge_idx].clone());
+                    }
+                }
+            }
+            
+            // Evaluate the filter condition
+            match ExpressionEvaluator::evaluate(filter, &mut context) {
+                Ok(Value::Bool(true)) => true,
+                _ => false,
+            }
+        } else {
+            true
+        }
     }
 }
 

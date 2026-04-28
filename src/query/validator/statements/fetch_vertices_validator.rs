@@ -27,6 +27,7 @@ use crate::query::validator::validator_trait::{
 };
 use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use crate::storage::metadata::schema_manager::SchemaManager;
 
 /// Verified vertex information
 #[derive(Debug, Clone)]
@@ -100,10 +101,10 @@ impl FetchVerticesValidator {
     }
 
     /// Basic validation
-    fn validate_fetch_vertices(&self, stmt: &FetchStmt) -> Result<(), ValidationError> {
+    fn validate_fetch_vertices(&self, stmt: &FetchStmt, space_name: Option<&str>) -> Result<(), ValidationError> {
         match &stmt.target {
             FetchTarget::Vertices { ids, properties } => {
-                self.validate_vertex_ids(ids)?;
+                self.validate_vertex_ids(ids, space_name)?;
                 self.validate_properties_clause(properties.as_ref())?;
                 Ok(())
             }
@@ -118,6 +119,7 @@ impl FetchVerticesValidator {
     fn validate_vertex_ids(
         &self,
         vertex_ids: &[ContextualExpression],
+        space_name: Option<&str>,
     ) -> Result<(), ValidationError> {
         if vertex_ids.is_empty() {
             return Err(ValidationError::new(
@@ -127,7 +129,7 @@ impl FetchVerticesValidator {
         }
 
         for vertex_id in vertex_ids {
-            self.validate_vertex_id(vertex_id)?;
+            self.validate_vertex_id(vertex_id, space_name)?;
         }
 
         Ok(())
@@ -135,10 +137,16 @@ impl FetchVerticesValidator {
 
     /// Verify a single vertex ID
     /// Using the unified validation method of SchemaValidator
-    fn validate_vertex_id(&self, expr: &ContextualExpression) -> Result<(), ValidationError> {
-        // Use SchemaValidator for unified validation.
-        // The default type used is the `String` class, because the `FETCH VERTICES` operation typically uses string-based VID (Vertex Identifiers).
-        let vid_type = crate::core::types::DataType::String;
+    fn validate_vertex_id(&self, expr: &ContextualExpression, space_name: Option<&str>) -> Result<(), ValidationError> {
+        // Get vid_type from schema_manager if available, otherwise default to String
+        let vid_type = if let (Some(ref schema_manager), Some(space_name)) = (&self.schema_manager, space_name) {
+            match schema_manager.get_space(space_name) {
+                Ok(Some(space_info)) => space_info.vid_type,
+                _ => crate::core::types::DataType::String,
+            }
+        } else {
+            crate::core::types::DataType::String
+        };
 
         if let Some(ref schema_manager) = self.schema_manager {
             let schema_validator =
@@ -273,7 +281,8 @@ impl StatementValidator for FetchVerticesValidator {
         };
 
         // 3. Perform basic validation.
-        self.validate_fetch_vertices(fetch_stmt)?;
+        let space_name = qctx.space_name();
+        self.validate_fetch_vertices(fetch_stmt, space_name.as_deref())?;
 
         // 4. Obtain the space_id
         let space_id = qctx.space_id().unwrap_or(0);
@@ -414,7 +423,7 @@ mod tests {
     #[test]
     fn test_validate_vertex_ids_empty() {
         let validator = FetchVerticesValidator::new();
-        let result = validator.validate_vertex_ids(&[]);
+        let result = validator.validate_vertex_ids(&[], None);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert_eq!(err.message, "At least one vertex ID must be specified.");
@@ -432,6 +441,7 @@ mod tests {
                 .into_iter()
                 .map(create_contextual_expr)
                 .collect::<Vec<_>>(),
+            None,
         );
         assert!(result.is_ok());
     }
@@ -445,6 +455,7 @@ mod tests {
                 .into_iter()
                 .map(create_contextual_expr)
                 .collect::<Vec<_>>(),
+            None,
         );
         assert!(result.is_ok());
     }
@@ -461,6 +472,7 @@ mod tests {
                 .into_iter()
                 .map(create_contextual_expr)
                 .collect::<Vec<_>>(),
+            None,
         );
         assert!(result.is_err());
         let err = result.unwrap_err();

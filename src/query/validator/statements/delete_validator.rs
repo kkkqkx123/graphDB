@@ -27,6 +27,7 @@ use crate::query::validator::validator_trait::{
 };
 use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use crate::storage::metadata::schema_manager::SchemaManager;
 
 /// Verified deletion information
 #[derive(Debug, Clone)]
@@ -114,14 +115,14 @@ impl DeleteValidator {
     }
 
     /// Basic validation (not dependent on a Schema)
-    fn validate_delete(&self, stmt: &DeleteStmt) -> Result<(), ValidationError> {
-        self.validate_target(&stmt.target)?;
+    fn validate_delete(&self, stmt: &DeleteStmt, space_name: Option<&str>) -> Result<(), ValidationError> {
+        self.validate_target(&stmt.target, space_name)?;
         self.validate_where_clause(stmt.where_clause.as_ref())?;
         Ok(())
     }
 
     /// Verify the deletion target.
-    fn validate_target(&self, target: &DeleteTarget) -> Result<(), ValidationError> {
+    fn validate_target(&self, target: &DeleteTarget, space_name: Option<&str>) -> Result<(), ValidationError> {
         match target {
             DeleteTarget::Vertices(vids) => {
                 if vids.is_empty() {
@@ -131,13 +132,13 @@ impl DeleteValidator {
                     ));
                 }
                 for (idx, vid) in vids.iter().enumerate() {
-                    self.validate_vertex_id(vid, idx + 1)?;
+                    self.validate_vertex_id(vid, idx + 1, space_name)?;
                 }
             }
             DeleteTarget::Edges { edge_type, edges } => {
                 for (idx, (src, dst, rank)) in edges.iter().enumerate() {
-                    self.validate_vertex_id(src, idx * 2)?;
-                    self.validate_vertex_id(dst, idx * 2 + 1)?;
+                    self.validate_vertex_id(src, idx * 2, space_name)?;
+                    self.validate_vertex_id(dst, idx * 2 + 1, space_name)?;
                     if let Some(rank_expr) = rank {
                         self.validate_rank(rank_expr)?;
                     }
@@ -178,7 +179,7 @@ impl DeleteValidator {
                     ));
                 }
                 for (idx, vid) in vertex_ids.iter().enumerate() {
-                    self.validate_vertex_id(vid, idx + 1)?;
+                    self.validate_vertex_id(vid, idx + 1, space_name)?;
                 }
             }
             DeleteTarget::Index(index_name) => {
@@ -199,14 +200,24 @@ impl DeleteValidator {
         &self,
         expr: &ContextualExpression,
         idx: usize,
+        space_name: Option<&str>,
     ) -> Result<(), ValidationError> {
         let role = &format!("vertex {}", idx);
+
+        // Get vid_type from schema_manager if available, otherwise default to String
+        let vid_type = if let (Some(ref schema_manager), Some(space_name)) = (&self.schema_manager, space_name) {
+            match schema_manager.get_space(space_name) {
+                Ok(Some(space_info)) => space_info.vid_type,
+                _ => crate::core::types::DataType::String,
+            }
+        } else {
+            crate::core::types::DataType::String
+        };
 
         if let Some(ref schema_manager) = self.schema_manager {
             if expr.get_expression().is_some() {
                 let schema_validator =
                     crate::query::validator::SchemaValidator::new(schema_manager.clone());
-                let vid_type = crate::core::types::DataType::String;
                 let ctx_expr = crate::core::types::ContextualExpression::new(
                     expr.id().clone(),
                     expr.context().clone(),
@@ -516,7 +527,8 @@ impl StatementValidator for DeleteValidator {
         };
 
         // 3. Perform basic validation.
-        self.validate_delete(delete_stmt)?;
+        let space_name = qctx.space_name();
+        self.validate_delete(delete_stmt, space_name.as_deref())?;
 
         // 4. Obtain the space_id
         let space_id = qctx.space_id().unwrap_or(0);
@@ -630,7 +642,7 @@ mod tests {
     fn test_validate_vertices_empty_list() {
         let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(DeleteTarget::Vertices(vec![]), None);
-        let result = validator.validate_delete(&stmt);
+        let result = validator.validate_delete(&stmt, None);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert_eq!(
@@ -649,7 +661,7 @@ mod tests {
             ]),
             None,
         );
-        let result = validator.validate_delete(&stmt);
+        let result = validator.validate_delete(&stmt, None);
         assert!(result.is_ok());
     }
 
@@ -662,7 +674,7 @@ mod tests {
             ))]),
             None,
         );
-        let result = validator.validate_delete(&stmt);
+        let result = validator.validate_delete(&stmt, None);
         assert!(result.is_ok());
     }
 
@@ -676,7 +688,7 @@ mod tests {
             ]),
             None,
         );
-        let result = validator.validate_delete(&stmt);
+        let result = validator.validate_delete(&stmt, None);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("cannot be empty"));
@@ -696,7 +708,7 @@ mod tests {
             },
             None,
         );
-        let result = validator.validate_delete(&stmt);
+        let result = validator.validate_delete(&stmt, None);
         assert!(result.is_ok());
     }
 
@@ -714,7 +726,7 @@ mod tests {
             },
             None,
         );
-        let result = validator.validate_delete(&stmt);
+        let result = validator.validate_delete(&stmt, None);
         assert!(result.is_ok());
     }
 
@@ -729,7 +741,7 @@ mod tests {
             },
             None,
         );
-        let result = validator.validate_delete(&stmt);
+        let result = validator.validate_delete(&stmt, None);
         assert!(result.is_err());
     }
 
@@ -746,7 +758,7 @@ mod tests {
             },
             None,
         );
-        let result = validator.validate_delete(&stmt);
+        let result = validator.validate_delete(&stmt, None);
         assert!(result.is_ok());
     }
 
@@ -754,7 +766,7 @@ mod tests {
     fn test_validate_index_empty() {
         let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(DeleteTarget::Index("".to_string()), None);
-        let result = validator.validate_delete(&stmt);
+        let result = validator.validate_delete(&stmt, None);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert_eq!(err.message, "Index name cannot be empty");
@@ -764,7 +776,7 @@ mod tests {
     fn test_validate_index_valid() {
         let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(DeleteTarget::Index("idx_person".to_string()), None);
-        let result = validator.validate_delete(&stmt);
+        let result = validator.validate_delete(&stmt, None);
         assert!(result.is_ok());
     }
 

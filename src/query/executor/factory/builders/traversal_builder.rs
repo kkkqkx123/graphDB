@@ -87,7 +87,8 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
             space_name,
         )
         .with_src_vids(node.src_vids().to_vec())
-        .with_include_empty_paths(node.include_empty_paths());
+        .with_include_empty_paths(node.include_empty_paths())
+        .with_filter(node.filter().cloned());
 
         // If input_var is set, use it to get input from ExecutionContext
         if let Some(input_var) = node.get_input_var() {

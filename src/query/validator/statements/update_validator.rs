@@ -87,7 +87,7 @@ impl UpdateValidator {
         space_name: &str,
     ) -> Result<ValidatedUpdate, CoreValidationError> {
         // Basic validation (variable borrowing that does not rely on the schema_validator)
-        self.validate_update_stmt(stmt)?;
+        self.validate_update_stmt(stmt, Some(space_name))?;
 
         let schema_validator = self.schema_validator.as_ref().ok_or_else(|| {
             CoreValidationError::new(
@@ -214,8 +214,8 @@ impl UpdateValidator {
     }
 
     /// Basic validation (does not rely on a Schema)
-    pub fn validate_update_stmt(&mut self, stmt: &UpdateStmt) -> Result<(), CoreValidationError> {
-        self.validate_target(&stmt.target)?;
+    pub fn validate_update_stmt(&mut self, stmt: &UpdateStmt, space_name: Option<&str>) -> Result<(), CoreValidationError> {
+        self.validate_target(&stmt.target, space_name)?;
         self.validate_set_clause(&stmt.set_clause)?;
         self.validate_where_clause(stmt.where_clause.as_ref())?;
         self.validate_assignments(&stmt.set_clause)?;
@@ -228,16 +228,17 @@ impl UpdateValidator {
         stmt: &UpdateStmt,
         qctx: Arc<QueryContext>,
     ) -> DBResult<()> {
-        self.validate_space_chosen(qctx)?;
-        self.validate_update_stmt(stmt)?;
+        self.validate_space_chosen(qctx.clone())?;
+        let space_name = qctx.space_name();
+        self.validate_update_stmt(stmt, space_name.as_deref())?;
         self.generate_output_columns();
         Ok(())
     }
 
-    fn validate_target(&self, target: &UpdateTarget) -> Result<(), CoreValidationError> {
+    fn validate_target(&self, target: &UpdateTarget, space_name: Option<&str>) -> Result<(), CoreValidationError> {
         match target {
             UpdateTarget::Vertex(vid_expr) => {
-                self.validate_vertex_id(vid_expr, "vertex")?;
+                self.validate_vertex_id(vid_expr, "vertex", space_name)?;
             }
             UpdateTarget::Edge {
                 src,
@@ -245,8 +246,8 @@ impl UpdateValidator {
                 edge_type,
                 rank,
             } => {
-                self.validate_vertex_id(src, "source")?;
-                self.validate_vertex_id(dst, "destination")?;
+                self.validate_vertex_id(src, "source", space_name)?;
+                self.validate_vertex_id(dst, "destination", space_name)?;
                 if let Some(rank_expr) = rank {
                     self.validate_rank(rank_expr)?;
                 }
@@ -268,7 +269,7 @@ impl UpdateValidator {
                 }
             }
             UpdateTarget::TagOnVertex { vid, tag_name } => {
-                self.validate_vertex_id(vid, "vertex")?;
+                self.validate_vertex_id(vid, "vertex", space_name)?;
                 if tag_name.is_empty() {
                     return Err(CoreValidationError::new(
                         "Tag name cannot be empty".to_string(),
@@ -343,6 +344,7 @@ impl UpdateValidator {
         &self,
         expr: &ContextualExpression,
         role: &str,
+        space_name: Option<&str>,
     ) -> Result<(), CoreValidationError> {
         if expr.expression().is_none() {
             return Err(CoreValidationError::new(
@@ -351,8 +353,17 @@ impl UpdateValidator {
             ));
         }
 
+        // Get vid_type from schema_manager if available, otherwise default to String
+        let vid_type = if let (Some(ref schema_validator), Some(space_name)) = (&self.schema_validator, space_name) {
+            match schema_validator.get_schema_manager().get_space(space_name) {
+                Ok(Some(space_info)) => space_info.vid_type,
+                _ => crate::core::types::DataType::String,
+            }
+        } else {
+            crate::core::types::DataType::String
+        };
+
         if let Some(ref schema_validator) = self.schema_validator {
-            let vid_type = crate::core::types::DataType::String;
             let ctx_expr = crate::core::types::ContextualExpression::new(
                 expr.id().clone(),
                 expr.context().clone(),
@@ -745,7 +756,8 @@ impl StatementValidator for UpdateValidator {
         };
 
         // 3. Verify the UPDATE statement
-        if let Err(e) = self.validate_update_stmt(update_stmt) {
+        let space_name = qctx.space_name();
+        if let Err(e) = self.validate_update_stmt(update_stmt, space_name.as_deref()) {
             return Err(ValidationError::new(
                 format!("UPDATE validation failed: {}", e),
                 ValidationErrorType::SemanticError,
@@ -877,7 +889,7 @@ mod tests {
             }],
             None,
         );
-        let result = validator.validate_update_stmt(&stmt);
+        let result = validator.validate_update_stmt(&stmt, None);
         assert!(result.is_ok());
     }
 
@@ -898,7 +910,7 @@ mod tests {
             }],
             None,
         );
-        let result = validator.validate_update_stmt(&stmt);
+        let result = validator.validate_update_stmt(&stmt, None);
         assert!(result.is_ok());
     }
 
@@ -919,7 +931,7 @@ mod tests {
             }],
             None,
         );
-        let result = validator.validate_update_stmt(&stmt);
+        let result = validator.validate_update_stmt(&stmt, None);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("vertex ID cannot be empty"));
@@ -942,7 +954,7 @@ mod tests {
             None,
         );
 
-        let result = validator.validate_update_stmt(&stmt);
+        let result = validator.validate_update_stmt(&stmt, None);
         assert!(result.is_ok());
     }
 
@@ -973,7 +985,7 @@ mod tests {
             ],
             None,
         );
-        let result = validator.validate_update_stmt(&stmt);
+        let result = validator.validate_update_stmt(&stmt, None);
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("Duplicate"));
     }
