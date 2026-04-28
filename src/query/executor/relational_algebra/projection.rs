@@ -228,6 +228,10 @@ impl<S: StorageClient> ProjectExecutor<S> {
         if let Some(edge_idx) = col_names.iter().position(|c| c == "edge") {
             if edge_idx < row.len() {
                 context.set_variable("edge".to_string(), row[edge_idx].clone());
+                // Map edge type name to the edge value for GO queries like YIELD friend.name
+                if let Value::Edge(ref edge_val) = row[edge_idx] {
+                    context.set_variable(edge_val.edge_type().to_string(), row[edge_idx].clone());
+                }
             }
         }
 
@@ -335,6 +339,9 @@ impl<S: StorageClient> ProjectExecutor<S> {
                             if let Some(edge_idx) = col_names.iter().position(|c| c == "edge") {
                                 if edge_idx < row.len() {
                                     context.set_variable("edge".to_string(), row[edge_idx].clone());
+                                    if let Value::Edge(ref edge_val) = row[edge_idx] {
+                                        context.set_variable(edge_val.edge_type().to_string(), row[edge_idx].clone());
+                                    }
                                 }
                             }
 

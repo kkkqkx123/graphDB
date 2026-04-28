@@ -246,7 +246,7 @@ class TestOptimizerTopN(unittest.TestCase):
     def _setup_data(cls):
         cls.client.execute(f"DROP SPACE IF EXISTS {cls.space_name}")
         cls.client.execute(f"CREATE SPACE {cls.space_name} (vid_type=STRING)")
-        cls.client.execute(f"USE {self.space_name}")
+        cls.client.execute(f"USE {cls.space_name}")
 
         cls.client.execute("""
             CREATE TAG product(name: STRING, price: INT, sales: INT)

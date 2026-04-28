@@ -274,6 +274,7 @@ impl InsertVerticesValidator {
                 Ok(())
             }
             Expression::Literal(Value::Int(_)) => Ok(()),
+            Expression::Literal(Value::BigInt(_)) => Ok(()),
             Expression::Variable(_) => Ok(()),
             _ => Err(ValidationError::new(
                 format!("Invalid vertex ID expression type for vertex {}", idx + 1),

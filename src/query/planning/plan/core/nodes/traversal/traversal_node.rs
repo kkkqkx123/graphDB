@@ -274,6 +274,10 @@ impl ExpandAllNode {
         &self.src_vids
     }
 
+    pub fn space_id(&self) -> u64 {
+        self.space_id
+    }
+
     pub fn set_include_empty_paths(&mut self, include: bool) {
         self.include_empty_paths = include;
     }

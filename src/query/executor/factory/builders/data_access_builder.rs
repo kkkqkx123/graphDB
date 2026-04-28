@@ -38,12 +38,20 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
+        let col_names = if !node.col_names().is_empty() {
+            node.col_names().to_vec()
+        } else if let Some(output_var) = node.output_var() {
+            vec![output_var.to_string()]
+        } else {
+            vec!["vertex".to_string()]
+        };
         let params = GetVerticesParams {
             space_name: node.space_name().to_string(),
             vertex_ids: None,
             tag_filter: None,
             vertex_filter: node.vertex_filter().and_then(|f| f.get_expression()),
             limit: node.limit().map(|l| l as usize),
+            col_names,
         };
         let executor = GetVerticesExecutor::new(
             node.id(),
@@ -78,6 +86,11 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let vertex_ids = parse_vertex_ids(node.src_vids());
+        let col_names = if node.col_names().is_empty() {
+            vec!["vertex".to_string()]
+        } else {
+            node.col_names().to_vec()
+        };
         let params = GetVerticesParams {
             space_name: node.space_name().to_string(),
             vertex_ids: if vertex_ids.is_empty() {
@@ -88,6 +101,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
             tag_filter: None,
             vertex_filter: node.expression().and_then(|e| e.get_expression()),
             limit: node.limit().map(|l| l as usize),
+            col_names,
         };
         let executor = GetVerticesExecutor::new(
             node.id(),

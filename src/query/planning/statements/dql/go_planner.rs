@@ -9,6 +9,7 @@
 
 use crate::core::types::{ContextualExpression, EdgeDirection};
 use crate::query::parser::ast::{GoStmt, Stmt};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -115,7 +116,7 @@ impl Planner for GoPlanner {
         };
 
         // Create ExpandAllNode to traverse edges
-        let mut expand_all_node = ExpandAllNode::new(1, edge_types, direction_str);
+        let mut expand_all_node = ExpandAllNode::new(1, edge_types.clone(), direction_str);
 
         // Set step_limit based on GO statement steps
         let step_limit = match go_stmt.steps {
@@ -127,6 +128,19 @@ impl Planner for GoPlanner {
 
         // Don't include empty paths for GO FROM queries
         expand_all_node.set_include_empty_paths(false);
+
+        // Set column names to match ExpandAll's output format: [src, edge, dst]
+        // Also add edge type name as variable for accessing edge properties
+        let mut col_names = vec![
+            "src".to_string(),
+            "edge".to_string(),
+            "dst".to_string(),
+        ];
+        // Add edge type as alias for "edge" column to support friend.name syntax
+        if edge_types.len() == 1 {
+            col_names.push(edge_types[0].clone());
+        }
+        expand_all_node.set_col_names(col_names);
 
         // Set src_vids from FROM clause if they are literals
         if use_start_node {

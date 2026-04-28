@@ -31,6 +31,7 @@ pub fn extract_string_from_expr(expr: &ContextualExpression) -> Result<String, P
         match literal {
             Value::String(s) => return Ok(s.clone()),
             Value::Int(i) => return Ok(i.to_string()),
+            Value::BigInt(i) => return Ok(i.to_string()),
             Value::Float(f) => return Ok(f.to_string()),
             Value::Bool(b) => return Ok(b.to_string()),
             _ => {

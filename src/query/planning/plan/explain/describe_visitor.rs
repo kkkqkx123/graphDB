@@ -5,7 +5,7 @@
 
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
-    MultipleInputNode, PlanNode, SingleInputNode,
+    BinaryInputNode, MultipleInputNode, PlanNode, SingleInputNode,
 };
 use crate::query::planning::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor;
 use crate::query::planning::plan::explain::description::PlanNodeDescription;
@@ -117,6 +117,24 @@ impl DescribeVisitor {
     fn collect_multiple_input_deps(&self, inputs: &[PlanNodeEnum]) -> Vec<i64> {
         inputs.iter().map(|input| input.id()).collect()
     }
+
+    fn visit_children_single<T: SingleInputNode>(&mut self, node: &T) -> Vec<i64> {
+        node.input().accept(self);
+        self.collect_single_input_deps(node.input())
+    }
+
+    fn visit_children_binary<T: BinaryInputNode>(&mut self, node: &T) -> Vec<i64> {
+        node.left_input().accept(self);
+        node.right_input().accept(self);
+        self.collect_binary_input_deps(node.left_input(), node.right_input())
+    }
+
+    fn visit_children_multi<T: MultipleInputNode>(&mut self, node: &T) -> Vec<i64> {
+        for input in node.inputs() {
+            input.accept(self);
+        }
+        self.collect_multiple_input_deps(node.inputs())
+    }
 }
 
 impl Default for DescribeVisitor {
@@ -129,7 +147,7 @@ impl Default for DescribeVisitor {
 // Macros for generating visitor methods
 // ============================================
 
-/// Generate simple visit methods that only create a description with name
+/// Generate simple visit methods for leaf nodes (no inputs, no recursion needed)
 macro_rules! impl_simple_visit {
     ($($method:ident => $name:expr, $type:ty),* $(,)?) => {
         $(
@@ -140,49 +158,89 @@ macro_rules! impl_simple_visit {
     };
 }
 
-/// Generate visit methods for single-input nodes
+/// Generate visit methods for single-input nodes (auto-recursion into child)
 macro_rules! impl_single_input_visit {
     ($($method:ident => $name:expr, $type:ty),* $(,)?) => {
         $(
             fn $method(&mut self, node: &$type) {
-                let deps = self.collect_single_input_deps(node.input());
+                let deps = self.visit_children_single(node);
                 self.create_description_with_deps($name, node, deps);
             }
         )*
     };
 }
 
-/// Generate visit methods for binary-input nodes
+/// Generate visit methods for binary-input nodes (auto-recursion into both children)
 macro_rules! impl_binary_input_visit {
     ($($method:ident => $name:expr, $type:ty),* $(,)?) => {
         $(
             fn $method(&mut self, node: &$type) {
-                let deps = self.collect_binary_input_deps(node.left_input(), node.right_input());
+                let deps = self.visit_children_binary(node);
                 self.create_description_with_deps($name, node, deps);
             }
         )*
     };
 }
 
-/// Generate visit methods for multiple-input nodes (using inputs() method)
+/// Generate visit methods for multiple-input nodes using inputs() (auto-recursion)
 macro_rules! impl_multi_input_visit {
     ($($method:ident => $name:expr, $type:ty),* $(,)?) => {
         $(
             fn $method(&mut self, node: &$type) {
-                let deps = self.collect_multiple_input_deps(node.inputs());
+                let deps = self.visit_children_multi(node);
                 self.create_description_with_deps($name, node, deps);
             }
         )*
     };
 }
 
-/// Generate visit methods for multiple-input nodes (using dependencies() method)
+/// Generate visit methods for nodes using dependencies() (auto-recursion)
 macro_rules! impl_deps_visit {
     ($($method:ident => $name:expr, $type:ty),* $(,)?) => {
         $(
             fn $method(&mut self, node: &$type) {
+                for dep in node.dependencies() {
+                    dep.accept(self);
+                }
                 let deps: Vec<i64> = node.dependencies().iter().map(|d| d.id()).collect();
                 self.create_description_with_deps($name, node, deps);
+            }
+        )*
+    };
+}
+
+/// Generate visit methods for join nodes with hash_keys/probe_keys descriptions.
+/// All join nodes share the same description pattern: name, deps, hash_keys, probe_keys.
+macro_rules! impl_join_visit {
+    ($($method:ident => $name:expr, $type:ty),* $(,)?) => {
+        $(
+            fn $method(&mut self, node: &$type) {
+                let deps = self.visit_children_binary(node);
+                let mut desc = PlanNodeDescription::new($name, node.id());
+                if let Some(var) = node.output_var() {
+                    desc = desc.with_output_var(var.to_string());
+                }
+                desc.set_dependencies(deps);
+
+                let hash_keys: Vec<String> = node
+                    .hash_keys()
+                    .iter()
+                    .map(|k| format!("{:?}", k))
+                    .collect();
+                let probe_keys: Vec<String> = node
+                    .probe_keys()
+                    .iter()
+                    .map(|k| format!("{:?}", k))
+                    .collect();
+                if !hash_keys.is_empty() {
+                    desc.add_description("hash_keys", hash_keys.join(", "));
+                }
+                if !probe_keys.is_empty() {
+                    desc.add_description("probe_keys", probe_keys.join(", "));
+                }
+
+                self.descriptions.push(desc);
+                self.visited_ids.insert(node.id());
             }
         )*
     };
@@ -193,7 +251,9 @@ impl PlanNodeVisitor for DescribeVisitor {
 
     fn visit_default(&mut self) {}
 
-    // Simple nodes (no inputs)
+    // ==========================================
+    // Leaf nodes (no inputs, no recursion)
+    // ==========================================
     impl_simple_visit!(
         visit_start => "Start", StartNode,
         visit_argument => "Argument", ArgumentNode,
@@ -228,7 +288,9 @@ impl PlanNodeVisitor for DescribeVisitor {
         visit_change_password => "ChangePassword", ChangePasswordNode,
     );
 
-    // Single-input nodes
+    // ==========================================
+    // Single-input nodes (simple, no extra descriptions)
+    // ==========================================
     impl_single_input_visit!(
         visit_filter => "Filter", FilterNode,
         visit_aggregate => "Aggregate", AggregateNode,
@@ -236,31 +298,50 @@ impl PlanNodeVisitor for DescribeVisitor {
         visit_data_collect => "DataCollect", DataCollectNode,
         visit_unwind => "Unwind", UnwindNode,
         visit_assign => "Assign", AssignNode,
-    );
-
-    // Binary-input nodes (joins)
-    impl_binary_input_visit!(
-        visit_cross_join => "CrossJoin", CrossJoinNode,
-        visit_full_outer_join => "FullOuterJoin", FullOuterJoinNode,
         visit_pattern_apply => "PatternApply", PatternApplyNode,
         visit_roll_up_apply => "RollUpApply", RollUpApplyNode,
     );
 
+    // ==========================================
+    // Binary-input nodes (simple, no extra descriptions)
+    // ==========================================
+    impl_binary_input_visit!(
+        visit_cross_join => "CrossJoin", CrossJoinNode,
+        visit_full_outer_join => "FullOuterJoin", FullOuterJoinNode,
+    );
+
+    // ==========================================
     // Multi-input nodes (using inputs())
+    // ==========================================
     impl_multi_input_visit!(
         visit_expand => "Expand", ExpandNode,
         visit_expand_all => "ExpandAll", ExpandAllNode,
     );
 
+    // ==========================================
     // Multi-input nodes (using dependencies())
+    // ==========================================
     impl_deps_visit!(
         visit_minus => "Minus", MinusNode,
         visit_intersect => "Intersect", IntersectNode,
     );
 
-    // Custom implementations for nodes with special handling
+    // ==========================================
+    // Join nodes (binary-input with hash_keys/probe_keys)
+    // ==========================================
+    impl_join_visit!(
+        visit_inner_join => "InnerJoin", InnerJoinNode,
+        visit_left_join => "LeftJoin", LeftJoinNode,
+        visit_hash_inner_join => "HashInnerJoin", HashInnerJoinNode,
+        visit_hash_left_join => "HashLeftJoin", HashLeftJoinNode,
+    );
+
+    // ==========================================
+    // Single-input nodes with extra descriptions
+    // ==========================================
+
     fn visit_project(&mut self, node: &ProjectNode) {
-        let deps = self.collect_single_input_deps(node.input());
+        let deps = self.visit_children_single(node);
         let mut desc = PlanNodeDescription::new("Project", node.id());
         if let Some(var) = node.output_var() {
             desc = desc.with_output_var(var.to_string());
@@ -277,7 +358,7 @@ impl PlanNodeVisitor for DescribeVisitor {
     }
 
     fn visit_sort(&mut self, node: &SortNode) {
-        let deps = self.collect_single_input_deps(node.input());
+        let deps = self.visit_children_single(node);
         let mut desc = PlanNodeDescription::new("Sort", node.id());
         if let Some(var) = node.output_var() {
             desc = desc.with_output_var(var.to_string());
@@ -298,7 +379,7 @@ impl PlanNodeVisitor for DescribeVisitor {
     }
 
     fn visit_limit(&mut self, node: &LimitNode) {
-        let deps = self.collect_single_input_deps(node.input());
+        let deps = self.visit_children_single(node);
         let mut desc = PlanNodeDescription::new("Limit", node.id());
         if let Some(var) = node.output_var() {
             desc = desc.with_output_var(var.to_string());
@@ -312,7 +393,7 @@ impl PlanNodeVisitor for DescribeVisitor {
     }
 
     fn visit_topn(&mut self, node: &TopNNode) {
-        let deps = self.collect_single_input_deps(node.input());
+        let deps = self.visit_children_single(node);
         let mut desc = PlanNodeDescription::new("TopN", node.id());
         if let Some(var) = node.output_var() {
             desc = desc.with_output_var(var.to_string());
@@ -325,7 +406,7 @@ impl PlanNodeVisitor for DescribeVisitor {
     }
 
     fn visit_sample(&mut self, node: &SampleNode) {
-        let deps = self.collect_single_input_deps(node.input());
+        let deps = self.visit_children_single(node);
         let mut desc = PlanNodeDescription::new("Sample", node.id());
         if let Some(var) = node.output_var() {
             desc = desc.with_output_var(var.to_string());
@@ -337,121 +418,91 @@ impl PlanNodeVisitor for DescribeVisitor {
         self.visited_ids.insert(node.id());
     }
 
-    fn visit_inner_join(&mut self, node: &InnerJoinNode) {
-        let deps = self.collect_binary_input_deps(node.left_input(), node.right_input());
-        let mut desc = PlanNodeDescription::new("InnerJoin", node.id());
+    fn visit_traverse(&mut self, node: &TraverseNode) {
+        let deps = self.visit_children_single(node);
+        let mut desc = PlanNodeDescription::new("Traverse", node.id());
         if let Some(var) = node.output_var() {
             desc = desc.with_output_var(var.to_string());
         }
         desc.set_dependencies(deps);
 
-        let hash_keys: Vec<String> = node
-            .hash_keys()
-            .iter()
-            .map(|k| format!("{:?}", k))
-            .collect();
-        let probe_keys: Vec<String> = node
-            .probe_keys()
-            .iter()
-            .map(|k| format!("{:?}", k))
-            .collect();
-        if !hash_keys.is_empty() {
-            desc.add_description("hash_keys", hash_keys.join(", "));
-        }
-        if !probe_keys.is_empty() {
-            desc.add_description("probe_keys", probe_keys.join(", "));
+        desc.add_description("min_steps", node.min_steps().to_string());
+        desc.add_description("max_steps", node.max_steps().to_string());
+        let edge_types = node.edge_types();
+        if !edge_types.is_empty() {
+            desc.add_description("edge_types", edge_types.join(", "));
         }
 
         self.descriptions.push(desc);
         self.visited_ids.insert(node.id());
     }
 
-    fn visit_left_join(&mut self, node: &LeftJoinNode) {
-        let deps = self.collect_binary_input_deps(node.left_input(), node.right_input());
-        let mut desc = PlanNodeDescription::new("LeftJoin", node.id());
+    fn visit_union(&mut self, node: &UnionNode) {
+        let deps = self.visit_children_single(node);
+        let mut desc = PlanNodeDescription::new("Union", node.id());
         if let Some(var) = node.output_var() {
             desc = desc.with_output_var(var.to_string());
         }
         desc.set_dependencies(deps);
+        desc.add_description("distinct", node.distinct().to_string());
 
-        let hash_keys: Vec<String> = node
-            .hash_keys()
-            .iter()
-            .map(|k| format!("{:?}", k))
-            .collect();
-        let probe_keys: Vec<String> = node
-            .probe_keys()
-            .iter()
-            .map(|k| format!("{:?}", k))
-            .collect();
-        if !hash_keys.is_empty() {
-            desc.add_description("hash_keys", hash_keys.join(", "));
+        self.descriptions.push(desc);
+        self.visited_ids.insert(node.id());
+    }
+
+    // ==========================================
+    // Control flow nodes with special dependency patterns
+    // ==========================================
+
+    fn visit_loop(&mut self, node: &LoopNode) {
+        if let Some(ref body) = node.body() {
+            body.accept(self);
         }
-        if !probe_keys.is_empty() {
-            desc.add_description("probe_keys", probe_keys.join(", "));
+
+        let mut desc = PlanNodeDescription::new("Loop", node.id());
+        if let Some(var) = node.output_var() {
+            desc = desc.with_output_var(var.to_string());
+        }
+
+        if let Some(ref body) = node.body() {
+            desc.set_dependencies(vec![body.id()]);
         }
 
         self.descriptions.push(desc);
         self.visited_ids.insert(node.id());
     }
 
-    fn visit_hash_inner_join(&mut self, node: &HashInnerJoinNode) {
-        let deps = self.collect_binary_input_deps(node.left_input(), node.right_input());
-        let mut desc = PlanNodeDescription::new("HashInnerJoin", node.id());
+    fn visit_select(&mut self, node: &SelectNode) {
+        if let Some(ref if_branch) = node.if_branch() {
+            if_branch.accept(self);
+        }
+        if let Some(ref else_branch) = node.else_branch() {
+            else_branch.accept(self);
+        }
+
+        let mut desc = PlanNodeDescription::new("Select", node.id());
         if let Some(var) = node.output_var() {
             desc = desc.with_output_var(var.to_string());
         }
-        desc.set_dependencies(deps);
 
-        let hash_keys: Vec<String> = node
-            .hash_keys()
-            .iter()
-            .map(|k| format!("{:?}", k))
-            .collect();
-        let probe_keys: Vec<String> = node
-            .probe_keys()
-            .iter()
-            .map(|k| format!("{:?}", k))
-            .collect();
-        if !hash_keys.is_empty() {
-            desc.add_description("hash_keys", hash_keys.join(", "));
+        let mut deps = Vec::new();
+        if let Some(ref if_branch) = node.if_branch() {
+            deps.push(if_branch.id());
         }
-        if !probe_keys.is_empty() {
-            desc.add_description("probe_keys", probe_keys.join(", "));
+        if let Some(ref else_branch) = node.else_branch() {
+            deps.push(else_branch.id());
+        }
+        if !deps.is_empty() {
+            desc.set_dependencies(deps);
         }
 
         self.descriptions.push(desc);
         self.visited_ids.insert(node.id());
     }
 
-    fn visit_hash_left_join(&mut self, node: &HashLeftJoinNode) {
-        let deps = self.collect_binary_input_deps(node.left_input(), node.right_input());
-        let mut desc = PlanNodeDescription::new("HashLeftJoin", node.id());
-        if let Some(var) = node.output_var() {
-            desc = desc.with_output_var(var.to_string());
-        }
-        desc.set_dependencies(deps);
-
-        let hash_keys: Vec<String> = node
-            .hash_keys()
-            .iter()
-            .map(|k| format!("{:?}", k))
-            .collect();
-        let probe_keys: Vec<String> = node
-            .probe_keys()
-            .iter()
-            .map(|k| format!("{:?}", k))
-            .collect();
-        if !hash_keys.is_empty() {
-            desc.add_description("hash_keys", hash_keys.join(", "));
-        }
-        if !probe_keys.is_empty() {
-            desc.add_description("probe_keys", probe_keys.join(", "));
-        }
-
-        self.descriptions.push(desc);
-        self.visited_ids.insert(node.id());
-    }
+    // ==========================================
+    // Leaf data-access nodes (no inputs, no recursion)
+    // ==========================================
 
     fn visit_get_vertices(&mut self, node: &GetVerticesNode) {
         let mut desc = PlanNodeDescription::new("GetVertices", node.id());
@@ -558,78 +609,11 @@ impl PlanNodeVisitor for DescribeVisitor {
         self.visited_ids.insert(node.id());
     }
 
-    fn visit_traverse(&mut self, node: &TraverseNode) {
-        let deps = self.collect_single_input_deps(node.input());
-        let mut desc = PlanNodeDescription::new("Traverse", node.id());
-        if let Some(var) = node.output_var() {
-            desc = desc.with_output_var(var.to_string());
-        }
-        desc.set_dependencies(deps);
-
-        desc.add_description("min_steps", node.min_steps().to_string());
-        desc.add_description("max_steps", node.max_steps().to_string());
-        let edge_types = node.edge_types();
-        if !edge_types.is_empty() {
-            desc.add_description("edge_types", edge_types.join(", "));
-        }
-
-        self.descriptions.push(desc);
-        self.visited_ids.insert(node.id());
-    }
-
     fn visit_append_vertices(&mut self, node: &AppendVerticesNode) {
         let mut desc = PlanNodeDescription::new("AppendVertices", node.id());
         if let Some(var) = node.output_var() {
             desc = desc.with_output_var(var.to_string());
         }
-
-        self.descriptions.push(desc);
-        self.visited_ids.insert(node.id());
-    }
-
-    fn visit_loop(&mut self, node: &LoopNode) {
-        let mut desc = PlanNodeDescription::new("Loop", node.id());
-        if let Some(var) = node.output_var() {
-            desc = desc.with_output_var(var.to_string());
-        }
-
-        if let Some(ref body) = node.body() {
-            desc.set_dependencies(vec![body.id()]);
-        }
-
-        self.descriptions.push(desc);
-        self.visited_ids.insert(node.id());
-    }
-
-    fn visit_select(&mut self, node: &SelectNode) {
-        let mut desc = PlanNodeDescription::new("Select", node.id());
-        if let Some(var) = node.output_var() {
-            desc = desc.with_output_var(var.to_string());
-        }
-
-        let mut deps = Vec::new();
-        if let Some(ref if_branch) = node.if_branch() {
-            deps.push(if_branch.id());
-        }
-        if let Some(ref else_branch) = node.else_branch() {
-            deps.push(else_branch.id());
-        }
-        if !deps.is_empty() {
-            desc.set_dependencies(deps);
-        }
-
-        self.descriptions.push(desc);
-        self.visited_ids.insert(node.id());
-    }
-
-    fn visit_union(&mut self, node: &UnionNode) {
-        let deps = self.collect_single_input_deps(node.input());
-        let mut desc = PlanNodeDescription::new("Union", node.id());
-        if let Some(var) = node.output_var() {
-            desc = desc.with_output_var(var.to_string());
-        }
-        desc.set_dependencies(deps);
-        desc.add_description("distinct", node.distinct().to_string());
 
         self.descriptions.push(desc);
         self.visited_ids.insert(node.id());

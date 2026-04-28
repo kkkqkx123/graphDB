@@ -401,7 +401,8 @@ impl MatchStatementPlanner {
         let mut scan_node = ScanVerticesNode::new(space_id, space_name);
         // Set the column name to the node variable name so that subsequent join operations can find the variable
         let var_name = node.variable.clone().unwrap_or_else(|| "n".to_string());
-        scan_node.set_col_names(vec![var_name]);
+        scan_node.set_col_names(vec![var_name.clone()]);
+        scan_node.set_output_var(var_name);
         let mut plan = SubPlan::from_root(scan_node.into_enum());
 
         // If there is a label filtering option, please add the filter.

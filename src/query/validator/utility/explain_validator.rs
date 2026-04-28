@@ -17,6 +17,7 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
+use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 /// Verified EXPLAIN information
 #[derive(Debug, Clone)]
@@ -30,6 +31,7 @@ pub struct ValidatedExplain {
 pub struct ExplainValidator {
     format: ExplainFormat,
     inner_validator: Option<Box<Validator>>,
+    schema_manager: Option<Arc<RedbSchemaManager>>,
     inputs: Vec<ColumnDef>,
     outputs: Vec<ColumnDef>,
     expr_props: ExpressionProps,
@@ -41,6 +43,7 @@ impl ExplainValidator {
         Self {
             format: ExplainFormat::Table,
             inner_validator: None,
+            schema_manager: None,
             inputs: Vec::new(),
             outputs: vec![
                 ColumnDef {
@@ -69,18 +72,25 @@ impl ExplainValidator {
         }
     }
 
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<RedbSchemaManager>) {
+        self.schema_manager = Some(schema_manager);
+    }
+
     fn validate_impl(&mut self, stmt: &ExplainStmt) -> Result<(), ValidationError> {
         self.format = stmt.format.clone();
 
-        // Verify the internal statements.
-        self.inner_validator = Some(Box::new(
-            Validator::create_from_stmt(&stmt.statement).ok_or_else(|| {
-                ValidationError::new(
-                    "Failed to create validator for inner statement".to_string(),
-                    ValidationErrorType::SemanticError,
-                )
-            })?,
-        ));
+        let mut inner_validator = Validator::create_from_stmt(&stmt.statement).ok_or_else(|| {
+            ValidationError::new(
+                "Failed to create validator for inner statement".to_string(),
+                ValidationErrorType::SemanticError,
+            )
+        })?;
+
+        if let Some(ref sm) = self.schema_manager {
+            inner_validator.set_schema_manager(sm.clone());
+        }
+
+        self.inner_validator = Some(Box::new(inner_validator));
 
         Ok(())
     }
@@ -194,6 +204,7 @@ impl Default for ExplainValidator {
 pub struct ProfileValidator {
     format: ExplainFormat,
     inner_validator: Option<Box<Validator>>,
+    schema_manager: Option<Arc<RedbSchemaManager>>,
     inputs: Vec<ColumnDef>,
     outputs: Vec<ColumnDef>,
     expr_props: ExpressionProps,
@@ -205,6 +216,7 @@ impl ProfileValidator {
         Self {
             format: ExplainFormat::Table,
             inner_validator: None,
+            schema_manager: None,
             inputs: Vec::new(),
             outputs: vec![
                 ColumnDef {
@@ -233,18 +245,25 @@ impl ProfileValidator {
         }
     }
 
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<RedbSchemaManager>) {
+        self.schema_manager = Some(schema_manager);
+    }
+
     fn validate_impl(&mut self, stmt: &ProfileStmt) -> Result<(), ValidationError> {
         self.format = stmt.format.clone();
 
-        // Verify the internal statements.
-        self.inner_validator = Some(Box::new(
-            Validator::create_from_stmt(&stmt.statement).ok_or_else(|| {
-                ValidationError::new(
-                    "Failed to create validator for inner statement".to_string(),
-                    ValidationErrorType::SemanticError,
-                )
-            })?,
-        ));
+        let mut inner_validator = Validator::create_from_stmt(&stmt.statement).ok_or_else(|| {
+            ValidationError::new(
+                "Failed to create validator for inner statement".to_string(),
+                ValidationErrorType::SemanticError,
+            )
+        })?;
+
+        if let Some(ref sm) = self.schema_manager {
+            inner_validator.set_schema_manager(sm.clone());
+        }
+
+        self.inner_validator = Some(Box::new(inner_validator));
 
         Ok(())
     }

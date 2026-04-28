@@ -275,14 +275,6 @@ class TestSocialNetworkQueries(unittest.TestCase):
         self.client.execute(f"USE {self.space_name}")
 
         result = self.client.execute("MATCH (p:person) RETURN p.name, p.age")
-        # MATCH might not be fully implemented, check it doesn't crash
-        if not result.success:
-            # Log the error but don't fail if it's a "not implemented" error
-            error_msg = str(result.error).lower()
-            if "not implemented" in error_msg or "unsupported" in error_msg:
-                self.skipTest(f"MATCH not fully implemented: {result.error}")
-            if "timeout" in error_msg:
-                self.skipTest(f"MATCH timeout - server may have performance issues: {result.error}")
         self.assertTrue(result.success, f"MATCH failed: {result.error}")
         self.assertIsNotNone(result.data)
 
@@ -293,12 +285,6 @@ class TestSocialNetworkQueries(unittest.TestCase):
         result = self.client.execute("""
             MATCH (p:person) WHERE p.age > 28 RETURN p.name
         """)
-        if not result.success:
-            error_msg = str(result.error).lower()
-            if "not implemented" in error_msg or "unsupported" in error_msg:
-                self.skipTest(f"MATCH with filter not fully implemented: {result.error}")
-            if "timeout" in error_msg:
-                self.skipTest(f"MATCH timeout - server may have performance issues: {result.error}")
         self.assertTrue(result.success, f"MATCH with filter failed: {result.error}")
         data_str = str(result.data)
         self.assertIn("Alice", data_str)
@@ -311,12 +297,6 @@ class TestSocialNetworkQueries(unittest.TestCase):
         result = self.client.execute("""
             MATCH (p:person)-[:friend]->(f:person) RETURN p.name, f.name
         """)
-        if not result.success:
-            error_msg = str(result.error).lower()
-            if "not implemented" in error_msg or "unsupported" in error_msg:
-                self.skipTest(f"MATCH path not fully implemented: {result.error}")
-            if "timeout" in error_msg:
-                self.skipTest(f"MATCH timeout - server may have performance issues: {result.error}")
         self.assertTrue(result.success, f"MATCH path failed: {result.error}")
 
     def test_014_go_traversal(self):
@@ -326,14 +306,6 @@ class TestSocialNetworkQueries(unittest.TestCase):
         result = self.client.execute('''
             GO 1 STEP FROM "p1" OVER friend YIELD friend.name
         ''')
-        if not result.success:
-            error_msg = str(result.error).lower()
-            if "not implemented" in error_msg or "unsupported" in error_msg:
-                self.skipTest(f"GO traversal not fully implemented: {result.error}")
-            if "undefined" in error_msg:
-                self.skipTest(f"GO traversal has undefined variable issue: {result.error}")
-            if "timeout" in error_msg:
-                self.skipTest(f"GO traversal timeout: {result.error}")
         self.assertTrue(result.success, f"GO traversal failed: {result.error}")
 
     def test_015_go_multiple_steps(self):
@@ -343,14 +315,6 @@ class TestSocialNetworkQueries(unittest.TestCase):
         result = self.client.execute('''
             GO 2 STEPS FROM "p1" OVER friend YIELD friend.name
         ''')
-        if not result.success:
-            error_msg = str(result.error).lower()
-            if "not implemented" in error_msg or "unsupported" in error_msg:
-                self.skipTest(f"GO multi-step not fully implemented: {result.error}")
-            if "undefined" in error_msg:
-                self.skipTest(f"GO multi-step has undefined variable issue: {result.error}")
-            if "timeout" in error_msg:
-                self.skipTest(f"GO multi-step timeout: {result.error}")
         self.assertTrue(result.success, f"GO multi-step failed: {result.error}")
 
     def test_016_lookup_index(self):
@@ -416,10 +380,6 @@ class TestSocialNetworkExplain(unittest.TestCase):
         result = self.client.execute('''
             EXPLAIN LOOKUP ON person WHERE person.name == "Alice"
         ''')
-        if not result.success:
-            error_msg = str(result.error).lower()
-            if "not implemented" in error_msg or "unsupported" in error_msg:
-                self.skipTest(f"EXPLAIN with LOOKUP not fully implemented: {result.error}")
         self.assertTrue(result.success, f"EXPLAIN with index failed: {result.error}")
 
     def test_019_profile_query(self):
@@ -477,28 +437,16 @@ class TestSocialNetworkTransaction(unittest.TestCase):
 
         # Begin transaction
         result = self.client.execute("BEGIN")
-        if not result.success:
-            error_msg = str(result.error).lower()
-            if "not implemented" in error_msg or "unsupported" in error_msg:
-                self.skipTest(f"BEGIN not fully implemented: {result.error}")
-            if "timeout" in error_msg:
-                self.skipTest(f"Transaction timeout - server may have performance issues: {result.error}")
         self.assertTrue(result.success, f"BEGIN failed: {result.error}")
 
         # Insert data
         result = self.client.execute(f'''
             INSERT VERTEX person(name, age) VALUES "{vertex_id}": ("TX_Test", 20)
         ''')
-        if not result.success and "timeout" in str(result.error).lower():
-            # Rollback on timeout
-            self.client.execute("ROLLBACK")
-            self.skipTest(f"INSERT timeout - server may have performance issues: {result.error}")
         self.assertTrue(result.success, f"INSERT failed: {result.error}")
 
         # Commit
         result = self.client.execute("COMMIT")
-        if not result.success and "timeout" in str(result.error).lower():
-            self.skipTest(f"COMMIT timeout - server may have performance issues: {result.error}")
         self.assertTrue(result.success, f"COMMIT failed: {result.error}")
 
         # Verify data exists
@@ -515,28 +463,16 @@ class TestSocialNetworkTransaction(unittest.TestCase):
 
         # Begin transaction
         result = self.client.execute("BEGIN")
-        if not result.success:
-            error_msg = str(result.error).lower()
-            if "not implemented" in error_msg or "unsupported" in error_msg:
-                self.skipTest(f"BEGIN not fully implemented: {result.error}")
-            if "timeout" in error_msg:
-                self.skipTest(f"Transaction timeout - server may have performance issues: {result.error}")
         self.assertTrue(result.success, f"BEGIN failed: {result.error}")
 
         # Insert data
         result = self.client.execute(f'''
             INSERT VERTEX person(name, age) VALUES "{vertex_id}": ("Rollback", 25)
         ''')
-        if not result.success and "timeout" in str(result.error).lower():
-            # Rollback on timeout
-            self.client.execute("ROLLBACK")
-            self.skipTest(f"INSERT timeout - server may have performance issues: {result.error}")
         self.assertTrue(result.success, f"INSERT failed: {result.error}")
 
         # Rollback
         result = self.client.execute("ROLLBACK")
-        if not result.success and "timeout" in str(result.error).lower():
-            self.skipTest(f"ROLLBACK timeout - server may have performance issues: {result.error}")
         self.assertTrue(result.success, f"ROLLBACK failed: {result.error}")
 
         # Verify data does not exist

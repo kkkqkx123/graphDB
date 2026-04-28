@@ -41,6 +41,8 @@ impl GraphTraversalExecutorFactory {
         any_edge_type: bool,
         max_depth: Option<usize>,
         expr_context: Arc<ExpressionAnalysisContext>,
+        space_id: u64,
+        space_name: String,
     ) -> ExpandAllExecutor<S> {
         ExpandAllExecutor::new(
             id,
@@ -50,6 +52,8 @@ impl GraphTraversalExecutorFactory {
             any_edge_type,
             max_depth,
             expr_context,
+            space_id,
+            space_name,
         )
     }
 

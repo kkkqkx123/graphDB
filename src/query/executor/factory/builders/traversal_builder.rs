@@ -65,6 +65,16 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         // Parameters of ExpandAllExecutor::new: id, storage, edge_direction, edge_types, any_edge_type, max_depth, expr_context
         // ExpandAllNode 的 direction() 返回 &str，需要转换为 EdgeDirection
         let edge_direction = EdgeDirection::from(node.direction());
+        
+        // Get space name from storage using space_id
+        let space_name = {
+            let storage_guard = storage.lock();
+            match storage_guard.get_space_by_id(node.space_id()) {
+                Ok(Some(space_info)) => space_info.space_name,
+                _ => "default".to_string(), // Fallback to default if space not found
+            }
+        };
+        
         let mut executor = ExpandAllExecutor::with_context(
             node.id(),
             storage,
@@ -73,6 +83,8 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
             false, // any_edge_type
             node.step_limit().map(|s| s as usize),
             context.clone(),
+            node.space_id(),
+            space_name,
         )
         .with_src_vids(node.src_vids().to_vec())
         .with_include_empty_paths(node.include_empty_paths());

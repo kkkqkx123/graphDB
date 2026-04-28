@@ -9,6 +9,7 @@ use crate::core::{MetricType, Permission};
 use crate::query::executor::ExecutionResult;
 use crate::query::DataSet;
 use crate::storage::StorageClient;
+use crate::storage::RedbStorage;
 use crate::transaction::TransactionManager;
 use log::{info, warn};
 use parking_lot::Mutex;
@@ -75,7 +76,15 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         // Use core layer QueryApi instead of directly using QueryPipelineManager
         // Support vector search with metadata provider if enabled
         // Get schema_manager from storage using the trait method
-        let schema_manager = storage.get_schema_manager();
+        // Try to get schema_manager from storage, with fallback to downcasting for RedbStorage
+        let schema_manager = storage.get_schema_manager().or_else(|| {
+            // Try to downcast to RedbStorage to get schema_manager
+            storage
+                .as_any()
+                .downcast_ref::<RedbStorage>()
+                .map(|redb_storage| redb_storage.get_schema_manager())
+                .flatten()
+        });
 
         let (query_api, vector_api) = if config.vector.enabled {
             match QueryApi::with_vector_search(
@@ -288,6 +297,24 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             }
         }
 
+        // If session has an active transaction, set the transaction context on storage
+        // so that subsequent queries execute within the same transaction
+        let txn_context = if let Some(txn_id) = session.current_transaction() {
+            if let Some(ref txn_manager) = self.transaction_manager {
+                txn_manager.get_context(txn_id).ok()
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        if let Some(ref ctx) = txn_context {
+            if let Some(storage) = self.storage.as_any().downcast_ref::<RedbStorage>() {
+                storage.set_transaction_context(Some(ctx.clone()));
+            }
+        }
+
         // Use core layer QueryApi to execute query
         let query_request = crate::api::core::QueryRequest {
             space_id: session.space().map(|s| s.id as u64),
@@ -299,6 +326,13 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         let mut query_api = self.query_api.lock();
         let result = query_api.execute(stmt, query_request);
+
+        // Clear transaction context from storage after query execution
+        if txn_context.is_some() {
+            if let Some(storage) = self.storage.as_any().downcast_ref::<RedbStorage>() {
+                storage.set_transaction_context(None);
+            }
+        }
 
         match result {
             Ok(query_result) => Ok(Self::convert_to_execution_result(query_result)),

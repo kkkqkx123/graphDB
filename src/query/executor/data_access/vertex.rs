@@ -17,6 +17,7 @@ pub struct GetVerticesParams {
     pub tag_filter: Option<crate::core::Expression>,
     pub vertex_filter: Option<crate::core::Expression>,
     pub limit: Option<usize>,
+    pub col_names: Vec<String>,
 }
 
 impl GetVerticesParams {
@@ -27,6 +28,7 @@ impl GetVerticesParams {
             tag_filter: None,
             vertex_filter: None,
             limit: None,
+            col_names: vec!["vertex".to_string()],
         }
     }
 }
@@ -38,6 +40,7 @@ pub struct GetVerticesExecutor<S: StorageClient + 'static> {
     tag_filter: Option<crate::core::Expression>,
     vertex_filter: Option<crate::core::Expression>,
     limit: Option<usize>,
+    col_names: Vec<String>,
 }
 
 impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
@@ -47,6 +50,11 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
         params: GetVerticesParams,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
+        let col_names = if params.col_names.is_empty() {
+            vec!["vertex".to_string()]
+        } else {
+            params.col_names.clone()
+        };
         Self {
             base: BaseExecutor::new(id, "GetVerticesExecutor".to_string(), storage, expr_context),
             space_name: params.space_name,
@@ -54,6 +62,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
             tag_filter: params.tag_filter,
             vertex_filter: params.vertex_filter,
             limit: params.limit,
+            col_names,
         }
     }
 }
@@ -73,7 +82,7 @@ impl<S: StorageClient + 'static> Executor<S> for GetVerticesExecutor<S> {
                     .into_iter()
                     .map(|v| vec![Value::Vertex(Box::new(v))])
                     .collect();
-                let dataset = DataSet::from_rows(rows, vec!["vertex".to_string()]);
+                let dataset = DataSet::from_rows(rows, self.col_names.clone());
                 Ok(ExecutionResult::DataSet(dataset))
             }
             Err(e) => Err(e),
@@ -250,6 +259,7 @@ pub struct ScanVerticesExecutor<S: StorageClient> {
     tag_filter: Option<crate::core::Expression>,
     vertex_filter: Option<crate::core::Expression>,
     limit: Option<usize>,
+    col_names: Vec<String>,
 }
 
 impl<S: StorageClient> ScanVerticesExecutor<S> {
@@ -260,7 +270,13 @@ impl<S: StorageClient> ScanVerticesExecutor<S> {
         vertex_filter: Option<crate::core::Expression>,
         limit: Option<usize>,
         expr_context: Arc<ExpressionAnalysisContext>,
+        col_names: Vec<String>,
     ) -> Self {
+        let col_names = if col_names.is_empty() {
+            vec!["vertex".to_string()]
+        } else {
+            col_names
+        };
         Self {
             base: BaseExecutor::new(
                 id,
@@ -271,6 +287,7 @@ impl<S: StorageClient> ScanVerticesExecutor<S> {
             tag_filter,
             vertex_filter,
             limit,
+            col_names,
         }
     }
 }
@@ -287,7 +304,7 @@ impl<S: StorageClient> Executor<S> for ScanVerticesExecutor<S> {
                     .into_iter()
                     .map(|v| vec![Value::Vertex(Box::new(v))])
                     .collect();
-                let dataset = DataSet::from_rows(rows, vec!["vertex".to_string()]);
+                let dataset = DataSet::from_rows(rows, self.col_names.clone());
                 Ok(ExecutionResult::DataSet(dataset))
             }
             Err(e) => Err(e),

@@ -37,6 +37,10 @@ pub struct ExpandAllExecutor<S: StorageClient + Send + 'static> {
     pub input_var: Option<String>,
     // Column names for the output DataSet
     pub col_names: Vec<String>,
+    // Space ID for the query
+    pub space_id: u64,
+    // Space name for storage operations
+    pub space_name: String,
 }
 
 // Manual Debug implementation for ExpandAllExecutor to avoid requiring Debug trait for Executor trait object
@@ -63,6 +67,8 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
         any_edge_type: bool,
         max_depth: Option<usize>,
         expr_context: Arc<ExpressionAnalysisContext>,
+        space_id: u64,
+        space_name: String,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "ExpandAllExecutor".to_string(), storage, expr_context),
@@ -78,6 +84,8 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             include_empty_paths: true, // Default to true for backward compatibility
             input_var: None,
             col_names: vec!["src".to_string(), "edge".to_string(), "dst".to_string()],
+            space_id,
+            space_name,
         }
     }
 
@@ -89,6 +97,8 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
         any_edge_type: bool,
         max_depth: Option<usize>,
         context: crate::query::executor::base::ExecutionContext,
+        space_id: u64,
+        space_name: String,
     ) -> Self {
         Self {
             base: BaseExecutor::with_context(id, "ExpandAllExecutor".to_string(), storage, context),
@@ -104,6 +114,8 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             include_empty_paths: true,
             input_var: None,
             col_names: vec!["src".to_string(), "edge".to_string(), "dst".to_string()],
+            space_id,
+            space_name,
         }
     }
 
@@ -339,7 +351,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
         if !self.src_vids.is_empty() {
             let storage = self.get_storage().lock();
             for vid in &self.src_vids {
-                match storage.get_vertex("default", vid) {
+                match storage.get_vertex(&self.space_name, vid) {
                     Ok(Some(vertex)) => {
                         input_nodes.push(vertex);
                     }

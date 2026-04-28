@@ -81,7 +81,9 @@ fn test_match_execution_basic() {
         .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name: STRING, age: INT)")
+        .assert_success()
         .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25)")
+        .assert_success()
         .query("MATCH (n:Person) RETURN n")
         .assert_success()
         .assert_result_count(2);
@@ -250,11 +252,16 @@ fn test_go_execution_basic() {
         .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name: STRING)")
+        .assert_success()
         .exec_ddl("CREATE EDGE KNOWS(since: DATE)")
+        .assert_success()
         .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
+        .assert_success()
         .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01'), 1 -> 3:('2021-01-01')")
+        .assert_success()
         .query("GO FROM 1 OVER KNOWS")
         .assert_success()
+        .debug_print_result()
         .assert_result_count(2);
 }
 
@@ -1073,4 +1080,52 @@ fn test_yield_execution_with_where() {
         .query("GO FROM 1 OVER KNOWS YIELD target.name, target.age WHERE target.age > 25")
         .assert_success()
         .assert_result_count(2);
+}
+
+// ============================================================================
+// Tests for fixed issues
+// ============================================================================
+
+/// Test for match_query_undefined_variable fix
+/// Verifies that MATCH queries can access node properties without "Undefined variable" error
+#[test]
+fn test_match_query_variable_binding() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING, age: INT)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25)")
+        .query("MATCH (n:Person) RETURN n.name, n.age")
+        .assert_success()
+        .assert_result_count(2);
+}
+
+/// Test for go_traversal_undefined_variable fix
+/// Verifies that GO queries can access edge properties using edge type name
+#[test]
+fn test_go_traversal_edge_property_access() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since: STRING)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01')")
+        .query("GO FROM 1 OVER KNOWS YIELD KNOWS.since")
+        .assert_success()
+        .assert_result_count(1);
+}
+
+/// Test for explain_index_schema_manager fix
+/// Verifies that EXPLAIN with LOOKUP query works without "Schema manager not available" error
+#[test]
+fn test_explain_lookup_with_index() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING, age: INT)")
+        .exec_ddl("CREATE TAG INDEX idx_person_name ON Person(name)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25)")
+        .query("EXPLAIN LOOKUP ON Person WHERE Person.name == 'Alice'")
+        .assert_success();
 }
