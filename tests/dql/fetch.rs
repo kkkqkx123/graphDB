@@ -148,6 +148,39 @@ fn test_fetch_execution_with_yield() {
         .assert_result_count(1);
 }
 
+// ==================== FETCH Edge Property Tests ====================
+
+#[test]
+fn test_fetch_execution_edge_properties() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE, strength DOUBLE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE KNOWS(since, strength) VALUES 1 -> 2:('2020-01-01', 0.9)")
+        .assert_success()
+        .query("FETCH PROP ON KNOWS 1 -> 2")
+        .assert_success()
+        .assert_result_count(1)
+        .assert_result_contains(vec![graphdb::core::Value::String("since".into()), graphdb::core::Value::String("2020-01-01".into())]);
+}
+
+#[test]
+fn test_fetch_execution_vertex_properties() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT, city STRING)")
+        .exec_dml("INSERT VERTEX Person(name, age, city) VALUES 1:('Alice', 30, 'NYC')")
+        .assert_success()
+        .query("FETCH PROP ON Person 1")
+        .assert_success()
+        .assert_result_count(1)
+        .assert_result_contains(vec![graphdb::core::Value::String("name".into()), graphdb::core::Value::String("Alice".into())])
+        .assert_result_contains(vec![graphdb::core::Value::String("age".into()), graphdb::core::Value::Int(30)]);
+}
+
 // ==================== FETCH Error Handling Tests ====================
 
 #[test]

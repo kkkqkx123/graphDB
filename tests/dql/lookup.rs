@@ -132,6 +132,37 @@ fn test_lookup_execution_edge() {
         .assert_success();
 }
 
+// ==================== LOOKUP with Index Tests ====================
+
+#[test]
+fn test_lookup_execution_with_index() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .exec_ddl("CREATE TAG INDEX idx_person_age ON Person(age)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 30)")
+        .assert_success()
+        .query("LOOKUP ON Person WHERE Person.age == 30")
+        .assert_success()
+        .assert_result_count(2);
+}
+
+#[test]
+fn test_lookup_execution_with_yield() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .exec_ddl("CREATE TAG INDEX idx_person_age ON Person(age)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25)")
+        .assert_success()
+        .query("LOOKUP ON Person WHERE Person.age == 30 YIELD Person.name")
+        .assert_success()
+        .assert_result_count(1)
+        .assert_result_contains(vec![graphdb::core::Value::String("Alice".into())]);
+}
+
 // ==================== LOOKUP Error Handling Tests ====================
 
 #[test]

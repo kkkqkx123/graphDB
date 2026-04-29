@@ -7,6 +7,8 @@
 //! - LOOKUP - Index-based lookup
 //! - Aggregation - GROUP BY, ORDER BY, LIMIT
 //! - Subquery - WITH, UNWIND
+//! - FIND PATH - Path finding
+//! - SUBGRAPH - Subgraph retrieval
 
 mod common;
 mod go;
@@ -15,3 +17,5 @@ mod fetch;
 mod lookup;
 mod aggregation;
 mod subquery;
+mod find_path;
+mod subgraph;

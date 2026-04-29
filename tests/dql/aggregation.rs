@@ -214,3 +214,57 @@ fn test_skip_limit_execution() {
         .assert_success()
         .assert_result_count(2);
 }
+
+// ==================== Aggregate Function Execution Tests ====================
+
+#[test]
+fn test_sum_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Product(name STRING, price DOUBLE)")
+        .exec_dml("INSERT VERTEX Product(name, price) VALUES 1:('Laptop', 999.99), 2:('Mouse', 29.99), 3:('Keyboard', 79.99)")
+        .assert_success()
+        .query("MATCH (p:Product) RETURN SUM(p.price) AS total_price")
+        .assert_success()
+        .assert_result_count(1);
+}
+
+#[test]
+fn test_avg_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35)")
+        .assert_success()
+        .query("MATCH (p:Person) RETURN AVG(p.age) AS avg_age")
+        .assert_success()
+        .assert_result_count(1);
+}
+
+#[test]
+fn test_min_max_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Product(name STRING, price DOUBLE)")
+        .exec_dml("INSERT VERTEX Product(name, price) VALUES 1:('Laptop', 999.99), 2:('Mouse', 29.99), 3:('Keyboard', 79.99)")
+        .assert_success()
+        .query("MATCH (p:Product) RETURN MIN(p.price) AS min_price, MAX(p.price) AS max_price")
+        .assert_success()
+        .assert_result_count(1);
+}
+
+#[test]
+fn test_group_by_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Product(name STRING, category STRING, price DOUBLE)")
+        .exec_dml("INSERT VERTEX Product(name, category, price) VALUES 1:('Laptop', 'Electronics', 999.99), 2:('Mouse', 'Electronics', 29.99), 3:('Keyboard', 'Electronics', 79.99), 4:('Desk', 'Furniture', 299.99)")
+        .assert_success()
+        .query("MATCH (p:Product) RETURN p.category, COUNT(*) AS count ORDER BY count DESC")
+        .assert_success()
+        .assert_result_count(2);
+}

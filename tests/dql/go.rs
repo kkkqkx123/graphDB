@@ -155,6 +155,58 @@ fn test_go_execution_multi_steps() {
         .assert_success();
 }
 
+// ==================== GO REVERSELY and BIDIRECT Tests ====================
+
+#[test]
+fn test_go_execution_reversely() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE FOLLOWS(since DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
+        .exec_dml("INSERT EDGE FOLLOWS(since) VALUES 2 -> 1:('2020-01-01'), 3 -> 1:('2021-01-01')")
+        .assert_success()
+        .query("GO FROM 1 OVER FOLLOWS REVERSELY YIELD $^.Person.name AS follower")
+        .assert_success()
+        .assert_result_count(2);
+}
+
+#[test]
+fn test_go_execution_bidirect() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE FRIEND(since DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
+        .exec_dml("INSERT EDGE FRIEND(since) VALUES 1 -> 2:('2020-01-01'), 3 -> 1:('2021-01-01')")
+        .assert_success()
+        .query("GO FROM 1 OVER FRIEND BIDIRECT YIELD $$.Person.name AS friend")
+        .assert_success()
+        .assert_result_count(2);
+}
+
+// ==================== GO Multi-Step Traversal Tests ====================
+
+#[test]
+fn test_go_execution_basic_traversal() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie'), 4:('David')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01'), 1 -> 3:('2021-01-01'), 2 -> 4:('2022-01-01')")
+        .assert_success()
+        .query("GO FROM 1 OVER KNOWS YIELD $$.Person.name AS friend_name")
+        .assert_success()
+        .assert_result_count(2)
+        .query("GO 2 FROM 1 OVER KNOWS YIELD $$.Person.name AS friend_of_friend")
+        .assert_success()
+        .assert_result_count(1);
+}
+
 // ==================== GO Error Handling Tests ====================
 
 #[test]

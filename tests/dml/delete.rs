@@ -160,6 +160,44 @@ fn test_delete_execution_edge() {
         .assert_edge_not_exists(1, 2, "KNOWS");
 }
 
+// ==================== DELETE Edge Verification Tests ====================
+
+#[test]
+fn test_delete_edge_and_verify() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
+        .assert_success()
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01'), 1 -> 3:('2021-01-01')")
+        .assert_success()
+        .assert_edge_count("KNOWS", 2)
+        .exec_dml("DELETE EDGE KNOWS 1 -> 2")
+        .assert_success()
+        .assert_edge_not_exists(1, 2, "KNOWS")
+        .assert_edge_exists(1, 3, "KNOWS")
+        .assert_edge_count("KNOWS", 1);
+}
+
+#[test]
+fn test_delete_multiple_vertices_and_verify() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie'), 4:('David')")
+        .assert_success()
+        .assert_vertex_count("Person", 4)
+        .exec_dml("DELETE VERTEX 1, 2, 3")
+        .assert_success()
+        .assert_vertex_count("Person", 1)
+        .assert_vertex_exists(4, "Person");
+}
+
 // ==================== Error Handling Tests ====================
 
 #[test]

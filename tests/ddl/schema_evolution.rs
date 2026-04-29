@@ -114,6 +114,28 @@ fn test_complex_schema_with_multiple_tags_and_edges() {
         .assert_edge_exists(1, 101, "WORKS_AT");
 }
 
+// ==================== ALTER TAG CHANGE Tests ====================
+
+#[test]
+fn test_alter_tag_change_field() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(old_name STRING)")
+        .assert_success()
+        .exec_ddl("ALTER TAG Person CHANGE (old_name name: STRING)")
+        .assert_success()
+        .query("DESC TAG Person")
+        .assert_result_count(1)
+        .assert_result_contains(vec![
+            Value::String("name".into()),
+            Value::String("STRING".into()),
+            Value::Bool(false),
+            Value::String("".into()),
+            Value::String("".into()),
+        ]);
+}
+
 // ==================== Error Handling Tests ====================
 
 #[test]

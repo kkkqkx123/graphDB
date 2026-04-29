@@ -118,6 +118,78 @@ fn test_update_execution_edge() {
         .assert_success();
 }
 
+// ==================== UPDATE Vertex with Verification Tests ====================
+
+#[test]
+fn test_update_vertex_and_verify() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT, city STRING)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(name, age, city) VALUES 1:('Alice', 30, 'NYC')")
+        .assert_success()
+        .assert_vertex_props(1, "Person", {
+            let mut map = std::collections::HashMap::new();
+            map.insert("age", graphdb::core::Value::Int(30));
+            map.insert("city", graphdb::core::Value::String("NYC".into()));
+            map
+        })
+        .exec_dml("UPDATE 1 SET age = 31")
+        .assert_success()
+        .assert_vertex_props(1, "Person", {
+            let mut map = std::collections::HashMap::new();
+            map.insert("age", graphdb::core::Value::Int(31));
+            map
+        })
+        .exec_dml("UPDATE 1 SET age = 32, city = 'LA'")
+        .assert_success()
+        .assert_vertex_props(1, "Person", {
+            let mut map = std::collections::HashMap::new();
+            map.insert("age", graphdb::core::Value::Int(32));
+            map.insert("city", graphdb::core::Value::String("LA".into()));
+            map
+        });
+}
+
+#[test]
+fn test_update_vertex_with_condition() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT, state STRING)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(name, age, state) VALUES 1:('Alice', 30, 'active'), 2:('Bob', 25, 'inactive'), 3:('Charlie', 35, 'active')")
+        .assert_success()
+        .exec_dml("UPDATE 1 SET state = 'premium' WHEN state == 'active'")
+        .assert_success()
+        .assert_vertex_props(1, "Person", {
+            let mut map = std::collections::HashMap::new();
+            map.insert("state", graphdb::core::Value::String("premium".into()));
+            map
+        })
+        .query("FETCH PROP ON Person 2")
+        .assert_result_contains(vec![graphdb::core::Value::Int(2), graphdb::core::Value::String("state".into()), graphdb::core::Value::String("inactive".into())]);
+}
+
+#[test]
+fn test_update_edge_and_verify() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE, strength DOUBLE)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .assert_success()
+        .exec_dml("INSERT EDGE KNOWS(since, strength) VALUES 1 -> 2:('2020-01-01', 0.5)")
+        .assert_success()
+        .exec_dml("UPDATE 1 -> 2 OF KNOWS SET strength = 0.9")
+        .assert_success()
+        .query("FETCH PROP ON KNOWS 1 -> 2")
+        .assert_result_contains(vec![graphdb::core::Value::Int(1), graphdb::core::Value::Int(2), graphdb::core::Value::String("strength".into()), graphdb::core::Value::Float(0.9)]);
+}
+
 // ==================== Error Handling Tests ====================
 
 #[test]

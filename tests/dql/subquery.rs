@@ -145,6 +145,59 @@ fn test_complex_query_execution() {
         .assert_success();
 }
 
+// ==================== UNWIND with MATCH Tests ====================
+
+#[test]
+fn test_unwind_with_match_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, tags STRING)")
+        .exec_dml("INSERT VERTEX Person(name, tags) VALUES 1:('Alice', 'friend,colleague'), 2:('Bob', 'family')")
+        .assert_success()
+        .query("MATCH (n:Person) UNWIND split(n.tags, ',') AS tag RETURN n.name, tag")
+        .assert_success()
+        .assert_result_count(3);
+}
+
+#[test]
+fn test_unwind_empty_list() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .query("UNWIND [] AS n RETURN n")
+        .assert_success()
+        .assert_result_empty();
+}
+
+// ==================== WITH and ORDER BY Tests ====================
+
+#[test]
+fn test_with_order_by_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35)")
+        .assert_success()
+        .query("MATCH (n:Person) WITH n.name AS name, n.age AS age RETURN name, age ORDER BY age DESC LIMIT 2")
+        .assert_success()
+        .assert_result_count(2);
+}
+
+#[test]
+fn test_with_where_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35)")
+        .assert_success()
+        .query("MATCH (n:Person) WITH n.age AS age WHERE age > 25 RETURN age")
+        .assert_success()
+        .assert_result_count(2);
+}
+
 // ==================== Error Handling Tests ====================
 
 #[test]

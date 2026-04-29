@@ -138,6 +138,63 @@ fn test_dml_error_handling() {
     }
 }
 
+// ==================== Complete CRUD Flow Tests ====================
+
+#[test]
+fn test_complete_crud_flow() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Product(name STRING, price DOUBLE, stock INT)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Product(name, price, stock) VALUES 101:('Laptop', 999.99, 10)")
+        .assert_success()
+        .assert_vertex_exists(101, "Product")
+        .assert_vertex_props(101, "Product", {
+            let mut map = std::collections::HashMap::new();
+            map.insert("stock", graphdb::core::Value::Int(10));
+            map
+        })
+        .query("FETCH PROP ON Product 101")
+        .assert_result_count(1)
+        .assert_result_contains(vec![graphdb::core::Value::Int(101), graphdb::core::Value::String("name".into()), graphdb::core::Value::String("Laptop".into())])
+        .exec_dml("UPDATE 101 SET stock = 9")
+        .assert_success()
+        .assert_vertex_props(101, "Product", {
+            let mut map = std::collections::HashMap::new();
+            map.insert("stock", graphdb::core::Value::Int(9));
+            map
+        })
+        .exec_dml("DELETE VERTEX 101")
+        .assert_success()
+        .assert_vertex_not_exists(101, "Product");
+}
+
+#[test]
+fn test_social_network_data_flow() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("social_network")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .assert_success()
+        .exec_ddl("CREATE EDGE KNOWS(since DATE, strength DOUBLE)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35), 4:('David', 28)")
+        .assert_success()
+        .assert_vertex_count("Person", 4)
+        .exec_dml("INSERT EDGE KNOWS(since, strength) VALUES 1 -> 2:('2020-01-01', 0.9), 1 -> 3:('2021-01-01', 0.8), 2 -> 3:('2020-06-01', 0.7), 3 -> 4:('2022-01-01', 0.9)")
+        .assert_success()
+        .assert_edge_count("KNOWS", 4)
+        .query("GO FROM 1 OVER KNOWS YIELD $$.Person.name AS friend_name")
+        .assert_result_count(2)
+        .exec_dml("UPDATE 1 -> 2 OF KNOWS SET strength = 1.0")
+        .assert_success()
+        .exec_dml("DELETE EDGE KNOWS 2 -> 3")
+        .assert_success()
+        .assert_edge_not_exists(2, 3, "KNOWS")
+        .assert_edge_count("KNOWS", 3);
+}
+
 // ==================== Performance Tests ====================
 
 #[test]
