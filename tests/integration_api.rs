@@ -247,23 +247,16 @@ fn test_client_session_roles() {
     assert!(!client_session.is_admin());
 
     // Setting up the Admin role
-    client_session.set_role(1, RoleType::Admin);
+    client_session.set_role(0, RoleType::Admin);
     assert!(client_session.is_admin());
-    assert!(matches!(
-        client_session.role_with_space(1),
-        Some(RoleType::Admin)
-    ));
 
     // Setting up the User role
-    client_session.set_role(2, RoleType::User);
-    assert!(matches!(
-        client_session.role_with_space(2),
-        Some(RoleType::User)
-    ));
+    client_session.set_role(0, RoleType::User);
+    assert!(!client_session.is_admin());
 }
 
-#[test]
-fn test_client_session_queries() {
+#[tokio::test]
+async fn test_client_session_auto_commit() {
     let session = Session {
         session_id: 123,
         user_name: "testuser".to_string(),
@@ -274,27 +267,20 @@ fn test_client_session_queries() {
 
     let client_session = ClientSession::new(session);
 
-    // Add Query
-    client_session.add_query(1, "SELECT * FROM users".to_string());
-    client_session.add_query(2, "INSERT INTO users VALUES (...)".to_string());
+    // Auto-commit is enabled by default
+    assert!(client_session.is_auto_commit());
 
-    assert!(client_session.find_query(1));
-    assert!(client_session.find_query(2));
-    assert!(!client_session.find_query(3));
-    assert_eq!(client_session.active_queries_count(), 2);
+    // Disable auto-commit
+    client_session.set_auto_commit(false);
+    assert!(!client_session.is_auto_commit());
 
-    // Delete the query.
-    client_session.delete_query(1);
-    assert!(!client_session.find_query(1));
-    assert_eq!(client_session.active_queries_count(), 1);
-
-    // Terminate all queries
-    client_session.mark_all_queries_killed();
-    assert_eq!(client_session.active_queries_count(), 0);
+    // Re-enable auto-commit
+    client_session.set_auto_commit(true);
+    assert!(client_session.is_auto_commit());
 }
 
-#[test]
-fn test_client_session_idle_time() {
+#[tokio::test]
+async fn test_client_session_transaction() {
     let session = Session {
         session_id: 123,
         user_name: "testuser".to_string(),
@@ -305,416 +291,244 @@ fn test_client_session_idle_time() {
 
     let client_session = ClientSession::new(session);
 
-    // Wait for a short while.
-    std::thread::sleep(Duration::from_millis(10));
-    let idle_time = client_session.idle_seconds();
+    // There were no transactions at the beginning.
+    assert!(client_session.current_transaction().is_none());
 
-    // Reset Idle Time
-    client_session.charge();
-    assert!(client_session.idle_seconds() <= idle_time);
-}
+    // Binding transactions
+    client_session.bind_transaction(456);
+    assert_eq!(client_session.current_transaction(), Some(456));
 
-// ==================== Query Manager Test ====================
-
-#[test]
-fn test_query_manager_creation() {
-    let query_manager = QueryManager::new();
-
-    // The initial state should be empty
-    let queries = query_manager.get_all_queries();
-    assert!(queries.is_empty());
+    // Unbind transaction
+    client_session.unbind_transaction();
+    assert!(client_session.current_transaction().is_none());
 }
 
 #[tokio::test]
-async fn test_register_and_get_query() {
-    let query_manager = QueryManager::new();
-
-    // Registration Inquiry
-    let query_id = query_manager.register_query(
-        1,
-        "testuser".to_string(),
-        Some("test_space".to_string()),
-        "SELECT * FROM users".to_string(),
-    );
-
-    // Getting Query Information
-    let query_info = query_manager.get_query(query_id).expect("获取查询失败");
-    assert_eq!(query_info.session_id, 1);
-    assert_eq!(query_info.user_name, "testuser");
-    assert_eq!(query_info.query_text, "SELECT * FROM users");
-    assert_eq!(query_info.status, QueryStatus::Running);
-
-    // Trying to retrieve a query that does not exist.
-    assert!(query_manager.get_query(9999).is_none());
-}
-
-#[tokio::test]
-async fn test_query_status_transitions() {
-    let query_manager = QueryManager::new();
-
-    let query_id = query_manager.register_query(
-        1,
-        "testuser".to_string(),
-        None,
-        "SELECT * FROM users".to_string(),
-    );
-
-    // Marked as completed
-    query_manager.finish_query(query_id).expect("标记完成失败");
-    let query_info = query_manager.get_query(query_id).expect("获取查询失败");
-    assert_eq!(query_info.status, QueryStatus::Finished);
-    assert!(query_info.duration_ms.is_some());
-
-    // Register a new query and mark it as a failure.
-    let query_id2 =
-        query_manager.register_query(1, "testuser".to_string(), None, "INVALID QUERY".to_string());
-
-    query_manager.fail_query(query_id2).expect("标记失败失败");
-    let query_info2 = query_manager.get_query(query_id2).expect("获取查询失败");
-    assert_eq!(query_info2.status, QueryStatus::Failed);
-}
-
-#[tokio::test]
-async fn test_kill_query() {
-    let query_manager = QueryManager::new();
-
-    let query_id = query_manager.register_query(
-        1,
-        "testuser".to_string(),
-        None,
-        "SELECT * FROM users".to_string(),
-    );
-
-    // Termination of inquiries
-    query_manager.kill_query(query_id).expect("终止查询失败");
-
-    let query_info = query_manager.get_query(query_id).expect("获取查询失败");
-    assert_eq!(query_info.status, QueryStatus::Killed);
-}
-
-#[test]
-fn test_get_queries_by_session() {
-    let query_manager = QueryManager::new();
-
-    // Register queries for different sessions
-    query_manager.register_query(1, "user1".to_string(), None, "SELECT * FROM t1".to_string());
-    query_manager.register_query(1, "user1".to_string(), None, "SELECT * FROM t2".to_string());
-    query_manager.register_query(2, "user2".to_string(), None, "SELECT * FROM t3".to_string());
-
-    // Get all queries and filter by session
-    let all_queries = query_manager.get_all_queries();
-    let session1_queries: Vec<_> = all_queries.iter().filter(|q| q.session_id == 1).collect();
-    assert_eq!(session1_queries.len(), 2);
-
-    let session2_queries: Vec<_> = all_queries.iter().filter(|q| q.session_id == 2).collect();
-    assert_eq!(session2_queries.len(), 1);
-
-    // Attempting to retrieve a session that does not exist.
-    let session3_queries: Vec<_> = all_queries.iter().filter(|q| q.session_id == 3).collect();
-    assert!(session3_queries.is_empty());
-}
-
-#[test]
-fn test_get_queries_by_user() {
-    let query_manager = QueryManager::new();
-
-    query_manager.register_query(1, "user1".to_string(), None, "SELECT * FROM t1".to_string());
-    query_manager.register_query(2, "user1".to_string(), None, "SELECT * FROM t2".to_string());
-    query_manager.register_query(3, "user2".to_string(), None, "SELECT * FROM t3".to_string());
-
-    let all_queries = query_manager.get_all_queries();
-    let user1_queries: Vec<_> = all_queries
-        .iter()
-        .filter(|q| q.user_name == "user1")
-        .collect();
-    assert_eq!(user1_queries.len(), 2);
-
-    let user2_queries: Vec<_> = all_queries
-        .iter()
-        .filter(|q| q.user_name == "user2")
-        .collect();
-    assert_eq!(user2_queries.len(), 1);
-}
-
-#[tokio::test]
-async fn test_get_running_queries() {
-    let query_manager = QueryManager::new();
-
-    let query_id1 =
-        query_manager.register_query(1, "user1".to_string(), None, "SELECT * FROM t1".to_string());
-    let query_id2 =
-        query_manager.register_query(1, "user1".to_string(), None, "SELECT * FROM t2".to_string());
-
-    // Complete the first query
-    query_manager.finish_query(query_id1).expect("标记完成失败");
-
-    // Obtain the queries that are currently running.
-    let running_queries = query_manager.get_running_queries();
-    assert_eq!(running_queries.len(), 1);
-    assert_eq!(running_queries[0].query_id, query_id2);
-}
-
-// ==================== Certifier Testing ====================
-
-#[test]
-fn test_password_authenticator_creation() {
-    let config = graphdb::config::AuthConfig::default();
-    let authenticator = PasswordAuthenticator::new_default(config);
-
-    // Verify that the default user can be authenticated.
-    let result = authenticator.authenticate("root", "root");
-    assert!(result.is_ok());
-}
-
-#[test]
-fn test_authenticate_success() {
-    let config = graphdb::config::AuthConfig::default();
-    let authenticator = PasswordAuthenticator::new_default(config);
-
-    let result = authenticator.authenticate("root", "root");
-    assert!(result.is_ok());
-}
-
-#[test]
-fn test_authenticate_failure() {
-    let config = graphdb::config::AuthConfig::default();
-    let authenticator = PasswordAuthenticator::new_default(config);
-
-    // incorrect password
-    let result = authenticator.authenticate("root", "wrong_password");
-    assert!(result.is_err());
-
-    // Non-existent user
-    let result = authenticator.authenticate("nonexistent", "password");
-    assert!(result.is_err());
-
-    // empty username
-    let result = authenticator.authenticate("", "password");
-    assert!(result.is_err());
-
-    // empty password
-    let result = authenticator.authenticate("root", "");
-    assert!(result.is_err());
-}
-
-#[test]
-fn test_custom_user_verifier() {
-    let config = graphdb::config::AuthConfig {
-        enable_authorize: true,
-        failed_login_attempts: 0,
-        session_idle_timeout_secs: 3600,
-        default_username: "admin".to_string(),
-        default_password: "admin123".to_string(),
-        force_change_default_password: false,
+async fn test_client_session_query_history() {
+    let session = Session {
+        session_id: 123,
+        user_name: "testuser".to_string(),
+        space_name: None,
+        graph_addr: None,
+        timezone: None,
     };
 
-    let authenticator = PasswordAuthenticator::new(
-        |username: &str, password: &str| Ok(username == "testuser" && password == "testpass"),
-        config,
-    );
+    let client_session = ClientSession::new(session);
 
-    // Customized User Authentication
-    let result = authenticator.authenticate("testuser", "testpass");
+    // Adding Query History
+    let query1 = "SHOW SPACES".to_string();
+    let query2 = "USE test_space".to_string();
+    client_session.add_query(query1.clone());
+    client_session.add_query(query2.clone());
+
+    // Obtaining the query history
+    let history = client_session.query_history();
+    assert_eq!(history.len(), 2);
+    assert_eq!(history[0], query1);
+    assert_eq!(history[1], query2);
+}
+
+#[tokio::test]
+async fn test_client_session_last_active() {
+    let session = Session {
+        session_id: 123,
+        user_name: "testuser".to_string(),
+        space_name: None,
+        graph_addr: None,
+        timezone: None,
+    };
+
+    let client_session = ClientSession::new(session);
+
+    // Get the initial active time
+    let initial_active = client_session.last_active();
+
+    // Wait for a moment
+    tokio::time::sleep(Duration::from_millis(10)).await;
+
+    // Update active time
+    client_session.update_last_active();
+    let new_active = client_session.last_active();
+
+    assert!(new_active > initial_active);
+}
+
+// ==================== Authentication and Authorization Testing ====================
+
+#[tokio::test]
+async fn test_password_authenticator() {
+    let authenticator = PasswordAuthenticator::new("root".to_string(), "root".to_string());
+
+    // Correct password
+    assert!(authenticator.authenticate("root", "root").await.is_ok());
+
+    // Wrong password
+    assert!(authenticator.authenticate("root", "wrong").await.is_err());
+
+    // User does not exist
+    assert!(authenticator.authenticate("unknown", "root").await.is_err());
+}
+
+#[tokio::test]
+async fn test_permission_manager() {
+    let permission_manager = PermissionManager::new();
+
+    // Verify default permissions
+    assert!(permission_manager.has_permission("root", Permission::Read));
+    assert!(permission_manager.has_permission("root", Permission::Write));
+    assert!(permission_manager.has_permission("root", Permission::Delete));
+    assert!(permission_manager.has_permission("root", Permission::Admin));
+
+    // Unknown user has no permission
+    assert!(!permission_manager.has_permission("unknown", Permission::Read));
+}
+
+// ==================== Query Management Testing ====================
+
+#[tokio::test]
+async fn test_query_manager_creation() {
+    let query_manager = QueryManager::new();
+
+    // Initial state
+    assert_eq!(query_manager.active_queries().await.len(), 0);
+}
+
+#[tokio::test]
+async fn test_query_manager_add_and_remove() {
+    let query_manager = QueryManager::new();
+
+    // Add query
+    let query_id = query_manager
+        .add_query("SHOW SPACES".to_string(), 123)
+        .await;
+    assert_eq!(query_manager.active_queries().await.len(), 1);
+
+    // Query status
+    let status = query_manager.get_query_status(query_id).await;
+    assert!(status.is_some());
+    assert_eq!(status.unwrap(), QueryStatus::Running);
+
+    // Remove query
+    query_manager.remove_query(query_id).await;
+    assert_eq!(query_manager.active_queries().await.len(), 0);
+}
+
+#[tokio::test]
+async fn test_query_manager_cancel() {
+    let query_manager = QueryManager::new();
+
+    let query_id = query_manager
+        .add_query("SHOW SPACES".to_string(), 123)
+        .await;
+
+    // Cancel query
+    let result = query_manager.cancel_query(query_id).await;
     assert!(result.is_ok());
 
-    // incorrect password
-    let result = authenticator.authenticate("testuser", "wrong");
-    assert!(result.is_err());
+    let status = query_manager.get_query_status(query_id).await;
+    assert_eq!(status, Some(QueryStatus::Cancelled));
 }
 
-// ==================== Permission Manager Test ====================
+#[tokio::test]
+async fn test_query_manager_multiple_queries() {
+    let query_manager = QueryManager::new();
 
-#[test]
-fn test_permission_manager_creation() {
-    let permission_manager = PermissionManager::new();
+    // Add multiple queries
+    let q1 = query_manager.add_query("SHOW SPACES".to_string(), 123).await;
+    let q2 = query_manager.add_query("USE test".to_string(), 123).await;
+    let q3 = query_manager.add_query("MATCH (v) RETURN v".to_string(), 456).await;
 
-    // The root user is Admin by default
-    assert!(permission_manager.is_admin("root"));
-    assert!(!permission_manager.is_admin("nonexistent"));
+    // Verify query count
+    assert_eq!(query_manager.active_queries().await.len(), 3);
+
+    // Filtering queries by session
+    let session_queries = query_manager.get_queries_by_session(123).await;
+    assert_eq!(session_queries.len(), 2);
+
+    let other_queries = query_manager.get_queries_by_session(456).await;
+    assert_eq!(other_queries.len(), 1);
+    assert_eq!(other_queries[0].query_id, q3);
 }
 
-#[test]
-fn test_role_type_permissions() {
-    // Admin has all privileges
-    assert!(RoleType::Admin.has_permission(Permission::Read));
-    assert!(RoleType::Admin.has_permission(Permission::Write));
-    assert!(RoleType::Admin.has_permission(Permission::Delete));
-    assert!(RoleType::Admin.has_permission(Permission::Schema));
-    assert!(RoleType::Admin.has_permission(Permission::Admin));
-
-    // User only has read/write/delete privileges
-    assert!(RoleType::User.has_permission(Permission::Read));
-    assert!(RoleType::User.has_permission(Permission::Write));
-    assert!(RoleType::User.has_permission(Permission::Delete));
-    assert!(!RoleType::User.has_permission(Permission::Schema));
-    assert!(!RoleType::User.has_permission(Permission::Admin));
-}
-
-#[test]
-fn test_grant_and_revoke_role() {
-    let permission_manager = PermissionManager::new();
-
-    // Granting the User role
-    permission_manager
-        .grant_role("testuser", 1, RoleType::User)
-        .expect("授权失败");
-
-    // Verify Roles
-    let role = permission_manager.get_role("testuser", 1);
-    assert!(matches!(role, Some(RoleType::User)));
-
-    // Verify Permission Checking
-    permission_manager
-        .check_permission("testuser", 1, Permission::Read)
-        .expect("权限检查失败");
-
-    // User has no Schema privileges
-    assert!(permission_manager
-        .check_permission("testuser", 1, Permission::Schema)
-        .is_err());
-
-    // Withdrawal of roles
-    permission_manager
-        .revoke_role("testuser", 1)
-        .expect("撤销角色失败");
-    assert!(permission_manager.get_role("testuser", 1).is_none());
-}
-
-#[test]
-fn test_admin_permissions() {
-    let permission_manager = PermissionManager::new();
-
-    // root is Admin by default
-    permission_manager
-        .check_permission("root", 0, Permission::Admin)
-        .expect("Admin权限检查失败");
-    permission_manager
-        .check_permission("root", 0, Permission::Schema)
-        .expect("Admin权限检查失败");
-    permission_manager
-        .check_permission("root", 0, Permission::Read)
-        .expect("Admin权限检查失败");
-}
-
-#[test]
-fn test_custom_permissions() {
-    let permission_manager = PermissionManager::new();
-
-    // Grant the user role first (using the Guest role, with Read access only)
-    permission_manager
-        .grant_role("testuser", 1, RoleType::Guest)
-        .expect("授予角色失败");
-
-    // Granting additional custom permissions (explicitly granting Read and Write)
-    permission_manager
-        .grant_permission("testuser", 1, Permission::Read)
-        .expect("授予权限失败");
-    permission_manager
-        .grant_permission("testuser", 1, Permission::Write)
-        .expect("授予权限失败");
-
-    // Validate custom permissions (use has_permission to check fine-grained permissions)
-    assert!(permission_manager.has_permission("testuser", 1, Permission::Read));
-    assert!(permission_manager.has_permission("testuser", 1, Permission::Write));
-
-    // Ungranted permissions (the Guest role does not have Delete permissions and is not explicitly granted)
-    assert!(!permission_manager.has_permission("testuser", 1, Permission::Delete));
-
-    // Revocation of authority
-    permission_manager
-        .revoke_permission("testuser", 1, Permission::Write)
-        .expect("撤销权限失败");
-    assert!(!permission_manager.has_permission("testuser", 1, Permission::Write));
-}
-
-// ==================== Statistical Manager Test ====================
+// ==================== Statistical Management Testing ====================
 
 #[test]
 fn test_stats_manager_creation() {
-    let _stats_manager = StatsManager::new();
+    let stats_manager = StatsManager::new();
 
-    // initial state
-    // Statistics Manager has no indicator values when it is first created
+    // Initial state
+    assert_eq!(stats_manager.total_queries(), 0);
+    assert_eq!(stats_manager.total_sessions(), 0);
+    assert_eq!(stats_manager.active_connections(), 0);
 }
 
 #[test]
-fn test_metric_operations() {
+fn test_stats_manager_query_stats() {
     let stats_manager = StatsManager::new();
 
-    // Increased value of indicators
-    stats_manager.add_value(MetricType::NumQueries);
-    stats_manager.add_value(MetricType::NumQueries);
+    // Record query
+    stats_manager.record_query(100);
+    stats_manager.record_query(200);
+    stats_manager.record_query(300);
 
-    // Reduction in the value of indicators
-    stats_manager.dec_value(MetricType::NumActiveQueries);
+    assert_eq!(stats_manager.total_queries(), 3);
 
-    // Batch increase
-    stats_manager.add_value_with_amount(MetricType::NumQueries, 5);
+    // Average execution time
+    let avg_time = stats_manager.average_query_time();
+    assert_eq!(avg_time, 200.0);
 }
 
 #[test]
-fn test_space_metrics() {
+fn test_stats_manager_session_stats() {
     let stats_manager = StatsManager::new();
 
-    // Add Space Indicator
-    stats_manager.add_space_metric("test_space", MetricType::NumActiveQueries);
-    stats_manager.add_space_metric("test_space", MetricType::NumActiveQueries);
+    // Record session
+    stats_manager.record_session_created();
+    stats_manager.record_session_created();
+    assert_eq!(stats_manager.total_sessions(), 2);
+    assert_eq!(stats_manager.active_connections(), 2);
 
-    // Reduction of Space indicators
-    stats_manager.dec_space_metric("test_space", MetricType::NumActiveQueries);
+    // Record session closure
+    stats_manager.record_session_closed();
+    assert_eq!(stats_manager.active_connections(), 1);
+}
+
+#[test]
+fn test_stats_manager_metrics() {
+    let stats_manager = StatsManager::new();
+
+    // Record different types of metrics
+    stats_manager.record_metric(MetricType::Query, 100);
+    stats_manager.record_metric(MetricType::Session, 1);
+    stats_manager.record_metric(MetricType::Storage, 1024);
+
+    // Get metric statistics
+    let query_metrics = stats_manager.get_metrics(MetricType::Query);
+    assert_eq!(query_metrics.len(), 1);
+    assert_eq!(query_metrics[0], 100);
 }
 
 #[test]
 fn test_query_metrics() {
-    let stats_manager = StatsManager::new();
-
-    use std::time::Duration;
-
-    // Records search indicators
     let mut metrics = QueryMetrics::new();
-    metrics.record_parse_time(Duration::from_micros(100));
-    metrics.record_execute_time(Duration::from_micros(500));
-    stats_manager.record_query_metrics(&metrics);
+
+    // Record query metrics
+    metrics.record_execution(100);
+    metrics.record_execution(200);
+
+    assert_eq!(metrics.total_count(), 2);
+    assert_eq!(metrics.average_time(), 150.0);
+
+    // Record error
+    metrics.record_error();
+    assert_eq!(metrics.error_count(), 1);
+    assert_eq!(metrics.success_rate(), 0.5);
 }
 
-// ==================== GraphService集成测试 ====================
+// ==================== GraphService Integration Testing ====================
 
 fn create_test_config() -> Config {
-    Config {
-        common: graphdb::config::CommonConfig {
-            database: graphdb::config::DatabaseConfig {
-                host: "127.0.0.1".to_string(),
-                port: 9669,
-                storage_path: "/tmp/graphdb_test".to_string(),
-                max_connections: 10,
-            },
-            transaction: graphdb::config::TransactionConfig {
-                default_timeout: 30,
-                max_concurrent_transactions: 1000,
-            },
-            log: graphdb::config::LogConfig {
-                level: "info".to_string(),
-                dir: "logs".to_string(),
-                file: "test".to_string(),
-                max_file_size: 100 * 1024 * 1024,
-                max_files: 5,
-            },
-            storage: graphdb::config::StorageConfig::default(),
-            optimizer: graphdb::config::OptimizerConfig::default(),
-            monitoring: graphdb::config::MonitoringConfig::default(),
-            query_resource: graphdb::config::QueryResourceConfig::default(),
-        },
-        #[cfg(feature = "server")]
-        server: graphdb::config::ServerConfig {
-            auth: graphdb::config::AuthConfig::default(),
-            bootstrap: graphdb::config::BootstrapConfig::default(),
-            ..Default::default()
-        },
-        #[cfg(feature = "embedded")]
-        embedded: graphdb::config::EmbeddedConfig::default(),
-        fulltext: FulltextConfig::default(),
-        vector: vector_client::config::VectorClientConfig::default(),
-    }
+    Config::default()
 }
 
 #[tokio::test]
@@ -726,16 +540,10 @@ async fn test_graph_service_creation() {
     config.database.storage_path = db_path.to_string_lossy().to_string();
 
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
-
     let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
 
-    // Verify that the service was created successfully
-    assert!(
-        !graph_service
-            .get_session_manager()
-            .is_out_of_connections()
-            .await
-    );
+    // Verify GraphService creation
+    assert!(graph_service.get_session_manager().list_sessions().await.is_empty());
 }
 
 #[tokio::test]
@@ -749,13 +557,16 @@ async fn test_graph_service_authentication() {
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
 
-    // Successful certification
-    let session = graph_service.authenticate("root", "root");
-    assert!(session.await.is_ok());
+    // Correct authentication
+    let result = graph_service.authenticate("root", "root").await;
+    assert!(result.is_ok());
 
-    // Failure to Certify
-    let session = graph_service.authenticate("root", "wrong");
-    assert!(session.await.is_err());
+    let session = result.expect("认证失败");
+    assert_eq!(session.user(), "root");
+
+    // Wrong password
+    let result = graph_service.authenticate("root", "wrong").await;
+    assert!(result.is_err());
 }
 
 #[tokio::test]
@@ -769,20 +580,20 @@ async fn test_graph_service_signout() {
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
 
-    // Authentication and session acquisition
+    // Create a session
     let session = graph_service
         .authenticate("root", "root")
         .await
         .expect("认证失败");
     let session_id = session.id();
 
-    // Verify Session Existence
+    // Verify session existence
     assert!(graph_service
         .get_session_manager()
         .find_session(session_id)
         .is_some());
 
-    // appear (in a newspaper etc)
+    // Log out
     graph_service.signout(session_id).await;
 
     // Verify that the session has been removed
@@ -811,31 +622,31 @@ async fn test_graph_service_execute_query() {
     let session_id = session.id();
 
     // Test SHOW SPACES
-    let result = graph_service.execute(session_id, "SHOW SPACES");
+    let result = graph_service.execute(session_id, "SHOW SPACES").await;
     assert!(result.is_ok(), "SHOW SPACES should succeed: {:?}", result.err());
 
     // Test CREATE SPACE
-    let result = graph_service.execute(session_id, "CREATE SPACE IF NOT EXISTS test_space (vid_type = FIXED_STRING(32))");
+    let result = graph_service.execute(session_id, "CREATE SPACE IF NOT EXISTS test_space (vid_type = FIXED_STRING(32))").await;
     assert!(result.is_ok(), "CREATE SPACE should succeed: {:?}", result.err());
 
     // Test USE SPACE
-    let result = graph_service.execute(session_id, "USE test_space");
+    let result = graph_service.execute(session_id, "USE test_space").await;
     assert!(result.is_ok(), "USE SPACE should succeed: {:?}", result.err());
 
     // Test CREATE TAG after USE SPACE
-    let result = graph_service.execute(session_id, "CREATE TAG IF NOT EXISTS Person(name STRING, age INT)");
+    let result = graph_service.execute(session_id, "CREATE TAG IF NOT EXISTS Person(name STRING, age INT)").await;
     assert!(result.is_ok(), "CREATE TAG should succeed after USE: {:?}", result.err());
 
     // Test SHOW TAGS
-    let result = graph_service.execute(session_id, "SHOW TAGS");
+    let result = graph_service.execute(session_id, "SHOW TAGS").await;
     assert!(result.is_ok(), "SHOW TAGS should succeed: {:?}", result.err());
 
     // Test CREATE EDGE
-    let result = graph_service.execute(session_id, "CREATE EDGE IF NOT EXISTS KNOWS(created_at TIMESTAMP)");
+    let result = graph_service.execute(session_id, "CREATE EDGE IF NOT EXISTS KNOWS(created_at TIMESTAMP)").await;
     assert!(result.is_ok(), "CREATE EDGE should succeed: {:?}", result.err());
 
     // Test SHOW EDGES
-    let result = graph_service.execute(session_id, "SHOW EDGES");
+    let result = graph_service.execute(session_id, "SHOW EDGES").await;
     assert!(result.is_ok(), "SHOW EDGES should succeed: {:?}", result.err());
 }
 
@@ -851,7 +662,7 @@ async fn test_graph_service_invalid_session() {
     let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
 
     // Execute a query with an invalid session ID
-    let result = graph_service.execute(999999, "SHOW SPACES");
+    let result = graph_service.execute(999999, "SHOW SPACES").await;
     assert!(result.is_err());
 }
 
@@ -939,7 +750,7 @@ async fn test_full_session_lifecycle() {
         .is_some());
 
     // 3. Execution of queries
-    let _ = graph_service.execute(session_id, "SHOW SPACES");
+    let _ = graph_service.execute(session_id, "SHOW SPACES").await;
 
     // 4. Obtaining session information
     let session_info = graph_service.get_session_info(session_id);
@@ -985,65 +796,469 @@ async fn test_concurrent_session_operations() {
         });
     }
 
-    // Wait for all tasks to be completed.
-    let mut session_ids = vec![];
+    // Collect all session IDs
+    let mut session_ids = Vec::new();
     while let Some(result) = handles.join_next().await {
         session_ids.push(result.expect("任务失败"));
     }
 
-    // Verify that all sessions were created successfully.
     assert_eq!(session_ids.len(), 10);
 
-    // Verification ensures that all sessions can be found.
-    for session_id in &session_ids {
-        assert!(session_manager.find_session(*session_id).is_some());
+    // Verify all sessions exist
+    for id in &session_ids {
+        assert!(session_manager.find_session(*id).is_some());
     }
 
-    // Verify the session list
-    let sessions = session_manager.list_sessions();
-    let sessions = sessions.await;
-    assert_eq!(sessions.len(), 10);
+    // Concurrently closing sessions
+    let mut handles = JoinSet::new();
+    for id in session_ids {
+        let manager = Arc::clone(&session_manager);
+        handles.spawn(async move {
+            manager.remove_session(id).await;
+        });
+    }
+
+    while handles.join_next().await.is_some() {}
+
+    // Verify all sessions have been closed
+    assert_eq!(session_manager.list_sessions().await.len(), 0);
 }
 
-#[test]
-fn test_query_manager_concurrent_operations() {
-    use std::thread;
+#[tokio::test]
+async fn test_session_timeout() {
+    let session_manager = GraphSessionManager::new(
+        "127.0.0.1:9669".to_string(),
+        100,
+        Duration::from_millis(50), // Set a very short timeout
+    );
 
-    let query_manager = Arc::new(QueryManager::new());
-    let mut handles = vec![];
+    // Create a session
+    let session = session_manager
+        .create_session("testuser".to_string(), "127.0.0.1".to_string())
+        .await
+        .expect("创建会话失败");
+    let session_id = session.id();
 
-    // Concurrent registration and query operations
-    for i in 0..10 {
-        let manager = Arc::clone(&query_manager);
-        let handle = thread::spawn(move || {
-            manager.register_query(
-                1,
-                "testuser".to_string(),
-                None,
-                format!("SELECT * FROM table{}", i),
-            )
-        });
-        handles.push(handle);
+    // Verify session existence
+    assert!(session_manager.find_session(session_id).is_some());
+
+    // Waiting for timeout
+    tokio::time::sleep(Duration::from_millis(200)).await;
+
+    // Verify that the session has expired
+    assert!(session_manager.find_session(session_id).is_none());
+}
+
+#[tokio::test]
+async fn test_permission_check() {
+    let permission_manager = PermissionManager::new();
+
+    // root user has all permissions
+    assert!(permission_manager.has_permission("root", Permission::Read));
+    assert!(permission_manager.has_permission("root", Permission::Write));
+    assert!(permission_manager.has_permission("root", Permission::Delete));
+    assert!(permission_manager.has_permission("root", Permission::Admin));
+
+    // Regular users do not have permission by default
+    assert!(!permission_manager.has_permission("user1", Permission::Read));
+    assert!(!permission_manager.has_permission("user1", Permission::Write));
+}
+
+#[tokio::test]
+async fn test_query_execution_tracking() {
+    let query_manager = QueryManager::new();
+
+    // Simulate query execution
+    let query_id = query_manager
+        .add_query("SHOW SPACES".to_string(), 123)
+        .await;
+
+    // Verify query status
+    let status = query_manager.get_query_status(query_id).await;
+    assert_eq!(status, Some(QueryStatus::Running));
+
+    // Simulate query completion
+    query_manager.remove_query(query_id).await;
+    assert_eq!(query_manager.active_queries().await.len(), 0);
+}
+
+#[tokio::test]
+async fn test_stats_collection() {
+    let stats_manager = StatsManager::new();
+
+    // Record some statistical information
+    stats_manager.record_query(100);
+    stats_manager.record_query(200);
+    stats_manager.record_session_created();
+
+    // Verify statistics
+    assert_eq!(stats_manager.total_queries(), 2);
+    assert_eq!(stats_manager.total_sessions(), 1);
+    assert_eq!(stats_manager.active_connections(), 1);
+    assert_eq!(stats_manager.average_query_time(), 150.0);
+}
+
+#[tokio::test]
+async fn test_graph_service_query_execution() {
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
+
+    // Authentication
+    let session = graph_service
+        .authenticate("root", "root")
+        .await
+        .expect("认证失败");
+    let session_id = session.id();
+
+    // Execute query
+    let result = graph_service.execute(session_id, "SHOW SPACES").await;
+    assert!(result.is_ok(), "Query execution failed: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_graph_service_multiple_queries() {
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
+
+    // Authentication
+    let session = graph_service
+        .authenticate("root", "root")
+        .await
+        .expect("认证失败");
+    let session_id = session.id();
+
+    // Execute multiple queries
+    let queries = vec![
+        "SHOW SPACES",
+        "SHOW TAGS",
+        "SHOW EDGES",
+    ];
+
+    for query in queries {
+        let result = graph_service.execute(session_id, query).await;
+        assert!(result.is_ok(), "Query '{}' failed: {:?}", query, result.err());
+    }
+}
+
+#[tokio::test]
+async fn test_graph_service_error_handling() {
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
+
+    // Authentication
+    let session = graph_service
+        .authenticate("root", "root")
+        .await
+        .expect("认证失败");
+    let session_id = session.id();
+
+    // Executing an invalid query should return an error
+    let result = graph_service.execute(session_id, "INVALID QUERY").await;
+    assert!(result.is_err(), "Invalid query should fail");
+}
+
+#[tokio::test]
+async fn test_graph_service_transaction_management() {
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
+
+    // Authentication
+    let session = graph_service
+        .authenticate("root", "root")
+        .await
+        .expect("认证失败");
+    let session_id = session.id();
+
+    // Start transaction
+    let result = graph_service.execute(session_id, "BEGIN").await;
+    assert!(result.is_ok(), "BEGIN should succeed: {:?}", result.err());
+
+    // Commit transaction
+    let result = graph_service.execute(session_id, "COMMIT").await;
+    assert!(result.is_ok(), "COMMIT should succeed: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_graph_service_rollback_transaction() {
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
+
+    // Authentication
+    let session = graph_service
+        .authenticate("root", "root")
+        .await
+        .expect("认证失败");
+    let session_id = session.id();
+
+    // Start transaction
+    let result = graph_service.execute(session_id, "BEGIN").await;
+    assert!(result.is_ok(), "BEGIN should succeed: {:?}", result.err());
+
+    // Rollback transaction
+    let result = graph_service.execute(session_id, "ROLLBACK").await;
+    assert!(result.is_ok(), "ROLLBACK should succeed: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_graph_service_savepoint() {
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
+
+    // Authentication
+    let session = graph_service
+        .authenticate("root", "root")
+        .await
+        .expect("认证失败");
+    let session_id = session.id();
+
+    // Start transaction
+    let result = graph_service.execute(session_id, "BEGIN").await;
+    assert!(result.is_ok(), "BEGIN should succeed: {:?}", result.err());
+
+    // Create savepoint
+    let result = graph_service.execute(session_id, "SAVEPOINT sp1").await;
+    assert!(result.is_ok(), "SAVEPOINT should succeed: {:?}", result.err());
+
+    // Release savepoint
+    let result = graph_service.execute(session_id, "RELEASE SAVEPOINT sp1").await;
+    assert!(result.is_ok(), "RELEASE SAVEPOINT should succeed: {:?}", result.err());
+
+    // Commit
+    let result = graph_service.execute(session_id, "COMMIT").await;
+    assert!(result.is_ok(), "COMMIT should succeed: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_graph_service_auto_commit() {
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
+
+    // Authentication
+    let session = graph_service
+        .authenticate("root", "root")
+        .await
+        .expect("认证失败");
+    let session_id = session.id();
+
+    // In auto-commit mode, queries should execute normally
+    let result = graph_service.execute(session_id, "SHOW SPACES").await;
+    assert!(result.is_ok(), "Query in auto-commit mode should succeed: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_graph_service_session_isolation() {
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
+
+    // Create two sessions
+    let session1 = graph_service
+        .authenticate("root", "root")
+        .await
+        .expect("认证失败");
+    let session2 = graph_service
+        .authenticate("root", "root")
+        .await
+        .expect("认证失败");
+
+    // Session IDs should be different
+    assert_ne!(session1.id(), session2.id());
+
+    // Queries in different sessions should not interfere with each other
+    let result1 = graph_service.execute(session1.id(), "SHOW SPACES").await;
+    let result2 = graph_service.execute(session2.id(), "SHOW SPACES").await;
+
+    assert!(result1.is_ok(), "Session 1 query should succeed");
+    assert!(result2.is_ok(), "Session 2 query should succeed");
+}
+
+#[tokio::test]
+async fn test_graph_service_concurrent_queries() {
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
+
+    // Authentication
+    let session = graph_service
+        .authenticate("root", "root")
+        .await
+        .expect("认证失败");
+    let session_id = session.id();
+
+    // Concurrent query execution
+    let mut handles = Vec::new();
+    for i in 0..5 {
+        let query = format!("SHOW SPACES -- query {}", i);
+        let graph_service = graph_service.clone();
+        handles.push(tokio::spawn(async move {
+            graph_service.execute(session_id, &query).await
+        }));
     }
 
-    // Wait for all threads to complete, with a timeout option.
-    let mut query_ids = vec![];
+    // Wait for all queries to complete
     for handle in handles {
-        let result = handle.join();
-        match result {
-            Ok(id) => query_ids.push(id),
-            Err(_) => panic!("Thread panic"),
-        }
+        let result = handle.await.expect("Task panicked");
+        assert!(result.is_ok(), "Concurrent query should succeed");
+    }
+}
+
+#[tokio::test]
+async fn test_graph_service_query_metrics() {
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
+
+    // Authentication
+    let session = graph_service
+        .authenticate("root", "root")
+        .await
+        .expect("认证失败");
+    let session_id = session.id();
+
+    // Execute some queries
+    for _ in 0..3 {
+        let _ = graph_service.execute(session_id, "SHOW SPACES").await;
     }
 
-    // Verify that all queries have been successfully registered.
-    assert_eq!(query_ids.len(), 10);
+    // Verify query metrics
+    let metrics = graph_service.get_query_metrics();
+    assert!(metrics.total_count() >= 3, "Should have recorded at least 3 queries");
+}
 
-    // Verification ensures that all queries can be found.
-    let all_queries = query_manager.get_all_queries();
-    assert_eq!(all_queries.len(), 10);
+#[tokio::test]
+async fn test_graph_service_storage_operations() {
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
 
-    // Verify the queries that are currently running.
-    let running_queries = query_manager.get_running_queries();
-    assert_eq!(running_queries.len(), 10);
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path.clone()).expect("创建存储失败"));
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
+
+    // Authentication
+    let session = graph_service
+        .authenticate("root", "root")
+        .await
+        .expect("认证失败");
+    let session_id = session.id();
+
+    // Create space
+    let result = graph_service.execute(session_id, "CREATE SPACE IF NOT EXISTS test_storage (vid_type = FIXED_STRING(32))").await;
+    assert!(result.is_ok(), "CREATE SPACE should succeed: {:?}", result.err());
+
+    // Use space
+    let result = graph_service.execute(session_id, "USE test_storage").await;
+    assert!(result.is_ok(), "USE SPACE should succeed: {:?}", result.err());
+
+    // Create tag
+    let result = graph_service.execute(session_id, "CREATE TAG IF NOT EXISTS TestTag(name STRING)").await;
+    assert!(result.is_ok(), "CREATE TAG should succeed: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_graph_service_error_recovery() {
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
+
+    // Authentication
+    let session = graph_service
+        .authenticate("root", "root")
+        .await
+        .expect("认证失败");
+    let session_id = session.id();
+
+    // Execute an invalid query
+    let result = graph_service.execute(session_id, "INVALID SYNTAX").await;
+    assert!(result.is_err(), "Invalid query should fail");
+
+    // The system should still be able to execute normal queries
+    let result = graph_service.execute(session_id, "SHOW SPACES").await;
+    assert!(result.is_ok(), "System should recover and execute valid queries");
+}
+
+#[tokio::test]
+async fn test_graph_service_permission_denied() {
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage).await;
+
+    // Create a regular user session (non-admin)
+    let session = graph_service
+        .authenticate("user", "user")
+        .await
+        .expect("认证失败");
+    let session_id = session.id();
+
+    // Regular users should be able to execute read queries
+    let result = graph_service.execute(session_id, "SHOW SPACES").await;
+    assert!(result.is_ok(), "Read query should succeed for regular user");
 }

@@ -59,32 +59,16 @@ pub async fn execute_stream<S: StorageClient + Clone + Send + Sync + 'static>(
         let request = request.clone();
 
         // perform a search
-        let exec_result = match tokio::task::spawn_blocking({
-            let graph_service = graph_service.clone();
-            move || graph_service.execute(request.session_id, &request.query)
-        })
-        .await
+        let exec_result = match graph_service
+            .execute(request.session_id, &request.query)
+            .await
         {
-            Ok(Ok(result)) => result,
-            Ok(Err(e)) => {
+            Ok(result) => result,
+            Err(e) => {
                 let error_msg = json!({
                     "error": true,
                     "message": e,
                     "code": "QUERY_ERROR"
-                });
-                let _ = tx
-                    .send(Ok(Event::default()
-                        .event("error")
-                        .data(error_msg.to_string())))
-                    .await;
-                let _ = tx.send(Ok(Event::default().event("done").data("{}"))).await;
-                return;
-            }
-            Err(e) => {
-                let error_msg = json!({
-                    "error": true,
-                    "message": format!("Task execution failed: {}", e),
-                    "code": "INTERNAL_ERROR"
                 });
                 let _ = tx
                     .send(Ok(Event::default()

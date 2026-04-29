@@ -12,7 +12,6 @@ use axum::{
     Router,
 };
 use serde::Deserialize;
-use tokio::task;
 
 use crate::api::server::web::{
     error::{WebError, WebResult},
@@ -74,79 +73,75 @@ async fn list_vertices_by_tag<S: StorageClient + Clone + Send + Sync + 'static>(
     // Get or create session for this request
     let session_id = get_or_create_session_id(&web_state).await?;
 
-    let result: Result<PaginatedResponse<serde_json::Value>, WebError> =
-        task::spawn_blocking(move || {
-            let graph_service = web_state.core_state.server.get_graph_service();
+    let graph_service = web_state.core_state.server.get_graph_service();
 
-            // Build filter clause for both count and data queries
-            let filter_clause = params
-                .filter
-                .as_ref()
-                .map(|f| format!(" WHERE {}", f))
-                .unwrap_or_default();
-            let sort_clause = params
-                .sort_by
-                .map(|s| {
-                    let order = params.sort_order.unwrap_or_else(|| "ASC".to_string());
-                    format!(" ORDER BY {} {}", s, order)
-                })
-                .unwrap_or_default();
+    // Build filter clause for both count and data queries
+    let filter_clause = params
+        .filter
+        .as_ref()
+        .map(|f| format!(" WHERE {}", f))
+        .unwrap_or_default();
+    let sort_clause = params
+        .sort_by
+        .as_ref()
+        .map(|s| {
+            let order = params.sort_order.clone().unwrap_or_else(|| "ASC".to_string());
+            format!(" ORDER BY {} {}", s, order)
+        })
+        .unwrap_or_default();
 
-            // First, get total count
-            let count_query = format!(
-                "USE {}; MATCH (v:{}) RETURN COUNT(v) as total{}",
-                space_name, tag_name, filter_clause
-            );
+    // First, get total count
+    let count_query = format!(
+        "USE {}; MATCH (v:{}) RETURN COUNT(v) as total{}",
+        space_name, tag_name, filter_clause
+    );
 
-            let total = match graph_service.execute(session_id, &count_query) {
-                Ok(crate::query::executor::ExecutionResult::DataSet(ds)) => ds
+    let total = match graph_service.execute(session_id, &count_query).await {
+        Ok(crate::query::executor::ExecutionResult::DataSet(ds)) => ds
+            .rows
+            .first()
+            .and_then(|row| row.first())
+            .and_then(|val| match val {
+                Value::BigInt(c) => Some(*c),
+                _ => None,
+            })
+            .unwrap_or(0),
+        _ => 0,
+    };
+
+    // Then, get paginated data
+    let query = format!(
+        "USE {}; MATCH (v:{}) RETURN v{}{} SKIP {} LIMIT {}",
+        space_name,
+        tag_name,
+        filter_clause,
+        sort_clause,
+        params.pagination.offset,
+        params.pagination.limit
+    );
+
+    let result = match graph_service.execute(session_id, &query).await {
+        Ok(exec_result) => {
+            // Convert ExecutionResult to JSON values
+            let rows: Vec<serde_json::Value> = match exec_result {
+                crate::query::executor::ExecutionResult::DataSet(ds) => ds
                     .rows
-                    .first()
-                    .and_then(|row| row.first())
-                    .and_then(|val| match val {
-                        Value::BigInt(c) => Some(*c),
-                        _ => None,
-                    })
-                    .unwrap_or(0),
-                _ => 0,
+                    .iter()
+                    .filter_map(|row| row.first())
+                    .map(|val| serde_json::json!({"vertex": val}))
+                    .collect(),
+                _ => vec![],
             };
 
-            // Then, get paginated data
-            let query = format!(
-                "USE {}; MATCH (v:{}) RETURN v{}{} SKIP {} LIMIT {}",
-                space_name,
-                tag_name,
-                filter_clause,
-                sort_clause,
+            Ok::<_, WebError>(PaginatedResponse::new(
+                rows,
+                total,
+                params.pagination.limit,
                 params.pagination.offset,
-                params.pagination.limit
-            );
-
-            match graph_service.execute(session_id, &query) {
-                Ok(exec_result) => {
-                    // Convert ExecutionResult to JSON values
-                    let rows: Vec<serde_json::Value> = match exec_result {
-                        crate::query::executor::ExecutionResult::DataSet(ds) => ds
-                            .rows
-                            .iter()
-                            .filter_map(|row| row.first())
-                            .map(|val| serde_json::json!({"vertex": val}))
-                            .collect(),
-                        _ => vec![],
-                    };
-
-                    Ok::<_, WebError>(PaginatedResponse::new(
-                        rows,
-                        total,
-                        params.pagination.limit,
-                        params.pagination.offset,
-                    ))
-                }
-                Err(e) => Err(WebError::Query(format!("Failed to list vertices: {}", e))),
-            }
-        })
-        .await
-        .map_err(|e| WebError::Internal(format!("Task execution failed: {}", e)))?;
+            ))
+        }
+        Err(e) => Err(WebError::Query(format!("Failed to list vertices: {}", e))),
+    };
 
     Ok(Json(ApiResponse::success(result?)))
 }
@@ -160,79 +155,75 @@ async fn list_edges_by_type<S: StorageClient + Clone + Send + Sync + 'static>(
     // Get or create session for this request
     let session_id = get_or_create_session_id(&web_state).await?;
 
-    let result: Result<PaginatedResponse<serde_json::Value>, WebError> =
-        task::spawn_blocking(move || {
-            let graph_service = web_state.core_state.server.get_graph_service();
+    let graph_service = web_state.core_state.server.get_graph_service();
 
-            // Build filter clause for both count and data queries
-            let filter_clause = params
-                .filter
-                .as_ref()
-                .map(|f| format!(" WHERE {}", f))
-                .unwrap_or_default();
-            let sort_clause = params
-                .sort_by
-                .map(|s| {
-                    let order = params.sort_order.unwrap_or_else(|| "ASC".to_string());
-                    format!(" ORDER BY {} {}", s, order)
-                })
-                .unwrap_or_default();
+    // Build filter clause for both count and data queries
+    let filter_clause = params
+        .filter
+        .as_ref()
+        .map(|f| format!(" WHERE {}", f))
+        .unwrap_or_default();
+    let sort_clause = params
+        .sort_by
+        .as_ref()
+        .map(|s| {
+            let order = params.sort_order.clone().unwrap_or_else(|| "ASC".to_string());
+            format!(" ORDER BY {} {}", s, order)
+        })
+        .unwrap_or_default();
 
-            // First, get total count
-            let count_query = format!(
-                "USE {}; MATCH ()-[e:{}]->() RETURN COUNT(e) as total{}",
-                space_name, edge_name, filter_clause
-            );
+    // First, get total count
+    let count_query = format!(
+        "USE {}; MATCH ()-[e:{}]->() RETURN COUNT(e) as total{}",
+        space_name, edge_name, filter_clause
+    );
 
-            let total = match graph_service.execute(session_id, &count_query) {
-                Ok(crate::query::executor::ExecutionResult::DataSet(ds)) => ds
+    let total = match graph_service.execute(session_id, &count_query).await {
+        Ok(crate::query::executor::ExecutionResult::DataSet(ds)) => ds
+            .rows
+            .first()
+            .and_then(|row| row.first())
+            .and_then(|val| match val {
+                Value::BigInt(c) => Some(*c),
+                _ => None,
+            })
+            .unwrap_or(0),
+        _ => 0,
+    };
+
+    // Then, get paginated data
+    let query = format!(
+        "USE {}; MATCH ()-[e:{}]->() RETURN e{}{} SKIP {} LIMIT {}",
+        space_name,
+        edge_name,
+        filter_clause,
+        sort_clause,
+        params.pagination.offset,
+        params.pagination.limit
+    );
+
+    let result = match graph_service.execute(session_id, &query).await {
+        Ok(exec_result) => {
+            // Convert ExecutionResult to JSON values
+            let rows: Vec<serde_json::Value> = match exec_result {
+                crate::query::executor::ExecutionResult::DataSet(ds) => ds
                     .rows
-                    .first()
-                    .and_then(|row| row.first())
-                    .and_then(|val| match val {
-                        Value::BigInt(c) => Some(*c),
-                        _ => None,
-                    })
-                    .unwrap_or(0),
-                _ => 0,
+                    .iter()
+                    .filter_map(|row| row.first())
+                    .map(|val| serde_json::json!({"edge": val}))
+                    .collect(),
+                _ => vec![],
             };
 
-            // Then, get paginated data
-            let query = format!(
-                "USE {}; MATCH ()-[e:{}]->() RETURN e{}{} SKIP {} LIMIT {}",
-                space_name,
-                edge_name,
-                filter_clause,
-                sort_clause,
+            Ok::<_, WebError>(PaginatedResponse::new(
+                rows,
+                total,
+                params.pagination.limit,
                 params.pagination.offset,
-                params.pagination.limit
-            );
-
-            match graph_service.execute(session_id, &query) {
-                Ok(exec_result) => {
-                    // Convert ExecutionResult to JSON values
-                    let rows: Vec<serde_json::Value> = match exec_result {
-                        crate::query::executor::ExecutionResult::DataSet(ds) => ds
-                            .rows
-                            .iter()
-                            .filter_map(|row| row.first())
-                            .map(|val| serde_json::json!({"edge": val}))
-                            .collect(),
-                        _ => vec![],
-                    };
-
-                    Ok::<_, WebError>(PaginatedResponse::new(
-                        rows,
-                        total,
-                        params.pagination.limit,
-                        params.pagination.offset,
-                    ))
-                }
-                Err(e) => Err(WebError::Query(format!("Failed to list edges: {}", e))),
-            }
-        })
-        .await
-        .map_err(|e| WebError::Internal(format!("Task execution failed: {}", e)))?;
+            ))
+        }
+        Err(e) => Err(WebError::Query(format!("Failed to list edges: {}", e))),
+    };
 
     Ok(Json(ApiResponse::success(result?)))
 }

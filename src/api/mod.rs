@@ -270,7 +270,7 @@ pub async fn execute_query(query_str: &str) -> DBResult<()> {
 
     let session_id = session.id();
 
-    match graph_service.execute(session_id, query_str) {
+    match graph_service.execute(session_id, query_str).await {
         Ok(result) => {
             info!("Query executed successfully: {:?}", result);
         }
