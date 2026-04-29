@@ -1,6 +1,6 @@
 //! Rules that push the filtering conditions to the ExpandAll operation
 //!
-//! This rule identifies the “Filter -> ExpandAll” mode.
+//! This rule identifies the "Filter -> ExpandAll" mode.
 //! And push the filtering criteria up to the ExpandAll node.
 
 use crate::query::optimizer::heuristic::context::RewriteContext;
@@ -8,7 +8,8 @@ use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::{PushDownRule, RewriteRule};
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::{PlanNode, SingleInputNode};
+use crate::query::planning::plan::core::nodes::traversal::traversal_node::ExpandAllNode;
 
 /// Rules that push the filtering criteria forward to the ExpandAll operation
 ///
@@ -79,6 +80,13 @@ impl RewriteRule for PushFilterDownExpandAllRule {
         // Obtain the filtering criteria
         let filter_condition = filter_node.condition();
 
+        // Check if the filter references columns that are available in the ExpandAll's output
+        // This is important for multi-hop MATCH queries where a filter on an earlier variable
+        // should not be pushed down to a later ExpandAll that doesn't produce that variable
+        if !Self::can_push_filter_to_expand(filter_condition, expand_all) {
+            return Ok(None);
+        }
+
         // Create a new ExpandAll node.
         let mut new_expand_all = expand_all.clone();
 
@@ -91,6 +99,51 @@ impl RewriteRule for PushFilterDownExpandAllRule {
         result.add_new_node(PlanNodeEnum::ExpandAll(new_expand_all));
 
         Ok(Some(result))
+    }
+}
+
+impl PushFilterDownExpandAllRule {
+    /// Check if a filter can be pushed down to an ExpandAll node.
+    ///
+    /// The filter can only be pushed down if all variables it references
+    /// are available in the ExpandAll's output columns.
+    fn can_push_filter_to_expand(
+        filter_condition: &crate::core::types::ContextualExpression,
+        expand_all: &ExpandAllNode,
+    ) -> bool {
+        // Get the expression from the contextual expression
+        let Some(expression) = filter_condition.get_expression() else {
+            // If we can't get the expression, don't push down
+            return false;
+        };
+
+        // Get all variables referenced in the filter
+        let referenced_vars = expression.get_variables();
+
+        // If no variables are referenced, we can push down
+        if referenced_vars.is_empty() {
+            return true;
+        }
+
+        // Get the output columns of the ExpandAll
+        let output_cols = expand_all.col_names();
+
+        // Check if all referenced variables are in the output columns
+        // Also allow special variables like "$$", "$^", "edge", "src", "dst"
+        let special_vars = ["$$", "$^", "edge", "src", "dst", "target"];
+        
+        for var in &referenced_vars {
+            // Skip special variables that are handled specially
+            if special_vars.contains(&var.as_str()) {
+                continue;
+            }
+            // Check if the variable is in the output columns
+            if !output_cols.contains(var) {
+                return false;
+            }
+        }
+
+        true
     }
 }
 

@@ -46,6 +46,10 @@ pub struct ExpandAllExecutor<S: StorageClient + Send + 'static> {
     pub space_name: String,
     // Filter condition pushed down from FilterNode
     filter: Option<Expression>,
+    // Input dataset for joining with expansion results (for multi-hop MATCH)
+    input_dataset: Option<DataSet>,
+    // Mapping from input vertex VID to input row index
+    input_vertex_to_row: std::collections::HashMap<Value, usize>,
 }
 
 // Manual Debug implementation for ExpandAllExecutor to avoid requiring Debug trait for Executor trait object
@@ -92,6 +96,8 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             space_id,
             space_name,
             filter: None,
+            input_dataset: None,
+            input_vertex_to_row: std::collections::HashMap::new(),
         }
     }
 
@@ -123,6 +129,8 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             space_id,
             space_name,
             filter: None,
+            input_dataset: None,
+            input_vertex_to_row: std::collections::HashMap::new(),
         }
     }
 
@@ -263,7 +271,35 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
         // Build a DataSet with separate columns for src, edge, and dst
         // Use the configured column names, which may include custom dst column names
         let mut dataset = crate::query::DataSet::new();
-        dataset.col_names = self.col_names.clone();
+        
+        // If we have an input dataset, we need to join the expansion results with input rows
+        // This is for multi-hop MATCH queries where we need to preserve all intermediate variables
+        let (input_cols, input_rows) = if let Some(ref input_ds) = self.input_dataset {
+            (input_ds.col_names.clone(), input_ds.rows.clone())
+        } else {
+            (Vec::new(), Vec::new())
+        };
+        
+        // Set column names: if we have input columns, combine them with our output columns
+        // But we need to avoid duplicates - the input_var column is the same as our src column
+        if !input_cols.is_empty() {
+            // Find which input columns to include (exclude the input_var column as it's our src)
+            let mut combined_cols = Vec::new();
+            for col in &input_cols {
+                // Skip the input_var column as it will be replaced by our src column
+                if let Some(ref input_var) = self.input_var {
+                    if col == input_var {
+                        continue;
+                    }
+                }
+                combined_cols.push(col.clone());
+            }
+            // Add our output columns
+            combined_cols.extend(self.col_names.clone());
+            dataset.col_names = combined_cols;
+        } else {
+            dataset.col_names = self.col_names.clone();
+        }
 
         let target_depth = self.max_depth.unwrap_or(1);
 
@@ -296,6 +332,28 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                         }
                     }
                     
+                    // Join with input row if available
+                    if !input_rows.is_empty() {
+                        if let Some(row_idx) = self.input_vertex_to_row.get(&path.src.vid) {
+                            if let Some(input_row) = input_rows.get(*row_idx) {
+                                // Prepend input row values (excluding the input_var column)
+                                let mut combined_row = Vec::new();
+                                for (i, col) in input_cols.iter().enumerate() {
+                                    if let Some(ref input_var) = self.input_var {
+                                        if col == input_var {
+                                            continue;
+                                        }
+                                    }
+                                    if i < input_row.len() {
+                                        combined_row.push(input_row[i].clone());
+                                    }
+                                }
+                                combined_row.extend(row);
+                                row = combined_row;
+                            }
+                        }
+                    }
+                    
                     // Apply filter if present
                     if self.should_include_row(&row, &dataset.col_names) {
                         dataset.rows.push(row);
@@ -312,6 +370,27 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                     // Add null for edge alias column if present
                     if edge_alias_index.is_some() {
                         row.push(Value::Null(crate::core::NullType::Null));
+                    }
+                    
+                    // Join with input row if available
+                    if !input_rows.is_empty() {
+                        if let Some(row_idx) = self.input_vertex_to_row.get(&path.src.vid) {
+                            if let Some(input_row) = input_rows.get(*row_idx) {
+                                let mut combined_row = Vec::new();
+                                for (i, col) in input_cols.iter().enumerate() {
+                                    if let Some(ref input_var) = self.input_var {
+                                        if col == input_var {
+                                            continue;
+                                        }
+                                    }
+                                    if i < input_row.len() {
+                                        combined_row.push(input_row[i].clone());
+                                    }
+                                }
+                                combined_row.extend(row);
+                                row = combined_row;
+                            }
+                        }
                     }
                     
                     // Apply filter if present
@@ -331,6 +410,27 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                     if let Some(idx) = edge_alias_index {
                         if idx < self.col_names.len() {
                             row.push(Value::edge((*last_step.edge).clone()));
+                        }
+                    }
+                    
+                    // Join with input row if available
+                    if !input_rows.is_empty() {
+                        if let Some(row_idx) = self.input_vertex_to_row.get(&path.src.vid) {
+                            if let Some(input_row) = input_rows.get(*row_idx) {
+                                let mut combined_row = Vec::new();
+                                for (i, col) in input_cols.iter().enumerate() {
+                                    if let Some(ref input_var) = self.input_var {
+                                        if col == input_var {
+                                            continue;
+                                        }
+                                    }
+                                    if i < input_row.len() {
+                                        combined_row.push(input_row[i].clone());
+                                    }
+                                }
+                                combined_row.extend(row);
+                                row = combined_row;
+                            }
                         }
                     }
                     
@@ -380,10 +480,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             }
             
             // Evaluate the filter condition
-            match ExpressionEvaluator::evaluate(filter, &mut context) {
-                Ok(Value::Bool(true)) => true,
-                _ => false,
-            }
+            matches!(ExpressionEvaluator::evaluate(filter, &mut context), Ok(Value::Bool(true)))
         } else {
             true
         }
@@ -407,6 +504,8 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
         self.npath_cache.clear();
         self.path_cache.clear();
         self.visited_nodes.clear();
+        self.input_dataset = None;
+        self.input_vertex_to_row.clear();
 
         // First, execute the input executor (if it exists).
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
@@ -418,21 +517,65 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
                 .get_result(input_var)
                 .unwrap_or_else(|| ExecutionResult::DataSet(DataSet::new()))
         } else {
-            // If no actuator is specified, return an empty result.
             ExecutionResult::DataSet(DataSet::new())
         };
 
-        // Extract the input node.
-        let mut input_nodes = match input_result {
-            ExecutionResult::DataSet(dataset) => dataset
-                .rows
-                .into_iter()
-                .flat_map(|row| row.into_iter())
-                .filter_map(|v| match v {
-                    Value::Vertex(vertex) => Some(*vertex),
-                    _ => None,
-                })
-                .collect(),
+        let mut input_nodes: Vec<Vertex> = match input_result {
+            ExecutionResult::DataSet(dataset) => {
+                let col_names = dataset.col_names.clone();
+                let dst_idx = col_names.iter().position(|c| c == "dst");
+
+                // Store the input dataset for later joining with expansion results
+                // Only store if there are rows (for multi-hop MATCH)
+                if !dataset.rows.is_empty() {
+                    // Create mapping from input vertex VID to row index
+                    for (row_idx, row) in dataset.rows.iter().enumerate() {
+                        // Find the input vertex in this row
+                        if let Some(ref input_var) = self.input_var {
+                            if let Some(idx) = col_names.iter().position(|c| c == input_var) {
+                                if idx < row.len() {
+                                    if let Value::Vertex(vertex) = &row[idx] {
+                                        self.input_vertex_to_row.insert((*vertex.vid).clone(), row_idx);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    self.input_dataset = Some(dataset.clone());
+                }
+
+                dataset
+                    .rows
+                    .into_iter()
+                    .filter_map(|row| {
+                        if let Some(idx) = dst_idx {
+                            if idx < row.len() {
+                                if let Value::Vertex(vertex) = &row[idx] {
+                                    return Some((**vertex).clone());
+                                }
+                            }
+                        }
+                        // When custom column names are used (e.g., in multi-hop MATCH),
+                        // the dst column may be named after the input_var instead of "dst".
+                        // Try to find a column matching the input_var name.
+                        if let Some(ref input_var) = self.input_var {
+                            if let Some(idx) = col_names.iter().position(|c| c == input_var) {
+                                if idx < row.len() {
+                                    if let Value::Vertex(vertex) = &row[idx] {
+                                        return Some((**vertex).clone());
+                                    }
+                                }
+                            }
+                        }
+                        for val in row {
+                            if let Value::Vertex(vertex) = val {
+                                return Some(*vertex);
+                            }
+                        }
+                        None
+                    })
+                    .collect()
+            }
             _ => Vec::new(),
         };
 

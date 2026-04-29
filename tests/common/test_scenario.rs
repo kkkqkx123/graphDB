@@ -557,7 +557,22 @@ impl TestScenario {
             if let Some(row) = ds.rows.first() {
                 for (i, col_name) in ds.col_names.iter().enumerate() {
                     if let Some(value) = row.get(i) {
-                        props.insert(col_name.clone(), value.clone());
+                        if let Value::Vertex(vertex) = value {
+                            for tag in vertex.tags() {
+                                for (prop_name, prop_value) in &tag.properties {
+                                    props.insert(prop_name.clone(), prop_value.clone());
+                                }
+                            }
+                            for (prop_name, prop_value) in &vertex.properties {
+                                props.insert(prop_name.clone(), prop_value.clone());
+                            }
+                        } else if let Value::Edge(edge) = value {
+                            for (prop_name, prop_value) in &edge.props {
+                                props.insert(prop_name.clone(), prop_value.clone());
+                            }
+                        } else {
+                            props.insert(col_name.clone(), value.clone());
+                        }
                     }
                 }
             }

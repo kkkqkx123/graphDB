@@ -345,6 +345,9 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 );
 
                 let mut properties = HashMap::new();
+                let mut property_expressions = HashMap::new();
+                let mut has_non_literal_expr = false;
+
                 for (key, value_expr) in &info.properties {
                     let expr_opt = value_expr.get_expression();
                     log::debug!(
@@ -352,15 +355,20 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                         key,
                         expr_opt
                     );
-                    let value = expr_opt
-                        .and_then(|e| Self::evaluate_literal(&e))
-                        .ok_or_else(|| {
-                            QueryError::ExecutionError(format!(
-                                "The value expression for attribute {} does not exist or is not a literal",
-                                key
-                            ))
-                        })?;
-                    properties.insert(key.clone(), value);
+                    
+                    if let Some(expr) = expr_opt {
+                        if let Some(value) = Self::evaluate_literal(&expr) {
+                            properties.insert(key.clone(), value);
+                        } else {
+                            property_expressions.insert(key.clone(), value_expr.clone());
+                            has_non_literal_expr = true;
+                        }
+                    } else {
+                        return Err(QueryError::ExecutionError(format!(
+                            "The value expression for attribute {} does not exist",
+                            key
+                        )));
+                    }
                 }
 
                 log::debug!("[build_update] final properties={:?}", properties);
@@ -368,6 +376,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 let vertex_update = VertexUpdate {
                     vertex_id,
                     properties,
+                    property_expressions: if has_non_literal_expr { Some(property_expressions) } else { None },
                     tags_to_add: None,
                     tags_to_remove: None,
                 };
@@ -418,17 +427,23 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                     });
 
                 let mut properties = HashMap::new();
+                let mut property_expressions = HashMap::new();
+                let mut has_non_literal_expr = false;
+
                 for (key, value_expr) in &info.properties {
-                    let value = value_expr
-                        .get_expression()
-                        .and_then(|e| Self::evaluate_literal(&e))
-                        .ok_or_else(|| {
-                            QueryError::ExecutionError(format!(
-                                "The value expression for attribute {} does not exist or is not a literal",
-                                key
-                            ))
-                        })?;
-                    properties.insert(key.clone(), value);
+                    if let Some(expr) = value_expr.get_expression() {
+                        if let Some(value) = Self::evaluate_literal(&expr) {
+                            properties.insert(key.clone(), value);
+                        } else {
+                            property_expressions.insert(key.clone(), value_expr.clone());
+                            has_non_literal_expr = true;
+                        }
+                    } else {
+                        return Err(QueryError::ExecutionError(format!(
+                            "The value expression for attribute {} does not exist",
+                            key
+                        )));
+                    }
                 }
 
                 let edge_type = info.edge_type.clone().unwrap_or_default();
@@ -439,6 +454,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                     edge_type,
                     rank,
                     properties,
+                    property_expressions: if has_non_literal_expr { Some(property_expressions) } else { None },
                 };
 
                 let executor = UpdateExecutor::new(
@@ -478,22 +494,29 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 })?;
 
             let mut properties = HashMap::new();
+            let mut property_expressions = HashMap::new();
+            let mut has_non_literal_expr = false;
+
             for (key, value_expr) in &info.properties {
-                let value = value_expr
-                    .get_expression()
-                    .and_then(|e| Self::evaluate_literal(&e))
-                    .ok_or_else(|| {
-                        QueryError::ExecutionError(format!(
-                            "The value expression for attribute {} does not exist or is not a literal",
-                            key
-                        ))
-                    })?;
-                properties.insert(key.clone(), value);
+                if let Some(expr) = value_expr.get_expression() {
+                    if let Some(value) = Self::evaluate_literal(&expr) {
+                        properties.insert(key.clone(), value);
+                    } else {
+                        property_expressions.insert(key.clone(), value_expr.clone());
+                        has_non_literal_expr = true;
+                    }
+                } else {
+                    return Err(QueryError::ExecutionError(format!(
+                        "The value expression for attribute {} does not exist",
+                        key
+                    )));
+                }
             }
 
             vertex_updates.push(VertexUpdate {
                 vertex_id,
                 properties,
+                property_expressions: if has_non_literal_expr { Some(property_expressions) } else { None },
                 tags_to_add: None,
                 tags_to_remove: None,
             });
@@ -562,17 +585,23 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 });
 
             let mut properties = HashMap::new();
+            let mut property_expressions = HashMap::new();
+            let mut has_non_literal_expr = false;
+
             for (key, value_expr) in &info.properties {
-                let value = value_expr
-                    .get_expression()
-                    .and_then(|e| Self::evaluate_literal(&e))
-                    .ok_or_else(|| {
-                        QueryError::ExecutionError(format!(
-                            "The value expression for attribute {} does not exist or is not a literal",
-                            key
-                        ))
-                    })?;
-                properties.insert(key.clone(), value);
+                if let Some(expr) = value_expr.get_expression() {
+                    if let Some(value) = Self::evaluate_literal(&expr) {
+                        properties.insert(key.clone(), value);
+                    } else {
+                        property_expressions.insert(key.clone(), value_expr.clone());
+                        has_non_literal_expr = true;
+                    }
+                } else {
+                    return Err(QueryError::ExecutionError(format!(
+                        "The value expression for attribute {} does not exist",
+                        key
+                    )));
+                }
             }
 
             let edge_type = info.edge_type.clone().unwrap_or_default();
@@ -583,6 +612,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 edge_type,
                 rank,
                 properties,
+                property_expressions: if has_non_literal_expr { Some(property_expressions) } else { None },
             });
         }
 

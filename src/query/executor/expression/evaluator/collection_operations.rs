@@ -199,6 +199,9 @@ impl CollectionOperationEvaluator {
                     if let Some(val) = tag.properties.get(property) {
                         return Ok(val.clone());
                     }
+                    if tag.name == property {
+                        return Ok(Value::map(tag.properties.clone()));
+                    }
                 }
                 Ok(Value::Null(crate::core::value::NullType::Null))
             }

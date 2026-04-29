@@ -643,10 +643,52 @@ impl<'a> ExprParser<'a> {
             ctx.expect_token(TokenKind::RParen)?;
             args
         };
-        Ok(ParseResult {
-            expr: Expression::function(name, args.into_iter().map(|e| e.expr).collect()),
-            span,
-        })
+
+        let is_aggregate = matches!(
+            name_upper.as_str(),
+            "COUNT" | "SUM" | "AVG" | "MIN" | "MAX" | "COLLECT" | "COLLECT_SET" | "STD"
+        );
+
+        if is_aggregate {
+            let distinct = false;
+            let arg = args
+                .first()
+                .map(|a| a.expr.clone())
+                .unwrap_or_else(|| Expression::Literal(crate::core::Value::Null(crate::core::NullType::Null)));
+            
+            let field_name = match &arg {
+                Expression::Variable(name) => name.clone(),
+                Expression::Property { property, .. } => property.clone(),
+                Expression::TagProperty { property, .. } => property.clone(),
+                _ => "_value".to_string(),
+            };
+
+            let func = match name_upper.as_str() {
+                "COUNT" => crate::core::types::operators::AggregateFunction::Count(Some(field_name)),
+                "SUM" => crate::core::types::operators::AggregateFunction::Sum(field_name),
+                "AVG" => crate::core::types::operators::AggregateFunction::Avg(field_name),
+                "MIN" => crate::core::types::operators::AggregateFunction::Min(field_name),
+                "MAX" => crate::core::types::operators::AggregateFunction::Max(field_name),
+                "COLLECT" => crate::core::types::operators::AggregateFunction::Collect(field_name),
+                "COLLECT_SET" => crate::core::types::operators::AggregateFunction::CollectSet(field_name),
+                "STD" => crate::core::types::operators::AggregateFunction::Std(field_name),
+                _ => crate::core::types::operators::AggregateFunction::Count(None),
+            };
+
+            Ok(ParseResult {
+                expr: Expression::Aggregate {
+                    func,
+                    arg: Box::new(arg),
+                    distinct,
+                },
+                span,
+            })
+        } else {
+            Ok(ParseResult {
+                expr: Expression::function(name, args.into_iter().map(|e| e.expr).collect()),
+                span,
+            })
+        }
     }
 
     fn parse_expression_list(

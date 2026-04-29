@@ -109,15 +109,9 @@ impl DropValidator {
                 index_name,
             } => {
                 self.target_type = DropTargetType::TagIndex;
-                self.space_name = Some(space_name.clone());
+                self.space_name = if space_name.is_empty() { None } else { Some(space_name.clone()) };
                 self.target_name = index_name.clone();
 
-                if space_name.is_empty() {
-                    return Err(ValidationError::new(
-                        "Space name cannot be empty".to_string(),
-                        ValidationErrorType::SemanticError,
-                    ));
-                }
                 if index_name.is_empty() {
                     return Err(ValidationError::new(
                         "Index name cannot be empty".to_string(),
@@ -130,15 +124,9 @@ impl DropValidator {
                 index_name,
             } => {
                 self.target_type = DropTargetType::EdgeIndex;
-                self.space_name = Some(space_name.clone());
+                self.space_name = if space_name.is_empty() { None } else { Some(space_name.clone()) };
                 self.target_name = index_name.clone();
 
-                if space_name.is_empty() {
-                    return Err(ValidationError::new(
-                        "Space name cannot be empty".to_string(),
-                        ValidationErrorType::SemanticError,
-                    ));
-                }
                 if index_name.is_empty() {
                     return Err(ValidationError::new(
                         "Index name cannot be empty".to_string(),

@@ -43,6 +43,7 @@ pub struct UpdateExecutor<S: StorageClient> {
 pub struct VertexUpdate {
     pub vertex_id: Value,
     pub properties: HashMap<String, Value>,
+    pub property_expressions: Option<HashMap<String, ContextualExpression>>,
     pub tags_to_add: Option<Vec<String>>,
     pub tags_to_remove: Option<Vec<String>>,
 }
@@ -55,6 +56,7 @@ pub struct EdgeUpdate {
     pub edge_type: String,
     pub rank: Option<i64>,
     pub properties: HashMap<String, Value>,
+    pub property_expressions: Option<HashMap<String, ContextualExpression>>,
 }
 
 /// Update the result data structure
@@ -164,7 +166,6 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<UpdateResult>> {
         let mut results = Vec::new();
 
-        // Retrieve the Expression directly from the ContextualExpression.
         let condition_expression = self.condition.as_ref().and_then(|c| c.get_expression());
 
         let mut storage = self.get_storage().lock();
@@ -196,21 +197,24 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                     if let Some(mut vertex) =
                         storage.get_vertex(&self.space_name, &update.vertex_id)?
                     {
-                        // Update properties in tags (NebulaGraph stores properties in tags)
+                        let evaluated_props = self.evaluate_property_expressions(
+                            &update.properties,
+                            update.property_expressions.as_ref(),
+                            &vertex,
+                        )?;
+
                         if !vertex.tags.is_empty() {
-                            // Update the first tag's properties
-                            for (key, value) in &update.properties {
+                            for (key, value) in &evaluated_props {
                                 vertex.tags[0].properties.insert(key.clone(), value.clone());
                             }
                         } else {
-                            // If no tags exist, store in vertex.properties as fallback
-                            for (key, value) in &update.properties {
+                            for (key, value) in &evaluated_props {
                                 vertex.properties.insert(key.clone(), value.clone());
                             }
                         }
                         storage.update_vertex(&self.space_name, vertex.clone())?;
 
-                        update_result.returned_props = update.properties.clone();
+                        update_result.returned_props = evaluated_props;
                     } else if self.insertable {
                         let new_vertex = crate::core::Vertex::new_with_properties(
                             update.vertex_id.clone(),
@@ -258,7 +262,13 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                         &update.edge_type,
                         rank,
                     )? {
-                        for (key, value) in &update.properties {
+                        let evaluated_props = self.evaluate_edge_property_expressions(
+                            &update.properties,
+                            update.property_expressions.as_ref(),
+                            &edge,
+                        )?;
+
+                        for (key, value) in &evaluated_props {
                             edge.props.insert(key.clone(), value.clone());
                         }
                         storage.delete_edge(
@@ -269,7 +279,7 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                             rank,
                         )?;
                         storage.insert_edge(&self.space_name, edge)?;
-                        update_result.returned_props = update.properties.clone();
+                        update_result.returned_props = evaluated_props;
                     } else if self.insertable {
                         let new_edge = crate::core::Edge::new(
                             update.src.clone(),
@@ -288,6 +298,85 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
         }
 
         Ok(results)
+    }
+
+    fn evaluate_property_expressions(
+        &self,
+        base_properties: &HashMap<String, Value>,
+        property_expressions: Option<&HashMap<String, ContextualExpression>>,
+        vertex: &crate::core::Vertex,
+    ) -> DBResult<HashMap<String, Value>> {
+        let mut result = HashMap::new();
+
+        if let Some(expressions) = property_expressions {
+            let mut context = DefaultExpressionContext::new();
+            
+            for tag in vertex.tags() {
+                for (prop_name, prop_value) in &tag.properties {
+                    context.set_variable(prop_name.clone(), prop_value.clone());
+                }
+            }
+            for (prop_name, prop_value) in &vertex.properties {
+                context.set_variable(prop_name.clone(), prop_value.clone());
+            }
+
+            for (key, ctx_expr) in expressions {
+                if let Some(expr) = ctx_expr.get_expression() {
+                    let value = ExpressionEvaluator::evaluate(&expr, &mut context).map_err(|e| {
+                        crate::core::error::DBError::Query(
+                            crate::core::error::QueryError::ExecutionError(format!(
+                                "Failed to evaluate expression for property '{}': {}",
+                                key, e
+                            )),
+                        )
+                    })?;
+                    result.insert(key.clone(), value);
+                } else if let Some(value) = base_properties.get(key) {
+                    result.insert(key.clone(), value.clone());
+                }
+            }
+        } else {
+            result = base_properties.clone();
+        }
+
+        Ok(result)
+    }
+
+    fn evaluate_edge_property_expressions(
+        &self,
+        base_properties: &HashMap<String, Value>,
+        property_expressions: Option<&HashMap<String, ContextualExpression>>,
+        edge: &crate::core::Edge,
+    ) -> DBResult<HashMap<String, Value>> {
+        let mut result = HashMap::new();
+
+        if let Some(expressions) = property_expressions {
+            let mut context = DefaultExpressionContext::new();
+            
+            for (prop_name, prop_value) in &edge.props {
+                context.set_variable(prop_name.clone(), prop_value.clone());
+            }
+
+            for (key, ctx_expr) in expressions {
+                if let Some(expr) = ctx_expr.get_expression() {
+                    let value = ExpressionEvaluator::evaluate(&expr, &mut context).map_err(|e| {
+                        crate::core::error::DBError::Query(
+                            crate::core::error::QueryError::ExecutionError(format!(
+                                "Failed to evaluate expression for edge property '{}': {}",
+                                key, e
+                            )),
+                        )
+                    })?;
+                    result.insert(key.clone(), value);
+                } else if let Some(value) = base_properties.get(key) {
+                    result.insert(key.clone(), value.clone());
+                }
+            }
+        } else {
+            result = base_properties.clone();
+        }
+
+        Ok(result)
     }
 
     fn evaluate_condition(

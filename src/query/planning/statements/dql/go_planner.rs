@@ -180,8 +180,23 @@ impl Planner for GoPlanner {
             }
         };
 
+        let root_node = if step_limit > 1 {
+            let dedup_node = match DedupNode::new(project_node) {
+                Ok(dedup) => dedup,
+                Err(e) => {
+                    return Err(PlannerError::PlanGenerationFailed(format!(
+                        "Failed to create dedup node: {}",
+                        e
+                    )));
+                }
+            };
+            PlanNodeEnum::Dedup(dedup_node)
+        } else {
+            project_node
+        };
+
         let sub_plan = SubPlan {
-            root: Some(project_node),
+            root: Some(root_node),
             tail: Some(tail_node),
         };
 

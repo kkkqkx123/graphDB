@@ -1,11 +1,10 @@
 //! Plan Executor Engine
-//!
-//! Responsible for executing the execution plan and managing the lifecycle of the executor tree.
 
 use crate::core::error::QueryError;
 use crate::query::executor::base::{ExecutionContext, ExecutionResult, Executor, InputExecutor};
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::utils::object_pool::ThreadSafeExecutorPool;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::query::planning::plan::ExecutionPlan;
 use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -18,12 +17,24 @@ fn find_expand_all_input_var(node: &PlanNodeEnum) -> Option<String> {
     if let Some(expand_all) = node.as_expand_all() {
         expand_all.get_input_var().map(|v| v.to_string())
     } else {
-        // Recursively check all children
         for child in node.children() {
             if let Some(var) = find_expand_all_input_var(child) {
                 return Some(var);
             }
         }
+        None
+    }
+}
+
+fn find_expand_all_dst_var(node: &PlanNodeEnum) -> Option<String> {
+    if let Some(expand_all) = node.as_expand_all() {
+        let col_names = expand_all.col_names();
+        if col_names.len() > 2 {
+            Some(col_names[2].clone())
+        } else {
+            None
+        }
+    } else {
         None
     }
 }
@@ -122,9 +133,6 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
                 context.set_result(right_var, right_result);
             }
             _ => {
-                // MultipleInputNode (e.g., ExpandAllNode with multiple inputs):
-                // Execute all children and store their results in ExecutionContext
-                // The executor will use input_var to find the appropriate input
                 for (i, child) in children.iter().enumerate() {
                     let mut child_executor =
                         self.build_executor_chain(child, storage.clone(), context)?;
@@ -132,16 +140,17 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
                         QueryError::ExecutionError(format!("Child {} execution failed: {}", i, e))
                     })?;
 
-                    // Store the result in ExecutionContext using the child's output_var
                     let child_var = child
                         .output_var()
                         .map(|v| v.to_string())
                         .unwrap_or_else(|| format!("child_{}_{}", plan_node.id(), i));
-                    context.set_result(child_var, child_result);
+                    context.set_result(child_var, child_result.clone());
+
+                    if let Some(dst_var) = find_expand_all_dst_var(child) {
+                        context.set_result(dst_var, child_result);
+                    }
                 }
 
-                // If the plan node has an input_var, also store the first child's result under that name
-                // This allows the executor to find the input using input_var
                 if let Some(input_var) = find_expand_all_input_var(plan_node) {
                     if let Some(first_child) = children.first() {
                         let first_var = first_child
