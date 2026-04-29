@@ -35,8 +35,10 @@ use crate::query::planning::statements::dql::path_planner::PathPlanner;
 use crate::query::planning::statements::dql::return_planner::ReturnPlanner;
 use crate::query::planning::statements::dql::set_operation_planner::SetOperationPlanner;
 use crate::query::planning::statements::dql::subgraph_planner::SubgraphPlanner;
+use crate::query::planning::statements::dql::unwind_planner::UnwindPlanner;
 use crate::query::planning::statements::dql::with_planner::WithPlanner;
 use crate::query::planning::statements::dql::yield_planner::YieldPlanner;
+use crate::query::planning::statements::dql::pipe_planner::PipePlanner;
 use crate::query::planning::statements::match_statement_planner::MatchStatementPlanner;
 use crate::query::planning::vector_planner::VectorSearchPlanner;
 
@@ -141,9 +143,11 @@ pub enum PlannerEnum {
     GroupBy(GroupByPlanner),
     SetOperation(SetOperationPlanner),
     Use(UsePlanner),
+    Unwind(UnwindPlanner),
     With(WithPlanner),
     Return(ReturnPlanner),
     Yield(YieldPlanner),
+    Pipe(PipePlanner),
     FulltextSearch(FulltextSearchPlanner),
     VectorSearch(VectorSearchPlanner),
 }
@@ -175,9 +179,11 @@ impl PlannerEnum {
             Stmt::GroupBy(_) => Some(PlannerEnum::GroupBy(GroupByPlanner::new())),
             Stmt::SetOperation(_) => Some(PlannerEnum::SetOperation(SetOperationPlanner::new())),
             Stmt::Use(_) => Some(PlannerEnum::Use(UsePlanner::new())),
+            Stmt::Unwind(_) => Some(PlannerEnum::Unwind(UnwindPlanner::new())),
             Stmt::With(_) => Some(PlannerEnum::With(WithPlanner::new())),
             Stmt::Return(_) => Some(PlannerEnum::Return(ReturnPlanner::new())),
             Stmt::Yield(_) => Some(PlannerEnum::Yield(YieldPlanner::new())),
+            Stmt::Pipe(_) => Some(PlannerEnum::Pipe(PipePlanner::new())),
             // Full-text search statements
             Stmt::CreateFulltextIndex(_)
             | Stmt::DropFulltextIndex(_)
@@ -252,9 +258,11 @@ impl PlannerEnum {
             PlannerEnum::GroupBy(planner) => planner.transform(validated, qctx),
             PlannerEnum::SetOperation(planner) => planner.transform(validated, qctx),
             PlannerEnum::Use(planner) => planner.transform(validated, qctx),
+            PlannerEnum::Unwind(planner) => planner.transform(validated, qctx),
             PlannerEnum::With(planner) => planner.transform(validated, qctx),
             PlannerEnum::Return(planner) => planner.transform(validated, qctx),
             PlannerEnum::Yield(planner) => planner.transform(validated, qctx),
+            PlannerEnum::Pipe(planner) => planner.transform(validated, qctx),
             PlannerEnum::FulltextSearch(planner) => planner.transform(validated, qctx),
             PlannerEnum::VectorSearch(planner) => planner.transform(validated, qctx),
         }
@@ -281,9 +289,11 @@ impl PlannerEnum {
             PlannerEnum::GroupBy(_) => "GroupByPlanner",
             PlannerEnum::SetOperation(_) => "SetOperationPlanner",
             PlannerEnum::Use(_) => "UsePlanner",
+            PlannerEnum::Unwind(_) => "UnwindPlanner",
             PlannerEnum::With(_) => "WithPlanner",
             PlannerEnum::Return(_) => "ReturnPlanner",
             PlannerEnum::Yield(_) => "YieldPlanner",
+            PlannerEnum::Pipe(_) => "PipePlanner",
             PlannerEnum::FulltextSearch(_) => "FulltextSearchPlanner",
             PlannerEnum::VectorSearch(_) => "VectorSearchPlanner",
         }
@@ -310,9 +320,11 @@ impl PlannerEnum {
             PlannerEnum::GroupBy(planner) => planner.match_planner(stmt),
             PlannerEnum::SetOperation(planner) => planner.match_planner(stmt),
             PlannerEnum::Use(planner) => planner.match_planner(stmt),
+            PlannerEnum::Unwind(planner) => planner.match_planner(stmt),
             PlannerEnum::With(planner) => planner.match_planner(stmt),
             PlannerEnum::Return(planner) => planner.match_planner(stmt),
             PlannerEnum::Yield(planner) => planner.match_planner(stmt),
+            PlannerEnum::Pipe(planner) => planner.match_planner(stmt),
             PlannerEnum::FulltextSearch(planner) => planner.match_planner(stmt),
             PlannerEnum::VectorSearch(planner) => planner.match_planner(stmt),
         }
@@ -380,6 +392,9 @@ impl PlannerEnum {
             PlannerEnum::Use(planner) => {
                 planner.transform_with_metadata(validated, qctx, metadata_context)
             }
+            PlannerEnum::Unwind(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
             PlannerEnum::With(planner) => {
                 planner.transform_with_metadata(validated, qctx, metadata_context)
             }
@@ -387,6 +402,9 @@ impl PlannerEnum {
                 planner.transform_with_metadata(validated, qctx, metadata_context)
             }
             PlannerEnum::Yield(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::Pipe(planner) => {
                 planner.transform_with_metadata(validated, qctx, metadata_context)
             }
             PlannerEnum::FulltextSearch(planner) => {

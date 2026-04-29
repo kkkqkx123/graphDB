@@ -233,6 +233,14 @@ impl<'a> ParseContext<'a> {
                 self.next_token();
                 Ok("CONTAINS".to_string())
             }
+            TokenKind::Tags => {
+                self.next_token();
+                Ok("tags".to_string())
+            }
+            TokenKind::Tag => {
+                self.next_token();
+                Ok("tag".to_string())
+            }
             _ => {
                 let pos = self.current_position();
                 Err(ParseError::new(

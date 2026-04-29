@@ -891,6 +891,7 @@ pub struct FetchStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub enum FetchTarget {
     Vertices {
+        tag_name: Option<String>,
         ids: Vec<ContextualExpression>,
         properties: Option<Vec<String>>,
     },
@@ -1154,6 +1155,10 @@ pub struct UnwindStmt {
     pub span: Span,
     pub expression: ContextualExpression,
     pub variable: String,
+    pub return_clause: Option<ReturnClause>,
+    pub order_by: Option<OrderByClause>,
+    pub limit: Option<usize>,
+    pub skip: Option<usize>,
 }
 
 /// The RETURN statement

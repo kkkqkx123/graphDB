@@ -10,7 +10,7 @@ use std::collections::HashMap;
 /// Metadata context
 ///
 /// Stores pre-resolved metadata during the planning phase, similar to PostgreSQL's fdw_private.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct MetadataContext {
     /// Index metadata cache
     index_metadata: HashMap<String, IndexMetadata>,

@@ -573,6 +573,7 @@ impl Validator {
             Validator::Explain(v) => v.set_schema_manager(schema_manager),
             Validator::Profile(v) => v.set_schema_manager(schema_manager),
             Validator::Go(v) => v.set_schema_manager(schema_manager),
+            Validator::Match(v) => v.set_schema_manager(schema_manager),
             Validator::FetchVertices(v) => v.set_schema_manager(schema_manager),
             Validator::FetchEdges(v) => v.set_schema_manager(schema_manager),
             Validator::Delete(v) => v.set_schema_manager(schema_manager),

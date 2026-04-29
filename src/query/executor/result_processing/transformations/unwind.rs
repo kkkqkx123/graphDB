@@ -7,9 +7,7 @@ use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{Expression, Value};
-#[cfg(test)]
-use crate::query::executor::base::Executor;
-use crate::query::executor::base::{BaseExecutor, ExecutionResult};
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, ExecutorEnum, InputExecutor};
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::{
     DefaultExpressionContext, ExpressionContext as EvalContext,
@@ -22,14 +20,12 @@ use crate::storage::StorageClient;
 /// Used to expand each element in the list into a separate row.
 pub struct UnwindExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
-    /// Input variable name
-    input_var: String,
     /// The expression to be expanded
     unwind_expression: Expression,
     /// Column names
     col_names: Vec<String>,
-    /// Does it come from a pipeline?
-    from_pipe: bool,
+    /// Input executor
+    input_executor: Option<Box<ExecutorEnum<S>>>,
 }
 
 impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
@@ -37,18 +33,17 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
-        input_var: String,
+        _input_var: String,
         unwind_expression: Expression,
         col_names: Vec<String>,
-        from_pipe: bool,
+        _from_pipe: bool,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "UnwindExecutor".to_string(), storage, expr_context),
-            input_var,
             unwind_expression,
             col_names,
-            from_pipe,
+            input_executor: None,
         }
     }
 
@@ -56,18 +51,17 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
     pub fn with_context(
         id: i64,
         storage: Arc<Mutex<S>>,
-        input_var: String,
+        _input_var: String,
         unwind_expression: Expression,
         col_names: Vec<String>,
-        from_pipe: bool,
+        _from_pipe: bool,
         context: crate::query::executor::base::ExecutionContext,
     ) -> Self {
         Self {
             base: BaseExecutor::with_context(id, "UnwindExecutor".to_string(), storage, context),
-            input_var,
             unwind_expression,
             col_names,
-            from_pipe,
+            input_executor: None,
         }
     }
 
@@ -81,28 +75,51 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
     }
 
     fn execute_unwind(&mut self) -> DBResult<DataSet> {
-        let input_result = self
-            .base
-            .context
-            .get_result(&self.input_var)
-            .ok_or_else(|| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
-                    "Input variable '{}' not found",
-                    self.input_var
-                )))
-            })?;
-
         let mut expr_context = DefaultExpressionContext::new();
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),
             rows: Vec::new(),
         };
 
+        let input_result = if let Some(ref mut input_exec) = self.input_executor {
+            input_exec.execute()?
+        } else {
+            ExecutionResult::DataSet(DataSet::new())
+        };
+
         match input_result {
             ExecutionResult::DataSet(input_data) => {
-                for row in input_data.rows {
-                    for value in row {
-                        expr_context.set_variable("_".to_string(), value.clone());
+                let col_names = input_data.col_names.clone();
+                if input_data.rows.is_empty() {
+                    let unwind_value = ExpressionEvaluator::evaluate(
+                        &self.unwind_expression,
+                        &mut expr_context,
+                    )
+                    .map_err(|e| {
+                        DBError::Query(crate::core::error::QueryError::ExecutionError(
+                            e.to_string(),
+                        ))
+                    })?;
+
+                    let list_values = self.extract_list(&unwind_value);
+
+                    for list_item in list_values {
+                        dataset.rows.push(vec![list_item]);
+                    }
+                } else {
+                    for row in input_data.rows {
+                        for (i, value) in row.iter().enumerate() {
+                            if i < col_names.len() {
+                                expr_context.set_variable(col_names[i].clone(), value.clone());
+                                
+                                if col_names[i].contains('.') {
+                                    if let Some(dot_pos) = col_names[i].find('.') {
+                                        let var_name = &col_names[i][..dot_pos];
+                                        expr_context.set_variable(var_name.to_string(), value.clone());
+                                    }
+                                }
+                            }
+                        }
 
                         let unwind_value = ExpressionEvaluator::evaluate(
                             &self.unwind_expression,
@@ -117,23 +134,14 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                         let list_values = self.extract_list(&unwind_value);
 
                         for list_item in list_values {
-                            let mut row = Vec::new();
-
-                            if !self.from_pipe {
-                                row.push(value.clone());
-                            }
-
-                            row.push(list_item);
-
-                            dataset.rows.push(row);
+                            let mut new_row = row.clone();
+                            new_row.push(list_item);
+                            dataset.rows.push(new_row);
                         }
                     }
                 }
             }
-            ExecutionResult::Success => {
-                let empty_value = Value::Empty;
-                expr_context.set_variable("_".to_string(), empty_value.clone());
-
+            ExecutionResult::Success | ExecutionResult::Empty => {
                 let unwind_value =
                     ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
                         .map_err(|e| {
@@ -148,7 +156,6 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                     dataset.rows.push(vec![list_item]);
                 }
             }
-            ExecutionResult::Empty => {}
             ExecutionResult::Error(e) => {
                 return Err(DBError::Query(
                     crate::core::error::QueryError::ExecutionError(format!(
@@ -160,6 +167,16 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
         }
 
         Ok(dataset)
+    }
+}
+
+impl<S: StorageClient + Send + 'static> InputExecutor<S> for UnwindExecutor<S> {
+    fn set_input(&mut self, input: ExecutorEnum<S>) {
+        self.input_executor = Some(Box::new(input));
+    }
+
+    fn get_input(&self) -> Option<&ExecutorEnum<S>> {
+        self.input_executor.as_ref().map(|b| b.as_ref())
     }
 }
 

@@ -460,7 +460,7 @@ impl TemplateExtractor {
         let mut parts = Vec::new();
 
         match &stmt.target {
-            crate::query::parser::ast::FetchTarget::Vertices { ids, properties } => {
+            crate::query::parser::ast::FetchTarget::Vertices { ids, properties, .. } => {
                 parts.push("FETCH VERTEX".to_string());
 
                 // Parameterized vertex IDs

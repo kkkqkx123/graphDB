@@ -93,6 +93,10 @@ mod tests {
             span: Span::default(),
             expression: ctx_expr.clone(),
             variable: "x".to_string(),
+            return_clause: None,
+            order_by: None,
+            limit: None,
+            skip: None,
         });
 
         let (_expr, var) = extract_unwind_info(&unwind_stmt).expect("failed to extract");

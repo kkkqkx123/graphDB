@@ -12,9 +12,11 @@
 use crate::core::types::operators::AggregateFunction;
 use crate::core::types::ContextualExpression;
 use crate::core::YieldColumn;
+use crate::query::metadata::{IndexMetadata, MetadataContext};
 use crate::query::parser::ast::pattern::{PathElement, Pattern, RepetitionType};
 use crate::query::parser::ast::Stmt;
 use crate::query::parser::OrderByItem;
+use crate::query::planning::plan::core::nodes::access::index_scan::{IndexLimit, IndexScanNode, ScanType};
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
 use crate::query::planning::plan::core::nodes::ExpandAllNode;
@@ -46,6 +48,7 @@ pub struct PaginationInfo {
 pub struct MatchStatementPlanner {
     config: MatchPlannerConfig,
     expr_context: Option<Arc<ExpressionAnalysisContext>>,
+    metadata_context: Option<MetadataContext>,
 }
 
 #[derive(Debug, Clone)]
@@ -76,6 +79,7 @@ impl MatchStatementPlanner {
         Self {
             config: MatchPlannerConfig::default(),
             expr_context: None,
+            metadata_context: None,
         }
     }
 
@@ -83,6 +87,7 @@ impl MatchStatementPlanner {
         Self {
             config,
             expr_context: None,
+            metadata_context: None,
         }
     }
 }
@@ -112,6 +117,45 @@ impl Planner for MatchStatementPlanner {
         }
 
         // Optimize the planning using alias mapping.
+        self.plan_match_pattern(validated, space_id, &space_name, validation_info, &qctx)
+    }
+
+    fn transform_with_metadata(
+        &mut self,
+        validated: &ValidatedStatement,
+        qctx: Arc<QueryContext>,
+        metadata_context: &MetadataContext,
+    ) -> Result<SubPlan, PlannerError> {
+        let space_id = qctx.space_id().unwrap_or(1);
+        let space_name = qctx.space_name().unwrap_or_else(|| "default".to_string());
+
+        // Store metadata context for use during planning
+        self.metadata_context = Some(metadata_context.clone());
+
+        // Use the verification information to optimize the planning process.
+        let validation_info = &validated.validation_info;
+
+        // Set expr_context
+        self.expr_context = Some(validated.ast.expr_context().clone());
+
+        // Check the optimization suggestions.
+        for hint in &validation_info.optimization_hints {
+            log::debug!("Optimization Tip: {:?}", hint);
+        }
+
+        // Log available indexes for debugging
+        if self.config.enable_index_optimization {
+            for index in metadata_context.get_all_indexes() {
+                log::debug!(
+                    "Available index: {} on tag {} field {}",
+                    index.index_name,
+                    index.tag_name,
+                    index.field_name
+                );
+            }
+        }
+
+        // Optimize the planning using alias mapping and metadata.
         self.plan_match_pattern(validated, space_id, &space_name, validation_info, &qctx)
     }
 }
@@ -398,11 +442,24 @@ impl MatchStatementPlanner {
         space_id: u64,
         space_name: &str,
     ) -> Result<SubPlan, PlannerError> {
-        let mut scan_node = ScanVerticesNode::new(space_id, space_name);
-        // Set the column name to the node variable name so that subsequent join operations can find the variable
         let var_name = node.variable.clone().unwrap_or_else(|| "n".to_string());
+
+        // Try to use index scan if available
+        if self.config.enable_index_optimization {
+            if let Some(index_plan) = self.try_create_index_scan_plan(
+                node,
+                space_id,
+                space_name,
+                &var_name,
+            )? {
+                return Ok(index_plan);
+            }
+        }
+
+        // Fall back to full table scan
+        let mut scan_node = ScanVerticesNode::new(space_id, space_name);
         scan_node.set_col_names(vec![var_name.clone()]);
-        scan_node.set_output_var(var_name);
+        scan_node.set_output_var(var_name.clone());
         let mut plan = SubPlan::from_root(scan_node.into_enum());
 
         // If there is a label filtering option, please add the filter.
@@ -421,12 +478,24 @@ impl MatchStatementPlanner {
 
         // If there is attribute filtering, add the filter.
         if let Some(ref props) = node.properties {
+            // Convert property map to filter expression
+            let filter_expr = if let Some(ref expr_ctx) = self.expr_context {
+                Self::convert_properties_to_filter(&var_name, props, expr_ctx)
+            } else {
+                None
+            };
+
+            let filter_expr = match filter_expr {
+                Some(expr) => expr,
+                None => props.clone(),
+            };
+
             let filter_node = FilterNode::new(
                 plan.root
                     .as_ref()
                     .expect("The root of plan should exist")
                     .clone(),
-                props.clone(),
+                filter_expr,
             )
             .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
             plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
@@ -448,6 +517,224 @@ impl MatchStatementPlanner {
         }
 
         Ok(plan)
+    }
+
+    /// Try to create an index scan plan for the given node pattern
+    fn try_create_index_scan_plan(
+        &self,
+        node: &crate::query::parser::ast::pattern::NodePattern,
+        space_id: u64,
+        _space_name: &str,
+        var_name: &str,
+    ) -> Result<Option<SubPlan>, PlannerError> {
+        // Check if we have metadata context
+        let metadata_ctx = match &self.metadata_context {
+            Some(ctx) => ctx,
+            None => return Ok(None),
+        };
+
+        // Check if node has labels (tags)
+        if node.labels.is_empty() {
+            return Ok(None);
+        }
+
+        // Get the first label (tag name)
+        let tag_name = &node.labels[0];
+
+        // Find a suitable index for this tag
+        let suitable_index = self.find_suitable_index(
+            metadata_ctx,
+            tag_name,
+            node,
+            var_name,
+        )?;
+
+        match suitable_index {
+            Some((index, index_limits)) => {
+                // Create IndexScanNode
+                let mut index_scan_node = IndexScanNode::new(
+                    space_id,
+                    0, // tag_id will be resolved later
+                    0, // index_id will be resolved later
+                    index.index_name.clone(),
+                    tag_name.clone(),
+                    if index_limits.len() == 1 && index_limits[0].scan_type == ScanType::Unique {
+                        ScanType::Unique
+                    } else {
+                        ScanType::Range
+                    },
+                );
+
+                index_scan_node.set_scan_limits(index_limits);
+                index_scan_node.set_col_names(vec![var_name.to_string()]);
+                index_scan_node.set_output_var(var_name.to_string());
+
+                let plan = SubPlan::from_root(index_scan_node.into_enum());
+                log::debug!(
+                    "Created IndexScanNode for tag '{}' using index '{}'",
+                    tag_name,
+                    index.index_name
+                );
+                Ok(Some(plan))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Find a suitable index for the given node pattern
+    fn find_suitable_index(
+        &self,
+        metadata_ctx: &MetadataContext,
+        tag_name: &str,
+        node: &crate::query::parser::ast::pattern::NodePattern,
+        var_name: &str,
+    ) -> Result<Option<(IndexMetadata, Vec<IndexLimit>)>, PlannerError> {
+        // Get tag metadata
+        let tag_metadata = match metadata_ctx.get_tag_metadata(tag_name) {
+            Some(meta) => meta,
+            None => return Ok(None),
+        };
+
+        // Check if tag has any indexes
+        if tag_metadata.indexes.is_empty() {
+            return Ok(None);
+        }
+
+        // Extract filter conditions from node properties and predicates
+        let filter_conditions = self.extract_filter_conditions(node, var_name);
+
+        if filter_conditions.is_empty() {
+            return Ok(None);
+        }
+
+        // Find an index that matches one of the filter conditions
+        for index_name in &tag_metadata.indexes {
+            if let Some(index_meta) = metadata_ctx.get_index_metadata(index_name) {
+                // Check if any filter condition matches the indexed field
+                for (field, op, value) in &filter_conditions {
+                    if &index_meta.field_name == field {
+                        let index_limit = match op.as_str() {
+                            "=" => Some(IndexLimit::equal(field.clone(), value.clone())),
+                            ">" => Some(IndexLimit::range(
+                                field.clone(),
+                                Some(value.clone()) as Option<String>,
+                                None::<String>,
+                                false,
+                                false,
+                            )),
+                            "<" => Some(IndexLimit::range(
+                                field.clone(),
+                                None::<String>,
+                                Some(value.clone()) as Option<String>,
+                                false,
+                                false,
+                            )),
+                            ">=" => Some(IndexLimit::range(
+                                field.clone(),
+                                Some(value.clone()) as Option<String>,
+                                None::<String>,
+                                true,
+                                false,
+                            )),
+                            "<=" => Some(IndexLimit::range(
+                                field.clone(),
+                                None::<String>,
+                                Some(value.clone()) as Option<String>,
+                                false,
+                                true,
+                            )),
+                            _ => None,
+                        };
+
+                        if let Some(limit) = index_limit {
+                            return Ok(Some((index_meta.clone(), vec![limit])));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Extract filter conditions from node properties and predicates
+    fn extract_filter_conditions(
+        &self,
+        node: &crate::query::parser::ast::pattern::NodePattern,
+        var_name: &str,
+    ) -> Vec<(String, String, String)> {
+        let mut conditions = Vec::new();
+
+        // Extract from node properties (e.g., {name: "value"})
+        if let Some(ref props) = node.properties {
+            if let Some(expr_meta) = props.expression() {
+                Self::extract_conditions_from_expression(expr_meta.inner(), var_name, &mut conditions);
+            }
+        }
+
+        // Extract from predicates
+        for pred in &node.predicates {
+            if let Some(expr_meta) = pred.expression() {
+                Self::extract_conditions_from_expression(expr_meta.inner(), var_name, &mut conditions);
+            }
+        }
+
+        conditions
+    }
+
+    /// Extract conditions from an expression
+    fn extract_conditions_from_expression(
+        expr: &crate::core::types::expr::Expression,
+        var_name: &str,
+        conditions: &mut Vec<(String, String, String)>,
+    ) {
+        use crate::core::types::operators::BinaryOperator;
+        use crate::core::types::expr::Expression;
+
+        match expr {
+            Expression::Binary { left, op, right } => {
+                // Handle AND operator by recursively extracting conditions
+                if matches!(op, BinaryOperator::And) {
+                    Self::extract_conditions_from_expression(left, var_name, conditions);
+                    Self::extract_conditions_from_expression(right, var_name, conditions);
+                    return;
+                }
+
+                let op_str = op.to_string();
+                
+                // Check for pattern: var.property op value
+                if let Expression::Property { object, property } = left.as_ref() {
+                    if let Expression::Variable(obj_name) = object.as_ref() {
+                        if obj_name == var_name {
+                            if let Expression::Literal(lit) = right.as_ref() {
+                                let value_str = format!("{:?}", lit);
+                                conditions.push((property.clone(), op_str.clone(), value_str));
+                            }
+                        }
+                    }
+                }
+                
+                // Check for pattern: value op var.property (reversed)
+                if let Expression::Property { object, property } = right.as_ref() {
+                    if let Expression::Variable(obj_name) = object.as_ref() {
+                        if obj_name == var_name {
+                            if let Expression::Literal(lit) = left.as_ref() {
+                                let reversed_op = match op {
+                                    BinaryOperator::GreaterThan => "<".to_string(),
+                                    BinaryOperator::LessThan => ">".to_string(),
+                                    BinaryOperator::GreaterThanOrEqual => "<=".to_string(),
+                                    BinaryOperator::LessThanOrEqual => ">=".to_string(),
+                                    _ => op_str.clone(),
+                                };
+                                let value_str = format!("{:?}", lit);
+                                conditions.push((property.clone(), reversed_op, value_str));
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
     }
 
     /// Planning mode sidebar
@@ -478,18 +765,30 @@ impl MatchStatementPlanner {
 
         // Set the column name to the edge variable name so that subsequent join operations can find the variable
         let edge_var = edge.variable.clone().unwrap_or_else(|| "e".to_string());
-        expand_node.set_col_names(vec![edge_var]);
+        expand_node.set_col_names(vec![edge_var.clone()]);
 
         let mut plan = SubPlan::from_root(expand_node.into_enum());
 
         // If there is attribute filtering, add the filter.
         if let Some(ref props) = edge.properties {
+            // Convert property map to filter expression
+            let filter_expr = if let Some(ref expr_ctx) = self.expr_context {
+                Self::convert_properties_to_filter(&edge_var, props, expr_ctx)
+            } else {
+                None
+            };
+
+            let filter_expr = match filter_expr {
+                Some(expr) => expr,
+                None => props.clone(),
+            };
+
             let filter_node = FilterNode::new(
                 plan.root
                     .as_ref()
                     .expect("The root of plan should exist")
                     .clone(),
-                props.clone(),
+                filter_expr,
             )
             .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
             plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
@@ -568,12 +867,25 @@ impl MatchStatementPlanner {
 
         // If there is attribute filtering, add the filter.
         if let Some(ref props) = edge.properties {
+            let edge_var = edge.variable.clone().unwrap_or_else(|| "e".to_string());
+            // Convert property map to filter expression
+            let filter_expr = if let Some(ref expr_ctx) = self.expr_context {
+                Self::convert_properties_to_filter(&edge_var, props, expr_ctx)
+            } else {
+                None
+            };
+
+            let filter_expr = match filter_expr {
+                Some(expr) => expr,
+                None => props.clone(),
+            };
+
             let filter_node = FilterNode::new(
                 plan.root
                     .as_ref()
                     .expect("The root of plan should exist")
                     .clone(),
-                props.clone(),
+                filter_expr,
             )
             .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
             plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
@@ -1327,5 +1639,49 @@ impl MatchStatementPlanner {
         let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         ContextualExpression::new(id, ctx)
+    }
+
+    /// Convert property map to filter expression
+    ///
+    /// Converts a map literal like `{name: 'Alice', age: 30}` into a conjunction of equality comparisons
+    /// like `v.name = 'Alice' AND v.age = 30`.
+    fn convert_properties_to_filter(
+        var_name: &str,
+        props: &ContextualExpression,
+        expr_context: &Arc<ExpressionAnalysisContext>,
+    ) -> Option<ContextualExpression> {
+        use crate::core::types::operators::BinaryOperator;
+
+        let props_expr = props.expression()?.inner().clone();
+
+        if let crate::core::Expression::Map(pairs) = props_expr {
+            if pairs.is_empty() {
+                return None;
+            }
+
+            let var_expr = crate::core::Expression::variable(var_name);
+
+            let conditions: Vec<crate::core::Expression> = pairs
+                .into_iter()
+                .map(|(key, value)| {
+                    let prop_access = crate::core::Expression::property(var_expr.clone(), key);
+                    crate::core::Expression::binary(
+                        prop_access,
+                        BinaryOperator::Equal,
+                        value,
+                    )
+                })
+                .collect();
+
+            let combined = conditions.into_iter().reduce(|acc, cond| {
+                crate::core::Expression::binary(acc, BinaryOperator::And, cond)
+            })?;
+
+            let expr_meta = crate::core::types::expr::ExpressionMeta::new(combined);
+            let id = expr_context.register_expression(expr_meta);
+            Some(ContextualExpression::new(id, expr_context.clone()))
+        } else {
+            None
+        }
     }
 }

@@ -38,6 +38,8 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
+        use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+        
         let unwind_expression = node
             .list_expression()
             .expression()
@@ -46,13 +48,19 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
                 QueryError::ExecutionError("Expression does not exist in context".to_string())
             })?;
 
+        let input_var = node
+            .input()
+            .output_var()
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "input".to_string());
+
         let executor = UnwindExecutor::new(
             node.id(),
             storage,
-            node.alias().to_string(),
+            input_var,
             unwind_expression,
             node.col_names().to_vec(),
-            false,
+            true,
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::Unwind(executor))

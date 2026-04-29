@@ -101,6 +101,7 @@ impl StmtParser {
     }
 
     /// Analyzing the pipe suffix (the | operator)
+    /// Also handles sequential clauses like MATCH ... WITH ... RETURN
     fn parse_pipe_suffix(
         &mut self,
         ctx: &mut ParseContext,
@@ -109,6 +110,45 @@ impl StmtParser {
         if ctx.match_token(TokenKind::Pipe) {
             let start_span = left.span();
             let right = self.parse_single_statement(ctx)?;
+            let end_span = right.span();
+            let span = ctx.merge_span(start_span.start, end_span.end);
+
+            let pipe_stmt = Stmt::Pipe(PipeStmt {
+                span,
+                left: Box::new(left),
+                right: Box::new(right),
+            });
+
+            self.parse_pipe_suffix(ctx, pipe_stmt)
+        } else if ctx.current_token().kind == TokenKind::With {
+            let start_span = left.span();
+            let right = UtilStmtParser::new().parse_with_statement(ctx)?;
+            let end_span = right.span();
+            let span = ctx.merge_span(start_span.start, end_span.end);
+
+            let pipe_stmt = Stmt::Pipe(PipeStmt {
+                span,
+                left: Box::new(left),
+                right: Box::new(right),
+            });
+
+            self.parse_pipe_suffix(ctx, pipe_stmt)
+        } else if ctx.current_token().kind == TokenKind::Return {
+            let start_span = left.span();
+            let right = UtilStmtParser::new().parse_return_statement(ctx)?;
+            let end_span = right.span();
+            let span = ctx.merge_span(start_span.start, end_span.end);
+
+            let pipe_stmt = Stmt::Pipe(PipeStmt {
+                span,
+                left: Box::new(left),
+                right: Box::new(right),
+            });
+
+            self.parse_pipe_suffix(ctx, pipe_stmt)
+        } else if ctx.current_token().kind == TokenKind::Unwind {
+            let start_span = left.span();
+            let right = UtilStmtParser::new().parse_unwind_statement(ctx)?;
             let end_span = right.span();
             let span = ctx.merge_span(start_span.start, end_span.end);
 

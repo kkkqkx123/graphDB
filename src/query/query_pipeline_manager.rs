@@ -645,6 +645,51 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 // Metadata resolution happens at executor time for now
                 log::debug!("MatchVector metadata resolution deferred to executor");
             }
+            Stmt::Match(_match_stmt) => {
+                // Pre-resolve tag and index metadata for MATCH statements
+                let referenced_tags = &validated.validation_info.semantic_info.referenced_tags;
+                let referenced_edges = &validated.validation_info.semantic_info.referenced_edges;
+
+                // Resolve tag metadata and their indexes
+                for tag_name in referenced_tags {
+                    match metadata_provider.get_tag_metadata(space_id, tag_name) {
+                        Ok(tag_metadata) => {
+                            context.set_tag_metadata(tag_name.clone(), tag_metadata);
+                        }
+                        Err(e) => {
+                            log::warn!("Failed to get tag metadata for '{}': {}", tag_name, e);
+                        }
+                    }
+                }
+
+                // Resolve edge type metadata
+                for edge_type in referenced_edges {
+                    match metadata_provider.get_edge_type_metadata(space_id, edge_type) {
+                        Ok(edge_metadata) => {
+                            context.set_edge_type_metadata(edge_type.clone(), edge_metadata);
+                        }
+                        Err(e) => {
+                            log::warn!(
+                                "Failed to get edge type metadata for '{}': {}",
+                                edge_type,
+                                e
+                            );
+                        }
+                    }
+                }
+
+                // Resolve all indexes for the space
+                match metadata_provider.list_indexes(space_id) {
+                    Ok(indexes) => {
+                        for index in indexes {
+                            context.set_index_metadata(index.index_name.clone(), index);
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to list indexes for space {}: {}", space_id, e);
+                    }
+                }
+            }
             // For other statement types, we can extend metadata resolution as needed
             _ => {
                 // No specific metadata resolution for other statement types yet

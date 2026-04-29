@@ -168,6 +168,7 @@ define_rewrite_rules! {
         PushLimitDownScanEdges(limit_pushdown::PushLimitDownScanEdgesRule),
         PushLimitDownIndexScan(limit_pushdown::PushLimitDownIndexScanRule),
         PushTopNDownIndexScan(limit_pushdown::PushTopNDownIndexScanRule),
+        ConvertSortLimitToTopN(limit_pushdown::ConvertSortLimitToTopNRule),
 
         // ==================== Aggregation Optimization Rules ====================
         PushFilterDownAggregate(aggregate::PushFilterDownAggregateRule),
@@ -335,6 +336,9 @@ impl Default for RuleRegistry {
         registry.add(RewriteRule::PushTopNDownIndexScan(
             limit_pushdown::PushTopNDownIndexScanRule::new(),
         ));
+        registry.add(RewriteRule::ConvertSortLimitToTopN(
+            limit_pushdown::ConvertSortLimitToTopNRule::new(),
+        ));
         registry.add(RewriteRule::PushFilterDownAggregate(
             aggregate::PushFilterDownAggregateRule::new(),
         ));
@@ -376,7 +380,7 @@ mod tests {
     #[test]
     fn test_rule_registry_default() {
         let registry = RuleRegistry::default();
-        assert_eq!(registry.len(), 48);
+        assert_eq!(registry.len(), 49);
     }
 
     #[test]

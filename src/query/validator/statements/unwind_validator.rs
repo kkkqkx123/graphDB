@@ -12,7 +12,7 @@
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
-use crate::query::parser::ast::stmt::Ast;
+use crate::query::parser::ast::stmt::{Ast, Stmt};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
@@ -399,9 +399,15 @@ impl Default for UnwindValidator {
 impl StatementValidator for UnwindValidator {
     fn validate(
         &mut self,
-        _ast: Arc<Ast>,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
+        // Extract expression and variable from AST
+        if let Stmt::Unwind(unwind_stmt) = &ast.stmt {
+            self.unwind_expression = unwind_stmt.expression.clone();
+            self.variable_name = unwind_stmt.variable.clone();
+        }
+
         // Clear the previous state.
         self.outputs.clear();
         self.inputs.clear();

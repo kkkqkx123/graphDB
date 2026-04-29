@@ -335,6 +335,55 @@ impl TestScenario {
         self
     }
 
+    /// Assert plan contains specific operator
+    /// This is useful for testing EXPLAIN output
+    pub fn assert_plan_contains(self, operator: &str) -> Self {
+        if let Some(ref result) = self.last_result {
+            let plan_str = match result {
+                ExecutionResult::DataSet(ds) => format!("{:?}", ds),
+                _ => String::new(),
+            };
+
+            assert!(
+                plan_str.contains(operator),
+                "Expected '{}' in plan, but got: {}",
+                operator,
+                plan_str
+            );
+        } else {
+            panic!("No result to check plan");
+        }
+        self
+    }
+
+    /// Assert plan contains any of the specified operators
+    pub fn assert_plan_contains_any(self, operators: &[&str]) -> Self {
+        if let Some(ref result) = self.last_result {
+            let plan_str = match result {
+                ExecutionResult::DataSet(ds) => format!("{:?}", ds),
+                _ => String::new(),
+            };
+
+            let found = operators.iter().any(|op| plan_str.contains(op));
+            assert!(
+                found,
+                "Expected one of {:?} in plan, but got: {}",
+                operators, plan_str
+            );
+        } else {
+            panic!("No result to check plan");
+        }
+        self
+    }
+
+    /// Get the plan string for custom assertions
+    pub fn get_plan_string(&self) -> Option<String> {
+        self.last_result.as_ref().map(|result| match result {
+            ExecutionResult::DataSet(ds) => format!("{:?}", ds),
+            _ => String::new(),
+        })
+    }
+
     // ==================== Data Validation Methods ====================
 
     /// Assert vertex exists

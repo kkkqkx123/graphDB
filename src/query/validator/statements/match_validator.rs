@@ -11,6 +11,8 @@ use crate::query::parser::ast::stmt::{Ast, MatchStmt, OrderByClause, ReturnClaus
 use crate::query::parser::ast::{Pattern, Stmt};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryContext;
+use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use crate::storage::metadata::schema_manager::SchemaManager;
 
 use crate::query::validator::strategies::ExpressionValidationStrategy;
 use crate::query::validator::structs::validation_info::{PathAnalysis, ValidationInfo};
@@ -57,6 +59,10 @@ pub struct MatchValidator {
     expression_props: ExpressionProps,
     /// User-defined variables
     user_defined_vars: Vec<String>,
+    /// Schema manager for validation
+    schema_manager: Option<Arc<RedbSchemaManager>>,
+    /// Space name for schema validation
+    space_name: Option<String>,
 }
 
 impl MatchValidator {
@@ -72,6 +78,8 @@ impl MatchValidator {
             optional: false,
             expression_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
+            schema_manager: None,
+            space_name: None,
         }
     }
 
@@ -80,6 +88,22 @@ impl MatchValidator {
         let mut validator = Self::new();
         validator.pagination = Some(PaginationContext { skip, limit });
         validator
+    }
+
+    /// Set schema manager
+    pub fn with_schema_manager(mut self, schema_manager: Arc<RedbSchemaManager>) -> Self {
+        self.schema_manager = Some(schema_manager);
+        self
+    }
+
+    /// Set space name
+    pub fn set_space_name(&mut self, space_name: String) {
+        self.space_name = Some(space_name);
+    }
+
+    /// Set schema manager
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<RedbSchemaManager>) {
+        self.schema_manager = Some(schema_manager);
     }
 
     /// Obtain the verified results.
@@ -129,12 +153,14 @@ impl MatchValidator {
         }
 
         // 4. Verify the existence of the RETURN clause.
-        if match_stmt.return_clause.is_none() {
-            return Err(ValidationError::new(
-                "The MATCH statement must contain a RETURN clause.".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
-        }
+        // Note: MATCH can be followed by WITH clause instead of RETURN clause in multi-part queries.
+        // The RETURN clause is optional here - it will be validated at the query pipeline level.
+        // if match_stmt.return_clause.is_none() {
+        //     return Err(ValidationError::new(
+        //         "The MATCH statement must contain a RETURN clause.".to_string(),
+        //         ValidationErrorType::SemanticError,
+        //     ));
+        // }
 
         // 5. Validate the WHERE clause (if present)
         if let Some(ref where_clause) = match_stmt.where_clause {
@@ -180,14 +206,27 @@ impl MatchValidator {
                         ValidationErrorType::SemanticError,
                     ));
                 }
+                // Validate tags exist
+                for label in &node_pattern.labels {
+                    self.validate_tag_exists(label)?;
+                }
             }
-            Pattern::Edge(_edge_pattern) => {}
+            Pattern::Edge(edge_pattern) => {
+                // Validate edge types exist
+                for edge_type in &edge_pattern.edge_types {
+                    self.validate_edge_type_exists(edge_type)?;
+                }
+            }
             Pattern::Path(path_pattern) => {
                 if path_pattern.elements.is_empty() {
                     return Err(ValidationError::new(
                         format!("Pattern {}: path cannot be empty", idx + 1),
                         ValidationErrorType::SemanticError,
                     ));
+                }
+                // Validate tags and edges in path
+                for element in &path_pattern.elements {
+                    self.validate_path_element(element)?;
                 }
             }
             Pattern::Variable(var_pattern) => {
@@ -217,6 +256,77 @@ impl MatchValidator {
             }
         }
         Ok(())
+    }
+
+    /// Validate path element
+    fn validate_path_element(
+        &mut self,
+        element: &crate::query::parser::ast::PathElement,
+    ) -> Result<(), ValidationError> {
+        match element {
+            crate::query::parser::ast::PathElement::Node(node) => {
+                for label in &node.labels {
+                    self.validate_tag_exists(label)?;
+                }
+            }
+            crate::query::parser::ast::PathElement::Edge(edge) => {
+                for edge_type in &edge.edge_types {
+                    self.validate_edge_type_exists(edge_type)?;
+                }
+            }
+            crate::query::parser::ast::PathElement::Alternative(patterns) => {
+                for pattern in patterns {
+                    self.validate_pattern(pattern, 0)?;
+                }
+            }
+            crate::query::parser::ast::PathElement::Optional(inner) => {
+                self.validate_path_element(inner)?;
+            }
+            crate::query::parser::ast::PathElement::Repeated(inner, _) => {
+                self.validate_path_element(inner)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Validate that the tag exists in the schema
+    fn validate_tag_exists(&self, tag_name: &str) -> Result<(), ValidationError> {
+        if let (Some(ref schema_manager), Some(space)) = (&self.schema_manager, &self.space_name) {
+            match schema_manager.get_tag(space, tag_name) {
+                Ok(Some(_)) => Ok(()),
+                Ok(None) => Err(ValidationError::new(
+                    format!("Tag '{}' not found in space '{}'", tag_name, space),
+                    ValidationErrorType::SemanticError,
+                )),
+                Err(e) => Err(ValidationError::new(
+                    format!("Failed to get tag '{}': {}", tag_name, e),
+                    ValidationErrorType::SemanticError,
+                )),
+            }
+        } else {
+            // Without schema_manager, we can't validate, so just pass
+            Ok(())
+        }
+    }
+
+    /// Validate that the edge type exists in the schema
+    fn validate_edge_type_exists(&self, edge_name: &str) -> Result<(), ValidationError> {
+        if let (Some(ref schema_manager), Some(space)) = (&self.schema_manager, &self.space_name) {
+            match schema_manager.get_edge_type(space, edge_name) {
+                Ok(Some(_)) => Ok(()),
+                Ok(None) => Err(ValidationError::new(
+                    format!("Edge type '{}' not found in space '{}'", edge_name, space),
+                    ValidationErrorType::SemanticError,
+                )),
+                Err(e) => Err(ValidationError::new(
+                    format!("Failed to get edge type '{}': {}", edge_name, e),
+                    ValidationErrorType::SemanticError,
+                )),
+            }
+        } else {
+            // Without schema_manager, we can't validate, so just pass
+            Ok(())
+        }
     }
 
     /// Collect aliases from the pattern (during the first scan)
@@ -720,7 +830,12 @@ impl StatementValidator for MatchValidator {
             ));
         }
 
-        // 2. Getting the MATCH statement
+        // 2. Set space name for schema validation
+        if let Some(space_name) = qctx.space_name() {
+            self.space_name = Some(space_name);
+        }
+
+        // 3. Getting the MATCH statement
         let match_stmt = match &ast.stmt {
             Stmt::Match(m) => m,
             _ => {
@@ -731,19 +846,19 @@ impl StatementValidator for MatchValidator {
             }
         };
 
-        // 3. Validating the MATCH statement
+        // 4. Validating the MATCH statement
         self.validate_match_statement(match_stmt)?;
 
-        // 4. Get space_id
+        // 5. Get space_id
         let space_id = qctx.space_id().unwrap_or(0);
 
-        // 5. Generation of output columns
+        // 6. Generation of output columns
         self.generate_output_columns(match_stmt);
 
-        // 6. Constructing a detailed ValidationInfo
+        // 7. Constructing a detailed ValidationInfo
         let mut info = ValidationInfo::new();
 
-        // 6.1 Adding an Alias Map
+        // 7.1 Adding an Alias Map
         for (name, alias_type) in &self.aliases {
             info.add_alias(name.clone(), alias_type.clone());
         }

@@ -103,7 +103,11 @@ impl FetchVerticesValidator {
     /// Basic validation
     fn validate_fetch_vertices(&self, stmt: &FetchStmt, space_name: Option<&str>) -> Result<(), ValidationError> {
         match &stmt.target {
-            FetchTarget::Vertices { ids, properties } => {
+            FetchTarget::Vertices { tag_name, ids, properties } => {
+                // Validate tag exists if specified
+                if let Some(ref tag) = tag_name {
+                    self.validate_tag_exists(tag, space_name)?;
+                }
                 self.validate_vertex_ids(ids, space_name)?;
                 self.validate_properties_clause(properties.as_ref())?;
                 Ok(())
@@ -112,6 +116,26 @@ impl FetchVerticesValidator {
                 "Expected FETCH VERTICES statement".to_string(),
                 ValidationErrorType::SemanticError,
             )),
+        }
+    }
+
+    /// Validate that the tag exists in the schema
+    fn validate_tag_exists(&self, tag_name: &str, space_name: Option<&str>) -> Result<(), ValidationError> {
+        if let (Some(ref schema_manager), Some(space)) = (&self.schema_manager, space_name) {
+            match schema_manager.get_tag(space, tag_name) {
+                Ok(Some(_)) => Ok(()),
+                Ok(None) => Err(ValidationError::new(
+                    format!("Tag '{}' not found in space '{}'", tag_name, space),
+                    ValidationErrorType::SemanticError,
+                )),
+                Err(e) => Err(ValidationError::new(
+                    format!("Failed to get tag '{}': {}", tag_name, e),
+                    ValidationErrorType::SemanticError,
+                )),
+            }
+        } else {
+            // Without schema_manager, we can't validate, so just pass
+            Ok(())
         }
     }
 
@@ -288,8 +312,8 @@ impl StatementValidator for FetchVerticesValidator {
         let space_id = qctx.space_id().unwrap_or(0);
 
         // 5. Extract vertex information
-        let (vertex_ids, properties) = match &fetch_stmt.target {
-            FetchTarget::Vertices { ids, properties } => (ids, properties),
+        let (tag_name, vertex_ids, properties) = match &fetch_stmt.target {
+            FetchTarget::Vertices { tag_name, ids, properties } => (tag_name.clone(), ids, properties),
             _ => {
                 return Err(ValidationError::new(
                     "Expected FETCH VERTICES statement".to_string(),
@@ -321,16 +345,17 @@ impl StatementValidator for FetchVerticesValidator {
                 validated_columns.push(ValidatedYieldColumn {
                     expression: ctx_expr,
                     alias: prop.clone(),
-                    tag_name: None,
+                    tag_name: tag_name.clone(),
                     prop_name: Some(prop.clone()),
                 });
             }
         }
 
         // 8. Create the verification results
+        let tag_names: Vec<String> = tag_name.iter().cloned().collect();
         let validated = ValidatedFetchVertices {
             space_id,
-            tag_names: vec![], // The `FETCH VERTICES` command does not specify a particular tag.
+            tag_names,
             tag_ids: vec![],
             vertex_ids: validated_vids,
             yield_columns: validated_columns,
@@ -414,6 +439,7 @@ mod tests {
         FetchStmt {
             span: Span::default(),
             target: FetchTarget::Vertices {
+                tag_name: None,
                 ids: vertex_ids.into_iter().map(create_contextual_expr).collect(),
                 properties,
             },

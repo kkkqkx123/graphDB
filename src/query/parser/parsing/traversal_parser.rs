@@ -429,6 +429,8 @@ impl TraversalParser {
 
             if ctx.match_token(TokenKind::Colon) {
                 loop {
+                    // Handle optional colon before edge type (e.g., :KNOWS|:FOLLOWS or :KNOWS|FOLLOWS)
+                    ctx.match_token(TokenKind::Colon);
                     let edge_type = ctx.expect_identifier()?;
                     edge_types.push(edge_type);
                     if !ctx.match_token(TokenKind::Pipe) {

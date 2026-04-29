@@ -17,6 +17,7 @@ use crate::query::validator::validator_trait::{
 };
 use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use crate::storage::metadata::schema_manager::SchemaManager;
 
 /// Verified information about the GO statement
 #[derive(Debug, Clone)]
@@ -179,6 +180,7 @@ impl GoValidator {
     fn validate_over_clause(
         &mut self,
         edge_names: &[String],
+        space_name: Option<&str>,
     ) -> Result<Vec<OverEdge>, ValidationError> {
         if edge_names.is_empty() {
             return Err(ValidationError::new(
@@ -196,6 +198,11 @@ impl GoValidator {
                 ));
             }
 
+            // Validate edge type exists (unless it's *)
+            if edge_name != "*" {
+                self.validate_edge_type_exists(edge_name, space_name)?;
+            }
+
             over_edges.push(OverEdge {
                 edge_name: edge_name.clone(),
                 edge_type: None,
@@ -207,6 +214,26 @@ impl GoValidator {
         }
 
         Ok(over_edges)
+    }
+
+    /// Validate that the edge type exists in the schema
+    fn validate_edge_type_exists(&self, edge_name: &str, space_name: Option<&str>) -> Result<(), ValidationError> {
+        if let (Some(ref schema_manager), Some(space)) = (&self.schema_manager, space_name) {
+            match schema_manager.get_edge_type(space, edge_name) {
+                Ok(Some(_)) => Ok(()),
+                Ok(None) => Err(ValidationError::new(
+                    format!("Edge type '{}' not found in space '{}'", edge_name, space),
+                    ValidationErrorType::SemanticError,
+                )),
+                Err(e) => Err(ValidationError::new(
+                    format!("Failed to get edge type '{}': {}", edge_name, e),
+                    ValidationErrorType::SemanticError,
+                )),
+            }
+        } else {
+            // Without schema_manager, we can't validate, so just pass
+            Ok(())
+        }
     }
 
     /// Verify the WHERE clause
@@ -386,12 +413,13 @@ impl StatementValidator for GoValidator {
         let from_source = self.validate_from_clause(&go_stmt.from.vertices)?;
 
         // 4. Verify the OVER clause
+        let space_name = qctx.space_name();
         let edge_names: Vec<String> = go_stmt
             .over
             .as_ref()
             .map(|over| over.edge_types.clone())
             .unwrap_or_default();
-        let over_edges = self.validate_over_clause(&edge_names)?;
+        let over_edges = self.validate_over_clause(&edge_names, space_name.as_deref())?;
 
         // 5. Verify the WHERE clause
         let where_filter = self.validate_where_clause(&go_stmt.where_clause)?;

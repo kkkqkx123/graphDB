@@ -364,6 +364,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
             ExecutorEnum::Having(exec) => exec.set_input(input),
             ExecutorEnum::Remove(exec) => exec.set_input(input),
             ExecutorEnum::Materialize(exec) => exec.set_input(input),
+            ExecutorEnum::Unwind(exec) => exec.set_input(input),
             _ => {}
         }
     }
@@ -387,6 +388,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
             ExecutorEnum::Having(exec) => exec.get_input(),
             ExecutorEnum::Remove(exec) => exec.get_input(),
             ExecutorEnum::Materialize(exec) => exec.get_input(),
+            ExecutorEnum::Unwind(exec) => exec.get_input(),
             _ => None,
         }
     }

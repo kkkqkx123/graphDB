@@ -68,10 +68,8 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ArgumentExecutor<S> {
         } else if let Some(result) = self.base.context.get_result(&self.var) {
             Ok(result.clone())
         } else {
-            Err(crate::core::error::DBError::Internal(format!(
-                "Variable '{}' is not defined",
-                self.var
-            )))
+            // Return empty dataset for standalone operations (like UNWIND without input)
+            Ok(ExecutionResult::DataSet(DataSet::new()))
         }
     }
 

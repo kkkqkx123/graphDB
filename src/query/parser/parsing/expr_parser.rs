@@ -469,7 +469,7 @@ impl<'a> ExprParser<'a> {
                     })
                 }
             }
-            TokenKind::User | TokenKind::Order | TokenKind::Status | TokenKind::Contains => {
+            TokenKind::User | TokenKind::Order | TokenKind::Status | TokenKind::Contains | TokenKind::Tag | TokenKind::Tags => {
                 let name = token.lexeme.clone();
                 ctx.next_token();
                 let span = ctx.merge_span(start_pos, ctx.current_position());
@@ -496,6 +496,12 @@ impl<'a> ExprParser<'a> {
                 ctx.next_token();
                 if ctx.is_identifier_or_in_token() {
                     self.parse_list_comprehension(start_pos, ctx)
+                } else if ctx.match_token(TokenKind::RBracket) {
+                    let span = ctx.merge_span(start_pos, ctx.current_position());
+                    Ok(ParseResult {
+                        expr: Expression::list(Vec::new()),
+                        span,
+                    })
                 } else {
                     let elements = self.parse_expression_list(ctx)?;
                     ctx.expect_token(TokenKind::RBracket)?;

@@ -10,6 +10,7 @@
 //! - RETURN: Return results (standalone statement)
 //! - SET OPERATION: Union, Intersect, Minus operations
 //! - SUBGRAPH: Subgraph expansion queries
+//! - UNWIND: Expand list into multiple rows
 //! - WITH: Pipe results between query parts
 //! - YIELD: Yield results (standalone statement)
 
@@ -19,8 +20,10 @@ pub mod go_planner;
 pub mod group_by_planner;
 pub mod lookup_planner;
 pub mod path_planner;
+pub mod pipe_planner;
 pub mod return_planner;
 pub mod set_operation_planner;
 pub mod subgraph_planner;
+pub mod unwind_planner;
 pub mod with_planner;
 pub mod yield_planner;

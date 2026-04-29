@@ -157,7 +157,13 @@ impl UtilStmtParser {
         let _with_props = ctx.match_token(TokenKind::Prop);
 
         let target = if ctx.match_token(TokenKind::On) {
-            let name = ctx.expect_identifier()?;
+            // Check for * (all tags)
+            let tag_name = if ctx.match_token(TokenKind::Star) {
+                None // None means all tags
+            } else {
+                Some(ctx.expect_identifier()?)
+            };
+            
             let first_expr = self.parse_expression(ctx)?;
             if ctx.check_token(TokenKind::Arrow) {
                 ctx.expect_token(TokenKind::Arrow)?;
@@ -170,7 +176,7 @@ impl UtilStmtParser {
                 FetchTarget::Edges {
                     src: first_expr,
                     dst,
-                    edge_type: name,
+                    edge_type: tag_name.expect("Edge type name is required"),
                     rank,
                     properties: None,
                 }
@@ -180,14 +186,16 @@ impl UtilStmtParser {
                     ids.push(self.parse_expression(ctx)?);
                 }
                 FetchTarget::Vertices {
+                    tag_name,
                     ids,
                     properties: None,
                 }
             }
         } else if ctx.match_token(TokenKind::Tag) {
-            let _tag_name = ctx.expect_identifier()?;
+            let tag_name = Some(ctx.expect_identifier()?);
             let ids = self.parse_expression_list(ctx)?;
             FetchTarget::Vertices {
+                tag_name,
                 ids,
                 properties: None,
             }
@@ -211,6 +219,7 @@ impl UtilStmtParser {
         } else {
             let ids = self.parse_expression_list(ctx)?;
             FetchTarget::Vertices {
+                tag_name: None,
                 ids,
                 properties: None,
             }
@@ -279,10 +288,24 @@ impl UtilStmtParser {
 
         let variable = ctx.expect_identifier()?;
 
+        let return_clause = if ctx.match_token(TokenKind::Return) {
+            Some(ClauseParser::new().parse_return_clause(ctx)?)
+        } else {
+            None
+        };
+
+        let order_by = None;
+        let limit = None;
+        let skip = None;
+
         Ok(Stmt::Unwind(UnwindStmt {
             span: start_span,
             expression,
             variable,
+            return_clause,
+            order_by,
+            limit,
+            skip,
         }))
     }
 

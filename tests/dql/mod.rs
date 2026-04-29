@@ -9,6 +9,7 @@
 //! - Subquery - WITH, UNWIND
 //! - FIND PATH - Path finding
 //! - SUBGRAPH - Subgraph retrieval
+//! - Optimizer - Query plan optimization tests
 
 mod common;
 mod go;
@@ -19,3 +20,4 @@ mod aggregation;
 mod subquery;
 mod find_path;
 mod subgraph;
+mod optimizer;
