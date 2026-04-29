@@ -73,7 +73,7 @@ The graphDB project utilises Cargo as its build system. To build the project:
 
 ```shell
 # full compile check
-& 'D:\softwares\Visual Studio\Common7\Tools\Launch-VsDevShell.ps1'; cargo clippy --all-targets --all-features
+cargo clippy --all-targets --all-features
 ```
 
 ## Development Conventions

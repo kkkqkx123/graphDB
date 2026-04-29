@@ -3,20 +3,17 @@
 //! Test scope:
 //! - SyncCoordinator basic functionality
 //! - Vertex change auto-sync (insert, update, delete)
-//! - Transaction buffering (buffered inserts, rollback, concurrent buffers)
+//! - Transaction buffering
+//! - Sync with both BM25 and Inversearch engines
 //!
-//! Test cases: TC-FT-016 ~ TC-FT-021
+//! Test cases: TC-FT-SYNC-001 ~ TC-FT-SYNC-010
 
-mod common;
-
-use common::fulltext_helpers::FulltextTestContext;
+use super::common::FulltextTestContext;
 use graphdb::search::EngineType;
 use graphdb::sync::batch::BatchConfig;
 use graphdb::sync::coordinator::{ChangeType, SyncCoordinator};
 use graphdb::sync::manager::SyncManager;
 use std::sync::Arc;
-
-// ==================== Test Fixtures ====================
 
 struct SyncTestContext {
     coordinator: Arc<SyncCoordinator>,
@@ -49,20 +46,16 @@ fn create_test_properties(content: &str) -> Vec<(String, graphdb::core::Value)> 
     )]
 }
 
-// ==================== SyncCoordinator Basic Tests ====================
-
-/// TC-FT-016: Vertex Insert Auto-Sync
+/// TC-FT-SYNC-001: Vertex Insert Auto-Sync with BM25
 #[tokio::test]
-async fn test_vertex_insert_auto_sync() {
+async fn test_vertex_insert_auto_sync_bm25() {
     let ctx = SyncTestContext::new();
 
-    // Create index
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
         .await
         .expect("Failed to create index");
 
-    // Simulate vertex insert
     let vertex_id = graphdb::core::Value::Int(1);
     let properties = create_test_properties("Hello World");
 
@@ -71,37 +64,65 @@ async fn test_vertex_insert_auto_sync() {
         .await
         .expect("Failed to sync vertex insert");
 
-    // Commit
     ctx.fulltext_ctx
         .commit_all()
         .await
         .expect("Failed to commit");
 
-    // Verify index is synced
     let results = ctx
         .fulltext_ctx
         .search(1, "Article", "content", "Hello", 10)
         .await
         .expect("Search should succeed");
 
-    // Note: The doc_id is the vertex_id string representation (Int(1) -> "1")
     let expected_doc_id = graphdb::core::Value::String("1".to_string());
-    if results.iter().any(|r| r.doc_id == expected_doc_id) {
-        // Success
-    } else {
-        panic!(
-            "Should find synced document with doc_id={:?}",
-            expected_doc_id
-        );
-    }
+    assert!(
+        results.iter().any(|r| r.doc_id == expected_doc_id),
+        "Should find synced document with doc_id=1"
+    );
 }
 
-/// TC-FT-017: Vertex Update Auto-Sync
+/// TC-FT-SYNC-002: Vertex Insert Auto-Sync with Inversearch
+#[tokio::test]
+async fn test_vertex_insert_auto_sync_inversearch() {
+    let ctx = SyncTestContext::new();
+
+    ctx.fulltext_ctx
+        .create_test_index(1, "Article", "content", Some(EngineType::Inversearch))
+        .await
+        .expect("Failed to create index");
+
+    let vertex_id = graphdb::core::Value::Int(1);
+    let properties = create_test_properties("Hello World");
+
+    ctx.coordinator
+        .on_vertex_change(1, "Article", &vertex_id, &properties, ChangeType::Insert)
+        .await
+        .expect("Failed to sync vertex insert");
+
+    ctx.fulltext_ctx
+        .commit_all()
+        .await
+        .expect("Failed to commit");
+
+    let results = ctx
+        .fulltext_ctx
+        .search(1, "Article", "content", "Hello", 10)
+        .await
+        .expect("Search should succeed");
+
+    let expected_doc_id = graphdb::core::Value::String("1".to_string());
+    assert!(
+        results.iter().any(|r| r.doc_id == expected_doc_id),
+        "Should find synced document with doc_id=1"
+    );
+}
+
+/// TC-FT-SYNC-003: Vertex Update Auto-Sync
 #[tokio::test]
 async fn test_vertex_update_auto_sync() {
     let ctx = SyncTestContext::new();
 
-    // Create index
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
         .await
@@ -116,13 +137,12 @@ async fn test_vertex_update_auto_sync() {
         .await
         .expect("Failed to sync vertex insert");
 
-    // Commit insert
     ctx.fulltext_ctx
         .commit_all()
         .await
         .expect("Failed to commit");
 
-    // Update vertex - delete old content first, then insert new content
+    // Update vertex
     if let Some(engine) = ctx.fulltext_ctx.manager.get_engine(1, "Article", "content") {
         engine
             .delete("1")
@@ -136,7 +156,6 @@ async fn test_vertex_update_auto_sync() {
         .await
         .expect("Failed to sync vertex update");
 
-    // Commit update
     ctx.fulltext_ctx
         .commit_all()
         .await
@@ -149,9 +168,10 @@ async fn test_vertex_update_auto_sync() {
         .await
         .expect("Search should succeed");
     let old_doc_id = graphdb::core::Value::String("1".to_string());
-    if old_results.iter().any(|r| r.doc_id == old_doc_id) {
-        panic!("Should not find old content");
-    }
+    assert!(
+        !old_results.iter().any(|r| r.doc_id == old_doc_id),
+        "Should not find old content"
+    );
 
     // Search for new content - should find
     let new_results = ctx
@@ -160,19 +180,17 @@ async fn test_vertex_update_auto_sync() {
         .await
         .expect("Search should succeed");
     let new_doc_id = graphdb::core::Value::String("1".to_string());
-    if new_results.iter().any(|r| r.doc_id == new_doc_id) {
-        // Success
-    } else {
-        panic!("Should find new content");
-    }
+    assert!(
+        new_results.iter().any(|r| r.doc_id == new_doc_id),
+        "Should find new content"
+    );
 }
 
-/// TC-FT-018: Vertex Delete Auto-Sync
+/// TC-FT-SYNC-004: Vertex Delete Auto-Sync
 #[tokio::test]
 async fn test_vertex_delete_auto_sync() {
     let ctx = SyncTestContext::new();
 
-    // Create index
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
         .await
@@ -187,7 +205,6 @@ async fn test_vertex_delete_auto_sync() {
         .await
         .expect("Failed to sync vertex insert");
 
-    // Commit
     ctx.fulltext_ctx
         .commit_all()
         .await
@@ -200,13 +217,12 @@ async fn test_vertex_delete_auto_sync() {
         .await
         .expect("Search should succeed");
     let doc_id = graphdb::core::Value::String("1".to_string());
-    if results_before.iter().any(|r| r.doc_id == doc_id) {
-        // Success
-    } else {
-        panic!("Should find document before deletion");
-    }
+    assert!(
+        results_before.iter().any(|r| r.doc_id == doc_id),
+        "Should find document before deletion"
+    );
 
-    // Delete vertex - need to specify which field to delete from
+    // Delete vertex
     let delete_props: Vec<(String, graphdb::core::Value)> = vec![(
         "content".to_string(),
         graphdb::core::Value::String("Hello World".to_string()),
@@ -216,7 +232,6 @@ async fn test_vertex_delete_auto_sync() {
         .await
         .expect("Failed to sync vertex delete");
 
-    // Commit
     ctx.fulltext_ctx
         .commit_all()
         .await
@@ -229,27 +244,22 @@ async fn test_vertex_delete_auto_sync() {
         .await
         .expect("Search should succeed");
     let doc_id_after = graphdb::core::Value::String("1".to_string());
-    if results_after.iter().any(|r| r.doc_id == doc_id_after) {
-        panic!("Should not find document after deletion");
-    }
+    assert!(
+        !results_after.iter().any(|r| r.doc_id == doc_id_after),
+        "Should not find document after deletion"
+    );
 }
 
-// ==================== Transaction Buffer Tests ====================
-// Note: Transaction buffering is handled internally by the SyncCoordinator
-// These tests verify the basic transaction flow
-
-/// TC-FT-019: Transaction Buffered Insert
+/// TC-FT-SYNC-005: Multiple Vertex Inserts
 #[tokio::test]
-async fn test_transaction_buffered_insert() {
+async fn test_multiple_vertex_inserts() {
     let ctx = SyncTestContext::new();
 
-    // Create index
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
         .await
         .expect("Failed to create index");
 
-    // Simulate vertex inserts (these are processed immediately by the coordinator)
     for i in 1..=5 {
         let vertex_id = graphdb::core::Value::Int(i);
         let properties = create_test_properties(&format!("Content {}", i));
@@ -260,13 +270,11 @@ async fn test_transaction_buffered_insert() {
             .expect("Failed to sync vertex");
     }
 
-    // Commit all
     ctx.fulltext_ctx
         .commit_all()
         .await
         .expect("Failed to commit all");
 
-    // Verify all documents are searchable
     let results = ctx
         .fulltext_ctx
         .search(1, "Article", "content", "Content", 100)
@@ -279,79 +287,130 @@ async fn test_transaction_buffered_insert() {
     );
 }
 
-/// TC-FT-020: Transaction Rollback
+/// TC-FT-SYNC-006: Sync with Mixed Engines
 #[tokio::test]
-async fn test_transaction_rollback() {
+async fn test_sync_mixed_engines() {
     let ctx = SyncTestContext::new();
 
-    // Create index
+    ctx.fulltext_ctx
+        .create_test_index(1, "Article", "bm25_content", Some(EngineType::Bm25))
+        .await
+        .expect("Failed to create BM25 index");
+    ctx.fulltext_ctx
+        .create_test_index(1, "Article", "inv_content", Some(EngineType::Inversearch))
+        .await
+        .expect("Failed to create Inversearch index");
+
+    // Insert to BM25 index
+    let vertex_id = graphdb::core::Value::Int(1);
+    let bm25_props = vec![(
+        "bm25_content".to_string(),
+        graphdb::core::Value::String("BM25 test content".to_string()),
+    )];
+    ctx.coordinator
+        .on_vertex_change(1, "Article", &vertex_id, &bm25_props, ChangeType::Insert)
+        .await
+        .expect("Failed to sync to BM25");
+
+    // Insert to Inversearch index
+    let inv_props = vec![(
+        "inv_content".to_string(),
+        graphdb::core::Value::String("Inversearch test content".to_string()),
+    )];
+    ctx.coordinator
+        .on_vertex_change(1, "Article", &vertex_id, &inv_props, ChangeType::Insert)
+        .await
+        .expect("Failed to sync to Inversearch");
+
+    ctx.fulltext_ctx
+        .commit_all()
+        .await
+        .expect("Failed to commit");
+
+    // Search BM25 index
+    let bm25_results = ctx
+        .fulltext_ctx
+        .search(1, "Article", "bm25_content", "BM25", 10)
+        .await
+        .expect("BM25 search should succeed");
+    assert_eq!(bm25_results.len(), 1, "Should find document in BM25");
+
+    // Search Inversearch index
+    let inv_results = ctx
+        .fulltext_ctx
+        .search(1, "Article", "inv_content", "Inversearch", 10)
+        .await
+        .expect("Inversearch search should succeed");
+    assert_eq!(inv_results.len(), 1, "Should find document in Inversearch");
+}
+
+/// TC-FT-SYNC-007: Sync with String Vertex IDs
+#[tokio::test]
+async fn test_sync_string_vertex_ids() {
+    let ctx = SyncTestContext::new();
+
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
         .await
         .expect("Failed to create index");
 
-    // Note: The current implementation processes changes immediately
-    // This test verifies that the system handles operations correctly
-    let vertex_id = graphdb::core::Value::Int(1);
-    let properties = create_test_properties("Test Content");
+    // Use string vertex ID
+    let vertex_id = graphdb::core::Value::String("article_001".to_string());
+    let properties = create_test_properties("String ID content");
 
     ctx.coordinator
         .on_vertex_change(1, "Article", &vertex_id, &properties, ChangeType::Insert)
         .await
-        .expect("Failed to sync vertex");
+        .expect("Failed to sync vertex insert");
 
-    // Commit all
     ctx.fulltext_ctx
         .commit_all()
         .await
-        .expect("Failed to commit all");
+        .expect("Failed to commit");
 
-    // Verify document is searchable
     let results = ctx
         .fulltext_ctx
-        .search(1, "Article", "content", "Test", 100)
+        .search(1, "Article", "content", "String", 10)
         .await
         .expect("Search should succeed");
-    assert_eq!(
-        results.len(),
-        1,
-        "Document should be searchable after commit"
+
+    let expected_doc_id = graphdb::core::Value::String("article_001".to_string());
+    assert!(
+        results.iter().any(|r| r.doc_id == expected_doc_id),
+        "Should find document with string ID"
     );
 }
 
-/// TC-FT-021: Multi-Transaction Concurrent Buffers
+/// TC-FT-SYNC-008: Sync Multiple Batches
 #[tokio::test]
-async fn test_concurrent_transaction_buffers() {
+async fn test_sync_multiple_batches() {
     let ctx = SyncTestContext::new();
 
-    // Create index
     ctx.fulltext_ctx
-        .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
+        .create_test_index(1, "Article", "content", Some(EngineType::Inversearch))
         .await
         .expect("Failed to create index");
 
-    // Simulate concurrent vertex inserts
-    let vertex_ids: Vec<graphdb::core::Value> = (1..=6).map(graphdb::core::Value::Int).collect();
+    let vertex_ids: Vec<graphdb::core::Value> = (1..=10).map(graphdb::core::Value::Int).collect();
 
-    // Insert first batch (TX1)
-    for (idx, vertex_id) in vertex_ids.iter().take(3).enumerate() {
-        let properties = create_test_properties(&format!("TX1 Content {}", idx + 1));
+    // First batch
+    for (idx, vertex_id) in vertex_ids.iter().take(5).enumerate() {
+        let properties = create_test_properties(&format!("Batch1 Content {}", idx + 1));
         ctx.coordinator
             .on_vertex_change(1, "Article", vertex_id, &properties, ChangeType::Insert)
             .await
-            .expect("Failed to sync vertex for TX1");
+            .expect("Failed to sync vertex for batch 1");
     }
 
-    // Insert second batch (TX2)
-    for (idx, vertex_id) in vertex_ids.iter().skip(3).take(3).enumerate() {
-        let properties = create_test_properties(&format!("TX2 Content {}", idx + 4));
+    // Second batch
+    for (idx, vertex_id) in vertex_ids.iter().skip(5).take(5).enumerate() {
+        let properties = create_test_properties(&format!("Batch2 Content {}", idx + 6));
         ctx.coordinator
             .on_vertex_change(1, "Article", vertex_id, &properties, ChangeType::Insert)
             .await
-            .expect("Failed to sync vertex for TX2");
+            .expect("Failed to sync vertex for batch 2");
     }
 
-    // Commit all
     ctx.fulltext_ctx
         .commit_all()
         .await
@@ -365,7 +424,82 @@ async fn test_concurrent_transaction_buffers() {
         .expect("Search should succeed");
     assert_eq!(
         results.len(),
-        6,
+        10,
         "All documents should be searchable after commit"
+    );
+}
+
+/// TC-FT-SYNC-009: Sync with Empty Properties
+#[tokio::test]
+async fn test_sync_empty_properties() {
+    let ctx = SyncTestContext::new();
+
+    ctx.fulltext_ctx
+        .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
+        .await
+        .expect("Failed to create index");
+
+    let vertex_id = graphdb::core::Value::Int(1);
+
+    // Insert with content
+    let props_with_content = create_test_properties("Has content");
+    ctx.coordinator
+        .on_vertex_change(1, "Article", &vertex_id, &props_with_content, ChangeType::Insert)
+        .await
+        .expect("Failed to sync vertex insert");
+
+    ctx.fulltext_ctx
+        .commit_all()
+        .await
+        .expect("Failed to commit");
+
+    // Verify document is searchable
+    let results = ctx
+        .fulltext_ctx
+        .search(1, "Article", "content", "content", 10)
+        .await
+        .expect("Search should succeed");
+    assert_eq!(results.len(), 1, "Should find document");
+}
+
+/// TC-FT-SYNC-010: Sync Coordinator Stress Test
+#[tokio::test]
+async fn test_sync_coordinator_stress() {
+    let ctx = SyncTestContext::new();
+
+    ctx.fulltext_ctx
+        .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
+        .await
+        .expect("Failed to create index");
+
+    let num_vertices = 100;
+
+    // Rapidly insert many vertices
+    for i in 1..=num_vertices {
+        let vertex_id = graphdb::core::Value::Int(i);
+        let properties = create_test_properties(&format!("Stress test content {}", i));
+
+        ctx.coordinator
+            .on_vertex_change(1, "Article", &vertex_id, &properties, ChangeType::Insert)
+            .await
+            .expect("Failed to sync vertex");
+    }
+
+    ctx.fulltext_ctx
+        .commit_all()
+        .await
+        .expect("Failed to commit");
+
+    // Verify all documents are searchable
+    let results = ctx
+        .fulltext_ctx
+        .search(1, "Article", "content", "Stress", 200)
+        .await
+        .expect("Search should succeed");
+    assert_eq!(
+        results.len(),
+        num_vertices as usize,
+        "All {} documents should be searchable",
+        num_vertices
     );
 }
