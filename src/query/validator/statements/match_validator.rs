@@ -178,13 +178,19 @@ impl MatchValidator {
         }
 
         // 8. Validation of paging parameters
-        if let (Some(skip), Some(limit)) = (match_stmt.skip, match_stmt.limit) {
-            if skip >= limit {
+        // SKIP and LIMIT should be non-negative
+        if let Some(skip) = match_stmt.skip {
+            if skip > i64::MAX as usize {
                 return Err(ValidationError::new(
-                    format!(
-                        "The SKIP value ({}) must be less than the LIMIT value ({}).",
-                        skip, limit
-                    ),
+                    format!("SKIP value ({}) is too large", skip),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        }
+        if let Some(limit) = match_stmt.limit {
+            if limit > i64::MAX as usize {
+                return Err(ValidationError::new(
+                    format!("LIMIT value ({}) is too large", limit),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -578,17 +584,6 @@ impl MatchValidator {
         if context.limit < 0 {
             return Err(ValidationError::new(
                 "The LIMIT value cannot be negative.".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
-        }
-
-        // 验证 skip < limit
-        if context.skip >= context.limit && context.limit > 0 {
-            return Err(ValidationError::new(
-                format!(
-                    "The SKIP value ({}) must be less than the LIMIT value ({}).",
-                    context.skip, context.limit
-                ),
                 ValidationErrorType::SemanticError,
             ));
         }

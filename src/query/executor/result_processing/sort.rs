@@ -194,7 +194,25 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
                 }
                 Ok(None)
             }
+            Expression::Variable(name) => {
+                // Find the column index corresponding to the variable name.
+                for (index, col_name) in col_names.iter().enumerate() {
+                    if col_name == name {
+                        return Ok(Some(index));
+                    }
+                }
+                Ok(None)
+            }
             Expression::Literal(Value::Int(index)) => {
+                // Use the column index directly.
+                let idx = *index as usize;
+                if idx < col_names.len() {
+                    Ok(Some(idx))
+                } else {
+                    Ok(None)
+                }
+            }
+            Expression::Literal(Value::BigInt(index)) => {
                 // Use the column index directly.
                 let idx = *index as usize;
                 if idx < col_names.len() {

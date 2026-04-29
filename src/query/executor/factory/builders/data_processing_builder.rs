@@ -183,18 +183,20 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
         let aggregate_functions: Vec<AggregateFunctionSpec> = node
             .aggregation_functions()
             .iter()
-            .map(|agg_func| {
-                // AggregateFunction 的 name() 返回函数名
-                let func_name = agg_func.name().to_string();
-                AggregateFunctionSpec::new(crate::core::types::operators::AggregateFunction::Count(
-                    None,
-                ))
-                .with_field(func_name)
-            })
+            .map(|agg_func| AggregateFunctionSpec::from_agg_function(agg_func.clone()))
             .collect();
 
-        // The `AggregateExecutor::new` method requires only 4 parameters: `id`, `storage`, `aggregate_functions`, and `group_keys`.
-        let executor = AggregateExecutor::new(node.id(), storage, aggregate_functions, group_keys);
+        // Get column names from the node
+        let col_names = node.col_names().to_vec();
+
+        // Use with_col_names to pass column names
+        let executor = AggregateExecutor::with_col_names(
+            node.id(),
+            storage,
+            aggregate_functions,
+            group_keys,
+            col_names,
+        );
         Ok(ExecutorEnum::Aggregate(executor))
     }
 

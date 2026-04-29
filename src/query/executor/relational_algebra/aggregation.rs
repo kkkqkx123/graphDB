@@ -221,6 +221,8 @@ pub struct AggregateExecutor<S: StorageClient + Send + 'static> {
     aggregate_functions: Vec<AggregateFunctionSpec>,
     /// List of grouping keys
     group_keys: Vec<Expression>,
+    /// Column names for output
+    col_names: Vec<String>,
     /// Input actuator
     input_executor: Option<Box<ExecutorEnum<S>>>,
     /// Parallel computing configuration
@@ -236,6 +238,16 @@ impl<S: StorageClient> AggregateExecutor<S> {
         aggregate_functions: Vec<AggregateFunctionSpec>,
         group_keys: Vec<Expression>,
     ) -> Self {
+        Self::with_col_names(id, storage, aggregate_functions, group_keys, Vec::new())
+    }
+
+    pub fn with_col_names(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        aggregate_functions: Vec<AggregateFunctionSpec>,
+        group_keys: Vec<Expression>,
+        col_names: Vec<String>,
+    ) -> Self {
         let base = BaseResultProcessor::new(
             id,
             "AggregateExecutor".to_string(),
@@ -247,6 +259,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
             base,
             aggregate_functions: aggregate_functions.clone(),
             group_keys,
+            col_names,
             input_executor: None,
             parallel_config: ParallelConfig::default(),
             agg_function_manager: AggFunctionManager::new(),
@@ -613,128 +626,133 @@ impl<S: StorageClient> AggregateExecutor<S> {
     ) -> DBResult<crate::query::DataSet> {
         let mut result_dataset = crate::query::DataSet::new();
 
-        // Set column names
-        for _ in &self.group_keys {
-            result_dataset
-                .col_names
-                .push(format!("group_{}", result_dataset.col_names.len()));
-        }
+        // Set column names - use provided col_names if available
+        if !self.col_names.is_empty() {
+            result_dataset.col_names = self.col_names.clone();
+        } else {
+            // Fallback to generating column names
+            for _ in &self.group_keys {
+                result_dataset
+                    .col_names
+                    .push(format!("group_{}", result_dataset.col_names.len()));
+            }
 
-        for agg_func in &self.aggregate_functions {
-            let col_name = match &agg_func.function {
-                AggregateFunction::Count(_) => {
-                    if agg_func.distinct {
-                        if let Some(ref field) = agg_func.field {
-                            format!("count_distinct_{}", field)
+            for agg_func in &self.aggregate_functions {
+                let col_name = match &agg_func.function {
+                    AggregateFunction::Count(_) => {
+                        if agg_func.distinct {
+                            if let Some(ref field) = agg_func.field {
+                                format!("count_distinct_{}", field)
+                            } else {
+                                "count_distinct".to_string()
+                            }
+                        } else if let Some(ref field) = agg_func.field {
+                            format!("count_{}", field)
                         } else {
-                            "count_distinct".to_string()
+                            "count".to_string()
                         }
-                    } else if let Some(ref field) = agg_func.field {
-                        format!("count_{}", field)
-                    } else {
-                        "count".to_string()
                     }
-                }
-                AggregateFunction::Sum(_) => {
-                    if let Some(ref field) = agg_func.field {
-                        format!("sum_{}", field)
-                    } else {
-                        "sum".to_string()
+                    AggregateFunction::Sum(_) => {
+                        if let Some(ref field) = agg_func.field {
+                            format!("sum_{}", field)
+                        } else {
+                            "sum".to_string()
+                        }
                     }
-                }
-                AggregateFunction::Avg(_) => {
-                    if let Some(ref field) = agg_func.field {
-                        format!("avg_{}", field)
-                    } else {
-                        "avg".to_string()
+                    AggregateFunction::Avg(_) => {
+                        if let Some(ref field) = agg_func.field {
+                            format!("avg_{}", field)
+                        } else {
+                            "avg".to_string()
+                        }
                     }
-                }
-                AggregateFunction::Max(_) => {
-                    if let Some(ref field) = agg_func.field {
-                        format!("max_{}", field)
-                    } else {
-                        "max".to_string()
+                    AggregateFunction::Max(_) => {
+                        if let Some(ref field) = agg_func.field {
+                            format!("max_{}", field)
+                        } else {
+                            "max".to_string()
+                        }
                     }
-                }
-                AggregateFunction::Min(_) => {
-                    if let Some(ref field) = agg_func.field {
-                        format!("min_{}", field)
-                    } else {
-                        "min".to_string()
+                    AggregateFunction::Min(_) => {
+                        if let Some(ref field) = agg_func.field {
+                            format!("min_{}", field)
+                        } else {
+                            "min".to_string()
+                        }
                     }
-                }
-                AggregateFunction::Collect(_) => {
-                    if let Some(ref field) = agg_func.field {
-                        format!("collect_{}", field)
-                    } else {
-                        "collect".to_string()
+                    AggregateFunction::Collect(_) => {
+                        if let Some(ref field) = agg_func.field {
+                            format!("collect_{}", field)
+                        } else {
+                            "collect".to_string()
+                        }
                     }
-                }
-                AggregateFunction::CollectSet(_) => {
-                    if let Some(ref field) = agg_func.field {
-                        format!("collect_set_{}", field)
-                    } else {
-                        "collect_set".to_string()
+                    AggregateFunction::CollectSet(_) => {
+                        if let Some(ref field) = agg_func.field {
+                            format!("collect_set_{}", field)
+                        } else {
+                            "collect_set".to_string()
+                        }
                     }
-                }
-                AggregateFunction::Distinct(_) => {
-                    if let Some(ref field) = agg_func.field {
-                        format!("distinct_{}", field)
-                    } else {
-                        "distinct".to_string()
+                    AggregateFunction::Distinct(_) => {
+                        if let Some(ref field) = agg_func.field {
+                            format!("distinct_{}", field)
+                        } else {
+                            "distinct".to_string()
+                        }
                     }
-                }
-                AggregateFunction::Percentile(_, _) => {
-                    if let Some(ref field) = agg_func.field {
-                        format!("percentile_{}", field)
-                    } else {
-                        "percentile".to_string()
+                    AggregateFunction::Percentile(_, _) => {
+                        if let Some(ref field) = agg_func.field {
+                            format!("percentile_{}", field)
+                        } else {
+                            "percentile".to_string()
+                        }
                     }
-                }
-                AggregateFunction::Std(_) => {
-                    if let Some(ref field) = agg_func.field {
-                        format!("std_{}", field)
-                    } else {
-                        "std".to_string()
+                    AggregateFunction::Std(_) => {
+                        if let Some(ref field) = agg_func.field {
+                            format!("std_{}", field)
+                        } else {
+                            "std".to_string()
+                        }
                     }
-                }
-                AggregateFunction::BitAnd(_) => {
-                    if let Some(ref field) = agg_func.field {
-                        format!("bitand_{}", field)
-                    } else {
-                        "bitand".to_string()
+                    AggregateFunction::BitAnd(_) => {
+                        if let Some(ref field) = agg_func.field {
+                            format!("bitand_{}", field)
+                        } else {
+                            "bitand".to_string()
+                        }
                     }
-                }
-                AggregateFunction::BitOr(_) => {
-                    if let Some(ref field) = agg_func.field {
-                        format!("bitor_{}", field)
-                    } else {
-                        "bitor".to_string()
+                    AggregateFunction::BitOr(_) => {
+                        if let Some(ref field) = agg_func.field {
+                            format!("bitor_{}", field)
+                        } else {
+                            "bitor".to_string()
+                        }
                     }
-                }
-                AggregateFunction::GroupConcat(_, _) => {
-                    if let Some(ref field) = agg_func.field {
-                        format!("group_concat_{}", field)
-                    } else {
-                        "group_concat".to_string()
+                    AggregateFunction::GroupConcat(_, _) => {
+                        if let Some(ref field) = agg_func.field {
+                            format!("group_concat_{}", field)
+                        } else {
+                            "group_concat".to_string()
+                        }
                     }
-                }
-                AggregateFunction::VecSum(_) => {
-                    if let Some(ref field) = agg_func.field {
-                        format!("vecsum_{}", field)
-                    } else {
-                        "vecsum".to_string()
+                    AggregateFunction::VecSum(_) => {
+                        if let Some(ref field) = agg_func.field {
+                            format!("vecsum_{}", field)
+                        } else {
+                            "vecsum".to_string()
+                        }
                     }
-                }
-                AggregateFunction::VecAvg(_) => {
-                    if let Some(ref field) = agg_func.field {
-                        format!("vecavg_{}", field)
-                    } else {
-                        "vecavg".to_string()
+                    AggregateFunction::VecAvg(_) => {
+                        if let Some(ref field) = agg_func.field {
+                            format!("vecavg_{}", field)
+                        } else {
+                            "vecavg".to_string()
+                        }
                     }
-                }
-            };
-            result_dataset.col_names.push(col_name);
+                };
+                result_dataset.col_names.push(col_name);
+            }
         }
 
         // Fill in the result rows

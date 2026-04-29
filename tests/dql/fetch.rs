@@ -163,7 +163,7 @@ fn test_fetch_execution_edge_properties() {
         .query("FETCH PROP ON KNOWS 1 -> 2")
         .assert_success()
         .assert_result_count(1)
-        .assert_result_contains(vec![graphdb::core::Value::String("since".into()), graphdb::core::Value::String("2020-01-01".into())]);
+        .assert_vertex_or_edge_has_property("since", graphdb::core::Value::String("2020-01-01".into()));
 }
 
 #[test]
@@ -177,8 +177,8 @@ fn test_fetch_execution_vertex_properties() {
         .query("FETCH PROP ON Person 1")
         .assert_success()
         .assert_result_count(1)
-        .assert_result_contains(vec![graphdb::core::Value::String("name".into()), graphdb::core::Value::String("Alice".into())])
-        .assert_result_contains(vec![graphdb::core::Value::String("age".into()), graphdb::core::Value::Int(30)]);
+        .assert_vertex_or_edge_has_property("name", graphdb::core::Value::String("Alice".into()))
+        .assert_vertex_or_edge_has_property("age", graphdb::core::Value::Int(30));
 }
 
 // ==================== FETCH Error Handling Tests ====================

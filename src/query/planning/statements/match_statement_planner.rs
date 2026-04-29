@@ -852,13 +852,15 @@ impl MatchStatementPlanner {
         // Set the input variable so ExpandAll can get source vertices from ExecutionContext
         expand_node.set_input_var(input_var.to_string());
 
-        // Set the column names to match ExpandAll's output format: [input_var, "edge", dst_var]
+        // Set the column names to match ExpandAll's output format: [input_var, edge_var, dst_var]
         // Use input_var as the first column name so subsequent operations can reference the source node
+        // Use edge variable name if provided, otherwise use "edge" for the edge column
         // Use dst_var if provided, otherwise use "dst" for the destination column
         // This allows subsequent operations to reference both source and destination nodes by their variable names
         let src_col_name = input_var.to_string();
+        let edge_col_name = edge.variable.clone().unwrap_or_else(|| "edge".to_string());
         let dst_col_name = dst_var.unwrap_or("dst").to_string();
-        expand_node.set_col_names(vec![src_col_name, "edge".to_string(), dst_col_name]);
+        expand_node.set_col_names(vec![src_col_name, edge_col_name, dst_col_name]);
 
         // Disable empty paths for MATCH queries - we only want actual edge expansions
         expand_node.set_include_empty_paths(false);
@@ -1113,7 +1115,7 @@ impl MatchStatementPlanner {
             // For aggregate queries:
             // 1. First create a ProjectNode to convert input to DataSet with the required columns
             // 2. Then create an AggregateNode to perform aggregation
-            let (group_keys, agg_functions) = Self::extract_aggregate_info(&columns)?;
+            let (group_keys, agg_functions, agg_aliases) = Self::extract_aggregate_info(&columns)?;
 
             // Create projection columns for all non-aggregate expressions (group keys)
             let project_columns: Vec<YieldColumn> = columns
@@ -1132,11 +1134,12 @@ impl MatchStatementPlanner {
             let project_node = ProjectNode::new(input_node.clone(), project_columns)?;
             let project_plan = SubPlan::new(Some(project_node.into_enum()), input_plan.tail);
 
-            // Create AggregateNode with the projected input
-            let aggregate_node = AggregateNode::new(
+            // Create AggregateNode with the projected input, using aliases for aggregate functions
+            let aggregate_node = AggregateNode::with_agg_aliases(
                 project_plan.root.clone().unwrap(),
                 group_keys,
                 agg_functions,
+                agg_aliases,
             )?;
             Ok(SubPlan::new(
                 Some(aggregate_node.into_enum()),
@@ -1172,9 +1175,10 @@ impl MatchStatementPlanner {
     /// Extract group keys and aggregate functions from columns
     fn extract_aggregate_info(
         columns: &[YieldColumn],
-    ) -> Result<(Vec<String>, Vec<AggregateFunction>), PlannerError> {
+    ) -> Result<(Vec<String>, Vec<AggregateFunction>, Vec<String>), PlannerError> {
         let mut group_keys = Vec::new();
         let mut agg_functions = Vec::new();
+        let mut agg_aliases = Vec::new();
 
         for col in columns {
             if let Some(expr_meta) = col.expression.expression() {
@@ -1183,6 +1187,8 @@ impl MatchStatementPlanner {
                     // This column has an aggregate function
                     if let Some(agg_func) = Self::extract_aggregate_function(expr) {
                         agg_functions.push(agg_func);
+                        // Use the alias from the YieldColumn
+                        agg_aliases.push(col.alias.clone());
                     }
                 } else {
                     // This column is a group key
@@ -1195,7 +1201,7 @@ impl MatchStatementPlanner {
             }
         }
 
-        Ok((group_keys, agg_functions))
+        Ok((group_keys, agg_functions, agg_aliases))
     }
 
     /// Extract an AggregateFunction from an expression

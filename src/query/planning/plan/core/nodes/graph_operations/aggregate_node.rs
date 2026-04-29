@@ -37,6 +37,29 @@ impl AggregateNode {
         })
     }
 
+    /// Create a new aggregate node with custom column names for aggregate functions.
+    pub fn with_agg_aliases(
+        input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        group_keys: Vec<String>,
+        aggregation_functions: Vec<AggregateFunction>,
+        agg_aliases: Vec<String>,
+    ) -> Result<Self, crate::query::planning::planner::PlannerError> {
+        let mut col_names: Vec<String> = group_keys.clone();
+        for alias in &agg_aliases {
+            col_names.push(alias.clone());
+        }
+
+        Ok(Self {
+            id: -1,
+            input: Some(Box::new(input.clone())),
+            deps: vec![input],
+            group_keys,
+            aggregation_functions,
+            output_var: None,
+            col_names,
+        })
+    }
+
     /// Obtain the group key
     pub fn group_keys(&self) -> &[String] {
         &self.group_keys

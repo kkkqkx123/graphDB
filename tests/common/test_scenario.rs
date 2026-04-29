@@ -335,6 +335,41 @@ impl TestScenario {
         self
     }
 
+    /// Assert vertex or edge in result has a specific property value
+    pub fn assert_vertex_or_edge_has_property(self, prop_name: &str, expected_value: Value) -> Self {
+        if let Some(ref result) = self.last_result {
+            let rows: Vec<Vec<Value>> = match result {
+                ExecutionResult::DataSet(ds) => ds.rows.clone(),
+                _ => vec![],
+            };
+
+            let found = rows.iter().any(|row| {
+                row.iter().any(|val| {
+                    match val {
+                        Value::Vertex(v) => {
+                            v.tags.iter().any(|tag| {
+                                tag.properties.get(prop_name).map_or(false, |v| v == &expected_value)
+                            })
+                        }
+                        Value::Edge(e) => {
+                            e.props.get(prop_name).map_or(false, |v| v == &expected_value)
+                        }
+                        _ => false,
+                    }
+                })
+            });
+
+            assert!(
+                found,
+                "Expected to find vertex/edge with property '{}' = {:?} in results, actual rows: {:?}",
+                prop_name, expected_value, rows
+            );
+        } else {
+            panic!("No result to check");
+        }
+        self
+    }
+
     /// Assert plan contains specific operator
     /// This is useful for testing EXPLAIN output
     pub fn assert_plan_contains(self, operator: &str) -> Self {

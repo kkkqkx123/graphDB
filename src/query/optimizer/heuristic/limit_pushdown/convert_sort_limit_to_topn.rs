@@ -140,7 +140,7 @@ mod tests {
         let transform_result = result.unwrap();
         assert!(transform_result.erase_all);
 
-        let new_nodes = transform_result.new_nodes();
+        let new_nodes = &transform_result.new_nodes;
         assert_eq!(new_nodes.len(), 1);
         assert!(matches!(&new_nodes[0], PlanNodeEnum::TopN(_)));
     }

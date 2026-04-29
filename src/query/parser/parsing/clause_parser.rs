@@ -67,27 +67,36 @@ impl ClauseParser {
             None
         };
 
-        // Analysis of the LIMIT clause
-        let limit = if ctx.match_token(TokenKind::Limit) {
-            let count = ctx.expect_integer_literal()? as usize;
-            Some(LimitClause {
-                span: ctx.current_span(),
-                count,
-            })
-        } else {
-            None
-        };
+        // Analysis of SKIP and LIMIT (support both orders: SKIP before LIMIT or LIMIT before SKIP)
+        let mut limit: Option<LimitClause> = None;
+        let mut skip: Option<SkipClause> = None;
 
-        // Analysis of SKIP
-        let skip = if ctx.match_token(TokenKind::Skip) {
+        // First, try to parse SKIP if present
+        if ctx.match_token(TokenKind::Skip) {
             let count = ctx.expect_integer_literal()? as usize;
-            Some(SkipClause {
+            skip = Some(SkipClause {
                 span: ctx.current_span(),
                 count,
-            })
-        } else {
-            None
-        };
+            });
+        }
+
+        // Then, try to parse LIMIT if present
+        if ctx.match_token(TokenKind::Limit) {
+            let count = ctx.expect_integer_literal()? as usize;
+            limit = Some(LimitClause {
+                span: ctx.current_span(),
+                count,
+            });
+        }
+
+        // If SKIP wasn't parsed yet, try again (handles LIMIT before SKIP case)
+        if skip.is_none() && ctx.match_token(TokenKind::Skip) {
+            let count = ctx.expect_integer_literal()? as usize;
+            skip = Some(SkipClause {
+                span: ctx.current_span(),
+                count,
+            });
+        }
 
         Ok(ReturnClause {
             span,
