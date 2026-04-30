@@ -1,6 +1,7 @@
 //! Deletion Operation Planner
 //!
-//! Query planning for handling DELETE VERTEX/EDGE/TAG statements
+//! Query planning for handling DELETE VERTEX/EDGE/TAG statements.
+//! Supports both standalone deletion and pipe-based deletion (e.g., GO ... | DELETE VERTEX $-.id).
 
 use crate::query::metadata::MetadataContext;
 use crate::query::parser::ast::{DeleteStmt, DeleteTarget, Stmt};
@@ -41,72 +42,7 @@ impl Planner for DeletePlanner {
         validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        let _ = qctx;
-
-        // Use the verification information to optimize the planning process.
-        let validation_info = &validated.validation_info;
-
-        // Check the semantic information.
-        let referenced_tags = &validation_info.semantic_info.referenced_tags;
-        if !referenced_tags.is_empty() {
-            log::debug!("DELETE Referenced tags: {:?}", referenced_tags);
-        }
-
-        let referenced_edges = &validation_info.semantic_info.referenced_edges;
-        if !referenced_edges.is_empty() {
-            log::debug!("DELETE Referenced edge type: {:?}", referenced_edges);
-        }
-
-        let delete_stmt = self.extract_delete_stmt(validated.stmt())?;
-
-        // Get current space name from query context or use default
-        let space_name = qctx.space_name().unwrap_or_else(|| "default".to_string());
-
-        // Create the appropriate delete node based on target type
-        let final_node = match &delete_stmt.target {
-            DeleteTarget::Vertices(vertex_ids) => {
-                let info = VertexDeleteInfo {
-                    space_name,
-                    vertex_ids: vertex_ids.clone(),
-                    with_edge: delete_stmt.with_edge,
-                    condition: delete_stmt.where_clause.clone(),
-                };
-                let node = DeleteVerticesNode::new(next_node_id(), info);
-                PlanNodeEnum::DeleteVertices(node)
-            }
-            DeleteTarget::Edges { edge_type, edges } => {
-                let info = EdgeDeleteInfo {
-                    space_name,
-                    edge_type: edge_type.clone(),
-                    edges: edges
-                        .iter()
-                        .map(|(src, dst, rank)| (src.clone(), dst.clone(), rank.clone()))
-                        .collect(),
-                    condition: delete_stmt.where_clause.clone(),
-                };
-                let node = DeleteEdgesNode::new(next_node_id(), info);
-                PlanNodeEnum::DeleteEdges(node)
-            }
-            DeleteTarget::Tags { .. } => {
-                // DELETE TAG requires tag-level operations which need additional implementation
-                return Err(PlannerError::PlanGenerationFailed(
-                    "DELETE TAG requires tag-level metadata operations (not yet implemented)"
-                        .to_string(),
-                ));
-            }
-            DeleteTarget::Index(..) => {
-                // DELETE INDEX requires index metadata operations which need additional implementation
-                return Err(PlannerError::PlanGenerationFailed(
-                    "DELETE INDEX requires index metadata operations (not yet implemented)"
-                        .to_string(),
-                ));
-            }
-        };
-
-        // Create a SubPlan
-        let sub_plan = SubPlan::new(Some(final_node), None);
-
-        Ok(sub_plan)
+        self.transform_with_input(validated, qctx, None)
     }
 
     fn match_planner(&self, stmt: &Stmt) -> bool {
@@ -119,20 +55,13 @@ impl Planner for DeletePlanner {
         qctx: Arc<QueryContext>,
         metadata_context: &MetadataContext,
     ) -> Result<SubPlan, PlannerError> {
-        // DELETE operations primarily use label and edge type metadata
-        // Currently, DELETE mainly validates space names and vertex/edge IDs.
-        // The metadata context can be used to validate the presence of tags and edge types
-
         let validation_info = &validated.validation_info;
         let referenced_tags = &validation_info.semantic_info.referenced_tags;
         let referenced_edges = &validation_info.semantic_info.referenced_edges;
 
-        // Verify that the referenced tag exists
         for tag_name in referenced_tags {
             let _space_id = qctx.space_id().unwrap_or(0);
             if metadata_context.get_tag_metadata(tag_name).is_none() {
-                // If it's not in the metadata context, try to get it from the provider
-                // For the time being, only the logs will be recorded, and the actual verification will be done at the Executor level.
                 log::debug!(
                     "Tag '{}' referenced in DELETE not found in metadata context",
                     tag_name
@@ -140,7 +69,6 @@ impl Planner for DeletePlanner {
             }
         }
 
-        // Verify that the referenced edge type exists
         for edge_type in referenced_edges {
             if metadata_context.get_edge_type_metadata(edge_type).is_none() {
                 log::debug!(
@@ -150,8 +78,91 @@ impl Planner for DeletePlanner {
             }
         }
 
-        // Use the standard transform method
         self.transform(validated, qctx)
+    }
+}
+
+impl DeletePlanner {
+    /// Transform with optional input plan (for pipe DELETE)
+    fn transform_with_input(
+        &self,
+        validated: &ValidatedStatement,
+        qctx: Arc<QueryContext>,
+        input_plan: Option<SubPlan>,
+    ) -> Result<SubPlan, PlannerError> {
+        let _ = qctx;
+
+        let validation_info = &validated.validation_info;
+        let referenced_tags = &validation_info.semantic_info.referenced_tags;
+        if !referenced_tags.is_empty() {
+            log::debug!("DELETE Referenced tags: {:?}", referenced_tags);
+        }
+
+        let referenced_edges = &validation_info.semantic_info.referenced_edges;
+        if !referenced_edges.is_empty() {
+            log::debug!("DELETE Referenced edge type: {:?}", referenced_edges);
+        }
+
+        let delete_stmt = self.extract_delete_stmt(validated.stmt())?;
+
+        let space_name = qctx.space_name().unwrap_or_else(|| "default".to_string());
+
+        let input_node = input_plan
+            .as_ref()
+            .and_then(|p| p.root.clone())
+            .map(|n| n.clone());
+
+        let final_node = match &delete_stmt.target {
+            DeleteTarget::Vertices(vertex_ids) => {
+                let info = VertexDeleteInfo {
+                    space_name,
+                    vertex_ids: vertex_ids.clone(),
+                    with_edge: delete_stmt.with_edge,
+                    condition: delete_stmt.where_clause.clone(),
+                };
+                
+                let node = if let Some(input) = input_node {
+                    DeleteVerticesNode::with_input(next_node_id(), info, input)
+                } else {
+                    DeleteVerticesNode::new(next_node_id(), info)
+                };
+                PlanNodeEnum::DeleteVertices(node)
+            }
+            DeleteTarget::Edges { edge_type, edges } => {
+                let info = EdgeDeleteInfo {
+                    space_name,
+                    edge_type: edge_type.clone(),
+                    edges: edges
+                        .iter()
+                        .map(|(src, dst, rank)| (src.clone(), dst.clone(), rank.clone()))
+                        .collect(),
+                    condition: delete_stmt.where_clause.clone(),
+                };
+                
+                let node = if let Some(input) = input_node {
+                    DeleteEdgesNode::with_input(next_node_id(), info, input)
+                } else {
+                    DeleteEdgesNode::new(next_node_id(), info)
+                };
+                PlanNodeEnum::DeleteEdges(node)
+            }
+            DeleteTarget::Tags { .. } => {
+                return Err(PlannerError::PlanGenerationFailed(
+                    "DELETE TAG requires tag-level metadata operations (not yet implemented)"
+                        .to_string(),
+                ));
+            }
+            DeleteTarget::Index(..) => {
+                return Err(PlannerError::PlanGenerationFailed(
+                    "DELETE INDEX requires index metadata operations (not yet implemented)"
+                        .to_string(),
+                ));
+            }
+        };
+
+        let sub_plan = SubPlan::new(Some(final_node), None);
+
+        Ok(sub_plan)
     }
 }
 

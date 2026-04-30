@@ -1,6 +1,7 @@
 //! ORDER BY Clause Planner
 //!
 //! Responsible for planning the execution of the ORDER BY clause and sorting the results.
+//! Supports both simple column references and complex expressions (e.g., function calls).
 
 use crate::core::types::ContextualExpression;
 use crate::query::parser::ast::Stmt;
@@ -41,14 +42,18 @@ fn extract_order_by_items(stmt: &Stmt) -> Vec<OrderByItem> {
     Vec::new()
 }
 
-/// Convert the expression into a string representation.
+/// Extract the expression from a ContextualExpression.
 ///
-/// 使用 Expression::to_expression_string() 方法
-fn expression_to_string(expr: &ContextualExpression) -> String {
+/// Returns a clone of the inner Expression, or a Variable expression as fallback.
+fn extract_expression(expr: &ContextualExpression) -> crate::core::Expression {
     if let Some(expr_meta) = expr.expression() {
-        expr_meta.inner().to_expression_string()
+        expr_meta.inner().clone()
     } else {
-        String::new()
+        // Fallback: create a variable expression from the string representation
+        let expr_string = expr.expression()
+            .map(|e| e.inner().to_expression_string())
+            .unwrap_or_default();
+        crate::core::Expression::Variable(expr_string)
     }
 }
 
@@ -78,8 +83,8 @@ impl ClausePlanner for OrderByClausePlanner {
         let sort_items: Vec<SortItem> = order_by_items
             .into_iter()
             .map(|item| {
-                let column = expression_to_string(&item.expression);
-                SortItem::new(column, item.direction)
+                let expression = extract_expression(&item.expression);
+                SortItem::new(expression, item.direction)
             })
             .collect();
 
@@ -153,30 +158,48 @@ mod tests {
     }
 
     #[test]
-    fn test_expression_to_string() {
+    fn test_extract_expression() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("age".to_string());
         let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
 
-        let result = expression_to_string(&ctx_expr);
-        assert_eq!(result, "age");
+        let result = extract_expression(&ctx_expr);
+        assert_eq!(result, Expression::Variable("age".to_string()));
     }
 
     #[test]
-    fn test_expression_to_string_complex() {
+    fn test_extract_expression_complex() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Property {
             object: Box::new(Expression::Variable("n".to_string())),
             property: "name".to_string(),
         };
-        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr.clone());
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
 
-        let result = expression_to_string(&ctx_expr);
-        assert_eq!(result, "n.name");
+        let result = extract_expression(&ctx_expr);
+        assert_eq!(result, expr);
+    }
+
+    #[test]
+    fn test_extract_expression_function_call() {
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
+        let expr = Expression::Function {
+            name: "cosine_similarity".to_string(),
+            args: vec![
+                Expression::Variable("a".to_string()),
+                Expression::Variable("b".to_string()),
+            ],
+        };
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr.clone());
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
+
+        let result = extract_expression(&ctx_expr);
+        assert_eq!(result, expr);
     }
 
     #[test]

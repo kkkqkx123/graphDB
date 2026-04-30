@@ -145,7 +145,7 @@ impl WithClausePlanner {
                     .get(*idx)
                     .cloned()
                     .unwrap_or_else(|| format!("col_{}", idx));
-                crate::query::planning::plan::core::nodes::SortItem::new(column.clone(), *dir)
+                crate::query::planning::plan::core::nodes::SortItem::column(column, *dir)
             })
             .collect();
 

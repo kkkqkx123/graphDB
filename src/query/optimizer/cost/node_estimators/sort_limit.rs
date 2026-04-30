@@ -159,8 +159,8 @@ mod tests {
 
         let input = PlanNodeEnum::Start(StartNode::new());
         let sort_items = vec![
-            SortItem::asc("name".to_string()),
-            SortItem::desc("age".to_string()),
+            SortItem::column_asc("name".to_string()),
+            SortItem::column_desc("age".to_string()),
         ];
         let node = SortNode::new(input, sort_items).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Sort(node);
@@ -198,7 +198,7 @@ mod tests {
         let estimator = SortLimitEstimator::new(&calculator);
 
         let input = PlanNodeEnum::Start(StartNode::new());
-        let sort_items = vec![SortItem::asc("name".to_string())];
+        let sort_items = vec![SortItem::column_asc("name".to_string())];
         let node = TopNNode::new(input, sort_items, 10).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::TopN(node);
 
@@ -407,9 +407,9 @@ mod tests {
 
         let input = PlanNodeEnum::Start(StartNode::new());
         let sort_items = vec![
-            SortItem::asc("name".to_string()),
-            SortItem::desc("age".to_string()),
-            SortItem::asc("score".to_string()),
+            SortItem::column_asc("name".to_string()),
+            SortItem::column_desc("age".to_string()),
+            SortItem::column_asc("score".to_string()),
         ];
         let node = SortNode::new(input, sort_items).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Sort(node);
@@ -429,7 +429,7 @@ mod tests {
         let estimator = SortLimitEstimator::new(&calculator);
 
         let input = PlanNodeEnum::Start(StartNode::new());
-        let sort_items = vec![SortItem::asc("name".to_string())];
+        let sort_items = vec![SortItem::column_asc("name".to_string())];
         let node = TopNNode::new(input, sort_items, 1000).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::TopN(node);
 

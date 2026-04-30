@@ -196,6 +196,42 @@ impl<S: StorageClient> TopNExecutor<S> {
         }
     }
 
+    /// Create a TopN executor with sort keys (supports expressions)
+    pub fn with_sort_keys(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        n: usize,
+        sort_keys: Vec<crate::query::executor::result_processing::sort::SortKey>,
+    ) -> Self {
+        let base = BaseResultProcessor::new(
+            id,
+            "TopNExecutor".to_string(),
+            "Returns the top N results using optimized heap algorithm".to_string(),
+            storage,
+        );
+
+        let sort_direction = if sort_keys.first().map(|k| k.order) == Some(crate::query::executor::result_processing::sort::SortOrder::Asc) {
+            OrderDirection::Asc
+        } else {
+            OrderDirection::Desc
+        };
+
+        Self {
+            base,
+            n,
+            offset: 0,
+            sort_keys,
+            input_executor: None,
+            sort_columns: Vec::new(),
+            sort_direction,
+            heap: None,
+            is_open: false,
+            is_closed: false,
+            processed_count: 0,
+            parallel_config: ParallelConfig::default(),
+        }
+    }
+
     /// Setting up parallel computing configuration
     pub fn with_parallel_config(mut self, config: ParallelConfig) -> Self {
         self.parallel_config = config;

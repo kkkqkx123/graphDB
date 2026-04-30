@@ -1232,7 +1232,11 @@ impl MatchStatementPlanner {
         let sort_items: Vec<SortItem> = order_by
             .into_iter()
             .map(|item| {
-                let column = self.contextual_expression_to_string(&item.expression);
+                let expression = item.expression.expression()
+                    .map(|e| e.inner().clone())
+                    .unwrap_or_else(|| {
+                        crate::core::Expression::Variable(item.expression.to_expression_string())
+                    });
                 let direction = match item.direction {
                     crate::core::types::OrderDirection::Asc => {
                         crate::core::types::graph_schema::OrderDirection::Asc
@@ -1241,7 +1245,7 @@ impl MatchStatementPlanner {
                         crate::core::types::graph_schema::OrderDirection::Desc
                     }
                 };
-                SortItem::new(column, direction)
+                SortItem::new(expression, direction)
             })
             .collect();
 

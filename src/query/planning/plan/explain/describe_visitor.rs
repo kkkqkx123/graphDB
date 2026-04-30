@@ -368,7 +368,7 @@ impl PlanNodeVisitor for DescribeVisitor {
         let sort_items = node.sort_items();
         let key_strs: Vec<String> = sort_items
             .iter()
-            .map(|item| format!("{} {:?}", item.column, item.direction))
+            .map(|item| format!("{} {:?}", item.expression.to_expression_string(), item.direction))
             .collect();
         if !key_strs.is_empty() {
             desc.add_description("sort_keys", key_strs.join(", "));

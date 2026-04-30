@@ -681,6 +681,23 @@ pub struct MatchStmt {
     pub limit: Option<usize>,
     pub skip: Option<usize>,
     pub optional: bool,
+    pub delete_clause: Option<MatchDeleteClause>,
+}
+
+/// MATCH...DELETE clause
+/// Supports deleting vertices or edges matched by a MATCH pattern.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MatchDeleteClause {
+    pub span: Span,
+    pub target: MatchDeleteTarget,
+    pub with_edge: bool,
+}
+
+/// Target for MATCH...DELETE
+#[derive(Debug, Clone, PartialEq)]
+pub enum MatchDeleteTarget {
+    Vertices(Vec<ContextualExpression>),
+    Edges(Vec<ContextualExpression>),
 }
 
 /// Return the subquery.

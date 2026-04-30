@@ -34,7 +34,7 @@ use crate::query::executor::data_access::{
     ScanVerticesExecutor, VectorLookupExecutor, VectorMatchExecutor, VectorSearchExecutor,
 };
 use crate::query::executor::data_modification::{
-    DeleteExecutor, InsertExecutor, RemoveExecutor, UpdateExecutor,
+    DeleteExecutor, InsertExecutor, PipeDeleteExecutor, RemoveExecutor, UpdateExecutor,
 };
 use crate::query::executor::graph_operations::graph_traversal::algorithms::BFSShortestExecutor;
 use crate::query::executor::graph_operations::graph_traversal::{
@@ -105,6 +105,7 @@ pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
     PatternApply(PatternApplyExecutor<S>),
     Remove(RemoveExecutor<S>),
     Delete(DeleteExecutor<S>),
+    PipeDelete(PipeDeleteExecutor<S>),
     Update(UpdateExecutor<S>),
     InsertVertices(InsertExecutor<S>),
     InsertEdges(InsertExecutor<S>),
@@ -215,6 +216,7 @@ impl<S: StorageClient + Send + 'static> Debug for ExecutorEnum<S> {
             ExecutorEnum::PatternApply(exec) => ("PatternApply", exec.name()),
             ExecutorEnum::Remove(exec) => ("Remove", exec.name()),
             ExecutorEnum::Delete(exec) => ("Delete", exec.name()),
+            ExecutorEnum::PipeDelete(exec) => ("PipeDelete", exec.name()),
             ExecutorEnum::Update(exec) => ("Update", exec.name()),
             ExecutorEnum::InsertVertices(exec) => ("InsertVertices", exec.name()),
             ExecutorEnum::InsertEdges(exec) => ("InsertEdges", exec.name()),
@@ -502,6 +504,7 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::ShowStats(_) => "show_stats",
             ExecutorEnum::Analyze(_) => "analyze",
             ExecutorEnum::Delete(_) => "delete",
+            ExecutorEnum::PipeDelete(_) => "pipe_delete",
             ExecutorEnum::Update(_) => "update",
             // Full-text Search Executors
             ExecutorEnum::CreateFulltextIndex(_) => "create_fulltext_index",
@@ -612,6 +615,7 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::ShowStats(_) => "Show Stats",
             ExecutorEnum::Analyze(_) => "Analyze",
             ExecutorEnum::Delete(_) => "Delete",
+            ExecutorEnum::PipeDelete(_) => "Pipe Delete",
             ExecutorEnum::Update(_) => "Update",
             // Full-text Search Executors
             ExecutorEnum::CreateFulltextIndex(_) => "Create Fulltext Index",
@@ -722,6 +726,7 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::ShowStats(_) => NodeCategory::Admin,
             ExecutorEnum::Analyze(_) => NodeCategory::Admin,
             ExecutorEnum::Delete(_) => NodeCategory::Admin,
+            ExecutorEnum::PipeDelete(_) => NodeCategory::Admin,
             ExecutorEnum::Update(_) => NodeCategory::Admin,
             // Full-text Search Executors
             ExecutorEnum::CreateFulltextIndex(_) => NodeCategory::Admin,
@@ -788,6 +793,7 @@ mod macros {
                 ExecutorEnum::PatternApply(exec) => exec.$method(),
                 ExecutorEnum::Remove(exec) => exec.$method(),
                 ExecutorEnum::Delete(exec) => exec.$method(),
+                ExecutorEnum::PipeDelete(exec) => exec.$method(),
                 ExecutorEnum::Update(exec) => exec.$method(),
                 ExecutorEnum::InsertVertices(exec) => exec.$method(),
                 ExecutorEnum::InsertEdges(exec) => exec.$method(),
@@ -901,6 +907,7 @@ mod macros {
                 ExecutorEnum::PatternApply(exec) => exec.$method(),
                 ExecutorEnum::Remove(exec) => exec.$method(),
                 ExecutorEnum::Delete(exec) => exec.$method(),
+                ExecutorEnum::PipeDelete(exec) => exec.$method(),
                 ExecutorEnum::Update(exec) => exec.$method(),
                 ExecutorEnum::InsertVertices(exec) => exec.$method(),
                 ExecutorEnum::InsertEdges(exec) => exec.$method(),

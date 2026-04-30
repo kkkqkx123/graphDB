@@ -1,6 +1,7 @@
 //! Pipe Statement Planner
 //!
-//! Query planning for handling pipe statements that chain multiple statements together
+//! Query planning for handling pipe statements that chain multiple statements together.
+//! Supports pipe DELETE syntax: GO ... | DELETE VERTEX $-.id
 
 use crate::query::parser::ast::stmt::{PipeStmt, Stmt};
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
@@ -59,6 +60,7 @@ impl Planner for PipePlanner {
 
         let mut right_planner = PlannerEnum::from_stmt(&Arc::new((*pipe_stmt.right).clone()))
             .ok_or_else(|| PlannerError::NoSuitablePlanner("right statement".to_string()))?;
+        
         let right_plan = right_planner.transform(&right_validated, qctx)?;
 
         let left_root = left_plan.root.ok_or_else(|| {
@@ -129,6 +131,14 @@ fn replace_argument_node(plan: PlanNodeEnum, replacement: PlanNodeEnum) -> PlanN
             unwind.set_col_names(new_col_names);
             
             PlanNodeEnum::Unwind(unwind)
+        }
+        PlanNodeEnum::DeleteVertices(mut delete_vertices) => {
+            delete_vertices.set_input(replacement);
+            PlanNodeEnum::DeleteVertices(delete_vertices)
+        }
+        PlanNodeEnum::DeleteEdges(mut delete_edges) => {
+            delete_edges.set_input(replacement);
+            PlanNodeEnum::DeleteEdges(delete_edges)
         }
         other => other,
     }

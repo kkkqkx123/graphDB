@@ -90,10 +90,11 @@ impl EliminateSortRule {
             if i >= index_columns.len() {
                 return false;
             }
-            // Simplify: Only check whether the column names match, assuming that the data in all columns is sorted in ascending order.
-            // In fact, the sorting direction should be checked.
-            if sort_item.column != index_columns[i] {
-                return false;
+            // Only check column names for simple variable references.
+            // Complex expressions (function calls, etc.) cannot be optimized.
+            match sort_item.column_name() {
+                Some(col_name) if col_name == index_columns[i] => {}
+                _ => return false,
             }
         }
 
@@ -116,9 +117,10 @@ impl EliminateSortRule {
         for (i, outer_item) in outer_items.iter().enumerate() {
             let inner_item = &inner_items[i];
             // Both the column names and the directions must match.
-            if outer_item.column != inner_item.column
-                || outer_item.direction != inner_item.direction
-            {
+            // Only check for simple column references.
+            let outer_col = outer_item.column_name();
+            let inner_col = inner_item.column_name();
+            if outer_col != inner_col || outer_item.direction != inner_item.direction {
                 return false;
             }
         }
@@ -214,7 +216,7 @@ mod tests {
         assert!(rule.pattern().matches(&PlanNodeEnum::Sort(
             SortNode::new(
                 PlanNodeEnum::Start(StartNode::new()),
-                vec![SortItem::asc("name".to_string())],
+                vec![SortItem::column_asc("name".to_string())],
             )
             .expect("Failed to create SortNode")
         )));
@@ -225,12 +227,12 @@ mod tests {
         let rule = EliminateSortRule::new();
 
         let outer = vec![
-            SortItem::asc("name".to_string()),
-            SortItem::asc("age".to_string()),
+            SortItem::column_asc("name".to_string()),
+            SortItem::column_asc("age".to_string()),
         ];
         let inner = vec![
-            SortItem::asc("name".to_string()),
-            SortItem::asc("age".to_string()),
+            SortItem::column_asc("name".to_string()),
+            SortItem::column_asc("age".to_string()),
         ];
 
         assert!(rule.check_sort_compatibility(&outer, &inner));
@@ -240,10 +242,10 @@ mod tests {
     fn test_check_sort_compatibility_prefix_match() {
         let rule = EliminateSortRule::new();
 
-        let outer = vec![SortItem::asc("name".to_string())];
+        let outer = vec![SortItem::column_asc("name".to_string())];
         let inner = vec![
-            SortItem::asc("name".to_string()),
-            SortItem::asc("age".to_string()),
+            SortItem::column_asc("name".to_string()),
+            SortItem::column_asc("age".to_string()),
         ];
 
         assert!(rule.check_sort_compatibility(&outer, &inner));
@@ -253,8 +255,8 @@ mod tests {
     fn test_check_sort_compatibility_direction_mismatch() {
         let rule = EliminateSortRule::new();
 
-        let outer = vec![SortItem::desc("name".to_string())];
-        let inner = vec![SortItem::asc("name".to_string())];
+        let outer = vec![SortItem::column_desc("name".to_string())];
+        let inner = vec![SortItem::column_asc("name".to_string())];
 
         assert!(!rule.check_sort_compatibility(&outer, &inner));
     }
@@ -263,8 +265,8 @@ mod tests {
     fn test_check_sort_compatibility_column_mismatch() {
         let rule = EliminateSortRule::new();
 
-        let outer = vec![SortItem::asc("name".to_string())];
-        let inner = vec![SortItem::asc("age".to_string())];
+        let outer = vec![SortItem::column_asc("name".to_string())];
+        let inner = vec![SortItem::column_asc("age".to_string())];
 
         assert!(!rule.check_sort_compatibility(&outer, &inner));
     }
@@ -274,7 +276,7 @@ mod tests {
         let rule = EliminateSortRule::new();
 
         let outer: Vec<SortItem> = vec![];
-        let inner = vec![SortItem::asc("name".to_string())];
+        let inner = vec![SortItem::column_asc("name".to_string())];
 
         assert!(rule.check_sort_compatibility(&outer, &inner));
     }

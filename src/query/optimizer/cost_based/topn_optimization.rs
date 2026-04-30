@@ -390,7 +390,7 @@ mod tests {
         let start_node = crate::query::planning::plan::core::nodes::StartNode::new();
         let sort_node = SortNode::new(
             crate::query::planning::plan::PlanNodeEnum::Start(start_node),
-            vec![SortItem::asc("name".to_string())],
+            vec![SortItem::column_asc("name".to_string())],
         )
         .expect("Failed to create SortNode");
 
@@ -405,7 +405,7 @@ mod tests {
         let start_node = crate::query::planning::plan::core::nodes::StartNode::new();
         let sort_node = SortNode::new(
             crate::query::planning::plan::PlanNodeEnum::Start(start_node),
-            vec![SortItem::asc("name".to_string())],
+            vec![SortItem::column_asc("name".to_string())],
         )
         .expect("Failed to create SortNode");
 
@@ -418,7 +418,7 @@ mod tests {
     #[test]
     fn test_check_topn_conversion_cost_limit_too_small() {
         let optimizer = create_test_optimizer();
-        let sort_items = vec![SortItem::asc("name".to_string())];
+        let sort_items = vec![SortItem::column_asc("name".to_string())];
 
         let result = optimizer.check_topn_conversion_cost(&sort_items, 0, 1000);
         assert_eq!(result, None);
@@ -459,7 +459,7 @@ mod tests {
         let start_node = crate::query::planning::plan::core::nodes::StartNode::new();
         let sort_node = SortNode::new(
             crate::query::planning::plan::PlanNodeEnum::Start(start_node),
-            vec![SortItem::asc("name".to_string())],
+            vec![SortItem::column_asc("name".to_string())],
         )
         .expect("Failed to create SortNode");
 
@@ -494,7 +494,7 @@ mod tests {
         let start_node = crate::query::planning::plan::core::nodes::StartNode::new();
         let sort_node = SortNode::new(
             crate::query::planning::plan::PlanNodeEnum::Start(start_node),
-            vec![SortItem::asc("name".to_string())],
+            vec![SortItem::column_asc("name".to_string())],
         )
         .expect("Failed to create SortNode");
 

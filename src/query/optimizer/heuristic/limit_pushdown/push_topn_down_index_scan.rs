@@ -56,11 +56,20 @@ define_rewrite_pushdown_rule! {
         }
 
         // Convert the sorting items of TopN into the OrderByItem of IndexScan.
-        let order_by_items: Vec<OrderByItem> = topn_node
-            .sort_items()
-            .iter()
-            .map(|item| OrderByItem::new(item.column.clone(), item.direction))
-            .collect();
+        // Only simple column references can be pushed down to IndexScan.
+        // If any sort item is a complex expression (function call, etc.), skip the pushdown.
+        let mut order_by_items = Vec::with_capacity(topn_node.sort_items().len());
+        for item in topn_node.sort_items() {
+            match item.column_name() {
+                Some(col_name) => {
+                    order_by_items.push(OrderByItem::new(col_name.to_string(), item.direction));
+                }
+                None => {
+                    // Complex expression - cannot push down to index scan
+                    return Ok(None::<TransformResult>);
+                }
+            }
+        }
 
         // Create a new IndexScan node and set the `limit` and `order_by` parameters.
         let mut new_index_scan = index_scan_node.clone();

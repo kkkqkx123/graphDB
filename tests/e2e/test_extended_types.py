@@ -33,11 +33,8 @@ class TestGeography(unittest.TestCase):
         self.client.execute(f"USE {self.space_name}")
         
         # Clean up test vertices that might exist from previous runs
-        # Use MATCH to check and delete if exists
-        self.client.execute('''
-            MATCH (v) WHERE id(v) IN ["loc_test", "loc_wkt"]
-            DELETE VERTEX id(v)
-        ''')
+        # Use DELETE VERTEX syntax (ignore errors if vertex doesn't exist)
+        self.client.execute('DELETE VERTEX "loc_test", "loc_wkt"')
 
     @classmethod
     def _setup_data(cls):
@@ -192,6 +189,14 @@ class TestVector(unittest.TestCase):
 
         time.sleep(1)
 
+        # Create vector index for SEARCH VECTOR syntax
+        # Syntax: CREATE VECTOR INDEX index_name ON tag_name(field) WITH (vector_size=N, distance='cosine')
+        cls.client.execute('''
+            CREATE VECTOR INDEX idx_product_embedding ON product_vector(embedding)
+                WITH (vector_size=128, distance='cosine')
+        ''')
+        time.sleep(1)
+
     def setUp(self):
         """Ensure client is authenticated before each test."""
         if not self.client.ensure_authenticated():
@@ -199,10 +204,8 @@ class TestVector(unittest.TestCase):
         self.client.execute(f"USE {self.space_name}")
         
         # Clean up test vertices that might exist from previous runs
-        self.client.execute('''
-            MATCH (v) WHERE id(v) IN ["pv_test"]
-            DELETE VERTEX id(v)
-        ''')
+        # Use DELETE VERTEX syntax (ignore errors if vertex doesn't exist)
+        self.client.execute('DELETE VERTEX "pv_test"')
 
     @classmethod
     def tearDownClass(cls):
@@ -228,10 +231,9 @@ class TestVector(unittest.TestCase):
         query_vector = [0.1] * 128
         vector_str = ", ".join(str(v) for v in query_vector)
 
+        # Syntax: SEARCH VECTOR index_name WITH vector=[...] YIELD field1, field2 LIMIT N
         result = self.client.execute(f'''
-            MATCH (p:product_vector)
-            ORDER BY cosine_similarity(p.embedding, [{vector_str}]) DESC
-            LIMIT 10
+            SEARCH VECTOR idx_product_embedding WITH vector=[{vector_str}] YIELD product_id, name LIMIT 10
         ''')
         self.assertTrue(result.success)
 
@@ -242,11 +244,9 @@ class TestVector(unittest.TestCase):
         query_vector = [0.1] * 128
         vector_str = ", ".join(str(v) for v in query_vector)
 
+        # Syntax: SEARCH VECTOR index_name WITH vector=[...] WHERE condition YIELD fields LIMIT N
         result = self.client.execute(f'''
-            MATCH (p:product_vector)
-            WHERE p.price < 500
-            ORDER BY cosine_similarity(p.embedding, [{vector_str}]) DESC
-            LIMIT 5
+            SEARCH VECTOR idx_product_embedding WITH vector=[{vector_str}] WHERE price < 500 YIELD product_id, name, price LIMIT 5
         ''')
         self.assertTrue(result.success)
 
@@ -257,10 +257,9 @@ class TestVector(unittest.TestCase):
         query_vector = [0.1] * 128
         vector_str = ", ".join(str(v) for v in query_vector)
 
+        # Syntax: EXPLAIN SEARCH VECTOR index_name WITH vector=[...] YIELD fields LIMIT N
         result = self.client.execute(f'''
-            EXPLAIN MATCH (p:product_vector)
-            ORDER BY cosine_similarity(p.embedding, [{vector_str}]) DESC
-            LIMIT 10
+            EXPLAIN SEARCH VECTOR idx_product_embedding WITH vector=[{vector_str}] YIELD product_id, name LIMIT 10
         ''')
         self.assertTrue(result.success)
 
@@ -297,9 +296,10 @@ class TestFullText(unittest.TestCase):
         """)
 
         # Create fulltext index
+        # Syntax: CREATE FULLTEXT INDEX index_name ON tag_name(field) ENGINE BM25 OPTIONS (analyzer='standard')
         cls.client.execute('''
             CREATE FULLTEXT INDEX idx_article_content ON article(content)
-                WITH (engine=bm25, analyzer=standard)
+                ENGINE BM25 OPTIONS (analyzer='standard')
         ''')
         time.sleep(2)  # Wait for index to be ready
 
@@ -336,9 +336,9 @@ class TestFullText(unittest.TestCase):
         """TC-FT-002: Basic fulltext search."""
         self.client.execute(f"USE {self.space_name}")
 
+        # Syntax: SEARCH INDEX index_name MATCH 'query' YIELD field1, field2, score
         result = self.client.execute('''
-            SEARCH IN article.content FOR "database"
-            RETURN article.doc_id, article.title, score()
+            SEARCH INDEX idx_article_content MATCH 'database' YIELD doc_id, title, score
         ''')
         self.assertTrue(result.success)
 
@@ -346,9 +346,9 @@ class TestFullText(unittest.TestCase):
         """TC-FT-003: Boolean query search."""
         self.client.execute(f"USE {self.space_name}")
 
+        # Syntax: SEARCH INDEX index_name MATCH 'query' YIELD field1, field2
         result = self.client.execute('''
-            SEARCH IN article.content FOR "graph AND database"
-            RETURN article.doc_id, article.title
+            SEARCH INDEX idx_article_content MATCH 'graph AND database' YIELD doc_id, title
         ''')
         self.assertTrue(result.success)
 
@@ -356,9 +356,9 @@ class TestFullText(unittest.TestCase):
         """TC-FT-004: EXPLAIN fulltext search."""
         self.client.execute(f"USE {self.space_name}")
 
+        # Syntax: EXPLAIN SEARCH INDEX index_name MATCH 'query' YIELD field1, score
         result = self.client.execute('''
-            EXPLAIN SEARCH IN article.content FOR "performance"
-            RETURN article.doc_id, score()
+            EXPLAIN SEARCH INDEX idx_article_content MATCH 'performance' YIELD doc_id, score
         ''')
         self.assertTrue(result.success)
 

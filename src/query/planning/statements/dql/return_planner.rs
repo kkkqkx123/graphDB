@@ -119,8 +119,12 @@ impl Planner for ReturnPlanner {
                             crate::core::types::graph_schema::OrderDirection::Desc
                         }
                     };
-                    let column = item.expression.to_expression_string();
-                    crate::query::planning::plan::core::nodes::SortItem::new(column, direction)
+                    let expression = item.expression.expression()
+                        .map(|e| e.inner().clone())
+                        .unwrap_or_else(|| {
+                            crate::core::Expression::Variable(item.expression.to_expression_string())
+                        });
+                    crate::query::planning::plan::core::nodes::SortItem::new(expression, direction)
                 })
                 .collect();
             let sort_node = SortNode::new(current_node.clone(), sort_items).map_err(|e| {

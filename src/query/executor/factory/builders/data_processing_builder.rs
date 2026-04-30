@@ -90,19 +90,18 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
         storage: Arc<Mutex<S>>,
         _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // The `SortItem` class contains two properties: `column` (of type `String`) and `direction` (of type `OrderDirection`).
+        // SortItem now contains an Expression instead of just a column name
         let sort_keys: Vec<SortKey> = node
             .sort_items()
             .iter()
             .map(|item| {
-                let expr = crate::core::Expression::Variable(item.column.clone());
                 let order =
                     if item.direction == crate::core::types::graph_schema::OrderDirection::Desc {
                         crate::query::executor::result_processing::SortOrder::Desc
                     } else {
                         crate::query::executor::result_processing::SortOrder::Asc
                     };
-                SortKey::new(expr, order)
+                SortKey::new(item.expression.clone(), order)
             })
             .collect();
 
@@ -125,26 +124,26 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
         storage: Arc<Mutex<S>>,
         _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // TopNExecutor::new parameters: id, storage, n, sort_columns, ascending
-        // `sort_columns` is a `Vec<String>`, not a `Vec<SortKey>`.
-        let sort_columns: Vec<String> = node
+        // TopNExecutor now supports expressions via with_sort_keys
+        let sort_keys: Vec<SortKey> = node
             .sort_items()
             .iter()
-            .map(|item| item.column.clone())
+            .map(|item| {
+                let order =
+                    if item.direction == crate::core::types::graph_schema::OrderDirection::Desc {
+                        crate::query::executor::result_processing::SortOrder::Desc
+                    } else {
+                        crate::query::executor::result_processing::SortOrder::Asc
+                    };
+                SortKey::new(item.expression.clone(), order)
+            })
             .collect();
-        // Assume that all sorting directions are consistent; use the direction of the first sorting criterion.
-        let ascending = node
-            .sort_items()
-            .first()
-            .map(|item| item.direction != crate::core::types::graph_schema::OrderDirection::Desc)
-            .unwrap_or(true);
 
-        let executor = TopNExecutor::new(
+        let executor = TopNExecutor::with_sort_keys(
             node.id(),
             storage,
             node.limit() as usize,
-            sort_columns,
-            ascending,
+            sort_keys,
         );
         Ok(ExecutorEnum::TopN(executor))
     }

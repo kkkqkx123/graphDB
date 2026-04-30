@@ -125,7 +125,7 @@ mod tests {
     #[test]
     fn test_convert_sort_limit_to_topn() {
         let start_node = PlanNodeEnum::Start(StartNode::new());
-        let sort_items = vec![SortItem::desc("price".to_string())];
+        let sort_items = vec![SortItem::column_desc("price".to_string())];
         let sort_node = SortNode::new(start_node, sort_items).expect("Failed to create SortNode");
         let limit_node = LimitNode::new(PlanNodeEnum::Sort(sort_node), 0, 10)
             .expect("Failed to create LimitNode");
@@ -148,7 +148,7 @@ mod tests {
     #[test]
     fn test_no_conversion_with_offset() {
         let start_node = PlanNodeEnum::Start(StartNode::new());
-        let sort_items = vec![SortItem::desc("price".to_string())];
+        let sort_items = vec![SortItem::column_desc("price".to_string())];
         let sort_node = SortNode::new(start_node, sort_items).expect("Failed to create SortNode");
         let limit_node = LimitNode::new(PlanNodeEnum::Sort(sort_node), 5, 10)
             .expect("Failed to create LimitNode");

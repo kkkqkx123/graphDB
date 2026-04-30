@@ -234,88 +234,119 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
     }
 
     /// Building the DeleteVertices executor
+    /// Supports both standalone DELETE and pipe DELETE (e.g., GO ... | DELETE VERTEX $-.id)
     pub fn build_delete_vertices(
         node: &DeleteVerticesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::data_modification::DeleteExecutor;
+        if node.has_input() {
+            use crate::query::executor::data_modification::PipeDeleteExecutor;
+            
+            let executor = PipeDeleteExecutor::new(
+                node.id(),
+                storage,
+                context.expression_context().clone(),
+            )
+            .with_vertex_expressions(node.vertex_ids().to_vec())
+            .with_space(node.space_name().to_string())
+            .with_edge_flag(node.with_edge())
+            .with_condition(node.condition().cloned());
 
-        // Convert vertex ID expressions to values
-        let mut vertex_ids = Vec::new();
-        for vid_expr in node.vertex_ids() {
-            let vid = vid_expr
-                .get_expression()
-                .and_then(|e| Self::evaluate_literal(&e))
-                .ok_or_else(|| {
-                    QueryError::ExecutionError(
-                        "Vertex ID expression does not exist or is not a literal".to_string(),
-                    )
-                })?;
-            vertex_ids.push(vid);
+            Ok(ExecutorEnum::PipeDelete(executor))
+        } else {
+            use crate::query::executor::data_modification::DeleteExecutor;
+
+            let mut vertex_ids = Vec::new();
+            for vid_expr in node.vertex_ids() {
+                let vid = vid_expr
+                    .get_expression()
+                    .and_then(|e| Self::evaluate_literal(&e))
+                    .ok_or_else(|| {
+                        QueryError::ExecutionError(
+                            "Vertex ID expression does not exist or is not a literal".to_string(),
+                        )
+                    })?;
+                vertex_ids.push(vid);
+            }
+
+            let executor = DeleteExecutor::new(
+                node.id(),
+                storage,
+                Some(vertex_ids),
+                None,
+                None,
+                context.expression_context().clone(),
+            )
+            .with_space(node.space_name().to_string())
+            .with_edge(node.with_edge());
+
+            Ok(ExecutorEnum::Delete(executor))
         }
-
-        let executor = DeleteExecutor::new(
-            node.id(),
-            storage,
-            Some(vertex_ids),
-            None, // edge_ids
-            None, // condition
-            context.expression_context().clone(),
-        )
-        .with_space(node.space_name().to_string())
-        .with_edge(node.with_edge());
-
-        Ok(ExecutorEnum::Delete(executor))
     }
 
     /// Building the DeleteEdges executor
+    /// Supports both standalone DELETE and pipe DELETE (e.g., GO ... | DELETE EDGE type $-.src -> $-.dst)
     pub fn build_delete_edges(
         node: &DeleteEdgesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::data_modification::DeleteExecutor;
+        if node.has_input() {
+            use crate::query::executor::data_modification::PipeDeleteExecutor;
+            
+            let executor = PipeDeleteExecutor::new(
+                node.id(),
+                storage,
+                context.expression_context().clone(),
+            )
+            .with_edge_expressions(node.edges().to_vec())
+            .with_edge_type(node.edge_type().map(|s| s.to_string()))
+            .with_space(node.space_name().to_string())
+            .with_condition(node.condition().cloned());
 
-        // Convert edge expressions to (src, dst, edge_type) tuples
-        let mut edge_ids = Vec::new();
-        for (src_expr, dst_expr, _rank_expr) in node.edges() {
-            let src = src_expr
-                .get_expression()
-                .and_then(|e| Self::evaluate_literal(&e))
-                .ok_or_else(|| {
-                    QueryError::ExecutionError(
-                        "Source vertex ID expression does not exist or is not literal".to_string(),
-                    )
-                })?;
+            Ok(ExecutorEnum::PipeDelete(executor))
+        } else {
+            use crate::query::executor::data_modification::DeleteExecutor;
 
-            let dst = dst_expr
-                .get_expression()
-                .and_then(|e| Self::evaluate_literal(&e))
-                .ok_or_else(|| {
-                    QueryError::ExecutionError(
-                        "Target vertex ID expression does not exist or is not a literal"
-                            .to_string(),
-                    )
-                })?;
+            let mut edge_ids = Vec::new();
+            for (src_expr, dst_expr, _rank_expr) in node.edges() {
+                let src = src_expr
+                    .get_expression()
+                    .and_then(|e| Self::evaluate_literal(&e))
+                    .ok_or_else(|| {
+                        QueryError::ExecutionError(
+                            "Source vertex ID expression does not exist or is not literal".to_string(),
+                        )
+                    })?;
 
-            // Use the edge type from the node, or a default if not specified
-            let edge_type = node.edge_type().unwrap_or("UNKNOWN").to_string();
+                let dst = dst_expr
+                    .get_expression()
+                    .and_then(|e| Self::evaluate_literal(&e))
+                    .ok_or_else(|| {
+                        QueryError::ExecutionError(
+                            "Target vertex ID expression does not exist or is not a literal"
+                                .to_string(),
+                        )
+                    })?;
 
-            edge_ids.push((src, dst, edge_type));
+                let edge_type = node.edge_type().unwrap_or("UNKNOWN").to_string();
+
+                edge_ids.push((src, dst, edge_type));
+            }
+
+            let executor = DeleteExecutor::new(
+                node.id(),
+                storage,
+                None,
+                Some(edge_ids),
+                None,
+                context.expression_context().clone(),
+            )
+            .with_space(node.space_name().to_string());
+
+            Ok(ExecutorEnum::Delete(executor))
         }
-
-        let executor = DeleteExecutor::new(
-            node.id(),
-            storage,
-            None, // vertex_ids
-            Some(edge_ids),
-            None, // condition
-            context.expression_context().clone(),
-        )
-        .with_space(node.space_name().to_string());
-
-        Ok(ExecutorEnum::Delete(executor))
     }
 
     /// Building the Update executor
