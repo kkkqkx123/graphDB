@@ -924,9 +924,9 @@ pub fn generate_test_vectors(count: usize, dimension: usize, seed: u64) -> Vec<V
     (0..count)
         .map(|i| {
             let mut vector = vec![0.0f32; dimension];
-            let base = (seed + i as u64) as f32;
+            let base = ((seed + i as u64) as f32 * 0.1).fract();
             for (j, val) in vector.iter_mut().enumerate() {
-                *val = ((base + j as f32) % 1.0).sin();
+                *val = (base + j as f32 * 0.1).sin();
             }
             let norm: f32 = vector.iter().map(|x| x * x).sum::<f32>().sqrt();
             if norm > 0.0 {

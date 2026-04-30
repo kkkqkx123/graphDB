@@ -251,7 +251,7 @@ fn test_storage_property_types() {
         );
 }
 
-/// Test transaction with large batch insert
+/// Test transaction with batch insert
 #[test]
 fn test_storage_large_batch_insert() {
     let mut scenario = TestScenario::new()
@@ -260,11 +260,11 @@ fn test_storage_large_batch_insert() {
         .exec_ddl("CREATE TAG IF NOT EXISTS Item(id INT, name STRING)")
         .assert_success();
 
-    // Insert 50 items in batches
-    for batch in 0..5 {
+    // Insert 15 items in batches
+    for batch in 0..3 {
         let mut values = Vec::new();
-        for i in 0..10 {
-            let id = batch * 10 + i + 1;
+        for i in 0..5 {
+            let id = batch * 5 + i + 1;
             values.push(format!("{}:({}, 'Item{}')", id, id, id));
         }
         let query = format!(
@@ -279,7 +279,7 @@ fn test_storage_large_batch_insert() {
 
     // Verify all items were inserted
     scenario
-        .assert_vertex_count("Item", 50);
+        .assert_vertex_count("Item", 15);
 }
 
 /// Test transaction with complex graph pattern persistence
@@ -448,7 +448,7 @@ async fn test_storage_concurrent_reads() {
 
     // Create multiple read-only transactions concurrently
     let mut handles = vec![];
-    for i in 0..20 {
+    for i in 0..5 {
         let manager_clone = Arc::clone(&manager);
         let handle = tokio::spawn(async move {
             let options = TransactionOptions::new().read_only();

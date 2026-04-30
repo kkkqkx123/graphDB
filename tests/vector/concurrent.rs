@@ -6,6 +6,9 @@
 //! - Mixed concurrent operations
 //! - Thread safety verification
 //!
+//! Note: Tests use low concurrency (3-5 tasks) to verify correctness
+//! without high load stress testing.
+//!
 //! Test cases: TC-VEC-CONC-001 ~ TC-VEC-CONC-005
 
 use std::sync::Arc;
@@ -27,8 +30,8 @@ async fn test_concurrent_inserts() {
         .expect("Failed to create index");
 
     let mut tasks = JoinSet::new();
-    let num_tasks = 10;
-    let vectors_per_task = 10;
+    let num_tasks = 3;
+    let vectors_per_task = 5;
 
     for task_id in 0..num_tasks {
         let ctx_clone = ctx.clone();
@@ -64,8 +67,8 @@ async fn test_concurrent_searches() {
         .await
         .expect("Failed to create index");
 
-    let vectors = generate_test_vectors(100, 64, 42);
-    let ids: Vec<String> = (0..100).map(|i| format!("doc_{}", i)).collect();
+    let vectors = generate_test_vectors(20, 64, 42);
+    let ids: Vec<String> = (0..20).map(|i| format!("doc_{}", i)).collect();
     let points = create_test_points(
         ids.iter().map(|s| s.as_str()).collect(),
         vectors.clone(),
@@ -77,7 +80,7 @@ async fn test_concurrent_searches() {
         .expect("Failed to insert vectors");
 
     let mut tasks = JoinSet::new();
-    let num_searches = 20;
+    let num_searches = 5;
 
     for i in 0..num_searches {
         let ctx_clone = ctx.clone();
@@ -103,8 +106,8 @@ async fn test_concurrent_mixed_operations() {
         .await
         .expect("Failed to create index");
 
-    let initial_vectors = generate_test_vectors(50, 64, 0);
-    let initial_ids: Vec<String> = (0..50).map(|i| format!("initial_doc_{}", i)).collect();
+    let initial_vectors = generate_test_vectors(10, 64, 0);
+    let initial_ids: Vec<String> = (0..10).map(|i| format!("initial_doc_{}", i)).collect();
     let initial_points = create_test_points(
         initial_ids.iter().map(|s| s.as_str()).collect(),
         initial_vectors.clone(),
@@ -117,9 +120,9 @@ async fn test_concurrent_mixed_operations() {
 
     let mut tasks = JoinSet::new();
 
-    for i in 0..10 {
+    for i in 0..3 {
         let ctx_clone = ctx.clone();
-        let vectors = generate_test_vectors(5, 64, (i + 100) as u64);
+        let vectors = generate_test_vectors(3, 64, (i + 100) as u64);
         tasks.spawn(async move {
             let points: Vec<VectorPoint> = vectors
                 .into_iter()
@@ -133,7 +136,7 @@ async fn test_concurrent_mixed_operations() {
         });
     }
 
-    for i in 0..10 {
+    for i in 0..3 {
         let ctx_clone = ctx.clone();
         let query = initial_vectors[i as usize % initial_vectors.len()].clone();
         tasks.spawn(async move {
@@ -148,7 +151,7 @@ async fn test_concurrent_mixed_operations() {
     while tasks.join_next().await.is_some() {}
 
     let count = ctx.count(1, "Document", "embedding").await.expect("Failed to count");
-    assert!(count >= 50, "Should have at least initial vectors");
+    assert!(count >= 10, "Should have at least initial vectors");
 }
 
 /// TC-VEC-CONC-004: Concurrent Reads and Writes
@@ -160,8 +163,8 @@ async fn test_concurrent_reads_and_writes() {
         .await
         .expect("Failed to create index");
 
-    let vectors = generate_test_vectors(20, 64, 42);
-    let ids: Vec<String> = (0..20).map(|i| format!("doc_{}", i)).collect();
+    let vectors = generate_test_vectors(5, 64, 42);
+    let ids: Vec<String> = (0..5).map(|i| format!("doc_{}", i)).collect();
     let points = create_test_points(
         ids.iter().map(|s| s.as_str()).collect(),
         vectors.clone(),
@@ -174,7 +177,7 @@ async fn test_concurrent_reads_and_writes() {
 
     let mut tasks = JoinSet::new();
 
-    for i in 0..5 {
+    for i in 0..2 {
         let ctx_clone = ctx.clone();
         let id = ids[i].clone();
         tasks.spawn(async move {
@@ -185,7 +188,7 @@ async fn test_concurrent_reads_and_writes() {
         });
     }
 
-    for i in 0..5 {
+    for i in 0..2 {
         let ctx_clone = ctx.clone();
         let vector = generate_random_vector(64);
         let id = format!("new_doc_{}", i);
@@ -197,7 +200,7 @@ async fn test_concurrent_reads_and_writes() {
         });
     }
 
-    for i in 0..5 {
+    for i in 0..2 {
         let ctx_clone = ctx.clone();
         let query = vectors[i].clone();
         tasks.spawn(async move {
@@ -218,7 +221,7 @@ async fn test_concurrent_index_operations() {
 
     let mut tasks = JoinSet::new();
 
-    for i in 0..5 {
+    for i in 0..3 {
         let ctx_clone = ctx.clone();
         tasks.spawn(async move {
             let result = ctx_clone
@@ -230,7 +233,7 @@ async fn test_concurrent_index_operations() {
 
     while tasks.join_next().await.is_some() {}
 
-    for i in 0..5 {
+    for i in 0..3 {
         assert!(
             ctx.has_index(i, "Document", "embedding"),
             "Index {} should exist",

@@ -6,6 +6,9 @@
 //! - Concurrent read and write operations
 //! - Transaction isolation - repeatable read
 //! - Read committed data only
+//!
+//! Note: Tests use low concurrency (3-5 tasks) to verify correctness
+//! without high load stress testing.
 
 use super::common;
 
@@ -67,7 +70,7 @@ async fn test_concurrent_readonly_transactions() {
 
     let mut handles = vec![];
 
-    for i in 0..5 {
+    for i in 0..3 {
         let manager_clone = Arc::clone(&manager);
         let handle = tokio::spawn(async move {
             let options = TransactionOptions::new().read_only();

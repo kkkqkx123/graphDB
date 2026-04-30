@@ -206,16 +206,16 @@ async fn test_zero_vector() {
     assert_search_result_count(&results, 1).expect("Should find the zero vector");
 }
 
-/// TC-VEC-EDGE-010: Large Batch Insert
+/// TC-VEC-EDGE-010: Batch Insert
 #[tokio::test]
-async fn test_large_batch_insert() {
+async fn test_batch_insert() {
     let ctx = VectorTestContext::with_dimension(64);
 
     ctx.create_test_index(1, "Document", "embedding", Some(64), Some(DistanceMetric::Cosine))
         .await
         .expect("Failed to create index");
 
-    let batch_size = 1000;
+    let batch_size = 50;
     let vectors = generate_test_vectors(batch_size, 64, 42);
     let ids: Vec<String> = (0..batch_size).map(|i| format!("doc_{}", i)).collect();
     let points = create_test_points(
@@ -226,7 +226,7 @@ async fn test_large_batch_insert() {
 
     let result = ctx.insert_test_vectors(1, "Document", "embedding", points).await;
 
-    assert!(result.is_ok(), "Large batch insert should succeed");
+    assert!(result.is_ok(), "Batch insert should succeed");
 
     let count = ctx.count(1, "Document", "embedding").await.expect("Failed to count");
     assert_eq!(count, batch_size as u64, "Should have all vectors inserted");

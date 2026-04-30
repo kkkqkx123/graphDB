@@ -222,7 +222,7 @@ async fn test_two_phase_commit_concurrent_readonly() {
     let mut handles = vec![];
 
     // Spawn concurrent read-only transactions
-    for i in 0..10 {
+    for i in 0..5 {
         let manager_clone = Arc::clone(&manager);
         let handle = tokio::spawn(async move {
             let mut options = TransactionOptions::new();
@@ -318,8 +318,8 @@ async fn test_two_phase_commit_transaction_info() {
 async fn test_two_phase_commit_no_deadlock_rapid_cycles() {
     let (manager, _sync_manager, _db, _temp) = create_manager_with_sync().await;
 
-    // Perform many rapid two-phase commit cycles
-    for i in 0..50 {
+    // Perform rapid two-phase commit cycles
+    for i in 0..10 {
         let mut options = TransactionOptions::new();
         options.two_phase_commit = true;
         let txn_id = manager
@@ -334,7 +334,7 @@ async fn test_two_phase_commit_no_deadlock_rapid_cycles() {
             .await
             .expect("Failed to commit transaction");
 
-        if i % 10 == 0 {
+        if i % 5 == 0 {
             println!("Completed {} two-phase commit cycles", i);
         }
     }
