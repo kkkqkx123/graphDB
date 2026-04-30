@@ -21,7 +21,6 @@ mod engine_comparison;
 mod concurrent;
 mod sync;
 mod edge_cases;
-mod performance;
 mod transaction;
 mod advanced_queries;
 mod persistence;

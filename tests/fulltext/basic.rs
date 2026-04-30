@@ -29,7 +29,7 @@ async fn test_create_fulltext_index_bm25() {
     let index_id = result.unwrap();
 
     assert_eq!(
-        index_id, "1_Article_content",
+        index_id, "space_ft_1_Article_content",
         "Index ID format should be correct"
     );
 
@@ -61,7 +61,7 @@ async fn test_create_fulltext_index_inversearch() {
     let index_id = result.unwrap();
 
     assert_eq!(
-        index_id, "1_Article_content",
+        index_id, "space_ft_1_Article_content",
         "Index ID format should be correct"
     );
 
@@ -129,7 +129,7 @@ async fn test_get_index_metadata() {
     assert!(metadata.is_some(), "Metadata should exist");
 
     let metadata = metadata.unwrap();
-    assert_eq!(metadata.index_id, "1_Article_content");
+    assert_eq!(metadata.index_id, "space_ft_1_Article_content");
     assert_eq!(metadata.space_id, 1);
     assert_eq!(metadata.tag_name, "Article");
     assert_eq!(metadata.field_name, "content");

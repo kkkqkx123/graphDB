@@ -14,6 +14,7 @@ use crate::search::result::{IndexStats, SearchResult};
 pub struct InversearchEngine {
     index: Mutex<EmbeddedIndex>,
     id_mapping: Mutex<std::collections::HashMap<String, u64>>,
+    reverse_id_mapping: Mutex<std::collections::HashMap<u64, String>>,
 }
 
 impl std::fmt::Debug for InversearchEngine {
@@ -29,6 +30,7 @@ impl InversearchEngine {
         Ok(Self {
             index: Mutex::new(index),
             id_mapping: Mutex::new(std::collections::HashMap::new()),
+            reverse_id_mapping: Mutex::new(std::collections::HashMap::new()),
         })
     }
 
@@ -47,6 +49,7 @@ impl InversearchEngine {
         Ok(Self {
             index: Mutex::new(index),
             id_mapping: Mutex::new(std::collections::HashMap::new()),
+            reverse_id_mapping: Mutex::new(std::collections::HashMap::new()),
         })
     }
 
@@ -71,8 +74,11 @@ impl SearchEngine for InversearchEngine {
         let doc_id_u64 = Self::string_to_u64(doc_id);
 
         let mut id_mapping = self.id_mapping.lock();
+        let mut reverse_id_mapping = self.reverse_id_mapping.lock();
         id_mapping.insert(doc_id.to_string(), doc_id_u64);
+        reverse_id_mapping.insert(doc_id_u64, doc_id.to_string());
         drop(id_mapping);
+        drop(reverse_id_mapping);
 
         let mut index = self.index.lock();
         index
@@ -83,11 +89,13 @@ impl SearchEngine for InversearchEngine {
 
     async fn index_batch(&self, documents: Vec<(String, String)>) -> Result<(), SearchError> {
         let mut id_mapping = self.id_mapping.lock();
+        let mut reverse_id_mapping = self.reverse_id_mapping.lock();
         let mut index = self.index.lock();
 
         for (doc_id, content) in documents {
             let doc_id_u64 = Self::string_to_u64(&doc_id);
-            id_mapping.insert(doc_id, doc_id_u64);
+            id_mapping.insert(doc_id.clone(), doc_id_u64);
+            reverse_id_mapping.insert(doc_id_u64, doc_id);
             index
                 .add(doc_id_u64, &content)
                 .map_err(|e| SearchError::InversearchError(e.to_string()))?;
@@ -101,13 +109,21 @@ impl SearchEngine for InversearchEngine {
             .search_with_limit(query, limit)
             .map_err(|e| SearchError::InversearchError(e.to_string()))?;
 
+        let reverse_id_mapping = self.reverse_id_mapping.lock();
+
         let search_results = results
             .into_iter()
-            .map(|r| SearchResult {
-                doc_id: Value::BigInt(r.id as i64),
-                score: r.score,
-                highlights: r.highlights,
-                matched_fields: vec![],
+            .map(|r| {
+                let doc_id_str = reverse_id_mapping
+                    .get(&r.id)
+                    .cloned()
+                    .unwrap_or_else(|| r.id.to_string());
+                SearchResult {
+                    doc_id: Value::String(doc_id_str),
+                    score: r.score,
+                    highlights: r.highlights,
+                    matched_fields: vec![],
+                }
             })
             .collect();
 
@@ -116,6 +132,14 @@ impl SearchEngine for InversearchEngine {
 
     async fn delete(&self, doc_id: &str) -> Result<(), SearchError> {
         let doc_id_u64 = Self::string_to_u64(doc_id);
+
+        {
+            let mut id_mapping = self.id_mapping.lock();
+            let mut reverse_id_mapping = self.reverse_id_mapping.lock();
+            id_mapping.remove(doc_id);
+            reverse_id_mapping.remove(&doc_id_u64);
+        }
+
         let mut index = self.index.lock();
         index
             .remove(doc_id_u64)

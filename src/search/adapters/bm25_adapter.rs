@@ -79,7 +79,7 @@ impl SearchEngine for Bm25SearchEngine {
             fields.insert("content".to_string(), content.to_string());
         }
         self.index
-            .add_document_with_fields(doc_id, &fields)
+            .update_document_with_fields(doc_id, &fields)
             .map_err(|e| SearchError::Bm25Error(e.to_string()))?;
         Ok(())
     }
@@ -91,7 +91,7 @@ impl SearchEngine for Bm25SearchEngine {
                 fields.insert("content".to_string(), content);
             }
             self.index
-                .add_document_with_fields(&doc_id, &fields)
+                .update_document_with_fields(&doc_id, &fields)
                 .map_err(|e| SearchError::Bm25Error(e.to_string()))?;
         }
         Ok(())

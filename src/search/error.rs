@@ -35,6 +35,9 @@ pub enum SearchError {
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
 
+    #[error("Serialization error: {0}")]
+    SerializationError(String),
+
     #[error("Config error: {0}")]
     ConfigError(String),
 

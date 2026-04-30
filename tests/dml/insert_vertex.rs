@@ -184,14 +184,14 @@ fn test_insert_vertex_with_all_types() {
         .assert_success()
         .exec_dml(r#"
             INSERT VERTEX TestTypes(str_field, int_field, double_field, bool_field) 
-            VALUES 1:('test', 42, 3.14, true)
+            VALUES 1:('test', 42, 2.71828, true)
         "#)
         .assert_success()
         .assert_vertex_props(1, "TestTypes", {
             let mut map = HashMap::new();
             map.insert("str_field", Value::String("test".into()));
             map.insert("int_field", Value::Int(42));
-            map.insert("double_field", Value::Float(3.14));
+            map.insert("double_field", Value::Float(2.71828));
             map.insert("bool_field", Value::Bool(true));
             map
         });

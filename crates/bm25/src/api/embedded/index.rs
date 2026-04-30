@@ -83,6 +83,21 @@ impl Bm25Index {
         Ok(())
     }
 
+    pub fn add_documents_with_fields(
+        &self,
+        documents: &[(String, HashMap<String, String>)],
+    ) -> Result<()> {
+        use crate::api::core::document::add_document_with_writer;
+
+        let mut writer = self.manager.writer()?;
+        for (document_id, fields) in documents {
+            add_document_with_writer(&mut writer, &self.schema, document_id, fields)?;
+        }
+        writer.commit()?;
+        self.manager.clear_reader_cache();
+        Ok(())
+    }
+
     pub fn update_document(&self, document_id: &str, content: &str) -> Result<()> {
         use crate::api::core::delete::delete_document;
         use crate::api::core::document::add_document;
@@ -158,6 +173,10 @@ impl Bm25Index {
         use tantivy::collector::TopDocs;
         use tantivy::query::QueryParser;
 
+        if limit == 0 {
+            return Ok(Vec::new());
+        }
+
         let reader = self.manager.reader()?;
         let searcher = reader.searcher();
 
@@ -210,6 +229,10 @@ impl Bm25Index {
         use tantivy::collector::TopDocs;
         use tantivy::query::QueryParser;
         use tantivy::snippet::SnippetGenerator;
+
+        if limit == 0 {
+            return Ok(Vec::new());
+        }
 
         let reader = self.manager.reader()?;
         let searcher = reader.searcher();

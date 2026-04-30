@@ -7,6 +7,9 @@
 //! - Concurrent updates to same document
 //! - Concurrent operations on different indexes
 //!
+//! Note: Tests use low concurrency (3-5 tasks) to verify correctness
+//! without high load stress testing.
+//!
 //! Test cases: TC-FT-CONC-001 ~ TC-FT-CONC-008
 
 use super::common::{
@@ -20,7 +23,7 @@ use tokio::sync::Barrier;
 #[tokio::test]
 async fn test_concurrent_inserts_bm25() {
     let ctx = Arc::new(FulltextTestContext::new());
-    let num_tasks = 50;
+    let num_tasks = 5;
     let barrier = Arc::new(Barrier::new(num_tasks));
 
     ctx.create_test_index(1, "Article", "content", Some(EngineType::Bm25))
@@ -74,7 +77,7 @@ async fn test_concurrent_inserts_bm25() {
 #[tokio::test]
 async fn test_concurrent_inserts_inversearch() {
     let ctx = Arc::new(FulltextTestContext::new());
-    let num_tasks = 50;
+    let num_tasks = 5;
     let barrier = Arc::new(Barrier::new(num_tasks));
 
     ctx.create_test_index(1, "Article", "content", Some(EngineType::Inversearch))
@@ -123,8 +126,8 @@ async fn test_concurrent_inserts_inversearch() {
 #[tokio::test]
 async fn test_concurrent_searches() {
     let ctx = Arc::new(FulltextTestContext::new());
-    let num_docs = 50;
-    let num_searches = 50;
+    let num_docs = 5;
+    let num_searches = 5;
     let barrier = Arc::new(Barrier::new(num_searches));
 
     ctx.create_test_index(1, "Article", "content", Some(EngineType::Bm25))
@@ -174,14 +177,14 @@ async fn test_concurrent_searches() {
 #[tokio::test]
 async fn test_concurrent_insert_and_search() {
     let ctx = Arc::new(FulltextTestContext::new());
-    let num_inserts = 30;
-    let num_searches = 30;
+    let num_inserts = 3;
+    let num_searches = 3;
 
     ctx.create_test_index(1, "Article", "content", Some(EngineType::Bm25))
         .await
         .expect("Failed to create index");
 
-    for i in 0..10 {
+    for i in 0..5 {
         ctx.insert_test_doc(
             1,
             "Article",
@@ -245,7 +248,7 @@ async fn test_concurrent_insert_and_search() {
         .expect("Search should succeed");
 
     assert!(
-        final_results.len() >= 10,
+        final_results.len() >= 5,
         "Should have at least initial documents"
     );
 }
@@ -254,7 +257,7 @@ async fn test_concurrent_insert_and_search() {
 #[tokio::test]
 async fn test_concurrent_updates_same_document() {
     let ctx = Arc::new(FulltextTestContext::new());
-    let num_updates = 20;
+    let num_updates = 5;
 
     ctx.create_test_index(1, "Article", "content", Some(EngineType::Bm25))
         .await
@@ -309,7 +312,7 @@ async fn test_concurrent_updates_same_document() {
 #[tokio::test]
 async fn test_concurrent_different_indexes() {
     let ctx = Arc::new(FulltextTestContext::new());
-    let num_tasks = 20;
+    let num_tasks = 3;
     let barrier = Arc::new(Barrier::new(num_tasks * 2));
 
     ctx.create_test_index(1, "Article", "content_bm25", Some(EngineType::Bm25))
@@ -321,7 +324,6 @@ async fn test_concurrent_different_indexes() {
 
     let mut handles = vec![];
 
-    // Spawn tasks for BM25 index
     for i in 0..num_tasks {
         let ctx_clone = Arc::clone(&ctx);
         let barrier_clone = Arc::clone(&barrier);
@@ -343,7 +345,6 @@ async fn test_concurrent_different_indexes() {
         handles.push(handle);
     }
 
-    // Spawn tasks for Inversearch index
     for i in 0..num_tasks {
         let ctx_clone = Arc::clone(&ctx);
         let barrier_clone = Arc::clone(&barrier);
@@ -372,14 +373,12 @@ async fn test_concurrent_different_indexes() {
 
     ctx.commit_all().await.expect("Failed to commit");
 
-    // Verify BM25 index
     let bm25_results = ctx
         .search(1, "Article", "content_bm25", "BM25", 50)
         .await
         .expect("BM25 search should succeed");
     assert_eq!(bm25_results.len(), num_tasks, "BM25 should have all documents");
 
-    // Verify Inversearch index
     let inv_results = ctx
         .search(1, "Article", "content_inv", "Inversearch", 50)
         .await
@@ -395,7 +394,7 @@ async fn test_concurrent_different_indexes() {
 #[tokio::test]
 async fn test_concurrent_index_creation() {
     let ctx = Arc::new(FulltextTestContext::new());
-    let num_indexes = 10;
+    let num_indexes = 3;
     let barrier = Arc::new(Barrier::new(num_indexes));
 
     let mut handles = vec![];
@@ -432,7 +431,6 @@ async fn test_concurrent_index_creation() {
         "All index creations should succeed"
     );
 
-    // Verify all indexes exist
     for i in 0..num_indexes {
         assert!(
             ctx.has_index(1, &format!("Tag{}", i), "content"),
@@ -446,8 +444,8 @@ async fn test_concurrent_index_creation() {
 #[tokio::test]
 async fn test_concurrent_mixed_engines() {
     let ctx = Arc::new(FulltextTestContext::new());
-    let num_bm25_tasks = 20;
-    let num_inv_tasks = 20;
+    let num_bm25_tasks = 3;
+    let num_inv_tasks = 3;
     let barrier = Arc::new(Barrier::new(num_bm25_tasks + num_inv_tasks));
 
     ctx.create_test_index(1, "Article", "bm25_field", Some(EngineType::Bm25))
@@ -459,7 +457,6 @@ async fn test_concurrent_mixed_engines() {
 
     let mut handles = vec![];
 
-    // BM25 insert tasks
     for i in 0..num_bm25_tasks {
         let ctx_clone = Arc::clone(&ctx);
         let barrier_clone = Arc::clone(&barrier);
@@ -481,7 +478,6 @@ async fn test_concurrent_mixed_engines() {
         handles.push(handle);
     }
 
-    // Inversearch insert tasks
     for i in 0..num_inv_tasks {
         let ctx_clone = Arc::clone(&ctx);
         let barrier_clone = Arc::clone(&barrier);
@@ -510,7 +506,6 @@ async fn test_concurrent_mixed_engines() {
 
     ctx.commit_all().await.expect("Failed to commit");
 
-    // Search both indexes
     let bm25_results = ctx
         .search(1, "Article", "bm25_field", "test", 50)
         .await

@@ -89,6 +89,16 @@ impl<E: ExternalIndexClient + 'static> GenericBatchProcessor<E> {
     async fn execute_batch(&self, key: &(u64, String, String)) -> BatchResult<()> {
         let entry = self.buffer.drain_all(key);
 
+        // Process deletes first, then inserts
+        // This ensures that update operations (delete + insert) work correctly
+        if !entry.deletes.is_empty() {
+            let ids: Vec<&str> = entry.deletes.iter().map(|s| s.as_str()).collect();
+            self.engine
+                .delete_batch(&ids)
+                .await
+                .map_err(BatchError::from)?;
+        }
+
         if !entry.inserts.is_empty() {
             let items: Vec<(String, IndexData)> = entry
                 .inserts
@@ -106,14 +116,6 @@ impl<E: ExternalIndexClient + 'static> GenericBatchProcessor<E> {
                     .await
                     .map_err(BatchError::from)?;
             }
-        }
-
-        if !entry.deletes.is_empty() {
-            let ids: Vec<&str> = entry.deletes.iter().map(|s| s.as_str()).collect();
-            self.engine
-                .delete_batch(&ids)
-                .await
-                .map_err(BatchError::from)?;
         }
 
         self.buffer.update_commit_time(key);

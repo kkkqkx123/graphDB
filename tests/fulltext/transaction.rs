@@ -151,7 +151,7 @@ async fn test_transaction_commit() {
         .await
         .expect("Commit should succeed");
 
-    ctx.fulltext_ctx
+    ctx.coordinator
         .commit_all()
         .await
         .expect("Failed to commit all");
@@ -208,7 +208,7 @@ async fn test_transaction_rollback() {
     let count_after = ctx.coordinator.transaction_buffer_count(txn_id);
     assert_eq!(count_after, 0, "Buffer should be cleared after rollback");
 
-    ctx.fulltext_ctx
+    ctx.coordinator
         .commit_all()
         .await
         .expect("Failed to commit all");
@@ -309,7 +309,7 @@ async fn test_concurrent_transactions() {
         .await
         .expect("Rollback txn2 should succeed");
 
-    ctx.fulltext_ctx.commit_all().await.expect("Failed to commit");
+    ctx.coordinator.commit_all().await.expect("Failed to commit");
 
     let results = ctx
         .fulltext_ctx
@@ -349,7 +349,7 @@ async fn test_transaction_update_operations() {
         .await
         .expect("Commit should succeed");
 
-    ctx.fulltext_ctx.commit_all().await.expect("Failed to commit");
+    ctx.coordinator.commit_all().await.expect("Failed to commit");
 
     let txn_id = generate_txn_id(7);
 
@@ -382,7 +382,7 @@ async fn test_transaction_update_operations() {
         .await
         .expect("Commit should succeed");
 
-    ctx.fulltext_ctx.commit_all().await.expect("Failed to commit");
+    ctx.coordinator.commit_all().await.expect("Failed to commit");
 
     let old_results = ctx
         .fulltext_ctx
@@ -430,7 +430,7 @@ async fn test_transaction_mixed_change_types() {
         .await
         .expect("Commit should succeed");
 
-    ctx.fulltext_ctx.commit_all().await.expect("Failed to commit");
+    ctx.coordinator.commit_all().await.expect("Failed to commit");
 
     let txn_id = generate_txn_id(8);
 
@@ -475,7 +475,7 @@ async fn test_transaction_mixed_change_types() {
         .await
         .expect("Commit should succeed");
 
-    ctx.fulltext_ctx.commit_all().await.expect("Failed to commit");
+    ctx.coordinator.commit_all().await.expect("Failed to commit");
 
     let all_results = ctx
         .fulltext_ctx
@@ -520,7 +520,7 @@ async fn test_transaction_with_inversearch() {
         .await
         .expect("Commit should succeed");
 
-    ctx.fulltext_ctx.commit_all().await.expect("Failed to commit");
+    ctx.coordinator.commit_all().await.expect("Failed to commit");
 
     let results = ctx
         .fulltext_ctx

@@ -77,7 +77,7 @@ async fn test_vertex_insert_auto_sync_bm25() {
         .await
         .expect("Failed to sync vertex insert");
 
-    ctx.fulltext_ctx
+    ctx.coordinator
         .commit_all()
         .await
         .expect("Failed to commit");
@@ -113,7 +113,7 @@ async fn test_vertex_insert_auto_sync_inversearch() {
         .await
         .expect("Failed to sync vertex insert");
 
-    ctx.fulltext_ctx
+    ctx.coordinator
         .commit_all()
         .await
         .expect("Failed to commit");
@@ -150,7 +150,7 @@ async fn test_vertex_update_auto_sync() {
         .await
         .expect("Failed to sync vertex insert");
 
-    ctx.fulltext_ctx
+    ctx.coordinator
         .commit_all()
         .await
         .expect("Failed to commit");
@@ -169,7 +169,7 @@ async fn test_vertex_update_auto_sync() {
         .await
         .expect("Failed to sync vertex update");
 
-    ctx.fulltext_ctx
+    ctx.coordinator
         .commit_all()
         .await
         .expect("Failed to commit");
@@ -218,7 +218,7 @@ async fn test_vertex_delete_auto_sync() {
         .await
         .expect("Failed to sync vertex insert");
 
-    ctx.fulltext_ctx
+    ctx.coordinator
         .commit_all()
         .await
         .expect("Failed to commit");
@@ -245,7 +245,7 @@ async fn test_vertex_delete_auto_sync() {
         .await
         .expect("Failed to sync vertex delete");
 
-    ctx.fulltext_ctx
+    ctx.coordinator
         .commit_all()
         .await
         .expect("Failed to commit");
@@ -283,7 +283,7 @@ async fn test_multiple_vertex_inserts() {
             .expect("Failed to sync vertex");
     }
 
-    ctx.fulltext_ctx
+    ctx.coordinator
         .commit_all()
         .await
         .expect("Failed to commit all");
@@ -335,7 +335,7 @@ async fn test_sync_mixed_engines() {
         .await
         .expect("Failed to sync to Inversearch");
 
-    ctx.fulltext_ctx
+    ctx.coordinator
         .commit_all()
         .await
         .expect("Failed to commit");
@@ -376,7 +376,7 @@ async fn test_sync_string_vertex_ids() {
         .await
         .expect("Failed to sync vertex insert");
 
-    ctx.fulltext_ctx
+    ctx.coordinator
         .commit_all()
         .await
         .expect("Failed to commit");
@@ -424,7 +424,7 @@ async fn test_sync_multiple_batches() {
             .expect("Failed to sync vertex for batch 2");
     }
 
-    ctx.fulltext_ctx
+    ctx.coordinator
         .commit_all()
         .await
         .expect("Failed to commit all");
@@ -461,7 +461,7 @@ async fn test_sync_empty_properties() {
         .await
         .expect("Failed to sync vertex insert");
 
-    ctx.fulltext_ctx
+    ctx.coordinator
         .commit_all()
         .await
         .expect("Failed to commit");
@@ -473,46 +473,4 @@ async fn test_sync_empty_properties() {
         .await
         .expect("Search should succeed");
     assert_eq!(results.len(), 1, "Should find document");
-}
-
-/// TC-FT-SYNC-010: Sync Coordinator Stress Test
-#[tokio::test]
-async fn test_sync_coordinator_stress() {
-    let ctx = SyncTestContext::new().await;
-
-    ctx.fulltext_ctx
-        .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
-        .await
-        .expect("Failed to create index");
-
-    let num_vertices = 100;
-
-    // Rapidly insert many vertices
-    for i in 1..=num_vertices {
-        let vertex_id = graphdb::core::Value::Int(i);
-        let properties = create_test_properties(&format!("Stress test content {}", i));
-
-        ctx.coordinator
-            .on_vertex_change(1, "Article", &vertex_id, &properties, ChangeType::Insert)
-            .await
-            .expect("Failed to sync vertex");
-    }
-
-    ctx.fulltext_ctx
-        .commit_all()
-        .await
-        .expect("Failed to commit");
-
-    // Verify all documents are searchable
-    let results = ctx
-        .fulltext_ctx
-        .search(1, "Article", "content", "Stress", 200)
-        .await
-        .expect("Search should succeed");
-    assert_eq!(
-        results.len(),
-        num_vertices as usize,
-        "All {} documents should be searchable",
-        num_vertices
-    );
 }

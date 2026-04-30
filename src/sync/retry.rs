@@ -30,6 +30,16 @@ impl Default for RetryConfig {
     }
 }
 
+/// Default retry configuration for local (fulltext) operations
+pub fn default_local_retry_config() -> RetryConfig {
+    RetryConfig::new(2, Duration::from_millis(10), Duration::from_millis(500))
+}
+
+/// Default retry configuration for remote (vector) operations
+pub fn default_remote_retry_config() -> RetryConfig {
+    RetryConfig::new(3, Duration::from_millis(50), Duration::from_secs(5))
+}
+
 impl RetryConfig {
     pub fn new(max_retries: u32, initial_delay: Duration, max_delay: Duration) -> Self {
         Self {

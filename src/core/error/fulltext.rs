@@ -147,6 +147,9 @@ impl From<crate::search::error::SearchError> for FulltextError {
                 FulltextError::InversearchError(msg)
             }
             crate::search::error::SearchError::IoError(e) => FulltextError::Internal(e.to_string()),
+            crate::search::error::SearchError::SerializationError(msg) => {
+                FulltextError::Internal(format!("Serialization error: {}", msg))
+            }
             crate::search::error::SearchError::ConfigError(msg) => FulltextError::ConfigError(msg),
             crate::search::error::SearchError::QueryParseError(msg) => {
                 FulltextError::QueryParseError(msg)

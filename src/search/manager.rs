@@ -10,6 +10,8 @@ use crate::search::metadata::{IndexKey, IndexMetadata, IndexStatus};
 use crate::search::result::{IndexStats, SearchResult};
 use crate::storage::metadata::SchemaManager;
 
+const METADATA_FILE_NAME: &str = "fulltext_metadata.json";
+
 #[derive(Debug)]
 pub struct FulltextIndexManager {
     engines: DashMap<IndexKey, Arc<dyn SearchEngine>>,
@@ -28,14 +30,197 @@ impl FulltextIndexManager {
             std::fs::create_dir_all(&base_path)?;
         }
 
-        Ok(Self {
+        let manager = Self {
             engines: DashMap::new(),
             metadata: DashMap::new(),
             base_path,
             default_engine: config.default_engine,
             config,
             schema_manager: None,
-        })
+        };
+
+        manager.discover_existing_indexes()?;
+
+        Ok(manager)
+    }
+
+    fn discover_existing_indexes(&self) -> Result<(), SearchError> {
+        if let Ok(loaded) = self.load_metadata_from_file() {
+            for metadata in loaded {
+                if self.restore_index_from_metadata(&metadata).is_ok() {
+                    tracing::debug!(
+                        index_id = %metadata.index_id,
+                        "Restored index from metadata"
+                    );
+                }
+            }
+            return Ok(());
+        }
+
+        self.discover_indexes_from_disk()
+    }
+
+    fn discover_indexes_from_disk(&self) -> Result<(), SearchError> {
+        let entries = match std::fs::read_dir(&self.base_path) {
+            Ok(entries) => entries,
+            Err(e) => {
+                tracing::warn!("Failed to read base path: {}", e);
+                return Ok(());
+            }
+        };
+
+        for entry in entries.flatten() {
+            let path = entry.path();
+
+            if path.is_dir() {
+                if path.join("meta.json").exists() {
+                    if let Some((key, engine, metadata)) = self.try_restore_bm25_index(&path) {
+                        self.engines.insert(key.clone(), engine);
+                        self.metadata.insert(key, metadata);
+                    }
+                }
+            } else if path.extension().map(|e| e == "bin").unwrap_or(false) {
+                if let Some((key, engine, metadata)) = self.try_restore_inversearch_index(&path) {
+                    self.engines.insert(key.clone(), engine);
+                    self.metadata.insert(key, metadata);
+                }
+            }
+        }
+
+        if !self.metadata.is_empty() {
+            if let Err(e) = self.save_metadata_to_file() {
+                tracing::warn!("Failed to save metadata cache: {}", e);
+            }
+        }
+
+        Ok(())
+    }
+
+    fn try_restore_bm25_index(
+        &self,
+        path: &std::path::Path,
+    ) -> Option<(IndexKey, Arc<dyn SearchEngine>, IndexMetadata)> {
+        let dir_name = path.file_name()?.to_string_lossy();
+        let (space_id, tag_name, field_name) = self.parse_index_id(&dir_name)?;
+
+        let engine = SearchEngineFactory::from_config(
+            EngineType::Bm25,
+            &dir_name,
+            &self.base_path,
+            &self.config,
+        )
+        .ok()?;
+
+        let key = IndexKey::new(space_id, &tag_name, &field_name);
+        let metadata = IndexMetadata {
+            index_id: dir_name.to_string(),
+            index_name: format!("idx_{}_{}_{}", space_id, tag_name, field_name),
+            space_id,
+            tag_name: tag_name.clone(),
+            field_name: field_name.clone(),
+            engine_type: EngineType::Bm25,
+            storage_path: path.to_string_lossy().to_string(),
+            created_at: chrono::Utc::now(),
+            last_updated: chrono::Utc::now(),
+            doc_count: 0,
+            status: IndexStatus::Active,
+            engine_config: None,
+        };
+
+        Some((key, engine, metadata))
+    }
+
+    fn try_restore_inversearch_index(
+        &self,
+        path: &std::path::Path,
+    ) -> Option<(IndexKey, Arc<dyn SearchEngine>, IndexMetadata)> {
+        let file_stem = path.file_stem()?.to_string_lossy();
+        let (space_id, tag_name, field_name) = self.parse_index_id(&file_stem)?;
+
+        let engine = SearchEngineFactory::from_config(
+            EngineType::Inversearch,
+            &file_stem,
+            &self.base_path,
+            &self.config,
+        )
+        .ok()?;
+
+        let key = IndexKey::new(space_id, &tag_name, &field_name);
+        let metadata = IndexMetadata {
+            index_id: file_stem.to_string(),
+            index_name: format!("idx_{}_{}_{}", space_id, tag_name, field_name),
+            space_id,
+            tag_name: tag_name.clone(),
+            field_name: field_name.clone(),
+            engine_type: EngineType::Inversearch,
+            storage_path: path.to_string_lossy().to_string(),
+            created_at: chrono::Utc::now(),
+            last_updated: chrono::Utc::now(),
+            doc_count: 0,
+            status: IndexStatus::Active,
+            engine_config: None,
+        };
+
+        Some((key, engine, metadata))
+    }
+
+    fn parse_index_id(&self, index_id: &str) -> Option<(u64, String, String)> {
+        let parts: Vec<&str> = index_id.split('_').collect();
+        if parts.len() < 4 || parts[0] != "space" || parts[1] != "ft" {
+            return None;
+        }
+
+        let space_id: u64 = parts[2].parse().ok()?;
+        let tag_name = parts.get(3)?.to_string();
+        let field_name = parts.get(4)?.to_string();
+
+        Some((space_id, tag_name, field_name))
+    }
+
+    fn restore_index_from_metadata(&self, metadata: &IndexMetadata) -> Result<(), SearchError> {
+        let key = IndexKey::new(metadata.space_id, &metadata.tag_name, &metadata.field_name);
+
+        let engine = SearchEngineFactory::from_config(
+            metadata.engine_type,
+            &metadata.index_id,
+            &self.base_path,
+            &self.config,
+        )?;
+
+        self.engines.insert(key.clone(), engine);
+        self.metadata.insert(key, metadata.clone());
+
+        Ok(())
+    }
+
+    fn load_metadata_from_file(&self) -> Result<Vec<IndexMetadata>, SearchError> {
+        let metadata_path = self.base_path.join(METADATA_FILE_NAME);
+
+        if !metadata_path.exists() {
+            return Err(SearchError::Internal("Metadata file not found".to_string()));
+        }
+
+        let content = std::fs::read_to_string(&metadata_path)?;
+        let metadata_list: Vec<IndexMetadata> = serde_json::from_str(&content)
+            .map_err(|e| SearchError::SerializationError(e.to_string()))?;
+
+        Ok(metadata_list)
+    }
+
+    fn save_metadata_to_file(&self) -> Result<(), SearchError> {
+        let metadata_path = self.base_path.join(METADATA_FILE_NAME);
+
+        let metadata_list: Vec<IndexMetadata> = self
+            .metadata
+            .iter()
+            .map(|entry| entry.value().clone())
+            .collect();
+
+        let content = serde_json::to_string_pretty(&metadata_list)
+            .map_err(|e| SearchError::SerializationError(e.to_string()))?;
+        std::fs::write(&metadata_path, content)?;
+
+        Ok(())
     }
 
     pub fn with_schema_manager(mut self, schema_manager: Arc<dyn SchemaManager>) -> Self {
@@ -165,6 +350,10 @@ impl FulltextIndexManager {
         self.engines.insert(key.clone(), engine);
         self.metadata.insert(key, metadata);
 
+        if let Err(e) = self.save_metadata_to_file() {
+            tracing::warn!("Failed to save metadata after creating index: {}", e);
+        }
+
         Ok(index_id)
     }
 
@@ -214,6 +403,10 @@ impl FulltextIndexManager {
         }
 
         self.metadata.remove(&key);
+
+        if let Err(e) = self.save_metadata_to_file() {
+            tracing::warn!("Failed to save metadata after dropping index: {}", e);
+        }
 
         let index_id = key.to_index_id();
         let index_path = self.base_path.join(&index_id);
@@ -375,6 +568,10 @@ impl FulltextIndexManager {
                     }
                 }
             }
+        }
+
+        if let Err(e) = self.save_metadata_to_file() {
+            tracing::warn!("Failed to save metadata after dropping space indexes: {}", e);
         }
 
         Ok(())
