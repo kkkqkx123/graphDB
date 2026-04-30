@@ -727,22 +727,6 @@ impl SyncCoordinator {
                     }
                 }
             });
-        }
-
-        // Initiate an automatic cleanup task for the dead letter queue
-        if self.dead_letter_queue.is_auto_cleanup_enabled() {
-            let dlq_clone = self.dead_letter_queue.clone();
-            let cleanup_interval = self.dead_letter_queue.get_cleanup_interval();
-            tokio::spawn(async move {
-                let mut interval = tokio::time::interval(cleanup_interval);
-                loop {
-                    interval.tick().await;
-                    let removed = dlq_clone.cleanup();
-                    if removed > 0 {
-                        log::info!("Auto-cleaned {} dead letter entries", removed);
-                    }
-                }
-            });
             log::info!("Started dead letter queue cleanup task");
         }
 

@@ -11,6 +11,11 @@
 //! - Error handling - index not found, duplicate creation, invalid queries
 //! - Multi-space isolation - space isolation for indexes
 //! - Performance - basic performance tests for both engines
+//! - Transaction support - transaction buffer, commit, rollback
+//! - Dead letter queue - failed operation handling and recovery
+//! - Advanced queries - boolean queries, phrase queries, prefix search
+//! - Persistence - index and document persistence across restarts
+//! - Highlight - search result highlighting and matched fields
 
 mod common;
 mod basic;
@@ -21,3 +26,8 @@ mod concurrent;
 mod sync;
 mod edge_cases;
 mod performance;
+mod transaction;
+mod dead_letter_queue;
+mod advanced_queries;
+mod persistence;
+mod highlight;
