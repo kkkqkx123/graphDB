@@ -31,6 +31,13 @@ class TestGeography(unittest.TestCase):
         if not self.client.ensure_authenticated():
             self.client.connect()
         self.client.execute(f"USE {self.space_name}")
+        
+        # Clean up test vertices that might exist from previous runs
+        # Use MATCH to check and delete if exists
+        self.client.execute('''
+            MATCH (v) WHERE id(v) IN ["loc_test", "loc_wkt"]
+            DELETE VERTEX id(v)
+        ''')
 
     @classmethod
     def _setup_data(cls):
@@ -190,6 +197,12 @@ class TestVector(unittest.TestCase):
         if not self.client.ensure_authenticated():
             self.client.connect()
         self.client.execute(f"USE {self.space_name}")
+        
+        # Clean up test vertices that might exist from previous runs
+        self.client.execute('''
+            MATCH (v) WHERE id(v) IN ["pv_test"]
+            DELETE VERTEX id(v)
+        ''')
 
     @classmethod
     def tearDownClass(cls):
