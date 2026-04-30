@@ -60,7 +60,7 @@ fn generate_txn_id(id: u64) -> graphdb::transaction::types::TransactionId {
 /// TC-FT-TXN-001: Basic Transaction Buffer Operation
 #[tokio::test]
 async fn test_transaction_buffer_operation() {
-    let ctx = TransactionTestContext::new();
+    let ctx = TransactionTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
@@ -88,7 +88,7 @@ async fn test_transaction_buffer_operation() {
 /// TC-FT-TXN-002: Multiple Operations in Single Transaction
 #[tokio::test]
 async fn test_transaction_multiple_operations() {
-    let ctx = TransactionTestContext::new();
+    let ctx = TransactionTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
@@ -118,7 +118,7 @@ async fn test_transaction_multiple_operations() {
 /// TC-FT-TXN-003: Transaction Commit
 #[tokio::test]
 async fn test_transaction_commit() {
-    let ctx = TransactionTestContext::new();
+    let ctx = TransactionTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
@@ -171,7 +171,7 @@ async fn test_transaction_commit() {
 /// TC-FT-TXN-004: Transaction Rollback
 #[tokio::test]
 async fn test_transaction_rollback() {
-    let ctx = TransactionTestContext::new();
+    let ctx = TransactionTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
@@ -225,7 +225,7 @@ async fn test_transaction_rollback() {
 /// TC-FT-TXN-005: Prepare Phase Validation
 #[tokio::test]
 async fn test_transaction_prepare_phase() {
-    let ctx = TransactionTestContext::new();
+    let ctx = TransactionTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
@@ -258,7 +258,7 @@ async fn test_transaction_prepare_phase() {
 /// TC-FT-TXN-006: Multiple Concurrent Transactions
 #[tokio::test]
 async fn test_concurrent_transactions() {
-    let ctx = TransactionTestContext::new();
+    let ctx = TransactionTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
@@ -323,7 +323,7 @@ async fn test_concurrent_transactions() {
 /// TC-FT-TXN-007: Transaction with Update Operations
 #[tokio::test]
 async fn test_transaction_update_operations() {
-    let ctx = TransactionTestContext::new();
+    let ctx = TransactionTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
@@ -402,7 +402,7 @@ async fn test_transaction_update_operations() {
 /// TC-FT-TXN-008: Transaction with Mixed Change Types
 #[tokio::test]
 async fn test_transaction_mixed_change_types() {
-    let ctx = TransactionTestContext::new();
+    let ctx = TransactionTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
@@ -492,7 +492,7 @@ async fn test_transaction_mixed_change_types() {
 /// TC-FT-TXN-009: Transaction with Inversearch Engine
 #[tokio::test]
 async fn test_transaction_with_inversearch() {
-    let ctx = TransactionTestContext::new();
+    let ctx = TransactionTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Inversearch))
@@ -534,7 +534,7 @@ async fn test_transaction_with_inversearch() {
 /// TC-FT-TXN-010: Empty Transaction Commit
 #[tokio::test]
 async fn test_empty_transaction_commit() {
-    let ctx = TransactionTestContext::new();
+    let ctx = TransactionTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))

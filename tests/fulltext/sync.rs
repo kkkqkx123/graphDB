@@ -17,12 +17,12 @@ use std::sync::Arc;
 
 struct SyncTestContext {
     coordinator: Arc<SyncCoordinator>,
-    _sync_manager: Arc<SyncManager>,
+    sync_manager: Arc<SyncManager>,
     fulltext_ctx: FulltextTestContext,
 }
 
 impl SyncTestContext {
-    fn new() -> Self {
+    async fn new() -> Self {
         let fulltext_ctx = FulltextTestContext::new();
         let batch_config = BatchConfig::default();
         let coordinator = Arc::new(SyncCoordinator::new(
@@ -31,11 +31,24 @@ impl SyncTestContext {
         ));
         let sync_manager = Arc::new(SyncManager::new(coordinator.clone()));
 
+        sync_manager.start().await.expect("Failed to start sync manager");
+
         Self {
             coordinator,
-            _sync_manager: sync_manager,
+            sync_manager,
             fulltext_ctx,
         }
+    }
+
+    async fn shutdown(&self) {
+        self.sync_manager.stop().await;
+    }
+}
+
+impl Drop for SyncTestContext {
+    fn drop(&mut self) {
+        // Note: This is a best-effort cleanup since we can't block in Drop
+        // The sync_manager will be dropped automatically
     }
 }
 
@@ -49,7 +62,7 @@ fn create_test_properties(content: &str) -> Vec<(String, graphdb::core::Value)> 
 /// TC-FT-SYNC-001: Vertex Insert Auto-Sync with BM25
 #[tokio::test]
 async fn test_vertex_insert_auto_sync_bm25() {
-    let ctx = SyncTestContext::new();
+    let ctx = SyncTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
@@ -85,7 +98,7 @@ async fn test_vertex_insert_auto_sync_bm25() {
 /// TC-FT-SYNC-002: Vertex Insert Auto-Sync with Inversearch
 #[tokio::test]
 async fn test_vertex_insert_auto_sync_inversearch() {
-    let ctx = SyncTestContext::new();
+    let ctx = SyncTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Inversearch))
@@ -121,7 +134,7 @@ async fn test_vertex_insert_auto_sync_inversearch() {
 /// TC-FT-SYNC-003: Vertex Update Auto-Sync
 #[tokio::test]
 async fn test_vertex_update_auto_sync() {
-    let ctx = SyncTestContext::new();
+    let ctx = SyncTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
@@ -189,7 +202,7 @@ async fn test_vertex_update_auto_sync() {
 /// TC-FT-SYNC-004: Vertex Delete Auto-Sync
 #[tokio::test]
 async fn test_vertex_delete_auto_sync() {
-    let ctx = SyncTestContext::new();
+    let ctx = SyncTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
@@ -253,7 +266,7 @@ async fn test_vertex_delete_auto_sync() {
 /// TC-FT-SYNC-005: Multiple Vertex Inserts
 #[tokio::test]
 async fn test_multiple_vertex_inserts() {
-    let ctx = SyncTestContext::new();
+    let ctx = SyncTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
@@ -290,7 +303,7 @@ async fn test_multiple_vertex_inserts() {
 /// TC-FT-SYNC-006: Sync with Mixed Engines
 #[tokio::test]
 async fn test_sync_mixed_engines() {
-    let ctx = SyncTestContext::new();
+    let ctx = SyncTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "bm25_content", Some(EngineType::Bm25))
@@ -347,7 +360,7 @@ async fn test_sync_mixed_engines() {
 /// TC-FT-SYNC-007: Sync with String Vertex IDs
 #[tokio::test]
 async fn test_sync_string_vertex_ids() {
-    let ctx = SyncTestContext::new();
+    let ctx = SyncTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
@@ -384,7 +397,7 @@ async fn test_sync_string_vertex_ids() {
 /// TC-FT-SYNC-008: Sync Multiple Batches
 #[tokio::test]
 async fn test_sync_multiple_batches() {
-    let ctx = SyncTestContext::new();
+    let ctx = SyncTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Inversearch))
@@ -432,7 +445,7 @@ async fn test_sync_multiple_batches() {
 /// TC-FT-SYNC-009: Sync with Empty Properties
 #[tokio::test]
 async fn test_sync_empty_properties() {
-    let ctx = SyncTestContext::new();
+    let ctx = SyncTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
@@ -465,7 +478,7 @@ async fn test_sync_empty_properties() {
 /// TC-FT-SYNC-010: Sync Coordinator Stress Test
 #[tokio::test]
 async fn test_sync_coordinator_stress() {
-    let ctx = SyncTestContext::new();
+    let ctx = SyncTestContext::new().await;
 
     ctx.fulltext_ctx
         .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
