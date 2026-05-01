@@ -135,6 +135,12 @@ impl Bm25Index {
         Ok(())
     }
 
+    pub fn delete_documents(&self, document_ids: &[String]) -> Result<usize> {
+        use crate::api::core::delete::batch_delete_documents;
+
+        batch_delete_documents(&self.manager, &self.schema, document_ids)
+    }
+
     fn extract_doc_fields(
         &self,
         doc: &tantivy::TantivyDocument,

@@ -85,15 +85,20 @@ impl SearchEngine for Bm25SearchEngine {
     }
 
     async fn index_batch(&self, docs: Vec<(String, String)>) -> Result<(), SearchError> {
-        for (doc_id, content) in docs {
-            let mut fields = HashMap::new();
-            if !content.is_empty() {
-                fields.insert("content".to_string(), content);
-            }
-            self.index
-                .update_document_with_fields(&doc_id, &fields)
-                .map_err(|e| SearchError::Bm25Error(e.to_string()))?;
-        }
+        let documents: Vec<(String, HashMap<String, String>)> = docs
+            .into_iter()
+            .map(|(doc_id, content)| {
+                let mut fields = HashMap::new();
+                if !content.is_empty() {
+                    fields.insert("content".to_string(), content);
+                }
+                (doc_id, fields)
+            })
+            .collect();
+
+        self.index
+            .add_documents_with_fields(&documents)
+            .map_err(|e| SearchError::Bm25Error(e.to_string()))?;
         Ok(())
     }
 
@@ -128,11 +133,10 @@ impl SearchEngine for Bm25SearchEngine {
     }
 
     async fn delete_batch(&self, doc_ids: Vec<&str>) -> Result<(), SearchError> {
-        for doc_id in doc_ids {
-            self.index
-                .delete_document(doc_id)
-                .map_err(|e| SearchError::Bm25Error(e.to_string()))?;
-        }
+        let document_ids: Vec<String> = doc_ids.iter().map(|s| s.to_string()).collect();
+        self.index
+            .delete_documents(&document_ids)
+            .map_err(|e| SearchError::Bm25Error(e.to_string()))?;
         Ok(())
     }
 

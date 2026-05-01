@@ -176,6 +176,6 @@ mod tests {
         let result = func
             .execute(&[Value::String("test".to_string())])
             .expect("Execution should succeed");
-        assert!(matches!(result, Value::Int(_)));
+        assert!(matches!(result, Value::BigInt(_)));
     }
 }

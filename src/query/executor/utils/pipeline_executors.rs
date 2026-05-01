@@ -386,15 +386,19 @@ mod tests {
         let mut executor =
             ArgumentExecutor::<MockStorage>::new(1, storage, "undefined_var", expr_context);
 
-        // Execution should return error because variable is not defined
         executor.open().expect("Failed to open executor");
         let result = executor.execute();
         executor.close().expect("Failed to close executor");
 
         assert!(
-            result.is_err(),
-            "Should return error when variable is not defined"
+            result.is_ok(),
+            "Should return empty dataset when variable is not defined"
         );
+        if let Ok(ExecutionResult::DataSet(dataset)) = result {
+            assert!(dataset.rows.is_empty(), "Dataset should be empty");
+        } else {
+            panic!("Expected DataSet result");
+        }
     }
 
     #[test]

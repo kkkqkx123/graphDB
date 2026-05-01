@@ -502,7 +502,7 @@ mod tests {
         );
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.message.contains("Cannot be empty"));
+        assert!(err.message.contains("cannot be null"));
     }
 
     #[test]

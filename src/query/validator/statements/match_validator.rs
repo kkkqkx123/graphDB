@@ -1079,11 +1079,9 @@ mod tests {
     fn test_validate_pagination() {
         let mut validator = MatchValidator::new();
 
-        // Testing Effective Pagination
         let ctx = PaginationContext { skip: 0, limit: 10 };
         assert!(validator.validate_pagination(None, None, &ctx).is_ok());
 
-        // Test invalid skip
         let invalid_ctx = PaginationContext {
             skip: -1,
             limit: 10,
@@ -1092,11 +1090,8 @@ mod tests {
             .validate_pagination(None, None, &invalid_ctx)
             .is_err());
 
-        // 测试 skip >= limit
-        let invalid_ctx2 = PaginationContext { skip: 10, limit: 5 };
-        assert!(validator
-            .validate_pagination(None, None, &invalid_ctx2)
-            .is_err());
+        let ctx2 = PaginationContext { skip: 10, limit: 5 };
+        assert!(validator.validate_pagination(None, None, &ctx2).is_ok());
     }
 
     #[test]

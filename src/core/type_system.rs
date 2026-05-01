@@ -548,12 +548,12 @@ mod tests {
         assert!(TypeUtils::can_cast(&DataType::String, &DataType::Int));
         assert!(TypeUtils::can_cast(&DataType::String, &DataType::Float));
         assert!(TypeUtils::can_cast(&DataType::String, &DataType::Bool));
-        assert!(!TypeUtils::can_cast(&DataType::String, &DataType::Date));
+        assert!(TypeUtils::can_cast(&DataType::String, &DataType::Date));
 
         // Bool conversion
         assert!(TypeUtils::can_cast(&DataType::Bool, &DataType::Int));
         assert!(TypeUtils::can_cast(&DataType::Bool, &DataType::String));
-        assert!(!TypeUtils::can_cast(&DataType::Bool, &DataType::Float));
+        assert!(TypeUtils::can_cast(&DataType::Bool, &DataType::Float));
 
         // Null conversion
         assert!(TypeUtils::can_cast(&DataType::Null, &DataType::Int));

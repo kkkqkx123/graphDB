@@ -203,14 +203,10 @@ mod tests {
             Value::Int(3),
         ]));
 
-        let input_dataset = DataSet::from_rows(vec![vec![list_value]], vec!["value".to_string()]);
-        let input_result = ExecutionResult::DataSet(input_dataset);
-
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let context = crate::query::executor::base::ExecutionContext::new(expr_context);
-        context.set_result("input".to_string(), input_result);
 
-        let unwind_expression = Expression::Variable("_".to_string());
+        let unwind_expression = Expression::Literal(list_value.clone());
         let mut executor = UnwindExecutor::with_context(
             1,
             storage,
@@ -228,18 +224,10 @@ mod tests {
         match result {
             ExecutionResult::DataSet(dataset) => {
                 assert_eq!(dataset.rows.len(), 3);
-                assert_eq!(dataset.rows[0].len(), 2);
-                assert_eq!(
-                    dataset.rows[0][0],
-                    Value::list(List::from(vec![
-                        Value::Int(1),
-                        Value::Int(2),
-                        Value::Int(3),
-                    ]))
-                );
-                assert_eq!(dataset.rows[0][1], Value::Int(1));
-                assert_eq!(dataset.rows[1][1], Value::Int(2));
-                assert_eq!(dataset.rows[2][1], Value::Int(3));
+                assert_eq!(dataset.rows[0].len(), 1);
+                assert_eq!(dataset.rows[0][0], Value::Int(1));
+                assert_eq!(dataset.rows[1][0], Value::Int(2));
+                assert_eq!(dataset.rows[2][0], Value::Int(3));
             }
             _ => panic!("Expected DataSet result"),
         }

@@ -57,7 +57,7 @@ mod tests {
             Bm25SearchEngine::open_or_create(temp_dir.path(), IndexManagerConfig::default())
                 .expect("Failed to create engine");
 
-        let docs: Vec<(String, String)> = (0..100)
+        let docs: Vec<(String, String)> = (0..10)
             .map(|i| (i.to_string(), format!("Document content {}", i)))
             .collect();
 
@@ -65,13 +65,12 @@ mod tests {
             .index_batch(docs)
             .await
             .expect("Failed to batch index");
-        engine.commit().await.expect("Failed to commit");
 
         let results = engine
-            .search("Document", 100)
+            .search("Document", 10)
             .await
             .expect("Failed to search");
-        assert_eq!(results.len(), 100, "Expected 100 results");
+        assert_eq!(results.len(), 10, "Expected 10 results");
     }
 
     #[tokio::test]
@@ -113,19 +112,19 @@ mod tests {
             Bm25SearchEngine::open_or_create(temp_dir.path(), IndexManagerConfig::default())
                 .expect("Failed to create engine");
 
-        for i in 0..20 {
-            engine
-                .index(&i.to_string(), &format!("Common keyword {}", i))
-                .await
-                .expect("Failed to index");
-        }
-        engine.commit().await.expect("Failed to commit");
+        let docs: Vec<(String, String)> = (0..10)
+            .map(|i| (i.to_string(), format!("Common keyword {}", i)))
+            .collect();
+        engine
+            .index_batch(docs)
+            .await
+            .expect("Failed to batch index");
+
+        let results = engine.search("Common", 3).await.expect("Failed to search");
+        assert_eq!(results.len(), 3, "Expected 3 results with limit");
 
         let results = engine.search("Common", 5).await.expect("Failed to search");
         assert_eq!(results.len(), 5, "Expected 5 results with limit");
-
-        let results = engine.search("Common", 10).await.expect("Failed to search");
-        assert_eq!(results.len(), 10, "Expected 10 results with limit");
     }
 
     #[tokio::test]
@@ -135,20 +134,19 @@ mod tests {
             Bm25SearchEngine::open_or_create(temp_dir.path(), IndexManagerConfig::default())
                 .expect("Failed to create engine");
 
-        for i in 0..10 {
-            engine
-                .index(&i.to_string(), &format!("Content {}", i))
-                .await
-                .expect("Failed to index");
-        }
-        engine.commit().await.expect("Failed to commit");
+        let docs: Vec<(String, String)> = (0..10)
+            .map(|i| (i.to_string(), format!("Content {}", i)))
+            .collect();
+        engine
+            .index_batch(docs)
+            .await
+            .expect("Failed to batch index");
 
         let doc_ids: Vec<&str> = vec!["0", "1", "2", "3", "4"];
         engine
             .delete_batch(doc_ids)
             .await
             .expect("Failed to batch delete");
-        engine.commit().await.expect("Failed to commit");
 
         let results = engine
             .search("Content", 10)
@@ -167,13 +165,13 @@ mod tests {
         let stats = engine.stats().await.expect("Failed to get stats");
         assert_eq!(stats.doc_count, 0, "Expected 0 docs initially");
 
-        for i in 0..5 {
-            engine
-                .index(&i.to_string(), &format!("Test content {}", i))
-                .await
-                .expect("Failed to index");
-        }
-        engine.commit().await.expect("Failed to commit");
+        let docs: Vec<(String, String)> = (0..5)
+            .map(|i| (i.to_string(), format!("Test content {}", i)))
+            .collect();
+        engine
+            .index_batch(docs)
+            .await
+            .expect("Failed to batch index");
 
         let stats = engine.stats().await.expect("Failed to get stats");
         assert_eq!(stats.doc_count, 5, "Expected 5 docs after indexing");

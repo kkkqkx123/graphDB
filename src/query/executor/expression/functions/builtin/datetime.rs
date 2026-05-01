@@ -263,7 +263,7 @@ mod tests {
     fn test_now() {
         let func = DateTimeFunction::Now;
         let result = func.execute(&[]).expect("Execution should succeed");
-        assert!(matches!(result, Value::Int(_)));
+        assert!(matches!(result, Value::BigInt(_)));
     }
 
     #[test]

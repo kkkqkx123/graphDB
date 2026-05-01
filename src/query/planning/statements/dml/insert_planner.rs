@@ -319,7 +319,7 @@ mod tests {
         assert!(result
             .unwrap_err()
             .to_string()
-            .contains("Not an INSERT statement"));
+            .contains("not an INSERT statement"));
     }
 
     #[test]

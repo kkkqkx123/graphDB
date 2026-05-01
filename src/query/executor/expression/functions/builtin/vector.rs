@@ -462,8 +462,8 @@ mod tests {
             .execute(&[vec1, vec2])
             .unwrap();
 
-        assert!(matches!(result, Value::Float(_)));
-        if let Value::Float(score) = result {
+        assert!(matches!(result, Value::Double(_)));
+        if let Value::Double(score) = result {
             assert!((score - 0.0).abs() < 1e-6);
         }
     }
@@ -475,9 +475,9 @@ mod tests {
 
         let result = VectorFunction::DotProduct.execute(&[vec1, vec2]).unwrap();
 
-        assert!(matches!(result, Value::Float(_)));
-        if let Value::Float(dot) = result {
-            assert!((dot - 32.0).abs() < 1e-6); // 1*4 + 2*5 + 3*6 = 32
+        assert!(matches!(result, Value::Double(_)));
+        if let Value::Double(dot) = result {
+            assert!((dot - 32.0).abs() < 1e-6);
         }
     }
 
@@ -490,9 +490,9 @@ mod tests {
             .execute(&[vec1, vec2])
             .unwrap();
 
-        assert!(matches!(result, Value::Float(_)));
-        if let Value::Float(dist) = result {
-            assert!((dist - 5.0).abs() < 1e-6); // sqrt(3^2 + 4^2) = 5
+        assert!(matches!(result, Value::Double(_)));
+        if let Value::Double(dist) = result {
+            assert!((dist - 5.0).abs() < 1e-6);
         }
     }
 
@@ -505,9 +505,9 @@ mod tests {
             .execute(&[vec1, vec2])
             .unwrap();
 
-        assert!(matches!(result, Value::Float(_)));
-        if let Value::Float(dist) = result {
-            assert!((dist - 7.0).abs() < 1e-6); // |3-0| + |4-0| = 7
+        assert!(matches!(result, Value::Double(_)));
+        if let Value::Double(dist) = result {
+            assert!((dist - 7.0).abs() < 1e-6);
         }
     }
 
@@ -517,8 +517,8 @@ mod tests {
 
         let result = VectorFunction::Dimension.execute(&[vec]).unwrap();
 
-        assert!(matches!(result, Value::Int(_)));
-        if let Value::Int(dim) = result {
+        assert!(matches!(result, Value::BigInt(_)));
+        if let Value::BigInt(dim) = result {
             assert_eq!(dim, 1536);
         }
     }
@@ -529,9 +529,9 @@ mod tests {
 
         let result = VectorFunction::L2Norm.execute(&[vec]).unwrap();
 
-        assert!(matches!(result, Value::Float(_)));
-        if let Value::Float(norm) = result {
-            assert!((norm - 5.0).abs() < 1e-6); // sqrt(3^2 + 4^2) = 5
+        assert!(matches!(result, Value::Double(_)));
+        if let Value::Double(norm) = result {
+            assert!((norm - 5.0).abs() < 1e-6);
         }
     }
 
@@ -541,9 +541,9 @@ mod tests {
 
         let result = VectorFunction::Nnz.execute(&[vec]).unwrap();
 
-        assert!(matches!(result, Value::Int(_)));
-        if let Value::Int(n) = result {
-            assert_eq!(n, 3); // Three non-zero elements
+        assert!(matches!(result, Value::BigInt(_)));
+        if let Value::BigInt(n) = result {
+            assert_eq!(n, 3);
         }
     }
 

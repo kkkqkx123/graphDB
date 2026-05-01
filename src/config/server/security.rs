@@ -38,7 +38,7 @@ impl SslConfig {
 }
 
 /// Audit log configuration
-#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AuditConfig {
     /// Enable audit logging
     pub enabled: bool,
@@ -68,6 +68,12 @@ impl AuditConfig {
             max_file_size_mb: 100,
             max_files: 10,
         }
+    }
+}
+
+impl Default for AuditConfig {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

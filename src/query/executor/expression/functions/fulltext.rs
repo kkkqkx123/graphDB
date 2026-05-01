@@ -417,8 +417,8 @@ mod tests {
         let context = create_test_context();
 
         let result = func.execute(&[], &context).unwrap();
-        assert!(matches!(result, Value::Float(_)));
-        if let Value::Float(score) = result {
+        assert!(matches!(result, Value::Double(_)));
+        if let Value::Double(score) = result {
             assert!((score - 0.85).abs() < 0.001);
         }
     }
