@@ -49,12 +49,7 @@ impl VertexStorage {
 
     /// Get current transaction ID
     fn get_current_txn_id(&self) -> crate::transaction::types::TransactionId {
-        // Try to get transaction ID from current transaction context
-        if let Some(ctx) = self.inner.current_txn_context.lock().as_ref() {
-            ctx.id
-        } else {
-            0 // Default transaction ID for non-transactional operations
-        }
+        self.inner.get_current_txn_id()
     }
 
     /// Detect changed properties between two vertices

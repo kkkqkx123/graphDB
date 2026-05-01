@@ -10,6 +10,7 @@ use graphdb::core::Value;
 /// Fulltext Test Context with multi-engine support
 ///
 /// Provides a test environment with FulltextIndexManager supporting both BM25 and Inversearch engines
+#[allow(dead_code)]
 pub struct FulltextTestContext {
     pub manager: Arc<FulltextIndexManager>,
     pub temp_dir: TempDir,
@@ -143,6 +144,7 @@ impl FulltextTestContext {
     }
 
     /// Get index stats
+    #[allow(dead_code)]
     pub async fn get_stats(
         &self,
         space_id: u64,
@@ -186,6 +188,7 @@ pub fn generate_test_docs(count: usize, prefix: &str) -> Vec<(String, String)> {
 }
 
 /// Create test documents with specific words
+#[allow(dead_code)]
 pub fn create_docs_with_words(doc_count: usize, words_per_doc: usize) -> Vec<(String, String)> {
     (0..doc_count)
         .map(|i| {
@@ -262,6 +265,7 @@ pub fn assert_results_sorted_by_score(results: &[SearchResult]) -> Result<(), St
 }
 
 /// Assert search results contain all expected doc_ids
+#[allow(dead_code)]
 pub fn assert_search_results_contain_all(
     results: &[SearchResult],
     expected_doc_ids: &[&str],

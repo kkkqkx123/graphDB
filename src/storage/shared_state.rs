@@ -68,8 +68,11 @@ impl StorageSharedState {
 /// These fields do not need to be shared outside of Storage.
 ///
 /// Lock ordering convention to prevent deadlocks:
-/// Always acquire locks in this order: current_txn_context -> reader -> writer
+/// Always acquire locks in this order: reader -> writer -> current_txn_context
 /// Never acquire an earlier lock while holding a later one.
+///
+/// IMPORTANT: To prevent deadlocks, we NEVER hold multiple locks simultaneously.
+/// Each lock is acquired, used, and released before acquiring the next one.
 pub struct StorageInner {
     pub reader: Arc<Mutex<RedbReader>>,
     pub writer: Arc<Mutex<RedbWriter>>,
@@ -87,27 +90,43 @@ impl StorageInner {
 
     /// Set the current transaction context.
     ///
-    /// This method updates both `current_txn_context` and the reader's transaction
-    /// context in a consistent order to prevent deadlocks:
-    /// 1. First acquire `current_txn_context` lock
-    /// 2. Then acquire `reader` lock
-    /// 3. Never hold `reader` while waiting for `current_txn_context`
+    /// This method carefully avoids holding multiple locks simultaneously to prevent deadlocks.
+    /// The order of operations is:
+    /// 1. Update reader's transaction context (acquire/release reader lock)
+    /// 2. Update current_txn_context (acquire/release current_txn_context lock)
+    ///
+    /// This ensures no deadlock can occur with other methods that may acquire
+    /// these locks in different orders.
     pub fn set_transaction_context(&self, context: Option<Arc<TransactionContext>>) {
-        // Always acquire current_txn_context first, then reader
-        let mut txn_guard = self.current_txn_context.lock();
-        *txn_guard = context.clone();
-
-        if let Some(ref ctx) = context {
+        // Step 1: Update reader's transaction context first
+        // This is safe because we release the lock before acquiring the next one
+        {
             let mut reader_guard = self.reader.lock();
-            reader_guard.set_transaction_context(Some(ctx.clone()));
-        } else {
-            let mut reader_guard = self.reader.lock();
-            reader_guard.set_transaction_context(None);
+            if let Some(ref ctx) = &context {
+                reader_guard.set_transaction_context(Some(ctx.clone()));
+            } else {
+                reader_guard.set_transaction_context(None);
+            }
         }
+        // reader lock is now released
+
+        // Step 2: Update current_txn_context
+        {
+            let mut txn_guard = self.current_txn_context.lock();
+            *txn_guard = context;
+        }
+        // current_txn_context lock is now released
     }
 
     /// Get the current transaction context
     pub fn get_transaction_context(&self) -> Option<Arc<TransactionContext>> {
         self.current_txn_context.lock().clone()
+    }
+
+    /// Get the current transaction ID without holding the lock.
+    /// This is a convenience method that clones the transaction ID if present.
+    pub fn get_current_txn_id(&self) -> crate::transaction::types::TransactionId {
+        let ctx = self.current_txn_context.lock().clone();
+        ctx.map(|c| c.id).unwrap_or(0)
     }
 }

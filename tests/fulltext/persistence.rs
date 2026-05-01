@@ -12,7 +12,7 @@
 use std::sync::Arc;
 use tempfile::TempDir;
 
-use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager, SearchError};
+use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager};
 
 fn create_manager_with_path(path: &std::path::Path) -> Arc<FulltextIndexManager> {
     let config = FulltextConfig {

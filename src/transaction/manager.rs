@@ -11,7 +11,9 @@ use redb::Database;
 
 use crate::storage::shared_state::StorageInner;
 use crate::sync::{SyncError, SyncManager};
+use crate::transaction::cleaner::TransactionCleaner;
 use crate::transaction::context::TransactionContext;
+use crate::transaction::monitor::TransactionMonitor;
 use crate::transaction::types::*;
 
 /// Transaction Manager
@@ -33,20 +35,30 @@ pub struct TransactionManager {
     shutdown_flag: AtomicU64,
     /// Optional sync manager for fulltext index synchronization
     sync_manager: Option<Arc<SyncManager>>,
+    /// Transaction monitor for metrics collection
+    monitor: TransactionMonitor,
+    /// Transaction cleaner for expired transaction cleanup
+    cleaner: TransactionCleaner,
 }
 
 impl TransactionManager {
     /// Create a new transaction manager
     pub fn new(db: Arc<Database>, config: TransactionManagerConfig) -> Self {
+        let stats = Arc::new(TransactionStats::new());
+        let monitor = TransactionMonitor::new(Arc::clone(&stats));
+        let cleaner = TransactionCleaner::new(None, None, Arc::clone(&stats));
+        
         Self {
             db,
             storage_inner: None,
             config,
             active_transactions: DashMap::new(),
             id_generator: AtomicU64::new(1),
-            stats: Arc::new(TransactionStats::new()),
+            stats,
             shutdown_flag: AtomicU64::new(0),
             sync_manager: None,
+            monitor,
+            cleaner,
         }
     }
 
@@ -56,15 +68,21 @@ impl TransactionManager {
         config: TransactionManagerConfig,
         storage_inner: Arc<StorageInner>,
     ) -> Self {
+        let stats = Arc::new(TransactionStats::new());
+        let monitor = TransactionMonitor::new(Arc::clone(&stats));
+        let cleaner = TransactionCleaner::new(None, Some(storage_inner.clone()), Arc::clone(&stats));
+        
         Self {
             db,
             storage_inner: Some(storage_inner),
             config,
             active_transactions: DashMap::new(),
             id_generator: AtomicU64::new(1),
-            stats: Arc::new(TransactionStats::new()),
+            stats,
             shutdown_flag: AtomicU64::new(0),
             sync_manager: None,
+            monitor,
+            cleaner,
         }
     }
 
@@ -74,15 +92,21 @@ impl TransactionManager {
         config: TransactionManagerConfig,
         sync_manager: Arc<SyncManager>,
     ) -> Self {
+        let stats = Arc::new(TransactionStats::new());
+        let monitor = TransactionMonitor::new(Arc::clone(&stats));
+        let cleaner = TransactionCleaner::new(Some(sync_manager.clone()), None, Arc::clone(&stats));
+        
         Self {
             db,
             storage_inner: None,
             config,
             active_transactions: DashMap::new(),
             id_generator: AtomicU64::new(1),
-            stats: Arc::new(TransactionStats::new()),
+            stats,
             shutdown_flag: AtomicU64::new(0),
             sync_manager: Some(sync_manager),
+            monitor,
+            cleaner,
         }
     }
 
@@ -93,21 +117,36 @@ impl TransactionManager {
         storage_inner: Arc<StorageInner>,
         sync_manager: Arc<SyncManager>,
     ) -> Self {
+        let stats = Arc::new(TransactionStats::new());
+        let monitor = TransactionMonitor::new(Arc::clone(&stats));
+        let cleaner = TransactionCleaner::new(
+            Some(sync_manager.clone()),
+            Some(storage_inner.clone()),
+            Arc::clone(&stats),
+        );
+        
         Self {
             db,
             storage_inner: Some(storage_inner),
             config,
             active_transactions: DashMap::new(),
             id_generator: AtomicU64::new(1),
-            stats: Arc::new(TransactionStats::new()),
+            stats,
             shutdown_flag: AtomicU64::new(0),
             sync_manager: Some(sync_manager),
+            monitor,
+            cleaner,
         }
     }
 
     /// Set sync manager
     pub fn set_sync_manager(&mut self, sync_manager: Arc<SyncManager>) {
-        self.sync_manager = Some(sync_manager);
+        self.sync_manager = Some(sync_manager.clone());
+        self.cleaner = TransactionCleaner::new(
+            Some(sync_manager),
+            self.storage_inner.clone(),
+            Arc::clone(&self.stats),
+        );
     }
 
     /// Attempt to begin a redb write transaction with a timeout.
@@ -155,6 +194,10 @@ impl TransactionManager {
             ));
         }
 
+        // Always cleanup expired transactions first to prevent stale transactions
+        // from blocking new write operations
+        self.cleanup_expired_transactions();
+
         // Check concurrent transaction count limit
         let active_count = self.active_transactions.len();
         if active_count >= self.config.max_concurrent_transactions {
@@ -162,12 +205,15 @@ impl TransactionManager {
         }
 
         // Check if there is already an active write transaction
+        // This check happens after cleanup, so only non-expired transactions are considered
         if !options.read_only {
-            for entry in self.active_transactions.iter() {
+            let has_active_write = self.active_transactions.iter().any(|entry| {
                 let context = entry.value();
-                if !context.read_only {
-                    return Err(TransactionError::WriteTransactionConflict);
-                }
+                !context.read_only && !context.is_expired()
+            });
+            
+            if has_active_write {
+                return Err(TransactionError::WriteTransactionConflict);
             }
         }
 
@@ -425,10 +471,7 @@ impl TransactionManager {
 
     /// Get active transaction list
     pub fn list_active_transactions(&self) -> Vec<TransactionInfo> {
-        self.active_transactions
-            .iter()
-            .map(|entry| entry.value().info())
-            .collect()
+        self.monitor.list_active_transactions(&self.active_transactions)
     }
 
     /// Get transaction info
@@ -440,41 +483,21 @@ impl TransactionManager {
     /// * `Some(TransactionInfo)` - If transaction exists
     /// * `None` - If transaction does not exist
     pub fn get_transaction_info(&self, txn_id: TransactionId) -> Option<TransactionInfo> {
-        self.active_transactions
-            .get(&txn_id)
-            .map(|entry| entry.value().info())
+        self.monitor.get_transaction_info(&self.active_transactions, txn_id)
     }
 
     /// Get statistics
     pub fn stats(&self) -> &TransactionStats {
-        &self.stats
+        self.monitor.stats()
     }
 
     /// Cleanup expired transactions
+    ///
+    /// This method removes all expired transactions and releases their resources.
+    /// It should be called periodically or before starting new write transactions
+    /// to prevent stale transactions from blocking operations.
     pub fn cleanup_expired_transactions(&self) {
-        // Collect all expired transaction IDs
-        let expired: Vec<TransactionId> = {
-            self.active_transactions
-                .iter()
-                .filter(|entry| entry.value().is_expired())
-                .map(|entry| *entry.key())
-                .collect()
-        };
-
-        for txn_id in expired {
-            // Remove from active_transactions first, then abort.
-            // This releases the redb write lock so new write transactions can proceed.
-            let context = {
-                if let Some((_, ctx)) = self.active_transactions.remove(&txn_id) {
-                    ctx
-                } else {
-                    continue;
-                }
-            };
-
-            let _ = self.abort_transaction_internal(context);
-            self.stats.increment_timeout();
-        }
+        self.cleaner.cleanup_expired_transactions(&self.active_transactions);
     }
 
     /// Shutdown transaction manager
@@ -705,42 +728,7 @@ impl TransactionManager {
     /// # Returns
     /// * `TransactionMetrics` - Transaction metrics
     pub fn get_metrics(&self) -> TransactionMetrics {
-        let mut metrics = TransactionMetrics::new();
-
-        // Collect transaction durations
-        let durations: Vec<Duration> = self
-            .active_transactions
-            .iter()
-            .map(|entry| entry.value().start_time.elapsed())
-            .collect();
-
-        if durations.is_empty() {
-            return metrics;
-        }
-
-        // Calculate percentiles
-        let mut sorted_durations = durations.clone();
-        sorted_durations.sort();
-
-        metrics.p50_duration = sorted_durations[sorted_durations.len() * 50 / 100];
-        metrics.p95_duration = sorted_durations[sorted_durations.len() * 95 / 100];
-        metrics.p99_duration = sorted_durations[sorted_durations.len() * 99 / 100];
-
-        // Calculate average
-        let total: Duration = durations.iter().sum();
-        metrics.avg_duration = total / durations.len() as u32;
-
-        // Collect long transactions (duration > 10s)
-        metrics.long_transactions = self
-            .active_transactions
-            .iter()
-            .filter(|entry| entry.value().start_time.elapsed() > Duration::from_secs(10))
-            .map(|entry| entry.value().info())
-            .collect();
-
-        metrics.total_count = self.stats.total_transactions.load(Ordering::Relaxed);
-
-        metrics
+        self.monitor.get_metrics(&self.active_transactions)
     }
 
     /// Get all active transactions info
@@ -748,10 +736,7 @@ impl TransactionManager {
     /// # Returns
     /// * `Vec<TransactionInfo>` - Active transactions info
     pub fn get_active_transactions(&self) -> Vec<TransactionInfo> {
-        self.active_transactions
-            .iter()
-            .map(|entry| entry.value().info())
-            .collect()
+        self.monitor.get_active_transactions(&self.active_transactions)
     }
 
     /// Get long transactions (duration > 10s)
@@ -759,215 +744,12 @@ impl TransactionManager {
     /// # Returns
     /// * `Vec<TransactionInfo>` - Long transactions info
     pub fn get_long_transactions(&self) -> Vec<TransactionInfo> {
-        self.active_transactions
-            .iter()
-            .filter(|entry| entry.value().start_time.elapsed() > Duration::from_secs(10))
-            .map(|entry| entry.value().info())
-            .collect()
+        self.monitor.get_long_transactions(&self.active_transactions)
     }
 }
 
 impl Drop for TransactionManager {
     fn drop(&mut self) {
         self.shutdown();
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::sync::Arc;
-    use tempfile::TempDir;
-
-    fn create_test_manager() -> (TransactionManager, Arc<Database>, TempDir) {
-        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
-        let db = Arc::new(
-            Database::create(temp_dir.path().join("test.db"))
-                .expect("Failed to create test database"),
-        );
-        let config = TransactionManagerConfig::default();
-        let manager = TransactionManager::new(db.clone(), config);
-        (manager, db, temp_dir)
-    }
-
-    #[tokio::test]
-    async fn test_begin_and_commit_transaction() {
-        let (manager, _db, _temp) = create_test_manager();
-
-        let txn_id = manager
-            .begin_transaction(TransactionOptions::default())
-            .expect("Failed to begin transaction");
-
-        assert!(manager.is_transaction_active(txn_id));
-
-        manager
-            .commit_transaction(txn_id)
-            .await
-            .expect("Failed to commit transaction");
-
-        assert!(!manager.is_transaction_active(txn_id));
-        assert_eq!(
-            manager
-                .stats()
-                .committed_transactions
-                .load(Ordering::Relaxed),
-            1
-        );
-    }
-
-    #[tokio::test]
-    async fn test_begin_and_rollback_transaction() {
-        let (manager, _db, _temp) = create_test_manager();
-
-        let txn_id = manager
-            .begin_transaction(TransactionOptions::default())
-            .expect("Failed to begin transaction");
-
-        manager
-            .rollback_transaction(txn_id)
-            .expect("Failed to rollback transaction");
-
-        assert!(!manager.is_transaction_active(txn_id));
-        assert_eq!(
-            manager.stats().aborted_transactions.load(Ordering::Relaxed),
-            1
-        );
-    }
-
-    #[tokio::test]
-    async fn test_readonly_transaction() {
-        let (manager, _db, _temp) = create_test_manager();
-
-        let options = TransactionOptions::new().read_only();
-        let txn_id = manager
-            .begin_transaction(options)
-            .expect("Failed to begin readonly transaction");
-
-        let context = manager
-            .get_context(txn_id)
-            .expect("Failed to get transaction context");
-        assert!(context.read_only);
-
-        manager
-            .commit_transaction(txn_id)
-            .await
-            .expect("Failed to commit readonly transaction");
-    }
-
-    #[test]
-    fn test_transaction_not_found() {
-        let (manager, _db, _temp) = create_test_manager();
-
-        let result = manager.get_context(9999);
-        assert!(matches!(
-            result,
-            Err(TransactionError::TransactionNotFound(9999))
-        ));
-    }
-
-    #[tokio::test]
-    async fn test_invalid_state_transition() {
-        let (manager, _db, _temp) = create_test_manager();
-
-        let txn_id = manager
-            .begin_transaction(TransactionOptions::default())
-            .expect("Failed to begin transaction");
-
-        // Commit transaction
-        manager
-            .commit_transaction(txn_id)
-            .await
-            .expect("Failed to commit transaction");
-
-        // Second commit should fail
-        let result = manager.commit_transaction(txn_id).await;
-        assert!(matches!(
-            result,
-            Err(TransactionError::TransactionNotFound(_))
-        ));
-    }
-
-    #[tokio::test]
-    async fn test_concurrent_transactions() {
-        let (manager, _db, _temp) = create_test_manager();
-
-        // Due to redb's single-writer restriction, we can only execute transactions sequentially
-        // First transaction
-        let txn1 = manager
-            .begin_transaction(TransactionOptions::default())
-            .expect("Failed to begin transaction");
-        assert!(manager.is_transaction_active(txn1));
-        manager
-            .commit_transaction(txn1)
-            .await
-            .expect("Failed to commit transaction");
-        assert!(!manager.is_transaction_active(txn1));
-
-        // Second transaction
-        let txn2 = manager
-            .begin_transaction(TransactionOptions::default())
-            .expect("Failed to begin transaction");
-        assert!(manager.is_transaction_active(txn2));
-        manager
-            .rollback_transaction(txn2)
-            .expect("Failed to rollback transaction");
-        assert!(!manager.is_transaction_active(txn2));
-
-        // Third transaction
-        let txn3 = manager
-            .begin_transaction(TransactionOptions::default())
-            .expect("Failed to begin transaction");
-        assert!(manager.is_transaction_active(txn3));
-        manager
-            .commit_transaction(txn3)
-            .await
-            .expect("Failed to commit transaction");
-        assert!(!manager.is_transaction_active(txn3));
-
-        assert_eq!(
-            manager
-                .stats()
-                .committed_transactions
-                .load(Ordering::Relaxed),
-            2
-        );
-        assert_eq!(
-            manager.stats().aborted_transactions.load(Ordering::Relaxed),
-            1
-        );
-    }
-
-    #[tokio::test]
-    async fn test_multiple_readonly_transactions() {
-        let (manager, _db, _temp) = create_test_manager();
-
-        // Read-only transactions can be concurrent
-        let options = TransactionOptions::new().read_only();
-        let txn1 = manager
-            .begin_transaction(options.clone())
-            .expect("Failed to begin transaction");
-        let txn2 = manager
-            .begin_transaction(options.clone())
-            .expect("Failed to begin transaction");
-        let txn3 = manager
-            .begin_transaction(options)
-            .expect("Failed to begin transaction");
-
-        assert!(manager.is_transaction_active(txn1));
-        assert!(manager.is_transaction_active(txn2));
-        assert!(manager.is_transaction_active(txn3));
-
-        manager
-            .commit_transaction(txn1)
-            .await
-            .expect("Failed to commit transaction");
-        manager
-            .commit_transaction(txn2)
-            .await
-            .expect("Failed to commit transaction");
-        manager
-            .commit_transaction(txn3)
-            .await
-            .expect("Failed to commit transaction");
     }
 }

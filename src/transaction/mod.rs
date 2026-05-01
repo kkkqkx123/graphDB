@@ -21,9 +21,11 @@
 //! manager.commit_transaction(txn_id)?;
 //! ```
 
+pub mod cleaner;
 pub mod context;
 pub mod index_buffer;
 pub mod manager;
+pub mod monitor;
 pub mod types;
 
 #[cfg(test)]
@@ -31,9 +33,11 @@ pub mod context_test;
 #[cfg(test)]
 pub mod manager_test;
 
+pub use cleaner::TransactionCleaner;
 pub use context::TransactionContext;
 pub use index_buffer::IndexUpdateBuffer;
 pub use manager::TransactionManager;
+pub use monitor::TransactionMonitor;
 pub use types::*;
 
 /// Transaction Management Module Version

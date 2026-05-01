@@ -16,6 +16,7 @@ use graphdb::sync::coordinator::{ChangeContext, ChangeType, SyncCoordinator};
 use graphdb::sync::manager::SyncManager;
 use std::sync::Arc;
 
+#[allow(dead_code)]
 struct TransactionTestContext {
     coordinator: Arc<SyncCoordinator>,
     sync_manager: Arc<SyncManager>,
@@ -41,6 +42,7 @@ impl TransactionTestContext {
         }
     }
 
+    #[allow(dead_code)]
     async fn shutdown(&self) {
         self.sync_manager.stop().await;
     }

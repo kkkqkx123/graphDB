@@ -440,7 +440,6 @@ async fn test_info_no_nested_locks() {
     let mut handles = vec![];
     for _ in 0..5 {
         let manager = Arc::clone(&manager);
-        let txn_id = txn_id;
         let handle = tokio::task::spawn_blocking(move || {
             let info = manager.get_transaction_info(txn_id);
             assert!(info.is_some());
