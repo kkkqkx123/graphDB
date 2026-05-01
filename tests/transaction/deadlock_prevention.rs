@@ -406,3 +406,399 @@ async fn test_mixed_read_write_patterns() {
         }
     }
 }
+
+// Additional tests for nested lock acquisition deadlock prevention
+//
+// These tests verify the fix for deadlock issues caused by nested lock acquisition
+// in TransactionContext methods (info, create_savepoint, rollback_to_savepoint).
+//
+// The deadlock scenarios fixed:
+// 1. info() - was holding modified_tables and savepoint_manager locks simultaneously
+// 2. create_savepoint() - was holding savepoint_manager while calling operation_log_len()
+// 3. rollback_to_savepoint() - was holding savepoint_manager while accessing operation_logs
+
+/// Test that info() method does not hold multiple locks simultaneously
+/// This verifies the fix for nested lock acquisition in info()
+#[tokio::test]
+async fn test_info_no_nested_locks() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let db = Arc::new(
+        redb::Database::create(temp_dir.path().join("test.db"))
+            .expect("Failed to create database"),
+    );
+
+    let manager = Arc::new(TransactionManager::new(
+        db,
+        TransactionManagerConfig::default(),
+    ));
+
+    let txn_id = manager
+        .begin_transaction(TransactionOptions::default())
+        .expect("Failed to begin transaction");
+
+    // Call info() multiple times concurrently to verify no deadlock
+    let mut handles = vec![];
+    for _ in 0..5 {
+        let manager = Arc::clone(&manager);
+        let txn_id = txn_id;
+        let handle = tokio::task::spawn_blocking(move || {
+            let info = manager.get_transaction_info(txn_id);
+            assert!(info.is_some());
+        });
+        handles.push(handle);
+    }
+
+    // All calls should complete without deadlock
+    let result = timeout(Duration::from_secs(10), async {
+        for handle in handles {
+            handle.await.expect("Info task should complete");
+        }
+    })
+    .await;
+
+    assert!(
+        result.is_ok(),
+        "All info() calls should complete without deadlock"
+    );
+
+    manager
+        .commit_transaction(txn_id)
+        .await
+        .expect("Failed to commit transaction");
+}
+
+/// Test that create_savepoint() does not cause nested lock acquisition
+/// This verifies the fix where operation_log_len() is called before savepoint_manager lock
+#[tokio::test]
+async fn test_create_savepoint_no_nested_locks() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let db = Arc::new(
+        redb::Database::create(temp_dir.path().join("test.db"))
+            .expect("Failed to create database"),
+    );
+
+    let manager = Arc::new(TransactionManager::new(
+        db,
+        TransactionManagerConfig::default(),
+    ));
+
+    let txn_id = manager
+        .begin_transaction(TransactionOptions::default())
+        .expect("Failed to begin transaction");
+
+    // Create multiple savepoints rapidly
+    for i in 0..10 {
+        let sp_name = format!("savepoint_{}", i);
+        let sp_id = manager
+            .create_savepoint(txn_id, Some(sp_name.clone()))
+            .expect("Failed to create savepoint");
+
+        let sp = manager.get_savepoint(txn_id, sp_id);
+        assert!(sp.is_some());
+        assert_eq!(sp.unwrap().name, Some(sp_name));
+    }
+
+    manager
+        .commit_transaction(txn_id)
+        .await
+        .expect("Failed to commit transaction");
+}
+
+/// Test that rollback_to_savepoint() does not cause nested lock acquisition
+/// This verifies the fix where locks are acquired and released in sequence
+#[tokio::test]
+async fn test_rollback_to_savepoint_no_nested_locks() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let db = Arc::new(
+        redb::Database::create(temp_dir.path().join("test.db"))
+            .expect("Failed to create database"),
+    );
+
+    let manager = Arc::new(TransactionManager::new(
+        db,
+        TransactionManagerConfig::default(),
+    ));
+
+    let txn_id = manager
+        .begin_transaction(TransactionOptions::default())
+        .expect("Failed to begin transaction");
+
+    // Create multiple savepoints
+    let sp1 = manager
+        .create_savepoint(txn_id, Some("sp1".to_string()))
+        .expect("Failed to create savepoint 1");
+    let sp2 = manager
+        .create_savepoint(txn_id, Some("sp2".to_string()))
+        .expect("Failed to create savepoint 2");
+    let sp3 = manager
+        .create_savepoint(txn_id, Some("sp3".to_string()))
+        .expect("Failed to create savepoint 3");
+
+    // Rollback to sp2 - this should remove sp3
+    manager
+        .rollback_to_savepoint(txn_id, sp2)
+        .expect("Failed to rollback to sp2");
+
+    // Verify sp3 is removed
+    let sp3_after = manager.get_savepoint(txn_id, sp3);
+    assert!(sp3_after.is_none(), "sp3 should be removed after rollback");
+
+    // Verify sp1 and sp2 still exist
+    let sp1_after = manager.get_savepoint(txn_id, sp1);
+    let sp2_after = manager.get_savepoint(txn_id, sp2);
+    assert!(sp1_after.is_some(), "sp1 should still exist");
+    assert!(sp2_after.is_some(), "sp2 should still exist");
+
+    // Rollback to sp1 - this should remove sp2
+    manager
+        .rollback_to_savepoint(txn_id, sp1)
+        .expect("Failed to rollback to sp1");
+
+    let sp2_final = manager.get_savepoint(txn_id, sp2);
+    assert!(sp2_final.is_none(), "sp2 should be removed after rollback to sp1");
+
+    manager
+        .commit_transaction(txn_id)
+        .await
+        .expect("Failed to commit transaction");
+}
+
+/// Test concurrent savepoint operations to verify no deadlock
+/// This tests the scenario where multiple threads operate on savepoints
+/// Note: Each thread uses its own transaction (read-only) to avoid race conditions
+#[tokio::test]
+async fn test_concurrent_savepoint_operations() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let db = Arc::new(
+        redb::Database::create(temp_dir.path().join("test.db"))
+            .expect("Failed to create database"),
+    );
+
+    let manager = Arc::new(TransactionManager::new(
+        db,
+        TransactionManagerConfig::default(),
+    ));
+
+    // Spawn multiple tasks that perform savepoint operations
+    // Each task uses its own read-only transaction to avoid race conditions
+    let mut handles = vec![];
+
+    for i in 0..5 {
+        let manager = Arc::clone(&manager);
+        let handle = tokio::spawn(async move {
+            // Each task gets its own read-only transaction
+            let txn_id = manager
+                .begin_transaction(TransactionOptions::new().read_only())
+                .expect("Failed to begin transaction");
+
+            // Create savepoint
+            let sp = manager
+                .create_savepoint(txn_id, Some(format!("task_{}", i)))
+                .expect("Failed to create savepoint");
+
+            // Get savepoint info
+            let info = manager.get_savepoint(txn_id, sp);
+            assert!(info.is_some());
+
+            // Get all savepoints
+            let all_sp = manager.get_active_savepoints(txn_id);
+            assert!(!all_sp.is_empty());
+
+            // Get transaction info (tests the info() fix)
+            let txn_info = manager.get_transaction_info(txn_id);
+            assert!(txn_info.is_some());
+
+            // Commit the transaction
+            manager
+                .commit_transaction(txn_id)
+                .await
+                .expect("Failed to commit");
+        });
+        handles.push(handle);
+    }
+
+    // All operations should complete without deadlock
+    let result = timeout(Duration::from_secs(30), async {
+        for handle in handles {
+            handle.await.expect("Task should complete");
+        }
+    })
+    .await;
+
+    assert!(
+        result.is_ok(),
+        "All concurrent savepoint operations should complete without deadlock"
+    );
+}
+
+/// Test concurrent info() and savepoint operations
+/// This verifies that info() doesn't interfere with savepoint operations
+#[tokio::test]
+async fn test_concurrent_info_and_savepoint() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let db = Arc::new(
+        redb::Database::create(temp_dir.path().join("test.db"))
+            .expect("Failed to create database"),
+    );
+
+    let manager = Arc::new(TransactionManager::new(
+        db,
+        TransactionManagerConfig::default(),
+    ));
+
+    let txn_id = manager
+        .begin_transaction(TransactionOptions::default())
+        .expect("Failed to begin transaction");
+
+    let manager_clone = Arc::clone(&manager);
+
+    // Task 1: Continuously call info()
+    let info_handle = tokio::task::spawn_blocking(move || {
+        for _ in 0..20 {
+            let info = manager_clone.get_transaction_info(txn_id);
+            assert!(info.is_some());
+            std::thread::sleep(Duration::from_millis(1));
+        }
+    });
+
+    // Task 2: Create and rollback savepoints
+    let sp_handle = {
+        let manager = Arc::clone(&manager);
+        tokio::task::spawn_blocking(move || {
+            for i in 0..10 {
+                let sp = manager
+                    .create_savepoint(txn_id, Some(format!("sp_{}", i)))
+                    .expect("Failed to create savepoint");
+
+                std::thread::sleep(Duration::from_millis(1));
+
+                // Verify savepoint was created
+                let sp_info = manager.get_savepoint(txn_id, sp);
+                assert!(sp_info.is_some());
+
+                // Get info while holding savepoint operations
+                let info = manager.get_transaction_info(txn_id);
+                assert!(info.is_some());
+            }
+        })
+    };
+
+    // Both tasks should complete without deadlock
+    let result = timeout(Duration::from_secs(30), async {
+        info_handle.await.expect("Info task should complete");
+        sp_handle.await.expect("Savepoint task should complete");
+    })
+    .await;
+
+    assert!(
+        result.is_ok(),
+        "Concurrent info() and savepoint operations should complete without deadlock"
+    );
+
+    manager
+        .commit_transaction(txn_id)
+        .await
+        .expect("Failed to commit transaction");
+}
+
+/// Test rapid create/rollback savepoint cycles
+/// This stress tests the lock acquisition pattern
+#[tokio::test]
+async fn test_rapid_savepoint_cycles() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let db = Arc::new(
+        redb::Database::create(temp_dir.path().join("test.db"))
+            .expect("Failed to create database"),
+    );
+
+    let manager = Arc::new(TransactionManager::new(
+        db,
+        TransactionManagerConfig::default(),
+    ));
+
+    let txn_id = manager
+        .begin_transaction(TransactionOptions::default())
+        .expect("Failed to begin transaction");
+
+    // Rapid create/rollback cycles
+    for i in 0..20 {
+        let sp = manager
+            .create_savepoint(txn_id, Some(format!("cycle_{}", i)))
+            .expect("Failed to create savepoint");
+
+        // Immediately rollback to this savepoint
+        manager
+            .rollback_to_savepoint(txn_id, sp)
+            .expect("Failed to rollback");
+    }
+
+    // Transaction should still be usable
+    let info = manager.get_transaction_info(txn_id);
+    assert!(info.is_some());
+
+    manager
+        .commit_transaction(txn_id)
+        .await
+        .expect("Failed to commit transaction");
+}
+
+/// Test that multiple transactions can create savepoints concurrently
+/// (using read-only transactions for true concurrency)
+#[tokio::test]
+async fn test_concurrent_transactions_savepoints() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let db = Arc::new(
+        redb::Database::create(temp_dir.path().join("test.db"))
+            .expect("Failed to create database"),
+    );
+
+    let manager = Arc::new(TransactionManager::new(
+        db,
+        TransactionManagerConfig::default(),
+    ));
+
+    let mut handles = vec![];
+
+    // Each task gets its own transaction (read-only for concurrency)
+    for i in 0..5 {
+        let manager = Arc::clone(&manager);
+        let handle = tokio::spawn(async move {
+            let txn_id = manager
+                .begin_transaction(TransactionOptions::new().read_only())
+                .expect("Failed to begin transaction");
+
+            // Create savepoint
+            let sp = manager
+                .create_savepoint(txn_id, Some(format!("txn_{}_sp", i)))
+                .expect("Failed to create savepoint");
+
+            // Get info
+            let info = manager.get_transaction_info(txn_id);
+            assert!(info.is_some());
+
+            // Get savepoint
+            let sp_info = manager.get_savepoint(txn_id, sp);
+            assert!(sp_info.is_some());
+
+            // Commit
+            manager
+                .commit_transaction(txn_id)
+                .await
+                .expect("Failed to commit");
+        });
+        handles.push(handle);
+    }
+
+    // All should complete without deadlock
+    let result = timeout(Duration::from_secs(30), async {
+        for handle in handles {
+            handle.await.expect("Task should complete");
+        }
+    })
+    .await;
+
+    assert!(
+        result.is_ok(),
+        "All concurrent transaction savepoint operations should complete without deadlock"
+    );
+}

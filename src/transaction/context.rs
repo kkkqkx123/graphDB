@@ -1,6 +1,20 @@
 //! Transaction Context
 //!
 //! Manages the state and resources of a single transaction
+//!
+//! # Lock Ordering Convention
+//!
+//! To prevent deadlocks, all locks must be acquired in the following order:
+//! 1. `write_txn` (Mutex) - redb write transaction
+//! 2. `operation_logs` (RwLock) - operation log
+//! 3. `savepoint_manager` (RwLock) - savepoint manager
+//! 4. `modified_tables` (Mutex) - modified tables
+//!
+//! **Never acquire an earlier lock while holding a later one.**
+//!
+//! When multiple locks are needed, prefer:
+//! - Acquiring locks separately and releasing before acquiring the next
+//! - Using helper methods that handle lock acquisition internally
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -297,9 +311,12 @@ impl TransactionContext {
     }
 
     /// Get transaction info
+    ///
+    /// Note: This method avoids holding multiple locks simultaneously to prevent deadlock.
+    /// Each lock is acquired, data is cloned, and the lock is released before acquiring the next.
     pub fn info(&self) -> TransactionInfo {
-        let tables = self.modified_tables.lock();
-        let savepoints = self.savepoint_manager.read();
+        let modified_tables = self.get_modified_tables();
+        let savepoint_count = self.get_all_savepoints().len();
         TransactionInfo {
             id: self.id,
             state: self.state.load(),
@@ -308,8 +325,8 @@ impl TransactionContext {
             is_read_only: self.read_only,
             isolation_level: self.isolation_level,
             query_count: self.query_count.load(Ordering::Relaxed),
-            modified_tables: tables.clone(),
-            savepoint_count: savepoints.savepoints.len(),
+            modified_tables,
+            savepoint_count,
         }
     }
 
@@ -382,9 +399,12 @@ impl TransactionContext {
     }
 
     /// Create savepoint
+    ///
+    /// Note: This method acquires operation_log_len() first before savepoint_manager
+    /// to prevent deadlock from nested lock acquisition.
     pub fn create_savepoint(&self, name: Option<String>) -> SavepointId {
-        let mut manager = self.savepoint_manager.write();
         let operation_log_index = self.operation_log_len();
+        let mut manager = self.savepoint_manager.write();
         manager.create_savepoint(name, operation_log_index)
     }
 
@@ -416,6 +436,9 @@ impl TransactionContext {
     }
 
     /// Rollback to savepoint
+    ///
+    /// Note: This method carefully avoids nested lock acquisition to prevent deadlock.
+    /// Locks are acquired and released in sequence: savepoint_manager -> operation_logs -> write_txn.
     pub fn rollback_to_savepoint(&self, id: SavepointId) -> Result<(), TransactionError> {
         let state = self.state.load();
         if !state.can_execute() {
@@ -426,12 +449,16 @@ impl TransactionContext {
             return Err(TransactionError::TransactionExpired);
         }
 
-        let manager = self.savepoint_manager.write();
-        let savepoint_info = manager
-            .get_savepoint(id)
-            .cloned()
-            .ok_or(TransactionError::SavepointNotFound(id))?;
+        // Step 1: Get savepoint info (acquire and release savepoint_manager lock)
+        let savepoint_info = {
+            let manager = self.savepoint_manager.read();
+            manager
+                .get_savepoint(id)
+                .cloned()
+                .ok_or(TransactionError::SavepointNotFound(id))?
+        };
 
+        // Step 2: Get logs to rollback (acquire and release operation_logs lock)
         let logs_to_rollback = {
             let logs = self.operation_logs.read();
             if savepoint_info.operation_log_index >= logs.len() {
@@ -441,24 +468,27 @@ impl TransactionContext {
             }
         };
 
-        drop(manager);
-
+        // Step 3: Execute rollback (may acquire write_txn lock internally)
         if !logs_to_rollback.is_empty() {
             self.execute_rollback_logs(&logs_to_rollback)?;
         }
 
+        // Step 4: Truncate operation log (acquire and release operation_logs lock)
         self.truncate_operation_log(savepoint_info.operation_log_index);
 
-        let mut manager = self.savepoint_manager.write();
-        let savepoints_to_remove: Vec<SavepointId> = manager
-            .savepoints
-            .keys()
-            .filter(|&&k| k > id)
-            .copied()
-            .collect();
+        // Step 5: Remove subsequent savepoints (acquire and release savepoint_manager lock)
+        {
+            let mut manager = self.savepoint_manager.write();
+            let savepoints_to_remove: Vec<SavepointId> = manager
+                .savepoints
+                .keys()
+                .filter(|&&k| k > id)
+                .copied()
+                .collect();
 
-        for sp_id in savepoints_to_remove {
-            manager.remove_savepoint(sp_id);
+            for sp_id in savepoints_to_remove {
+                manager.remove_savepoint(sp_id);
+            }
         }
 
         Ok(())

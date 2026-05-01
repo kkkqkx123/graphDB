@@ -1109,6 +1109,38 @@ impl DdlParser {
                 ctx.next_token();
                 Ok(DataType::DateTime)
             }
+            TokenKind::Geography => {
+                ctx.next_token();
+                Ok(DataType::Geography)
+            }
+            TokenKind::KeywordVector => {
+                ctx.next_token();
+                if ctx.current_token().kind == TokenKind::LParen {
+                    ctx.next_token();
+                    if let TokenKind::IntegerLiteral(len) = ctx.current_token().kind {
+                        let dimension = len as usize;
+                        ctx.next_token();
+                        if ctx.current_token().kind == TokenKind::RParen {
+                            ctx.next_token();
+                            Ok(DataType::VectorDense(dimension))
+                        } else {
+                            Err(ParseError::new(
+                                ParseErrorKind::SyntaxError,
+                                "VECTOR Right bracket required".to_string(),
+                                ctx.current_position(),
+                            ))
+                        }
+                    } else {
+                        Err(ParseError::new(
+                            ParseErrorKind::SyntaxError,
+                            "VECTOR requires dimension parameter".to_string(),
+                            ctx.current_position(),
+                        ))
+                    }
+                } else {
+                    Ok(DataType::Vector)
+                }
+            }
             // Data types that support identifier formats (such as "INT", "string", etc.)
             TokenKind::Identifier(ref s) => {
                 let type_name = s.clone();
@@ -1148,6 +1180,34 @@ impl DdlParser {
                     "DATE" => Ok(DataType::Date),
                     "TIMESTAMP" => Ok(DataType::Timestamp),
                     "DATETIME" => Ok(DataType::DateTime),
+                    "GEOGRAPHY" => Ok(DataType::Geography),
+                    "VECTOR" => {
+                        if ctx.current_token().kind == TokenKind::LParen {
+                            ctx.next_token();
+                            if let TokenKind::IntegerLiteral(len) = ctx.current_token().kind {
+                                let dimension = len as usize;
+                                ctx.next_token();
+                                if ctx.current_token().kind == TokenKind::RParen {
+                                    ctx.next_token();
+                                    Ok(DataType::VectorDense(dimension))
+                                } else {
+                                    Err(ParseError::new(
+                                        ParseErrorKind::SyntaxError,
+                                        "VECTOR Right bracket required".to_string(),
+                                        ctx.current_position(),
+                                    ))
+                                }
+                            } else {
+                                Err(ParseError::new(
+                                    ParseErrorKind::SyntaxError,
+                                    "VECTOR requires dimension parameter".to_string(),
+                                    ctx.current_position(),
+                                ))
+                            }
+                        } else {
+                            Ok(DataType::Vector)
+                        }
+                    }
                     _ => Err(ParseError::new(
                         ParseErrorKind::SyntaxError,
                         format!("Unknown data type: {}", type_name),

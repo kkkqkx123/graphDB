@@ -325,3 +325,184 @@ fn test_ddl_if_not_exists_if_exists() {
         .exec_ddl("DROP TAG IF EXISTS Person")
         .assert_success();
 }
+
+// ==================== GEOGRAPHY Type Tests ====================
+
+/// TC-GEO-TYPE-001: Parse CREATE TAG with GEOGRAPHY type (keyword)
+#[test]
+fn test_create_tag_parser_geography_keyword() {
+    let query = "CREATE TAG Location(name: STRING, coord: GEOGRAPHY)";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "CREATE TAG with GEOGRAPHY type parsing should succeed: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("CREATE TAG statement parsing should succeed");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
+}
+
+/// TC-GEO-TYPE-002: Parse CREATE TAG with multiple GEOGRAPHY fields
+#[test]
+fn test_create_tag_parser_multiple_geography_fields() {
+    let query = "CREATE TAG City(name: STRING, center: GEOGRAPHY, boundary: GEOGRAPHY)";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "CREATE TAG with multiple GEOGRAPHY fields parsing should succeed: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("CREATE TAG statement parsing should succeed");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
+}
+
+/// TC-GEO-TYPE-003: Execute CREATE TAG with GEOGRAPHY type
+#[test]
+fn test_create_tag_execution_geography() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Location(name: STRING, coord: GEOGRAPHY)")
+        .assert_success()
+        .assert_tag_exists("Location");
+}
+
+/// TC-GEO-TYPE-004: Execute CREATE TAG with GEOGRAPHY and insert data
+#[test]
+fn test_create_tag_geography_with_data() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG City(name: STRING, center: GEOGRAPHY)")
+        .assert_success()
+        .assert_tag_exists("City")
+        .exec_dml("INSERT VERTEX City(name, center) VALUES 1:(\"Beijing\", ST_Point(116.4074, 39.9042))")
+        .assert_success()
+        .assert_vertex_exists(1, "City");
+}
+
+// ==================== VECTOR Type Tests ====================
+
+/// TC-VEC-TYPE-001: Parse CREATE TAG with VECTOR type (keyword)
+#[test]
+fn test_create_tag_parser_vector_keyword() {
+    let query = "CREATE TAG Document(id: STRING, embedding: VECTOR(128))";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "CREATE TAG with VECTOR type parsing should succeed: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("CREATE TAG statement parsing should succeed");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
+}
+
+/// TC-VEC-TYPE-002: Parse CREATE TAG with VECTOR type (identifier)
+#[test]
+fn test_create_tag_parser_vector_identifier() {
+    let query = "CREATE TAG Product(id: STRING, embedding: VECTOR(256))";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "CREATE TAG with VECTOR type (identifier format) parsing should succeed: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("CREATE TAG statement parsing should succeed");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
+}
+
+/// TC-VEC-TYPE-003: Parse CREATE TAG with multiple VECTOR fields
+#[test]
+fn test_create_tag_parser_multiple_vector_fields() {
+    let query = "CREATE TAG MultiVector(id: STRING, title_emb: VECTOR(128), content_emb: VECTOR(256))";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "CREATE TAG with multiple VECTOR fields parsing should succeed: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("CREATE TAG statement parsing should succeed");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
+}
+
+/// TC-VEC-TYPE-004: Execute CREATE TAG with VECTOR type
+#[test]
+fn test_create_tag_execution_vector() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Document(id: STRING, embedding: VECTOR(128))")
+        .assert_success()
+        .assert_tag_exists("Document");
+}
+
+// ==================== Mixed Extended Types Tests ====================
+
+/// TC-EXT-TYPE-001: Parse CREATE TAG with mixed extended types
+#[test]
+fn test_create_tag_parser_mixed_extended_types() {
+    let query = "CREATE TAG Article(id: STRING, content: STRING, location: GEOGRAPHY, embedding: VECTOR(128))";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "CREATE TAG with mixed extended types parsing should succeed: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("CREATE TAG statement parsing should succeed");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
+}
+
+/// TC-EXT-TYPE-002: Execute CREATE TAG with mixed extended types
+#[test]
+fn test_create_tag_execution_mixed_extended_types() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Article(id: STRING, content: STRING, location: GEOGRAPHY, embedding: VECTOR(128))")
+        .assert_success()
+        .assert_tag_exists("Article");
+}
+
+/// TC-EXT-TYPE-003: Parse CREATE TAG with all standard and extended types
+#[test]
+fn test_create_tag_parser_all_types() {
+    let query = r#"CREATE TAG AllTypes(
+        name: STRING,
+        age: INT,
+        score: DOUBLE,
+        active: BOOL,
+        birth: DATE,
+        created: TIMESTAMP,
+        location: GEOGRAPHY,
+        embedding: VECTOR(64)
+    )"#;
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "CREATE TAG with all types parsing should succeed: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("CREATE TAG statement parsing should succeed");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
+}
