@@ -454,6 +454,9 @@ pub struct TransactionManagerConfig {
     pub max_concurrent_transactions: usize,
     /// Whether to automatically cleanup expired transactions
     pub auto_cleanup: bool,
+    /// Timeout for acquiring redb write lock when beginning a write transaction.
+    /// If the write lock cannot be acquired within this duration, the begin operation fails.
+    pub write_lock_timeout: Duration,
 }
 
 impl Default for TransactionManagerConfig {
@@ -462,6 +465,7 @@ impl Default for TransactionManagerConfig {
             default_timeout: Duration::from_secs(30),
             max_concurrent_transactions: 1000,
             auto_cleanup: true,
+            write_lock_timeout: Duration::from_secs(10),
         }
     }
 }

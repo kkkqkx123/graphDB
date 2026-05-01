@@ -166,6 +166,7 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
         default_timeout: std::time::Duration::from_secs(config.transaction.default_timeout),
         max_concurrent_transactions: config.transaction.max_concurrent_transactions,
         auto_cleanup: true,
+        write_lock_timeout: std::time::Duration::from_secs(10),
     };
     let transaction_manager = Arc::new(TransactionManager::new(db, txn_config));
     info!("Transaction manager initialized");

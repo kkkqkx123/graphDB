@@ -216,21 +216,12 @@ impl RedbStorage {
 
     /// Setting up the transaction context
     pub fn set_transaction_context(&self, context: Option<Arc<TransactionContext>>) {
-        *self.inner.current_txn_context.lock() = context.clone();
-
-        if let Some(ctx) = &context {
-            self.inner
-                .reader
-                .lock()
-                .set_transaction_context(Some(ctx.clone()));
-        } else {
-            self.inner.reader.lock().set_transaction_context(None);
-        }
+        self.inner.set_transaction_context(context);
     }
 
     /// Obtaining the transaction context
     pub fn get_transaction_context(&self) -> Option<Arc<TransactionContext>> {
-        self.inner.current_txn_context.lock().clone()
+        self.inner.get_transaction_context()
     }
 
     /// Analyzing vertex IDs

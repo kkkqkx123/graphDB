@@ -110,6 +110,39 @@ impl TransactionManager {
         self.sync_manager = Some(sync_manager);
     }
 
+    /// Attempt to begin a redb write transaction with a timeout.
+    ///
+    /// redb's `begin_write()` blocks indefinitely if another write transaction is active.
+    /// This method wraps it with a timeout to prevent the server from hanging.
+    fn begin_write_with_timeout(
+        db: &Arc<Database>,
+        timeout: Duration,
+    ) -> Result<redb::WriteTransaction, TransactionError> {
+        let db = Arc::clone(db);
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        let _handle = std::thread::spawn(move || {
+            let result = db.begin_write();
+            let _ = tx.send(result);
+        });
+
+        match rx.recv_timeout(timeout) {
+            Ok(result) => result.map_err(|e| TransactionError::BeginFailed(e.to_string())),
+            Err(_) => {
+                log::error!(
+                    "Timed out acquiring redb write lock after {:?}. \
+                     This likely means another write transaction is still active.",
+                    timeout
+                );
+                Err(TransactionError::BeginFailed(format!(
+                    "Timed out acquiring write lock after {:?}. \
+                     Another write transaction may be blocking.",
+                    timeout
+                )))
+            }
+        }
+    }
+
     /// Start a new transaction
     pub fn begin_transaction(
         &self,
@@ -165,10 +198,10 @@ impl TransactionManager {
                 Some(db),
             ))
         } else {
-            let write_txn = self
-                .db
-                .begin_write()
-                .map_err(|e| TransactionError::BeginFailed(e.to_string()))?;
+            let write_txn = Self::begin_write_with_timeout(
+                &self.db,
+                self.config.write_lock_timeout,
+            )?;
 
             Arc::new(TransactionContext::new_writable(
                 txn_id,
@@ -429,7 +462,17 @@ impl TransactionManager {
         };
 
         for txn_id in expired {
-            let _ = self.abort_transaction_internal_by_id(txn_id);
+            // Remove from active_transactions first, then abort.
+            // This releases the redb write lock so new write transactions can proceed.
+            let context = {
+                if let Some((_, ctx)) = self.active_transactions.remove(&txn_id) {
+                    ctx
+                } else {
+                    continue;
+                }
+            };
+
+            let _ = self.abort_transaction_internal(context);
             self.stats.increment_timeout();
         }
     }

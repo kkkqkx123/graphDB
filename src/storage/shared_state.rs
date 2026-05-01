@@ -65,7 +65,11 @@ impl StorageSharedState {
 
 /// Storage layer internal state
 ///
-/// These fields do not need to be shared outside of Storage
+/// These fields do not need to be shared outside of Storage.
+///
+/// Lock ordering convention to prevent deadlocks:
+/// Always acquire locks in this order: current_txn_context -> reader -> writer
+/// Never acquire an earlier lock while holding a later one.
 pub struct StorageInner {
     pub reader: Arc<Mutex<RedbReader>>,
     pub writer: Arc<Mutex<RedbWriter>>,
@@ -81,9 +85,25 @@ impl StorageInner {
         }
     }
 
-    /// Set the current transaction context
+    /// Set the current transaction context.
+    ///
+    /// This method updates both `current_txn_context` and the reader's transaction
+    /// context in a consistent order to prevent deadlocks:
+    /// 1. First acquire `current_txn_context` lock
+    /// 2. Then acquire `reader` lock
+    /// 3. Never hold `reader` while waiting for `current_txn_context`
     pub fn set_transaction_context(&self, context: Option<Arc<TransactionContext>>) {
-        *self.current_txn_context.lock() = context;
+        // Always acquire current_txn_context first, then reader
+        let mut txn_guard = self.current_txn_context.lock();
+        *txn_guard = context.clone();
+
+        if let Some(ref ctx) = context {
+            let mut reader_guard = self.reader.lock();
+            reader_guard.set_transaction_context(Some(ctx.clone()));
+        } else {
+            let mut reader_guard = self.reader.lock();
+            reader_guard.set_transaction_context(None);
+        }
     }
 
     /// Get the current transaction context

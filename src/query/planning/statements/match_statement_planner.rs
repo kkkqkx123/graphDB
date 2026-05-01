@@ -1257,10 +1257,6 @@ impl MatchStatementPlanner {
         Ok(SubPlan::new(Some(sort_node.into_enum()), input_plan.tail))
     }
 
-    fn contextual_expression_to_string(&self, expr: &ContextualExpression) -> String {
-        expr.to_expression_string()
-    }
-
     fn plan_limit(
         &self,
         input_plan: SubPlan,

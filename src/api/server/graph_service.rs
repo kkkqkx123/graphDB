@@ -198,6 +198,12 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         let space_id = session.space().map(|s| s.id).unwrap_or(0);
 
+        // Cleanup expired transactions before processing any statement.
+        // This prevents stale transactions from blocking new write operations.
+        if let Some(ref txn_manager) = self.transaction_manager {
+            txn_manager.cleanup_expired_transactions();
+        }
+
         // Handle transaction control statements
         let trimmed_stmt = stmt.trim().to_uppercase();
         if trimmed_stmt.starts_with("BEGIN") || trimmed_stmt.starts_with("START TRANSACTION") {
@@ -325,10 +331,34 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let mut query_api = self.query_api.lock();
         let result = query_api.execute(stmt, query_request);
 
-        // Clear transaction context from storage after query execution
+        // Always clear transaction context from storage after query execution,
+        // regardless of success or failure, to prevent stale context from
+        // blocking subsequent operations
         if txn_context.is_some() {
             if let Some(storage) = self.storage.as_any().downcast_ref::<RedbStorage>() {
                 storage.set_transaction_context(None);
+            }
+        }
+
+        // If the query failed and we have an active transaction, check if the
+        // transaction is still in a valid state. If the transaction has become
+        // invalid (e.g. due to a storage error), clean it up.
+        if result.is_err() {
+            if let Some(txn_id) = session.current_transaction() {
+                if let Some(ref txn_manager) = self.transaction_manager {
+                    if let Ok(ctx) = txn_manager.get_context(txn_id) {
+                        if !ctx.state().can_execute() {
+                            warn!(
+                                "Transaction {} is in invalid state {} after failed query, cleaning up",
+                                txn_id, ctx.state()
+                            );
+                            drop(ctx);
+                            let _ = txn_manager.rollback_transaction(txn_id);
+                            session.unbind_transaction();
+                            session.set_auto_commit(true);
+                        }
+                    }
+                }
             }
         }
 
@@ -477,7 +507,31 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 info!("Session {} started transaction {}", session.id(), txn_id);
                 Ok(ExecutionResult::Success)
             }
-            Err(e) => Err(format!("Failed to start transaction: {}", e)),
+            Err(e) => {
+                // If the error is a write conflict, try cleaning up expired transactions
+                // and retry once. This handles the case where a stale transaction
+                // is blocking new write transactions.
+                if matches!(e, crate::transaction::TransactionError::WriteTransactionConflict) {
+                    txn_manager.cleanup_expired_transactions();
+                    let options = session.transaction_options();
+                    match txn_manager.begin_transaction(options) {
+                        Ok(txn_id) => {
+                            session.bind_transaction(txn_id);
+                            session.set_auto_commit(false);
+                            info!(
+                                "Session {} started transaction {} after cleanup retry",
+                                session.id(),
+                                txn_id
+                            );
+                            return Ok(ExecutionResult::Success);
+                        }
+                        Err(retry_err) => {
+                            return Err(format!("Failed to start transaction: {}", retry_err));
+                        }
+                    }
+                }
+                Err(format!("Failed to start transaction: {}", e))
+            }
         }
     }
 

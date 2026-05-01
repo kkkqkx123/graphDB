@@ -42,3 +42,4 @@ mod error_scenarios;
 mod config_options;
 mod storage_integration;
 mod edge_advanced;
+mod write_lock_timeout;
