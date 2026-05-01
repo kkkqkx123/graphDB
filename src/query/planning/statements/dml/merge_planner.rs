@@ -1,22 +1,28 @@
 //! Merge Operation Planner
 //!
-//! Query planning for handling MERGE statements
+//! Query planning for handling MERGE statements with ON MATCH and ON CREATE clause support.
 //!
-//! Note: This is a simplified implementation that converts MERGE to INSERT IF NOT EXISTS.
-//! Full MERGE implementation with ON MATCH and ON CREATE clauses requires additional work.
+//! ## MERGE Semantics
+//!
+//! MERGE ensures that a pattern exists in the graph:
+//! - If the pattern matches existing data -> execute ON MATCH actions (if any)
+//! - If the pattern does not exist -> create new data and execute ON CREATE actions (if any)
+
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::ExpressionMeta;
 use crate::core::{Expression, Value};
-use crate::query::parser::ast::{MergeStmt, Pattern, Stmt};
-use crate::query::planning::plan::core::{
-    node_id_generator::next_node_id,
-    nodes::{ArgumentNode, InsertVerticesNode, TagInsertSpec, VertexInsertInfo},
+use crate::query::parser::ast::{Assignment, MergeStmt, Pattern, SetClause, Stmt};
+use crate::query::planning::plan::core::node_id_generator::next_node_id;
+use crate::query::planning::plan::core::nodes::{
+    ArgumentNode, InsertVerticesNode, SelectNode, TagInsertSpec, UpdateNode, UpdateTargetType,
+    VertexInsertInfo, VertexUpdateInfo,
 };
 use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
-use std::sync::Arc;
 
 /// Merge Operation Planner
 /// Responsible for converting MERGE statements into execution plans.
@@ -24,17 +30,14 @@ use std::sync::Arc;
 pub struct MergePlanner;
 
 impl MergePlanner {
-    /// Create a new merge planner.
     pub fn new() -> Self {
         Self
     }
 
-    /// Check whether the statements match the merge operations.
     pub fn match_stmt(stmt: &Stmt) -> bool {
         matches!(stmt, Stmt::Merge(_))
     }
 
-    /// Extract the MergeStmt from the Stmt.
     fn extract_merge_stmt(&self, stmt: &Stmt) -> Result<MergeStmt, PlannerError> {
         match stmt {
             Stmt::Merge(merge_stmt) => Ok(merge_stmt.clone()),
@@ -44,8 +47,6 @@ impl MergePlanner {
         }
     }
 
-    /// Convert a Pattern to VertexInsertInfo
-    /// Currently only supports simple node patterns like (p:Person {name: 'Alice'})
     fn pattern_to_vertex_info(
         &self,
         pattern: &Pattern,
@@ -54,7 +55,6 @@ impl MergePlanner {
     ) -> Result<VertexInsertInfo, PlannerError> {
         match pattern {
             Pattern::Node(node_pattern) => {
-                // Get tag name from labels
                 let tag_name = node_pattern
                     .labels
                     .first()
@@ -62,15 +62,13 @@ impl MergePlanner {
                         PlannerError::PlanGenerationFailed(
                             "MERGE node pattern must have a label".to_string(),
                         )
-                    })?
+    })?
                     .clone();
 
-                // Handle properties
                 let (prop_names, prop_values, vid_expr) =
                     if let Some(props_expr) = &node_pattern.properties {
                         self.extract_properties_and_vid(props_expr, expr_context)?
                     } else {
-                        // No properties - generate a random ID
                         let vid_expr = self.create_vid_expression(expr_context)?;
                         (vec![], vec![], vid_expr)
                     };
@@ -84,7 +82,7 @@ impl MergePlanner {
                     space_name,
                     tags: vec![tag_spec],
                     values: vec![(vid_expr, vec![prop_values])],
-                    if_not_exists: true, // MERGE uses IF NOT EXISTS semantics
+                    if_not_exists: true,
                 })
             }
             _ => Err(PlannerError::PlanGenerationFailed(
@@ -93,8 +91,6 @@ impl MergePlanner {
         }
     }
 
-    /// Extract property names and values from a properties expression
-    /// Also generates a vertex ID
     fn extract_properties_and_vid(
         &self,
         props_expr: &ContextualExpression,
@@ -130,16 +126,84 @@ impl MergePlanner {
         }
     }
 
-    /// Create a vertex ID expression
     fn create_vid_expression(
         &self,
         expr_context: &Arc<crate::query::validator::context::ExpressionAnalysisContext>,
     ) -> Result<ContextualExpression, PlannerError> {
-        // Generate a random ID
         let random_id = rand::random::<i64>().abs();
         let vid_meta = ExpressionMeta::new(Expression::Literal(Value::BigInt(random_id)));
         let vid_id = expr_context.register_expression(vid_meta);
         Ok(ContextualExpression::new(vid_id, expr_context.clone()))
+    }
+
+    fn build_update_info(
+        &self,
+        set_clause: &SetClause,
+        space_name: String,
+        expr_context: &Arc<crate::query::validator::context::ExpressionAnalysisContext>,
+    ) -> Result<VertexUpdateInfo, PlannerError> {
+        let mut properties = HashMap::new();
+
+        for assignment in &set_clause.assignments {
+            properties.insert(assignment.property.clone(), assignment.value.clone());
+        }
+
+        let exists_expr = Expression::Literal(Value::Bool(true));
+        let exists_meta = ExpressionMeta::new(exists_expr);
+        let exists_id = expr_context.register_expression(exists_meta);
+        let vid_expr = ContextualExpression::new(exists_id, expr_context.clone());
+
+        Ok(VertexUpdateInfo {
+            space_name,
+            vertex_id: vid_expr,
+            tag_name: None,
+            properties,
+            condition: None,
+            is_upsert: false,
+        })
+    }
+
+    fn build_on_match_branch(
+        &self,
+        on_match: &SetClause,
+        space_name: String,
+        expr_context: &Arc<crate::query::validator::context::ExpressionAnalysisContext>,
+    ) -> Result<PlanNodeEnum, PlannerError> {
+        let update_info = self.build_update_info(on_match, space_name, expr_context)?;
+        let update_node = UpdateNode::new(next_node_id(), UpdateTargetType::Vertex(update_info));
+        Ok(PlanNodeEnum::Update(update_node))
+    }
+
+    fn build_on_create_branch(
+        &self,
+        vertex_info: VertexInsertInfo,
+        on_create: Option<&SetClause>,
+        space_name: String,
+        expr_context: &Arc<crate::query::validator::context::ExpressionAnalysisContext>,
+    ) -> Result<PlanNodeEnum, PlannerError> {
+        let insert_node = InsertVerticesNode::new(next_node_id(), vertex_info);
+        let mut current_node = PlanNodeEnum::InsertVertices(insert_node);
+
+        if let Some(set_clause) = on_create {
+            let update_info = self.build_update_info(set_clause, space_name, expr_context)?;
+            let update_node = UpdateNode::new(next_node_id(), UpdateTargetType::Vertex(update_info));
+            current_node = PlanNodeEnum::Update(update_node);
+        }
+
+        Ok(current_node)
+    }
+
+    fn create_exists_condition(
+        &self,
+        expr_context: &Arc<crate::query::validator::context::ExpressionAnalysisContext>,
+    ) -> Result<ContextualExpression, PlannerError> {
+        let condition = Expression::Function {
+            name: "exists".to_string(),
+            args: vec![Expression::Variable("merged_vertex".to_string())],
+        };
+        let meta = ExpressionMeta::new(condition);
+        let id = expr_context.register_expression(meta);
+        Ok(ContextualExpression::new(id, expr_context.clone()))
     }
 }
 
@@ -149,13 +213,10 @@ impl Planner for MergePlanner {
         validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        // Obtain the space name
         let space_name = qctx.space_name().unwrap_or_else(|| "default".to_string());
 
-        // Use the verification information to optimize the planning process.
         let validation_info = &validated.validation_info;
 
-        // Check the semantic information.
         let referenced_tags = &validation_info.semantic_info.referenced_tags;
         if !referenced_tags.is_empty() {
             log::debug!("MERGE quoted tags: {:?}", referenced_tags);
@@ -173,20 +234,48 @@ impl Planner for MergePlanner {
 
         let merge_stmt = self.extract_merge_stmt(validated.stmt())?;
 
-        // Convert the pattern to vertex insert info
         let vertex_info =
-            self.pattern_to_vertex_info(&merge_stmt.pattern, space_name, validated.expr_context())?;
+            self.pattern_to_vertex_info(&merge_stmt.pattern, space_name.clone(), validated.expr_context())?;
 
-        // Create an Argument Node
+        let has_on_match = merge_stmt.on_match.is_some();
+        let has_on_create = merge_stmt.on_create.is_some();
+
+        if !has_on_match && !has_on_create {
+            let arg_node = ArgumentNode::new(next_node_id(), "merge_args");
+            let arg_node_enum = PlanNodeEnum::Argument(arg_node.clone());
+
+            let insert_node = InsertVerticesNode::new(next_node_id(), vertex_info);
+            let insert_node_enum = PlanNodeEnum::InsertVertices(insert_node);
+
+            let sub_plan = SubPlan::new(Some(insert_node_enum), Some(arg_node_enum));
+            return Ok(sub_plan);
+        }
+
         let arg_node = ArgumentNode::new(next_node_id(), "merge_args");
         let arg_node_enum = PlanNodeEnum::Argument(arg_node.clone());
 
-        // Create InsertVertices node with IF NOT EXISTS
-        let insert_node = InsertVerticesNode::new(next_node_id(), vertex_info);
-        let insert_node_enum = PlanNodeEnum::InsertVertices(insert_node);
+        let condition = self.create_exists_condition(validated.expr_context())?;
+        let mut select_node = SelectNode::new(next_node_id(), condition);
 
-        // Create a SubPlan
-        let sub_plan = SubPlan::new(Some(insert_node_enum), Some(arg_node_enum));
+        if let Some(ref on_match) = merge_stmt.on_match {
+            let if_branch = self.build_on_match_branch(
+                on_match,
+                space_name.clone(),
+                validated.expr_context(),
+            )?;
+            select_node.set_if_branch(if_branch);
+        }
+
+        let else_branch = self.build_on_create_branch(
+            vertex_info,
+            merge_stmt.on_create.as_ref(),
+            space_name,
+            validated.expr_context(),
+        )?;
+        select_node.set_else_branch(else_branch);
+
+        let select_node_enum = PlanNodeEnum::Select(select_node);
+        let sub_plan = SubPlan::new(Some(select_node_enum), Some(arg_node_enum));
 
         Ok(sub_plan)
     }
