@@ -125,6 +125,10 @@ impl PlanNodeEnum {
                 super::plan_node_traits::BinaryInputNode::left_input(node),
                 super::plan_node_traits::BinaryInputNode::right_input(node),
             ],
+            PlanNodeEnum::RightJoin(node) => vec![
+                super::plan_node_traits::BinaryInputNode::left_input(node),
+                super::plan_node_traits::BinaryInputNode::right_input(node),
+            ],
             PlanNodeEnum::CrossJoin(node) => vec![
                 super::plan_node_traits::BinaryInputNode::left_input(node),
                 super::plan_node_traits::BinaryInputNode::right_input(node),
@@ -141,11 +145,31 @@ impl PlanNodeEnum {
                 super::plan_node_traits::BinaryInputNode::left_input(node),
                 super::plan_node_traits::BinaryInputNode::right_input(node),
             ],
+            PlanNodeEnum::SemiJoin(node) => vec![
+                super::plan_node_traits::BinaryInputNode::left_input(node),
+                super::plan_node_traits::BinaryInputNode::right_input(node),
+            ],
+
+            // BinaryInputNode for Apply (correlated subquery)
+            PlanNodeEnum::Apply(node) => vec![
+                super::plan_node_traits::BinaryInputNode::left_input(node),
+                super::plan_node_traits::BinaryInputNode::right_input(node),
+            ],
 
             // MultipleInputNode: It has multiple child nodes.
             PlanNodeEnum::Expand(node) => node.inputs().iter().collect(),
             PlanNodeEnum::ExpandAll(node) => node.inputs().iter().collect(),
             PlanNodeEnum::AppendVertices(node) => node.inputs().iter().collect(),
+
+            // BinaryInputNode for bidirectional traversal
+            PlanNodeEnum::BiExpand(node) => vec![
+                super::plan_node_traits::BinaryInputNode::left_input(node),
+                super::plan_node_traits::BinaryInputNode::right_input(node),
+            ],
+            PlanNodeEnum::BiTraverse(node) => vec![
+                super::plan_node_traits::BinaryInputNode::left_input(node),
+                super::plan_node_traits::BinaryInputNode::right_input(node),
+            ],
 
             // UnionNode: Use dependencies () to retrieve all child nodes
             PlanNodeEnum::Union(node) => node.dependencies().iter().collect(),
@@ -176,6 +200,10 @@ impl PlanNodeEnum {
                 }
                 children
             }
+            // Transaction Control Nodes - ZeroInputNode
+            PlanNodeEnum::BeginTransaction(_) => vec![],
+            PlanNodeEnum::Commit(_) => vec![],
+            PlanNodeEnum::Rollback(_) => vec![],
             // Fulltext nodes - ZeroInputNode
             PlanNodeEnum::CreateFulltextIndex(_) => vec![],
             PlanNodeEnum::DropFulltextIndex(_) => vec![],

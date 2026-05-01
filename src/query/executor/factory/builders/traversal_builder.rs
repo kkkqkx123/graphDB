@@ -17,7 +17,8 @@ use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
     MultipleInputNode, PlanNode,
 };
 use crate::query::planning::plan::core::nodes::traversal::{
-    AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
+    AllPathsNode, BFSShortestNode, BiExpandNode, BiTraverseNode, MultiShortestPathNode,
+    ShortestPathNode,
 };
 use crate::query::planning::plan::core::nodes::{ExpandAllNode, ExpandNode, TraverseNode};
 use crate::storage::StorageClient;
@@ -221,6 +222,42 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
             },
         );
         Ok(ExecutorEnum::MultiShortestPath(executor))
+    }
+
+    /// Constructing the BiExpand executor
+    /// Bidirectional expand from two input sources meeting at common vertices
+    pub fn build_bi_expand(
+        node: &BiExpandNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let executor = ExpandExecutor::new(
+            node.id(),
+            storage,
+            node.left_direction(),
+            Some(node.edge_types().to_vec()),
+            Some(node.max_hops()),
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::BiExpand(executor))
+    }
+
+    /// Constructing the BiTraverse executor
+    /// Bidirectional traverse from two input sources meeting at common vertices
+    pub fn build_bi_traverse(
+        node: &BiTraverseNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let executor = ExpandExecutor::new(
+            node.id(),
+            storage,
+            node.left_direction(),
+            Some(node.edge_types().to_vec()),
+            Some(node.max_hops()),
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::BiTraverse(executor))
     }
 }
 

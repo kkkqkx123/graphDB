@@ -12,7 +12,7 @@ use crate::query::executor::relational_algebra::join::{
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::JoinNode;
 use crate::query::planning::plan::core::nodes::{
     CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode,
-    LeftJoinNode,
+    LeftJoinNode, RightJoinNode, SemiJoinNode,
 };
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -222,6 +222,41 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
             context.clone(),
         );
         Ok(ExecutorEnum::CrossJoin(executor))
+    }
+
+    /// Building the RightJoin executor
+    /// RightJoin is implemented by converting to LeftJoin with swapped inputs
+    pub fn build_right_join(
+        node: &RightJoinNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let left_join_node = node.to_left_join();
+        Self::build_left_join(&left_join_node, storage, context)
+    }
+
+    /// Building the SemiJoin executor
+    pub fn build_semi_join(
+        node: &SemiJoinNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let (left_var, right_var) = Self::extract_join_vars(node);
+        let hash_keys: Vec<crate::core::types::ContextualExpression> = node.hash_keys().to_vec();
+        let probe_keys: Vec<crate::core::types::ContextualExpression> = node.probe_keys().to_vec();
+
+        let config = InnerJoinConfig {
+            id: node.id(),
+            hash_keys,
+            probe_keys,
+            left_var,
+            right_var,
+            col_names: node.col_names().to_vec(),
+        };
+
+        let executor =
+            InnerJoinExecutor::new(storage, context.expression_context().clone(), config);
+        Ok(ExecutorEnum::InnerJoin(executor))
     }
 }
 

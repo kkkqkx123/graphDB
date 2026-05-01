@@ -44,12 +44,13 @@ pub use crate::query::planning::plan::core::nodes::access::graph_scan_node::{
 };
 pub use crate::query::planning::plan::core::nodes::access::index_scan::IndexScanNode;
 pub use crate::query::planning::plan::core::nodes::control_flow::control_flow_node::{
-    ArgumentNode, LoopNode, PassThroughNode, SelectNode,
+    ArgumentNode, BeginTransactionNode, CommitNode, LoopNode, PassThroughNode, RollbackNode,
+    SelectNode,
 };
 pub use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
 pub use crate::query::planning::plan::core::nodes::graph_operations::aggregate_node::AggregateNode;
 pub use crate::query::planning::plan::core::nodes::graph_operations::graph_operations_node::{
-    AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode, RemoveNode,
+    ApplyNode, AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode, RemoveNode,
     RollUpApplyNode, UnionNode, UnwindNode,
 };
 pub use crate::query::planning::plan::core::nodes::graph_operations::set_operations_node::{
@@ -57,7 +58,7 @@ pub use crate::query::planning::plan::core::nodes::graph_operations::set_operati
 };
 pub use crate::query::planning::plan::core::nodes::join::join_node::{
     CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode,
-    LeftJoinNode,
+    LeftJoinNode, RightJoinNode, SemiJoinNode,
 };
 pub use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
 pub use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
@@ -69,7 +70,7 @@ pub use crate::query::planning::plan::core::nodes::traversal::path_algorithms::{
     AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
 };
 pub use crate::query::planning::plan::core::nodes::traversal::traversal_node::{
-    AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode,
+    AppendVerticesNode, BiExpandNode, BiTraverseNode, ExpandAllNode, ExpandNode, TraverseNode,
 };
 
 /// Macro for generating the default method of the PlanNode visitor
@@ -103,10 +104,12 @@ pub trait PlanNodeVisitor {
     impl_visitor_methods!(
         InnerJoin, InnerJoinNode, visit_inner_join;
         LeftJoin, LeftJoinNode, visit_left_join;
+        RightJoin, RightJoinNode, visit_right_join;
         CrossJoin, CrossJoinNode, visit_cross_join;
         HashInnerJoin, HashInnerJoinNode, visit_hash_inner_join;
         HashLeftJoin, HashLeftJoinNode, visit_hash_left_join;
         FullOuterJoin, FullOuterJoinNode, visit_full_outer_join;
+        SemiJoin, SemiJoinNode, visit_semi_join;
     );
 
     impl_visitor_methods!(
@@ -123,6 +126,8 @@ pub trait PlanNodeVisitor {
         ExpandAll, ExpandAllNode, visit_expand_all;
         Traverse, TraverseNode, visit_traverse;
         AppendVertices, AppendVerticesNode, visit_append_vertices;
+        BiExpand, BiExpandNode, visit_bi_expand;
+        BiTraverse, BiTraverseNode, visit_bi_traverse;
     );
 
     impl_visitor_methods!(
@@ -136,6 +141,9 @@ pub trait PlanNodeVisitor {
         Loop, LoopNode, visit_loop;
         PassThrough, PassThroughNode, visit_pass_through;
         Select, SelectNode, visit_select;
+        BeginTransaction, BeginTransactionNode, visit_begin_transaction;
+        Commit, CommitNode, visit_commit;
+        Rollback, RollbackNode, visit_rollback;
         DataCollect, DataCollectNode, visit_data_collect;
     );
 
@@ -152,6 +160,7 @@ pub trait PlanNodeVisitor {
         Unwind, UnwindNode, visit_unwind;
         Materialize, MaterializeNode, visit_materialize;
         Assign, AssignNode, visit_assign;
+        Apply, ApplyNode, visit_apply;
     );
 
     impl_visitor_methods!(
@@ -281,7 +290,9 @@ impl PlanNodeEnum {
             PlanNodeEnum::Sample(node) => visitor.visit_sample(node),
             PlanNodeEnum::InnerJoin(node) => visitor.visit_inner_join(node),
             PlanNodeEnum::LeftJoin(node) => visitor.visit_left_join(node),
+            PlanNodeEnum::RightJoin(node) => visitor.visit_right_join(node),
             PlanNodeEnum::CrossJoin(node) => visitor.visit_cross_join(node),
+            PlanNodeEnum::SemiJoin(node) => visitor.visit_semi_join(node),
             PlanNodeEnum::GetVertices(node) => visitor.visit_get_vertices(node),
             PlanNodeEnum::GetEdges(node) => visitor.visit_get_edges(node),
             PlanNodeEnum::GetNeighbors(node) => visitor.visit_get_neighbors(node),
@@ -295,12 +306,17 @@ impl PlanNodeEnum {
             PlanNodeEnum::ExpandAll(node) => visitor.visit_expand_all(node),
             PlanNodeEnum::Traverse(node) => visitor.visit_traverse(node),
             PlanNodeEnum::AppendVertices(node) => visitor.visit_append_vertices(node),
+            PlanNodeEnum::BiExpand(node) => visitor.visit_bi_expand(node),
+            PlanNodeEnum::BiTraverse(node) => visitor.visit_bi_traverse(node),
             PlanNodeEnum::Filter(node) => visitor.visit_filter(node),
             PlanNodeEnum::Aggregate(node) => visitor.visit_aggregate(node),
             PlanNodeEnum::Argument(node) => visitor.visit_argument(node),
             PlanNodeEnum::Loop(node) => visitor.visit_loop(node),
             PlanNodeEnum::PassThrough(node) => visitor.visit_pass_through(node),
             PlanNodeEnum::Select(node) => visitor.visit_select(node),
+            PlanNodeEnum::BeginTransaction(node) => visitor.visit_begin_transaction(node),
+            PlanNodeEnum::Commit(node) => visitor.visit_commit(node),
+            PlanNodeEnum::Rollback(node) => visitor.visit_rollback(node),
             PlanNodeEnum::DataCollect(node) => visitor.visit_data_collect(node),
             PlanNodeEnum::Dedup(node) => visitor.visit_dedup(node),
             PlanNodeEnum::PatternApply(node) => visitor.visit_pattern_apply(node),
@@ -312,6 +328,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Unwind(node) => visitor.visit_unwind(node),
             PlanNodeEnum::Materialize(node) => visitor.visit_materialize(node),
             PlanNodeEnum::Assign(node) => visitor.visit_assign(node),
+            PlanNodeEnum::Apply(node) => visitor.visit_apply(node),
             PlanNodeEnum::IndexScan(node) => visitor.visit_index_scan(node),
             PlanNodeEnum::MultiShortestPath(node) => visitor.visit_multi_shortest_path(node),
             PlanNodeEnum::BFSShortest(node) => visitor.visit_bfs_shortest(node),

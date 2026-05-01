@@ -55,12 +55,13 @@ pub use crate::query::planning::plan::core::nodes::access::index_scan::{
     IndexLimit, IndexScanNode, OrderByItem, ScanType,
 };
 pub use crate::query::planning::plan::core::nodes::control_flow::control_flow_node::{
-    ArgumentNode, LoopNode, PassThroughNode, SelectNode,
+    ArgumentNode, BeginTransactionNode, CommitNode, LoopNode, PassThroughNode, RollbackNode,
+    SelectNode,
 };
 pub use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
 pub use crate::query::planning::plan::core::nodes::graph_operations::aggregate_node::AggregateNode;
 pub use crate::query::planning::plan::core::nodes::graph_operations::graph_operations_node::{
-    AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode, RemoveNode,
+    ApplyNode, AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode, RemoveNode,
     RollUpApplyNode, UnionNode, UnwindNode,
 };
 pub use crate::query::planning::plan::core::nodes::graph_operations::set_operations_node::{
@@ -68,7 +69,7 @@ pub use crate::query::planning::plan::core::nodes::graph_operations::set_operati
 };
 pub use crate::query::planning::plan::core::nodes::join::join_node::{
     CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode,
-    LeftJoinNode,
+    LeftJoinNode, RightJoinNode, SemiJoinNode,
 };
 pub use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
 pub use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
@@ -80,7 +81,7 @@ pub use crate::query::planning::plan::core::nodes::traversal::path_algorithms::{
     AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
 };
 pub use crate::query::planning::plan::core::nodes::traversal::traversal_node::{
-    AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode,
+    AppendVerticesNode, BiExpandNode, BiTraverseNode, ExpandAllNode, ExpandNode, TraverseNode,
 };
 
 /// The PlanNode enumeration includes all possible node types.
@@ -111,22 +112,31 @@ pub enum PlanNodeEnum {
     // ========== Connecting Nodes ==========
     InnerJoin(InnerJoinNode),
     LeftJoin(LeftJoinNode),
+    RightJoin(RightJoinNode),
     CrossJoin(CrossJoinNode),
     HashInnerJoin(HashInnerJoinNode),
     HashLeftJoin(HashLeftJoinNode),
     FullOuterJoin(FullOuterJoinNode),
+    SemiJoin(SemiJoinNode),
 
     // Traversal of nodes
     Expand(ExpandNode),
     ExpandAll(ExpandAllNode),
     Traverse(TraverseNode),
     AppendVertices(AppendVerticesNode),
+    BiExpand(BiExpandNode),
+    BiTraverse(BiTraverseNode),
 
     // ========== Control Flow Nodes ==========
     Argument(ArgumentNode),
     Loop(LoopNode),
     PassThrough(PassThroughNode),
     Select(SelectNode),
+
+    // Transaction Control Nodes
+    BeginTransaction(BeginTransactionNode),
+    Commit(CommitNode),
+    Rollback(RollbackNode),
 
     // ========== Data Processing Node ----------
     DataCollect(DataCollectNode),
@@ -139,6 +149,7 @@ pub enum PlanNodeEnum {
     Unwind(UnwindNode),
     Materialize(MaterializeNode),
     Assign(AssignNode),
+    Apply(ApplyNode),
 
     // Algorithm Nodes
     MultiShortestPath(MultiShortestPathNode),
@@ -254,15 +265,19 @@ crate::define_enum_is_methods! {
     // Connecting nodes
     (InnerJoin, is_inner_join),
     (LeftJoin, is_left_join),
+    (RightJoin, is_right_join),
     (CrossJoin, is_cross_join),
     (HashInnerJoin, is_hash_inner_join),
     (HashLeftJoin, is_hash_left_join),
     (FullOuterJoin, is_full_outer_join),
+    (SemiJoin, is_semi_join),
     // Traverse the nodes
     (Expand, is_expand),
     (ExpandAll, is_expand_all),
     (Traverse, is_traverse),
     (AppendVertices, is_append_vertices),
+    (BiExpand, is_bi_expand),
+    (BiTraverse, is_bi_traverse),
     // Control flow nodes
     (Argument, is_argument),
     (Loop, is_loop),
@@ -279,6 +294,7 @@ crate::define_enum_is_methods! {
     (Unwind, is_unwind),
     (Materialize, is_materialize),
     (Assign, is_assign),
+    (Apply, is_apply),
     // Algorithm node
     (MultiShortestPath, is_multi_shortest_path),
     (BFSShortest, is_bfs_shortest),
@@ -390,6 +406,10 @@ crate::define_enum_as_methods! {
     (Loop, as_loop, LoopNode),
     (PassThrough, as_pass_through, PassThroughNode),
     (Select, as_select, SelectNode),
+    // Transaction control nodes
+    (BeginTransaction, as_begin_transaction, BeginTransactionNode),
+    (Commit, as_commit, CommitNode),
+    (Rollback, as_rollback, RollbackNode),
     // Data processing node
     (DataCollect, as_data_collect, DataCollectNode),
     (Remove, as_remove, RemoveNode),
@@ -512,6 +532,10 @@ crate::define_enum_as_mut_methods! {
     (Loop, as_loop_mut, LoopNode),
     (PassThrough, as_pass_through_mut, PassThroughNode),
     (Select, as_select_mut, SelectNode),
+    // Transaction control nodes
+    (BeginTransaction, as_begin_transaction_mut, BeginTransactionNode),
+    (Commit, as_commit_mut, CommitNode),
+    (Rollback, as_rollback_mut, RollbackNode),
     // Data processing node
     (DataCollect, as_data_collect_mut, DataCollectNode),
     (Remove, as_remove_mut, RemoveNode),
@@ -620,20 +644,28 @@ crate::define_enum_type_name! {
     // Connecting nodes
     (InnerJoin, "InnerJoin"),
     (LeftJoin, "LeftJoin"),
+    (RightJoin, "RightJoin"),
     (CrossJoin, "CrossJoin"),
     (HashInnerJoin, "HashInnerJoin"),
     (HashLeftJoin, "HashLeftJoin"),
     (FullOuterJoin, "FullOuterJoin"),
+    (SemiJoin, "SemiJoin"),
     // Traverse the nodes
     (Expand, "Expand"),
     (ExpandAll, "ExpandAll"),
     (Traverse, "Traverse"),
     (AppendVertices, "AppendVertices"),
+    (BiExpand, "BiExpand"),
+    (BiTraverse, "BiTraverse"),
     // Control flow nodes
     (Argument, "Argument"),
     (Loop, "Loop"),
     (PassThrough, "PassThrough"),
     (Select, "Select"),
+    // Transaction control nodes
+    (BeginTransaction, "BeginTransaction"),
+    (Commit, "Commit"),
+    (Rollback, "Rollback"),
     // Data processing node
     (DataCollect, "DataCollect"),
     (Remove, "Remove"),
@@ -645,6 +677,7 @@ crate::define_enum_type_name! {
     (Unwind, "Unwind"),
     (Materialize, "Materialize"),
     (Assign, "Assign"),
+    (Apply, "Apply"),
     // Algorithm node
     (MultiShortestPath, "MultiShortestPath"),
     (BFSShortest, "BFSShortest"),
@@ -744,20 +777,28 @@ crate::define_enum_category! {
     // Connecting nodes
     (InnerJoin, PlanNodeCategory::Join),
     (LeftJoin, PlanNodeCategory::Join),
+    (RightJoin, PlanNodeCategory::Join),
     (CrossJoin, PlanNodeCategory::Join),
     (HashInnerJoin, PlanNodeCategory::Join),
     (HashLeftJoin, PlanNodeCategory::Join),
     (FullOuterJoin, PlanNodeCategory::Join),
+    (SemiJoin, PlanNodeCategory::Join),
     // Traverse the nodes
     (Expand, PlanNodeCategory::Traversal),
     (ExpandAll, PlanNodeCategory::Traversal),
     (Traverse, PlanNodeCategory::Traversal),
     (AppendVertices, PlanNodeCategory::Traversal),
+    (BiExpand, PlanNodeCategory::Traversal),
+    (BiTraverse, PlanNodeCategory::Traversal),
     // Control flow nodes
     (Argument, PlanNodeCategory::ControlFlow),
     (Loop, PlanNodeCategory::ControlFlow),
     (PassThrough, PlanNodeCategory::ControlFlow),
     (Select, PlanNodeCategory::ControlFlow),
+    // Transaction control nodes
+    (BeginTransaction, PlanNodeCategory::ControlFlow),
+    (Commit, PlanNodeCategory::ControlFlow),
+    (Rollback, PlanNodeCategory::ControlFlow),
     // Data processing node
     (DataCollect, PlanNodeCategory::DataProcessing),
     (Remove, PlanNodeCategory::DataProcessing),
@@ -769,6 +810,7 @@ crate::define_enum_category! {
     (Unwind, PlanNodeCategory::DataProcessing),
     (Materialize, PlanNodeCategory::DataProcessing),
     (Assign, PlanNodeCategory::DataProcessing),
+    (Apply, PlanNodeCategory::DataProcessing),
     // Algorithm node
     (MultiShortestPath, PlanNodeCategory::Algorithm),
     (BFSShortest, PlanNodeCategory::Algorithm),
@@ -862,20 +904,28 @@ crate::define_enum_describe! {
     // Connecting nodes
     (InnerJoin, "InnerJoin"),
     (LeftJoin, "LeftJoin"),
+    (RightJoin, "RightJoin"),
     (CrossJoin, "CrossJoin"),
     (HashInnerJoin, "HashInnerJoin"),
     (HashLeftJoin, "HashLeftJoin"),
     (FullOuterJoin, "FullOuterJoin"),
+    (SemiJoin, "SemiJoin"),
     // Traverse the nodes
     (Expand, "Expand"),
     (ExpandAll, "ExpandAll"),
     (Traverse, "Traverse"),
     (AppendVertices, "AppendVertices"),
+    (BiExpand, "BiExpand"),
+    (BiTraverse, "BiTraverse"),
     // Control flow nodes
     (Argument, "Argument"),
     (Loop, "Loop"),
     (PassThrough, "PassThrough"),
     (Select, "Select"),
+    // Transaction control nodes
+    (BeginTransaction, "BeginTransaction"),
+    (Commit, "Commit"),
+    (Rollback, "Rollback"),
     // Data processing node
     (DataCollect, "DataCollect"),
     (Remove, "Remove"),
@@ -887,6 +937,7 @@ crate::define_enum_describe! {
     (Unwind, "Unwind"),
     (Materialize, "Materialize"),
     (Assign, "Assign"),
+    (Apply, "Apply"),
     // Algorithm node
     (MultiShortestPath, "MultiShortestPath"),
     (BFSShortest, "BFSShortest"),
@@ -1317,6 +1368,18 @@ impl PlanNodeEnum {
                     + Self::estimate_input_memory(node.left_input())
                     + Self::estimate_input_memory(node.right_input())
             }
+            PlanNodeEnum::RightJoin(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + Self::estimate_input_memory(node.left_input())
+                    + Self::estimate_input_memory(node.right_input())
+            }
+            PlanNodeEnum::SemiJoin(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + Self::estimate_input_memory(node.left_input())
+                    + Self::estimate_input_memory(node.right_input())
+            }
 
             // MultipleInputNode: Node structure + multiple child nodes
             PlanNodeEnum::Expand(node) => {
@@ -1345,6 +1408,24 @@ impl PlanNodeEnum {
                         .iter()
                         .map(Self::estimate_input_memory)
                         .sum::<usize>()
+            }
+            PlanNodeEnum::BiExpand(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + Self::estimate_input_memory(node.left_input())
+                    + Self::estimate_input_memory(node.right_input())
+            }
+            PlanNodeEnum::BiTraverse(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + Self::estimate_input_memory(node.left_input())
+                    + Self::estimate_input_memory(node.right_input())
+            }
+            PlanNodeEnum::Apply(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + Self::estimate_input_memory(node.left_input())
+                    + Self::estimate_input_memory(node.right_input())
             }
             PlanNodeEnum::Union(node) => {
                 base_size
@@ -1394,6 +1475,10 @@ impl PlanNodeEnum {
                 }
                 total
             }
+            // Transaction Control Nodes
+            PlanNodeEnum::BeginTransaction(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::Commit(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::Rollback(node) => base_size + estimate_node_memory(node),
             // Vector Search Nodes
             PlanNodeEnum::VectorSearch(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::CreateVectorIndex(node) => base_size + estimate_node_memory(node),
@@ -1606,6 +1691,18 @@ impl PlanNodeEnum {
                     + node.left_input().estimate_memory_internal(visited)
                     + node.right_input().estimate_memory_internal(visited)
             }
+            PlanNodeEnum::RightJoin(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.left_input().estimate_memory_internal(visited)
+                    + node.right_input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::SemiJoin(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.left_input().estimate_memory_internal(visited)
+                    + node.right_input().estimate_memory_internal(visited)
+            }
 
             // MultipleInputNode: Node structure + multiple child nodes
             PlanNodeEnum::Expand(node) => {
@@ -1634,6 +1731,24 @@ impl PlanNodeEnum {
                         .iter()
                         .map(|dep| dep.estimate_memory_internal(visited))
                         .sum::<usize>()
+            }
+            PlanNodeEnum::BiExpand(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.left_input().estimate_memory_internal(visited)
+                    + node.right_input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::BiTraverse(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.left_input().estimate_memory_internal(visited)
+                    + node.right_input().estimate_memory_internal(visited)
+            }
+            PlanNodeEnum::Apply(node) => {
+                base_size
+                    + estimate_node_memory(node)
+                    + node.left_input().estimate_memory_internal(visited)
+                    + node.right_input().estimate_memory_internal(visited)
             }
             PlanNodeEnum::Union(node) => {
                 base_size
@@ -1683,6 +1798,10 @@ impl PlanNodeEnum {
                 }
                 total
             }
+            // Transaction Control Nodes
+            PlanNodeEnum::BeginTransaction(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::Commit(node) => base_size + estimate_node_memory(node),
+            PlanNodeEnum::Rollback(node) => base_size + estimate_node_memory(node),
             // Vector Search Nodes
             PlanNodeEnum::VectorSearch(node) => base_size + estimate_node_memory(node),
             PlanNodeEnum::CreateVectorIndex(node) => base_size + estimate_node_memory(node),

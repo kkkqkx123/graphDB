@@ -229,13 +229,15 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 JoinBuilder::build_hash_inner_join(node, storage, context)
             }
             PlanNodeEnum::LeftJoin(node) => JoinBuilder::build_left_join(node, storage, context),
+            PlanNodeEnum::RightJoin(node) => JoinBuilder::build_right_join(node, storage, context),
             PlanNodeEnum::HashLeftJoin(node) => {
                 JoinBuilder::build_hash_left_join(node, storage, context)
-            }
+            },
             PlanNodeEnum::FullOuterJoin(node) => {
                 JoinBuilder::build_full_outer_join(node, storage, context)
             }
             PlanNodeEnum::CrossJoin(node) => JoinBuilder::build_cross_join(node, storage, context),
+            PlanNodeEnum::SemiJoin(node) => JoinBuilder::build_semi_join(node, storage, context),
 
             // Set Operation Executor
             PlanNodeEnum::Union(node) => SetOperationBuilder::build_union(node, storage, context),
@@ -251,6 +253,12 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             }
             PlanNodeEnum::Traverse(node) => {
                 TraversalBuilder::build_traverse(node, storage, context)
+            }
+            PlanNodeEnum::BiExpand(node) => {
+                TraversalBuilder::build_bi_expand(node, storage, context)
+            }
+            PlanNodeEnum::BiTraverse(node) => {
+                TraversalBuilder::build_bi_traverse(node, storage, context)
             }
             PlanNodeEnum::AllPaths(node) => {
                 TraversalBuilder::build_all_paths(node, storage, context)
@@ -284,6 +292,9 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             PlanNodeEnum::PatternApply(node) => {
                 TransformationBuilder::build_pattern_apply(node, storage, context)
             }
+            PlanNodeEnum::Apply(node) => {
+                TransformationBuilder::build_apply(node, storage, context)
+            }
 
             // Control Flow Executor
             PlanNodeEnum::Loop(node) => self.build_loop_executor(node, storage, context),
@@ -293,6 +304,15 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             }
             PlanNodeEnum::PassThrough(node) => {
                 ControlFlowBuilder::build_pass_through(node, storage, context)
+            }
+            PlanNodeEnum::BeginTransaction(node) => {
+                ControlFlowBuilder::build_begin_transaction(node, storage, context)
+            }
+            PlanNodeEnum::Commit(node) => {
+                ControlFlowBuilder::build_commit(node, storage, context)
+            }
+            PlanNodeEnum::Rollback(node) => {
+                ControlFlowBuilder::build_rollback(node, storage, context)
             }
             PlanNodeEnum::DataCollect(node) => {
                 ControlFlowBuilder::build_data_collect(node, storage, context)

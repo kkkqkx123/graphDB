@@ -6,7 +6,6 @@
 pub mod delete_nodes;
 pub mod info;
 pub mod insert_nodes;
-pub mod macros;
 pub mod update_nodes;
 
 // Re-export info structures

@@ -7,9 +7,11 @@ use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::control_flow::{LoopExecutor, SelectExecutor};
 use crate::query::executor::utils::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
-use crate::query::planning::plan::core::nodes::{
-    ArgumentNode, DataCollectNode, LoopNode, PassThroughNode, SelectNode,
+use crate::query::planning::plan::control_flow::{
+    ArgumentNode, BeginTransactionNode, CommitNode, LoopNode, PassThroughNode, RollbackNode,
+    SelectNode,
 };
+use crate::query::planning::plan::DataCollectNode;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -135,6 +137,39 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
         let executor =
             DataCollectExecutor::new(node.id(), storage, context.expression_context().clone());
         Ok(ExecutorEnum::DataCollect(executor))
+    }
+
+    /// Building the BeginTransaction executor
+    pub fn build_begin_transaction(
+        node: &BeginTransactionNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let executor =
+            PassThroughExecutor::new(node.id(), storage, context.expression_context().clone());
+        Ok(ExecutorEnum::PassThrough(executor))
+    }
+
+    /// Building the Commit executor
+    pub fn build_commit(
+        node: &CommitNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let executor =
+            PassThroughExecutor::new(node.id(), storage, context.expression_context().clone());
+        Ok(ExecutorEnum::PassThrough(executor))
+    }
+
+    /// Building the Rollback executor
+    pub fn build_rollback(
+        node: &RollbackNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let executor =
+            PassThroughExecutor::new(node.id(), storage, context.expression_context().clone());
+        Ok(ExecutorEnum::PassThrough(executor))
     }
 }
 

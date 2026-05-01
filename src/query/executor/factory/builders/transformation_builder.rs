@@ -13,7 +13,8 @@ use crate::query::executor::result_processing::transformations::{
     UnwindExecutor,
 };
 use crate::query::planning::plan::core::nodes::{
-    AppendVerticesNode, AssignNode, MaterializeNode, PatternApplyNode, RollUpApplyNode, UnwindNode,
+    AppendVerticesNode, ApplyNode, AssignNode, MaterializeNode, PatternApplyNode, RollUpApplyNode,
+    UnwindNode,
 };
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -207,6 +208,41 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
                 key_cols,
                 col_names: node.col_names().to_vec(),
                 is_anti_predicate: node.is_anti_predicate(),
+            },
+        );
+        Ok(ExecutorEnum::PatternApply(executor))
+    }
+
+    /// Constructing the Apply executor
+    /// Apply executes a correlated subquery for each row from the left input
+    pub fn build_apply(
+        node: &ApplyNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let left_input_var = node
+            .left_input_var()
+            .cloned()
+            .unwrap_or_else(|| format!("left_{}", node.id()));
+        let right_input_var = node
+            .right_input_var()
+            .cloned()
+            .unwrap_or_else(|| format!("right_{}", node.id()));
+
+        let correlated_cols: Vec<crate::core::Expression> = node
+            .correlated_cols()
+            .iter()
+            .map(|col| crate::core::Expression::Variable(col.clone()))
+            .collect();
+
+        let executor = PatternApplyExecutor::new(
+            ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
+            PatternApplyConfig {
+                left_input_var,
+                right_input_var,
+                key_cols: correlated_cols,
+                col_names: node.col_names().to_vec(),
+                is_anti_predicate: node.is_anti(),
             },
         );
         Ok(ExecutorEnum::PatternApply(executor))

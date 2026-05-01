@@ -25,12 +25,12 @@ pub use data_modification::{
     VertexDeleteInfo, VertexInsertInfo, VertexUpdateInfo,
 };
 pub use graph_operations::{
-    AggregateNode, AssignNode, DataCollectNode, DedupNode, IntersectNode, MaterializeNode,
-    MinusNode, PatternApplyNode, RemoveNode, RollUpApplyNode, UnionNode, UnwindNode,
+    AggregateNode, ApplyKind, ApplyNode, AssignNode, DataCollectNode, DedupNode, IntersectNode,
+    MaterializeNode, MinusNode, PatternApplyNode, RemoveNode, RollUpApplyNode, UnionNode, UnwindNode,
 };
 pub use join::{
-    CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode,
-    LeftJoinNode,
+    AntiJoinNode, CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode,
+    InnerJoinNode, LeftJoinNode, RightJoinNode, SemiJoinNode,
 };
 pub use management::{
     AlterEdgeNode, AlterSpaceNode, AlterTagNode, AlterUserNode, ChangePasswordNode, ClearSpaceNode,
@@ -53,6 +53,6 @@ pub use search::{
     CreateVectorIndexNode, DropVectorIndexNode, VectorLookupNode, VectorMatchNode, VectorSearchNode,
 };
 pub use traversal::{
-    AllPathsNode, AppendVerticesNode, BFSShortestNode, ExpandAllNode, ExpandNode,
-    MultiShortestPathNode, ShortestPathNode, TraverseNode,
+    AllPathsNode, AppendVerticesNode, BFSShortestNode, BiExpandNode, BiTraverseNode, ExpandAllNode,
+    ExpandNode, MultiShortestPathNode, ShortestPathNode, TraverseNode,
 };
