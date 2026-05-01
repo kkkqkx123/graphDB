@@ -17,6 +17,25 @@ use std::sync::Arc;
 use std::time::Duration;
 use vector_client::VectorManager;
 
+/// RAII guard to ensure transaction context is always cleared from storage.
+struct TransactionContextGuard<'a> {
+    storage: Option<&'a RedbStorage>,
+}
+
+impl<'a> TransactionContextGuard<'a> {
+    fn new(storage: Option<&'a RedbStorage>) -> Self {
+        Self { storage }
+    }
+}
+
+impl<'a> Drop for TransactionContextGuard<'a> {
+    fn drop(&mut self) {
+        if let Some(storage) = self.storage {
+            storage.set_transaction_context(None);
+        }
+    }
+}
+
 pub struct GraphService<S: StorageClient + Clone + 'static> {
     session_manager: Arc<GraphSessionManager>,
     query_api: Arc<Mutex<QueryApi<S>>>,
@@ -219,7 +238,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         }
 
         // Perform a regular query using core layer QueryApi
-        let result = self.execute_query_with_permission(session_id, stmt, space_id);
+        let mut result = self.execute_query_with_permission(session_id, stmt, space_id);
 
         // If it is a USE statement and the execution is successful, the space for the session will be updated.
         if result.is_ok() && trimmed_stmt.starts_with("USE ") {
@@ -234,10 +253,15 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         if result.is_ok() && session.is_auto_commit() {
             if let Some(txn_id) = session.current_transaction() {
                 if let Some(ref txn_manager) = self.transaction_manager {
-                    if let Err(e) = txn_manager.commit_transaction(txn_id).await {
-                        warn!("Auto-commit failed: {}", e);
-                    } else {
-                        session.unbind_transaction();
+                    match txn_manager.commit_transaction(txn_id).await {
+                        Ok(()) => {
+                            session.unbind_transaction();
+                        }
+                        Err(e) => {
+                            warn!("Auto-commit failed for transaction {}: {}", txn_id, e);
+                            session.unbind_transaction();
+                            result = Err(format!("Auto-commit failed: {}", e));
+                        }
                     }
                 }
             }
@@ -305,7 +329,28 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         // so that subsequent queries execute within the same transaction
         let txn_context = if let Some(txn_id) = session.current_transaction() {
             if let Some(ref txn_manager) = self.transaction_manager {
-                txn_manager.get_context(txn_id).ok()
+                match txn_manager.get_context(txn_id) {
+                    Ok(ctx) => {
+                        if !ctx.state().can_execute() {
+                            warn!(
+                                "Transaction {} is in invalid state {}, cleaning up session binding",
+                                txn_id, ctx.state()
+                            );
+                            session.unbind_transaction();
+                            None
+                        } else {
+                            Some(ctx)
+                        }
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Failed to get transaction context for {}: {}, unbinding from session",
+                            txn_id, e
+                        );
+                        session.unbind_transaction();
+                        None
+                    }
+                }
             } else {
                 None
             }
@@ -313,11 +358,15 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             None
         };
 
+        let redb_storage = self.storage.as_any().downcast_ref::<RedbStorage>();
         if let Some(ref ctx) = txn_context {
-            if let Some(storage) = self.storage.as_any().downcast_ref::<RedbStorage>() {
+            if let Some(storage) = redb_storage {
                 storage.set_transaction_context(Some(ctx.clone()));
             }
         }
+
+        // RAII guard ensures transaction context is cleared even if query panics
+        let _guard = TransactionContextGuard::new(redb_storage);
 
         // Use core layer QueryApi to execute query
         let query_request = crate::api::core::QueryRequest {
@@ -331,15 +380,6 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let mut query_api = self.query_api.lock();
         let result = query_api.execute(stmt, query_request);
 
-        // Always clear transaction context from storage after query execution,
-        // regardless of success or failure, to prevent stale context from
-        // blocking subsequent operations
-        if txn_context.is_some() {
-            if let Some(storage) = self.storage.as_any().downcast_ref::<RedbStorage>() {
-                storage.set_transaction_context(None);
-            }
-        }
-
         // If the query failed and we have an active transaction, check if the
         // transaction is still in a valid state. If the transaction has become
         // invalid (e.g. due to a storage error), clean it up.
@@ -352,8 +392,9 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                                 "Transaction {} is in invalid state {} after failed query, cleaning up",
                                 txn_id, ctx.state()
                             );
-                            drop(ctx);
-                            let _ = txn_manager.rollback_transaction(txn_id);
+                            if let Err(e) = txn_manager.rollback_transaction(txn_id) {
+                                warn!("Failed to rollback invalid transaction {}: {}", txn_id, e);
+                            }
                             session.unbind_transaction();
                             session.set_auto_commit(true);
                         }
@@ -485,11 +526,39 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
     // ==================== Transaction Control Methods ====================
 
+    /// Validate that session's transaction binding is consistent with transaction manager state.
+    /// Returns Ok(()) if session has no transaction or the transaction is valid.
+    /// Returns Err if session has a stale transaction binding that was cleaned up.
+    fn validate_session_transaction_state(
+        &self,
+        session: &Arc<ClientSession>,
+    ) -> Result<(), String> {
+        if let Some(txn_id) = session.current_transaction() {
+            if let Some(ref txn_manager) = self.transaction_manager {
+                if !txn_manager.is_transaction_active(txn_id) {
+                    warn!(
+                        "Session {} has stale transaction binding to {}, cleaning up",
+                        session.id(),
+                        txn_id
+                    );
+                    session.unbind_transaction();
+                    return Err(format!(
+                        "Transaction {} is no longer active, please retry the operation",
+                        txn_id
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Processing the BEGIN TRANSACTION statement
     fn handle_begin_transaction(
         &self,
         session: &Arc<ClientSession>,
     ) -> Result<ExecutionResult, String> {
+        self.validate_session_transaction_state(session)?;
+
         if session.has_active_transaction() {
             return Err("Session already has an active transaction".to_string());
         }
@@ -540,6 +609,8 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         &self,
         session: &Arc<ClientSession>,
     ) -> Result<ExecutionResult, String> {
+        self.validate_session_transaction_state(session)?;
+
         let txn_id = session
             .current_transaction()
             .ok_or("No active transaction to commit")?;
@@ -566,6 +637,8 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         session: &Arc<ClientSession>,
         stmt: &str,
     ) -> Result<ExecutionResult, String> {
+        self.validate_session_transaction_state(session)?;
+
         let trimmed = stmt.trim().to_uppercase();
 
         // Check whether it is a command to perform a ROLLBACK TO SAVEPOINT.

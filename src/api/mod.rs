@@ -31,8 +31,10 @@ pub use embedded::GraphDatabase;
 use crate::api::server::GraphService;
 use crate::config::Config;
 use crate::core::error::DBResult;
+use crate::storage::api::StorageClient;
 use crate::storage::engine::DefaultStorage;
 use crate::storage::entity::SyncStorage;
+use crate::storage::RedbStorage;
 use crate::transaction::{TransactionManager, TransactionManagerConfig};
 
 /// Start the service using the configuration file path (deprecated; please use start_service_with_config).
@@ -160,7 +162,7 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
         Arc::new(sync_storage)
     };
 
-    // Create a transaction manager
+    // Create a transaction manager with storage inner for proper context cleanup
     let db = storage.inner().get_db().clone();
     let txn_config = TransactionManagerConfig {
         default_timeout: std::time::Duration::from_secs(config.transaction.default_timeout),
@@ -168,7 +170,15 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
         auto_cleanup: true,
         write_lock_timeout: std::time::Duration::from_secs(10),
     };
-    let transaction_manager = Arc::new(TransactionManager::new(db, txn_config));
+    let storage_inner = storage
+        .inner()
+        .as_any()
+        .downcast_ref::<RedbStorage>()
+        .map(|s| s.get_inner().clone());
+    let transaction_manager = Arc::new(match storage_inner {
+        Some(inner) => TransactionManager::with_storage_inner(db, txn_config, inner),
+        None => TransactionManager::new(db, txn_config),
+    });
     info!("Transaction manager initialized");
 
     // Create Tokio runtime for async initialization

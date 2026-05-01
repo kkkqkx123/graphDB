@@ -38,7 +38,7 @@ pub use fulltext::{CoordinatorError, CoordinatorResult, FulltextError, FulltextR
 pub use manager::{ErrorCategory, ManagerError, ManagerResult};
 pub use optimize::{CostError, CostResult, OptimizeError, OptimizeResult};
 pub use permission::{PermissionError, PermissionResult};
-pub use query::{PlanNodeVisitError, QueryError, QueryResult};
+pub use query::{PlanNodeVisitError, QueryError, QueryPhase, QueryResult};
 pub use session::{SessionError, SessionResult};
 pub use storage::{StorageError, StorageResult};
 pub use validation::{
@@ -83,6 +83,9 @@ pub enum DBError {
 
     #[error("Transaction error: {0}")]
     Transaction(String),
+
+    #[error("Graph service error: {0}")]
+    GraphService(String),
 
     #[error("Internal error: {0}")]
     Internal(String),
@@ -141,6 +144,7 @@ impl ToPublicError for DBError {
             DBError::Serialization(_) => ErrorCode::InternalError,
             DBError::Index(_) => ErrorCode::InternalError,
             DBError::Transaction(_) => ErrorCode::ExecutionError,
+            DBError::GraphService(_) => ErrorCode::ExecutionError,
             DBError::Internal(_) => ErrorCode::InternalError,
             DBError::Session(_) => ErrorCode::Unauthorized,
             DBError::Auth(_) => ErrorCode::Unauthorized,
@@ -160,6 +164,7 @@ impl ToPublicError for DBError {
             DBError::Io(_) => "IO operation failed".to_string(),
             DBError::Serialization(_) => "Data serialization failed".to_string(),
             DBError::Index(_) => "Index operation failed".to_string(),
+            DBError::GraphService(_) => "Graph service error".to_string(),
             _ => self.to_string(),
         }
     }
@@ -181,7 +186,7 @@ impl From<crate::query::planning::planner::PlannerError> for DBError {
 
 impl From<crate::query::parser::lexing::LexError> for DBError {
     fn from(err: crate::query::parser::lexing::LexError) -> Self {
-        DBError::Query(QueryError::ParseError(err.to_string()))
+        DBError::Query(QueryError::parse_error(err.to_string()))
     }
 }
 
@@ -209,6 +214,12 @@ impl From<crate::search::error::SearchError> for DBError {
     }
 }
 
+impl From<crate::transaction::TransactionError> for DBError {
+    fn from(err: crate::transaction::TransactionError) -> Self {
+        DBError::Transaction(err.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -222,7 +233,7 @@ mod tests {
 
     #[test]
     fn test_error_conversion() {
-        let query_err = QueryError::ParseError("test error".to_string());
+        let query_err = QueryError::parse_error("test error");
         let db_err: DBError = query_err.into();
         assert!(matches!(db_err, DBError::Query(_)));
     }

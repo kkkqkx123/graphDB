@@ -521,3 +521,217 @@ async fn test_storage_error_recovery() {
         .await
         .expect("Failed to commit second transaction");
 }
+
+/// Test that TransactionManager with storage_inner properly cleans up context on commit
+#[tokio::test]
+async fn test_transaction_manager_with_storage_inner_cleanup_on_commit() {
+    use graphdb::storage::shared_state::StorageInner;
+    use graphdb::storage::{RedbReader, RedbWriter};
+    use graphdb::transaction::{
+        TransactionManager, TransactionManagerConfig, TransactionOptions,
+    };
+
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let db_path = temp_dir.path().join("test.db");
+    let db = Arc::new(
+        redb::Database::create(&db_path).expect("Failed to create database"),
+    );
+
+    // Create a StorageInner to track transaction context
+    let reader = RedbReader::new(db.clone()).expect("Failed to create reader");
+    let writer = RedbWriter::new(db.clone()).expect("Failed to create writer");
+    let storage_inner = Arc::new(StorageInner::new(reader, writer));
+
+    let manager = TransactionManager::with_storage_inner(
+        db.clone(),
+        TransactionManagerConfig::default(),
+        storage_inner.clone(),
+    );
+
+    // Begin transaction - should set context
+    let txn_id = manager
+        .begin_transaction(TransactionOptions::default())
+        .expect("Failed to begin transaction");
+
+    // Verify context is set
+    assert!(
+        storage_inner.get_transaction_context().is_some(),
+        "Transaction context should be set after begin"
+    );
+
+    // Commit transaction - should clear context
+    manager
+        .commit_transaction(txn_id)
+        .await
+        .expect("Failed to commit transaction");
+
+    // Verify context is cleared
+    assert!(
+        storage_inner.get_transaction_context().is_none(),
+        "Transaction context should be cleared after commit"
+    );
+}
+
+/// Test that TransactionManager with storage_inner properly cleans up context on rollback
+#[test]
+fn test_transaction_manager_with_storage_inner_cleanup_on_rollback() {
+    use graphdb::storage::shared_state::StorageInner;
+    use graphdb::storage::{RedbReader, RedbWriter};
+    use graphdb::transaction::{
+        TransactionManager, TransactionManagerConfig, TransactionOptions,
+    };
+
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let db_path = temp_dir.path().join("test.db");
+    let db = Arc::new(
+        redb::Database::create(&db_path).expect("Failed to create database"),
+    );
+
+    // Create a StorageInner to track transaction context
+    let reader = RedbReader::new(db.clone()).expect("Failed to create reader");
+    let writer = RedbWriter::new(db.clone()).expect("Failed to create writer");
+    let storage_inner = Arc::new(StorageInner::new(reader, writer));
+
+    let manager = TransactionManager::with_storage_inner(
+        db.clone(),
+        TransactionManagerConfig::default(),
+        storage_inner.clone(),
+    );
+
+    // Begin transaction - should set context
+    let txn_id = manager
+        .begin_transaction(TransactionOptions::default())
+        .expect("Failed to begin transaction");
+
+    // Verify context is set
+    assert!(
+        storage_inner.get_transaction_context().is_some(),
+        "Transaction context should be set after begin"
+    );
+
+    // Rollback transaction - should clear context
+    manager
+        .rollback_transaction(txn_id)
+        .expect("Failed to rollback transaction");
+
+    // Verify context is cleared
+    assert!(
+        storage_inner.get_transaction_context().is_none(),
+        "Transaction context should be cleared after rollback"
+    );
+}
+
+/// Test that TransactionManager with storage_inner properly cleans up context on cleanup_expired_transactions
+#[tokio::test]
+async fn test_transaction_manager_with_storage_inner_cleanup_on_expired() {
+    use graphdb::storage::shared_state::StorageInner;
+    use graphdb::storage::{RedbReader, RedbWriter};
+    use graphdb::transaction::{
+        TransactionManager, TransactionManagerConfig, TransactionOptions,
+    };
+
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let db_path = temp_dir.path().join("test.db");
+    let db = Arc::new(
+        redb::Database::create(&db_path).expect("Failed to create database"),
+    );
+
+    // Create a StorageInner to track transaction context
+    let reader = RedbReader::new(db.clone()).expect("Failed to create reader");
+    let writer = RedbWriter::new(db.clone()).expect("Failed to create writer");
+    let storage_inner = Arc::new(StorageInner::new(reader, writer));
+
+    let manager = TransactionManager::with_storage_inner(
+        db.clone(),
+        TransactionManagerConfig::default(),
+        storage_inner.clone(),
+    );
+
+    // Begin transaction with very short timeout
+    let options = TransactionOptions::new().with_timeout(Duration::from_millis(50));
+    let txn_id = manager
+        .begin_transaction(options)
+        .expect("Failed to begin transaction");
+
+    // Verify context is set
+    assert!(
+        storage_inner.get_transaction_context().is_some(),
+        "Transaction context should be set after begin"
+    );
+
+    // Wait for expiration
+    sleep(Duration::from_millis(100)).await;
+
+    // Cleanup expired transactions
+    manager.cleanup_expired_transactions();
+
+    // Verify transaction is no longer active
+    assert!(
+        !manager.is_transaction_active(txn_id),
+        "Expired transaction should be cleaned up"
+    );
+
+    // Verify context is cleared
+    assert!(
+        storage_inner.get_transaction_context().is_none(),
+        "Transaction context should be cleared after expired cleanup"
+    );
+}
+
+/// Test that sequential write transactions work correctly with storage_inner
+#[tokio::test]
+async fn test_sequential_writes_with_storage_inner() {
+    use graphdb::storage::shared_state::StorageInner;
+    use graphdb::storage::{RedbReader, RedbWriter};
+    use graphdb::transaction::{
+        TransactionManager, TransactionManagerConfig, TransactionOptions,
+    };
+
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let db_path = temp_dir.path().join("test.db");
+    let db = Arc::new(
+        redb::Database::create(&db_path).expect("Failed to create database"),
+    );
+
+    let reader = RedbReader::new(db.clone()).expect("Failed to create reader");
+    let writer = RedbWriter::new(db.clone()).expect("Failed to create writer");
+    let storage_inner = Arc::new(StorageInner::new(reader, writer));
+
+    let manager = TransactionManager::with_storage_inner(
+        db.clone(),
+        TransactionManagerConfig::default(),
+        storage_inner.clone(),
+    );
+
+    // Run multiple sequential write transactions
+    for i in 0..5 {
+        let txn_id = manager
+            .begin_transaction(TransactionOptions::default())
+            .expect("Failed to begin transaction");
+
+        // Verify context is set for current transaction
+        let ctx = storage_inner.get_transaction_context();
+        assert!(
+            ctx.is_some(),
+            "Transaction context should be set for transaction {}",
+            i
+        );
+        assert_eq!(
+            ctx.unwrap().id,
+            txn_id,
+            "Context should match current transaction ID"
+        );
+
+        manager
+            .commit_transaction(txn_id)
+            .await
+            .expect("Failed to commit transaction");
+
+        // Verify context is cleared after commit
+        assert!(
+            storage_inner.get_transaction_context().is_none(),
+            "Transaction context should be cleared after commit of transaction {}",
+            i
+        );
+    }
+}

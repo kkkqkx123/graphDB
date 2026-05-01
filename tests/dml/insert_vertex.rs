@@ -191,7 +191,7 @@ fn test_insert_vertex_with_all_types() {
             let mut map = HashMap::new();
             map.insert("str_field", Value::String("test".into()));
             map.insert("int_field", Value::Int(42));
-            map.insert("double_field", Value::Float(2.71828));
+            map.insert("double_field", Value::Float(std::f32::consts::E));
             map.insert("bool_field", Value::Bool(true));
             map
         });

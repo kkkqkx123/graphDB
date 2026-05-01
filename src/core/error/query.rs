@@ -12,74 +12,252 @@ use crate::core::error::session::SessionError;
 use crate::core::error::storage::StorageError;
 use crate::core::error::DBError;
 
+/// Query processing phase enumeration
+///
+/// Used to identify which phase of query processing an error occurred in
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QueryPhase {
+    Parse,
+    Validate,
+    Plan,
+    Optimize,
+    Execute,
+}
+
+impl std::fmt::Display for QueryPhase {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QueryPhase::Parse => write!(f, "parse"),
+            QueryPhase::Validate => write!(f, "validate"),
+            QueryPhase::Plan => write!(f, "plan"),
+            QueryPhase::Optimize => write!(f, "optimize"),
+            QueryPhase::Execute => write!(f, "execute"),
+        }
+    }
+}
+
 /// Error type during the planned node access
 ///
 /// Errors that occur during the query plan traversal and validation processes
-#[derive(Error, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub enum PlanNodeVisitError {
-    #[error("Visit error: {0}")]
-    VisitError(String),
-    #[error("Traversal error: {0}")]
-    TraversalError(String),
-    #[error("Validation error: {0}")]
-    ValidationError(String),
+    VisitError {
+        node_id: Option<String>,
+        message: String,
+    },
+    TraversalError {
+        path: String,
+        message: String,
+    },
+    ValidationError {
+        node_type: String,
+        message: String,
+    },
+}
+
+impl std::fmt::Display for PlanNodeVisitError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PlanNodeVisitError::VisitError { node_id, message } => {
+                if let Some(id) = node_id {
+                    write!(f, "Visit error at node {}: {}", id, message)
+                } else {
+                    write!(f, "Visit error: {}", message)
+                }
+            }
+            PlanNodeVisitError::TraversalError { path, message } => {
+                write!(f, "Traversal error in {}: {}", path, message)
+            }
+            PlanNodeVisitError::ValidationError { node_type, message } => {
+                write!(f, "Validation failed for {}: {}", node_type, message)
+            }
+        }
+    }
+}
+
+impl std::error::Error for PlanNodeVisitError {}
+
+impl PlanNodeVisitError {
+    pub fn visit_error(message: impl Into<String>) -> Self {
+        PlanNodeVisitError::VisitError {
+            node_id: None,
+            message: message.into(),
+        }
+    }
+
+    pub fn visit_error_with_node(node_id: impl Into<String>, message: impl Into<String>) -> Self {
+        PlanNodeVisitError::VisitError {
+            node_id: Some(node_id.into()),
+            message: message.into(),
+        }
+    }
+
+    pub fn traversal_error(path: impl Into<String>, message: impl Into<String>) -> Self {
+        PlanNodeVisitError::TraversalError {
+            path: path.into(),
+            message: message.into(),
+        }
+    }
+
+    pub fn validation_error(
+        node_type: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        PlanNodeVisitError::ValidationError {
+            node_type: node_type.into(),
+            message: message.into(),
+        }
+    }
 }
 
 /// Query operation result type aliases
 pub type QueryResult<T> = Result<T, QueryError>;
 
 /// Query layer error type
-#[derive(Error, Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum QueryError {
-    #[error("Storage error: {0}")]
-    StorageError(String),
-
-    #[error("Parse error: {0}")]
-    ParseError(String),
-
-    #[error("Parse error at offset {offset}: {message}")]
-    ParseErrorWithOffset { message: String, offset: usize },
-
-    #[error("Planning error: {0}")]
+    StorageError(StorageErrorWrapper),
+    ParseError {
+        message: String,
+        offset: Option<usize>,
+        location: Option<String>,
+    },
     PlanningError(String),
-
-    #[error("Optimization error: {0}")]
     OptimizationError(String),
-
-    #[error("Invalid query: {0}")]
     InvalidQuery(String),
-
-    #[error("Execution error: {0}")]
     ExecutionError(String),
+    ExpressionError(ExpressionErrorWrapper),
+    PlanNodeVisitError(PlanNodeVisitError),
+    SessionError(SessionError),
+    PermissionError(PermissionError),
+    TransactionError(String),
+    TypeError(String),
+    Timeout(String),
+}
 
-    #[error("Expression error: {0}")]
-    ExpressionError(String),
+impl std::fmt::Display for QueryError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QueryError::StorageError(e) => write!(f, "Storage error: {}", e),
+            QueryError::ParseError {
+                message,
+                offset,
+                location,
+            } => {
+                let location_str = location
+                    .as_ref()
+                    .map(|l| format!(" at {}", l))
+                    .unwrap_or_default();
+                let offset_str = offset
+                    .map(|o| format!(" (offset: {})", o))
+                    .unwrap_or_default();
+                write!(f, "Parse error{}{}: {}", location_str, offset_str, message)
+            }
+            QueryError::PlanningError(msg) => write!(f, "Planning error: {}", msg),
+            QueryError::OptimizationError(msg) => write!(f, "Optimization error: {}", msg),
+            QueryError::InvalidQuery(msg) => write!(f, "Invalid query: {}", msg),
+            QueryError::ExecutionError(msg) => write!(f, "Execution error: {}", msg),
+            QueryError::ExpressionError(e) => write!(f, "Expression error: {}", e),
+            QueryError::PlanNodeVisitError(e) => write!(f, "Plan node visit error: {}", e),
+            QueryError::SessionError(e) => write!(f, "Session error: {}", e),
+            QueryError::PermissionError(e) => write!(f, "Permission error: {}", e),
+            QueryError::TransactionError(msg) => write!(f, "Transaction error: {}", msg),
+            QueryError::TypeError(msg) => write!(f, "Type error: {}", msg),
+            QueryError::Timeout(msg) => write!(f, "Timeout: {}", msg),
+        }
+    }
+}
 
-    #[error("Plan node visit error: {0}")]
-    PlanNodeVisitError(String),
+impl std::error::Error for QueryError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            QueryError::StorageError(e) => Some(e),
+            QueryError::ExpressionError(e) => Some(e),
+            QueryError::PlanNodeVisitError(e) => Some(e),
+            QueryError::SessionError(e) => Some(e),
+            QueryError::PermissionError(e) => Some(e),
+            _ => None,
+        }
+    }
+}
+
+/// Wrapper for StorageError to implement Clone
+#[derive(Error, Debug, Clone)]
+#[error("{0}")]
+pub struct StorageErrorWrapper(String);
+
+impl From<StorageError> for StorageErrorWrapper {
+    fn from(e: StorageError) -> Self {
+        StorageErrorWrapper(e.to_string())
+    }
+}
+
+/// Wrapper for ExpressionError to implement Clone
+#[derive(Error, Debug, Clone)]
+#[error("{0}")]
+pub struct ExpressionErrorWrapper(String);
+
+impl From<ExpressionError> for ExpressionErrorWrapper {
+    fn from(e: ExpressionError) -> Self {
+        ExpressionErrorWrapper(e.to_string())
+    }
+}
+
+impl From<ExpressionErrorType> for ExpressionErrorWrapper {
+    fn from(e: ExpressionErrorType) -> Self {
+        ExpressionErrorWrapper(e.to_string())
+    }
 }
 
 impl QueryError {
-    /// Obtain the offset of the error location
+    pub fn storage_error(message: impl Into<String>) -> Self {
+        QueryError::StorageError(StorageErrorWrapper(message.into()))
+    }
+
+    pub fn parse_error(message: impl Into<String>) -> Self {
+        QueryError::ParseError {
+            message: message.into(),
+            offset: None,
+            location: None,
+        }
+    }
+
+    pub fn parse_error_with_offset(message: impl Into<String>, offset: usize) -> Self {
+        QueryError::ParseError {
+            message: message.into(),
+            offset: Some(offset),
+            location: None,
+        }
+    }
+
+    pub fn parse_error_with_location(
+        message: impl Into<String>,
+        offset: usize,
+        location: impl Into<String>,
+    ) -> Self {
+        QueryError::ParseError {
+            message: message.into(),
+            offset: Some(offset),
+            location: Some(location.into()),
+        }
+    }
+
     pub fn offset(&self) -> Option<usize> {
         match self {
-            QueryError::ParseErrorWithOffset { offset, .. } => Some(*offset),
+            QueryError::ParseError { offset, .. } => *offset,
             _ => None,
         }
     }
 
-    /// Create a parsing error with location information
-    pub fn parse_error_with_offset(message: impl Into<String>, offset: usize) -> Self {
-        QueryError::ParseErrorWithOffset {
-            message: message.into(),
-            offset,
+    pub fn location(&self) -> Option<&str> {
+        match self {
+            QueryError::ParseError { location, .. } => location.as_deref(),
+            _ => None,
         }
     }
-}
 
-impl QueryError {
     pub fn pipeline_parse_error<E: std::error::Error>(e: E) -> Self {
-        QueryError::ParseError(e.to_string())
+        QueryError::parse_error(e.to_string())
     }
 
     pub fn pipeline_validation_error<E: std::error::Error>(e: E) -> Self {
@@ -98,21 +276,20 @@ impl QueryError {
         QueryError::ExecutionError(e.to_string())
     }
 
-    pub fn pipeline_error(phase: &str, message: String) -> Self {
+    pub fn pipeline_error(phase: QueryPhase, message: String) -> Self {
         match phase {
-            "parse" => QueryError::ParseError(message),
-            "validate" | "validation" => QueryError::InvalidQuery(message),
-            "plan" | "planning" => QueryError::PlanningError(message),
-            "optimize" | "optimization" => QueryError::OptimizationError(message),
-            "execute" | "execution" => QueryError::ExecutionError(message),
-            _ => QueryError::ExecutionError(format!("[{}] {}", phase, message)),
+            QueryPhase::Parse => QueryError::parse_error(message),
+            QueryPhase::Validate => QueryError::InvalidQuery(message),
+            QueryPhase::Plan => QueryError::PlanningError(message),
+            QueryPhase::Optimize => QueryError::OptimizationError(message),
+            QueryPhase::Execute => QueryError::ExecutionError(message),
         }
     }
 }
 
 impl From<StorageError> for QueryError {
     fn from(e: StorageError) -> Self {
-        QueryError::StorageError(e.to_string())
+        QueryError::StorageError(e.into())
     }
 }
 
@@ -120,26 +297,29 @@ impl From<DBError> for QueryError {
     fn from(e: DBError) -> Self {
         match e {
             DBError::Query(qe) => qe,
-            DBError::Storage(se) => QueryError::StorageError(se.to_string()),
-            DBError::Expression(expression) => QueryError::ExpressionError(expression.to_string()),
+            DBError::Storage(se) => QueryError::StorageError(se.into()),
+            DBError::Expression(expression) => {
+                QueryError::ExpressionError(expression.into())
+            }
             DBError::Plan(plan) => QueryError::ExecutionError(plan.to_string()),
             DBError::Manager(manager) => QueryError::ExecutionError(manager.to_string()),
             DBError::Validation(msg) => QueryError::InvalidQuery(msg),
             DBError::Io(io) => QueryError::ExecutionError(io.to_string()),
-            DBError::TypeDeduction(msg) => QueryError::ExecutionError(msg),
+            DBError::TypeDeduction(msg) => QueryError::TypeError(msg),
             DBError::Serialization(msg) => QueryError::ExecutionError(msg),
             DBError::Index(msg) => QueryError::ExecutionError(msg),
-            DBError::Transaction(msg) => QueryError::ExecutionError(msg),
+            DBError::Transaction(msg) => QueryError::TransactionError(msg),
             DBError::Internal(msg) => QueryError::ExecutionError(msg),
-            DBError::Session(session) => QueryError::ExecutionError(session.to_string()),
+            DBError::Session(session) => QueryError::SessionError(session),
             DBError::Auth(auth) => QueryError::ExecutionError(auth.to_string()),
-            DBError::Permission(permission) => QueryError::ExecutionError(permission.to_string()),
+            DBError::Permission(permission) => QueryError::PermissionError(permission),
             DBError::MemoryLimitExceeded(msg) => QueryError::ExecutionError(msg),
             DBError::Fulltext(fe) => QueryError::ExecutionError(fe.to_string()),
             DBError::Coordinator(ce) => QueryError::ExecutionError(ce.to_string()),
             DBError::Vector(ve) => QueryError::ExecutionError(ve.to_string()),
             DBError::VectorCoordinator(vce) => QueryError::ExecutionError(vce.to_string()),
-            DBError::Search(se) => QueryError::ExecutionError(se.to_string()),
+            DBError::Search(se) => QueryError::ExecutionError(se),
+            DBError::GraphService(gs) => QueryError::ExecutionError(gs),
         }
     }
 }
@@ -152,7 +332,7 @@ impl From<std::io::Error> for QueryError {
 
 impl From<PlanNodeVisitError> for QueryError {
     fn from(e: PlanNodeVisitError) -> Self {
-        QueryError::PlanNodeVisitError(e.to_string())
+        QueryError::PlanNodeVisitError(e)
     }
 }
 
@@ -164,25 +344,25 @@ impl From<ManagerError> for QueryError {
 
 impl From<SessionError> for QueryError {
     fn from(e: SessionError) -> Self {
-        QueryError::ExecutionError(e.to_string())
+        QueryError::SessionError(e)
     }
 }
 
 impl From<PermissionError> for QueryError {
     fn from(e: PermissionError) -> Self {
-        QueryError::ExecutionError(e.to_string())
+        QueryError::PermissionError(e)
     }
 }
 
 impl From<ExpressionError> for QueryError {
     fn from(e: ExpressionError) -> Self {
-        QueryError::ExpressionError(e.to_string())
+        QueryError::ExpressionError(e.into())
     }
 }
 
 impl From<ExpressionErrorType> for QueryError {
     fn from(e: ExpressionErrorType) -> Self {
-        QueryError::ExpressionError(e.to_string())
+        QueryError::ExpressionError(e.into())
     }
 }
 
@@ -193,8 +373,7 @@ impl ToPublicError for QueryError {
 
     fn to_error_code(&self) -> ErrorCode {
         match self {
-            QueryError::ParseError(_) => ErrorCode::ParseError,
-            QueryError::ParseErrorWithOffset { .. } => ErrorCode::ParseError,
+            QueryError::ParseError { .. } => ErrorCode::ParseError,
             QueryError::InvalidQuery(_) => ErrorCode::ValidationError,
             QueryError::PlanningError(_) => ErrorCode::ExecutionError,
             QueryError::OptimizationError(_) => ErrorCode::ExecutionError,
@@ -202,10 +381,20 @@ impl ToPublicError for QueryError {
             QueryError::ExpressionError(_) => ErrorCode::ExecutionError,
             QueryError::StorageError(_) => ErrorCode::InternalError,
             QueryError::PlanNodeVisitError(_) => ErrorCode::ExecutionError,
+            QueryError::SessionError(se) => se.to_error_code(),
+            QueryError::PermissionError(pe) => pe.to_error_code(),
+            QueryError::TransactionError(_) => ErrorCode::ExecutionError,
+            QueryError::TypeError(_) => ErrorCode::TypeError,
+            QueryError::Timeout(_) => ErrorCode::Timeout,
         }
     }
 
     fn to_public_message(&self) -> String {
-        self.to_string()
+        match self {
+            QueryError::SessionError(se) => se.to_public_message(),
+            QueryError::PermissionError(pe) => pe.to_public_message(),
+            QueryError::StorageError(_) => "Storage operation failed".to_string(),
+            _ => self.to_string(),
+        }
     }
 }

@@ -164,7 +164,7 @@ impl<S: StorageClient> ExpandExecutor<S> {
             &self.edge_types,
             self.with_loop,
         )
-        .map_err(|e| QueryError::StorageError(e.to_string()))
+        .map_err(|e| QueryError::storage_error(e.to_string()))
     }
 
     /// Execute single-step expansion.

@@ -173,7 +173,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             &edge_types,
             false,
         )
-        .map_err(|e| QueryError::StorageError(e.to_string()))
+        .map_err(|e| QueryError::storage_error(e.to_string()))
     }
 
     /// Recursive expansion of paths (synchronous version)
@@ -221,7 +221,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                 let storage = self.get_storage().lock();
                 storage
                     .get_vertex("default", &neighbor_id)
-                    .map_err(|e| QueryError::StorageError(e.to_string()))?
+                    .map_err(|e| QueryError::storage_error(e.to_string()))?
             };
 
             // Create a vertex object: If the vertex already exists, use the actual vertex; otherwise, create a suspended vertex (with an empty Tag list).

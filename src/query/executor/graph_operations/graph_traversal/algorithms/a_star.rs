@@ -148,7 +148,7 @@ impl<S: StorageClient> AStar<S> {
         storage
             .get_vertex("default", vid)
             .map(|v| v.map(|vertex| vertex.properties))
-            .map_err(|e| QueryError::StorageError(e.to_string()))
+            .map_err(|e| QueryError::storage_error(e.to_string()))
     }
 
     /// Get neighbor nodes and edges
@@ -161,7 +161,7 @@ impl<S: StorageClient> AStar<S> {
 
         let edges = storage
             .get_node_edges("default", node_id, self.edge_direction)
-            .map_err(|e| QueryError::StorageError(e.to_string()))?;
+            .map_err(|e| QueryError::storage_error(e.to_string()))?;
 
         let filtered_edges = if let Some(types) = edge_types {
             edges
@@ -217,7 +217,7 @@ impl<S: StorageClient> AStar<S> {
         let storage = self.storage.lock();
         storage
             .get_vertex("default", vid)
-            .map_err(|e| QueryError::StorageError(e.to_string()))
+            .map_err(|e| QueryError::storage_error(e.to_string()))
     }
 
     /// Reconstructing paths based on precursor mapping

@@ -214,6 +214,11 @@ impl RedbStorage {
         self.inner.writer.clone()
     }
 
+    /// Obtain the inner storage state
+    pub fn get_inner(&self) -> &Arc<StorageInner> {
+        &self.inner
+    }
+
     /// Setting up the transaction context
     pub fn set_transaction_context(&self, context: Option<Arc<TransactionContext>>) {
         self.inner.set_transaction_context(context);

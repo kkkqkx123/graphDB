@@ -157,7 +157,7 @@ async fn test_prefix_search_behavior() {
         .expect("Search should succeed");
 
     assert!(
-        results.len() >= 1,
+        !results.is_empty(),
         "Should find documents with 'program' prefix variations"
     );
 }

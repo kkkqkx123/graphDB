@@ -112,7 +112,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
             &self.edge_types,
             false, // By default, self-looping edges are not allowed.
         )
-        .map_err(|e| QueryError::StorageError(e.to_string()))
+        .map_err(|e| QueryError::storage_error(e.to_string()))
     }
 
     /// Check whether the conditions are met.
@@ -238,7 +238,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
                 let storage = self.get_storage().lock();
                 let neighbor_vertex = storage
                     .get_vertex("default", &neighbor_id)
-                    .map_err(|e| QueryError::StorageError(e.to_string()))?;
+                    .map_err(|e| QueryError::storage_error(e.to_string()))?;
 
                 if let Some(vertex) = neighbor_vertex {
                     // Convert NPath to Path for use in conditional checks

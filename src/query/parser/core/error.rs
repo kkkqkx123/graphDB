@@ -198,11 +198,10 @@ impl From<super::super::lexing::LexError> for ParseError {
 impl From<ParseError> for QueryError {
     fn from(parse_error: ParseError) -> Self {
         let message: String = parse_error.message.into();
-        // If there is offset information, please retain it.
         if let Some(offset) = parse_error.offset {
-            QueryError::ParseErrorWithOffset { message, offset }
+            QueryError::parse_error_with_offset(message, offset)
         } else {
-            QueryError::ParseError(message)
+            QueryError::parse_error(message)
         }
     }
 }
@@ -283,7 +282,7 @@ impl From<Vec<ParseError>> for ParseErrors {
 
 impl From<ParseErrors> for QueryError {
     fn from(parse_errors: ParseErrors) -> Self {
-        QueryError::ParseError(parse_errors.to_string())
+        QueryError::parse_error(parse_errors.to_string())
     }
 }
 

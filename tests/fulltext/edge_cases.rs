@@ -374,7 +374,7 @@ async fn test_very_short_content() {
         .await
         .expect("Search should succeed");
 
-    assert!(results.len() >= 1, "Should find at least one document with 'ab'");
+    assert!(!results.is_empty(), "Should find at least one document with 'ab'");
 
     // Search for "abc" should find doc_3
     let results_abc = ctx
@@ -382,7 +382,7 @@ async fn test_very_short_content() {
         .await
         .expect("Search should succeed");
 
-    assert!(results_abc.len() >= 1, "Should find at least one document with 'abc'");
+    assert!(!results_abc.is_empty(), "Should find at least one document with 'abc'");
 }
 
 /// TC-FT-EDGE-013: Numeric Content

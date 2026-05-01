@@ -398,10 +398,8 @@ fn test_retry_config_clone_copy() {
         .with_max_retries(5)
         .with_initial_delay(Duration::from_millis(200));
 
-    let cloned = original.clone();
     let copied = original;
 
-    assert_eq!(original.max_retries, cloned.max_retries);
     assert_eq!(original.max_retries, copied.max_retries);
 }
 

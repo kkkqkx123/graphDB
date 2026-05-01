@@ -55,7 +55,7 @@ impl fmt::Display for ValidationErrorType {
 impl From<ValidationErrorType> for QueryError {
     fn from(e: ValidationErrorType) -> Self {
         match e {
-            ValidationErrorType::SyntaxError => QueryError::ParseError(e.to_string()),
+            ValidationErrorType::SyntaxError => QueryError::parse_error(e.to_string()),
             _ => QueryError::InvalidQuery(e.to_string()),
         }
     }
