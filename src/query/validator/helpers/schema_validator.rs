@@ -676,6 +676,330 @@ impl SchemaValidator {
         }
         Ok(created)
     }
+
+    /// Validate property references in expressions
+    ///
+    /// Recursively checks all property references in an expression to ensure they exist
+    /// in the corresponding tag or edge type schema.
+    ///
+    /// # Arguments
+    /// * `expr` - The expression to validate
+    /// * `space_name` - The space name for schema lookup
+    /// * `available_vars` - Map of variable names to their types (tag name or "edge" or "vertex")
+    ///
+    /// # Returns
+    /// * `Ok(())` if all property references are valid
+    /// * `Err(ValidationError)` if any property reference is invalid
+    pub fn validate_expression_properties(
+        &self,
+        expr: &crate::core::types::expr::Expression,
+        space_name: &str,
+        available_vars: &std::collections::HashMap<String, String>,
+    ) -> Result<(), CoreValidationError> {
+        use crate::core::types::expr::Expression;
+
+        match expr {
+            Expression::Property { object, property } => {
+                self.validate_property_reference(object, property, space_name, available_vars)
+            }
+            Expression::Binary { left, right, .. } => {
+                self.validate_expression_properties(left, space_name, available_vars)?;
+                self.validate_expression_properties(right, space_name, available_vars)
+            }
+            Expression::Unary { operand, .. } => {
+                self.validate_expression_properties(operand, space_name, available_vars)
+            }
+            Expression::Function { args, .. } => {
+                for arg in args {
+                    self.validate_expression_properties(arg, space_name, available_vars)?;
+                }
+                Ok(())
+            }
+            Expression::List(items) => {
+                for item in items {
+                    self.validate_expression_properties(item, space_name, available_vars)?;
+                }
+                Ok(())
+            }
+            Expression::Map(map) => {
+                for (_, value) in map {
+                    self.validate_expression_properties(value, space_name, available_vars)?;
+                }
+                Ok(())
+            }
+            Expression::Case { test_expr, conditions, default } => {
+                if let Some(test) = test_expr {
+                    self.validate_expression_properties(test, space_name, available_vars)?;
+                }
+                for (condition, result) in conditions {
+                    self.validate_expression_properties(condition, space_name, available_vars)?;
+                    self.validate_expression_properties(result, space_name, available_vars)?;
+                }
+                if let Some(def) = default {
+                    self.validate_expression_properties(def, space_name, available_vars)?;
+                }
+                Ok(())
+            }
+            Expression::Aggregate { arg, .. } => {
+                self.validate_expression_properties(arg, space_name, available_vars)?;
+                Ok(())
+            }
+            Expression::Predicate { args, .. } => {
+                for arg in args {
+                    self.validate_expression_properties(arg, space_name, available_vars)?;
+                }
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
+    /// Validate a single property reference
+    ///
+    /// Checks if the property exists in the schema of the referenced object (tag or edge type)
+    fn validate_property_reference(
+        &self,
+        object: &crate::core::types::expr::Expression,
+        property: &str,
+        space_name: &str,
+        available_vars: &std::collections::HashMap<String, String>,
+    ) -> Result<(), CoreValidationError> {
+        use crate::core::types::expr::Expression;
+
+        let schema_name = match object {
+            Expression::Variable(var_name) => {
+                available_vars.get(var_name).cloned().unwrap_or_default()
+            }
+            Expression::Label(label_name) => {
+                label_name.clone()
+            }
+            _ => {
+                return Err(CoreValidationError::new(
+                    format!("Invalid property access: property '{}' on non-variable object", property),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
+
+        if schema_name.is_empty() {
+            return Err(CoreValidationError::new(
+                format!("Cannot determine schema for property access '{}'", property),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        if schema_name == "vertex" || schema_name == "Vertex" {
+            return Ok(());
+        }
+
+        if schema_name == "edge" || schema_name == "Edge" {
+            return Ok(());
+        }
+
+        let properties = if let Ok(Some(tag_info)) = self.schema_manager.get_tag(space_name, &schema_name) {
+            tag_info.properties
+        } else if let Ok(Some(edge_info)) = self.schema_manager.get_edge_type(space_name, &schema_name) {
+            edge_info.properties
+        } else {
+            return Err(CoreValidationError::new(
+                format!("Schema '{}' not found in space '{}'", schema_name, space_name),
+                ValidationErrorType::SemanticError,
+            ));
+        };
+
+        if !properties.iter().any(|p| p.name == property) {
+            return Err(CoreValidationError::new(
+                format!("Property '{}' not found in schema '{}'", property, schema_name),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Infer the type of an expression using schema information
+    ///
+    /// # Arguments
+    /// * `expr` - The expression to infer type for
+    /// * `space_name` - The space name for schema lookup
+    /// * `available_vars` - Map of variable names to their types
+    /// * `input_columns` - Map of column names to their types from input
+    ///
+    /// # Returns
+    /// The inferred ValueType
+    pub fn infer_expression_type(
+        &self,
+        expr: &crate::core::types::expr::Expression,
+        space_name: &str,
+        available_vars: &std::collections::HashMap<String, String>,
+        input_columns: &std::collections::HashMap<String, ValueType>,
+    ) -> ValueType {
+        use crate::core::types::expr::Expression;
+
+        match expr {
+            Expression::Literal(value) => {
+                Self::value_to_value_type(value)
+            }
+            Expression::Variable(name) => {
+                input_columns.get(name).cloned().unwrap_or(ValueType::Unknown)
+            }
+            Expression::Property { object, property } => {
+                self.infer_property_type(object, property, space_name, available_vars)
+            }
+            Expression::Binary { op, .. } => {
+                match op {
+                    crate::core::types::operators::BinaryOperator::Add
+                    | crate::core::types::operators::BinaryOperator::Subtract
+                    | crate::core::types::operators::BinaryOperator::Multiply
+                    | crate::core::types::operators::BinaryOperator::Divide => ValueType::Float,
+                    crate::core::types::operators::BinaryOperator::Equal
+                    | crate::core::types::operators::BinaryOperator::NotEqual
+                    | crate::core::types::operators::BinaryOperator::LessThan
+                    | crate::core::types::operators::BinaryOperator::LessThanOrEqual
+                    | crate::core::types::operators::BinaryOperator::GreaterThan
+                    | crate::core::types::operators::BinaryOperator::GreaterThanOrEqual
+                    | crate::core::types::operators::BinaryOperator::And
+                    | crate::core::types::operators::BinaryOperator::Or => ValueType::Bool,
+                    _ => ValueType::Unknown,
+                }
+            }
+            Expression::Unary { op, .. } => {
+                match op {
+                    crate::core::types::operators::UnaryOperator::Not => ValueType::Bool,
+                    crate::core::types::operators::UnaryOperator::Minus => ValueType::Float,
+                    _ => ValueType::Unknown,
+                }
+            }
+            Expression::Function { name, .. } => {
+                Self::infer_function_return_type(name)
+            }
+            Expression::List(_) => ValueType::List,
+            Expression::Map(_) => ValueType::Map,
+            Expression::Case { conditions, default, .. } => {
+                if !conditions.is_empty() {
+                    let (_, result) = &conditions[0];
+                    self.infer_expression_type(result, space_name, available_vars, input_columns)
+                } else if let Some(def) = default {
+                    self.infer_expression_type(def, space_name, available_vars, input_columns)
+                } else {
+                    ValueType::Unknown
+                }
+            }
+            _ => ValueType::Unknown,
+        }
+    }
+
+    /// Infer the type of a property access expression
+    fn infer_property_type(
+        &self,
+        object: &crate::core::types::expr::Expression,
+        property: &str,
+        space_name: &str,
+        available_vars: &std::collections::HashMap<String, String>,
+    ) -> ValueType {
+        use crate::core::types::expr::Expression;
+
+        let schema_name = match object {
+            Expression::Variable(var_name) => {
+                available_vars.get(var_name).cloned().unwrap_or_default()
+            }
+            Expression::Label(label_name) => {
+                label_name.clone()
+            }
+            _ => return ValueType::Unknown,
+        };
+
+        if schema_name.is_empty() {
+            return ValueType::Unknown;
+        }
+
+        let properties = if let Ok(Some(tag_info)) = self.schema_manager.get_tag(space_name, &schema_name) {
+            tag_info.properties
+        } else if let Ok(Some(edge_info)) = self.schema_manager.get_edge_type(space_name, &schema_name) {
+            edge_info.properties
+        } else {
+            return ValueType::Unknown;
+        };
+
+        for prop in &properties {
+            if prop.name == property {
+                return Self::data_type_to_value_type(&prop.data_type);
+            }
+        }
+
+        ValueType::Unknown
+    }
+
+    /// Convert a Value to ValueType
+    fn value_to_value_type(value: &Value) -> ValueType {
+        match value {
+            Value::Null(_) => ValueType::Null,
+            Value::Bool(_) => ValueType::Bool,
+            Value::SmallInt(_) | Value::Int(_) | Value::BigInt(_) => ValueType::Int,
+            Value::Float(_) | Value::Double(_) => ValueType::Float,
+            Value::String(_) => ValueType::String,
+            Value::Date(_) => ValueType::Date,
+            Value::Time(_) => ValueType::Time,
+            Value::DateTime(_) => ValueType::DateTime,
+            Value::Vertex(_) => ValueType::Vertex,
+            Value::Edge(_) => ValueType::Edge,
+            Value::Path(_) => ValueType::Path,
+            Value::List(_) => ValueType::List,
+            Value::Map(_) => ValueType::Map,
+            Value::Set(_) => ValueType::Set,
+            _ => ValueType::Unknown,
+        }
+    }
+
+    /// Infer the return type of a function
+    fn infer_function_return_type(function_name: &str) -> ValueType {
+        match function_name.to_lowercase().as_str() {
+            "count" | "sum" | "avg" | "min" | "max" => ValueType::Int,
+            "size" | "length" => ValueType::Int,
+            "contains" | "startswith" | "endswith" | "haskey" => ValueType::Bool,
+            "substr" | "lower" | "upper" | "trim" | "ltrim" | "rtrim" | "replace" => ValueType::String,
+            "abs" | "round" | "floor" | "ceil" | "sqrt" | "log" | "exp" | "pow" => ValueType::Float,
+            "type" | "label" => ValueType::String,
+            "id" => ValueType::Int,
+            "head" | "last" => ValueType::Unknown,
+            "keys" | "labels" | "properties" => ValueType::List,
+            "coalesce" => ValueType::Unknown,
+            "nullif" => ValueType::Unknown,
+            _ => ValueType::Unknown,
+        }
+    }
+
+    /// Validate a ContextualExpression's property references
+    pub fn validate_contextual_expression_properties(
+        &self,
+        expr: &ContextualExpression,
+        space_name: &str,
+        available_vars: &std::collections::HashMap<String, String>,
+    ) -> Result<(), CoreValidationError> {
+        if let Some(inner_expr) = expr.get_expression() {
+            self.validate_expression_properties(&inner_expr, space_name, available_vars)
+        } else {
+            Err(CoreValidationError::new(
+                "Invalid expression: unable to get expression content".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// Infer type for a ContextualExpression
+    pub fn infer_contextual_expression_type(
+        &self,
+        expr: &ContextualExpression,
+        space_name: &str,
+        available_vars: &std::collections::HashMap<String, String>,
+        input_columns: &std::collections::HashMap<String, ValueType>,
+    ) -> ValueType {
+        if let Some(inner_expr) = expr.get_expression() {
+            self.infer_expression_type(&inner_expr, space_name, available_vars, input_columns)
+        } else {
+            ValueType::Unknown
+        }
+    }
 }
 
 #[cfg(test)]

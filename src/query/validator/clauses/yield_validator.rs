@@ -9,16 +9,19 @@
 //! Type inference
 //! - DISTINCT validation
 //! 3. Use QueryContext to manage the context in a unified manner.
+//! 4. Added schema validation support for property references.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::YieldColumn;
 use crate::query::parser::ast::stmt::Ast;
+use crate::query::validator::helpers::schema_validator::SchemaValidator;
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
+use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -37,6 +40,7 @@ pub struct ValidatedYield {
 /// 2. Management of input/output columns
 /// 3. Expression property tracing
 /// 4. Column Alias Management
+/// 5. Schema validation for property references
 #[derive(Debug)]
 pub struct YieldValidator {
     // List of the YIELD columns
@@ -57,6 +61,12 @@ pub struct YieldValidator {
     validation_errors: Vec<ValidationError>,
     // Cache validation results
     validated_result: Option<ValidatedYield>,
+    // Schema validator for property validation
+    schema_validator: Option<SchemaValidator>,
+    // Space name for schema lookup
+    space_name: Option<String>,
+    // Available variables and their types (variable_name -> tag_name/edge_type)
+    available_vars: HashMap<String, String>,
 }
 
 impl YieldValidator {
@@ -72,7 +82,48 @@ impl YieldValidator {
             user_defined_vars: Vec::new(),
             validation_errors: Vec::new(),
             validated_result: None,
+            schema_validator: None,
+            space_name: None,
+            available_vars: HashMap::new(),
         }
+    }
+
+    /// Create a new instance with schema manager
+    pub fn with_schema_manager(schema_manager: Arc<RedbSchemaManager>) -> Self {
+        Self {
+            yield_columns: Vec::new(),
+            distinct: false,
+            aliases_available: HashMap::new(),
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+            expr_props: ExpressionProps::default(),
+            user_defined_vars: Vec::new(),
+            validation_errors: Vec::new(),
+            validated_result: None,
+            schema_validator: Some(SchemaValidator::new(schema_manager)),
+            space_name: None,
+            available_vars: HashMap::new(),
+        }
+    }
+
+    /// Set schema manager
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<RedbSchemaManager>) {
+        self.schema_validator = Some(SchemaValidator::new(schema_manager));
+    }
+
+    /// Set space name
+    pub fn set_space_name(&mut self, space_name: String) {
+        self.space_name = Some(space_name);
+    }
+
+    /// Set available variables and their types
+    pub fn set_available_vars(&mut self, vars: HashMap<String, String>) {
+        self.available_vars = vars;
+    }
+
+    /// Add a variable with its type
+    pub fn add_available_var(&mut self, var_name: String, var_type: String) {
+        self.available_vars.insert(var_name, var_type);
     }
 
     /// Obtain the verification results.
@@ -203,6 +254,24 @@ impl YieldValidator {
                 // Type inference failed. A warning is generated, but no error is reported.
                 // In practical implementations, more stringent processing may be required.
             }
+
+            // Validate property references if schema validator is available
+            if let (Some(ref schema_validator), Some(ref space_name)) =
+                (&self.schema_validator, &self.space_name)
+            {
+                if let Some(expr) = col.expression.get_expression() {
+                    if let Err(e) = schema_validator.validate_expression_properties(
+                        &expr,
+                        space_name,
+                        &self.available_vars,
+                    ) {
+                        return Err(ValidationError::new(
+                            e.message,
+                            ValidationErrorType::SemanticError,
+                        ));
+                    }
+                }
+            }
         }
         Ok(())
     }
@@ -244,10 +313,69 @@ impl YieldValidator {
     /// Internal method: Derivation of expression types
     fn deduce_expr_type_internal(
         &self,
-        _expression: &crate::core::types::expr::Expression,
+        expression: &crate::core::types::expr::Expression,
     ) -> Result<ValueType, ValidationError> {
-        // Simplify the implementation; in reality, the type should be determined based on the expression.
-        Ok(ValueType::Unknown)
+        // If schema validator is available, use it for type inference
+        if let (Some(ref schema_validator), Some(ref space_name)) =
+            (&self.schema_validator, &self.space_name)
+        {
+            let input_columns: HashMap<String, ValueType> = self
+                .inputs
+                .iter()
+                .map(|c| (c.name.clone(), c.type_.clone()))
+                .collect();
+
+            return Ok(schema_validator.infer_expression_type(
+                expression,
+                space_name,
+                &self.available_vars,
+                &input_columns,
+            ));
+        }
+
+        // Fallback to basic type inference
+        use crate::core::types::expr::Expression;
+        match expression {
+            Expression::Literal(value) => {
+                match value {
+                    crate::core::Value::Null(_) => Ok(ValueType::Null),
+                    crate::core::Value::Bool(_) => Ok(ValueType::Bool),
+                    crate::core::Value::SmallInt(_)
+                    | crate::core::Value::Int(_)
+                    | crate::core::Value::BigInt(_) => Ok(ValueType::Int),
+                    crate::core::Value::Float(_) | crate::core::Value::Double(_) => {
+                        Ok(ValueType::Float)
+                    }
+                    crate::core::Value::String(_) => Ok(ValueType::String),
+                    crate::core::Value::Date(_) => Ok(ValueType::Date),
+                    crate::core::Value::Time(_) => Ok(ValueType::Time),
+                    crate::core::Value::DateTime(_) => Ok(ValueType::DateTime),
+                    crate::core::Value::Vertex(_) => Ok(ValueType::Vertex),
+                    crate::core::Value::Edge(_) => Ok(ValueType::Edge),
+                    crate::core::Value::Path(_) => Ok(ValueType::Path),
+                    crate::core::Value::List(_) => Ok(ValueType::List),
+                    crate::core::Value::Map(_) => Ok(ValueType::Map),
+                    crate::core::Value::Set(_) => Ok(ValueType::Set),
+                    _ => Ok(ValueType::Unknown),
+                }
+            }
+            Expression::Variable(name) => {
+                // Look up in input columns
+                for input in &self.inputs {
+                    if &input.name == name {
+                        return Ok(input.type_.clone());
+                    }
+                }
+                Ok(ValueType::Unknown)
+            }
+            Expression::Property { .. } => {
+                // Property type requires schema information
+                Ok(ValueType::Unknown)
+            }
+            Expression::List(_) => Ok(ValueType::List),
+            Expression::Map(_) => Ok(ValueType::Map),
+            _ => Ok(ValueType::Unknown),
+        }
     }
 
     /// Verify the specific sentence.
@@ -287,13 +415,18 @@ impl StatementValidator for YieldValidator {
     fn validate(
         &mut self,
         _ast: Arc<Ast>,
-        _qctx: Arc<QueryContext>,
+        qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // Clear the previous state.
         self.outputs.clear();
         self.inputs.clear();
         self.expr_props = ExpressionProps::default();
         self.clear_errors();
+
+        // Get space information from QueryContext
+        if let Some(space_name) = qctx.space_name() {
+            self.space_name = Some(space_name);
+        }
 
         // Perform the specific validation logic.
         if let Err(e) = self.validate_impl() {

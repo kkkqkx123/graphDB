@@ -4,12 +4,15 @@
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::query::parser::ast::stmt::{Ast, ReturnItem, WithStmt};
+use crate::query::validator::helpers::schema_validator::SchemaValidator;
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
+use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 /// With the statement validator
@@ -25,6 +28,12 @@ pub struct WithValidator {
     outputs: Vec<ColumnDef>,
     expr_props: ExpressionProps,
     user_defined_vars: Vec<String>,
+    // Schema validator for property validation
+    schema_validator: Option<SchemaValidator>,
+    // Space name for schema lookup
+    space_name: Option<String>,
+    // Available variables and their types (variable_name -> tag_name/edge_type)
+    available_vars: HashMap<String, String>,
 }
 
 impl WithValidator {
@@ -41,7 +50,49 @@ impl WithValidator {
             outputs: Vec::new(),
             expr_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
+            schema_validator: None,
+            space_name: None,
+            available_vars: HashMap::new(),
         }
+    }
+
+    /// Create a new instance with schema manager
+    pub fn with_schema_manager(schema_manager: Arc<RedbSchemaManager>) -> Self {
+        Self {
+            items: Vec::new(),
+            where_clause: None,
+            distinct: false,
+            order_by: None,
+            skip: None,
+            limit: None,
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+            expr_props: ExpressionProps::default(),
+            user_defined_vars: Vec::new(),
+            schema_validator: Some(SchemaValidator::new(schema_manager)),
+            space_name: None,
+            available_vars: HashMap::new(),
+        }
+    }
+
+    /// Set schema manager
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<RedbSchemaManager>) {
+        self.schema_validator = Some(SchemaValidator::new(schema_manager));
+    }
+
+    /// Set space name
+    pub fn set_space_name(&mut self, space_name: String) {
+        self.space_name = Some(space_name);
+    }
+
+    /// Set available variables and their types
+    pub fn set_available_vars(&mut self, vars: HashMap<String, String>) {
+        self.available_vars = vars;
+    }
+
+    /// Add a variable with its type
+    pub fn add_available_var(&mut self, var_name: String, var_type: String) {
+        self.available_vars.insert(var_name, var_type);
     }
 
     /// Verify the returned items.
@@ -105,6 +156,19 @@ impl WithValidator {
                         "Property name cannot be empty".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
+                }
+                // Validate property reference if schema is available
+                if let (Some(ref schema_validator), Some(ref space_name)) =
+                    (&self.schema_validator, &self.space_name)
+                {
+                    if let Err(e) =
+                        schema_validator.validate_expression_properties(expr, space_name, &self.available_vars)
+                    {
+                        return Err(ValidationError::new(
+                            e.message,
+                            ValidationErrorType::SemanticError,
+                        ));
+                    }
                 }
                 Ok(())
             }
@@ -205,6 +269,25 @@ impl WithValidator {
         &self,
         expr: &crate::core::types::expr::Expression,
     ) -> ValueType {
+        // If schema validator is available, use it for type inference
+        if let (Some(ref schema_validator), Some(ref space_name)) =
+            (&self.schema_validator, &self.space_name)
+        {
+            let input_columns: HashMap<String, ValueType> = self
+                .inputs
+                .iter()
+                .map(|c| (c.name.clone(), c.type_.clone()))
+                .collect();
+
+            return schema_validator.infer_expression_type(
+                expr,
+                space_name,
+                &self.available_vars,
+                &input_columns,
+            );
+        }
+
+        // Fallback to basic type inference
         use crate::core::types::expr::Expression;
         use crate::core::Value;
 
@@ -212,8 +295,8 @@ impl WithValidator {
             Expression::Literal(value) => match value {
                 Value::Null(_) => ValueType::Null,
                 Value::Bool(_) => ValueType::Bool,
-                Value::Int(_) => ValueType::Int,
-                Value::Float(_) => ValueType::Float,
+                Value::SmallInt(_) | Value::Int(_) | Value::BigInt(_) => ValueType::Int,
+                Value::Float(_) | Value::Double(_) => ValueType::Float,
                 Value::String(_) => ValueType::String,
                 Value::Date(_) => ValueType::Date,
                 Value::Time(_) => ValueType::Time,
@@ -226,6 +309,17 @@ impl WithValidator {
                 Value::Set(_) => ValueType::Set,
                 _ => ValueType::Unknown,
             },
+            Expression::Variable(name) => {
+                // Look up in input columns
+                for input in &self.inputs {
+                    if &input.name == name {
+                        return input.type_.clone();
+                    }
+                }
+                ValueType::Unknown
+            }
+            Expression::List(_) => ValueType::List,
+            Expression::Map(_) => ValueType::Map,
             _ => ValueType::Unknown,
         }
     }
@@ -331,8 +425,13 @@ impl StatementValidator for WithValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
-        _qctx: Arc<QueryContext>,
+        qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
+        // Get space information from QueryContext
+        if let Some(space_name) = qctx.space_name() {
+            self.space_name = Some(space_name);
+        }
+
         let with_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::With(with_stmt) => with_stmt,
             _ => {

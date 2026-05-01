@@ -10,16 +10,19 @@
 //! Type inference of expressions
 //! Collection of expression references
 //! 3. Use QueryContext to manage the context in a unified manner.
+//! 4. Added schema validation support for property references.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::OrderDirection;
 use crate::query::parser::ast::stmt::Ast;
+use crate::query::validator::helpers::schema_validator::SchemaValidator;
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
+use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -39,6 +42,7 @@ pub struct OrderColumn {
 /// 3. Expression property tracing
 /// 4. Validation of sorting expressions
 /// 5. Type compatibility check
+/// 6. Schema validation for property references
 #[derive(Debug)]
 pub struct OrderByValidator {
     // List of sorted columns
@@ -55,6 +59,12 @@ pub struct OrderByValidator {
     user_defined_vars: Vec<String>,
     // List of validation errors
     validation_errors: Vec<ValidationError>,
+    // Schema validator for property validation
+    schema_validator: Option<SchemaValidator>,
+    // Space name for schema lookup
+    space_name: Option<String>,
+    // Available variables and their types (variable_name -> tag_name/edge_type)
+    available_vars: HashMap<String, String>,
 }
 
 impl OrderByValidator {
@@ -68,7 +78,46 @@ impl OrderByValidator {
             expr_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
             validation_errors: Vec::new(),
+            schema_validator: None,
+            space_name: None,
+            available_vars: HashMap::new(),
         }
+    }
+
+    /// Create a new instance with schema manager
+    pub fn with_schema_manager(schema_manager: Arc<RedbSchemaManager>) -> Self {
+        Self {
+            order_columns: Vec::new(),
+            input_columns: HashMap::new(),
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+            expr_props: ExpressionProps::default(),
+            user_defined_vars: Vec::new(),
+            validation_errors: Vec::new(),
+            schema_validator: Some(SchemaValidator::new(schema_manager)),
+            space_name: None,
+            available_vars: HashMap::new(),
+        }
+    }
+
+    /// Set schema manager
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<RedbSchemaManager>) {
+        self.schema_validator = Some(SchemaValidator::new(schema_manager));
+    }
+
+    /// Set space name
+    pub fn set_space_name(&mut self, space_name: String) {
+        self.space_name = Some(space_name);
+    }
+
+    /// Set available variables and their types
+    pub fn set_available_vars(&mut self, vars: HashMap<String, String>) {
+        self.available_vars = vars;
+    }
+
+    /// Add a variable with its type
+    pub fn add_available_var(&mut self, var_name: String, var_type: String) {
+        self.available_vars.insert(var_name, var_type);
     }
 
     /// Add a sorting column
@@ -146,6 +195,24 @@ impl OrderByValidator {
                     format!("ORDER BY expression type {:?} is not comparable", expr_type),
                     ValidationErrorType::TypeError,
                 ));
+            }
+
+            // Validate property references if schema validator is available
+            if let (Some(ref schema_validator), Some(ref space_name)) =
+                (&self.schema_validator, &self.space_name)
+            {
+                if let Some(expr) = col.expression.get_expression() {
+                    if let Err(e) = schema_validator.validate_expression_properties(
+                        &expr,
+                        space_name,
+                        &self.available_vars,
+                    ) {
+                        return Err(ValidationError::new(
+                            e.message,
+                            ValidationErrorType::SemanticError,
+                        ));
+                    }
+                }
             }
         }
         Ok(())
@@ -235,13 +302,32 @@ impl OrderByValidator {
         &self,
         expression: &crate::core::types::expr::Expression,
     ) -> Result<ValueType, ValidationError> {
+        // If schema validator is available, use it for type inference
+        if let (Some(ref schema_validator), Some(ref space_name)) =
+            (&self.schema_validator, &self.space_name)
+        {
+            let inferred_type = schema_validator.infer_expression_type(
+                expression,
+                space_name,
+                &self.available_vars,
+                &self.input_columns,
+            );
+            // If we got a known type from schema, return it
+            if inferred_type != ValueType::Unknown {
+                return Ok(inferred_type);
+            }
+        }
+
+        // Fallback to basic type inference
         use crate::core::types::expr::Expression;
 
         match expression {
             Expression::Literal(value) => match value {
                 crate::core::Value::Bool(_) => Ok(ValueType::Bool),
-                crate::core::Value::Int(_) => Ok(ValueType::Int),
-                crate::core::Value::Float(_) => Ok(ValueType::Float),
+                crate::core::Value::SmallInt(_)
+                | crate::core::Value::Int(_)
+                | crate::core::Value::BigInt(_) => Ok(ValueType::Int),
+                crate::core::Value::Float(_) | crate::core::Value::Double(_) => Ok(ValueType::Float),
                 crate::core::Value::String(_) => Ok(ValueType::String),
                 crate::core::Value::Date(_) => Ok(ValueType::Date),
                 crate::core::Value::Time(_) => Ok(ValueType::Time),
@@ -546,9 +632,14 @@ impl StatementValidator for OrderByValidator {
     fn validate(
         &mut self,
         _ast: Arc<Ast>,
-        _qctx: Arc<QueryContext>,
+        qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         self.clear_errors();
+
+        // Get space information from QueryContext
+        if let Some(space_name) = qctx.space_name() {
+            self.space_name = Some(space_name);
+        }
 
         // Please provide the text you would like to have translated. I will then perform the verification and translate it into English.
         if let Err(e) = self.validate_impl() {
