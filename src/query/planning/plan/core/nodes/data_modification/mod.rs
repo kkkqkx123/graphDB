@@ -16,6 +16,6 @@ pub use info::{
 };
 
 // Re-export plan nodes
-pub use delete_nodes::{DeleteEdgesNode, DeleteVerticesNode};
+pub use delete_nodes::{DeleteEdgesNode, DeleteVerticesNode, PipeDeleteEdgesNode, PipeDeleteVerticesNode};
 pub use insert_nodes::{InsertEdgesNode, InsertVerticesNode};
 pub use update_nodes::{UpdateEdgesNode, UpdateNode, UpdateVerticesNode};

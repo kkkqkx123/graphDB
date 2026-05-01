@@ -259,7 +259,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
 /// 
 /// Handles DELETE statements that receive input from a pipe.
 /// Evaluates expressions against input rows to determine what to delete.
-pub struct PipeDeleteExecutor<S: StorageClient> {
+pub struct PipeDeleteExecutor<S: StorageClient + 'static> {
     base: BaseExecutor<S>,
     vertex_id_expressions: Vec<ContextualExpression>,
     edge_expressions: Vec<(ContextualExpression, ContextualExpression, Option<ContextualExpression>)>,
@@ -268,9 +268,10 @@ pub struct PipeDeleteExecutor<S: StorageClient> {
     with_edge: bool,
     space_name: String,
     input_data: Option<DataSet>,
+    input_executor: Option<Box<crate::query::executor::ExecutorEnum<S>>>,
 }
 
-impl<S: StorageClient> PipeDeleteExecutor<S> {
+impl<S: StorageClient + 'static> PipeDeleteExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -285,6 +286,7 @@ impl<S: StorageClient> PipeDeleteExecutor<S> {
             with_edge: false,
             space_name: "default".to_string(),
             input_data: None,
+            input_executor: None,
         }
     }
 
@@ -327,9 +329,27 @@ impl<S: StorageClient> PipeDeleteExecutor<S> {
     }
 }
 
+impl<S: StorageClient + Send + Sync + 'static> crate::query::executor::base::InputExecutor<S> for PipeDeleteExecutor<S> {
+    fn set_input(&mut self, input: crate::query::executor::ExecutorEnum<S>) {
+        self.input_executor = Some(Box::new(input));
+    }
+
+    fn get_input(&self) -> Option<&crate::query::executor::ExecutorEnum<S>> {
+        self.input_executor.as_ref().map(|b| b.as_ref())
+    }
+}
+
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for PipeDeleteExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
+        
+        if let Some(mut input_exec) = self.input_executor.take() {
+            let input_result = input_exec.execute()?;
+            if let crate::query::executor::base::ExecutionResult::DataSet(data) = input_result {
+                self.input_data = Some(data);
+            }
+        }
+        
         let result = self.do_execute();
         let elapsed = start.elapsed();
         self.base.get_stats_mut().add_total_time(elapsed);

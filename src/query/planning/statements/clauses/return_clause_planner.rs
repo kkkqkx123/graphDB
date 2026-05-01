@@ -165,6 +165,7 @@ mod tests {
             limit: None,
             skip: None,
             optional: false,
+            delete_clause: None,
         });
 
         let distinct = extract_distinct_flag(&match_stmt);
@@ -199,6 +200,7 @@ mod tests {
             limit: None,
             skip: None,
             optional: false,
+            delete_clause: None,
         });
 
         let columns = extract_return_columns(&match_stmt).expect("failed to extract");
@@ -225,6 +227,7 @@ mod tests {
             limit: None,
             skip: None,
             optional: false,
+            delete_clause: None,
         });
 
         let result = extract_return_columns(&match_stmt);
@@ -290,6 +293,7 @@ mod tests {
             limit: None,
             skip: None,
             optional: false,
+            delete_clause: None,
         });
 
         let start_node = StartNode::new();
@@ -351,6 +355,7 @@ mod tests {
             limit: None,
             skip: None,
             optional: false,
+            delete_clause: None,
         });
 
         let start_node = StartNode::new();
@@ -411,6 +416,7 @@ mod tests {
             limit: None,
             skip: None,
             optional: false,
+            delete_clause: None,
         });
 
         let input_plan = SubPlan {

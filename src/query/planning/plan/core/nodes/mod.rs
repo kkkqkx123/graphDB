@@ -20,8 +20,9 @@ pub use base::{PlanNodeCategory, PlanNodeEnum, PlanNodeVisitor};
 pub use control_flow::{ArgumentNode, LoopNode, PassThroughNode, SelectNode, StartNode};
 pub use data_modification::{
     DeleteEdgesNode, DeleteVerticesNode, EdgeDeleteInfo, EdgeInsertInfo, EdgeUpdateInfo,
-    InsertEdgesNode, InsertVerticesNode, TagInsertSpec, UpdateEdgesNode, UpdateNode,
-    UpdateTargetType, UpdateVerticesNode, VertexDeleteInfo, VertexInsertInfo, VertexUpdateInfo,
+    InsertEdgesNode, InsertVerticesNode, PipeDeleteEdgesNode, PipeDeleteVerticesNode,
+    TagInsertSpec, UpdateEdgesNode, UpdateNode, UpdateTargetType, UpdateVerticesNode,
+    VertexDeleteInfo, VertexInsertInfo, VertexUpdateInfo,
 };
 pub use graph_operations::{
     AggregateNode, AssignNode, DataCollectNode, DedupNode, IntersectNode, MaterializeNode,

@@ -345,6 +345,7 @@ impl StmtFactory {
             limit,
             skip,
             optional: false,
+            delete_clause: None,
         })
     }
 

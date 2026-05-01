@@ -116,6 +116,7 @@ mod tests {
             limit: None,
             skip: None,
             optional: false,
+            delete_clause: None,
         });
 
         let result = extract_unwind_info(&match_stmt);

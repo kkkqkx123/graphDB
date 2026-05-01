@@ -89,6 +89,7 @@ mod tests {
             limit: Some(10),
             skip: Some(5),
             optional: false,
+            delete_clause: None,
         });
 
         let pagination = extract_pagination_info(&match_stmt);
@@ -107,6 +108,7 @@ mod tests {
             limit: None,
             skip: None,
             optional: false,
+            delete_clause: None,
         });
 
         let pagination = extract_pagination_info(&match_stmt);
@@ -125,6 +127,7 @@ mod tests {
             limit: Some(20),
             skip: None,
             optional: false,
+            delete_clause: None,
         });
 
         let pagination = extract_pagination_info(&match_stmt);
@@ -143,6 +146,7 @@ mod tests {
             limit: None,
             skip: Some(15),
             optional: false,
+            delete_clause: None,
         });
 
         let pagination = extract_pagination_info(&match_stmt);
@@ -161,6 +165,7 @@ mod tests {
             limit: Some(10),
             skip: Some(5),
             optional: false,
+            delete_clause: None,
         });
 
         let start_node = StartNode::new();
@@ -204,6 +209,7 @@ mod tests {
             limit: None,
             skip: None,
             optional: false,
+            delete_clause: None,
         });
 
         let start_node = StartNode::new();
@@ -247,6 +253,7 @@ mod tests {
             limit: Some(10),
             skip: Some(5),
             optional: false,
+            delete_clause: None,
         });
 
         let input_plan = SubPlan {

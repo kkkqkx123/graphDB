@@ -4,7 +4,13 @@
 //! Supports pipe DELETE syntax: GO ... | DELETE VERTEX $-.id
 
 use crate::query::parser::ast::stmt::{PipeStmt, Stmt};
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::core::{
+    node_id_generator::next_node_id,
+    nodes::base::plan_node_traits::SingleInputNode,
+};
+use crate::query::planning::plan::core::nodes::{
+    PipeDeleteEdgesNode, PipeDeleteVerticesNode,
+};
 use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planning::planner::{Planner, PlannerEnum, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
@@ -132,13 +138,27 @@ fn replace_argument_node(plan: PlanNodeEnum, replacement: PlanNodeEnum) -> PlanN
             
             PlanNodeEnum::Unwind(unwind)
         }
-        PlanNodeEnum::DeleteVertices(mut delete_vertices) => {
-            delete_vertices.set_input(replacement);
-            PlanNodeEnum::DeleteVertices(delete_vertices)
+        PlanNodeEnum::DeleteVertices(delete_vertices) => {
+            let info = delete_vertices.info().clone();
+            let node = PipeDeleteVerticesNode::new(next_node_id(), info, replacement);
+            PlanNodeEnum::PipeDeleteVertices(node)
         }
-        PlanNodeEnum::DeleteEdges(mut delete_edges) => {
-            delete_edges.set_input(replacement);
-            PlanNodeEnum::DeleteEdges(delete_edges)
+        PlanNodeEnum::DeleteEdges(delete_edges) => {
+            let info = delete_edges.info().clone();
+            let node = PipeDeleteEdgesNode::new(next_node_id(), info, replacement);
+            PlanNodeEnum::PipeDeleteEdges(node)
+        }
+        PlanNodeEnum::PipeDeleteVertices(mut pipe_delete_vertices) => {
+            let input = pipe_delete_vertices.input().clone();
+            let new_input = replace_argument_node(input, replacement);
+            pipe_delete_vertices.set_input(new_input);
+            PlanNodeEnum::PipeDeleteVertices(pipe_delete_vertices)
+        }
+        PlanNodeEnum::PipeDeleteEdges(mut pipe_delete_edges) => {
+            let input = pipe_delete_edges.input().clone();
+            let new_input = replace_argument_node(input, replacement);
+            pipe_delete_edges.set_input(new_input);
+            PlanNodeEnum::PipeDeleteEdges(pipe_delete_edges)
         }
         other => other,
     }

@@ -245,6 +245,10 @@ impl MatchStatementPlanner {
                     plan = self.plan_limit(plan, pagination)?;
                 }
 
+                if let Some(delete_clause) = &match_stmt.delete_clause {
+                    plan = self.plan_match_delete(plan, delete_clause, space_name)?;
+                }
+
                 Ok(plan)
             }
             _ => Err(PlannerError::InvalidOperation(
@@ -1273,6 +1277,53 @@ impl MatchStatementPlanner {
         )?;
         let limit_node_enum = limit_node.into_enum();
         Ok(SubPlan::new(Some(limit_node_enum), input_plan.tail))
+    }
+
+    fn plan_match_delete(
+        &self,
+        input_plan: SubPlan,
+        delete_clause: &crate::query::parser::ast::stmt::MatchDeleteClause,
+        space_name: &str,
+    ) -> Result<SubPlan, PlannerError> {
+        use crate::query::planning::plan::core::nodes::data_modification::delete_nodes::{
+            PipeDeleteEdgesNode, PipeDeleteVerticesNode,
+        };
+        use crate::query::planning::plan::core::nodes::data_modification::info::VertexDeleteInfo;
+        use crate::query::planning::plan::core::next_node_id;
+
+        let input_node = input_plan.root().as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
+        })?;
+
+        let delete_node = match &delete_clause.target {
+            crate::query::parser::ast::stmt::MatchDeleteTarget::Vertices(vertex_exprs) => {
+                let info = VertexDeleteInfo {
+                    space_name: space_name.to_string(),
+                    vertex_ids: vertex_exprs.clone(),
+                    with_edge: delete_clause.with_edge,
+                    condition: None,
+                };
+                PipeDeleteVerticesNode::new(next_node_id(), info, input_node.clone()).into_enum()
+            }
+            crate::query::parser::ast::stmt::MatchDeleteTarget::Edges(edge_exprs) => {
+                use crate::query::planning::plan::core::nodes::data_modification::info::EdgeDeleteInfo;
+
+                let edges: Vec<_> = edge_exprs
+                    .iter()
+                    .map(|e| (e.clone(), e.clone(), None))
+                    .collect();
+
+                let info = EdgeDeleteInfo {
+                    space_name: space_name.to_string(),
+                    edges,
+                    edge_type: None,
+                    condition: None,
+                };
+                PipeDeleteEdgesNode::new(next_node_id(), info, input_node.clone()).into_enum()
+            }
+        };
+
+        Ok(SubPlan::new(Some(delete_node), input_plan.tail))
     }
 
     fn plan_dedup(&self, input_plan: SubPlan) -> Result<SubPlan, PlannerError> {

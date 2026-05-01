@@ -133,6 +133,7 @@ mod tests {
             limit: None,
             skip: None,
             optional: false,
+            delete_clause: None,
         });
 
         let items = extract_order_by_items(&match_stmt);
@@ -151,6 +152,7 @@ mod tests {
             limit: None,
             skip: None,
             optional: false,
+            delete_clause: None,
         });
 
         let items = extract_order_by_items(&match_stmt);
@@ -225,6 +227,7 @@ mod tests {
             limit: None,
             skip: None,
             optional: false,
+            delete_clause: None,
         });
 
         let start_node = StartNode::new();
@@ -268,6 +271,7 @@ mod tests {
             limit: None,
             skip: None,
             optional: false,
+            delete_clause: None,
         });
 
         let start_node = StartNode::new();
@@ -318,6 +322,7 @@ mod tests {
             limit: None,
             skip: None,
             optional: false,
+            delete_clause: None,
         });
 
         let input_plan = SubPlan {

@@ -505,6 +505,7 @@ mod tests {
             limit: None,
             skip: None,
             optional: false,
+            delete_clause: None,
         });
 
         let planner = PlannerEnum::from_stmt(&Arc::new(match_stmt));
@@ -526,6 +527,7 @@ mod tests {
             limit: None,
             skip: None,
             optional: false,
+            delete_clause: None,
         });
 
         let planner = PlannerEnum::Match(MatchStatementPlanner::new());

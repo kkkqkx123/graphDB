@@ -1635,6 +1635,7 @@ mod tests {
             limit: None,
             skip: None,
             optional: false,
+            delete_clause: None,
         });
 
         assert!(matches!(stmt, Stmt::Match(_)));

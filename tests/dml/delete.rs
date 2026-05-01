@@ -4,6 +4,8 @@
 //! - DELETE VERTEX - Delete vertices
 //! - DELETE EDGE - Delete edges
 //! - DELETE with CASCADE
+//! - Pipe DELETE - Delete via pipe (GO ... | DELETE)
+//! - MATCH...DELETE - Delete matched patterns
 
 use super::common;
 
@@ -219,4 +221,264 @@ fn test_delete_nonexistent_edge() {
         .exec_ddl("CREATE EDGE KNOWS(since DATE)")
         .exec_dml("DELETE EDGE 1 -> 2 OF KNOWS")
         .assert_error();
+}
+
+// ==================== Pipe DELETE Parser Tests ====================
+
+#[test]
+fn test_pipe_delete_parser_vertex() {
+    let query = r#"GO FROM "1" OVER knows YIELD dst(edge) AS id | DELETE VERTEX $-.id"#;
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "Pipe DELETE VERTEX parsing should succeed: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_pipe_delete_parser_vertex_with_edge() {
+    let query = r#"GO FROM "1" OVER knows YIELD dst(edge) AS id | DELETE VERTEX $-.id WITH EDGE"#;
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "Pipe DELETE VERTEX WITH EDGE parsing should succeed: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_pipe_delete_parser_edge() {
+    let query = r#"GO FROM "1" OVER knows YIELD src(edge) AS s, dst(edge) AS d | DELETE EDGE knows $-.s -> $-.d"#;
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "Pipe DELETE EDGE parsing should succeed: {:?}",
+        result.err()
+    );
+}
+
+// ==================== Pipe DELETE Execution Tests ====================
+
+#[test]
+fn test_pipe_delete_vertex_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2024-01-01'), 1 -> 3:('2024-01-02')")
+        .assert_success()
+        .assert_vertex_exists(2, "Person")
+        .assert_vertex_exists(3, "Person")
+        .exec_dml(r#"GO FROM 1 OVER KNOWS YIELD dst(edge) AS id | DELETE VERTEX $-.id"#)
+        .assert_success()
+        .assert_vertex_not_exists(2, "Person")
+        .assert_vertex_not_exists(3, "Person")
+        .assert_vertex_exists(1, "Person");
+}
+
+#[test]
+fn test_pipe_delete_vertex_with_edge_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2024-01-01')")
+        .assert_success()
+        .assert_edge_exists(1, 2, "KNOWS")
+        .exec_dml(r#"GO FROM 1 OVER KNOWS YIELD dst(edge) AS id | DELETE VERTEX $-.id WITH EDGE"#)
+        .assert_success()
+        .assert_vertex_not_exists(2, "Person")
+        .assert_edge_not_exists(1, 2, "KNOWS");
+}
+
+#[test]
+fn test_pipe_delete_edge_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2024-01-01'), 1 -> 3:('2024-01-02')")
+        .assert_success()
+        .assert_edge_exists(1, 2, "KNOWS")
+        .assert_edge_exists(1, 3, "KNOWS")
+        .exec_dml(r#"GO FROM 1 OVER KNOWS YIELD src(edge) AS s, dst(edge) AS d | DELETE EDGE KNOWS $-.s -> $-.d"#)
+        .assert_success()
+        .assert_edge_not_exists(1, 2, "KNOWS")
+        .assert_edge_not_exists(1, 3, "KNOWS")
+        .assert_vertex_exists(1, "Person")
+        .assert_vertex_exists(2, "Person")
+        .assert_vertex_exists(3, "Person");
+}
+
+// ==================== MATCH...DELETE Parser Tests ====================
+
+#[test]
+fn test_match_delete_parser_vertex() {
+    let query = r#"MATCH (v:Person) WHERE v.age > 65 DELETE VERTEX v"#;
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "MATCH...DELETE VERTEX parsing should succeed: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_match_delete_parser_vertex_with_edge() {
+    let query = r#"MATCH (v:Person) WHERE v.age > 65 DELETE VERTEX v WITH EDGE"#;
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "MATCH...DELETE VERTEX WITH EDGE parsing should succeed: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_match_delete_parser_edge() {
+    let query = r#"MATCH ()-[e:KNOWS]->() WHERE e.since < 2020 DELETE EDGE e"#;
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "MATCH...DELETE EDGE parsing should succeed: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_match_delete_parser_multiple_vertices() {
+    let query = r#"MATCH (v:Person) DELETE VERTEX v, v"#;
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "MATCH...DELETE multiple vertices parsing should succeed: {:?}",
+        result.err()
+    );
+}
+
+// ==================== MATCH...DELETE Execution Tests ====================
+
+#[test]
+fn test_match_delete_vertex_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 70), 2:('Bob', 30), 3:('Charlie', 75)")
+        .assert_success()
+        .assert_vertex_exists(1, "Person")
+        .assert_vertex_exists(2, "Person")
+        .assert_vertex_exists(3, "Person")
+        .exec_dml(r#"MATCH (v:Person) WHERE v.age > 65 DELETE VERTEX v"#)
+        .assert_success()
+        .assert_vertex_not_exists(1, "Person")
+        .assert_vertex_exists(2, "Person")
+        .assert_vertex_not_exists(3, "Person");
+}
+
+#[test]
+fn test_match_delete_vertex_with_edge_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 70), 2:('Bob', 30)")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2024-01-01')")
+        .assert_success()
+        .assert_edge_exists(1, 2, "KNOWS")
+        .exec_dml(r#"MATCH (v:Person) WHERE v.age > 65 DELETE VERTEX v WITH EDGE"#)
+        .assert_success()
+        .assert_vertex_not_exists(1, "Person")
+        .assert_edge_not_exists(1, 2, "KNOWS")
+        .assert_vertex_exists(2, "Person");
+}
+
+#[test]
+fn test_match_delete_edge_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since INT)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:(2019), 1 -> 3:(2022)")
+        .assert_success()
+        .assert_edge_exists(1, 2, "KNOWS")
+        .assert_edge_exists(1, 3, "KNOWS")
+        .exec_dml(r#"MATCH ()-[e:KNOWS]->() WHERE e.since < 2020 DELETE EDGE e"#)
+        .assert_success()
+        .assert_edge_not_exists(1, 2, "KNOWS")
+        .assert_edge_exists(1, 3, "KNOWS")
+        .assert_vertex_exists(1, "Person")
+        .assert_vertex_exists(2, "Person")
+        .assert_vertex_exists(3, "Person");
+}
+
+#[test]
+fn test_match_delete_with_pattern_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2024-01-01'), 2 -> 3:('2024-01-02')")
+        .assert_success()
+        .exec_dml(r#"MATCH (a:Person)-[e:KNOWS]->(b:Person) WHERE a.name == 'Alice' DELETE EDGE e"#)
+        .assert_success()
+        .assert_edge_not_exists(1, 2, "KNOWS")
+        .assert_edge_exists(2, 3, "KNOWS");
+}
+
+// ==================== Combined DELETE Tests ====================
+
+#[test]
+fn test_pipe_delete_with_where_clause() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .exec_ddl("CREATE EDGE FRIEND(age INT)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 25), 2:('Bob', 30), 3:('Charlie', 35)")
+        .exec_dml("INSERT EDGE FRIEND(age) VALUES 1 -> 2:(30), 1 -> 3:(35)")
+        .assert_success()
+        .exec_dml(r#"GO FROM 1 OVER FRIEND WHERE $$.Person.age > 28 YIELD dst(edge) AS id | DELETE VERTEX $-.id"#)
+        .assert_success()
+        .assert_vertex_exists(1, "Person")
+        .assert_vertex_exists(2, "Person")
+        .assert_vertex_not_exists(3, "Person");
+}
+
+#[test]
+fn test_match_delete_with_limit() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 70), 2:('Bob', 75), 3:('Charlie', 80)")
+        .assert_success()
+        .exec_dml(r#"MATCH (v:Person) WHERE v.age > 65 RETURN v ORDER BY v.age LIMIT 2"#)
+        .assert_success();
 }

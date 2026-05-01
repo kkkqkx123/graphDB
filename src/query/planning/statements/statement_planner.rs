@@ -146,6 +146,7 @@ mod tests {
             limit: None,
             skip: None,
             optional: false,
+            delete_clause: None,
         });
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         Arc::new(Ast::new(stmt, ctx))

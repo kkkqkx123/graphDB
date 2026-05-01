@@ -109,6 +109,12 @@ impl PlanNodeEnum {
             PlanNodeEnum::Traverse(node) => {
                 vec![super::plan_node_traits::SingleInputNode::input(node)]
             }
+            PlanNodeEnum::PipeDeleteVertices(node) => {
+                vec![super::plan_node_traits::SingleInputNode::input(node)]
+            }
+            PlanNodeEnum::PipeDeleteEdges(node) => {
+                vec![super::plan_node_traits::SingleInputNode::input(node)]
+            }
 
             // BinaryInputNode: It has two child nodes.
             PlanNodeEnum::InnerJoin(node) => vec![
@@ -141,7 +147,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::ExpandAll(node) => node.inputs().iter().collect(),
             PlanNodeEnum::AppendVertices(node) => node.inputs().iter().collect(),
 
-            // UnionNode: 使用 dependencies() 获取所有子节点
+            // UnionNode: Use dependencies () to retrieve all child nodes
             PlanNodeEnum::Union(node) => node.dependencies().iter().collect(),
             PlanNodeEnum::Minus(node) => {
                 vec![node.input(), node.minus_input()]

@@ -46,6 +46,12 @@ impl TraversalParser {
             None
         };
 
+        let delete_clause = if ctx.match_token(TokenKind::Delete) {
+            Some(self.parse_match_delete_clause(ctx)?)
+        } else {
+            None
+        };
+
         let (order_by, limit, skip) = if let Some(ref rc) = return_clause {
             let limit = rc.limit.as_ref().map(|l| l.count);
             let skip = rc.skip.as_ref().map(|s| s.count);
@@ -66,7 +72,42 @@ impl TraversalParser {
             limit,
             skip,
             optional,
+            delete_clause,
         }))
+    }
+
+    fn parse_match_delete_clause(&mut self, ctx: &mut ParseContext) -> Result<MatchDeleteClause, ParseError> {
+        let start_span = ctx.current_span();
+
+        let target = if ctx.match_token(TokenKind::Vertex) {
+            let vertex_ids = self.parse_expression_list(ctx)?;
+            MatchDeleteTarget::Vertices(vertex_ids)
+        } else if ctx.match_token(TokenKind::Edge) {
+            let edge_refs = self.parse_expression_list(ctx)?;
+            MatchDeleteTarget::Edges(edge_refs)
+        } else {
+            return Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
+                "Expected VERTEX or EDGE after DELETE".to_string(),
+                ctx.current_position(),
+            ));
+        };
+
+        let with_edge = if ctx.match_token(TokenKind::With) {
+            ctx.expect_token(TokenKind::Edge)?;
+            true
+        } else {
+            false
+        };
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(MatchDeleteClause {
+            span,
+            target,
+            with_edge,
+        })
     }
 
     /// Analyzing GO statements

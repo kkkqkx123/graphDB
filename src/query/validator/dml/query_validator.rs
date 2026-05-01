@@ -194,6 +194,7 @@ mod tests {
                 limit: None,
                 skip: None,
                 optional: false,
+                delete_clause: None,
             })],
         };
 

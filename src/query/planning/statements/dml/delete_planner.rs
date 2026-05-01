@@ -7,7 +7,10 @@ use crate::query::metadata::MetadataContext;
 use crate::query::parser::ast::{DeleteStmt, DeleteTarget, Stmt};
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
-    nodes::{DeleteEdgesNode, DeleteVerticesNode, EdgeDeleteInfo, VertexDeleteInfo},
+    nodes::{
+        DeleteEdgesNode, DeleteVerticesNode, EdgeDeleteInfo, PipeDeleteEdgesNode,
+        PipeDeleteVerticesNode, VertexDeleteInfo,
+    },
 };
 use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
@@ -120,13 +123,14 @@ impl DeletePlanner {
                     with_edge: delete_stmt.with_edge,
                     condition: delete_stmt.where_clause.clone(),
                 };
-                
-                let node = if let Some(input) = input_node {
-                    DeleteVerticesNode::with_input(next_node_id(), info, input)
+
+                if let Some(input) = input_node {
+                    let node = PipeDeleteVerticesNode::new(next_node_id(), info, input);
+                    PlanNodeEnum::PipeDeleteVertices(node)
                 } else {
-                    DeleteVerticesNode::new(next_node_id(), info)
-                };
-                PlanNodeEnum::DeleteVertices(node)
+                    let node = DeleteVerticesNode::new(next_node_id(), info);
+                    PlanNodeEnum::DeleteVertices(node)
+                }
             }
             DeleteTarget::Edges { edge_type, edges } => {
                 let info = EdgeDeleteInfo {
@@ -138,13 +142,14 @@ impl DeletePlanner {
                         .collect(),
                     condition: delete_stmt.where_clause.clone(),
                 };
-                
-                let node = if let Some(input) = input_node {
-                    DeleteEdgesNode::with_input(next_node_id(), info, input)
+
+                if let Some(input) = input_node {
+                    let node = PipeDeleteEdgesNode::new(next_node_id(), info, input);
+                    PlanNodeEnum::PipeDeleteEdges(node)
                 } else {
-                    DeleteEdgesNode::new(next_node_id(), info)
-                };
-                PlanNodeEnum::DeleteEdges(node)
+                    let node = DeleteEdgesNode::new(next_node_id(), info);
+                    PlanNodeEnum::DeleteEdges(node)
+                }
             }
             DeleteTarget::Tags { .. } => {
                 return Err(PlannerError::PlanGenerationFailed(
