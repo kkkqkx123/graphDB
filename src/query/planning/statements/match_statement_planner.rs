@@ -711,8 +711,9 @@ impl MatchStatementPlanner {
                     if let Expression::Variable(obj_name) = object.as_ref() {
                         if obj_name == var_name {
                             if let Expression::Literal(lit) = right.as_ref() {
-                                let value_str = format!("{:?}", lit);
-                                conditions.push((property.clone(), op_str.clone(), value_str));
+                                if let Some(value_str) = Self::value_to_index_string(lit) {
+                                    conditions.push((property.clone(), op_str.clone(), value_str));
+                                }
                             }
                         }
                     }
@@ -730,14 +731,38 @@ impl MatchStatementPlanner {
                                     BinaryOperator::LessThanOrEqual => ">=".to_string(),
                                     _ => op_str.clone(),
                                 };
-                                let value_str = format!("{:?}", lit);
-                                conditions.push((property.clone(), reversed_op, value_str));
+                                if let Some(value_str) = Self::value_to_index_string(lit) {
+                                    conditions.push((property.clone(), reversed_op, value_str));
+                                }
                             }
                         }
                     }
                 }
             }
+            Expression::Map(pairs) => {
+                for (key, value_expr) in pairs {
+                    if let Expression::Literal(lit) = value_expr {
+                        if let Some(value_str) = Self::value_to_index_string(lit) {
+                            conditions.push((key.clone(), "=".to_string(), value_str));
+                        }
+                    }
+                }
+            }
             _ => {}
+        }
+    }
+
+    fn value_to_index_string(value: &crate::core::Value) -> Option<String> {
+        use crate::core::Value;
+        match value {
+            Value::String(s) => Some(s.clone()),
+            Value::SmallInt(i) => Some(i.to_string()),
+            Value::Int(i) => Some(i.to_string()),
+            Value::BigInt(i) => Some(i.to_string()),
+            Value::Float(f) => Some(f.to_string()),
+            Value::Double(d) => Some(d.to_string()),
+            Value::Bool(b) => Some(b.to_string()),
+            _ => None,
         }
     }
 

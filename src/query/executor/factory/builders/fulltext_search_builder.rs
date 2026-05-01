@@ -191,15 +191,30 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
             .fulltext_manager();
 
-        let executor = FulltextSearchExecutor::new(
-            node.id(),
-            statement,
-            search_engine,
-            context.clone(),
-            storage,
-            context.expression_context().clone(),
-            fulltext_manager,
-        );
+        let executor = if !node.tag_name.is_empty() && !node.field_name.is_empty() {
+            FulltextSearchExecutor::with_metadata(
+                node.id(),
+                statement,
+                search_engine,
+                context.clone(),
+                storage,
+                context.expression_context().clone(),
+                fulltext_manager,
+                node.space_id,
+                node.tag_name.clone(),
+                node.field_name.clone(),
+            )
+        } else {
+            FulltextSearchExecutor::new(
+                node.id(),
+                statement,
+                search_engine,
+                context.clone(),
+                storage,
+                context.expression_context().clone(),
+                fulltext_manager,
+            )
+        };
         Ok(ExecutorEnum::FulltextSearch(executor))
     }
 
@@ -225,6 +240,9 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
                 index_name: node.index_name.clone(),
                 query: node.query.clone(),
                 limit: node.limit,
+                space_id: node.space_id,
+                tag_name: node.tag_name.clone(),
+                field_name: node.field_name.clone(),
             },
             search_engine,
             context.clone(),
@@ -253,6 +271,11 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             node.yield_clause.clone(),
             context.expression_context().clone(),
             fulltext_manager,
+        )
+        .with_metadata(
+            node.space_id,
+            node.tag_name.clone(),
+            node.field_name.clone(),
         );
         Ok(ExecutorEnum::MatchFulltext(executor))
     }

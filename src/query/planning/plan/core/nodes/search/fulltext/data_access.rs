@@ -22,6 +22,12 @@ pub struct FulltextSearchNode {
     pub order_clause: Option<OrderClause>,
     pub limit: Option<usize>,
     pub offset: Option<usize>,
+    /// Pre-resolved space_id from metadata context
+    pub space_id: u64,
+    /// Pre-resolved tag_name from index metadata
+    pub tag_name: String,
+    /// Pre-resolved field_name from index metadata
+    pub field_name: String,
 }
 
 impl FulltextSearchNode {
@@ -43,7 +49,22 @@ impl FulltextSearchNode {
             order_clause,
             limit,
             offset,
+            space_id: 0,
+            tag_name: String::new(),
+            field_name: String::new(),
         }
+    }
+
+    pub fn with_metadata(
+        mut self,
+        space_id: u64,
+        tag_name: String,
+        field_name: String,
+    ) -> Self {
+        self.space_id = space_id;
+        self.tag_name = tag_name;
+        self.field_name = field_name;
+        self
     }
 
     pub fn id(&self) -> i64 {
@@ -94,6 +115,12 @@ pub struct FulltextLookupNode {
     pub query: String,
     pub yield_clause: Option<FulltextYieldClause>,
     pub limit: Option<usize>,
+    /// Pre-resolved space_id from metadata context
+    pub space_id: u64,
+    /// Pre-resolved tag_name from index metadata
+    pub tag_name: String,
+    /// Pre-resolved field_name from index metadata
+    pub field_name: String,
 }
 
 impl FulltextLookupNode {
@@ -111,7 +138,22 @@ impl FulltextLookupNode {
             query,
             yield_clause,
             limit,
+            space_id: 0,
+            tag_name: String::new(),
+            field_name: String::new(),
         }
+    }
+
+    pub fn with_metadata(
+        mut self,
+        space_id: u64,
+        tag_name: String,
+        field_name: String,
+    ) -> Self {
+        self.space_id = space_id;
+        self.tag_name = tag_name;
+        self.field_name = field_name;
+        self
     }
 
     pub fn id(&self) -> i64 {
@@ -159,6 +201,12 @@ pub struct MatchFulltextNode {
     pub pattern: String,
     pub fulltext_condition: FulltextMatchCondition,
     pub yield_clause: Option<FulltextYieldClause>,
+    /// Pre-resolved space_id from metadata context
+    pub space_id: u64,
+    /// Pre-resolved tag_name from index metadata
+    pub tag_name: String,
+    /// Pre-resolved field_name from index metadata
+    pub field_name: String,
 }
 
 impl MatchFulltextNode {
@@ -171,7 +219,22 @@ impl MatchFulltextNode {
             pattern,
             fulltext_condition,
             yield_clause,
+            space_id: 0,
+            tag_name: String::new(),
+            field_name: String::new(),
         }
+    }
+
+    pub fn with_metadata(
+        mut self,
+        space_id: u64,
+        tag_name: String,
+        field_name: String,
+    ) -> Self {
+        self.space_id = space_id;
+        self.tag_name = tag_name;
+        self.field_name = field_name;
+        self
     }
 }
 

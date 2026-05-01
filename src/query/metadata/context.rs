@@ -103,6 +103,19 @@ impl MetadataContext {
         self.tag_metadata.extend(other.tag_metadata);
         self.edge_type_metadata.extend(other.edge_type_metadata);
     }
+
+    /// Find a vector index by space_id and field name
+    pub fn find_vector_index_by_field(
+        &self,
+        space_id: u64,
+        field_name: &str,
+    ) -> Option<&IndexMetadata> {
+        self.index_metadata.values().find(|index| {
+            index.space_id == space_id
+                && index.field_name == field_name
+                && index.index_type == super::types::IndexType::Vector
+        })
+    }
 }
 
 /// Extension trait for MetadataContext to provide convenient access methods

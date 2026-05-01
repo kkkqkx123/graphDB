@@ -236,6 +236,12 @@ pub struct VectorMatchNode {
     pub query: VectorQueryExpr,
     pub threshold: Option<f32>,
     pub yield_fields: Vec<OutputField>,
+    /// Pre-resolved space_id from metadata context
+    pub space_id: u64,
+    /// Pre-resolved tag_name from index metadata
+    pub tag_name: String,
+    /// Pre-resolved field_name from index metadata
+    pub field_name: String,
 }
 
 impl VectorMatchNode {
@@ -253,7 +259,22 @@ impl VectorMatchNode {
             query,
             threshold,
             yield_fields,
+            space_id: 0,
+            tag_name: String::new(),
+            field_name: String::new(),
         }
+    }
+
+    pub fn with_metadata(
+        mut self,
+        space_id: u64,
+        tag_name: String,
+        field_name: String,
+    ) -> Self {
+        self.space_id = space_id;
+        self.tag_name = tag_name;
+        self.field_name = field_name;
+        self
     }
 }
 

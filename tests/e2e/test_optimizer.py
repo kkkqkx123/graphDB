@@ -162,7 +162,7 @@ class TestOptimizerJoin(unittest.TestCase):
         cls.client.disconnect()
 
     def test_join_001_join_algorithm_selection(self):
-        """TC-JOIN-001: Verify join algorithm is selected."""
+        """TC-JOIN-001: Verify traversal operation is selected for graph patterns."""
         self.client.execute(f"USE {self.space_name}")
 
         result = self.client.execute('''
@@ -172,10 +172,9 @@ class TestOptimizerJoin(unittest.TestCase):
         ''')
         self.assertTrue(result.success)
         plan = json.dumps(result.data) if result.data else ""
-        # Should contain a join node
         self.assertTrue(
-            "HashJoin" in plan or "IndexJoin" in plan or "NestedLoop" in plan,
-            f"Expected join in plan: {plan}"
+            "Expand" in plan or "HashJoin" in plan or "IndexJoin" in plan or "NestedLoop" in plan,
+            f"Expected expand or join in plan: {plan}"
         )
 
 

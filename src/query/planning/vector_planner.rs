@@ -556,8 +556,8 @@ impl VectorSearchPlanner {
     fn transform_match_vector_with_metadata(
         &self,
         match_stmt: &MatchVector,
-        _space_id: u64,
-        _metadata_context: &MetadataContext,
+        space_id: u64,
+        metadata_context: &MetadataContext,
     ) -> Result<SubPlan, PlannerError> {
         // Validate that the field exists in metadata context if index info is available
         // Note: MatchVector uses direct field reference rather than index name
@@ -570,13 +570,29 @@ impl VectorSearchPlanner {
 
         let yield_fields = self.parse_output_fields(&match_stmt.yield_clause);
 
+        // Try to find vector index metadata for the field
+        let mut resolved_space_id = space_id;
+        let mut resolved_tag_name = String::new();
+        let mut resolved_field_name = String::new();
+
+        // Look for a vector index that matches the field
+        if let Some(index_metadata) = metadata_context.find_vector_index_by_field(
+            space_id,
+            &match_stmt.vector_condition.field,
+        ) {
+            resolved_space_id = index_metadata.space_id;
+            resolved_tag_name = index_metadata.tag_name.clone();
+            resolved_field_name = index_metadata.field_name.clone();
+        }
+
         let node = VectorMatchNode::new(
             match_stmt.pattern.clone(),
             match_stmt.vector_condition.field.clone(),
             match_stmt.vector_condition.query.clone(),
             match_stmt.vector_condition.threshold,
             yield_fields,
-        );
+        )
+        .with_metadata(resolved_space_id, resolved_tag_name, resolved_field_name);
 
         Ok(SubPlan::new(Some(node.into_enum()), None))
     }

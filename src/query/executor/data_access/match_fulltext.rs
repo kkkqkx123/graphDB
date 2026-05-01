@@ -24,6 +24,12 @@ pub struct MatchFulltextExecutor<S: StorageClient> {
     yield_clause: Option<FulltextYieldClause>,
     /// Fulltext manager
     fulltext_manager: Arc<FulltextIndexManager>,
+    /// Pre-resolved space_id
+    space_id: u64,
+    /// Pre-resolved tag_name
+    tag_name: String,
+    /// Pre-resolved field_name
+    field_name: String,
 }
 
 impl<S: StorageClient> MatchFulltextExecutor<S> {
@@ -45,7 +51,45 @@ impl<S: StorageClient> MatchFulltextExecutor<S> {
             fulltext_condition,
             yield_clause,
             fulltext_manager,
+            space_id: 0,
+            tag_name: String::new(),
+            field_name: String::new(),
         }
+    }
+
+    pub fn with_metadata(
+        mut self,
+        space_id: u64,
+        tag_name: String,
+        field_name: String,
+    ) -> Self {
+        self.space_id = space_id;
+        self.tag_name = tag_name;
+        self.field_name = field_name;
+        self
+    }
+
+    fn resolve_metadata(&self) -> DBResult<(u64, String, String)> {
+        if !self.tag_name.is_empty() && !self.field_name.is_empty() {
+            return Ok((self.space_id, self.tag_name.clone(), self.field_name.clone()));
+        }
+
+        let index_name = self.fulltext_condition.index_name.as_ref().ok_or_else(|| {
+            DBError::Validation("Index name is required for MATCH FULLTEXT".to_string())
+        })?;
+
+        let indexes = self.fulltext_manager.list_indexes();
+        
+        for index in indexes {
+            if &index.index_name == index_name {
+                return Ok((index.space_id, index.tag_name, index.field_name));
+            }
+        }
+
+        Err(DBError::Validation(format!(
+            "Fulltext index '{}' not found",
+            index_name
+        )))
     }
 }
 
@@ -60,25 +104,7 @@ impl<S: StorageClient> Executor<S> for MatchFulltextExecutor<S> {
         let field = &self.fulltext_condition.field;
         let query = &self.fulltext_condition.query;
 
-        let index_name = self.fulltext_condition.index_name.as_ref().ok_or_else(|| {
-            DBError::Validation("Index name is required for MATCH FULLTEXT".to_string())
-        })?;
-
-        let parts: Vec<&str> = index_name.split('_').collect();
-
-        if parts.len() < 4 {
-            return Err(DBError::Validation(format!(
-                "Invalid index name format: {}. Expected format: space_id_tag_name_field_name",
-                index_name
-            )));
-        }
-
-        let space_id = parts[0]
-            .parse::<u64>()
-            .map_err(|e| DBError::Validation(format!("Invalid space_id in index name: {}", e)))?;
-
-        let tag_name = parts[1].to_string();
-        let _field_name = parts[2..].join("_");
+        let (space_id, tag_name, _field_name) = self.resolve_metadata()?;
 
         let limit = 100;
 

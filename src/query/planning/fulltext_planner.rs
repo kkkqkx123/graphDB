@@ -294,13 +294,10 @@ impl FulltextSearchPlanner {
         search: &SearchStatement,
         metadata_context: &MetadataContext,
     ) -> Result<SubPlan, PlannerError> {
-        // Validate index exists
-        if metadata_context
+        // Validate index exists and get metadata
+        let index_metadata = metadata_context
             .get_index_metadata(&search.index_name)
-            .is_none()
-        {
-            return Err(PlannerError::IndexNotFound(search.index_name.clone()));
-        }
+            .ok_or_else(|| PlannerError::IndexNotFound(search.index_name.clone()))?;
 
         // Validate query expression
         self.validate_query_expr(&search.query)?;
@@ -316,6 +313,11 @@ impl FulltextSearchPlanner {
             search.order_clause.clone(),
             search.limit,
             search.offset,
+        )
+        .with_metadata(
+            index_metadata.space_id,
+            index_metadata.tag_name.clone(),
+            index_metadata.field_name.clone(),
         );
 
         Ok(SubPlan::new(Some(node.into_enum()), None))
@@ -349,13 +351,10 @@ impl FulltextSearchPlanner {
         space_name: &str,
         metadata_context: &MetadataContext,
     ) -> Result<SubPlan, PlannerError> {
-        // Validate index exists
-        if metadata_context
+        // Validate index exists and get metadata
+        let index_metadata = metadata_context
             .get_index_metadata(&lookup.index_name)
-            .is_none()
-        {
-            return Err(PlannerError::IndexNotFound(lookup.index_name.clone()));
-        }
+            .ok_or_else(|| PlannerError::IndexNotFound(lookup.index_name.clone()))?;
 
         let schema_name = if lookup.schema_name.is_empty() {
             space_name.to_string()
@@ -373,6 +372,11 @@ impl FulltextSearchPlanner {
             lookup.query.clone(),
             lookup.yield_clause.clone(),
             lookup.limit,
+        )
+        .with_metadata(
+            index_metadata.space_id,
+            index_metadata.tag_name.clone(),
+            index_metadata.field_name.clone(),
         );
 
         Ok(SubPlan::new(Some(node.into_enum()), None))
@@ -397,10 +401,17 @@ impl FulltextSearchPlanner {
         metadata_context: &MetadataContext,
     ) -> Result<SubPlan, PlannerError> {
         // Validate that the field exists if an index is specified
+        let mut space_id = 0u64;
+        let mut tag_name = String::new();
+        let mut field_name = String::new();
+        
         if let Some(ref index_name) = match_stmt.fulltext_condition.index_name {
-            if metadata_context.get_index_metadata(index_name).is_none() {
-                return Err(PlannerError::IndexNotFound(index_name.clone()));
-            }
+            let index_metadata = metadata_context
+                .get_index_metadata(index_name)
+                .ok_or_else(|| PlannerError::IndexNotFound(index_name.clone()))?;
+            space_id = index_metadata.space_id;
+            tag_name = index_metadata.tag_name.clone();
+            field_name = index_metadata.field_name.clone();
         }
 
         // Validate that the field name is not empty
@@ -414,7 +425,8 @@ impl FulltextSearchPlanner {
             match_stmt.pattern.clone(),
             match_stmt.fulltext_condition.clone(),
             match_stmt.yield_clause.clone(),
-        );
+        )
+        .with_metadata(space_id, tag_name, field_name);
 
         Ok(SubPlan::new(Some(node.into_enum()), None))
     }

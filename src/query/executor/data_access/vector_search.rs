@@ -695,9 +695,18 @@ impl<S: StorageClient> VectorMatchExecutor<S> {
         let query_vector = self.parse_query_vector(&self.node.query)?;
 
         let coordinator = self.coordinator.clone();
-        let space_id = self.base.context.current_space_id().unwrap_or(0);
-        let tag_name = self.node.field.clone();
-        let field_name = self.node.pattern.clone();
+        
+        // Use pre-resolved metadata if available, otherwise fallback
+        let (space_id, tag_name, field_name) = if !self.node.tag_name.is_empty() && !self.node.field_name.is_empty() {
+            (self.node.space_id, self.node.tag_name.clone(), self.node.field_name.clone())
+        } else {
+            // Fallback: use context and node fields
+            let space_id = self.base.context.current_space_id().unwrap_or(0);
+            let tag_name = self.node.field.clone();
+            let field_name = self.node.pattern.clone();
+            (space_id, tag_name, field_name)
+        };
+        
         let limit = 100; // Default limit for MATCH
         let threshold = self.node.threshold;
 

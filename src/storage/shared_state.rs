@@ -93,7 +93,8 @@ impl StorageInner {
     /// This method carefully avoids holding multiple locks simultaneously to prevent deadlocks.
     /// The order of operations is:
     /// 1. Update reader's transaction context (acquire/release reader lock)
-    /// 2. Update current_txn_context (acquire/release current_txn_context lock)
+    /// 2. Update writer's transaction context (acquire/release writer lock)
+    /// 3. Update current_txn_context (acquire/release current_txn_context lock)
     ///
     /// This ensures no deadlock can occur with other methods that may acquire
     /// these locks in different orders.
@@ -110,7 +111,19 @@ impl StorageInner {
         }
         // reader lock is now released
 
-        // Step 2: Update current_txn_context
+        // Step 2: Update writer's transaction context
+        // This is critical for write operations to use the bound transaction
+        {
+            let mut writer_guard = self.writer.lock();
+            if let Some(ref ctx) = &context {
+                writer_guard.set_transaction_context(ctx.clone());
+            } else {
+                writer_guard.clear_transaction_context();
+            }
+        }
+        // writer lock is now released
+
+        // Step 3: Update current_txn_context
         {
             let mut txn_guard = self.current_txn_context.lock();
             *txn_guard = context;

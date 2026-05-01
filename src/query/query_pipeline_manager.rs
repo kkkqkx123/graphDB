@@ -645,6 +645,68 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 // Metadata resolution happens at executor time for now
                 log::debug!("MatchVector metadata resolution deferred to executor");
             }
+            Stmt::Search(search) => {
+                // Pre-resolve fulltext index metadata
+                match metadata_provider.get_index_metadata(space_id, &search.index_name) {
+                    Ok(index_metadata) => {
+                        context.set_index_metadata(search.index_name.clone(), index_metadata);
+                    }
+                    Err(MetadataProviderError::NotFound(msg)) => {
+                        return Err(DBError::from(QueryError::InvalidQuery(format!(
+                            "Fulltext index not found: {}",
+                            msg
+                        ))));
+                    }
+                    Err(e) => {
+                        return Err(DBError::from(QueryError::InvalidQuery(format!(
+                            "Failed to get fulltext index metadata: {}",
+                            e
+                        ))));
+                    }
+                }
+            }
+            Stmt::LookupFulltext(lookup) => {
+                // Pre-resolve fulltext index metadata for lookup
+                match metadata_provider.get_index_metadata(space_id, &lookup.index_name) {
+                    Ok(index_metadata) => {
+                        context.set_index_metadata(lookup.index_name.clone(), index_metadata);
+                    }
+                    Err(MetadataProviderError::NotFound(msg)) => {
+                        return Err(DBError::from(QueryError::InvalidQuery(format!(
+                            "Fulltext index not found: {}",
+                            msg
+                        ))));
+                    }
+                    Err(e) => {
+                        return Err(DBError::from(QueryError::InvalidQuery(format!(
+                            "Failed to get fulltext index metadata: {}",
+                            e
+                        ))));
+                    }
+                }
+            }
+            Stmt::MatchFulltext(match_stmt) => {
+                // Pre-resolve fulltext index metadata if index is specified
+                if let Some(ref index_name) = match_stmt.fulltext_condition.index_name {
+                    match metadata_provider.get_index_metadata(space_id, index_name) {
+                        Ok(index_metadata) => {
+                            context.set_index_metadata(index_name.clone(), index_metadata);
+                        }
+                        Err(MetadataProviderError::NotFound(msg)) => {
+                            return Err(DBError::from(QueryError::InvalidQuery(format!(
+                                "Fulltext index not found: {}",
+                                msg
+                            ))));
+                        }
+                        Err(e) => {
+                            return Err(DBError::from(QueryError::InvalidQuery(format!(
+                                "Failed to get fulltext index metadata: {}",
+                                e
+                            ))));
+                        }
+                    }
+                }
+            }
             Stmt::Match(_match_stmt) => {
                 // Pre-resolve tag and index metadata for MATCH statements
                 let referenced_tags = &validated.validation_info.semantic_info.referenced_tags;

@@ -85,7 +85,7 @@ impl VectorClientConfig {
 
 impl Default for VectorClientConfig {
     fn default() -> Self {
-        Self::disabled()
+        Self::qdrant()
     }
 }
 

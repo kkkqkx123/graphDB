@@ -36,6 +36,12 @@ pub struct FulltextSearchExecutor<S: StorageClient> {
     context: ExecutionContext,
     /// Fulltext manager
     fulltext_manager: Arc<FulltextIndexManager>,
+    /// Pre-resolved space_id from planner
+    space_id: u64,
+    /// Pre-resolved tag_name from planner
+    tag_name: String,
+    /// Pre-resolved field_name from planner
+    field_name: String,
     _phantom: std::marker::PhantomData<S>,
 }
 
@@ -61,29 +67,63 @@ impl<S: StorageClient> FulltextSearchExecutor<S> {
             engine,
             context,
             fulltext_manager,
+            space_id: 0,
+            tag_name: String::new(),
+            field_name: String::new(),
             _phantom: std::marker::PhantomData,
         }
     }
 
-    /// Parse index name to extract space_id, tag_name, field_name
-    fn parse_index_name(&self) -> DBResult<(u64, String, String)> {
-        let parts: Vec<&str> = self.statement.index_name.split('_').collect();
+    /// Create a new full-text search executor with pre-resolved metadata
+    pub fn with_metadata(
+        id: i64,
+        statement: SearchStatement,
+        engine: Arc<dyn SearchEngine>,
+        context: ExecutionContext,
+        storage: Arc<Mutex<S>>,
+        expr_context: Arc<ExpressionAnalysisContext>,
+        fulltext_manager: Arc<FulltextIndexManager>,
+        space_id: u64,
+        tag_name: String,
+        field_name: String,
+    ) -> Self {
+        Self {
+            base: BaseExecutor::new(
+                id,
+                "FulltextSearchExecutor".to_string(),
+                storage,
+                expr_context,
+            ),
+            statement,
+            engine,
+            context,
+            fulltext_manager,
+            space_id,
+            tag_name,
+            field_name,
+            _phantom: std::marker::PhantomData,
+        }
+    }
 
-        if parts.len() < 4 {
-            return Err(DBError::Validation(format!(
-                "Invalid index name format: {}. Expected format: space_id_tag_name_field_name",
-                self.statement.index_name
-            )));
+    /// Resolve metadata from fulltext_manager if not pre-resolved
+    fn resolve_metadata(&self) -> DBResult<(u64, String, String)> {
+        if !self.tag_name.is_empty() && !self.field_name.is_empty() {
+            return Ok((self.space_id, self.tag_name.clone(), self.field_name.clone()));
         }
 
-        let space_id = parts[0]
-            .parse::<u64>()
-            .map_err(|e| DBError::Validation(format!("Invalid space_id in index name: {}", e)))?;
+        let index_name = &self.statement.index_name;
+        let indexes = self.fulltext_manager.list_indexes();
+        
+        for index in indexes {
+            if &index.index_name == index_name {
+                return Ok((index.space_id, index.tag_name, index.field_name));
+            }
+        }
 
-        let tag_name = parts[1].to_string();
-        let field_name = parts[2..].join("_");
-
-        Ok((space_id, tag_name, field_name))
+        Err(DBError::Validation(format!(
+            "Fulltext index '{}' not found",
+            index_name
+        )))
     }
 
     /// Convert FulltextQueryExpr to search query string
@@ -290,6 +330,12 @@ pub struct FulltextScanConfig {
     pub query: String,
     /// Limit
     pub limit: Option<usize>,
+    /// Pre-resolved space_id
+    pub space_id: u64,
+    /// Pre-resolved tag_name
+    pub tag_name: String,
+    /// Pre-resolved field_name
+    pub field_name: String,
 }
 
 /// Full-text scan executor for LOOKUP FULLTEXT operations
@@ -310,6 +356,12 @@ pub struct FulltextScanExecutor<S: StorageClient> {
     fulltext_manager: Arc<FulltextIndexManager>,
     /// Limit
     limit: Option<usize>,
+    /// Pre-resolved space_id
+    space_id: u64,
+    /// Pre-resolved tag_name
+    tag_name: String,
+    /// Pre-resolved field_name
+    field_name: String,
     _phantom: std::marker::PhantomData<S>,
 }
 
@@ -337,14 +389,37 @@ impl<S: StorageClient> FulltextScanExecutor<S> {
             context,
             fulltext_manager,
             limit: config.limit,
+            space_id: config.space_id,
+            tag_name: config.tag_name,
+            field_name: config.field_name,
             _phantom: std::marker::PhantomData,
         }
+    }
+
+    /// Resolve metadata from fulltext_manager if not pre-resolved
+    fn resolve_metadata(&self) -> DBResult<(u64, String, String)> {
+        if !self.tag_name.is_empty() && !self.field_name.is_empty() {
+            return Ok((self.space_id, self.tag_name.clone(), self.field_name.clone()));
+        }
+
+        let indexes = self.fulltext_manager.list_indexes();
+        
+        for index in indexes {
+            if index.index_name == self.index_name {
+                return Ok((index.space_id, index.tag_name, index.field_name));
+            }
+        }
+
+        Err(DBError::Validation(format!(
+            "Fulltext index '{}' not found",
+            self.index_name
+        )))
     }
 }
 
 impl<S: StorageClient> Executor<S> for FulltextSearchExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let (space_id, tag_name, field_name) = self.parse_index_name()?;
+        let (space_id, tag_name, field_name) = self.resolve_metadata()?;
 
         let query_string = self.convert_query_to_string(&self.statement.query);
 
@@ -534,21 +609,7 @@ impl<S: StorageClient> HasStorage<S> for FulltextSearchExecutor<S> {
 
 impl<S: StorageClient> Executor<S> for FulltextScanExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let parts: Vec<&str> = self.index_name.split('_').collect();
-
-        if parts.len() < 4 {
-            return Err(DBError::Validation(format!(
-                "Invalid index name format: {}. Expected format: space_id_tag_name_field_name",
-                self.index_name
-            )));
-        }
-
-        let space_id = parts[0]
-            .parse::<u64>()
-            .map_err(|e| DBError::Validation(format!("Invalid space_id in index name: {}", e)))?;
-
-        let tag_name = parts[1].to_string();
-        let field_name = parts[2..].join("_");
+        let (space_id, tag_name, field_name) = self.resolve_metadata()?;
 
         let limit = self.limit.unwrap_or(100);
 
@@ -717,6 +778,9 @@ mod tests {
                 ExpressionAnalysisContext::new(),
             )),
             fulltext_manager,
+            space_id: 0,
+            tag_name: String::new(),
+            field_name: String::new(),
             _phantom: std::marker::PhantomData,
         }
     }
