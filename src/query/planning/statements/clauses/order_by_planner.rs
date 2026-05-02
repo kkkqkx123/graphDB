@@ -18,7 +18,7 @@ use std::sync::Arc;
 /// The ORDER BY clause planner
 ///
 /// Responsible for planning the execution of the ORDER BY clause and sorting the results.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OrderByClausePlanner {}
 
 impl Default for OrderByClausePlanner {

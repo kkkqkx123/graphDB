@@ -19,10 +19,11 @@ pub use base::plan_node_traits::*;
 pub use base::{PlanNodeCategory, PlanNodeEnum, PlanNodeVisitor};
 pub use control_flow::{ArgumentNode, LoopNode, PassThroughNode, SelectNode, StartNode};
 pub use data_modification::{
-    DeleteEdgesNode, DeleteVerticesNode, EdgeDeleteInfo, EdgeInsertInfo, EdgeUpdateInfo,
-    InsertEdgesNode, InsertVerticesNode, PipeDeleteEdgesNode, PipeDeleteVerticesNode,
-    TagInsertSpec, UpdateEdgesNode, UpdateNode, UpdateTargetType, UpdateVerticesNode,
-    VertexDeleteInfo, VertexInsertInfo, VertexUpdateInfo,
+    DeleteEdgesNode, DeleteIndexNode, DeleteTagsNode, DeleteVerticesNode, EdgeDeleteInfo,
+    EdgeInsertInfo, EdgeUpdateInfo, IndexDeleteInfo, InsertEdgesNode, InsertVerticesNode,
+    PipeDeleteEdgesNode, PipeDeleteVerticesNode, TagDeleteInfo, TagInsertSpec, UpdateEdgesNode,
+    UpdateNode, UpdateTargetType, UpdateVerticesNode, VertexDeleteInfo, VertexInsertInfo,
+    VertexUpdateInfo,
 };
 pub use graph_operations::{
     AggregateNode, ApplyKind, ApplyNode, AssignNode, DataCollectNode, DedupNode, IntersectNode,
@@ -38,9 +39,10 @@ pub use management::{
     CreateUserNode, DescEdgeIndexNode, DescEdgeNode, DescSpaceNode, DescTagIndexNode, DescTagNode,
     DropEdgeIndexNode, DropEdgeNode, DropSpaceNode, DropTagIndexNode, DropTagNode, DropUserNode,
     EdgeAlterInfo, EdgeManageInfo, GrantRoleNode, IndexManageInfo, RebuildEdgeIndexNode,
-    RebuildTagIndexNode, RevokeRoleNode, ShowCreateTagNode, ShowEdgeIndexesNode, ShowEdgesNode,
-    ShowSpacesNode, ShowStatsNode, ShowStatsType, ShowTagIndexesNode, ShowTagsNode,
-    SpaceAlterOption, SpaceManageInfo, SwitchSpaceNode, TagAlterInfo, TagManageInfo,
+    RebuildTagIndexNode, RevokeRoleNode, ShowCreateEdgeNode, ShowCreateIndexNode,
+    ShowCreateSpaceNode, ShowCreateTagNode, ShowEdgeIndexesNode, ShowEdgesNode, ShowIndexesNode,
+    ShowRolesNode, ShowSpacesNode, ShowStatsNode, ShowStatsType, ShowTagIndexesNode, ShowTagsNode,
+    ShowUsersNode, SpaceAlterOption, SpaceManageInfo, SwitchSpaceNode, TagAlterInfo, TagManageInfo,
 };
 pub use operation::{FilterNode, LimitNode, ProjectNode, SampleNode, SortItem, SortNode, TopNNode};
 pub use plan_node_factory::PlanNodeFactory;

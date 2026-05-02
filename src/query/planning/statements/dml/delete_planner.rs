@@ -8,8 +8,9 @@ use crate::query::parser::ast::{DeleteStmt, DeleteTarget, Stmt};
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
     nodes::{
-        DeleteEdgesNode, DeleteVerticesNode, EdgeDeleteInfo, PipeDeleteEdgesNode,
-        PipeDeleteVerticesNode, VertexDeleteInfo,
+        DeleteEdgesNode, DeleteIndexNode, DeleteTagsNode, DeleteVerticesNode, EdgeDeleteInfo,
+        IndexDeleteInfo, PipeDeleteEdgesNode, PipeDeleteVerticesNode, TagDeleteInfo,
+        VertexDeleteInfo,
     },
 };
 use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
@@ -151,17 +152,29 @@ impl DeletePlanner {
                     PlanNodeEnum::DeleteEdges(node)
                 }
             }
-            DeleteTarget::Tags { .. } => {
-                return Err(PlannerError::PlanGenerationFailed(
-                    "DELETE TAG requires tag-level metadata operations (not yet implemented)"
-                        .to_string(),
-                ));
+            DeleteTarget::Tags {
+                tag_names,
+                vertex_ids,
+                is_all_tags,
+            } => {
+                let info = TagDeleteInfo {
+                    space_name,
+                    tag_names: tag_names.clone(),
+                    vertex_ids: vertex_ids.clone(),
+                    is_all_tags: *is_all_tags,
+                };
+
+                let node = DeleteTagsNode::new(next_node_id(), info);
+                PlanNodeEnum::DeleteTags(node)
             }
-            DeleteTarget::Index(..) => {
-                return Err(PlannerError::PlanGenerationFailed(
-                    "DELETE INDEX requires index metadata operations (not yet implemented)"
-                        .to_string(),
-                ));
+            DeleteTarget::Index(index_name) => {
+                let info = IndexDeleteInfo {
+                    space_name,
+                    index_name: index_name.clone(),
+                };
+
+                let node = DeleteIndexNode::new(next_node_id(), info);
+                PlanNodeEnum::DeleteIndex(node)
             }
         };
 

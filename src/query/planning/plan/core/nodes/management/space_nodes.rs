@@ -171,6 +171,29 @@ pub enum SpaceAlterOption {
     Comment(String),
 }
 
+define_plan_node! {
+    pub struct ShowCreateSpaceNode {
+        space_name: String,
+    }
+    enum: ShowCreateSpace
+    input: ZeroInputNode
+}
+
+impl ShowCreateSpaceNode {
+    pub fn new(id: i64, space_name: String) -> Self {
+        Self {
+            id,
+            space_name,
+            output_var: None,
+            col_names: Vec::new(),
+        }
+    }
+
+    pub fn space_name(&self) -> &str {
+        &self.space_name
+    }
+}
+
 /// Space management information
 #[derive(Debug, Clone)]
 pub struct SpaceManageInfo {

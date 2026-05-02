@@ -14,11 +14,11 @@ use std::sync::Arc;
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::ExpressionMeta;
 use crate::core::{Expression, Value};
-use crate::query::parser::ast::{Assignment, MergeStmt, Pattern, SetClause, Stmt};
+use crate::query::parser::ast::{Assignment, EdgeDirection, MergeStmt, Pattern, SetClause, Stmt};
 use crate::query::planning::plan::core::node_id_generator::next_node_id;
 use crate::query::planning::plan::core::nodes::{
-    ArgumentNode, InsertVerticesNode, SelectNode, TagInsertSpec, UpdateNode, UpdateTargetType,
-    VertexInsertInfo, VertexUpdateInfo,
+    ArgumentNode, InsertEdgesNode, InsertVerticesNode, SelectNode, TagInsertSpec, UpdateNode,
+    UpdateTargetType, VertexInsertInfo, VertexUpdateInfo, EdgeInsertInfo,
 };
 use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
@@ -89,6 +89,65 @@ impl MergePlanner {
                 "MERGE currently only supports node patterns".to_string(),
             )),
         }
+    }
+
+    fn pattern_to_edge_info(
+        &self,
+        pattern: &Pattern,
+        space_name: String,
+        expr_context: &Arc<crate::query::validator::context::ExpressionAnalysisContext>,
+    ) -> Result<EdgeInsertInfo, PlannerError> {
+        match pattern {
+            Pattern::Edge(edge_pattern) => {
+                let edge_name = edge_pattern
+                    .edge_types
+                    .first()
+                    .ok_or_else(|| {
+                        PlannerError::PlanGenerationFailed(
+                            "MERGE edge pattern must have an edge type".to_string(),
+                        )
+                    })?
+                    .clone();
+
+                let (prop_names, prop_values) = if let Some(props_expr) = &edge_pattern.properties
+                {
+                    if let Some(Expression::Map(entries)) = props_expr.get_expression() {
+                        let mut names = Vec::new();
+                        let mut values = Vec::new();
+                        for (key, value) in entries {
+                            names.push(key.clone());
+                            let value_meta = ExpressionMeta::new(value.clone());
+                            let value_id = expr_context.register_expression(value_meta);
+                            let ctx_value = ContextualExpression::new(value_id, expr_context.clone());
+                            values.push(ctx_value);
+                        }
+                        (names, values)
+                    } else {
+                        (vec![], vec![])
+                    }
+                } else {
+                    (vec![], vec![])
+                };
+
+                let src_expr = self.create_vid_expression(expr_context)?;
+                let dst_expr = self.create_vid_expression(expr_context)?;
+
+                Ok(EdgeInsertInfo {
+                    space_name,
+                    edge_name,
+                    prop_names,
+                    edges: vec![(src_expr, dst_expr, None, prop_values)],
+                    if_not_exists: true,
+                })
+            }
+            _ => Err(PlannerError::PlanGenerationFailed(
+                "pattern is not an edge pattern".to_string(),
+            )),
+        }
+    }
+
+    fn is_edge_pattern(&self, pattern: &Pattern) -> bool {
+        matches!(pattern, Pattern::Edge(_))
     }
 
     fn extract_properties_and_vid(
@@ -233,6 +292,21 @@ impl Planner for MergePlanner {
         }
 
         let merge_stmt = self.extract_merge_stmt(validated.stmt())?;
+
+        let is_edge = self.is_edge_pattern(&merge_stmt.pattern);
+
+        if is_edge {
+            let edge_info = self.pattern_to_edge_info(
+                &merge_stmt.pattern,
+                space_name.clone(),
+                validated.expr_context(),
+            )?;
+
+            let insert_node = InsertEdgesNode::new(next_node_id(), edge_info);
+            let insert_node_enum = PlanNodeEnum::InsertEdges(insert_node);
+            let sub_plan = SubPlan::from_single_node(insert_node_enum);
+            return Ok(sub_plan);
+        }
 
         let vertex_info =
             self.pattern_to_vertex_info(&merge_stmt.pattern, space_name.clone(), validated.expr_context())?;

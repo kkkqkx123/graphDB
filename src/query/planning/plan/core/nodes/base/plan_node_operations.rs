@@ -189,6 +189,8 @@ impl PlanNodeEnum {
             // Management node - Delete
             PlanNodeEnum::DeleteVertices(_) => "DeleteVertices",
             PlanNodeEnum::DeleteEdges(_) => "DeleteEdges",
+            PlanNodeEnum::DeleteTags(_) => "DeleteTags",
+            PlanNodeEnum::DeleteIndex(_) => "DeleteIndex",
 
             // Management node - Set operations
             PlanNodeEnum::Minus(_) => "Minus",

@@ -17,7 +17,7 @@ use std::sync::Arc;
 /// The WHERE clause planner
 ///
 /// Responsible for planning the execution of the WHERE clause and filtering the input data.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WhereClausePlanner;
 
 impl Default for WhereClausePlanner {

@@ -125,13 +125,40 @@ impl Planner for UpdatePlanner {
                 UpdateTargetType::Edge(edge_info)
             }
             UpdateTarget::Tag(tag_name) => {
-                // For Tag target, we need to find vertices with this tag
-                // This is a simplified implementation - in practice, you might need
-                // to scan for vertices with this tag first
-                return Err(PlannerError::PlanGenerationFailed(format!(
-                    "UPDATE TAG {} not yet fully supported",
-                    tag_name
-                )));
+                let mut properties = HashMap::new();
+                for assignment in &update_stmt.set_clause.assignments {
+                    properties.insert(assignment.property.clone(), assignment.value.clone());
+                }
+
+                let mut scan_node =
+                    crate::query::planning::plan::core::nodes::ScanVerticesNode::new(
+                        0,
+                        &space_name,
+                    );
+                scan_node.set_tag(tag_name);
+
+                let vertex_info = VertexUpdateInfo {
+                    space_name: space_name.clone(),
+                    vertex_id: ContextualExpression::new(
+                        crate::core::types::expr::ExpressionId::new(0),
+                        validated.ast.expr_context().clone(),
+                    ),
+                    tag_name: Some(tag_name.clone()),
+                    properties,
+                    condition: update_stmt.where_clause.clone(),
+                    is_upsert: update_stmt.is_upsert,
+                };
+
+                let update_node = UpdateNode::new(
+                    next_node_id(),
+                    UpdateTargetType::Vertex(vertex_info),
+                );
+
+                let scan_enum = PlanNodeEnum::ScanVertices(scan_node);
+                let update_enum = PlanNodeEnum::Update(update_node);
+
+                let sub_plan = SubPlan::new(Some(scan_enum), Some(update_enum));
+                return Ok(sub_plan);
             }
             UpdateTarget::TagOnVertex { vid, tag_name } => {
                 // Update specific tag on a specific vertex

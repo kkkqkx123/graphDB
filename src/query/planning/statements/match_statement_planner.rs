@@ -9,24 +9,23 @@
 //!   - LIMIT/SKIP – Pagination options
 //!   - Selection of intelligent scanning strategies (index scanning, attribute scanning, full table scanning)
 
-use crate::core::types::operators::AggregateFunction;
 use crate::core::types::ContextualExpression;
-use crate::core::YieldColumn;
 use crate::query::metadata::{IndexMetadata, MetadataContext};
 use crate::query::parser::ast::pattern::{PathElement, Pattern, RepetitionType};
 use crate::query::parser::ast::Stmt;
-use crate::query::parser::OrderByItem;
 use crate::query::planning::plan::core::nodes::access::index_scan::{IndexLimit, IndexScanNode, ScanType};
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
 use crate::query::planning::plan::core::nodes::ExpandAllNode;
 use crate::query::planning::plan::core::nodes::{
-    AggregateNode, ArgumentNode, DedupNode, LeftJoinNode, LimitNode, LoopNode, ProjectNode,
-    ScanVerticesNode, SortItem, SortNode, UnionNode,
+    ArgumentNode, LeftJoinNode, LoopNode, ScanVerticesNode, UnionNode,
 };
 use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
-use crate::query::planning::statements::statement_planner::StatementPlanner;
+use crate::query::planning::statements::clauses::{
+    OrderByClausePlanner, PaginationPlanner, ReturnClausePlanner, WhereClausePlanner,
+};
+use crate::query::planning::statements::statement_planner::{ClausePlanner, StatementPlanner};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::query::validator::ValidationInfo;
@@ -44,11 +43,16 @@ pub struct PaginationInfo {
 ///
 /// Responsible for converting MATCH queries into executable execution plans.
 /// Implement the StatementPlanner interface to provide a unified planning entry point.
+/// Delegates clause-level planning (WHERE, RETURN, ORDER BY, LIMIT) to ClausePlanner implementations.
 #[derive(Debug, Clone)]
 pub struct MatchStatementPlanner {
     config: MatchPlannerConfig,
     expr_context: Option<Arc<ExpressionAnalysisContext>>,
     metadata_context: Option<MetadataContext>,
+    where_planner: WhereClausePlanner,
+    return_planner: ReturnClausePlanner,
+    order_by_planner: OrderByClausePlanner,
+    pagination_planner: PaginationPlanner,
 }
 
 #[derive(Debug, Clone)]
@@ -80,6 +84,10 @@ impl MatchStatementPlanner {
             config: MatchPlannerConfig::default(),
             expr_context: None,
             metadata_context: None,
+            where_planner: WhereClausePlanner::new(),
+            return_planner: ReturnClausePlanner::new(),
+            order_by_planner: OrderByClausePlanner::new(),
+            pagination_planner: PaginationPlanner::new(),
         }
     }
 
@@ -88,6 +96,10 @@ impl MatchStatementPlanner {
             config,
             expr_context: None,
             metadata_context: None,
+            where_planner: WhereClausePlanner::new(),
+            return_planner: ReturnClausePlanner::new(),
+            order_by_planner: OrderByClausePlanner::new(),
+            pagination_planner: PaginationPlanner::new(),
         }
     }
 }
@@ -224,25 +236,37 @@ impl MatchStatementPlanner {
                     plan = self.cross_join_plans(plan, path_plan)?;
                 }
 
-                if let Some(condition) = self.extract_where_condition(stmt)? {
-                    plan = self.plan_filter(plan, condition, space_id)?;
+                if self.has_where_clause(stmt) {
+                    plan = self.where_planner.transform_clause(
+                        qctx.clone(),
+                        stmt,
+                        plan,
+                    )?;
                 }
 
-                if let Some(columns) = self.extract_return_columns(stmt, qctx)? {
-                    plan = self.plan_project(plan, columns, space_id)?;
+                if self.has_return_clause(stmt) {
+                    let return_planner = ReturnClausePlanner::from_stmt(stmt);
+                    plan = return_planner.transform_clause(
+                        qctx.clone(),
+                        stmt,
+                        plan,
+                    )?;
                 }
 
-                // Handle DISTINCT keyword
-                if self.extract_distinct_flag(stmt) {
-                    plan = self.plan_dedup(plan)?;
+                if self.has_order_by_clause(stmt) {
+                    plan = self.order_by_planner.transform_clause(
+                        qctx.clone(),
+                        stmt,
+                        plan,
+                    )?;
                 }
 
-                if let Some(order_by) = self.extract_order_by(stmt)? {
-                    plan = self.plan_sort(plan, order_by, space_id)?;
-                }
-
-                if let Some(pagination) = self.extract_pagination(stmt)? {
-                    plan = self.plan_limit(plan, pagination)?;
+                if self.has_pagination(stmt) {
+                    plan = self.pagination_planner.transform_clause(
+                        qctx.clone(),
+                        stmt,
+                        plan,
+                    )?;
                 }
 
                 if let Some(delete_clause) = &match_stmt.delete_clause {
@@ -1107,199 +1131,6 @@ impl MatchStatementPlanner {
         Ok(SubPlan::from_root(scan_node.into_enum()))
     }
 
-    fn plan_filter(
-        &self,
-        input_plan: SubPlan,
-        condition: ContextualExpression,
-        _space_id: u64,
-    ) -> Result<SubPlan, PlannerError> {
-        let input_node = input_plan.root().as_ref().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
-        })?;
-
-        let filter_node = FilterNode::new(input_node.clone(), condition)?;
-        Ok(SubPlan::new(Some(filter_node.into_enum()), input_plan.tail))
-    }
-
-    fn plan_project(
-        &self,
-        input_plan: SubPlan,
-        columns: Vec<YieldColumn>,
-        _space_id: u64,
-    ) -> Result<SubPlan, PlannerError> {
-        let input_node = input_plan.root().as_ref().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
-        })?;
-
-        // Check if any column contains an aggregate function
-        let has_aggregate = columns.iter().any(|col| {
-            if let Some(expr_meta) = col.expression.expression() {
-                Self::expression_contains_aggregate(expr_meta.inner())
-            } else {
-                false
-            }
-        });
-
-        if has_aggregate {
-            // For aggregate queries:
-            // 1. First create a ProjectNode to convert input to DataSet with the required columns
-            // 2. Then create an AggregateNode to perform aggregation
-            let (group_keys, agg_functions, agg_aliases) = Self::extract_aggregate_info(&columns)?;
-
-            // Create projection columns for all non-aggregate expressions (group keys)
-            let project_columns: Vec<YieldColumn> = columns
-                .iter()
-                .filter(|col| {
-                    if let Some(expr_meta) = col.expression.expression() {
-                        !Self::expression_contains_aggregate(expr_meta.inner())
-                    } else {
-                        false
-                    }
-                })
-                .cloned()
-                .collect();
-
-            // Create ProjectNode to convert Vertices to DataSet
-            let project_node = ProjectNode::new(input_node.clone(), project_columns)?;
-            let project_plan = SubPlan::new(Some(project_node.into_enum()), input_plan.tail);
-
-            // Create AggregateNode with the projected input, using aliases for aggregate functions
-            let aggregate_node = AggregateNode::with_agg_aliases(
-                project_plan.root.clone().unwrap(),
-                group_keys,
-                agg_functions,
-                agg_aliases,
-            )?;
-            Ok(SubPlan::new(
-                Some(aggregate_node.into_enum()),
-                project_plan.tail,
-            ))
-        } else {
-            // For non-aggregate queries, create a ProjectNode
-            let project_node = ProjectNode::new(input_node.clone(), columns)?;
-            Ok(SubPlan::new(
-                Some(project_node.into_enum()),
-                input_plan.tail,
-            ))
-        }
-    }
-
-    /// Check if an expression contains an aggregate function
-    fn expression_contains_aggregate(expr: &crate::core::Expression) -> bool {
-        use crate::core::Expression;
-        match expr {
-            Expression::Aggregate { .. } => true,
-            Expression::Binary { left, right, .. } => {
-                Self::expression_contains_aggregate(left)
-                    || Self::expression_contains_aggregate(right)
-            }
-            Expression::Unary { operand, .. } => Self::expression_contains_aggregate(operand),
-            Expression::Function { args, .. } => {
-                args.iter().any(Self::expression_contains_aggregate)
-            }
-            _ => false,
-        }
-    }
-
-    /// Extract group keys and aggregate functions from columns
-    fn extract_aggregate_info(
-        columns: &[YieldColumn],
-    ) -> Result<(Vec<String>, Vec<AggregateFunction>, Vec<String>), PlannerError> {
-        let mut group_keys = Vec::new();
-        let mut agg_functions = Vec::new();
-        let mut agg_aliases = Vec::new();
-
-        for col in columns {
-            if let Some(expr_meta) = col.expression.expression() {
-                let expr = expr_meta.inner();
-                if Self::expression_contains_aggregate(expr) {
-                    // This column has an aggregate function
-                    if let Some(agg_func) = Self::extract_aggregate_function(expr) {
-                        agg_functions.push(agg_func);
-                        // Use the alias from the YieldColumn
-                        agg_aliases.push(col.alias.clone());
-                    }
-                } else {
-                    // This column is a group key
-                    // Use the expression string as the key, which preserves property access like "p.category"
-                    let key = col.expression.to_expression_string();
-                    if !group_keys.contains(&key) {
-                        group_keys.push(key);
-                    }
-                }
-            }
-        }
-
-        Ok((group_keys, agg_functions, agg_aliases))
-    }
-
-    /// Extract an AggregateFunction from an expression
-    fn extract_aggregate_function(expr: &crate::core::Expression) -> Option<AggregateFunction> {
-        use crate::core::Expression;
-        match expr {
-            Expression::Aggregate { func, .. } => Some(func.clone()),
-            Expression::Binary { left, right, .. } => Self::extract_aggregate_function(left)
-                .or_else(|| Self::extract_aggregate_function(right)),
-            Expression::Unary { operand, .. } => Self::extract_aggregate_function(operand),
-            Expression::Function { args, .. } => {
-                args.iter().find_map(Self::extract_aggregate_function)
-            }
-            _ => None,
-        }
-    }
-
-    fn plan_sort(
-        &self,
-        input_plan: SubPlan,
-        order_by: Vec<OrderByItem>,
-        _space_id: u64,
-    ) -> Result<SubPlan, PlannerError> {
-        let input_node = input_plan.root().as_ref().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
-        })?;
-
-        let sort_items: Vec<SortItem> = order_by
-            .into_iter()
-            .map(|item| {
-                let expression = item.expression.expression()
-                    .map(|e| e.inner().clone())
-                    .unwrap_or_else(|| {
-                        crate::core::Expression::Variable(item.expression.to_expression_string())
-                    });
-                let direction = match item.direction {
-                    crate::core::types::OrderDirection::Asc => {
-                        crate::core::types::graph_schema::OrderDirection::Asc
-                    }
-                    crate::core::types::OrderDirection::Desc => {
-                        crate::core::types::graph_schema::OrderDirection::Desc
-                    }
-                };
-                SortItem::new(expression, direction)
-            })
-            .collect();
-
-        let sort_node = SortNode::new(input_node.clone(), sort_items)?;
-        Ok(SubPlan::new(Some(sort_node.into_enum()), input_plan.tail))
-    }
-
-    fn plan_limit(
-        &self,
-        input_plan: SubPlan,
-        pagination: PaginationInfo,
-    ) -> Result<SubPlan, PlannerError> {
-        let input_node = input_plan.root().as_ref().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
-        })?;
-
-        let limit_node = LimitNode::new(
-            input_node.clone(),
-            pagination.skip as i64,
-            pagination.limit as i64,
-        )?;
-        let limit_node_enum = limit_node.into_enum();
-        Ok(SubPlan::new(Some(limit_node_enum), input_plan.tail))
-    }
-
     fn plan_match_delete(
         &self,
         input_plan: SubPlan,
@@ -1347,105 +1178,39 @@ impl MatchStatementPlanner {
         Ok(SubPlan::new(Some(delete_node), input_plan.tail))
     }
 
-    fn plan_dedup(&self, input_plan: SubPlan) -> Result<SubPlan, PlannerError> {
-        let input_node = input_plan.root().as_ref().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
-        })?;
-
-        let dedup_node = DedupNode::new(input_node.clone())?;
-        Ok(SubPlan::new(Some(dedup_node.into_enum()), input_plan.tail))
-    }
-
-    fn extract_where_condition(
-        &self,
-        stmt: &crate::query::parser::ast::Stmt,
-    ) -> Result<Option<ContextualExpression>, PlannerError> {
+    fn has_where_clause(&self, stmt: &crate::query::parser::ast::Stmt) -> bool {
         match stmt {
             crate::query::parser::ast::Stmt::Match(match_stmt) => {
-                Ok(match_stmt.where_clause.clone())
+                match_stmt.where_clause.is_some()
             }
-            _ => Ok(None),
-        }
-    }
-
-    fn extract_distinct_flag(&self, stmt: &crate::query::parser::ast::Stmt) -> bool {
-        match stmt {
-            crate::query::parser::ast::Stmt::Match(match_stmt) => match_stmt
-                .return_clause
-                .as_ref()
-                .map(|r| r.distinct)
-                .unwrap_or(false),
             _ => false,
         }
     }
 
-    fn extract_return_columns(
-        &self,
-        stmt: &crate::query::parser::ast::Stmt,
-        _qctx: &Arc<QueryContext>,
-    ) -> Result<Option<Vec<YieldColumn>>, PlannerError> {
+    fn has_return_clause(&self, stmt: &crate::query::parser::ast::Stmt) -> bool {
         match stmt {
             crate::query::parser::ast::Stmt::Match(match_stmt) => {
-                if let Some(return_clause) = &match_stmt.return_clause {
-                    let mut columns = Vec::new();
-                    for item in &return_clause.items {
-                        match item {
-                            crate::query::parser::ast::stmt::ReturnItem::Expression {
-                                expression,
-                                alias,
-                            } => {
-                                let col_alias = alias
-                                    .clone()
-                                    .unwrap_or_else(|| expression.to_expression_string());
-                                columns.push(YieldColumn {
-                                    expression: expression.clone(),
-                                    alias: col_alias,
-                                    is_matched: false,
-                                });
-                            }
-                        }
-                    }
-                    if columns.is_empty() {
-                        return Err(PlannerError::PlanGenerationFailed(
-                            "RETURN clause missing return item".to_string(),
-                        ));
-                    }
-                    Ok(Some(columns))
-                } else {
-                    Ok(None)
-                }
+                match_stmt.return_clause.is_some()
             }
-            _ => Ok(None),
+            _ => false,
         }
     }
 
-    fn extract_order_by(
-        &self,
-        stmt: &crate::query::parser::ast::Stmt,
-    ) -> Result<Option<Vec<OrderByItem>>, PlannerError> {
+    fn has_order_by_clause(&self, stmt: &crate::query::parser::ast::Stmt) -> bool {
         match stmt {
             crate::query::parser::ast::Stmt::Match(match_stmt) => {
-                if let Some(order_by_clause) = &match_stmt.order_by {
-                    Ok(Some(order_by_clause.items.clone()))
-                } else {
-                    Ok(None)
-                }
+                match_stmt.order_by.is_some()
             }
-            _ => Ok(None),
+            _ => false,
         }
     }
 
-    fn extract_pagination(
-        &self,
-        stmt: &crate::query::parser::ast::Stmt,
-    ) -> Result<Option<PaginationInfo>, PlannerError> {
+    fn has_pagination(&self, stmt: &crate::query::parser::ast::Stmt) -> bool {
         match stmt {
             crate::query::parser::ast::Stmt::Match(match_stmt) => {
-                let skip = match_stmt.skip.unwrap_or(0);
-                let limit = match_stmt.limit.unwrap_or(self.config.default_limit);
-                Ok(Some(PaginationInfo { skip, limit }))
+                match_stmt.limit.is_some() || match_stmt.skip.is_some()
             }
-            _ => Ok(None),
+            _ => false,
         }
     }
 

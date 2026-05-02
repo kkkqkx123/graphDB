@@ -3,11 +3,13 @@
 //! Responsible for planning the execution of the RETURN statement and implementing the projection of the results.
 
 use crate::core::types::expr::expression_utils::generate_default_alias_from_contextual;
+use crate::core::types::operators::AggregateFunction;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::query::planning::plan::core::nodes::graph_operations::graph_operations_node::DedupNode;
 use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
+use crate::query::planning::plan::core::nodes::AggregateNode;
 use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::PlannerError;
 use crate::query::planning::statements::statement_planner::ClausePlanner;
@@ -20,7 +22,7 @@ pub use crate::query::planning::plan::core::PlanNodeEnum;
 /// RETURN Statement Planner
 ///
 /// Responsible for planning the execution of the RETURN statement and implementing the projection of the results.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ReturnClausePlanner {
     distinct: bool,
 }
@@ -108,18 +110,118 @@ impl ClausePlanner for ReturnClausePlanner {
             )
         })?;
 
-        let project_node = ProjectNode::new(input_node.clone(), yield_columns)?;
-
-        let final_node = if self.distinct {
-            match DedupNode::new(project_node.clone().into_enum()) {
-                Ok(dedup) => dedup.into_enum(),
-                Err(_) => project_node.into_enum(),
+        let has_aggregate = yield_columns.iter().any(|col| {
+            if let Some(expr_meta) = col.expression.expression() {
+                expression_contains_aggregate(expr_meta.inner())
+            } else {
+                false
             }
-        } else {
-            project_node.into_enum()
-        };
+        });
 
-        Ok(SubPlan::new(Some(final_node), input_plan.tail))
+        if has_aggregate {
+            let (group_keys, agg_functions, agg_aliases) =
+                extract_aggregate_info(&yield_columns)?;
+
+            let project_columns: Vec<YieldColumn> = yield_columns
+                .iter()
+                .filter(|col| {
+                    if let Some(expr_meta) = col.expression.expression() {
+                        !expression_contains_aggregate(expr_meta.inner())
+                    } else {
+                        false
+                    }
+                })
+                .cloned()
+                .collect();
+
+            let project_node = ProjectNode::new(input_node.clone(), project_columns)?;
+            let project_plan = SubPlan::new(Some(project_node.into_enum()), input_plan.tail);
+
+            let aggregate_node = AggregateNode::with_agg_aliases(
+                project_plan.root.clone().unwrap(),
+                group_keys,
+                agg_functions,
+                agg_aliases,
+            )?;
+
+            let aggregate_enum = aggregate_node.into_enum();
+
+            let final_node = if self.distinct {
+                match DedupNode::new(aggregate_enum.clone()) {
+                    Ok(dedup) => dedup.into_enum(),
+                    Err(_) => aggregate_enum,
+                }
+            } else {
+                aggregate_enum
+            };
+
+            Ok(SubPlan::new(Some(final_node), project_plan.tail))
+        } else {
+            let project_node = ProjectNode::new(input_node.clone(), yield_columns)?;
+
+            let final_node = if self.distinct {
+                match DedupNode::new(project_node.clone().into_enum()) {
+                    Ok(dedup) => dedup.into_enum(),
+                    Err(_) => project_node.into_enum(),
+                }
+            } else {
+                project_node.into_enum()
+            };
+
+            Ok(SubPlan::new(Some(final_node), input_plan.tail))
+        }
+    }
+}
+
+fn expression_contains_aggregate(expr: &crate::core::Expression) -> bool {
+    use crate::core::Expression;
+    match expr {
+        Expression::Aggregate { .. } => true,
+        Expression::Binary { left, right, .. } => {
+            expression_contains_aggregate(left) || expression_contains_aggregate(right)
+        }
+        Expression::Unary { operand, .. } => expression_contains_aggregate(operand),
+        Expression::Function { args, .. } => args.iter().any(expression_contains_aggregate),
+        _ => false,
+    }
+}
+
+fn extract_aggregate_info(
+    columns: &[YieldColumn],
+) -> Result<(Vec<String>, Vec<AggregateFunction>, Vec<String>), PlannerError> {
+    let mut group_keys = Vec::new();
+    let mut agg_functions = Vec::new();
+    let mut agg_aliases = Vec::new();
+
+    for col in columns {
+        if let Some(expr_meta) = col.expression.expression() {
+            let expr = expr_meta.inner();
+            if expression_contains_aggregate(expr) {
+                if let Some(agg_func) = extract_aggregate_function(expr) {
+                    agg_functions.push(agg_func);
+                    agg_aliases.push(col.alias.clone());
+                }
+            } else {
+                let key = col.expression.to_expression_string();
+                if !group_keys.contains(&key) {
+                    group_keys.push(key);
+                }
+            }
+        }
+    }
+
+    Ok((group_keys, agg_functions, agg_aliases))
+}
+
+fn extract_aggregate_function(expr: &crate::core::Expression) -> Option<AggregateFunction> {
+    use crate::core::Expression;
+    match expr {
+        Expression::Aggregate { func, .. } => Some(func.clone()),
+        Expression::Binary { left, right, .. } => extract_aggregate_function(left)
+            .or_else(|| extract_aggregate_function(right)),
+        Expression::Unary { operand, .. } => extract_aggregate_function(operand),
+        Expression::Function { args, .. } => args.iter().find_map(extract_aggregate_function),
+        _ => None,
     }
 }
 

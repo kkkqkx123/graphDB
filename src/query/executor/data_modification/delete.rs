@@ -28,6 +28,9 @@ pub struct DeleteExecutor<S: StorageClient> {
     condition: Option<ContextualExpression>,
     with_edge: bool,
     space_name: String,
+    tag_names: Option<Vec<String>>,
+    is_all_tags: bool,
+    index_name: Option<String>,
 }
 
 impl<S: StorageClient> DeleteExecutor<S> {
@@ -46,6 +49,9 @@ impl<S: StorageClient> DeleteExecutor<S> {
             condition,
             with_edge: false,
             space_name: "default".to_string(),
+            tag_names: None,
+            is_all_tags: false,
+            index_name: None,
         }
     }
 
@@ -56,6 +62,21 @@ impl<S: StorageClient> DeleteExecutor<S> {
 
     pub fn with_space(mut self, space_name: String) -> Self {
         self.space_name = space_name;
+        self
+    }
+
+    pub fn with_tag_names(mut self, tag_names: Vec<String>) -> Self {
+        self.tag_names = Some(tag_names);
+        self
+    }
+
+    pub fn with_all_tags(mut self, is_all_tags: bool) -> Self {
+        self.is_all_tags = is_all_tags;
+        self
+    }
+
+    pub fn with_index_name(mut self, index_name: String) -> Self {
+        self.index_name = Some(index_name);
         self
     }
 }
@@ -248,6 +269,45 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                         }
                     }
                 }
+            }
+        }
+
+        if let Some(tag_names) = &self.tag_names {
+            if let Some(ids) = &self.vertex_ids {
+                let mut storage = self.get_storage().lock();
+                for id in ids {
+                    if self.is_all_tags {
+                        if let Ok(Some(vertex)) = storage.get_vertex(&self.space_name, id) {
+                            for tag in &vertex.tags {
+                                if storage
+                                    .drop_tag(&self.space_name, &tag.name)
+                                    .is_ok()
+                                {
+                                    total_deleted += 1;
+                                }
+                            }
+                        }
+                    } else {
+                        for tag_name in tag_names {
+                            if storage
+                                .drop_tag(&self.space_name, tag_name)
+                                .is_ok()
+                            {
+                                total_deleted += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Some(index_name) = &self.index_name {
+            let mut storage = self.get_storage().lock();
+            if storage
+                .drop_tag_index(&self.space_name, index_name)
+                .is_ok()
+            {
+                total_deleted += 1;
             }
         }
 

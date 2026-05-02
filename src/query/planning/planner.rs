@@ -20,12 +20,15 @@ use crate::query::planning::fulltext_planner::FulltextSearchPlanner;
 use crate::query::planning::statements::ddl::maintain_planner::MaintainPlanner;
 use crate::query::planning::statements::ddl::use_planner::UsePlanner;
 use crate::query::planning::statements::ddl::user_management_planner::UserManagementPlanner;
+use crate::query::planning::statements::dml::assignment_planner::AssignmentPlanner;
+use crate::query::planning::statements::dml::create_planner::CreatePlanner;
 use crate::query::planning::statements::dml::delete_planner::DeletePlanner;
 use crate::query::planning::statements::dml::insert_planner::InsertPlanner;
 use crate::query::planning::statements::dml::merge_planner::MergePlanner;
 use crate::query::planning::statements::dml::remove_planner::RemovePlanner;
 use crate::query::planning::statements::dml::set_planner::SetPlanner;
 use crate::query::planning::statements::dml::update_planner::UpdatePlanner;
+use crate::query::planning::statements::dql::explain_planner::ExplainPlanner;
 use crate::query::planning::statements::dql::fetch_edges_planner::FetchEdgesPlanner;
 use crate::query::planning::statements::dql::fetch_vertices_planner::FetchVerticesPlanner;
 use crate::query::planning::statements::dql::go_planner::GoPlanner;
@@ -134,6 +137,8 @@ pub enum PlannerEnum {
     FetchEdges(FetchEdgesPlanner),
     Maintain(MaintainPlanner),
     UserManagement(UserManagementPlanner),
+    CreateData(CreatePlanner),
+    Assignment(AssignmentPlanner),
     Insert(InsertPlanner),
     Delete(DeletePlanner),
     Update(UpdatePlanner),
@@ -148,6 +153,7 @@ pub enum PlannerEnum {
     Return(ReturnPlanner),
     Yield(YieldPlanner),
     Pipe(PipePlanner),
+    Explain(ExplainPlanner),
     FulltextSearch(FulltextSearchPlanner),
     VectorSearch(VectorSearchPlanner),
 }
@@ -176,6 +182,7 @@ impl PlannerEnum {
             Stmt::Remove(_) => Some(PlannerEnum::Remove(RemovePlanner::new())),
             Stmt::Set(_) => Some(PlannerEnum::Set(SetPlanner::new())),
             Stmt::Merge(_) => Some(PlannerEnum::Merge(MergePlanner::new())),
+            Stmt::Assignment(_) => Some(PlannerEnum::Assignment(AssignmentPlanner::new())),
             Stmt::GroupBy(_) => Some(PlannerEnum::GroupBy(GroupByPlanner::new())),
             Stmt::SetOperation(_) => Some(PlannerEnum::SetOperation(SetOperationPlanner::new())),
             Stmt::Use(_) => Some(PlannerEnum::Use(UsePlanner::new())),
@@ -184,6 +191,8 @@ impl PlannerEnum {
             Stmt::Return(_) => Some(PlannerEnum::Return(ReturnPlanner::new())),
             Stmt::Yield(_) => Some(PlannerEnum::Yield(YieldPlanner::new())),
             Stmt::Pipe(_) => Some(PlannerEnum::Pipe(PipePlanner::new())),
+            Stmt::Explain(_) => Some(PlannerEnum::Explain(ExplainPlanner::new())),
+            Stmt::Profile(_) => Some(PlannerEnum::Explain(ExplainPlanner::new_profile())),
             // Full-text search statements
             Stmt::CreateFulltextIndex(_)
             | Stmt::DropFulltextIndex(_)
@@ -200,8 +209,14 @@ impl PlannerEnum {
             | Stmt::SearchVector(_)
             | Stmt::LookupVector(_)
             | Stmt::MatchVector(_) => Some(PlannerEnum::VectorSearch(VectorSearchPlanner::new())),
-            // DDL/DML operations use the Maintain planner.
-            Stmt::Create(_)
+            Stmt::Create(create_stmt) => match &create_stmt.target {
+                crate::query::parser::ast::CreateTarget::Node { .. }
+                | crate::query::parser::ast::CreateTarget::Edge { .. }
+                | crate::query::parser::ast::CreateTarget::Path { .. } => {
+                    Some(PlannerEnum::CreateData(CreatePlanner::new()))
+                }
+                _ => Some(PlannerEnum::Maintain(MaintainPlanner::new())),
+            },
             | Stmt::Drop(_)
             | Stmt::Show(_)
             | Stmt::Desc(_)
@@ -249,6 +264,8 @@ impl PlannerEnum {
             PlannerEnum::FetchEdges(planner) => planner.transform(validated, qctx),
             PlannerEnum::Maintain(planner) => planner.transform(validated, qctx),
             PlannerEnum::UserManagement(planner) => planner.transform(validated, qctx),
+            PlannerEnum::CreateData(planner) => planner.transform(validated, qctx),
+            PlannerEnum::Assignment(planner) => planner.transform(validated, qctx),
             PlannerEnum::Insert(planner) => planner.transform(validated, qctx),
             PlannerEnum::Delete(planner) => planner.transform(validated, qctx),
             PlannerEnum::Update(planner) => planner.transform(validated, qctx),
@@ -263,6 +280,7 @@ impl PlannerEnum {
             PlannerEnum::Return(planner) => planner.transform(validated, qctx),
             PlannerEnum::Yield(planner) => planner.transform(validated, qctx),
             PlannerEnum::Pipe(planner) => planner.transform(validated, qctx),
+            PlannerEnum::Explain(planner) => planner.transform(validated, qctx),
             PlannerEnum::FulltextSearch(planner) => planner.transform(validated, qctx),
             PlannerEnum::VectorSearch(planner) => planner.transform(validated, qctx),
         }
@@ -280,6 +298,8 @@ impl PlannerEnum {
             PlannerEnum::FetchEdges(_) => "FetchEdgesPlanner",
             PlannerEnum::Maintain(_) => "MaintainPlanner",
             PlannerEnum::UserManagement(_) => "UserManagementPlanner",
+            PlannerEnum::CreateData(_) => "CreateDataPlanner",
+            PlannerEnum::Assignment(_) => "AssignmentPlanner",
             PlannerEnum::Insert(_) => "InsertPlanner",
             PlannerEnum::Delete(_) => "DeletePlanner",
             PlannerEnum::Update(_) => "UpdatePlanner",
@@ -294,6 +314,7 @@ impl PlannerEnum {
             PlannerEnum::Return(_) => "ReturnPlanner",
             PlannerEnum::Yield(_) => "YieldPlanner",
             PlannerEnum::Pipe(_) => "PipePlanner",
+            PlannerEnum::Explain(_) => "ExplainPlanner",
             PlannerEnum::FulltextSearch(_) => "FulltextSearchPlanner",
             PlannerEnum::VectorSearch(_) => "VectorSearchPlanner",
         }
@@ -311,6 +332,8 @@ impl PlannerEnum {
             PlannerEnum::FetchEdges(planner) => planner.match_planner(stmt),
             PlannerEnum::Maintain(planner) => planner.match_planner(stmt),
             PlannerEnum::UserManagement(planner) => planner.match_planner(stmt),
+            PlannerEnum::CreateData(planner) => planner.match_planner(stmt),
+            PlannerEnum::Assignment(planner) => planner.match_planner(stmt),
             PlannerEnum::Insert(planner) => planner.match_planner(stmt),
             PlannerEnum::Delete(planner) => planner.match_planner(stmt),
             PlannerEnum::Update(planner) => planner.match_planner(stmt),
@@ -325,6 +348,7 @@ impl PlannerEnum {
             PlannerEnum::Return(planner) => planner.match_planner(stmt),
             PlannerEnum::Yield(planner) => planner.match_planner(stmt),
             PlannerEnum::Pipe(planner) => planner.match_planner(stmt),
+            PlannerEnum::Explain(planner) => planner.match_planner(stmt),
             PlannerEnum::FulltextSearch(planner) => planner.match_planner(stmt),
             PlannerEnum::VectorSearch(planner) => planner.match_planner(stmt),
         }
@@ -363,6 +387,12 @@ impl PlannerEnum {
                 planner.transform_with_metadata(validated, qctx, metadata_context)
             }
             PlannerEnum::UserManagement(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::CreateData(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::Assignment(planner) => {
                 planner.transform_with_metadata(validated, qctx, metadata_context)
             }
             PlannerEnum::Insert(planner) => {
@@ -405,6 +435,9 @@ impl PlannerEnum {
                 planner.transform_with_metadata(validated, qctx, metadata_context)
             }
             PlannerEnum::Pipe(planner) => {
+                planner.transform_with_metadata(validated, qctx, metadata_context)
+            }
+            PlannerEnum::Explain(planner) => {
                 planner.transform_with_metadata(validated, qctx, metadata_context)
             }
             PlannerEnum::FulltextSearch(planner) => {

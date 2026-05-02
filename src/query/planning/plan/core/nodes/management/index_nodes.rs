@@ -317,3 +317,55 @@ impl IndexManageInfo {
         self
     }
 }
+
+define_plan_node! {
+    pub struct ShowCreateIndexNode {
+        space_name: String,
+        index_name: String,
+    }
+    enum: ShowCreateIndex
+    input: ZeroInputNode
+}
+
+impl ShowCreateIndexNode {
+    pub fn new(id: i64, space_name: String, index_name: String) -> Self {
+        Self {
+            id,
+            space_name,
+            index_name,
+            output_var: None,
+            col_names: Vec::new(),
+        }
+    }
+
+    pub fn space_name(&self) -> &str {
+        &self.space_name
+    }
+
+    pub fn index_name(&self) -> &str {
+        &self.index_name
+    }
+}
+
+define_plan_node! {
+    pub struct ShowIndexesNode {
+        space_name: String,
+    }
+    enum: ShowIndexes
+    input: ZeroInputNode
+}
+
+impl ShowIndexesNode {
+    pub fn new(id: i64, space_name: String) -> Self {
+        Self {
+            id,
+            space_name,
+            output_var: None,
+            col_names: Vec::new(),
+        }
+    }
+
+    pub fn space_name(&self) -> &str {
+        &self.space_name
+    }
+}

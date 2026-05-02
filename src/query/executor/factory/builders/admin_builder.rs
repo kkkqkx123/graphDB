@@ -22,14 +22,16 @@ use crate::query::executor::admin::{
 };
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::base::ExecutorEnum;
+use crate::query::executor::utils::PassThroughExecutor;
 use crate::query::planning::plan::core::nodes::{
     AlterEdgeNode, AlterSpaceNode, AlterTagNode, AlterUserNode, ChangePasswordNode, ClearSpaceNode,
     CreateEdgeIndexNode, CreateEdgeNode, CreateSpaceNode, CreateTagIndexNode, CreateTagNode,
     CreateUserNode, DescEdgeIndexNode, DescEdgeNode, DescSpaceNode, DescTagIndexNode, DescTagNode,
     DropEdgeIndexNode, DropEdgeNode, DropSpaceNode, DropTagIndexNode, DropTagNode, DropUserNode,
-    GrantRoleNode, RebuildEdgeIndexNode, RebuildTagIndexNode, RevokeRoleNode, ShowCreateTagNode,
-    ShowEdgeIndexesNode, ShowEdgesNode, ShowSpacesNode, ShowStatsNode, ShowTagIndexesNode,
-    ShowTagsNode, SwitchSpaceNode,
+    GrantRoleNode, RebuildEdgeIndexNode, RebuildTagIndexNode, RevokeRoleNode, ShowCreateEdgeNode,
+    ShowCreateIndexNode, ShowCreateSpaceNode, ShowCreateTagNode, ShowEdgeIndexesNode, ShowEdgesNode,
+    ShowIndexesNode, ShowRolesNode, ShowSpacesNode, ShowStatsNode, ShowTagIndexesNode, ShowTagsNode,
+    ShowUsersNode, SwitchSpaceNode,
 };
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -749,6 +751,84 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::ShowStats(executor))
+    }
+
+    pub fn build_show_create_space(
+        node: &ShowCreateSpaceNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let executor = PassThroughExecutor::new(
+            node.id(),
+            storage,
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::PassThrough(executor))
+    }
+
+    pub fn build_show_create_edge(
+        node: &ShowCreateEdgeNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let executor = PassThroughExecutor::new(
+            node.id(),
+            storage,
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::PassThrough(executor))
+    }
+
+    pub fn build_show_indexes(
+        node: &ShowIndexesNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let executor = PassThroughExecutor::new(
+            node.id(),
+            storage,
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::PassThrough(executor))
+    }
+
+    pub fn build_show_create_index(
+        node: &ShowCreateIndexNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let executor = PassThroughExecutor::new(
+            node.id(),
+            storage,
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::PassThrough(executor))
+    }
+
+    pub fn build_show_users(
+        node: &ShowUsersNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let executor = PassThroughExecutor::new(
+            node.id(),
+            storage,
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::PassThrough(executor))
+    }
+
+    pub fn build_show_roles(
+        node: &ShowRolesNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let executor = PassThroughExecutor::new(
+            node.id(),
+            storage,
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::PassThrough(executor))
     }
 }
 

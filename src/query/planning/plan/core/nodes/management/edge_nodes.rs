@@ -159,6 +159,35 @@ impl ShowEdgesNode {
     }
 }
 
+define_plan_node! {
+    pub struct ShowCreateEdgeNode {
+        space_name: String,
+        edge_name: String,
+    }
+    enum: ShowCreateEdge
+    input: ZeroInputNode
+}
+
+impl ShowCreateEdgeNode {
+    pub fn new(id: i64, space_name: String, edge_name: String) -> Self {
+        Self {
+            id,
+            space_name,
+            edge_name,
+            output_var: None,
+            col_names: Vec::new(),
+        }
+    }
+
+    pub fn space_name(&self) -> &str {
+        &self.space_name
+    }
+
+    pub fn edge_name(&self) -> &str {
+        &self.edge_name
+    }
+}
+
 /// Edge Type Management Information
 #[derive(Debug, Clone)]
 pub struct EdgeManageInfo {

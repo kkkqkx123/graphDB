@@ -12,6 +12,7 @@ pub use nodes::{
     DataCollectNode, DedupNode, ExpandAllNode, ExpandNode, FilterNode, GetEdgesNode,
     GetNeighborsNode, GetVerticesNode, HashInnerJoinNode, InnerJoinNode, LeftJoinNode, LimitNode,
     LoopNode, PassThroughNode, PatternApplyNode, PlanNodeFactory, ProjectNode, RollUpApplyNode,
-    ScanEdgesNode, ScanVerticesNode, SelectNode, ShowStatsNode, ShowStatsType, SortNode, StartNode,
-    TraverseNode, UnionNode, UnwindNode,
+    ScanEdgesNode, ScanVerticesNode, SelectNode, ShowCreateEdgeNode, ShowCreateIndexNode,
+    ShowCreateSpaceNode, ShowIndexesNode, ShowRolesNode, ShowSpacesNode, ShowStatsNode,
+    ShowStatsType, ShowUsersNode, SortNode, StartNode, TraverseNode, UnionNode, UnwindNode,
 };

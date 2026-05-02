@@ -186,6 +186,12 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             PlanNodeEnum::DeleteEdges(node) => {
                 DataModificationBuilder::build_delete_edges(node, storage, context)
             }
+            PlanNodeEnum::DeleteTags(node) => {
+                DataModificationBuilder::build_delete_tags(node, storage, context)
+            }
+            PlanNodeEnum::DeleteIndex(node) => {
+                DataModificationBuilder::build_delete_index(node, storage, context)
+            }
             PlanNodeEnum::PipeDeleteVertices(node) => {
                 DataModificationBuilder::build_pipe_delete_vertices(node, storage, context)
             }
@@ -327,6 +333,9 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             PlanNodeEnum::ShowSpaces(node) => {
                 AdminBuilder::build_show_spaces(node, storage, context)
             }
+            PlanNodeEnum::ShowCreateSpace(node) => {
+                AdminBuilder::build_show_create_space(node, storage, context)
+            }
 
             // Manage Executor – Tag Management
             PlanNodeEnum::CreateTag(node) => AdminBuilder::build_create_tag(node, storage, context),
@@ -346,6 +355,9 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             PlanNodeEnum::DescEdge(node) => AdminBuilder::build_desc_edge(node, storage, context),
             PlanNodeEnum::DropEdge(node) => AdminBuilder::build_drop_edge(node, storage, context),
             PlanNodeEnum::ShowEdges(node) => AdminBuilder::build_show_edges(node, storage, context),
+            PlanNodeEnum::ShowCreateEdge(node) => {
+                AdminBuilder::build_show_create_edge(node, storage, context)
+            }
 
             // Manage Executor – Tag Index Management
             PlanNodeEnum::CreateTagIndex(node) => {
@@ -380,6 +392,12 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             PlanNodeEnum::RebuildEdgeIndex(node) => {
                 AdminBuilder::build_rebuild_edge_index(node, storage, context)
             }
+            PlanNodeEnum::ShowIndexes(node) => {
+                AdminBuilder::build_show_indexes(node, storage, context)
+            }
+            PlanNodeEnum::ShowCreateIndex(node) => {
+                AdminBuilder::build_show_create_index(node, storage, context)
+            }
 
             // Manage Executor – User Management
             PlanNodeEnum::CreateUser(node) => {
@@ -393,6 +411,12 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             PlanNodeEnum::GrantRole(node) => AdminBuilder::build_grant_role(node, storage, context),
             PlanNodeEnum::RevokeRole(node) => {
                 AdminBuilder::build_revoke_role(node, storage, context)
+            }
+            PlanNodeEnum::ShowUsers(node) => {
+                AdminBuilder::build_show_users(node, storage, context)
+            }
+            PlanNodeEnum::ShowRoles(node) => {
+                AdminBuilder::build_show_roles(node, storage, context)
             }
 
             // Manage Executor – Space Management (Supplementary)

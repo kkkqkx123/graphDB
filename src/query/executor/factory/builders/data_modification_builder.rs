@@ -9,9 +9,9 @@ use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::data_modification::{InsertExecutor, RemoveExecutor, RemoveItem};
 use crate::query::planning::plan::core::nodes::{
-    DeleteEdgesNode, DeleteVerticesNode, InsertEdgesNode, InsertVerticesNode,
-    PipeDeleteEdgesNode, PipeDeleteVerticesNode, RemoveNode, UpdateEdgesNode, UpdateNode,
-    UpdateTargetType, UpdateVerticesNode,
+    DeleteEdgesNode, DeleteIndexNode, DeleteTagsNode, DeleteVerticesNode, InsertEdgesNode,
+    InsertVerticesNode, PipeDeleteEdgesNode, PipeDeleteVerticesNode, RemoveNode, UpdateEdgesNode,
+    UpdateNode, UpdateTargetType, UpdateVerticesNode,
 };
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -356,6 +356,64 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
         .with_condition(node.condition().cloned());
 
         Ok(ExecutorEnum::PipeDelete(executor))
+    }
+
+    /// Building the DeleteTags executor (standalone DELETE TAG)
+    pub fn build_delete_tags(
+        node: &DeleteTagsNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        use crate::query::executor::data_modification::DeleteExecutor;
+
+        let mut vertex_ids = Vec::new();
+        for vid_expr in node.vertex_ids() {
+            let vid = vid_expr
+                .get_expression()
+                .and_then(|e| Self::evaluate_literal(&e))
+                .ok_or_else(|| {
+                    QueryError::ExecutionError(
+                        "Vertex ID expression does not exist or is not a literal".to_string(),
+                    )
+                })?;
+            vertex_ids.push(vid);
+        }
+
+        let executor = DeleteExecutor::new(
+            node.id(),
+            storage,
+            Some(vertex_ids),
+            None,
+            None,
+            context.expression_context().clone(),
+        )
+        .with_space(node.space_name().to_string())
+        .with_tag_names(node.tag_names().to_vec())
+        .with_all_tags(node.is_all_tags());
+
+        Ok(ExecutorEnum::Delete(executor))
+    }
+
+    /// Building the DeleteIndex executor (standalone DELETE INDEX)
+    pub fn build_delete_index(
+        node: &DeleteIndexNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        use crate::query::executor::data_modification::DeleteExecutor;
+
+        let executor = DeleteExecutor::new(
+            node.id(),
+            storage,
+            None,
+            None,
+            None,
+            context.expression_context().clone(),
+        )
+        .with_space(node.space_name().to_string())
+        .with_index_name(node.index_name().to_string());
+
+        Ok(ExecutorEnum::Delete(executor))
     }
 
     /// Building the Update executor

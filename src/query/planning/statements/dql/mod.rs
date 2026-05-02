@@ -1,6 +1,26 @@
-//! Data Query Language (DQL) statement planners
+//! Data Query Language (DQL) Statement Planners
 //!
-//! This module contains planners for data query operations:
+//! This module contains **statement-level** planners for data query operations.
+//! Each planner implements the `Planner` trait and is registered in `PlannerEnum`.
+//!
+//! ## Responsibility Boundary
+//!
+//! **Statement planners** (this module) handle standalone DQL statements.
+//! They implement `Planner` and generate a complete `SubPlan` from scratch.
+//! Example: `ReturnPlanner` handles a standalone `RETURN 1 AS x` statement.
+//!
+//! **Clause planners** (`clauses/` module) handle individual clauses within compound statements.
+//! They implement `ClausePlanner` and receive an input `SubPlan` to build upon.
+//! Example: `WhereClausePlanner` handles the WHERE clause inside a MATCH statement.
+//!
+//! When a clause appears both as a standalone statement and as a clause within
+//! a compound statement, both modules may have a planner for it (e.g., `ReturnPlanner`
+//! in this module vs `ReturnClausePlanner` in `clauses/`). The statement planner
+//! handles the standalone case, while the clause planner is used by compound
+//! statement planners like `MatchStatementPlanner`.
+//!
+//! ## Supported Operations
+//!
 //! - FETCH EDGES: Fetch edges by source/destination/rank
 //! - FETCH VERTICES: Fetch vertices by ID
 //! - GO: Nebula-style traversal queries
@@ -25,6 +45,7 @@
 //! with multiple conditions, supporting prefix matching and range scans.
 
 pub mod composite_index_analyzer;
+pub mod explain_planner;
 pub mod fetch_edges_planner;
 pub mod fetch_vertices_planner;
 pub mod go_planner;

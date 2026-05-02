@@ -16,7 +16,7 @@ use std::sync::Arc;
 /// LIMIT/SKIP Clause Planner
 ///
 /// Responsible for planning the execution of the LIMIT and SKIP clauses, in order to implement result pagination.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct PaginationPlanner;
 
 impl PaginationPlanner {

@@ -2,20 +2,21 @@
 
 use super::plan_node_enum::PlanNodeEnum;
 use crate::query::planning::plan::core::nodes::data_modification::{
-    DeleteEdgesNode, DeleteVerticesNode, InsertEdgesNode, InsertVerticesNode,
-    PipeDeleteEdgesNode, PipeDeleteVerticesNode, UpdateEdgesNode, UpdateNode, UpdateVerticesNode,
+    DeleteEdgesNode, DeleteIndexNode, DeleteTagsNode, DeleteVerticesNode, InsertEdgesNode,
+    InsertVerticesNode, PipeDeleteEdgesNode, PipeDeleteVerticesNode, UpdateEdgesNode,
+    UpdateNode, UpdateVerticesNode,
 };
 use crate::query::planning::plan::core::nodes::management::edge_nodes::{
-    AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
+    AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowCreateEdgeNode, ShowEdgesNode,
 };
 use crate::query::planning::plan::core::nodes::management::index_nodes::{
     CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,
     DropEdgeIndexNode, DropTagIndexNode, RebuildEdgeIndexNode, RebuildTagIndexNode,
-    ShowEdgeIndexesNode, ShowTagIndexesNode,
+    ShowCreateIndexNode, ShowEdgeIndexesNode, ShowIndexesNode, ShowTagIndexesNode,
 };
 use crate::query::planning::plan::core::nodes::management::space_nodes::{
-    AlterSpaceNode, ClearSpaceNode, CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode,
-    SwitchSpaceNode,
+    AlterSpaceNode, ClearSpaceNode, CreateSpaceNode, DescSpaceNode, DropSpaceNode,
+    ShowCreateSpaceNode, ShowSpacesNode, SwitchSpaceNode,
 };
 use crate::query::planning::plan::core::nodes::management::stats_nodes::ShowStatsNode;
 use crate::query::planning::plan::core::nodes::management::tag_nodes::{
@@ -23,6 +24,7 @@ use crate::query::planning::plan::core::nodes::management::tag_nodes::{
 };
 use crate::query::planning::plan::core::nodes::management::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode,
+    ShowRolesNode, ShowUsersNode,
 };
 use crate::query::planning::plan::core::nodes::search::fulltext::data_access::{
     FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
@@ -176,6 +178,7 @@ pub trait PlanNodeVisitor {
         DropSpace, DropSpaceNode, visit_drop_space;
         DescSpace, DescSpaceNode, visit_desc_space;
         ShowSpaces, ShowSpacesNode, visit_show_spaces;
+        ShowCreateSpace, ShowCreateSpaceNode, visit_show_create_space;
     );
 
     impl_visitor_methods!(
@@ -193,6 +196,7 @@ pub trait PlanNodeVisitor {
         DescEdge, DescEdgeNode, visit_desc_edge;
         DropEdge, DropEdgeNode, visit_drop_edge;
         ShowEdges, ShowEdgesNode, visit_show_edges;
+        ShowCreateEdge, ShowCreateEdgeNode, visit_show_create_edge;
     );
 
     impl_visitor_methods!(
@@ -212,6 +216,8 @@ pub trait PlanNodeVisitor {
     impl_visitor_methods!(
         RebuildTagIndex, RebuildTagIndexNode, visit_rebuild_tag_index;
         RebuildEdgeIndex, RebuildEdgeIndexNode, visit_rebuild_edge_index;
+        ShowIndexes, ShowIndexesNode, visit_show_indexes;
+        ShowCreateIndex, ShowCreateIndexNode, visit_show_create_index;
     );
 
     impl_visitor_methods!(
@@ -225,6 +231,8 @@ pub trait PlanNodeVisitor {
     impl_visitor_methods!(
         GrantRole, GrantRoleNode, visit_grant_role;
         RevokeRole, RevokeRoleNode, visit_revoke_role;
+        ShowUsers, ShowUsersNode, visit_show_users;
+        ShowRoles, ShowRolesNode, visit_show_roles;
         SwitchSpace, SwitchSpaceNode, visit_switch_space;
         AlterSpace, AlterSpaceNode, visit_alter_space;
         ClearSpace, ClearSpaceNode, visit_clear_space;
@@ -241,6 +249,8 @@ pub trait PlanNodeVisitor {
     impl_visitor_methods!(
         DeleteVertices, DeleteVerticesNode, visit_delete_vertices;
         DeleteEdges, DeleteEdgesNode, visit_delete_edges;
+        DeleteTags, DeleteTagsNode, visit_delete_tags;
+        DeleteIndex, DeleteIndexNode, visit_delete_index;
     );
 
     // Pipe Delete nodes
@@ -339,6 +349,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::DropSpace(node) => visitor.visit_drop_space(node),
             PlanNodeEnum::DescSpace(node) => visitor.visit_desc_space(node),
             PlanNodeEnum::ShowSpaces(node) => visitor.visit_show_spaces(node),
+            PlanNodeEnum::ShowCreateSpace(node) => visitor.visit_show_create_space(node),
             PlanNodeEnum::CreateTag(node) => visitor.visit_create_tag(node),
             PlanNodeEnum::AlterTag(node) => visitor.visit_alter_tag(node),
             PlanNodeEnum::DescTag(node) => visitor.visit_desc_tag(node),
@@ -350,6 +361,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::DescEdge(node) => visitor.visit_desc_edge(node),
             PlanNodeEnum::DropEdge(node) => visitor.visit_drop_edge(node),
             PlanNodeEnum::ShowEdges(node) => visitor.visit_show_edges(node),
+            PlanNodeEnum::ShowCreateEdge(node) => visitor.visit_show_create_edge(node),
             PlanNodeEnum::CreateTagIndex(node) => visitor.visit_create_tag_index(node),
             PlanNodeEnum::DropTagIndex(node) => visitor.visit_drop_tag_index(node),
             PlanNodeEnum::DescTagIndex(node) => visitor.visit_desc_tag_index(node),
@@ -360,6 +372,8 @@ impl PlanNodeEnum {
             PlanNodeEnum::ShowEdgeIndexes(node) => visitor.visit_show_edge_indexes(node),
             PlanNodeEnum::RebuildTagIndex(node) => visitor.visit_rebuild_tag_index(node),
             PlanNodeEnum::RebuildEdgeIndex(node) => visitor.visit_rebuild_edge_index(node),
+            PlanNodeEnum::ShowIndexes(node) => visitor.visit_show_indexes(node),
+            PlanNodeEnum::ShowCreateIndex(node) => visitor.visit_show_create_index(node),
             PlanNodeEnum::CreateUser(node) => visitor.visit_create_user(node),
             PlanNodeEnum::AlterUser(node) => visitor.visit_alter_user(node),
             PlanNodeEnum::DropUser(node) => visitor.visit_drop_user(node),
@@ -367,6 +381,8 @@ impl PlanNodeEnum {
             // Add a new management node.
             PlanNodeEnum::GrantRole(node) => visitor.visit_grant_role(node),
             PlanNodeEnum::RevokeRole(node) => visitor.visit_revoke_role(node),
+            PlanNodeEnum::ShowUsers(node) => visitor.visit_show_users(node),
+            PlanNodeEnum::ShowRoles(node) => visitor.visit_show_roles(node),
             PlanNodeEnum::SwitchSpace(node) => visitor.visit_switch_space(node),
             PlanNodeEnum::AlterSpace(node) => visitor.visit_alter_space(node),
             PlanNodeEnum::ClearSpace(node) => visitor.visit_clear_space(node),
@@ -375,6 +391,8 @@ impl PlanNodeEnum {
             PlanNodeEnum::InsertEdges(node) => visitor.visit_insert_edges(node),
             PlanNodeEnum::DeleteVertices(node) => visitor.visit_delete_vertices(node),
             PlanNodeEnum::DeleteEdges(node) => visitor.visit_delete_edges(node),
+            PlanNodeEnum::DeleteTags(node) => visitor.visit_delete_tags(node),
+            PlanNodeEnum::DeleteIndex(node) => visitor.visit_delete_index(node),
             PlanNodeEnum::PipeDeleteVertices(node) => visitor.visit_pipe_delete_vertices(node),
             PlanNodeEnum::PipeDeleteEdges(node) => visitor.visit_pipe_delete_edges(node),
             PlanNodeEnum::Update(node) => visitor.visit_update(node),

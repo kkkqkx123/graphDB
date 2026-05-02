@@ -199,3 +199,42 @@ impl RevokeRoleNode {
         &self.space_name
     }
 }
+
+define_plan_node! {
+    pub struct ShowUsersNode {}
+    enum: ShowUsers
+    input: ZeroInputNode
+}
+
+impl ShowUsersNode {
+    pub fn new(id: i64) -> Self {
+        Self {
+            id,
+            output_var: None,
+            col_names: Vec::new(),
+        }
+    }
+}
+
+define_plan_node! {
+    pub struct ShowRolesNode {
+        space_name: String,
+    }
+    enum: ShowRoles
+    input: ZeroInputNode
+}
+
+impl ShowRolesNode {
+    pub fn new(id: i64, space_name: String) -> Self {
+        Self {
+            id,
+            space_name,
+            output_var: None,
+            col_names: Vec::new(),
+        }
+    }
+
+    pub fn space_name(&self) -> &str {
+        &self.space_name
+    }
+}

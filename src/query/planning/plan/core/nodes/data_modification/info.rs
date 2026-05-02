@@ -99,3 +99,19 @@ pub struct EdgeDeleteInfo {
     )>,
     pub condition: Option<ContextualExpression>,
 }
+
+/// Tag deletion information
+#[derive(Debug, Clone)]
+pub struct TagDeleteInfo {
+    pub space_name: String,
+    pub tag_names: Vec<String>,
+    pub vertex_ids: Vec<ContextualExpression>,
+    pub is_all_tags: bool,
+}
+
+/// Index deletion information
+#[derive(Debug, Clone)]
+pub struct IndexDeleteInfo {
+    pub space_name: String,
+    pub index_name: String,
+}
