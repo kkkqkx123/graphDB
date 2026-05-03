@@ -113,15 +113,111 @@ impl PlanNodeVisitError {
 /// Query operation result type aliases
 pub type QueryResult<T> = Result<T, QueryError>;
 
+/// Structured parse error information
+///
+/// Preserves detailed error context from the parser for better error reporting.
+/// This type is Clone-friendly, unlike the original ParseError which contains
+/// a `Box<dyn Error>`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StructuredParseError {
+    /// Error category
+    pub kind: ParseErrorKind,
+    /// Human-readable error message
+    pub message: String,
+    /// Line and column position in the source
+    pub position: crate::core::types::Position,
+    /// Byte offset in the source (if available)
+    pub offset: Option<usize>,
+    /// The unexpected token that caused the error
+    pub unexpected_token: Option<String>,
+    /// List of expected tokens at the error location
+    pub expected_tokens: Vec<String>,
+    /// Helpful hints for fixing the error
+    pub hints: Vec<String>,
+    /// Context information (converted to string for Clone support)
+    pub context: Option<String>,
+}
+
+/// Parse error kind enumeration
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ParseErrorKind {
+    LexicalError,
+    SyntaxError,
+    UnexpectedToken,
+    UnterminatedString,
+    UnterminatedComment,
+    InvalidNumber,
+    InvalidEscapeSequence,
+    UnicodeEscapeError,
+    UnexpectedEndOfInput,
+    InvalidCharacter,
+    UnknownKeyword,
+    RecursionLimitExceeded,
+    UnsupportedFeature,
+    SemanticError,
+}
+
+impl std::fmt::Display for ParseErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParseErrorKind::LexicalError => write!(f, "Lexical error"),
+            ParseErrorKind::SyntaxError => write!(f, "Syntax error"),
+            ParseErrorKind::UnexpectedToken => write!(f, "Unexpected token"),
+            ParseErrorKind::UnterminatedString => write!(f, "Unterminated string"),
+            ParseErrorKind::UnterminatedComment => write!(f, "Unterminated comment"),
+            ParseErrorKind::InvalidNumber => write!(f, "Invalid number"),
+            ParseErrorKind::InvalidEscapeSequence => write!(f, "Invalid escape sequence"),
+            ParseErrorKind::UnicodeEscapeError => write!(f, "Unicode escape error"),
+            ParseErrorKind::UnexpectedEndOfInput => write!(f, "Unexpected end of input"),
+            ParseErrorKind::InvalidCharacter => write!(f, "Invalid character"),
+            ParseErrorKind::UnknownKeyword => write!(f, "Unknown keyword"),
+            ParseErrorKind::RecursionLimitExceeded => write!(f, "Recursion limit exceeded"),
+            ParseErrorKind::UnsupportedFeature => write!(f, "Unsupported feature"),
+            ParseErrorKind::SemanticError => write!(f, "Semantic error"),
+        }
+    }
+}
+
+impl std::fmt::Display for StructuredParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} at line {}, column {}: {}",
+            self.kind, self.position.line, self.position.column, self.message
+        )?;
+
+        if let Some(ref token) = self.unexpected_token {
+            writeln!(f, "\n  Unexpected token: {}", token)?;
+        }
+
+        if !self.expected_tokens.is_empty() {
+            writeln!(
+                f,
+                "\n  Expected one of: {}",
+                self.expected_tokens.join(", ")
+            )?;
+        }
+
+        if let Some(ref context) = self.context {
+            writeln!(f, "\n  Context: {}", context)?;
+        }
+
+        if !self.hints.is_empty() {
+            writeln!(f, "\n  Hint(s):")?;
+            for hint in &self.hints {
+                writeln!(f, "    - {}", hint)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
 /// Query layer error type
 #[derive(Debug, Clone)]
 pub enum QueryError {
     StorageError(StorageErrorWrapper),
-    ParseError {
-        message: String,
-        offset: Option<usize>,
-        location: Option<String>,
-    },
+    ParseError(StructuredParseError),
     PlanningError(String),
     OptimizationError(String),
     InvalidQuery(String),
@@ -139,20 +235,7 @@ impl std::fmt::Display for QueryError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             QueryError::StorageError(e) => write!(f, "Storage error: {}", e),
-            QueryError::ParseError {
-                message,
-                offset,
-                location,
-            } => {
-                let location_str = location
-                    .as_ref()
-                    .map(|l| format!(" at {}", l))
-                    .unwrap_or_default();
-                let offset_str = offset
-                    .map(|o| format!(" (offset: {})", o))
-                    .unwrap_or_default();
-                write!(f, "Parse error{}{}: {}", location_str, offset_str, message)
-            }
+            QueryError::ParseError(e) => write!(f, "Parse error: {}", e),
             QueryError::PlanningError(msg) => write!(f, "Planning error: {}", msg),
             QueryError::OptimizationError(msg) => write!(f, "Optimization error: {}", msg),
             QueryError::InvalidQuery(msg) => write!(f, "Invalid query: {}", msg),
@@ -215,19 +298,29 @@ impl QueryError {
     }
 
     pub fn parse_error(message: impl Into<String>) -> Self {
-        QueryError::ParseError {
+        QueryError::ParseError(StructuredParseError {
+            kind: ParseErrorKind::SyntaxError,
             message: message.into(),
+            position: crate::core::types::Position::new(0, 0),
             offset: None,
-            location: None,
-        }
+            unexpected_token: None,
+            expected_tokens: Vec::new(),
+            hints: Vec::new(),
+            context: None,
+        })
     }
 
     pub fn parse_error_with_offset(message: impl Into<String>, offset: usize) -> Self {
-        QueryError::ParseError {
+        QueryError::ParseError(StructuredParseError {
+            kind: ParseErrorKind::SyntaxError,
             message: message.into(),
+            position: crate::core::types::Position::new(0, 0),
             offset: Some(offset),
-            location: None,
-        }
+            unexpected_token: None,
+            expected_tokens: Vec::new(),
+            hints: Vec::new(),
+            context: None,
+        })
     }
 
     pub fn parse_error_with_location(
@@ -235,23 +328,52 @@ impl QueryError {
         offset: usize,
         location: impl Into<String>,
     ) -> Self {
-        QueryError::ParseError {
+        QueryError::ParseError(StructuredParseError {
+            kind: ParseErrorKind::SyntaxError,
             message: message.into(),
+            position: crate::core::types::Position::new(0, 0),
             offset: Some(offset),
-            location: Some(location.into()),
-        }
+            unexpected_token: None,
+            expected_tokens: Vec::new(),
+            hints: vec![location.into()],
+            context: None,
+        })
+    }
+
+    pub fn structured_parse_error(err: StructuredParseError) -> Self {
+        QueryError::ParseError(err)
     }
 
     pub fn offset(&self) -> Option<usize> {
         match self {
-            QueryError::ParseError { offset, .. } => *offset,
+            QueryError::ParseError(e) => e.offset,
             _ => None,
         }
     }
 
     pub fn location(&self) -> Option<&str> {
         match self {
-            QueryError::ParseError { location, .. } => location.as_deref(),
+            QueryError::ParseError(e) => {
+                if e.hints.is_empty() {
+                    None
+                } else {
+                    Some(&e.hints[0])
+                }
+            }
+            _ => None,
+        }
+    }
+
+    pub fn parse_error_position(&self) -> Option<&crate::core::types::Position> {
+        match self {
+            QueryError::ParseError(e) => Some(&e.position),
+            _ => None,
+        }
+    }
+
+    pub fn parse_error_kind(&self) -> Option<ParseErrorKind> {
+        match self {
+            QueryError::ParseError(e) => Some(e.kind),
             _ => None,
         }
     }

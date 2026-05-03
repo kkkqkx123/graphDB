@@ -197,12 +197,38 @@ impl From<super::super::lexing::LexError> for ParseError {
 
 impl From<ParseError> for QueryError {
     fn from(parse_error: ParseError) -> Self {
-        let message: String = parse_error.message.into();
-        if let Some(offset) = parse_error.offset {
-            QueryError::parse_error_with_offset(message, offset)
-        } else {
-            QueryError::parse_error(message)
-        }
+        use crate::core::error::query::{ParseErrorKind as QueryParseErrorKind, StructuredParseError};
+        use crate::core::types::Position;
+
+        let kind = match parse_error.kind {
+            ParseErrorKind::LexicalError => QueryParseErrorKind::LexicalError,
+            ParseErrorKind::SyntaxError => QueryParseErrorKind::SyntaxError,
+            ParseErrorKind::UnexpectedToken => QueryParseErrorKind::UnexpectedToken,
+            ParseErrorKind::UnterminatedString => QueryParseErrorKind::UnterminatedString,
+            ParseErrorKind::UnterminatedComment => QueryParseErrorKind::UnterminatedComment,
+            ParseErrorKind::InvalidNumber => QueryParseErrorKind::InvalidNumber,
+            ParseErrorKind::InvalidEscapeSequence => QueryParseErrorKind::InvalidEscapeSequence,
+            ParseErrorKind::UnicodeEscapeError => QueryParseErrorKind::UnicodeEscapeError,
+            ParseErrorKind::UnexpectedEndOfInput => QueryParseErrorKind::UnexpectedEndOfInput,
+            ParseErrorKind::InvalidCharacter => QueryParseErrorKind::InvalidCharacter,
+            ParseErrorKind::UnknownKeyword => QueryParseErrorKind::UnknownKeyword,
+            ParseErrorKind::RecursionLimitExceeded => QueryParseErrorKind::RecursionLimitExceeded,
+            ParseErrorKind::UnsupportedFeature => QueryParseErrorKind::UnsupportedFeature,
+            ParseErrorKind::SemanticError => QueryParseErrorKind::SemanticError,
+        };
+
+        let structured = StructuredParseError {
+            kind,
+            message: parse_error.message.into(),
+            position: Position::new(parse_error.position.line, parse_error.position.column),
+            offset: parse_error.offset,
+            unexpected_token: parse_error.unexpected_token.map(|t| t.into()),
+            expected_tokens: parse_error.expected_tokens.into_vec(),
+            hints: parse_error.hints.into_vec(),
+            context: parse_error.context.as_ref().map(|c| c.to_string()),
+        };
+
+        QueryError::structured_parse_error(structured)
     }
 }
 
