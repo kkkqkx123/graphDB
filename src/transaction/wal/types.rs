@@ -5,6 +5,7 @@
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
+use oxicode::{Encode, Decode};
 
 /// Timestamp type for MVCC
 pub type Timestamp = u32;
@@ -235,7 +236,7 @@ impl UpdateWalUnit {
 }
 
 /// Insert vertex redo log
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct InsertVertexRedo {
     pub label: LabelId,
     pub oid: Vec<u8>,
@@ -243,7 +244,7 @@ pub struct InsertVertexRedo {
 }
 
 /// Insert edge redo log
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct InsertEdgeRedo {
     pub src_label: LabelId,
     pub src_oid: Vec<u8>,
@@ -275,14 +276,14 @@ pub struct UpdateEdgePropRedo {
 }
 
 /// Create vertex type redo log
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct CreateVertexTypeRedo {
     pub label_name: String,
     pub schema: Vec<(String, String)>,
 }
 
 /// Create edge type redo log
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct CreateEdgeTypeRedo {
     pub src_label: String,
     pub dst_label: String,

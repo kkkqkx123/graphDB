@@ -53,10 +53,7 @@ impl RedbWriter {
     }
 
     fn get_executor(&self) -> WriteTxnExecutor<'_> {
-        match &self.txn_context {
-            Some(ctx) => WriteTxnExecutor::bound(ctx.clone()),
-            None => WriteTxnExecutor::independent(&self.db),
-        }
+        WriteTxnExecutor::new(&self.db)
     }
 
     fn log_operation(&self, operation: OperationLog) {

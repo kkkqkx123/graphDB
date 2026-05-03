@@ -36,10 +36,9 @@ impl TransactionApi {
     ///
     /// # Parameters
     /// - `handle`: transaction handle
-    pub async fn commit(&self, handle: TransactionHandle) -> CoreResult<()> {
+    pub fn commit(&self, handle: TransactionHandle) -> CoreResult<()> {
         self.txn_manager
             .commit_transaction(handle.0)
-            .await
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 
@@ -49,7 +48,7 @@ impl TransactionApi {
     /// `handle`: Transaction handler
     pub fn rollback(&self, handle: TransactionHandle) -> CoreResult<()> {
         self.txn_manager
-            .rollback_transaction(handle.0)
+            .abort_transaction(handle.0)
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 
@@ -114,9 +113,12 @@ impl TransactionApi {
             .txn_manager
             .get_context(handle.0)
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))?;
-        context
-            .rollback_to_savepoint(savepoint_id.0)
-            .map_err(|e| CoreError::TransactionFailed(e.to_string()))?;
+        
+        let savepoint_info = context
+            .find_savepoint_by_id(savepoint_id.0)
+            .ok_or_else(|| CoreError::TransactionFailed("Savepoint not found".to_string()))?;
+        
+        context.truncate_operation_log(savepoint_info.operation_log_index);
         Ok(())
     }
 

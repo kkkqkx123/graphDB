@@ -64,53 +64,8 @@ impl RedbReader {
     }
 
     fn get_node_from_bytes(&self, id_bytes: &[u8]) -> Result<Option<Vertex>, StorageError> {
-        if let Some(ref ctx) = self.txn_context {
-            if ctx.read_only {
-                return ctx
-                    .with_read_txn(|read_txn| {
-                        let table = read_txn
-                            .open_table(NODES_TABLE)
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-                        match table
-                            .get(ByteKey(id_bytes.to_vec()))
-                            .map_err(|e| StorageError::DbError(e.to_string()))?
-                        {
-                            Some(value) => {
-                                let byte_key_value = value.value();
-                                let vertex_bytes = byte_key_value.0.clone();
-                                let vertex: Vertex = decode_from_slice(&vertex_bytes)?.0;
-                                Ok(Some(vertex))
-                            }
-                            None => Ok(None),
-                        }
-                    })
-                    .map_err(|e| StorageError::DbError(e.to_string()));
-            } else {
-                return ctx
-                    .with_write_txn(|write_txn| {
-                        let table = write_txn
-                            .open_table(NODES_TABLE)
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-                        let result = table
-                            .get(ByteKey(id_bytes.to_vec()))
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-                        match result {
-                            Some(value) => {
-                                let byte_key_value = value.value();
-                                let vertex_bytes = byte_key_value.0.clone();
-                                let vertex: Vertex = decode_from_slice(&vertex_bytes)?.0;
-                                Ok(Some(vertex))
-                            }
-                            None => Ok(None),
-                        }
-                    })
-                    .map_err(|e| StorageError::DbError(e.to_string()));
-            }
-        }
-
+        // Note: The new transaction architecture doesn't use redb transactions directly.
+        // For now, we use direct database access. Transaction context is handled at a higher level.
         let read_txn = self
             .db
             .begin_read()
@@ -135,54 +90,8 @@ impl RedbReader {
     }
 
     fn get_edge_from_bytes(&self, edge_key_bytes: &[u8]) -> Result<Option<Edge>, StorageError> {
-        if let Some(ref ctx) = self.txn_context {
-            if ctx.read_only {
-                return ctx
-                    .with_read_txn(|read_txn| {
-                        let table = read_txn
-                            .open_table(EDGES_TABLE)
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-                        let result = table
-                            .get(ByteKey(edge_key_bytes.to_vec()))
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-                        match result {
-                            Some(value) => {
-                                let byte_key_value = value.value();
-                                let edge_bytes = byte_key_value.0.clone();
-                                let edge: Edge = decode_from_slice(&edge_bytes)?.0;
-                                Ok(Some(edge))
-                            }
-                            None => Ok(None),
-                        }
-                    })
-                    .map_err(|e| StorageError::DbError(e.to_string()));
-            } else {
-                return ctx
-                    .with_write_txn(|write_txn| {
-                        let table = write_txn
-                            .open_table(EDGES_TABLE)
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-                        let result = table
-                            .get(ByteKey(edge_key_bytes.to_vec()))
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-                        match result {
-                            Some(value) => {
-                                let byte_key_value = value.value();
-                                let edge_bytes = byte_key_value.0.clone();
-                                let edge: Edge = decode_from_slice(&edge_bytes)?.0;
-                                Ok(Some(edge))
-                            }
-                            None => Ok(None),
-                        }
-                    })
-                    .map_err(|e| StorageError::DbError(e.to_string()));
-            }
-        }
-
+        // Note: The new transaction architecture doesn't use redb transactions directly.
+        // For now, we use direct database access. Transaction context is handled at a higher level.
         let read_txn = self
             .db
             .begin_read()
@@ -231,52 +140,8 @@ impl VertexReader for RedbReader {
     }
 
     fn scan_vertices(&self, _space: &str) -> Result<ScanResult<Vertex>, StorageError> {
-        if let Some(ref ctx) = self.txn_context {
-            if ctx.read_only {
-                return ctx
-                    .with_read_txn(|read_txn| {
-                        let table = read_txn
-                            .open_table(NODES_TABLE)
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-                        let mut vertices = Vec::new();
-                        for result in table
-                            .iter()
-                            .map_err(|e| StorageError::DbError(e.to_string()))?
-                        {
-                            let (_, vertex_bytes) =
-                                result.map_err(|e| StorageError::DbError(e.to_string()))?;
-                            let vertex: Vertex = decode_from_slice(&vertex_bytes.value().0)?.0;
-                            vertices.push(vertex);
-                        }
-
-                        Ok(ScanResult::new(vertices))
-                    })
-                    .map_err(|e| StorageError::DbError(e.to_string()));
-            } else {
-                return ctx
-                    .with_write_txn(|write_txn| {
-                        let table = write_txn
-                            .open_table(NODES_TABLE)
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-                        let mut vertices = Vec::new();
-                        for result in table
-                            .iter()
-                            .map_err(|e| StorageError::DbError(e.to_string()))?
-                        {
-                            let (_, vertex_bytes) =
-                                result.map_err(|e| StorageError::DbError(e.to_string()))?;
-                            let vertex: Vertex = decode_from_slice(&vertex_bytes.value().0)?.0;
-                            vertices.push(vertex);
-                        }
-
-                        Ok(ScanResult::new(vertices))
-                    })
-                    .map_err(|e| StorageError::DbError(e.to_string()));
-            }
-        }
-
+        // Note: The new transaction architecture doesn't use redb transactions directly.
+        // For now, we use direct database access. Transaction context is handled at a higher level.
         let read_txn = self
             .db
             .begin_read()
@@ -384,84 +249,8 @@ impl EdgeReader for RedbReader {
     where
         F: Fn(&Edge) -> bool,
     {
-        if let Some(ref ctx) = self.txn_context {
-            if ctx.read_only {
-                return ctx
-                    .with_read_txn(|read_txn| {
-                        let table = read_txn
-                            .open_table(EDGES_TABLE)
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-                        let mut edges = Vec::new();
-                        for result in table
-                            .iter()
-                            .map_err(|e| StorageError::DbError(e.to_string()))?
-                        {
-                            let (_, edge_bytes) =
-                                result.map_err(|e| StorageError::DbError(e.to_string()))?;
-                            let edge: Edge = decode_from_slice(&edge_bytes.value().0)?.0;
-
-                            let matches_direction = match direction {
-                                EdgeDirection::Out => *edge.src == *node_id,
-                                EdgeDirection::In => *edge.dst == *node_id,
-                                EdgeDirection::Both => {
-                                    *edge.src == *node_id || *edge.dst == *node_id
-                                }
-                            };
-
-                            if matches_direction {
-                                if let Some(ref f) = filter {
-                                    if !f(&edge) {
-                                        continue;
-                                    }
-                                }
-                                edges.push(edge);
-                            }
-                        }
-
-                        Ok(ScanResult::new(edges))
-                    })
-                    .map_err(|e| StorageError::DbError(e.to_string()));
-            } else {
-                return ctx
-                    .with_write_txn(|write_txn| {
-                        let table = write_txn
-                            .open_table(EDGES_TABLE)
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-                        let mut edges = Vec::new();
-                        for result in table
-                            .iter()
-                            .map_err(|e| StorageError::DbError(e.to_string()))?
-                        {
-                            let (_, edge_bytes) =
-                                result.map_err(|e| StorageError::DbError(e.to_string()))?;
-                            let edge: Edge = decode_from_slice(&edge_bytes.value().0)?.0;
-
-                            let matches_direction = match direction {
-                                EdgeDirection::Out => *edge.src == *node_id,
-                                EdgeDirection::In => *edge.dst == *node_id,
-                                EdgeDirection::Both => {
-                                    *edge.src == *node_id || *edge.dst == *node_id
-                                }
-                            };
-
-                            if matches_direction {
-                                if let Some(ref f) = filter {
-                                    if !f(&edge) {
-                                        continue;
-                                    }
-                                }
-                                edges.push(edge);
-                            }
-                        }
-
-                        Ok(ScanResult::new(edges))
-                    })
-                    .map_err(|e| StorageError::DbError(e.to_string()));
-            }
-        }
-
+        // Note: The new transaction architecture doesn't use redb transactions directly.
+        // For now, we use direct database access. Transaction context is handled at a higher level.
         let read_txn = self
             .db
             .begin_read()
@@ -502,62 +291,8 @@ impl EdgeReader for RedbReader {
         _space: &str,
         edge_type: &str,
     ) -> Result<ScanResult<Edge>, StorageError> {
-        if let Some(ref ctx) = self.txn_context {
-            if ctx.read_only {
-                return ctx
-                    .with_read_txn(|read_txn| {
-                        let table = read_txn
-                            .open_table(EDGES_TABLE)
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-                        let mut edges = Vec::new();
-                        for result in table
-                            .iter()
-                            .map_err(|e| StorageError::DbError(e.to_string()))?
-                        {
-                            let (_, edge_bytes) =
-                                result.map_err(|e| StorageError::DbError(e.to_string()))?;
-                            let edge: Edge = decode_from_slice(&edge_bytes.value().0)?.0;
-                            edges.push(edge);
-                        }
-
-                        let filtered_edges: Vec<Edge> = edges
-                            .into_iter()
-                            .filter(|e| e.edge_type == edge_type)
-                            .collect();
-
-                        Ok(ScanResult::new(filtered_edges))
-                    })
-                    .map_err(|e| StorageError::DbError(e.to_string()));
-            } else {
-                return ctx
-                    .with_write_txn(|write_txn| {
-                        let table = write_txn
-                            .open_table(EDGES_TABLE)
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-                        let mut edges = Vec::new();
-                        for result in table
-                            .iter()
-                            .map_err(|e| StorageError::DbError(e.to_string()))?
-                        {
-                            let (_, edge_bytes) =
-                                result.map_err(|e| StorageError::DbError(e.to_string()))?;
-                            let edge: Edge = decode_from_slice(&edge_bytes.value().0)?.0;
-                            edges.push(edge);
-                        }
-
-                        let filtered_edges: Vec<Edge> = edges
-                            .into_iter()
-                            .filter(|e| e.edge_type == edge_type)
-                            .collect();
-
-                        Ok(ScanResult::new(filtered_edges))
-                    })
-                    .map_err(|e| StorageError::DbError(e.to_string()));
-            }
-        }
-
+        // Note: The new transaction architecture doesn't use redb transactions directly.
+        // For now, we use direct database access. Transaction context is handled at a higher level.
         let read_txn = self
             .db
             .begin_read()
@@ -585,52 +320,8 @@ impl EdgeReader for RedbReader {
     }
 
     fn scan_all_edges(&self, _space: &str) -> Result<ScanResult<Edge>, StorageError> {
-        if let Some(ref ctx) = self.txn_context {
-            if ctx.read_only {
-                return ctx
-                    .with_read_txn(|read_txn| {
-                        let table = read_txn
-                            .open_table(EDGES_TABLE)
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-                        let mut edges = Vec::new();
-                        for result in table
-                            .iter()
-                            .map_err(|e| StorageError::DbError(e.to_string()))?
-                        {
-                            let (_, edge_bytes) =
-                                result.map_err(|e| StorageError::DbError(e.to_string()))?;
-                            let edge: Edge = decode_from_slice(&edge_bytes.value().0)?.0;
-                            edges.push(edge);
-                        }
-
-                        Ok(ScanResult::new(edges))
-                    })
-                    .map_err(|e| StorageError::DbError(e.to_string()));
-            } else {
-                return ctx
-                    .with_write_txn(|write_txn| {
-                        let table = write_txn
-                            .open_table(EDGES_TABLE)
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-                        let mut edges = Vec::new();
-                        for result in table
-                            .iter()
-                            .map_err(|e| StorageError::DbError(e.to_string()))?
-                        {
-                            let (_, edge_bytes) =
-                                result.map_err(|e| StorageError::DbError(e.to_string()))?;
-                            let edge: Edge = decode_from_slice(&edge_bytes.value().0)?.0;
-                            edges.push(edge);
-                        }
-
-                        Ok(ScanResult::new(edges))
-                    })
-                    .map_err(|e| StorageError::DbError(e.to_string()));
-            }
-        }
-
+        // Note: The new transaction architecture doesn't use redb transactions directly.
+        // For now, we use direct database access. Transaction context is handled at a higher level.
         let read_txn = self
             .db
             .begin_read()

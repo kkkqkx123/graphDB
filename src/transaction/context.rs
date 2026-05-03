@@ -1,20 +1,6 @@
 //! Transaction Context
 //!
-//! Manages the state and resources of a single transaction
-//!
-//! # Lock Ordering Convention
-//!
-//! To prevent deadlocks, all locks must be acquired in the following order:
-//! 1. `write_txn` (Mutex) - redb write transaction
-//! 2. `operation_logs` (RwLock) - operation log
-//! 3. `savepoint_manager` (RwLock) - savepoint manager
-//! 4. `modified_tables` (Mutex) - modified tables
-//!
-//! **Never acquire an earlier lock while holding a later one.**
-//!
-//! When multiple locks are needed, prefer:
-//! - Acquiring locks separately and releasing before acquiring the next
-//! - Using helper methods that handle lock acquisition internally
+//! Manages the state and resources of a single transaction.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -22,20 +8,24 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crossbeam_utils::atomic::AtomicCell;
-use oxicode::{decode_from_slice, encode_to_vec};
 use parking_lot::{Mutex, RwLock};
 
-use crate::core::StorageError;
-use crate::storage::engine::{ByteKey, EDGES_TABLE, NODES_TABLE};
-use crate::transaction::types::*;
+use super::types::*;
+use super::wal::types::Timestamp;
+use super::undo_log::{UndoLogManager, UndoTarget};
 
 /// Transaction Context
+///
+/// Manages the state and resources of a single transaction.
+/// Uses MVCC timestamps for snapshot isolation.
 pub struct TransactionContext {
     /// Transaction ID
     pub id: TransactionId,
     /// Current state
     state: AtomicCell<TransactionState>,
-    /// Start timestamp
+    /// Start timestamp (MVCC)
+    pub start_timestamp: Timestamp,
+    /// Start time (for timeout tracking)
     pub start_time: Instant,
     /// Timeout duration
     timeout: Duration,
@@ -53,23 +43,17 @@ pub struct TransactionContext {
     last_activity: AtomicCell<Instant>,
     /// Query count
     query_count: AtomicU64,
-    /// redb write transaction (exists for read-write transactions)
-    /// Using Option to take ownership on commit
-    pub write_txn: Mutex<Option<redb::WriteTransaction>>,
-    /// redb read transaction (exists for read-only transactions)
-    pub read_txn: Option<redb::ReadTransaction>,
     /// Durability level
     pub durability: DurabilityLevel,
     /// Operation log (using RwLock to optimize read-heavy write-light scenarios)
     operation_logs: RwLock<Vec<OperationLog>>,
     /// Modified tables
     modified_tables: Mutex<Vec<String>>,
-    /// Savepoint manager (using RwLock to optimize read-heavy write-light scenarios)
+    /// Savepoint manager
     savepoint_manager: RwLock<SavepointManager>,
-    /// Database reference (used to create rollback executor, currently unused)
-    #[allow(dead_code)]
-    db: Option<Arc<redb::Database>>,
-    /// Whether to enable two-stage submission
+    /// Undo log manager for rollback
+    undo_logs: RwLock<UndoLogManager>,
+    /// Whether to enable two-phase commit
     two_phase_enabled: bool,
 }
 
@@ -125,17 +109,17 @@ impl SavepointManager {
 }
 
 impl TransactionContext {
-    /// Create a new transaction context (read-write transaction)
-    pub fn new_writable(
+    /// Create a new transaction context
+    pub fn new(
         id: TransactionId,
+        start_timestamp: Timestamp,
         config: TransactionConfig,
-        write_txn: redb::WriteTransaction,
-        db: Option<Arc<redb::Database>>,
     ) -> Self {
         let now = Instant::now();
         Self {
             id,
             state: AtomicCell::new(TransactionState::Active),
+            start_timestamp,
             start_time: now,
             timeout: config.timeout,
             read_only: false,
@@ -145,28 +129,26 @@ impl TransactionContext {
             idle_timeout: config.idle_timeout,
             last_activity: AtomicCell::new(now),
             query_count: AtomicU64::new(0),
-            write_txn: Mutex::new(Some(write_txn)),
-            read_txn: None,
             durability: config.durability,
             operation_logs: RwLock::new(Vec::new()),
             modified_tables: Mutex::new(Vec::new()),
             savepoint_manager: RwLock::new(SavepointManager::new()),
-            db,
+            undo_logs: RwLock::new(UndoLogManager::new()),
             two_phase_enabled: config.two_phase_commit,
         }
     }
 
-    /// Create a new transaction context (read-only transaction)
+    /// Create a new read-only transaction context
     pub fn new_readonly(
         id: TransactionId,
+        start_timestamp: Timestamp,
         config: TransactionConfig,
-        read_txn: redb::ReadTransaction,
-        db: Option<Arc<redb::Database>>,
     ) -> Self {
         let now = Instant::now();
         Self {
             id,
             state: AtomicCell::new(TransactionState::Active),
+            start_timestamp,
             start_time: now,
             timeout: config.timeout,
             read_only: true,
@@ -176,13 +158,11 @@ impl TransactionContext {
             idle_timeout: config.idle_timeout,
             last_activity: AtomicCell::new(now),
             query_count: AtomicU64::new(0),
-            write_txn: Mutex::new(None),
-            read_txn: Some(read_txn),
             durability: DurabilityLevel::Immediate,
             operation_logs: RwLock::new(Vec::new()),
             modified_tables: Mutex::new(Vec::new()),
             savepoint_manager: RwLock::new(SavepointManager::new()),
-            db,
+            undo_logs: RwLock::new(UndoLogManager::new()),
             two_phase_enabled: config.two_phase_commit,
         }
     }
@@ -190,6 +170,11 @@ impl TransactionContext {
     /// Get current state
     pub fn state(&self) -> TransactionState {
         self.state.load()
+    }
+
+    /// Get the MVCC timestamp
+    pub fn timestamp(&self) -> Timestamp {
+        self.start_timestamp
     }
 
     /// Check if transaction has expired
@@ -290,7 +275,7 @@ impl TransactionContext {
         Ok(())
     }
 
-    /// Whether to enable two-stage submission
+    /// Whether to enable two-phase commit
     pub fn is_two_phase_enabled(&self) -> bool {
         self.two_phase_enabled
     }
@@ -311,9 +296,6 @@ impl TransactionContext {
     }
 
     /// Get transaction info
-    ///
-    /// Note: This method avoids holding multiple locks simultaneously to prevent deadlock.
-    /// Each lock is acquired, data is cloned, and the lock is released before acquiring the next.
     pub fn info(&self) -> TransactionInfo {
         let modified_tables = self.get_modified_tables();
         let savepoint_count = self.get_all_savepoints().len();
@@ -399,9 +381,6 @@ impl TransactionContext {
     }
 
     /// Create savepoint
-    ///
-    /// Note: This method acquires operation_log_len() first before savepoint_manager
-    /// to prevent deadlock from nested lock acquisition.
     pub fn create_savepoint(&self, name: Option<String>) -> SavepointId {
         let operation_log_index = self.operation_log_len();
         let mut manager = self.savepoint_manager.write();
@@ -412,6 +391,11 @@ impl TransactionContext {
     pub fn get_savepoint(&self, id: SavepointId) -> Option<SavepointInfo> {
         let manager = self.savepoint_manager.read();
         manager.get_savepoint(id).cloned()
+    }
+
+    /// Find savepoint by ID (alias for get_savepoint for API clarity)
+    pub fn find_savepoint_by_id(&self, id: SavepointId) -> Option<SavepointInfo> {
+        self.get_savepoint(id)
     }
 
     /// Get all savepoints
@@ -436,10 +420,11 @@ impl TransactionContext {
     }
 
     /// Rollback to savepoint
-    ///
-    /// Note: This method carefully avoids nested lock acquisition to prevent deadlock.
-    /// Locks are acquired and released in sequence: savepoint_manager -> operation_logs -> write_txn.
-    pub fn rollback_to_savepoint(&self, id: SavepointId) -> Result<(), TransactionError> {
+    pub fn rollback_to_savepoint(
+        &self,
+        id: SavepointId,
+        target: &mut dyn UndoTarget,
+    ) -> Result<(), TransactionError> {
         let state = self.state.load();
         if !state.can_execute() {
             return Err(TransactionError::InvalidStateForAbort(state));
@@ -449,7 +434,6 @@ impl TransactionContext {
             return Err(TransactionError::TransactionExpired);
         }
 
-        // Step 1: Get savepoint info (acquire and release savepoint_manager lock)
         let savepoint_info = {
             let manager = self.savepoint_manager.read();
             manager
@@ -458,25 +442,8 @@ impl TransactionContext {
                 .ok_or(TransactionError::SavepointNotFound(id))?
         };
 
-        // Step 2: Get logs to rollback (acquire and release operation_logs lock)
-        let logs_to_rollback = {
-            let logs = self.operation_logs.read();
-            if savepoint_info.operation_log_index >= logs.len() {
-                Vec::new()
-            } else {
-                logs[savepoint_info.operation_log_index..].to_vec()
-            }
-        };
-
-        // Step 3: Execute rollback (may acquire write_txn lock internally)
-        if !logs_to_rollback.is_empty() {
-            self.execute_rollback_logs(&logs_to_rollback)?;
-        }
-
-        // Step 4: Truncate operation log (acquire and release operation_logs lock)
         self.truncate_operation_log(savepoint_info.operation_log_index);
 
-        // Step 5: Remove subsequent savepoints (acquire and release savepoint_manager lock)
         {
             let mut manager = self.savepoint_manager.write();
             let savepoints_to_remove: Vec<SavepointId> = manager
@@ -491,377 +458,104 @@ impl TransactionContext {
             }
         }
 
-        Ok(())
-    }
-
-    /// Execute rollback for operation logs
-    fn execute_rollback_logs(&self, logs: &[OperationLog]) -> Result<(), TransactionError> {
-        for log in logs.iter().rev() {
-            match log {
-                OperationLog::InsertVertex {
-                    space: _,
-                    vertex_id,
-                    previous_state,
-                } => {
-                    let id_bytes = vertex_id.clone();
-
-                    if let Some(ref state) = previous_state {
-                        let vertex: crate::core::Vertex = decode_from_slice(state)
-                            .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?
-                            .0;
-                        let vertex_bytes = encode_to_vec(&vertex)
-                            .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
-
-                        self.with_write_txn(|write_txn| {
-                            let mut table = write_txn
-                                .open_table(NODES_TABLE)
-                                .map_err(|e| StorageError::DbError(e.to_string()))?;
-                            table
-                                .insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
-                                .map_err(|e| StorageError::DbError(e.to_string()))?;
-                            Ok(())
-                        })?;
-                    } else {
-                        self.with_write_txn(|write_txn| {
-                            let mut table = write_txn
-                                .open_table(NODES_TABLE)
-                                .map_err(|e| StorageError::DbError(e.to_string()))?;
-                            table
-                                .remove(ByteKey(id_bytes))
-                                .map_err(|e| StorageError::DbError(e.to_string()))?;
-                            Ok(())
-                        })?;
-                    }
-                }
-
-                OperationLog::UpdateVertex {
-                    space: _,
-                    vertex_id: _,
-                    previous_data,
-                } => {
-                    let vertex: crate::core::Vertex = decode_from_slice(previous_data)
-                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?
-                        .0;
-                    let id_bytes = encode_to_vec(&vertex.vid)
-                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
-                    let vertex_bytes = encode_to_vec(&vertex)
-                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
-
-                    self.with_write_txn(|write_txn| {
-                        let mut table = write_txn
-                            .open_table(NODES_TABLE)
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-                        table
-                            .insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-                        Ok(())
-                    })?;
-                }
-
-                OperationLog::DeleteVertex {
-                    space: _,
-                    vertex_id: _,
-                    vertex,
-                } => {
-                    let decoded_vertex: crate::core::Vertex = decode_from_slice(vertex)
-                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?
-                        .0;
-                    let id_bytes = encode_to_vec(&decoded_vertex.vid)
-                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
-                    let vertex_bytes = encode_to_vec(&decoded_vertex)
-                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
-
-                    self.with_write_txn(|write_txn| {
-                        let mut table = write_txn
-                            .open_table(NODES_TABLE)
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-                        table
-                            .insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-                        Ok(())
-                    })?;
-                }
-
-                OperationLog::InsertEdge {
-                    space: _,
-                    edge_id,
-                    previous_state,
-                } => {
-                    let edge_key_bytes = edge_id.clone();
-
-                    if let Some(ref state) = previous_state {
-                        let edge: crate::core::Edge = decode_from_slice(state)
-                            .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?
-                            .0;
-                        let edge_bytes = encode_to_vec(&edge)
-                            .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
-
-                        self.with_write_txn(|write_txn| {
-                            let mut table = write_txn
-                                .open_table(EDGES_TABLE)
-                                .map_err(|e| StorageError::DbError(e.to_string()))?;
-                            table
-                                .insert(ByteKey(edge_key_bytes), ByteKey(edge_bytes))
-                                .map_err(|e| StorageError::DbError(e.to_string()))?;
-                            Ok(())
-                        })?;
-                    } else {
-                        self.with_write_txn(|write_txn| {
-                            let mut table = write_txn
-                                .open_table(EDGES_TABLE)
-                                .map_err(|e| StorageError::DbError(e.to_string()))?;
-                            table
-                                .remove(ByteKey(edge_key_bytes))
-                                .map_err(|e| StorageError::DbError(e.to_string()))?;
-                            Ok(())
-                        })?;
-                    }
-                }
-
-                OperationLog::DeleteEdge {
-                    space: _,
-                    edge_id: _,
-                    edge,
-                } => {
-                    let decoded_edge: crate::core::Edge = decode_from_slice(edge)
-                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?
-                        .0;
-                    let edge_key = format!(
-                        "{:?}_{:?}_{}",
-                        decoded_edge.src, decoded_edge.dst, decoded_edge.edge_type
-                    );
-                    let edge_key_bytes = edge_key.as_bytes().to_vec();
-                    let edge_bytes = encode_to_vec(&decoded_edge)
-                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
-
-                    self.with_write_txn(|write_txn| {
-                        let mut table = write_txn
-                            .open_table(EDGES_TABLE)
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-                        table
-                            .insert(ByteKey(edge_key_bytes), ByteKey(edge_bytes))
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-                        Ok(())
-                    })?;
-                }
-
-                OperationLog::UpdateEdge {
-                    space: _,
-                    edge_id: _,
-                    previous_data,
-                } => {
-                    let edge: crate::core::Edge = decode_from_slice(previous_data)
-                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?
-                        .0;
-                    let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
-                    let edge_key_bytes = edge_key.as_bytes().to_vec();
-                    let edge_bytes = encode_to_vec(&edge)
-                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
-
-                    self.with_write_txn(|write_txn| {
-                        let mut table = write_txn
-                            .open_table(EDGES_TABLE)
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-                        table
-                            .insert(ByteKey(edge_key_bytes), ByteKey(edge_bytes))
-                            .map_err(|e| StorageError::DbError(e.to_string()))?;
-                        Ok(())
-                    })?;
-                }
-            }
+        {
+            let mut undo_logs = self.undo_logs.write();
+            let _ = undo_logs.execute_undo(target, self.start_timestamp);
         }
 
         Ok(())
     }
 
-    /// Clear all savepoints
-    pub fn clear_savepoints(&self) {
-        let mut manager = self.savepoint_manager.write();
-        manager.clear();
+    /// Add undo log
+    pub fn add_undo_log(&self, log: Box<dyn super::undo_log::UndoLog>) {
+        let mut undo_logs = self.undo_logs.write();
+        undo_logs.add(log);
     }
 
-    /// Take write transaction (for commit)
-    pub fn take_write_txn(&self) -> Result<redb::WriteTransaction, TransactionError> {
-        self.write_txn
-            .lock()
-            .take()
-            .ok_or(TransactionError::ReadOnlyTransaction)
+    /// Execute undo logs for rollback
+    pub fn execute_undo_logs(&self, target: &mut dyn UndoTarget) -> Result<(), TransactionError> {
+        let mut undo_logs = self.undo_logs.write();
+        undo_logs
+            .execute_undo(target, self.start_timestamp)
+            .map_err(|e| TransactionError::RollbackFailed(e.to_string()))
     }
 
-    /// Get read transaction reference
-    pub fn read_txn(&self) -> Result<&redb::ReadTransaction, TransactionError> {
-        self.read_txn.as_ref().ok_or(TransactionError::Internal(
-            "Read transaction not available".to_string(),
-        ))
-    }
-
-    /// Execute operation with write transaction (for storage layer)
-    ///
-    /// # Arguments
-    /// * `f` - Closure that receives redb::WriteTransaction reference and returns result
-    ///
-    /// # Returns
-    /// * `Ok(R)` - Result on successful operation
-    /// * `Err(TransactionError)` - Error on operation failure
-    pub fn with_write_txn<F, R>(&self, f: F) -> Result<R, TransactionError>
-    where
-        F: FnOnce(&redb::WriteTransaction) -> Result<R, StorageError>,
-    {
-        if self.read_only {
-            return Err(TransactionError::ReadOnlyTransaction);
+    /// Clear all state
+    pub fn clear(&self) {
+        self.clear_operation_log();
+        {
+            let mut tables = self.modified_tables.lock();
+            tables.clear();
         }
-
-        let state = self.state.load();
-        if !state.can_execute() {
-            return Err(TransactionError::InvalidStateForCommit(state));
+        {
+            let mut manager = self.savepoint_manager.write();
+            manager.clear();
         }
-
-        if self.is_expired() {
-            return Err(TransactionError::TransactionExpired);
+        {
+            let mut undo_logs = self.undo_logs.write();
+            undo_logs.clear();
         }
-
-        let guard = self.write_txn.lock();
-        let txn = guard.as_ref().ok_or(TransactionError::Internal(
-            "Write transaction not available".to_string(),
-        ))?;
-
-        f(txn).map_err(|e| TransactionError::Internal(e.to_string()))
-    }
-
-    /// Execute operation with read transaction (for storage layer)
-    ///
-    /// # Arguments
-    /// * `f` - Closure that receives ReadTransaction or WriteTransaction and returns result
-    ///
-    /// # Returns
-    /// * `Ok(R)` - Result on successful operation
-    /// * `Err(TransactionError)` - Error on operation failure
-    ///
-    /// # Note
-    /// redb does not support creating ReadTransaction from WriteTransaction.
-    /// This method uses two different closures to handle read-only and read-write transactions.
-    /// For read-only transactions, use read_txn; for read-write transactions, use write_txn for reading.
-    pub fn with_read_txn<F, R>(&self, f: F) -> Result<R, TransactionError>
-    where
-        F: FnOnce(&redb::ReadTransaction) -> Result<R, StorageError>,
-    {
-        let state = self.state.load();
-        if !state.can_execute() && !state.is_terminal() {
-            return Err(TransactionError::InvalidStateForCommit(state));
-        }
-
-        if self.is_expired() {
-            return Err(TransactionError::TransactionExpired);
-        }
-
-        // Prefer using read transaction
-        if let Some(ref txn) = self.read_txn {
-            return f(txn).map_err(|e| TransactionError::Internal(e.to_string()));
-        }
-
-        // For read-write transactions, need to create read transaction from write transaction
-        // redb does not support direct reading from WriteTransaction, need to create new read transaction
-        // But this would cause read-write inconsistency, so return error here
-        // Caller should use with_write_txn method
-        Err(TransactionError::Internal(
-            "Read-write transactions do not support direct reading, please use with_write_txn method".to_string(),
-        ))
-    }
-
-    /// Get mutable reference to write transaction (for storage layer)
-    ///
-    /// # Safety
-    /// This method returns a mutable reference, caller must ensure:
-    /// 1. No other thread accesses the transaction simultaneously
-    /// 2. Release the reference immediately after operation completes
-    ///
-    /// It is recommended to use `with_write_txn` method instead
-    pub fn write_txn_mut(
-        &self,
-    ) -> Result<impl std::ops::DerefMut<Target = redb::WriteTransaction> + '_, TransactionError>
-    {
-        if self.read_only {
-            return Err(TransactionError::ReadOnlyTransaction);
-        }
-
-        let state = self.state.load();
-        if !state.can_execute() {
-            return Err(TransactionError::InvalidStateForCommit(state));
-        }
-
-        struct WriteTxnGuard<'a> {
-            guard: parking_lot::MutexGuard<'a, Option<redb::WriteTransaction>>,
-        }
-
-        impl<'a> std::ops::Deref for WriteTxnGuard<'a> {
-            type Target = redb::WriteTransaction;
-            fn deref(&self) -> &Self::Target {
-                self.guard.as_ref().expect("Write transaction should exist")
-            }
-        }
-
-        impl<'a> std::ops::DerefMut for WriteTxnGuard<'a> {
-            fn deref_mut(&mut self) -> &mut Self::Target {
-                self.guard.as_mut().expect("Write transaction should exist")
-            }
-        }
-
-        let guard = self.write_txn.lock();
-        if guard.is_none() {
-            return Err(TransactionError::Internal(
-                "Write transaction not available".to_string(),
-            ));
-        }
-
-        Ok(WriteTxnGuard { guard })
-    }
-}
-
-impl Drop for TransactionContext {
-    fn drop(&mut self) {
-        // If transaction is still active, abort automatically
-        let state = self.state.load();
-        if state == TransactionState::Active {
-            // redb's WriteTransaction automatically rolls back on Drop
-            // Here we only need to update the state
-            self.state.store(TransactionState::Aborted);
-        }
-
-        // Clean up savepoint resources
-        let mut manager = self.savepoint_manager.write();
-        manager.clear();
-        drop(manager);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::Duration;
-
-    // Note: These tests require redb database instance, here only basic logic is tested
 
     #[test]
-    fn test_transaction_context_state_machine() {
-        // Since actual redb transaction is required, only state transition logic is tested here
-        // Actual tests should be in integration tests
+    fn test_transaction_context_basic() {
+        let config = TransactionConfig::default();
+        let ctx = TransactionContext::new(1, 1, config);
+
+        assert_eq!(ctx.id, 1);
+        assert_eq!(ctx.timestamp(), 1);
+        assert_eq!(ctx.state(), TransactionState::Active);
+        assert!(!ctx.read_only);
     }
 
     #[test]
-    fn test_transaction_timeout() {
-        // Create mock context (only for testing timeout logic)
-        struct MockContext {
-            start_time: Instant,
-            timeout: Duration,
-        }
+    fn test_transaction_context_readonly() {
+        let config = TransactionConfig::default();
+        let ctx = TransactionContext::new_readonly(1, 1, config);
 
-        let ctx = MockContext {
-            start_time: Instant::now(),
-            timeout: Duration::from_millis(100),
-        };
+        assert!(ctx.read_only);
+    }
 
-        std::thread::sleep(Duration::from_millis(150));
+    #[test]
+    fn test_transaction_context_state_transition() {
+        let config = TransactionConfig::default();
+        let ctx = TransactionContext::new(1, 1, config);
 
-        assert!(ctx.start_time.elapsed() > ctx.timeout);
+        assert!(ctx.transition_to(TransactionState::Committing).is_ok());
+        assert_eq!(ctx.state(), TransactionState::Committing);
+        assert!(ctx.transition_to(TransactionState::Committed).is_ok());
+        assert_eq!(ctx.state(), TransactionState::Committed);
+    }
+
+    #[test]
+    fn test_transaction_context_savepoint() {
+        let config = TransactionConfig::default();
+        let ctx = TransactionContext::new(1, 1, config);
+
+        let sp_id = ctx.create_savepoint(Some("test".to_string()));
+        assert!(ctx.get_savepoint(sp_id).is_some());
+
+        let sp = ctx.get_savepoint(sp_id).unwrap();
+        assert_eq!(sp.name, Some("test".to_string()));
+    }
+
+    #[test]
+    fn test_transaction_context_operation_log() {
+        let config = TransactionConfig::default();
+        let ctx = TransactionContext::new(1, 1, config);
+
+        ctx.add_operation_log(OperationLog::InsertVertex {
+            space: "test".to_string(),
+            vertex_id: vec![1, 2, 3],
+            previous_state: None,
+        });
+
+        assert_eq!(ctx.operation_log_len(), 1);
+        assert!(ctx.get_operation_log(0).is_some());
     }
 }

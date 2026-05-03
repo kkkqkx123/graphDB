@@ -100,9 +100,8 @@ impl TransactionCleaner {
             }
         }
 
-        if !context.read_only {
-            let _ = context.take_write_txn();
-        }
+        // Note: The new transaction architecture doesn't use redb write transactions directly.
+        // Cleanup is handled by the transaction context itself.
 
         self.stats.decrement_active();
         self.stats.increment_aborted();
@@ -147,9 +146,8 @@ impl TransactionCleaner {
             }
         }
 
-        if !context.read_only {
-            let _ = context.take_write_txn();
-        }
+        // Note: The new transaction architecture doesn't use redb write transactions directly.
+        // Cleanup is handled by the transaction context itself.
 
         self.stats.decrement_active();
         self.stats.increment_aborted();

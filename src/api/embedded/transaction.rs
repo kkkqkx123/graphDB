@@ -237,13 +237,12 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     ///
     /// # Note
     /// Cannot be reused after a transaction has been committed
-    pub async fn commit(mut self) -> CoreResult<()> {
+    pub fn commit(mut self) -> CoreResult<()> {
         self.check_active()?;
 
         self.session
             .txn_manager()
             .commit_transaction(self.txn_handle.0)
-            .await
             .map_err(|e| crate::api::core::CoreError::TransactionFailed(e.to_string()))?;
         self.committed = true;
         Ok(())
@@ -257,12 +256,12 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     ///
     /// # Attention.
     /// Transaction rollback cannot be reused after
-    pub async fn rollback(mut self) -> CoreResult<()> {
+    pub fn rollback(mut self) -> CoreResult<()> {
         self.check_active()?;
 
         self.session
             .txn_manager()
-            .rollback_transaction(self.txn_handle.0)
+            .abort_transaction(self.txn_handle.0)
             .map_err(|e| crate::api::core::CoreError::TransactionFailed(e.to_string()))?;
         self.rolled_back = true;
         Ok(())
@@ -326,10 +325,18 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     pub fn rollback_to_savepoint(&self, savepoint_id: SavepointId) -> CoreResult<()> {
         self.check_active()?;
 
-        let txn_manager = self.session.txn_manager();
-        txn_manager
-            .rollback_to_savepoint(self.txn_handle.0, savepoint_id)
-            .map_err(|e| CoreError::TransactionFailed(e.to_string()))
+        let context = self
+            .session
+            .txn_manager()
+            .get_context(self.txn_handle.0)
+            .map_err(|e| CoreError::TransactionFailed(e.to_string()))?;
+        
+        let savepoint_info = context
+            .find_savepoint_by_id(savepoint_id)
+            .ok_or_else(|| CoreError::TransactionFailed("Savepoint not found".to_string()))?;
+        
+        context.truncate_operation_log(savepoint_info.operation_log_index);
+        Ok(())
     }
 
     /// Release the save point.
@@ -364,10 +371,8 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
             return None;
         }
 
-        let txn_manager = self.session.txn_manager();
-        txn_manager
-            .find_savepoint_by_name(self.txn_handle.0, name)
-            .map(|info| info.id)
+        let context = self.session.txn_manager().get_context(self.txn_handle.0).ok()?;
+        context.find_savepoint_by_name(name).map(|info| info.id)
     }
 
     /// Retrieve all active save points.
@@ -458,7 +463,7 @@ impl<'sess, S: StorageClient + Clone + 'static> Drop for Transaction<'sess, S> {
             let _ = self
                 .session
                 .txn_manager()
-                .rollback_transaction(self.txn_handle.0);
+                .abort_transaction(self.txn_handle.0);
         }
     }
 }

@@ -176,15 +176,7 @@ impl GraphDatabase<RedbStorage> {
         };
 
         let txn_manager_config = TransactionManagerConfig::default();
-        let txn_manager = if let Some(ref sync) = sync_manager {
-            Arc::new(TransactionManager::with_sync_manager(
-                db,
-                txn_manager_config,
-                sync.clone(),
-            ))
-        } else {
-            Arc::new(TransactionManager::new(db, txn_manager_config))
-        };
+        let txn_manager = Arc::new(TransactionManager::new(txn_manager_config));
 
         let query_api = if let Some(ref sync) = sync_manager {
             Arc::new(Mutex::new(QueryApi::with_sync_manager(
@@ -331,7 +323,7 @@ impl GraphDatabase<MockStorage> {
         let db = storage.lock().get_db().clone();
 
         let txn_manager_config = TransactionManagerConfig::default();
-        let txn_manager = Arc::new(TransactionManager::new(db, txn_manager_config));
+        let txn_manager = Arc::new(TransactionManager::new(txn_manager_config));
 
         let query_api = Arc::new(Mutex::new(QueryApi::new(storage.clone())));
         let schema_api = SchemaApi::new(storage.clone());

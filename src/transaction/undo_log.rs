@@ -65,8 +65,8 @@ pub trait UndoTarget: Send + Sync {
     fn delete_edge_type(&mut self, src_label: LabelId, dst_label: LabelId, edge_label: LabelId) -> UndoLogResult<()>;
     fn delete_vertex(&mut self, label: LabelId, vid: VertexId, ts: Timestamp) -> UndoLogResult<()>;
     fn delete_edge(&mut self, src_label: LabelId, src_vid: VertexId, dst_label: LabelId, dst_vid: VertexId, edge_label: LabelId, oe_offset: i32, ie_offset: i32, ts: Timestamp) -> UndoLogResult<()>;
-    fn update_vertex_property(&mut self, label: LabelId, vid: VertexId, col_id: ColumnId, value: PropertyValue, ts: Timestamp) -> UndoLogResult<()>;
-    fn update_edge_property(&mut self, src_label: LabelId, src_vid: VertexId, dst_label: LabelId, dst_vid: VertexId, edge_label: LabelId, oe_offset: i32, ie_offset: i32, col_id: ColumnId, value: PropertyValue, ts: Timestamp) -> UndoLogResult<()>;
+    fn undo_update_vertex_property(&mut self, label: LabelId, vid: VertexId, col_id: ColumnId, value: PropertyValue, ts: Timestamp) -> UndoLogResult<()>;
+    fn undo_update_edge_property(&mut self, src_label: LabelId, src_vid: VertexId, dst_label: LabelId, dst_vid: VertexId, edge_label: LabelId, oe_offset: i32, ie_offset: i32, col_id: ColumnId, value: PropertyValue, ts: Timestamp) -> UndoLogResult<()>;
     fn revert_delete_vertex(&mut self, label: LabelId, vid: VertexId, ts: Timestamp) -> UndoLogResult<()>;
     fn revert_delete_edge(&mut self, src_label: LabelId, src_vid: VertexId, dst_label: LabelId, dst_vid: VertexId, edge_label: LabelId, oe_offset: i32, ie_offset: i32, ts: Timestamp) -> UndoLogResult<()>;
     fn revert_delete_vertex_properties(&mut self, label_name: &str, prop_names: &[String]) -> UndoLogResult<()>;
@@ -174,7 +174,7 @@ pub struct UpdateVertexPropUndo {
 
 impl UndoLog for UpdateVertexPropUndo {
     fn undo(&self, graph: &mut dyn UndoTarget, ts: Timestamp) -> UndoLogResult<()> {
-        graph.update_vertex_property(self.v_label, self.vid, self.col_id, self.old_value.clone(), ts)
+        graph.undo_update_vertex_property(self.v_label, self.vid, self.col_id, self.old_value.clone(), ts)
     }
 
     fn description(&self) -> String {
@@ -201,7 +201,7 @@ pub struct UpdateEdgePropUndo {
 
 impl UndoLog for UpdateEdgePropUndo {
     fn undo(&self, graph: &mut dyn UndoTarget, ts: Timestamp) -> UndoLogResult<()> {
-        graph.update_edge_property(
+        graph.undo_update_edge_property(
             self.src_label,
             self.src_vid,
             self.dst_label,
@@ -597,6 +597,10 @@ impl UndoLogManager {
         self.logs.clear();
     }
 
+    pub fn pop(&mut self) -> Option<Box<dyn UndoLog>> {
+        self.logs.pop()
+    }
+
     pub fn execute_undo(&mut self, graph: &mut dyn UndoTarget, ts: Timestamp) -> UndoLogResult<()> {
         while let Some(log) = self.logs.pop() {
             log.undo(graph, ts)?;
@@ -634,11 +638,11 @@ mod tests {
             Ok(())
         }
 
-        fn update_vertex_property(&mut self, label: LabelId, vid: VertexId, col_id: ColumnId, value: PropertyValue, ts: Timestamp) -> UndoLogResult<()> {
+        fn undo_update_vertex_property(&mut self, label: LabelId, vid: VertexId, col_id: ColumnId, value: PropertyValue, ts: Timestamp) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn update_edge_property(&mut self, src_label: LabelId, src_vid: VertexId, dst_label: LabelId, dst_vid: VertexId, edge_label: LabelId, oe_offset: i32, ie_offset: i32, col_id: ColumnId, value: PropertyValue, ts: Timestamp) -> UndoLogResult<()> {
+        fn undo_update_edge_property(&mut self, src_label: LabelId, src_vid: VertexId, dst_label: LabelId, dst_vid: VertexId, edge_label: LabelId, oe_offset: i32, ie_offset: i32, col_id: ColumnId, value: PropertyValue, ts: Timestamp) -> UndoLogResult<()> {
             Ok(())
         }
 

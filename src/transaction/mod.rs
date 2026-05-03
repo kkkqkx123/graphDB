@@ -7,16 +7,23 @@
 //! - Write-Ahead Log (WAL) for durability
 //! - Undo Log for transaction rollback
 //!
+//! ## Transaction Types
+//!
+//! - **ReadTransaction**: Read-only snapshot transaction
+//! - **InsertTransaction**: Insert-only transaction for adding data
+//! - **UpdateTransaction**: Update transaction for DDL/DML operations
+//! - **CompactTransaction**: Compaction transaction for storage optimization
+//!
 //! ## Usage Example
 //!
-//! ```rust
+//! ```rust,ignore
 //! use graphdb::transaction::{TransactionManager, TransactionOptions};
 //!
 //! // Create transaction manager
-//! let manager = TransactionManager::new(db, Default::default());
+//! let manager = TransactionManager::new(Default::default());
 //!
-//! // Start transaction
-//! let txn_id = manager.begin_transaction(TransactionOptions::default())?;
+//! // Start read transaction
+//! let txn_id = manager.begin_read_transaction(TransactionOptions::default())?;
 //!
 //! // Execute operations...
 //!
@@ -25,12 +32,16 @@
 //! ```
 
 pub mod cleaner;
+pub mod compact_transaction;
 pub mod context;
 pub mod index_buffer;
+pub mod insert_transaction;
 pub mod manager;
 pub mod monitor;
+pub mod read_transaction;
 pub mod types;
 pub mod undo_log;
+pub mod update_transaction;
 pub mod version_manager;
 pub mod wal;
 
@@ -40,28 +51,38 @@ pub mod context_test;
 pub mod manager_test;
 
 pub use cleaner::TransactionCleaner;
+pub use compact_transaction::{
+    CompactTransaction, CompactTransactionError, CompactTransactionResult, CompactTarget,
+};
 pub use context::TransactionContext;
 pub use index_buffer::IndexUpdateBuffer;
+pub use insert_transaction::{
+    InsertTransaction, InsertTransactionError, InsertTransactionResult, InsertTarget,
+};
 pub use manager::TransactionManager;
 pub use monitor::TransactionMonitor;
+pub use read_transaction::{
+    ReadTransaction, ReadTransactionError, ReadTransactionResult, ReadTarget, VertexRecord,
+    INVALID_TIMESTAMP,
+};
 pub use types::*;
-
-// Re-export from version_manager module
+pub use undo_log::{
+    AddEdgePropUndo, AddVertexPropUndo, CreateEdgeTypeUndo, CreateVertexTypeUndo,
+    DeleteEdgePropUndo, DeleteEdgeTypeUndo, DeleteVertexPropUndo, DeleteVertexTypeUndo,
+    InsertEdgeUndo, InsertVertexUndo, PropertyValue, RelatedEdgeInfo, RemoveEdgeUndo,
+    RemoveVertexUndo, UndoLog, UndoLogError, UndoLogManager, UndoLogResult, UndoTarget,
+    UpdateEdgePropUndo, UpdateVertexPropUndo,
+};
+pub use update_transaction::{
+    AddEdgePropertiesParam, AddVertexPropertiesParam, CreateEdgeTypeParam, CreateVertexTypeParam,
+    DeleteEdgePropertiesParam, DeleteVertexPropertiesParam, PropertyDefinition,
+    RenamePropertiesParam, UpdateTarget, UpdateTransaction, UpdateTransactionError,
+    UpdateTransactionResult,
+};
 pub use version_manager::{
     InsertTimestampGuard, ReadTimestampGuard, UpdateTimestampGuard, VersionManager,
     VersionManagerConfig, VersionManagerError, VersionManagerResult,
 };
-
-// Re-export from undo_log module
-pub use undo_log::{
-    AddEdgePropUndo, AddVertexPropUndo, CreateEdgeTypeUndo, CreateVertexTypeUndo,
-    DeleteEdgePropUndo, DeleteEdgeTypeUndo, DeleteVertexPropUndo, DeleteVertexTypeUndo,
-    InsertEdgeUndo, InsertVertexUndo, PropertyValue, RemoveEdgeUndo, RemoveVertexUndo,
-    RelatedEdgeInfo, UndoLog, UndoLogError, UndoLogManager, UndoLogResult, UndoTarget,
-    UpdateEdgePropUndo, UpdateVertexPropUndo,
-};
-
-// Re-export from wal module
 pub use wal::{
     ColumnId, CreateEdgeTypeRedo, CreateVertexTypeRedo, DeleteEdgeRedo, DeleteVertexRedo,
     DummyWalWriter, EdgeId, InsertEdgeRedo, InsertVertexRedo, LabelId, LocalWalParser,
@@ -71,11 +92,16 @@ pub use wal::{
 };
 
 /// Transaction Management Module Version
-pub const VERSION: &str = "1.0.0";
+pub const VERSION: &str = "2.0.0";
 
 /// Create transaction manager with default configuration
-pub fn create_transaction_manager(db: std::sync::Arc<redb::Database>) -> TransactionManager {
-    TransactionManager::new(db, TransactionManagerConfig::default())
+pub fn create_transaction_manager() -> TransactionManager {
+    TransactionManager::new(TransactionManagerConfig::default())
+}
+
+/// Create transaction manager with custom configuration
+pub fn create_transaction_manager_with_config(config: TransactionManagerConfig) -> TransactionManager {
+    TransactionManager::new(config)
 }
 
 /// Create read-only transaction options
@@ -101,28 +127,15 @@ pub fn default_retry_config() -> RetryConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
-    use tempfile::TempDir;
-    use tokio;
-
-    fn create_test_db() -> (Arc<redb::Database>, TempDir) {
-        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
-        let db = Arc::new(
-            redb::Database::create(temp_dir.path().join("test.db"))
-                .expect("Failed to create test database"),
-        );
-        (db, temp_dir)
-    }
 
     #[test]
     fn test_module_version() {
-        assert_eq!(VERSION, "1.0.0");
+        assert_eq!(VERSION, "2.0.0");
     }
 
-    #[tokio::test]
-    async fn test_create_transaction_manager() {
-        let (db, _temp) = create_test_db();
-        let manager = create_transaction_manager(db);
+    #[test]
+    fn test_create_transaction_manager() {
+        let manager = create_transaction_manager();
 
         let txn_id = manager
             .begin_transaction(TransactionOptions::default())
@@ -130,14 +143,12 @@ mod tests {
 
         manager
             .commit_transaction(txn_id)
-            .await
             .expect("Failed to commit transaction");
     }
 
-    #[tokio::test]
-    async fn test_readonly_options() {
-        let (db, _temp) = create_test_db();
-        let manager = create_transaction_manager(db);
+    #[test]
+    fn test_readonly_options() {
+        let manager = create_transaction_manager();
 
         let options = readonly_options();
         let txn_id = manager
@@ -151,7 +162,6 @@ mod tests {
 
         manager
             .commit_transaction(txn_id)
-            .await
             .expect("Failed to commit transaction");
     }
 

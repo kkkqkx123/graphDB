@@ -87,7 +87,7 @@ pub async fn commit<S: StorageClient + Clone + Send + Sync + 'static>(
     let txn_api = state.server.get_txn_api();
     let handle = TransactionHandle(txn_id);
 
-    match txn_api.commit(handle).await {
+    match txn_api.commit(handle) {
         Ok(()) => Ok(JsonResponse(serde_json::json!({
             "message": "Transaction committed successfully",
             "transaction_id": txn_id,

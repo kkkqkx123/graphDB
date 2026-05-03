@@ -280,7 +280,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// # Return
     /// - Returns the closure's return value on success
     /// - Return error on failure
-    pub async fn with_transaction<F, T>(&self, f: F) -> CoreResult<T>
+    pub fn with_transaction<F, T>(&self, f: F) -> CoreResult<T>
     where
         F: FnOnce(&Transaction<'_, S>) -> CoreResult<T>,
     {
@@ -288,11 +288,11 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
 
         match f(&txn) {
             Ok(result) => {
-                txn.commit().await?;
+                txn.commit()?;
                 Ok(result)
             }
             Err(e) => {
-                let _ = txn.rollback().await;
+                let _ = txn.rollback();
                 Err(e)
             }
         }
@@ -450,13 +450,12 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// # Return
     /// - Returns () on success
     /// - Return error on failure
-    pub async fn commit_transaction(
+    pub fn commit_transaction(
         &self,
         txn_handle: crate::api::core::TransactionHandle,
     ) -> CoreResult<()> {
         self.txn_manager()
             .commit_transaction(txn_handle.0)
-            .await
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 
@@ -473,7 +472,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         txn_handle: crate::api::core::TransactionHandle,
     ) -> CoreResult<()> {
         self.txn_manager()
-            .rollback_transaction(txn_handle.0)
+            .abort_transaction(txn_handle.0)
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 
@@ -530,9 +529,17 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         txn_handle: &crate::api::core::TransactionHandle,
         savepoint: crate::api::core::SavepointId,
     ) -> CoreResult<()> {
-        self.txn_manager()
-            .rollback_to_savepoint(txn_handle.0, savepoint.0)
-            .map_err(|e| CoreError::TransactionFailed(e.to_string()))
+        let context = self
+            .txn_manager()
+            .get_context(txn_handle.0)
+            .map_err(|e| CoreError::TransactionFailed(e.to_string()))?;
+        
+        let savepoint_info = context
+            .find_savepoint_by_id(savepoint.0)
+            .ok_or_else(|| CoreError::TransactionFailed("Savepoint not found".to_string()))?;
+        
+        context.truncate_operation_log(savepoint_info.operation_log_index);
+        Ok(())
     }
 
     /// Vector search - search for similar vectors

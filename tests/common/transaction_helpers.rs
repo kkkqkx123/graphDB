@@ -55,7 +55,6 @@ impl TransactionTestContext {
         let manager = self.manager.lock().await;
         manager
             .commit_transaction(txn_id)
-            .await
             .map_err(txn_err_to_db_err)?;
 
         Ok(())
@@ -69,7 +68,7 @@ impl TransactionTestContext {
 
         let manager = self.manager.lock().await;
         manager
-            .rollback_transaction(txn_id)
+            .abort_transaction(txn_id)
             .map_err(txn_err_to_db_err)?;
 
         Ok(())
@@ -322,12 +321,11 @@ pub async fn stress_test_transactions(
 
             if i % 3 == 0 {
                 manager
-                    .rollback_transaction(txn_id)
+                    .abort_transaction(txn_id)
                     .map_err(|e| format!("Failed to rollback: {:?}", e))?;
             } else {
                 manager
                     .commit_transaction(txn_id)
-                    .await
                     .map_err(|e| format!("Failed to commit: {:?}", e))?;
             }
 

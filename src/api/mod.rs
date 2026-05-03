@@ -162,23 +162,14 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
         Arc::new(sync_storage)
     };
 
-    // Create a transaction manager with storage inner for proper context cleanup
-    let db = storage.inner().get_db().clone();
+    // Create a transaction manager
     let txn_config = TransactionManagerConfig {
         default_timeout: std::time::Duration::from_secs(config.transaction.default_timeout),
         max_concurrent_transactions: config.transaction.max_concurrent_transactions,
         auto_cleanup: true,
         write_lock_timeout: std::time::Duration::from_secs(10),
     };
-    let storage_inner = storage
-        .inner()
-        .as_any()
-        .downcast_ref::<RedbStorage>()
-        .map(|s| s.get_inner().clone());
-    let transaction_manager = Arc::new(match storage_inner {
-        Some(inner) => TransactionManager::with_storage_inner(db, txn_config, inner),
-        None => TransactionManager::new(db, txn_config),
-    });
+    let transaction_manager = Arc::new(TransactionManager::new(txn_config));
     info!("Transaction manager initialized");
 
     // Create Tokio runtime for async initialization

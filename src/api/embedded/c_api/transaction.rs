@@ -285,21 +285,8 @@ pub unsafe extern "C" fn graphdb_txn_commit(txn: *mut graphdb_txn_t) -> c_int {
     // Use embedded session API instead of direct TransactionManager access
     let session = &*session_ptr;
     
-    // Try to use existing runtime, or create a new one
-    let result = match tokio::runtime::Handle::try_current() {
-        Ok(handle) => handle.block_on(session.inner.commit_transaction(txn_handle)),
-        Err(_) => {
-            // No runtime available, create a new one
-            match tokio::runtime::Runtime::new() {
-                Ok(rt) => rt.block_on(session.inner.commit_transaction(txn_handle)),
-                Err(e) => {
-                    let error_msg = format!("Failed to create Tokio runtime: {}", e);
-                    set_last_error_message(error_msg);
-                    return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int;
-                }
-            }
-        }
-    };
+    // Commit transaction (synchronous, no longer async)
+    let result = session.inner.commit_transaction(txn_handle);
     
     match result {
         Ok(_) => {
