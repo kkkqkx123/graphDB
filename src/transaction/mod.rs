@@ -3,6 +3,9 @@
 //! Provides transaction management functionality for GraphDB, including:
 //! - Transaction lifecycle management (start, commit, abort)
 //! - Transaction statistics and monitoring
+//! - MVCC version management
+//! - Write-Ahead Log (WAL) for durability
+//! - Undo Log for transaction rollback
 //!
 //! ## Usage Example
 //!
@@ -27,6 +30,9 @@ pub mod index_buffer;
 pub mod manager;
 pub mod monitor;
 pub mod types;
+pub mod undo_log;
+pub mod version_manager;
+pub mod wal;
 
 #[cfg(test)]
 pub mod context_test;
@@ -39,6 +45,30 @@ pub use index_buffer::IndexUpdateBuffer;
 pub use manager::TransactionManager;
 pub use monitor::TransactionMonitor;
 pub use types::*;
+
+// Re-export from version_manager module
+pub use version_manager::{
+    InsertTimestampGuard, ReadTimestampGuard, UpdateTimestampGuard, VersionManager,
+    VersionManagerConfig, VersionManagerError, VersionManagerResult,
+};
+
+// Re-export from undo_log module
+pub use undo_log::{
+    AddEdgePropUndo, AddVertexPropUndo, CreateEdgeTypeUndo, CreateVertexTypeUndo,
+    DeleteEdgePropUndo, DeleteEdgeTypeUndo, DeleteVertexPropUndo, DeleteVertexTypeUndo,
+    InsertEdgeUndo, InsertVertexUndo, PropertyValue, RemoveEdgeUndo, RemoveVertexUndo,
+    RelatedEdgeInfo, UndoLog, UndoLogError, UndoLogManager, UndoLogResult, UndoTarget,
+    UpdateEdgePropUndo, UpdateVertexPropUndo,
+};
+
+// Re-export from wal module
+pub use wal::{
+    ColumnId, CreateEdgeTypeRedo, CreateVertexTypeRedo, DeleteEdgeRedo, DeleteVertexRedo,
+    DummyWalWriter, EdgeId, InsertEdgeRedo, InsertVertexRedo, LabelId, LocalWalParser,
+    LocalWalWriter, Timestamp, UpdateEdgePropRedo, UpdateVertexPropRedo, UpdateWalUnit,
+    WalConfig, WalContentUnit, WalEntry, WalEntryIter, WalError, WalHeader, WalOpType,
+    WalParser, WalParserFactory, WalResult, WalWriter, WalWriterFactory, VertexId,
+};
 
 /// Transaction Management Module Version
 pub const VERSION: &str = "1.0.0";

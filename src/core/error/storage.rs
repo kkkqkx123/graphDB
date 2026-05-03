@@ -42,6 +42,37 @@ pub enum StorageError {
     InvalidInput(String),
     #[error("Parse error: {0}")]
     ParseError(String),
+    #[error("Vertex not found")]
+    VertexNotFound,
+    #[error("Vertex already exists: {0}")]
+    VertexAlreadyExists(String),
+    #[error("Edge already exists: {0}")]
+    EdgeAlreadyExists(String),
+    #[error("Label not found: {0}")]
+    LabelNotFound(String),
+    #[error("Label already exists: {0}")]
+    LabelAlreadyExists(String),
+    #[error("Property not found: {0}")]
+    PropertyNotFound(String),
+    #[error("Column not found: {0}")]
+    ColumnNotFound(String),
+    #[error("Column already exists: {0}")]
+    ColumnAlreadyExists(String),
+    #[error("Storage not open")]
+    StorageNotOpen,
+    #[error("Capacity exceeded")]
+    CapacityExceeded,
+    #[error("Null value not allowed for column: {0}")]
+    NullValueNotAllowed(String),
+    #[error("Type mismatch: expected {expected}, got {actual}")]
+    TypeMismatch {
+        expected: crate::core::DataType,
+        actual: crate::core::DataType,
+    },
+    #[error("Invalid offset: {0}")]
+    InvalidOffset(u32),
+    #[error("Invalid operation: {0}")]
+    InvalidOperation(String),
 }
 
 impl StorageError {

@@ -1,4 +1,6 @@
 pub mod api;
+pub mod container;
+pub mod edge;
 pub mod engine;
 pub mod entity;
 pub mod extend;
@@ -7,7 +9,9 @@ pub mod iterator;
 pub mod metadata;
 pub mod monitoring;
 pub mod operations;
+pub mod property_graph;
 pub mod shared_state;
+pub mod vertex;
 
 #[cfg(test)]
 pub mod test_mock;
@@ -43,6 +47,27 @@ pub use shared_state::{StorageInner, StorageSharedState};
 
 pub use crate::core::StorageError;
 pub use crate::core::StorageResult;
+
+// Re-export from container module
+pub use container::{
+    ArenaAllocator, ArenaPool, AnonMmap, ContainerConfig, ContainerError, ContainerResult,
+    ContainerStats, FileHeader, FileSharedMmap, IDataContainer, MmapContainer, ThreadLocalArena,
+};
+
+// Re-export from vertex module
+pub use vertex::{
+    Column, ColumnStore, IdIndexer, LabelId, PropertyDef as VertexPropertyDef, Timestamp,
+    VertexId, VertexRecord, VertexSchema, VertexTable, VertexTimestamp,
+};
+
+// Re-export from edge module
+pub use edge::{
+    Csr, EdgeDirection, EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, EdgeTable,
+    ImmutableNbr, MutableCsr, Nbr, PropertyDef as EdgePropertyDef, PropertyTable,
+};
+
+// Re-export from property_graph module
+pub use property_graph::{PropertyGraph, PropertyGraphConfig};
 
 #[cfg(test)]
 pub use test_mock::*;

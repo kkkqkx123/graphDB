@@ -104,6 +104,11 @@ impl Value {
         }
     }
 
+    /// Alias for get_type
+    pub fn data_type(&self) -> DataType {
+        self.get_type()
+    }
+
     /// Check if the value is null
     pub fn is_null(&self) -> bool {
         matches!(self, Value::Null(_))
