@@ -138,11 +138,12 @@ impl DependencyTracker {
     /// Remove a cache key from tracking
     pub fn remove_key(&self, cache_key: &str) {
         if let Some(tables) = self.key_to_tables.write().remove(cache_key) {
+            let mut table_to_keys = self.table_to_keys.write();
             for table in tables {
-                if let Some(keys) = self.table_to_keys.write().get_mut(&table) {
+                if let Some(keys) = table_to_keys.get_mut(&table) {
                     keys.remove(cache_key);
                     if keys.is_empty() {
-                        self.table_to_keys.write().remove(&table);
+                        table_to_keys.remove(&table);
                     }
                 }
             }

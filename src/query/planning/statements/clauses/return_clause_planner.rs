@@ -407,7 +407,7 @@ mod tests {
 
         let planner = ReturnClausePlanner::new();
         let qctx = Arc::new(crate::query::QueryContext::new(Arc::new(
-            crate::query::query_request_context::QueryRequestContext {
+            crate::query::QueryRequestContext {
                 session_id: None,
                 user_name: None,
                 space_name: None,
@@ -469,7 +469,7 @@ mod tests {
 
         let planner = ReturnClausePlanner::with_distinct(true);
         let qctx = Arc::new(crate::query::QueryContext::new(Arc::new(
-            crate::query::query_request_context::QueryRequestContext {
+            crate::query::QueryRequestContext {
                 session_id: None,
                 user_name: None,
                 space_name: None,
@@ -528,7 +528,7 @@ mod tests {
 
         let planner = ReturnClausePlanner::new();
         let qctx = Arc::new(crate::query::QueryContext::new(Arc::new(
-            crate::query::query_request_context::QueryRequestContext {
+            crate::query::QueryRequestContext {
                 session_id: None,
                 user_name: None,
                 space_name: None,

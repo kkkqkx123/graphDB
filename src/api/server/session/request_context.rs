@@ -315,8 +315,8 @@ pub fn build_query_request_context(
     session: &super::ClientSession,
     query: String,
     parameters: std::collections::HashMap<String, crate::core::Value>,
-) -> crate::query::query_request_context::QueryRequestContext {
-    use crate::query::query_request_context::QueryRequestContext;
+) -> crate::query::QueryRequestContext {
+    use crate::query::QueryRequestContext;
 
     QueryRequestContext {
         session_id: Some(session.id()),

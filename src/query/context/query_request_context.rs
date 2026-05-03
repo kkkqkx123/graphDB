@@ -7,18 +7,19 @@ use std::collections::HashMap;
 
 /// Query request context – Simplified version
 ///
-/// Of course! Please provide the text you would like to have translated.
-/// Session ID
-/// Graph Space Name
-/// Query string
-/// Query parameters
+/// Contains:
+/// - Session ID
+/// - User name
+/// - Graph Space Name
+/// - Query string
+/// - Query parameters
 #[derive(Debug, Clone, Default)]
 pub struct QueryRequestContext {
     /// Session ID
     pub session_id: Option<i64>,
     /// Username
     pub user_name: Option<String>,
-    /// Name of the image space
+    /// Name of the graph space
     pub space_name: Option<String>,
     /// Query string
     pub query: String,
@@ -56,7 +57,7 @@ impl QueryRequestContext {
         self
     }
 
-    /// Set the name of the image space.
+    /// Set the name of the graph space.
     pub fn with_space_name(mut self, space_name: String) -> Self {
         self.space_name = Some(space_name);
         self

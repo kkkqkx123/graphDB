@@ -120,7 +120,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
 
         // Constructing a QueryRequestContext
         let rctx = Arc::new(
-            crate::query::query_request_context::QueryRequestContext::new(query.to_string()),
+            crate::query::QueryRequestContext::new(query.to_string()),
         );
 
         // Build space info from request context if space_id is provided

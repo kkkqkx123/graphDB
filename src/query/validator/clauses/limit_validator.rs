@@ -326,7 +326,7 @@ mod tests {
     use crate::core::types::expr::Expression;
     use crate::core::Value;
     use crate::query::parser::ast::Stmt;
-    use crate::query::query_request_context::QueryRequestContext;
+    use crate::query::QueryRequestContext;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
 
     /// Create a QueryContext for testing purposes, which should contain a valid space_id.

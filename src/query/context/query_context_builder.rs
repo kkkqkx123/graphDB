@@ -3,11 +3,10 @@
 //! Provide a streaming API for building QueryContext, which simplifies the process of creating complex objects.
 
 use crate::core::types::{CharsetInfo, SpaceInfo};
-use crate::query::context::QueryExecutionManager;
-use crate::query::query_request_context::QueryRequestContext;
-use crate::query::QueryContext;
 use crate::utils::IdGenerator;
 use std::sync::Arc;
+
+use super::{QueryContext, QueryExecutionManager, QueryRequestContext};
 
 /// QueryContext Builder
 ///
@@ -16,7 +15,8 @@ use std::sync::Arc;
 /// # Example
 ///
 /// ```rust
-/// use crate::query::query_context_builder::QueryContextBuilder;
+/// use crate::query::context::{QueryContextBuilder, QueryRequestContext};
+/// use std::sync::Arc;
 ///
 /// let rctx = Arc::new(QueryRequestContext::new("MATCH (n) RETURN n".to_string()));
 ///
@@ -85,7 +85,7 @@ impl QueryContextBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::query_request_context::QueryRequestContext;
+    use crate::core::types::{DataType, MetadataVersion, IsolationLevel};
     use std::collections::HashMap;
 
     #[test]
@@ -116,13 +116,13 @@ mod tests {
         let space_info = SpaceInfo {
             space_id: 1,
             space_name: "test_space".to_string(),
-            vid_type: crate::core::types::DataType::BigInt,
+            vid_type: DataType::BigInt,
             tags: Vec::new(),
             edge_types: Vec::new(),
-            version: crate::core::types::MetadataVersion::default(),
+            version: MetadataVersion::default(),
             comment: None,
             storage_path: None,
-            isolation_level: crate::core::types::IsolationLevel::default(),
+            isolation_level: IsolationLevel::default(),
         };
 
         let query_context = QueryContextBuilder::new(rctx)
@@ -161,13 +161,13 @@ mod tests {
         let space_info = SpaceInfo {
             space_id: 1,
             space_name: "test_space".to_string(),
-            vid_type: crate::core::types::DataType::BigInt,
+            vid_type: DataType::BigInt,
             tags: Vec::new(),
             edge_types: Vec::new(),
-            version: crate::core::types::MetadataVersion::default(),
+            version: MetadataVersion::default(),
             comment: None,
             storage_path: None,
-            isolation_level: crate::core::types::IsolationLevel::default(),
+            isolation_level: IsolationLevel::default(),
         };
 
         let query_context = QueryContextBuilder::new(rctx)

@@ -477,7 +477,7 @@ mod tests {
     use crate::core::Value;
     use crate::query::parser::ast::stmt::InsertStmt;
     use crate::query::parser::ast::Span;
-    use crate::query::query_request_context::QueryRequestContext;
+    use crate::query::QueryRequestContext;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
     use std::sync::Arc;
 

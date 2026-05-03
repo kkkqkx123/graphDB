@@ -17,7 +17,7 @@ use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::query::parser::Parser;
 use graphdb::query::planning::PlannerConfig;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use graphdb::query::query_request_context::QueryRequestContext;
+use graphdb::query::QueryRequestContext;
 use graphdb::query::validator::validator_trait::StatementType;
 use graphdb::query::validator::Validator;
 use graphdb::query::QueryContext;

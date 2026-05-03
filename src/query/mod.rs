@@ -16,11 +16,8 @@ pub mod metadata;
 pub mod optimizer;
 pub mod parser;
 pub mod planning;
-pub mod query_context;
-pub mod query_context_builder;
 pub mod query_manager;
 pub mod query_pipeline_manager;
-pub mod query_request_context;
 pub mod validator;
 
 // Re-export DataSet for convenience
@@ -31,8 +28,8 @@ pub use crate::core::{DBResult, QueryError};
 pub use executor::base::ExecutionResult;
 // Re-export QueryPipelineManager
 pub use query_pipeline_manager::QueryPipelineManager;
-// Re-export new QueryContext
-pub use query_context::QueryContext;
+// Re-export context types from context module
+pub use context::{QueryContext, QueryContextBuilder, QueryExecutionManager, QueryRequestContext};
 // Re-export QueryManager
 pub use query_manager::{QueryInfo, QueryManager, QueryStats, QueryStatus};
 // Re-export OptimizerEngine

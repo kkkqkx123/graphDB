@@ -1,17 +1,29 @@
 //! Query execution context module
 //!
-//! Manages contextual information during query execution, including execution manager.
+//! This module provides all context types used during query execution:
+//! - [`QueryContext`]: Main context for query lifecycle management
+//! - [`QueryRequestContext`]: Request-level context (session, parameters)
+//! - [`QueryExecutionManager`]: Execution plan and termination signal management
+//! - [`QueryContextBuilder`]: Builder pattern for constructing QueryContext
 //!
-//! # Optimization Note (2024-03-27)
-//! Previously exported `QueryResourceContext` and `QuerySpaceContext` have been inlined into
-//! `QueryContext` to reduce indirection. These modules are kept for backward compatibility
-//! but are no longer exported from this module.
+//! # Architecture
+//!
+//! The context system follows a composite pattern:
+//! ```text
+//! QueryContext
+//! ├── rctx: QueryRequestContext  (request info, parameters)
+//! ├── execution_manager: QueryExecutionManager  (plan, killed flag)
+//! ├── id_gen: IdGenerator  (unique ID generation)
+//! ├── space_info: Option<SpaceInfo>  (current graph space)
+//! └── charset_info: Option<CharsetInfo>  (character set)
+//! ```
 
 pub mod execution_manager;
-
-// Note: resource_context and space_context modules have been inlined into QueryContext
-// They are kept in the codebase for backward compatibility but are deprecated.
-// pub mod resource_context;  // Deprecated: inlined into QueryContext
-// pub mod space_context;     // Deprecated: inlined into QueryContext
+pub mod query_context;
+pub mod query_context_builder;
+pub mod query_request_context;
 
 pub use execution_manager::QueryExecutionManager;
+pub use query_context::QueryContext;
+pub use query_context_builder::QueryContextBuilder;
+pub use query_request_context::QueryRequestContext;

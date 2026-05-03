@@ -21,9 +21,9 @@
 use std::sync::Arc;
 
 use crate::core::types::{CharsetInfo, SpaceInfo};
-use crate::query::context::QueryExecutionManager;
-use crate::query::query_request_context::QueryRequestContext;
 use crate::utils::IdGenerator;
+
+use super::{QueryExecutionManager, QueryRequestContext};
 
 /// Query context
 ///
@@ -84,7 +84,7 @@ impl QueryContext {
     /// # Example
     ///
     /// ```rust
-    /// use crate::query::QueryContext;
+    /// use crate::query::context::QueryContext;
     ///
     /// let qctx = QueryContext::new_for_validation("MATCH (n) RETURN n".to_string());
     /// ```
@@ -103,7 +103,7 @@ impl QueryContext {
     /// # Example
     ///
     /// ```rust
-    /// use crate::query::QueryContext;
+    /// use crate::query::context::QueryContext;
     ///
     /// let qctx = QueryContext::new_for_planning("MATCH (n) RETURN n".to_string());
     /// ```
@@ -132,8 +132,8 @@ impl QueryContext {
     /// Create a builder.
     pub fn builder(
         rctx: Arc<QueryRequestContext>,
-    ) -> crate::query::query_context_builder::QueryContextBuilder {
-        crate::query::query_context_builder::QueryContextBuilder::new(rctx)
+    ) -> super::QueryContextBuilder {
+        super::QueryContextBuilder::new(rctx)
     }
 
     /// Obtain the context of the query request.

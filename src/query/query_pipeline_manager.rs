@@ -32,7 +32,7 @@ use crate::query::optimizer::OptimizerEngine;
 use crate::query::parser::ast::stmt::{ExplainStmt, ProfileStmt};
 use crate::query::parser::Parser;
 use crate::query::planning::{ParameterizedQueryHandler, PlanCacheConfig, QueryPlanCache};
-use crate::query::query_request_context::QueryRequestContext;
+use crate::query::QueryRequestContext;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::{ValidatedStatement, ValidationInfo};
 use crate::query::QueryContext;
@@ -276,7 +276,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     pub fn execute_query_with_request(
         &mut self,
         query_text: &str,
-        rctx: Arc<crate::query::query_request_context::QueryRequestContext>,
+        rctx: Arc<crate::query::QueryRequestContext>,
         space_info: Option<crate::core::types::SpaceInfo>,
     ) -> DBResult<ExecutionResult> {
         // 1. First, create a QueryContext (which persists throughout the entire lifecycle of the query).
