@@ -11,7 +11,7 @@ use crate::query::parser::ast::stmt::{Ast, MatchStmt, OrderByClause, ReturnClaus
 use crate::query::parser::ast::{Pattern, Stmt};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryContext;
-use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use crate::storage::metadata::inmemory_schema_manager::InMemorySchemaManager;
 use crate::storage::metadata::schema_manager::SchemaManager;
 
 use crate::query::validator::strategies::ExpressionValidationStrategy;

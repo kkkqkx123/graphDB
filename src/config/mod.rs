@@ -381,7 +381,7 @@ max_file_size = 104857600
 max_files = 10
 
 [storage]
-engine = "redb"
+engine = "propertygraph"
 compression = "lz4"
 compression_level = 5
 

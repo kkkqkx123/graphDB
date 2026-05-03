@@ -1,36 +1,38 @@
 //! Storage layer shared state module
 //!
-//! Aggregates all states that need to be shared across storage layer components, reducing Arc nesting
+//! Aggregates all states that need to be shared across storage layer components.
+//! This version uses PropertyGraph instead of redb.
+
+use std::sync::Arc;
+use parking_lot::RwLock;
 
 use crate::search::manager::FulltextIndexManager;
-use crate::storage::metadata::{RedbIndexMetadataManager, RedbSchemaManager};
-use crate::storage::operations::{RedbReader, RedbWriter};
+use crate::storage::metadata::{IndexMetadataManager, SchemaManager};
+use crate::storage::property_graph::PropertyGraph;
+use crate::storage::version_manager::VersionManager;
 use crate::sync::SyncManager;
 use crate::transaction::context::TransactionContext;
-use parking_lot::{Mutex, RwLock};
-use redb::Database;
-use std::sync::Arc;
 
-/// Storage layer shared state
-///
-/// These fields are shared across multiple storage layer components, wrapped with Arc
 #[derive(Clone)]
 pub struct StorageSharedState {
-    pub db: Arc<Database>,
-    pub schema_manager: Arc<RedbSchemaManager>,
-    pub index_metadata_manager: Arc<RedbIndexMetadataManager>,
+    pub graph: Arc<RwLock<PropertyGraph>>,
+    pub version_manager: Arc<VersionManager>,
+    pub schema_manager: Arc<dyn SchemaManager + Send + Sync>,
+    pub index_metadata_manager: Arc<dyn IndexMetadataManager + Send + Sync>,
     pub sync_manager: Arc<RwLock<Option<Arc<SyncManager>>>>,
     pub fulltext_manager: Arc<RwLock<Option<Arc<FulltextIndexManager>>>>,
 }
 
 impl StorageSharedState {
     pub fn new(
-        db: Arc<Database>,
-        schema_manager: Arc<RedbSchemaManager>,
-        index_metadata_manager: Arc<RedbIndexMetadataManager>,
+        graph: Arc<RwLock<PropertyGraph>>,
+        version_manager: Arc<VersionManager>,
+        schema_manager: Arc<dyn SchemaManager + Send + Sync>,
+        index_metadata_manager: Arc<dyn IndexMetadataManager + Send + Sync>,
     ) -> Self {
         Self {
-            db,
+            graph,
+            version_manager,
             schema_manager,
             index_metadata_manager,
             sync_manager: Arc::new(RwLock::new(None)),
@@ -63,83 +65,49 @@ impl StorageSharedState {
     }
 }
 
-/// Storage layer internal state
-///
-/// These fields do not need to be shared outside of Storage.
-///
-/// Lock ordering convention to prevent deadlocks:
-/// Always acquire locks in this order: reader -> writer -> current_txn_context
-/// Never acquire an earlier lock while holding a later one.
-///
-/// IMPORTANT: To prevent deadlocks, we NEVER hold multiple locks simultaneously.
-/// Each lock is acquired, used, and released before acquiring the next one.
 pub struct StorageInner {
-    pub reader: Arc<Mutex<RedbReader>>,
-    pub writer: Arc<Mutex<RedbWriter>>,
-    pub current_txn_context: Mutex<Option<Arc<TransactionContext>>>,
+    pub graph: Arc<RwLock<PropertyGraph>>,
+    pub version_manager: Arc<VersionManager>,
+    pub current_txn_context: parking_lot::Mutex<Option<Arc<TransactionContext>>>,
 }
 
 impl StorageInner {
-    pub fn new(reader: RedbReader, writer: RedbWriter) -> Self {
+    pub fn new(graph: Arc<RwLock<PropertyGraph>>, version_manager: Arc<VersionManager>) -> Self {
         Self {
-            reader: Arc::new(Mutex::new(reader)),
-            writer: Arc::new(Mutex::new(writer)),
-            current_txn_context: Mutex::new(None),
+            graph,
+            version_manager,
+            current_txn_context: parking_lot::Mutex::new(None),
         }
     }
 
-    /// Set the current transaction context.
-    ///
-    /// This method carefully avoids holding multiple locks simultaneously to prevent deadlocks.
-    /// The order of operations is:
-    /// 1. Update reader's transaction context (acquire/release reader lock)
-    /// 2. Update writer's transaction context (acquire/release writer lock)
-    /// 3. Update current_txn_context (acquire/release current_txn_context lock)
-    ///
-    /// This ensures no deadlock can occur with other methods that may acquire
-    /// these locks in different orders.
     pub fn set_transaction_context(&self, context: Option<Arc<TransactionContext>>) {
-        // Step 1: Update reader's transaction context first
-        // This is safe because we release the lock before acquiring the next one
-        {
-            let mut reader_guard = self.reader.lock();
-            if let Some(ref ctx) = &context {
-                reader_guard.set_transaction_context(Some(ctx.clone()));
-            } else {
-                reader_guard.set_transaction_context(None);
-            }
-        }
-        // reader lock is now released
-
-        // Step 2: Update writer's transaction context
-        // This is critical for write operations to use the bound transaction
-        {
-            let mut writer_guard = self.writer.lock();
-            if let Some(ref ctx) = &context {
-                writer_guard.set_transaction_context(ctx.clone());
-            } else {
-                writer_guard.clear_transaction_context();
-            }
-        }
-        // writer lock is now released
-
-        // Step 3: Update current_txn_context
-        {
-            let mut txn_guard = self.current_txn_context.lock();
-            *txn_guard = context;
-        }
-        // current_txn_context lock is now released
+        let mut txn_guard = self.current_txn_context.lock();
+        *txn_guard = context;
     }
 
-    /// Get the current transaction context
     pub fn get_transaction_context(&self) -> Option<Arc<TransactionContext>> {
         self.current_txn_context.lock().clone()
     }
 
-    /// Get the current transaction ID without holding the lock.
-    /// This is a convenience method that clones the transaction ID if present.
     pub fn get_current_txn_id(&self) -> crate::transaction::types::TransactionId {
         let ctx = self.current_txn_context.lock().clone();
         ctx.map(|c| c.id).unwrap_or(0)
+    }
+}
+
+impl std::fmt::Debug for StorageSharedState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StorageSharedState")
+            .field("has_sync_manager", &self.sync_manager.read().is_some())
+            .field("has_fulltext_manager", &self.fulltext_manager.read().is_some())
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for StorageInner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StorageInner")
+            .field("has_transaction_context", &self.current_txn_context.lock().is_some())
+            .finish()
     }
 }

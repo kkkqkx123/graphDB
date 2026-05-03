@@ -1,20 +1,31 @@
+//! Vertex Storage Manager
+//!
+//! Adapter layer for vertex storage using columnar storage backend.
+//! Provides vertex additions, deletions and tag management.
+
+use std::sync::Arc;
+use parking_lot::RwLock;
+
 use crate::core::types::{InsertVertexInfo, TagInfo, UpdateInfo, UpdateOp};
 use crate::core::{StorageError, Value, Vertex};
 use crate::storage::index::{IndexDataManager, RedbIndexDataManager};
 use crate::storage::metadata::{IndexMetadataManager, Schema, SchemaManager};
-use crate::storage::operations::{VertexReader, VertexWriter};
-use crate::storage::shared_state::{StorageInner, StorageSharedState};
+use crate::storage::operations::{ScanResult, VertexReader, VertexWriter};
+use crate::storage::property_graph::PropertyGraph;
+use crate::storage::vertex::{LabelId, PropertyDef, Timestamp, VertexRecord, VertexSchema};
+use crate::storage::version_manager::VersionManager;
 use crate::sync::coordinator::ChangeType;
-use std::sync::Arc;
+use crate::transaction::wal::types::Timestamp as WalTimestamp;
 
-/// Vertex Storage Manager
-///
-/// Responsible for vertex additions, deletions and tag management
+const INVALID_TIMESTAMP: Timestamp = u32::MAX;
+
 #[derive(Clone)]
 pub struct VertexStorage {
-    state: Arc<StorageSharedState>,
-    inner: Arc<StorageInner>,
+    graph: Arc<RwLock<PropertyGraph>>,
+    version_manager: Arc<VersionManager>,
+    schema_manager: Arc<dyn SchemaManager + Send + Sync>,
     index_data_manager: RedbIndexDataManager,
+    sync_manager: Arc<RwLock<Option<Arc<crate::sync::SyncManager>>>>,
 }
 
 impl std::fmt::Debug for VertexStorage {
@@ -24,35 +35,60 @@ impl std::fmt::Debug for VertexStorage {
 }
 
 impl VertexStorage {
-    /// Creating a New Vertex Store Instance
     pub fn new(
-        state: Arc<StorageSharedState>,
-        inner: Arc<StorageInner>,
+        graph: Arc<RwLock<PropertyGraph>>,
+        version_manager: Arc<VersionManager>,
+        schema_manager: Arc<dyn SchemaManager + Send + Sync>,
         index_data_manager: RedbIndexDataManager,
+        sync_manager: Arc<RwLock<Option<Arc<crate::sync::SyncManager>>>>,
     ) -> Result<Self, StorageError> {
         Ok(Self {
-            state,
-            inner,
+            graph,
+            version_manager,
+            schema_manager,
             index_data_manager,
+            sync_manager,
         })
     }
 
-    /// Get space ID from space name
     fn get_space_id(&self, space: &str) -> Result<u64, StorageError> {
         let space_info = self
-            .state
             .schema_manager
             .get_space(space)?
             .ok_or_else(|| StorageError::DbError(format!("Space '{}' not found", space)))?;
         Ok(space_info.space_id)
     }
 
-    /// Get current transaction ID
     fn get_current_txn_id(&self) -> crate::transaction::types::TransactionId {
-        self.inner.get_current_txn_id()
+        0
     }
 
-    /// Detect changed properties between two vertices
+    fn get_label_id(&self, space: &str, tag: &str) -> Result<LabelId, StorageError> {
+        let graph = self.graph.read();
+        graph
+            .get_vertex_label_id(tag)
+            .ok_or_else(|| StorageError::DbError(format!("Label '{}' not found", tag)))
+    }
+
+    fn value_to_string_id(&self, id: &Value) -> Result<String, StorageError> {
+        match id {
+            Value::BigInt(v) => Ok(v.to_string()),
+            Value::String(v) => Ok(v.clone()),
+            _ => Err(StorageError::DbError(format!(
+                "Unsupported vertex ID type: {:?}",
+                id
+            ))),
+        }
+    }
+
+    fn string_id_to_value(&self, id: &str) -> Value {
+        if let Ok(v) = id.parse::<i64>() {
+            Value::BigInt(v)
+        } else {
+            Value::String(id.to_string())
+        }
+    }
+
     fn detect_changed_properties(
         &self,
         old_vertex: &Vertex,
@@ -60,29 +96,24 @@ impl VertexStorage {
     ) -> Vec<(String, Value)> {
         let mut changed_props = Vec::new();
 
-        // Compare properties in tags
         for new_tag in &new_vertex.tags {
             if let Some(old_tag) = old_vertex.tags.iter().find(|t| t.name == new_tag.name) {
-                // Compare properties within the same tag
                 for (prop_name, new_value) in &new_tag.properties {
                     if let Some(old_value) = old_tag.properties.get(prop_name) {
                         if old_value != new_value {
                             changed_props.push((prop_name.clone(), new_value.clone()));
                         }
                     } else {
-                        // New property added
                         changed_props.push((prop_name.clone(), new_value.clone()));
                     }
                 }
 
-                // Check for deleted properties
                 for (prop_name, old_value) in &old_tag.properties {
                     if !new_tag.properties.contains_key(prop_name) {
                         changed_props.push((prop_name.clone(), old_value.clone()));
                     }
                 }
             } else {
-                // New tag added, all properties are considered changed
                 for (prop_name, value) in &new_tag.properties {
                     changed_props.push((prop_name.clone(), value.clone()));
                 }
@@ -92,34 +123,82 @@ impl VertexStorage {
         changed_props
     }
 
-    /// Get a single vertex
+    fn vertex_record_to_vertex(&self, record: &VertexRecord, tag_name: &str) -> Vertex {
+        let mut properties = std::collections::HashMap::new();
+        for (name, value) in &record.properties {
+            properties.insert(name.clone(), value.clone());
+        }
+
+        let tag = crate::core::vertex_edge_path::Tag {
+            name: tag_name.to_string(),
+            properties,
+        };
+
+        Vertex {
+            vid: Box::new(self.string_id_to_value(&record.vid.to_string())),
+            id: record.vid,
+            tags: vec![tag],
+            properties: std::collections::HashMap::new(),
+        }
+    }
+
     pub fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
-        self.inner.reader.lock().get_vertex(space, id)
+        let external_id = self.value_to_string_id(id)?;
+        let label_id = self.get_label_id(space, "default").ok();
+
+        let graph = self.graph.read();
+        let ts = self.get_read_timestamp();
+
+        if let Some(label) = label_id {
+            if let Some(table) = graph.get_vertex_table(label) {
+                if let Some(record) = table.get(&external_id, ts) {
+                    return Ok(Some(self.vertex_record_to_vertex(&record, "default")));
+                }
+            }
+        }
+
+        Ok(None)
     }
 
-    /// Scan all vertices
     pub fn scan_vertices(&self, space: &str) -> Result<Vec<Vertex>, StorageError> {
-        self.inner
-            .reader
-            .lock()
-            .scan_vertices(space)
-            .map(|r| r.into_vec())
+        let graph = self.graph.read();
+        let ts = self.get_read_timestamp();
+
+        let mut vertices = Vec::new();
+        for (_, table) in graph.vertex_tables() {
+            for record in table.scan(ts) {
+                let vertex = self.vertex_record_to_vertex(&record, &table.label_name());
+                vertices.push(vertex);
+            }
+        }
+
+        Ok(vertices)
     }
 
-    /// Scanning vertices by label
     pub fn scan_vertices_by_tag(
         &self,
         space: &str,
         tag: &str,
     ) -> Result<Vec<Vertex>, StorageError> {
-        self.inner
-            .reader
-            .lock()
-            .scan_vertices_by_tag(space, tag)
-            .map(|r| r.into_vec())
+        let graph = self.graph.read();
+        let ts = self.get_read_timestamp();
+
+        let label_id = match graph.get_vertex_label_id(tag) {
+            Some(id) => id,
+            None => return Ok(Vec::new()),
+        };
+
+        let mut vertices = Vec::new();
+        if let Some(table) = graph.get_vertex_table(label_id) {
+            for record in table.scan(ts) {
+                let vertex = self.vertex_record_to_vertex(&record, tag);
+                vertices.push(vertex);
+            }
+        }
+
+        Ok(vertices)
     }
 
-    /// Scanning vertices by attribute
     pub fn scan_vertices_by_prop(
         &self,
         space: &str,
@@ -127,35 +206,58 @@ impl VertexStorage {
         prop: &str,
         value: &Value,
     ) -> Result<Vec<Vertex>, StorageError> {
-        self.inner
-            .reader
-            .lock()
-            .scan_vertices_by_prop(space, tag, prop, value)
-            .map(|r| r.into_vec())
+        let all_vertices = self.scan_vertices_by_tag(space, tag)?;
+        let filtered: Vec<Vertex> = all_vertices
+            .into_iter()
+            .filter(|v| {
+                v.tags
+                    .iter()
+                    .any(|t| t.properties.get(prop) == Some(value))
+            })
+            .collect();
+
+        Ok(filtered)
     }
 
-    /// Insert vertex
+    fn get_read_timestamp(&self) -> Timestamp {
+        INVALID_TIMESTAMP - 1
+    }
+
+    fn get_write_timestamp(&self) -> Timestamp {
+        INVALID_TIMESTAMP - 1
+    }
+
     pub fn insert_vertex(
         &self,
         space: &str,
         space_id: u64,
         vertex: Vertex,
     ) -> Result<Value, StorageError> {
-        // Get current transaction ID if in transaction context
         let txn_id = self.get_current_txn_id();
         let vid = vertex.vid.clone();
+        let external_id = self.value_to_string_id(&vid)?;
 
-        let id = {
-            let mut writer = self.inner.writer.lock();
-            writer.insert_vertex(space, vertex.clone())?
-        };
+        let tag = vertex
+            .tags
+            .first()
+            .ok_or_else(|| StorageError::DbError("Vertex has no tags".to_string()))?;
 
-        // Update Index
+        let label_id = self.get_label_id(space, &tag.name)?;
+        let properties: Vec<(String, Value)> = tag
+            .properties
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+
+        let ts = self.get_write_timestamp();
+
+        {
+            let mut graph = self.graph.write();
+            graph.insert_vertex(label_id, &external_id, &properties, ts)?;
+        }
+
         for tag in &vertex.tags {
-            let indexes = self
-                .state
-                .index_metadata_manager
-                .list_tag_indexes(space_id)?;
+            let indexes = self.index_data_manager.list_tag_indexes(space_id)?;
 
             for index in indexes {
                 if index.schema_name == tag.name {
@@ -169,7 +271,7 @@ impl VertexStorage {
                     if !index_props.is_empty() {
                         self.index_data_manager.update_vertex_indexes(
                             space_id,
-                            &id,
+                            &vid,
                             &index.name,
                             &index_props,
                         )?;
@@ -177,8 +279,7 @@ impl VertexStorage {
                 }
             }
 
-            // Sync to fulltext/vector index (if enabled)
-            if let Some(sync_manager) = self.state.get_sync_manager() {
+            if let Some(sync_manager) = self.get_sync_manager() {
                 let props: Vec<(String, Value)> = tag
                     .properties
                     .iter()
@@ -202,35 +303,39 @@ impl VertexStorage {
             }
         }
 
-        Ok(id)
+        Ok(vid)
     }
 
-    /// Update Vertex
     pub fn update_vertex(&self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
         let vid = vertex.vid.clone();
-
-        // Get current transaction ID
         let txn_id = self.get_current_txn_id();
 
-        // Get old vertex to detect changes
-        let old_vertex = self.inner.reader.lock().get_vertex(space, &vid)?;
+        let old_vertex = self.get_vertex(space, &vid)?;
 
-        // Update storage
         {
-            let mut writer = self.inner.writer.lock();
-            writer.update_vertex(space, vertex.clone())?;
+            let external_id = self.value_to_string_id(&vid)?;
+            let tag = vertex
+                .tags
+                .first()
+                .ok_or_else(|| StorageError::DbError("Vertex has no tags".to_string()))?;
+
+            let label_id = self.get_label_id(space, &tag.name)?;
+            let properties: Vec<(String, Value)> = tag
+                .properties
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+
+            let ts = self.get_write_timestamp();
+
+            let mut graph = self.graph.write();
+            graph.update_vertex_properties(label_id, &external_id, &properties, ts)?;
         }
 
-        // Invalidate cache
-        self.inner.reader.lock().invalidate_vertex_cache(&vid);
-
-        // Sync to fulltext/vector index (if enabled)
-        if let Some(sync_manager) = self.state.get_sync_manager() {
+        if let Some(sync_manager) = self.get_sync_manager() {
             if let Some(old_v) = old_vertex {
-                // Detect changed properties
                 let changed_props = self.detect_changed_properties(&old_v, &vertex);
                 if !changed_props.is_empty() {
-                    // Get space_id and tag_name for sync
                     let space_id = self.get_space_id(space)?;
                     let tag_name = vertex
                         .tags
@@ -257,36 +362,30 @@ impl VertexStorage {
         Ok(())
     }
 
-    /// Delete Vertex
     pub fn delete_vertex(
         &self,
         space: &str,
         space_id: u64,
         id: &Value,
     ) -> Result<(), StorageError> {
-        // Get current transaction ID
         let txn_id = self.get_current_txn_id();
 
-        // Get old vertex to sync deletion
-        let old_vertex = self.inner.reader.lock().get_vertex(space, id)?;
+        let old_vertex = self.get_vertex(space, id)?;
 
-        // Delete from storage
         {
-            let mut writer = self.inner.writer.lock();
-            writer.delete_vertex(space, id)?;
+            let external_id = self.value_to_string_id(id)?;
+            let ts = self.get_write_timestamp();
+
+            let mut graph = self.graph.write();
+            if let Some(label_id) = graph.get_vertex_label_id("default") {
+                graph.delete_vertex(label_id, &external_id, ts)?;
+            }
         }
 
-        // Delete Index
-        self.index_data_manager
-            .delete_vertex_indexes(space_id, id)?;
+        self.index_data_manager.delete_vertex_indexes(space_id, id)?;
 
-        // Clear cache
-        self.inner.reader.lock().invalidate_vertex_cache(id);
-
-        // Sync to fulltext/vector index (if enabled)
-        if let Some(sync_manager) = self.state.get_sync_manager() {
+        if let Some(sync_manager) = self.get_sync_manager() {
             if let Some(vertex) = old_vertex {
-                // Get tag name for sync
                 if let Some(tag) = vertex.tags.first() {
                     sync_manager
                         .on_vertex_change_with_txn(
@@ -294,7 +393,7 @@ impl VertexStorage {
                             space_id,
                             &tag.name,
                             id,
-                            &[], // No properties needed for deletion
+                            &[],
                             ChangeType::Delete,
                         )
                         .map_err(|e| {
@@ -307,7 +406,6 @@ impl VertexStorage {
         Ok(())
     }
 
-    /// Batch insertion of vertices
     pub fn batch_insert_vertices(
         &self,
         space: &str,
@@ -315,14 +413,35 @@ impl VertexStorage {
         vertices: Vec<Vertex>,
     ) -> Result<Vec<Value>, StorageError> {
         let txn_id = self.get_current_txn_id();
+        let mut ids = Vec::with_capacity(vertices.len());
 
-        let ids = {
-            let mut writer = self.inner.writer.lock();
-            writer.batch_insert_vertices(space, vertices.clone())?
-        };
+        for vertex in &vertices {
+            ids.push(vertex.vid.clone());
+        }
 
-        // Sync to fulltext/vector index (if enabled)
-        if let Some(sync_manager) = self.state.get_sync_manager() {
+        {
+            let ts = self.get_write_timestamp();
+            let mut graph = self.graph.write();
+
+            for vertex in &vertices {
+                let external_id = self.value_to_string_id(&vertex.vid)?;
+                let tag = vertex
+                    .tags
+                    .first()
+                    .ok_or_else(|| StorageError::DbError("Vertex has no tags".to_string()))?;
+
+                let label_id = self.get_label_id(space, &tag.name)?;
+                let properties: Vec<(String, Value)> = tag
+                    .properties
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect();
+
+                graph.insert_vertex(label_id, &external_id, &properties, ts)?;
+            }
+        }
+
+        if let Some(sync_manager) = self.get_sync_manager() {
             for vertex in &vertices {
                 let vid = vertex.vid.clone();
                 for tag in &vertex.tags {
@@ -356,7 +475,6 @@ impl VertexStorage {
         Ok(ids)
     }
 
-    /// Deletes the specified label on a vertex
     pub fn delete_tags(
         &self,
         space: &str,
@@ -364,21 +482,17 @@ impl VertexStorage {
         vertex_id: &Value,
         tag_names: &[String],
     ) -> Result<usize, StorageError> {
-        let deleted_count = {
-            let mut writer = self.inner.writer.lock();
-            writer.delete_tags(space, vertex_id, tag_names)?
-        };
+        let mut deleted_count = 0;
 
-        // Delete Related Indexes
         for tag_name in tag_names {
             self.index_data_manager
                 .delete_tag_indexes(space_id, vertex_id, tag_name)?;
+            deleted_count += 1;
         }
 
         Ok(deleted_count)
     }
 
-    /// Insert vertex data (advanced interface)
     pub fn insert_vertex_data(
         &self,
         space: &str,
@@ -387,55 +501,25 @@ impl VertexStorage {
     ) -> Result<bool, StorageError> {
         let txn_id = self.get_current_txn_id();
 
-        // Get label information
         let tag_name = info.tag_name.clone();
         let _tag_info = self
-            .state
             .schema_manager
             .get_tag(space, &tag_name)?
             .ok_or_else(|| {
                 StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag_name, space))
             })?;
 
-        // Constructing vertex attribute mappings
-        let mut properties = std::collections::HashMap::new();
-        for (prop_name, prop_value) in &info.props {
-            properties.insert(prop_name.clone(), prop_value.clone());
+        let external_id = self.value_to_string_id(&info.vertex_id)?;
+        let properties: Vec<(String, Value)> = info.props.clone();
+
+        let label_id = self.get_label_id(space, &tag_name)?;
+        let ts = self.get_write_timestamp();
+
+        {
+            let mut graph = self.graph.write();
+            graph.insert_vertex(label_id, &external_id, &properties, ts)?;
         }
 
-        // Creating Tags
-        let tag = crate::core::vertex_edge_path::Tag {
-            name: tag_name.clone(),
-            properties,
-        };
-
-        // Getting or creating vertices
-        let vertex = match self
-            .inner
-            .reader
-            .lock()
-            .get_vertex(space, &info.vertex_id)?
-        {
-            Some(mut existing_vertex) => {
-                existing_vertex.tags.retain(|t| t.name != tag_name);
-                existing_vertex.tags.push(tag);
-                existing_vertex
-            }
-            None => crate::core::Vertex {
-                vid: Box::new(info.vertex_id.clone()),
-                id: 0,
-                tags: vec![tag],
-                properties: std::collections::HashMap::new(),
-            },
-        };
-
-        // Insert vertex
-        {
-            let mut writer = self.inner.writer.lock();
-            writer.update_vertex(space, vertex)?;
-        }
-
-        // Update Index
         self.index_data_manager.update_vertex_indexes(
             space_id,
             &info.vertex_id,
@@ -443,8 +527,7 @@ impl VertexStorage {
             &info.props,
         )?;
 
-        // Sync to fulltext/vector index (if enabled)
-        if let Some(sync_manager) = self.state.get_sync_manager() {
+        if let Some(sync_manager) = self.get_sync_manager() {
             if !info.props.is_empty() {
                 sync_manager
                     .on_vertex_change_with_txn(
@@ -464,7 +547,6 @@ impl VertexStorage {
         Ok(true)
     }
 
-    /// Delete vertex data (advanced interface)
     pub fn delete_vertex_data(
         &self,
         space: &str,
@@ -473,19 +555,22 @@ impl VertexStorage {
     ) -> Result<bool, StorageError> {
         let txn_id = self.get_current_txn_id();
 
-        // Get old vertex to sync deletion
-        let old_vertex = self.inner.reader.lock().get_vertex(space, vertex_id)?;
+        let old_vertex = self.get_vertex(space, vertex_id)?;
 
-        // Delete Vertex Index
         self.index_data_manager
             .delete_vertex_indexes(space_id, vertex_id)?;
 
-        // Delete the vertex itself
-        let mut writer = self.inner.writer.lock();
-        writer.delete_vertex(space, vertex_id)?;
+        {
+            let external_id = self.value_to_string_id(vertex_id)?;
+            let ts = self.get_write_timestamp();
 
-        // Sync to fulltext/vector index (if enabled)
-        if let Some(sync_manager) = self.state.get_sync_manager() {
+            let mut graph = self.graph.write();
+            if let Some(label_id) = graph.get_vertex_label_id("default") {
+                graph.delete_vertex(label_id, &external_id, ts)?;
+            }
+        }
+
+        if let Some(sync_manager) = self.get_sync_manager() {
             if let Some(vertex) = old_vertex {
                 if let Some(tag) = vertex.tags.first() {
                     sync_manager
@@ -494,7 +579,7 @@ impl VertexStorage {
                             space_id,
                             &tag.name,
                             vertex_id,
-                            &[], // No properties needed for deletion
+                            &[],
                             ChangeType::Delete,
                         )
                         .map_err(|e| {
@@ -510,7 +595,6 @@ impl VertexStorage {
         Ok(true)
     }
 
-    /// Updating vertex properties
     pub fn update_data(&self, space: &str, info: &UpdateInfo) -> Result<bool, StorageError> {
         self.update_vertex_property(
             space,
@@ -523,7 +607,6 @@ impl VertexStorage {
         Ok(true)
     }
 
-    /// Update vertex properties (internal method)
     fn update_vertex_property(
         &self,
         space: &str,
@@ -533,7 +616,7 @@ impl VertexStorage {
         op: &UpdateOp,
         value: &Value,
     ) -> Result<(), StorageError> {
-        if let Some(mut vertex) = self.inner.reader.lock().get_vertex(space, vertex_id)? {
+        if let Some(mut vertex) = self.get_vertex(space, vertex_id)? {
             for tag_data in &mut vertex.tags {
                 if tag_data.name == tag {
                     match op {
@@ -563,13 +646,29 @@ impl VertexStorage {
                     break;
                 }
             }
-            let mut writer = self.inner.writer.lock();
-            writer.update_vertex(space, vertex)?;
+
+            let external_id = self.value_to_string_id(vertex_id)?;
+            let tag_data = vertex
+                .tags
+                .iter()
+                .find(|t| t.name == tag)
+                .ok_or_else(|| StorageError::DbError(format!("Tag '{}' not found", tag)))?;
+
+            let properties: Vec<(String, Value)> = tag_data
+                .properties
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+
+            let label_id = self.get_label_id(space, tag)?;
+            let ts = self.get_write_timestamp();
+
+            let mut graph = self.graph.write();
+            graph.update_vertex_properties(label_id, &external_id, &properties, ts)?;
         }
         Ok(())
     }
 
-    /// Build the vertex schema
     pub fn build_vertex_schema(&self, tag_info: &TagInfo) -> Result<Schema, StorageError> {
         let mut schema = Schema::new(tag_info.tag_name.clone(), 1);
         for prop in &tag_info.properties {
@@ -588,7 +687,6 @@ impl VertexStorage {
         Ok(schema)
     }
 
-    /// Get vertices with schema
     pub fn get_vertex_with_schema(
         &self,
         space: &str,
@@ -597,9 +695,8 @@ impl VertexStorage {
     ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
         use oxicode::encode_to_vec;
 
-        if let Some(vertex) = self.inner.reader.lock().get_vertex(space, id)? {
+        if let Some(vertex) = self.get_vertex(space, id)? {
             let tag_info = self
-                .state
                 .schema_manager
                 .get_tag(space, tag)?
                 .ok_or_else(|| {
@@ -612,7 +709,6 @@ impl VertexStorage {
         Ok(None)
     }
 
-    /// Scanning vertices with schema
     pub fn scan_vertices_with_schema(
         &self,
         space: &str,
@@ -622,7 +718,6 @@ impl VertexStorage {
 
         let mut results = Vec::new();
         let tag_info = self
-            .state
             .schema_manager
             .get_tag(space, tag)?
             .ok_or_else(|| {
@@ -630,7 +725,7 @@ impl VertexStorage {
             })?;
         let schema = self.build_vertex_schema(&tag_info)?;
 
-        let vertices = self.inner.reader.lock().scan_vertices(space)?;
+        let vertices = self.scan_vertices(space)?;
         for vertex in vertices {
             if vertex.tags.iter().any(|t| t.name == tag) {
                 let vertex_data = encode_to_vec(&vertex)?;
@@ -639,5 +734,73 @@ impl VertexStorage {
         }
 
         Ok(results)
+    }
+
+    fn get_sync_manager(&self) -> Option<Arc<crate::sync::SyncManager>> {
+        self.sync_manager.read().clone()
+    }
+}
+
+impl VertexReader for VertexStorage {
+    fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
+        self.get_vertex(space, id)
+    }
+
+    fn scan_vertices(&self, space: &str) -> Result<ScanResult<Vertex>, StorageError> {
+        self.scan_vertices(space).map(ScanResult::new)
+    }
+
+    fn scan_vertices_by_tag(
+        &self,
+        space: &str,
+        tag_name: &str,
+    ) -> Result<ScanResult<Vertex>, StorageError> {
+        self.scan_vertices_by_tag(space, tag_name).map(ScanResult::new)
+    }
+
+    fn scan_vertices_by_prop(
+        &self,
+        space: &str,
+        tag_name: &str,
+        prop_name: &str,
+        value: &Value,
+    ) -> Result<ScanResult<Vertex>, StorageError> {
+        self.scan_vertices_by_prop(space, tag_name, prop_name, value)
+            .map(ScanResult::new)
+    }
+}
+
+impl VertexWriter for VertexStorage {
+    fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<Value, StorageError> {
+        let space_id = self.get_space_id(space)?;
+        self.insert_vertex(space, space_id, vertex)
+    }
+
+    fn update_vertex(&mut self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
+        self.update_vertex(space, vertex)
+    }
+
+    fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
+        let space_id = self.get_space_id(space)?;
+        self.delete_vertex(space, space_id, id)
+    }
+
+    fn batch_insert_vertices(
+        &mut self,
+        space: &str,
+        vertices: Vec<Vertex>,
+    ) -> Result<Vec<Value>, StorageError> {
+        let space_id = self.get_space_id(space)?;
+        self.batch_insert_vertices(space, space_id, vertices)
+    }
+
+    fn delete_tags(
+        &mut self,
+        space: &str,
+        vertex_id: &Value,
+        tag_names: &[String],
+    ) -> Result<usize, StorageError> {
+        let space_id = self.get_space_id(space)?;
+        self.delete_tags(space, space_id, vertex_id, tag_names)
     }
 }

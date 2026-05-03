@@ -22,7 +22,7 @@ use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::{DataType, EdgeTypeInfo, PropertyDef, TagInfo};
 use crate::core::Value;
 use crate::query::validator::validator_trait::ValueType;
-use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use crate::storage::metadata::inmemory_schema_manager::InMemorySchemaManager;
 use crate::storage::metadata::schema_manager::SchemaManager;
 
 /// Schema Validator

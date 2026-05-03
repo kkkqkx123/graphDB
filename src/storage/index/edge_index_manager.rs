@@ -1,27 +1,32 @@
-//! Border Index Management Module
+//! Edge Index Management Module
 //!
 //! Provide functions for updating, deleting, and querying edge indexes.
+//! This implementation uses in-memory storage with BTreeMap for efficient range queries.
 
 use crate::core::types::Index;
 use crate::core::{StorageError, Value};
-use crate::storage::engine::{ByteKey, INDEX_DATA_TABLE};
 use crate::storage::index::index_key_codec::IndexKeyCodec;
-use redb::{Database, ReadableTable};
+use parking_lot::RwLock;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
-/// Border Index Manager
+type IndexKey = Vec<u8>;
+type IndexValue = Vec<u8>;
+
 #[derive(Clone)]
 pub struct EdgeIndexManager {
-    db: Arc<Database>,
+    forward_index: Arc<RwLock<BTreeMap<IndexKey, IndexValue>>>,
+    reverse_index: Arc<RwLock<BTreeMap<IndexKey, IndexValue>>>,
 }
 
 impl EdgeIndexManager {
-    /// Create a new edge index manager.
-    pub fn new(db: Arc<Database>) -> Self {
-        Self { db }
+    pub fn new() -> Self {
+        Self {
+            forward_index: Arc::new(RwLock::new(BTreeMap::new())),
+            reverse_index: Arc::new(RwLock::new(BTreeMap::new())),
+        }
     }
 
-    /// Update the edge index.
     pub fn update_edge_indexes(
         &self,
         space_id: u64,
@@ -30,44 +35,25 @@ impl EdgeIndexManager {
         index_name: &str,
         props: &[(String, Value)],
     ) -> Result<(), StorageError> {
-        let txn = self.db.begin_write().map_err(|e| {
-            StorageError::DbError(format!("Failed to start write transaction: {}", e))
-        })?;
+        for (prop_name, prop_value) in props {
+            let index_key =
+                IndexKeyCodec::build_edge_index_key(space_id, index_name, prop_value, src, dst)?;
 
-        {
-            let mut table = txn.open_table(INDEX_DATA_TABLE).map_err(|e| {
-                StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e))
-            })?;
+            let reverse_key = IndexKeyCodec::build_edge_reverse_key(space_id, index_name, src)?;
+            let prop_value_bytes = IndexKeyCodec::serialize_value(prop_value)?;
+            let value_key = format!("{}:{}", prop_name, prop_value_bytes.len());
 
-            for (prop_name, prop_value) in props {
-                let index_key = IndexKeyCodec::build_edge_index_key(
-                    space_id, index_name, prop_value, src, dst,
-                )?;
-
-                table
-                    .insert(index_key, ByteKey(prop_name.as_bytes().to_vec()))
-                    .map_err(|e| {
-                        StorageError::DbError(format!("Failed to insert edge index data: {}", e))
-                    })?;
-
-                let reverse_key = IndexKeyCodec::build_edge_reverse_key(space_id, index_name, src)?;
-                let prop_value_bytes = IndexKeyCodec::serialize_value(prop_value)?;
-                let value_key = format!("{}:{}", prop_name, prop_value_bytes.len());
-                table
-                    .insert(reverse_key, ByteKey(value_key.into_bytes()))
-                    .map_err(|e| {
-                        StorageError::DbError(format!("Failed to insert edge reverse index: {}", e))
-                    })?;
-            }
+            self.forward_index
+                .write()
+                .insert(index_key.0, prop_name.as_bytes().to_vec());
+            self.reverse_index
+                .write()
+                .insert(reverse_key.0, value_key.into_bytes());
         }
-
-        txn.commit()
-            .map_err(|e| StorageError::DbError(format!("Failed to commit transaction: {}", e)))?;
 
         Ok(())
     }
 
-    /// Delete all indexes from the edge.
     pub fn delete_edge_indexes(
         &self,
         space_id: u64,
@@ -75,60 +61,39 @@ impl EdgeIndexManager {
         dst: &Value,
         index_names: &[String],
     ) -> Result<(), StorageError> {
-        let txn = self.db.begin_write().map_err(|e| {
-            StorageError::DbError(format!("Failed to start write transaction: {}", e))
-        })?;
+        let src_bytes = IndexKeyCodec::serialize_value(src)?;
+        let reverse_prefix = IndexKeyCodec::build_edge_reverse_prefix(space_id);
+
+        let mut forward_keys_to_delete: Vec<IndexKey> = Vec::new();
+        let mut reverse_keys_to_delete: Vec<IndexKey> = Vec::new();
 
         {
-            let mut table = txn.open_table(INDEX_DATA_TABLE).map_err(|e| {
-                StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e))
-            })?;
-
-            let src_bytes = IndexKeyCodec::serialize_value(src)?;
-            let reverse_prefix = IndexKeyCodec::build_edge_reverse_prefix(space_id);
-
-            let mut forward_keys_to_delete: Vec<ByteKey> = Vec::new();
-            let mut reverse_keys_to_delete: Vec<ByteKey> = Vec::new();
-
-            for (key, value) in table
-                .iter()
-                .map_err(|e| StorageError::DbError(format!("Failed to iterate index data: {}", e)))?
-                .flatten()
-            {
-                let key_bytes: Vec<u8> = key.value().0.clone();
-
+            let reverse_index = self.reverse_index.read();
+            for (key_bytes, value_bytes) in reverse_index.iter() {
                 if key_bytes.starts_with(&reverse_prefix.0) {
                     if let Ok((index_name, key_src_bytes)) =
-                        IndexKeyCodec::parse_edge_reverse_key(&key_bytes)
+                        IndexKeyCodec::parse_edge_reverse_key(key_bytes)
                     {
                         if key_src_bytes == src_bytes && index_names.contains(&index_name) {
-                            reverse_keys_to_delete.push(ByteKey(key_bytes.clone()));
+                            reverse_keys_to_delete.push(key_bytes.clone());
 
-                            let value_bytes: Vec<u8> = value.value().0.clone();
-                            let value_str = String::from_utf8_lossy(&value_bytes);
+                            let value_str = String::from_utf8_lossy(value_bytes);
                             let value_parts: Vec<&str> = value_str.split(':').collect();
 
                             if value_parts.len() >= 2 {
-                                let _prop_name = value_parts[0];
                                 if let Ok(prop_value_len) = value_parts[1].parse::<usize>() {
-                                    let forward_key_start = IndexKeyCodec::build_edge_index_prefix(
-                                        space_id,
-                                        &index_name,
-                                    );
+                                    let forward_key_start =
+                                        IndexKeyCodec::build_edge_index_prefix(
+                                            space_id,
+                                            &index_name,
+                                        );
                                     let forward_key_end =
                                         IndexKeyCodec::build_range_end(&forward_key_start);
 
-                                    for (fwd_key, _) in table
-                                        .range::<ByteKey>(&forward_key_start..&forward_key_end)
-                                        .map_err(|e| {
-                                            StorageError::DbError(format!(
-                                                "Range query failed: {}",
-                                                e
-                                            ))
-                                        })?
-                                        .flatten()
+                                    let forward_index = self.forward_index.read();
+                                    for (fwd_key_bytes, _) in forward_index
+                                        .range(forward_key_start.0.clone()..forward_key_end.0)
                                     {
-                                        let fwd_key_bytes: Vec<u8> = fwd_key.value().0.clone();
                                         if fwd_key_bytes.len()
                                             >= forward_key_start.0.len() + 4 + prop_value_len + 4
                                         {
@@ -141,7 +106,8 @@ impl EdgeIndexManager {
                                                         .unwrap_or([0; 4]),
                                                 )
                                                     as usize;
-                                                if fwd_key_bytes.len() >= src_start + src_len + 4 {
+                                                if fwd_key_bytes.len() >= src_start + src_len + 4
+                                                {
                                                     let dst_len_start = src_start + src_len;
                                                     let dst_len = u32::from_le_bytes(
                                                         fwd_key_bytes
@@ -163,7 +129,7 @@ impl EdgeIndexManager {
                                                                 )?
                                                         {
                                                             forward_keys_to_delete
-                                                                .push(ByteKey(fwd_key_bytes));
+                                                                .push(fwd_key_bytes.clone());
                                                         }
                                                     }
                                                 }
@@ -176,54 +142,39 @@ impl EdgeIndexManager {
                     }
                 }
             }
+        }
 
+        {
+            let mut reverse_index = self.reverse_index.write();
             for key in &reverse_keys_to_delete {
-                table.remove(key).map_err(|e| {
-                    StorageError::DbError(format!("Failed to delete reverse index: {}", e))
-                })?;
-            }
-
-            for key in &forward_keys_to_delete {
-                table.remove(key).map_err(|e| {
-                    StorageError::DbError(format!("Failed to delete forward index: {}", e))
-                })?;
+                reverse_index.remove(key);
             }
         }
 
-        txn.commit()
-            .map_err(|e| StorageError::DbError(format!("Failed to commit transaction: {}", e)))?;
+        {
+            let mut forward_index = self.forward_index.write();
+            for key in &forward_keys_to_delete {
+                forward_index.remove(key);
+            }
+        }
 
         Ok(())
     }
 
-    /// Search for the edge index
     pub fn lookup_edge_index(
         &self,
         space_id: u64,
         index: &Index,
         value: &Value,
     ) -> Result<Vec<Value>, StorageError> {
-        let txn = self.db.begin_read().map_err(|e| {
-            StorageError::DbError(format!("Failed to start read transaction: {}", e))
-        })?;
-
-        let table = txn.open_table(INDEX_DATA_TABLE).map_err(|e| {
-            StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e))
-        })?;
-
         let prefix = IndexKeyCodec::build_edge_index_prefix(space_id, &index.name);
         let end = IndexKeyCodec::build_range_end(&prefix);
 
         let mut results = Vec::new();
         let value_bytes = IndexKeyCodec::serialize_value(value)?;
 
-        for (key, _) in table
-            .range::<ByteKey>(&prefix..&end)
-            .map_err(|e| StorageError::DbError(format!("Range query failed: {}", e)))?
-            .flatten()
-        {
-            let key_bytes: Vec<u8> = key.value().0.clone();
-
+        let forward_index = self.forward_index.read();
+        for (key_bytes, _) in forward_index.range(prefix.0.clone()..end.0) {
             if key_bytes.len() > prefix.0.len() + 4 {
                 let prop_len_start = prefix.0.len();
                 let prop_value_len = u32::from_le_bytes(
@@ -261,42 +212,33 @@ impl EdgeIndexManager {
         Ok(results)
     }
 
-    /// Clear the side index.
     pub fn clear_edge_index(&self, space_id: u64, index_name: &str) -> Result<(), StorageError> {
-        let txn = self.db.begin_write().map_err(|e| {
-            StorageError::DbError(format!("Failed to start write transaction: {}", e))
-        })?;
+        let prefix = IndexKeyCodec::build_edge_index_prefix(space_id, index_name);
+        let end = IndexKeyCodec::build_range_end(&prefix);
+
+        let mut keys_to_delete: Vec<IndexKey> = Vec::new();
 
         {
-            let mut table = txn.open_table(INDEX_DATA_TABLE).map_err(|e| {
-                StorageError::DbError(format!("Failed to open INDEX_DATA_TABLE: {}", e))
-            })?;
-
-            let prefix = IndexKeyCodec::build_edge_index_prefix(space_id, index_name);
-            let end = IndexKeyCodec::build_range_end(&prefix);
-
-            let mut keys_to_delete: Vec<ByteKey> = Vec::new();
-
-            for (key, _) in table
-                .range::<ByteKey>(&prefix..&end)
-                .map_err(|e| StorageError::DbError(format!("Range query failed: {}", e)))?
-                .flatten()
-            {
-                let key_bytes: Vec<u8> = key.value().0.clone();
-                keys_to_delete.push(ByteKey(key_bytes));
-            }
-
-            for key in &keys_to_delete {
-                table
-                    .remove(key)
-                    .map_err(|e| StorageError::DbError(format!("Failed to delete index: {}", e)))?;
+            let forward_index = self.forward_index.read();
+            for (key_bytes, _) in forward_index.range(prefix.0.clone()..end.0) {
+                keys_to_delete.push(key_bytes.clone());
             }
         }
 
-        txn.commit()
-            .map_err(|e| StorageError::DbError(format!("Failed to commit transaction: {}", e)))?;
+        {
+            let mut forward_index = self.forward_index.write();
+            for key in &keys_to_delete {
+                forward_index.remove(key);
+            }
+        }
 
         Ok(())
+    }
+}
+
+impl Default for EdgeIndexManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -305,23 +247,6 @@ mod tests {
     use super::*;
     use crate::core::types::{Index, IndexConfig, IndexField, IndexType};
     use crate::core::Value;
-    use tempfile::TempDir;
-
-    fn create_test_db() -> (Arc<Database>, TempDir) {
-        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
-        let db_path = temp_dir.path().join("test.db");
-        let db = Arc::new(Database::create(&db_path).expect("Failed to create test database"));
-
-        let txn = db.begin_write().expect("Failed to begin write transaction");
-        {
-            let _ = txn
-                .open_table(INDEX_DATA_TABLE)
-                .expect("Failed to open table");
-        }
-        txn.commit().expect("Failed to commit transaction");
-
-        (db, temp_dir)
-    }
 
     fn create_test_index(name: &str, schema_name: &str) -> Index {
         Index::new(IndexConfig {
@@ -342,8 +267,7 @@ mod tests {
 
     #[test]
     fn test_update_and_lookup_edge_index() {
-        let (db, _temp_dir) = create_test_db();
-        let manager = EdgeIndexManager::new(db);
+        let manager = EdgeIndexManager::new();
 
         let space_id = 1u64;
         let src = Value::Int(1);
@@ -371,8 +295,7 @@ mod tests {
 
     #[test]
     fn test_delete_edge_indexes() {
-        let (db, _temp_dir) = create_test_db();
-        let manager = EdgeIndexManager::new(db);
+        let manager = EdgeIndexManager::new();
 
         let space_id = 1u64;
         let src1 = Value::Int(1);
@@ -420,8 +343,7 @@ mod tests {
 
     #[test]
     fn test_clear_edge_index() {
-        let (db, _temp_dir) = create_test_db();
-        let manager = EdgeIndexManager::new(db);
+        let manager = EdgeIndexManager::new();
 
         let space_id = 1u64;
         let src = Value::Int(1);

@@ -26,7 +26,7 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use crate::storage::metadata::inmemory_schema_manager::InMemorySchemaManager;
 
 /// Information obtained from the verified sub-image
 #[derive(Debug, Clone)]

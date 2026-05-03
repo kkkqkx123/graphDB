@@ -3,7 +3,7 @@ use crate::core::types::{
     TagInfo, UpdateInfo, UserAlterInfo, UserInfo,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
-use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use crate::storage::metadata::inmemory_schema_manager::InMemorySchemaManager;
 use crate::storage::metadata::Schema;
 use std::sync::Arc;
 

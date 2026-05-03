@@ -16,33 +16,31 @@ use crate::storage::api::StorageClient;
 #[cfg(test)]
 use crate::storage::metadata::Schema;
 #[cfg(test)]
+use crate::storage::property_graph::{PropertyGraph, PropertyGraphConfig};
+#[cfg(test)]
 use std::sync::Arc;
+#[cfg(test)]
+use parking_lot::RwLock;
 
 /// Test mock storage engine
 #[cfg(test)]
 #[derive(Debug, Clone)]
 pub struct MockStorage {
-    db: Arc<redb::Database>,
+    graph: Arc<RwLock<PropertyGraph>>,
 }
 
 #[cfg(test)]
 impl MockStorage {
     pub fn new() -> Result<Self, StorageError> {
-        let temp_dir = tempfile::tempdir().map_err(|e| {
-            StorageError::DbError(format!("Failed to create temporary directory: {}", e))
-        })?;
-        let db_path = temp_dir.path().join("test_mock.db");
-
-        let db = Arc::new(
-            redb::Database::create(&db_path)
-                .map_err(|e| StorageError::DbError(format!("Failed to create database: {}", e)))?,
-        );
-
-        Ok(Self { db })
+        let config = PropertyGraphConfig::default();
+        let graph = PropertyGraph::new(config);
+        Ok(Self {
+            graph: Arc::new(RwLock::new(graph)),
+        })
     }
 
-    pub fn get_db(&self) -> &Arc<redb::Database> {
-        &self.db
+    pub fn get_graph(&self) -> &Arc<RwLock<PropertyGraph>> {
+        &self.graph
     }
 }
 

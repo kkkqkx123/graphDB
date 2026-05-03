@@ -9,7 +9,7 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,
 };
 use crate::query::QueryContext;
-use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use crate::storage::metadata::inmemory_schema_manager::InMemorySchemaManager;
 
 // Import the specific validator.
 use crate::query::validator::assignment_validator::AssignmentValidator;

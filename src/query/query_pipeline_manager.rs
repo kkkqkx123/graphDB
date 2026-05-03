@@ -36,7 +36,7 @@ use crate::query::QueryRequestContext;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::{ValidatedStatement, ValidationInfo};
 use crate::query::QueryContext;
-use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use crate::storage::metadata::inmemory_schema_manager::InMemorySchemaManager;
 use crate::storage::StorageClient;
 use crate::sync::SyncManager;
 use parking_lot::Mutex;

@@ -368,15 +368,6 @@ pub enum DurabilityLevel {
     Immediate,
 }
 
-impl From<DurabilityLevel> for redb::Durability {
-    fn from(level: DurabilityLevel) -> Self {
-        match level {
-            DurabilityLevel::None => redb::Durability::None,
-            DurabilityLevel::Immediate => redb::Durability::Immediate,
-        }
-    }
-}
-
 /// Transaction Configuration
 #[derive(Debug, Clone)]
 pub struct TransactionConfig {

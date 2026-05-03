@@ -4,7 +4,7 @@
 
 use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::storage::api::StorageClient;
-use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use crate::storage::metadata::inmemory_schema_manager::InMemorySchemaManager;
 use crate::sync::coordinator::ChangeType;
 use std::fmt::Debug;
 use std::sync::Arc;

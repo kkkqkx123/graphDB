@@ -12,7 +12,7 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use crate::storage::metadata::inmemory_schema_manager::InMemorySchemaManager;
 use crate::storage::metadata::schema_manager::SchemaManager;
 use std::collections::HashSet;
 use std::sync::Arc;

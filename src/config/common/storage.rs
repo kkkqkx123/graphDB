@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum StorageEngine {
-    /// Redb storage engine
+    /// PropertyGraph storage engine (columnar + CSR)
     #[default]
-    Redb,
+    PropertyGraph,
     /// RocksDB storage engine (future support)
     #[serde(rename = "rocksdb")]
     RocksDB,
@@ -17,7 +17,7 @@ pub enum StorageEngine {
 impl std::fmt::Display for StorageEngine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Redb => write!(f, "redb"),
+            Self::PropertyGraph => write!(f, "propertygraph"),
             Self::RocksDB => write!(f, "rocksdb"),
         }
     }
@@ -222,7 +222,7 @@ mod tests {
     #[test]
     fn test_storage_config_default() {
         let config = StorageConfig::default();
-        assert_eq!(config.engine, StorageEngine::Redb);
+        assert_eq!(config.engine, StorageEngine::PropertyGraph);
         assert_eq!(config.compression, CompressionAlgorithm::Lz4);
         assert_eq!(config.compression_level, 3);
         assert_eq!(config.checkpoint_interval_secs, 300);
@@ -265,7 +265,7 @@ mod tests {
 
     #[test]
     fn test_storage_engine_display() {
-        assert_eq!(StorageEngine::Redb.to_string(), "redb");
+        assert_eq!(StorageEngine::PropertyGraph.to_string(), "propertygraph");
         assert_eq!(StorageEngine::RocksDB.to_string(), "rocksdb");
     }
 

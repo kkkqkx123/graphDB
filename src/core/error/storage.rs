@@ -87,12 +87,6 @@ impl From<std::io::Error> for StorageError {
     }
 }
 
-impl From<redb::Error> for StorageError {
-    fn from(e: redb::Error) -> Self {
-        StorageError::DbError(e.to_string())
-    }
-}
-
 impl From<String> for StorageError {
     fn from(s: String) -> Self {
         StorageError::DbError(s)
