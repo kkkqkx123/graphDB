@@ -12,6 +12,7 @@ use parking_lot::Mutex;
 /// Switching space actuators
 ///
 /// This executor is responsible for switching the space of the current session.
+/// It returns SpaceSwitched result with the space summary on success.
 #[derive(Debug)]
 pub struct SwitchSpaceExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -37,15 +38,35 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for SwitchSpaceExecut
         let storage = self.get_storage();
         let storage_guard = storage.lock();
 
-        let space_exists = storage_guard.space_exists(&self.space_name);
+        match storage_guard.get_space(&self.space_name) {
+            Ok(Some(space_info)) => {
+                let summary = space_info.summary();
+                Ok(ExecutionResult::SpaceSwitched(summary))
+            }
+            Ok(None) => {
+                let available_spaces = storage_guard
+                    .list_spaces()
+                    .unwrap_or_default()
+                    .iter()
+                    .map(|s| s.space_name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ");
 
-        if space_exists {
-            Ok(ExecutionResult::Success)
-        } else {
-            Ok(ExecutionResult::Error(format!(
-                "Space '{}' does not exist",
-                self.space_name
-            )))
+                let hint = if available_spaces.is_empty() {
+                    "No spaces exist. Use 'CREATE SPACE <name>' to create one.".to_string()
+                } else {
+                    format!("Available spaces: {}. Use 'CREATE SPACE <name>' to create a new space.", available_spaces)
+                };
+
+                Ok(ExecutionResult::Error(format!(
+                    "Space '{}' does not exist. {}",
+                    self.space_name, hint
+                )))
+            }
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to get space '{}': {}",
+                self.space_name, e
+            ))),
         }
     }
 

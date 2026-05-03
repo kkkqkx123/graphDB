@@ -165,7 +165,7 @@ impl StorageClient for MockStorage {
         Ok(())
     }
 
-    fn create_space(&mut self, _space: &SpaceInfo) -> Result<bool, StorageError> {
+    fn create_space(&mut self, _space: &mut SpaceInfo) -> Result<bool, StorageError> {
         Ok(true)
     }
 

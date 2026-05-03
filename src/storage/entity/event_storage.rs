@@ -471,7 +471,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
 
     fn create_space(
         &mut self,
-        space: &crate::core::types::SpaceInfo,
+        space: &mut crate::core::types::SpaceInfo,
     ) -> Result<bool, StorageError> {
         self.inner.create_space(space)
     }

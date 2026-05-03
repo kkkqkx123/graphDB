@@ -2,12 +2,6 @@ use parking_lot::RwLock;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
-pub struct SpaceInfo {
-    pub name: String,
-    pub id: i64,
-}
-
-#[derive(Debug, Clone)]
 pub struct Session {
     pub session_id: i64,
     pub user_name: String,

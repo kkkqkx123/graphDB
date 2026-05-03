@@ -2,7 +2,7 @@
 //!
 //! Provide a streaming API for building QueryContext, which simplifies the process of creating complex objects.
 
-use crate::core::types::{CharsetInfo, SpaceInfo};
+use crate::core::types::{CharsetInfo, EngineType, SpaceInfo, SpaceStatus, SpaceSummary};
 use crate::utils::IdGenerator;
 use std::sync::Arc;
 
@@ -42,6 +42,20 @@ impl QueryContextBuilder {
             execution_manager: None,
             id_gen: None,
             space_info: None,
+            charset_info: None,
+        }
+    }
+
+    /// Create a builder from session context.
+    ///
+    /// This simplifies the common pattern of creating a QueryContext
+    /// from a ClientSession, automatically extracting space information.
+    pub fn from_session(rctx: Arc<QueryRequestContext>, space: Option<SpaceSummary>) -> Self {
+        Self {
+            rctx: Some(rctx),
+            execution_manager: None,
+            id_gen: None,
+            space_info: space.map(SpaceInfo::from),
             charset_info: None,
         }
     }
@@ -123,6 +137,10 @@ mod tests {
             comment: None,
             storage_path: None,
             isolation_level: IsolationLevel::default(),
+            partition_num: 100,
+            replica_factor: 1,
+            engine_type: EngineType::default(),
+            status: SpaceStatus::Online,
         };
 
         let query_context = QueryContextBuilder::new(rctx)
@@ -168,6 +186,10 @@ mod tests {
             comment: None,
             storage_path: None,
             isolation_level: IsolationLevel::default(),
+            partition_num: 100,
+            replica_factor: 1,
+            engine_type: EngineType::default(),
+            status: SpaceStatus::Online,
         };
 
         let query_context = QueryContextBuilder::new(rctx)

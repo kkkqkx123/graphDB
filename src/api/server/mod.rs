@@ -16,7 +16,7 @@ pub mod web;
 
 pub use auth::{Authenticator, PasswordAuthenticator};
 pub use batch::BatchManager;
-pub use client::{ClientSession, Session, SpaceInfo};
+pub use client::{ClientSession, Session};
 pub use graph_service::GraphService;
 #[cfg(feature = "grpc")]
 pub use grpc::{run_server, GraphDBService};

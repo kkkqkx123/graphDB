@@ -211,6 +211,17 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
                     metadata: ExecutionMetadata::default(),
                 })
             }
+            crate::query::executor::base::ExecutionResult::SpaceSwitched(summary) => {
+                // Space switched successfully
+                let mut row = crate::api::core::types::Row::new();
+                row.values.insert("space_name".to_string(), crate::core::Value::String(summary.name.clone()));
+                row.values.insert("space_id".to_string(), crate::core::Value::BigInt(summary.id as i64));
+                Ok(QueryResult {
+                    columns: vec!["space_name".to_string(), "space_id".to_string()],
+                    rows: vec![row],
+                    metadata: ExecutionMetadata::default(),
+                })
+            }
             crate::query::executor::base::ExecutionResult::Error(msg) => {
                 // Error case - should be handled before this function
                 Err(CoreError::Internal(msg))

@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use crate::core::types::{EdgeTypeInfo, SpaceInfo, TagInfo};
+use crate::core::types::{EdgeTypeInfo, EngineType, SpaceInfo, SpaceStatus, TagInfo};
 use crate::query::metadata::provider::MetadataProviderError;
 use crate::query::metadata::{
     EdgeTypeMetadata, IndexMetadata, IndexType, MetadataProvider, TagMetadata,
@@ -316,7 +316,7 @@ mod tests {
     struct MockSchemaManager;
 
     impl SchemaManager for MockSchemaManager {
-        fn create_space(&self, _space: &SpaceInfo) -> Result<bool, StorageError> {
+        fn create_space(&self, _space: &mut SpaceInfo) -> Result<bool, StorageError> {
             Ok(true)
         }
 
@@ -336,6 +336,10 @@ mod tests {
                     comment: None,
                     storage_path: None,
                     isolation_level: crate::core::types::IsolationLevel::default(),
+                    partition_num: 100,
+                    replica_factor: 1,
+                    engine_type: EngineType::default(),
+                    status: SpaceStatus::Online,
                 }))
             } else {
                 Ok(None)
@@ -354,6 +358,10 @@ mod tests {
                     comment: None,
                     storage_path: None,
                     isolation_level: crate::core::types::IsolationLevel::default(),
+                    partition_num: 100,
+                    replica_factor: 1,
+                    engine_type: EngineType::default(),
+                    status: SpaceStatus::Online,
                 }))
             } else {
                 Ok(None)

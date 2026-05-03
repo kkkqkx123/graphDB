@@ -158,7 +158,7 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
                 ExecutionResult::DataSet(dataset) => {
                     all_datasets.push(dataset.clone());
                 }
-                ExecutionResult::Success | ExecutionResult::Empty => {}
+                ExecutionResult::Success | ExecutionResult::Empty | ExecutionResult::SpaceSwitched(_) => {}
                 ExecutionResult::Error(_) => {
                     has_error = true;
                 }

@@ -147,7 +147,7 @@ mod tests {
     }
 
     impl SchemaManager for MockSchemaManager {
-        fn create_space(&self, _space: &SpaceInfo) -> Result<bool, StorageError> {
+        fn create_space(&self, _space: &mut SpaceInfo) -> Result<bool, StorageError> {
             Ok(true)
         }
 

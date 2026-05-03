@@ -11,6 +11,7 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::types::space_name_validation::validate_space_name;
 use crate::query::parser::ast::stmt::Ast;
 use crate::query::parser::ast::Stmt;
 use crate::query::validator::structs::validation_info::ValidationInfo;
@@ -114,63 +115,9 @@ impl UseValidator {
 
     /// Verify the space name
     fn validate_space_name(&self) -> Result<(), ValidationError> {
-        if self.space_name.is_empty() {
-            return Err(ValidationError::new(
-                "The USE statement requires the space name to be specified".to_string(),
-                ValidationErrorType::SyntaxError,
-            ));
-        }
-
-        if self.space_name.starts_with('_') {
-            return Err(ValidationError::new(
-                format!(
-                    "The space name '{}' cannot start with an underscore.",
-                    self.space_name
-                ),
-                ValidationErrorType::SemanticError,
-            ));
-        }
-
-        if self
-            .space_name
-            .chars()
-            .next()
-            .unwrap_or_default()
-            .is_ascii_digit()
-        {
-            return Err(ValidationError::new(
-                format!(
-                    "The space name '{}' cannot start with a number.",
-                    self.space_name
-                ),
-                ValidationErrorType::SemanticError,
-            ));
-        }
-
-        let invalid_chars: Vec<char> = vec![' ', '\t', '\n', '\r', ',', ';', '(', ')', '[', ']'];
-        for c in self.space_name.chars() {
-            if invalid_chars.contains(&c) {
-                return Err(ValidationError::new(
-                    format!(
-                        "Space name '{}' contains illegal character '{}'",
-                        self.space_name, c
-                    ),
-                    ValidationErrorType::SemanticError,
-                ));
-            }
-        }
-
-        if self.space_name.len() > 64 {
-            return Err(ValidationError::new(
-                format!(
-                    "Space name '{}' exceeds the maximum length of 64 characters.",
-                    self.space_name
-                ),
-                ValidationErrorType::SemanticError,
-            ));
-        }
-
-        Ok(())
+        validate_space_name(&self.space_name).map_err(|e| {
+            ValidationError::new(e.to_string(), ValidationErrorType::SemanticError)
+        })
     }
 
     /// Verify whether the space exists.

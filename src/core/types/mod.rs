@@ -13,6 +13,7 @@ pub mod query;
 pub mod schema_change;
 pub mod schema_trait;
 pub mod space;
+pub mod space_name_validation;
 pub mod span;
 pub mod tag;
 pub mod user;
@@ -119,7 +120,7 @@ pub use self::fulltext_query::{
     SortOrder,
 };
 pub use self::property::PropertyDef;
-pub use self::space::{generate_space_id, reset_space_id_counter, IsolationLevel, SpaceInfo};
+pub use self::space::{EngineType, IsolationLevel, SpaceInfo, SpaceStatus, SpaceSummary};
 pub use self::tag::TagInfo;
 
 // Exporting version types from metadata_version

@@ -287,7 +287,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
 
         match input_result {
             ExecutionResult::DataSet(dataset) => self.aggregate_dataset(dataset),
-            ExecutionResult::Empty | ExecutionResult::Success => {
+            ExecutionResult::Empty | ExecutionResult::Success | ExecutionResult::SpaceSwitched(_) => {
                 let dataset = crate::query::DataSet::new();
                 self.aggregate_dataset(dataset)
             }

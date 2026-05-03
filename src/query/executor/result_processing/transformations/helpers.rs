@@ -29,7 +29,7 @@ pub fn execution_result_to_values(
                 .collect();
             Ok(values)
         }
-        ExecutionResult::Empty | ExecutionResult::Success => Ok(Vec::new()),
+        ExecutionResult::Empty | ExecutionResult::Success | ExecutionResult::SpaceSwitched(_) => Ok(Vec::new()),
         ExecutionResult::Error(msg) => Err(DBError::Query(
             crate::core::error::QueryError::ExecutionError(msg.clone()),
         )),

@@ -89,7 +89,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
                 let sampled_dataset = self.sample_dataset(dataset)?;
                 Ok(ExecutionResult::DataSet(sampled_dataset))
             }
-            ExecutionResult::Empty | ExecutionResult::Success => Ok(input),
+            ExecutionResult::Empty | ExecutionResult::Success | ExecutionResult::SpaceSwitched(_) => Ok(input),
             ExecutionResult::Error(msg) => Err(DBError::Query(
                 crate::core::error::QueryError::ExecutionError(msg),
             )),

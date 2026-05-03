@@ -93,8 +93,8 @@ impl SyncTestHarness {
 
     /// Create test space
     pub fn create_space(&mut self, space_name: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let space_info = SpaceInfo::new(space_name.to_string()).with_vid_type(DataType::BigInt);
-        self.storage.create_space(&space_info)?;
+        let mut space_info = SpaceInfo::new(space_name.to_string()).with_vid_type(DataType::BigInt);
+        self.storage.create_space(&mut space_info)?;
         Ok(())
     }
 

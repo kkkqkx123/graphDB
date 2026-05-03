@@ -141,7 +141,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                     }
                 }
             }
-            ExecutionResult::Success | ExecutionResult::Empty => {
+            ExecutionResult::Success | ExecutionResult::Empty | ExecutionResult::SpaceSwitched(_) => {
                 let unwind_value =
                     ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
                         .map_err(|e| {

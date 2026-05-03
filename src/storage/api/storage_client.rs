@@ -86,7 +86,7 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     ) -> Result<(), StorageError>;
     fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError>;
 
-    fn create_space(&mut self, space: &SpaceInfo) -> Result<bool, StorageError>;
+    fn create_space(&mut self, space: &mut SpaceInfo) -> Result<bool, StorageError>;
     fn drop_space(&mut self, space: &str) -> Result<bool, StorageError>;
     fn get_space(&self, space: &str) -> Result<Option<SpaceInfo>, StorageError>;
     fn get_space_by_id(&self, space_id: u64) -> Result<Option<SpaceInfo>, StorageError>;

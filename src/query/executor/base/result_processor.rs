@@ -71,6 +71,7 @@ pub trait ResultProcessor<S: StorageClient> {
             ExecutionResult::DataSet(_) => Ok(()),
             ExecutionResult::Success => Ok(()),
             ExecutionResult::Empty => Ok(()),
+            ExecutionResult::SpaceSwitched(_) => Ok(()),
             ExecutionResult::Error(_) => Ok(()),
         }
     }

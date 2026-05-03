@@ -422,6 +422,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
             }
             ExecutionResult::Success => ExecutionResult::Success,
             ExecutionResult::Empty => ExecutionResult::Empty,
+            ExecutionResult::SpaceSwitched(summary) => ExecutionResult::SpaceSwitched(summary),
             ExecutionResult::Error(_) => input_result,
         };
 

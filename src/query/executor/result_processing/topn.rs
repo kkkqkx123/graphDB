@@ -252,7 +252,7 @@ impl<S: StorageClient> TopNExecutor<S> {
                     let topn_result = self.execute_topn_dataset(dataset)?;
                     Ok(ExecutionResult::DataSet(topn_result))
                 }
-                ExecutionResult::Empty | ExecutionResult::Success => {
+                ExecutionResult::Empty | ExecutionResult::Success | ExecutionResult::SpaceSwitched(_) => {
                     Ok(ExecutionResult::DataSet(DataSet::new()))
                 }
                 ExecutionResult::Error(msg) => Err(DBError::Query(
@@ -267,7 +267,7 @@ impl<S: StorageClient> TopNExecutor<S> {
                     let topn_result = self.execute_topn_dataset(dataset)?;
                     Ok(ExecutionResult::DataSet(topn_result))
                 }
-                ExecutionResult::Empty | ExecutionResult::Success => {
+                ExecutionResult::Empty | ExecutionResult::Success | ExecutionResult::SpaceSwitched(_) => {
                     Ok(ExecutionResult::DataSet(DataSet::new()))
                 }
                 ExecutionResult::Error(msg) => Err(DBError::Query(

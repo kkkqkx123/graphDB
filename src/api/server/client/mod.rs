@@ -19,6 +19,6 @@ pub mod transaction_context;
 pub use client_session::ClientSession;
 pub use query_context::QueryContext;
 pub use role_context::RoleContext;
-pub use session::{Session, SpaceInfo};
+pub use session::Session;
 pub use space_context::SpaceContext;
 pub use transaction_context::TransactionContext;

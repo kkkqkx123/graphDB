@@ -34,8 +34,8 @@ fn test_storage_space_create_success() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    let result = get_storage(&storage).create_space(&space_info);
+    let mut space_info = create_test_space("test_space");
+    let result = get_storage(&storage).create_space(&mut space_info);
 
     assert_ok(result);
 
@@ -52,13 +52,13 @@ fn test_storage_space_create_duplicate() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("duplicate_space");
+    let mut space_info = create_test_space("duplicate_space");
 
     // The first creation should succeed.
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     // The second creation attempt should fail or return a value of `false`.
-    let result = get_storage(&storage).create_space(&space_info);
+    let result = get_storage(&storage).create_space(&mut space_info);
     // Depending on the implementation, it may return “false” or an error.
     assert!(result.is_ok() || result.is_err());
 }
@@ -69,8 +69,8 @@ fn test_storage_space_drop_success() {
     let storage = test_storage.storage();
 
     // First, create the space.
-    let space_info = create_test_space("drop_test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("drop_test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     // Delete the space.
     let result = get_storage(&storage).drop_space("drop_test_space");
@@ -91,8 +91,8 @@ fn test_storage_space_list() {
     // Create multiple spaces.
     let spaces = vec!["space1", "space2", "space3"];
     for name in &spaces {
-        let space_info = create_test_space(name);
-        assert_ok(get_storage(&storage).create_space(&space_info));
+        let mut space_info = create_test_space(name);
+        assert_ok(get_storage(&storage).create_space(&mut space_info));
     }
 
     // List all spaces
@@ -106,8 +106,8 @@ fn test_storage_space_exists() {
     let storage = test_storage.storage();
 
     // Create a space
-    let space_info = create_test_space("exists_test");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("exists_test");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     // Verification of the existence of the space (i.e., a check to confirm that the space in question actually exists)
     assert!(
@@ -128,8 +128,8 @@ fn test_storage_tag_create_success() {
     let storage = test_storage.storage();
 
     // First, create the space.
-    let space_info = create_test_space("tag_test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("tag_test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     // Create tags
     let tag_info = person_tag_info();
@@ -151,8 +151,8 @@ fn test_storage_tag_list() {
     let storage = test_storage.storage();
 
     // Create a space
-    let space_info = create_test_space("tag_list_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("tag_list_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     // Create multiple tags.
     let tag1 = person_tag_info();
@@ -174,8 +174,8 @@ fn test_storage_tag_drop() {
     let storage = test_storage.storage();
 
     // Create spaces and tags.
-    let space_info = create_test_space("tag_drop_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("tag_drop_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("tag_drop_space", &tag_info));
@@ -199,8 +199,8 @@ fn test_storage_edge_type_create_success() {
     let storage = test_storage.storage();
 
     // Create a space
-    let space_info = create_test_space("edge_type_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("edge_type_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     // Create edge types
     let edge_type_info = knows_edge_type_info();
@@ -222,8 +222,8 @@ fn test_storage_edge_type_list() {
     let storage = test_storage.storage();
 
     // Create a space
-    let space_info = create_test_space("edge_list_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("edge_list_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     // Create multiple edge types.
     let edge1 = knows_edge_type_info();
@@ -247,8 +247,8 @@ fn test_storage_vertex_insert_success() {
     let storage = test_storage.storage();
 
     // Create spaces and tags.
-    let space_info = create_test_space("vertex_insert_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("vertex_insert_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("vertex_insert_space", &tag_info));
@@ -266,8 +266,8 @@ fn test_storage_vertex_get_by_id() {
     let storage = test_storage.storage();
 
     // Create spaces and tags
-    let space_info = create_test_space("vertex_get_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("vertex_get_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("vertex_get_space", &tag_info));
@@ -294,8 +294,8 @@ fn test_storage_vertex_scan_all() {
     let storage = test_storage.storage();
 
     // Creating spaces and labels
-    let space_info = create_test_space("vertex_scan_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("vertex_scan_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("vertex_scan_space", &tag_info));
@@ -324,8 +324,8 @@ fn test_storage_vertex_update() {
     let storage = test_storage.storage();
 
     // Creating spaces and labels
-    let space_info = create_test_space("vertex_update_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("vertex_update_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("vertex_update_space", &tag_info));
@@ -354,8 +354,8 @@ fn test_storage_vertex_delete() {
     let storage = test_storage.storage();
 
     // Creating spaces and labels
-    let space_info = create_test_space("vertex_delete_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("vertex_delete_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("vertex_delete_space", &tag_info));
@@ -383,8 +383,8 @@ fn test_storage_vertex_batch_insert() {
     let storage = test_storage.storage();
 
     // Creating spaces and labels
-    let space_info = create_test_space("vertex_batch_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("vertex_batch_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("vertex_batch_space", &tag_info));
@@ -412,8 +412,8 @@ fn test_storage_edge_insert_success() {
     let storage = test_storage.storage();
 
     // Creating spaces and edge types
-    let space_info = create_test_space("edge_insert_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("edge_insert_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let edge_type_info = knows_edge_type_info();
     assert_ok(get_storage(&storage).create_edge_type("edge_insert_space", &edge_type_info));
@@ -431,8 +431,8 @@ fn test_storage_edge_get() {
     let storage = test_storage.storage();
 
     // Creating spaces and edge types
-    let space_info = create_test_space("edge_get_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("edge_get_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let edge_type_info = knows_edge_type_info();
     assert_ok(get_storage(&storage).create_edge_type("edge_get_space", &edge_type_info));
@@ -464,8 +464,8 @@ fn test_storage_edge_delete() {
     let storage = test_storage.storage();
 
     // Creating spaces and edge types
-    let space_info = create_test_space("edge_delete_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("edge_delete_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let edge_type_info = knows_edge_type_info();
     assert_ok(get_storage(&storage).create_edge_type("edge_delete_space", &edge_type_info));
@@ -503,8 +503,8 @@ fn test_storage_edge_batch_insert() {
     let storage = test_storage.storage();
 
     // Creating spaces and edge types
-    let space_info = create_test_space("edge_batch_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("edge_batch_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let edge_type_info = knows_edge_type_info();
     assert_ok(get_storage(&storage).create_edge_type("edge_batch_space", &edge_type_info));
@@ -532,8 +532,8 @@ fn test_storage_social_network_dataset() {
     let storage = test_storage.storage();
 
     // Create Space and Schema
-    let space_info = create_test_space("social_network");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("social_network");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("social_network", &tag_info));
@@ -591,12 +591,117 @@ fn test_storage_operations_isolated() {
     let test_storage2 = TestStorage::new().expect("创建测试存储2失败");
 
     // Create space in storage1
-    let space_info = create_test_space("isolated_space");
-    assert_ok(get_storage(&test_storage1.storage()).create_space(&space_info));
+    let mut space_info = create_test_space("isolated_space");
+    assert_ok(get_storage(&test_storage1.storage()).create_space(&mut space_info));
 
     // Verify that the space does not exist in storage2
     assert!(
         !get_storage(&test_storage2.storage()).space_exists("isolated_space"),
         "Space should not exist in storage2"
     );
+}
+
+// ==================== Concurrent Space Creation Test ====================
+
+#[test]
+fn test_storage_concurrent_space_creation() {
+    use std::collections::HashSet;
+    use std::thread;
+
+    let test_storage = Arc::new(TestStorage::new().expect("Failed to create test storage"));
+    let mut handles = vec![];
+
+    for i in 0..10 {
+        let storage = Arc::clone(&test_storage);
+        handles.push(thread::spawn(move || {
+            let space_name = format!("concurrent_space_{}", i);
+            let mut space_info = create_test_space(&space_name);
+            let result = storage.storage().lock().create_space(&mut space_info);
+            result.map(|_| space_info.space_id)
+        }));
+    }
+
+    let results: Vec<_> = handles
+        .into_iter()
+        .map(|h| h.join().expect("Thread panicked"))
+        .collect();
+
+    let successful: Vec<_> = results.iter().filter(|r| r.is_ok()).collect();
+    assert_eq!(successful.len(), 10, "All space creations should succeed");
+
+    let ids: Vec<u64> = successful.iter().filter_map(|r| r.as_ref().ok().copied()).collect();
+    let unique_ids: HashSet<u64> = ids.iter().copied().collect();
+    assert_eq!(ids.len(), unique_ids.len(), "Space IDs should be unique");
+
+    let min_id = *ids.iter().min().unwrap();
+    let max_id = *ids.iter().max().unwrap();
+    assert!(
+        max_id - min_id < 20,
+        "IDs should be relatively close (within 20 range)"
+    );
+}
+
+// ==================== Space ID Persistence Test ====================
+
+#[test]
+fn test_storage_space_id_persistence_after_restart() {
+    use graphdb::storage::RedbStorage;
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let db_path = temp_dir.path().join("test.db");
+
+    let id1 = {
+        let mut storage = RedbStorage::new_with_path(db_path.clone())
+            .expect("Failed to create storage");
+        let mut space1 = create_test_space("space_1");
+        storage.create_space(&mut space1).expect("Failed to create space_1");
+        space1.space_id
+    };
+
+    assert!(id1 > 0, "Space ID should be greater than 0");
+
+    let id2 = {
+        let mut storage = RedbStorage::new_with_path(db_path)
+            .expect("Failed to reopen storage");
+        let mut space2 = create_test_space("space_2");
+        storage.create_space(&mut space2).expect("Failed to create space_2");
+        space2.space_id
+    };
+
+    assert!(
+        id2 > id1,
+        "New space ID ({}) should be greater than previous ({})",
+        id2,
+        id1
+    );
+}
+
+// ==================== Space ID Counter Performance Test ====================
+
+#[test]
+fn test_storage_space_id_counter_performance() {
+    let test_storage = TestStorage::new().expect("Failed to create test storage");
+    let storage = test_storage.storage();
+
+    let start = std::time::Instant::now();
+
+    for i in 0..100 {
+        let space_name = format!("perf_space_{:03}", i);
+        let mut space_info = create_test_space(&space_name);
+        get_storage(&storage)
+            .create_space(&mut space_info)
+            .expect("Failed to create space");
+    }
+
+    let elapsed = start.elapsed();
+
+    assert!(
+        elapsed.as_millis() < 5000,
+        "Creating 100 spaces should take less than 5 seconds, took {:?}",
+        elapsed
+    );
+
+    let spaces = get_storage(&storage).list_spaces().expect("Failed to list spaces");
+    assert_eq!(spaces.len(), 100, "Should have 100 spaces");
 }

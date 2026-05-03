@@ -1,7 +1,7 @@
 use crate::api::core::{QueryApi, SyncApi, VectorApi};
 use crate::api::server::auth::{Authenticator, AuthenticatorFactory, PasswordAuthenticator};
 use crate::api::server::permission::PermissionManager;
-use crate::api::server::session::{ClientSession, GraphSessionManager, SpaceInfo};
+use crate::api::server::session::{ClientSession, GraphSessionManager};
 use crate::config::Config;
 use crate::core::error::{SessionError, SessionResult};
 use crate::core::stats::StatsManager;
@@ -215,7 +215,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             .find_session(session_id)
             .ok_or_else(|| format!("Invalid session ID: {}", session_id))?;
 
-        let space_id = session.space().map(|s| s.id).unwrap_or(0);
+        let space_id = session.space().map(|s| s.id as i64).unwrap_or(0);
 
         // Cleanup expired transactions before processing any statement.
         // This prevents stale transactions from blocking new write operations.
@@ -240,12 +240,10 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         // Perform a regular query using core layer QueryApi
         let mut result = self.execute_query_with_permission(session_id, stmt, space_id);
 
-        // If it is a USE statement and the execution is successful, the space for the session will be updated.
-        if result.is_ok() && trimmed_stmt.starts_with("USE ") {
-            let space_name = stmt.trim()[4..].trim().to_string();
-            // Obtain spatial information and set it in the session.
-            if let Ok(space_info) = self.get_space_info(&space_name) {
-                session.set_space(space_info);
+        // Handle SpaceSwitched result from USE statement
+        if let Ok(ref exec_result) = result {
+            if let Some(space_summary) = exec_result.space_summary() {
+                session.set_space(space_summary.clone());
             }
         }
 
@@ -268,35 +266,6 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         }
 
         result
-    }
-
-    fn get_space_info(&self, space_name: &str) -> Result<SpaceInfo, String> {
-        // Retrieve spatial information from the storage.
-        match self.storage.get_space(space_name) {
-            Ok(Some(space)) => Ok(SpaceInfo {
-                name: space_name.to_string(),
-                id: space.space_id as i64,
-            }),
-            Ok(None) => {
-                // Space does not exist; return a default space information (for testing purposes).
-                Ok(SpaceInfo {
-                    name: space_name.to_string(),
-                    id: 1, // Default space ID
-                })
-            }
-            Err(e) => {
-                let error_msg = format!("{}", e);
-                if error_msg.contains("Table 'spaces' does not exist") {
-                    // The table does not exist; therefore, the default space information is returned.
-                    Ok(SpaceInfo {
-                        name: space_name.to_string(),
-                        id: 1, // Default space ID
-                    })
-                } else {
-                    Err(format!("Failed to get space information: {}", e))
-                }
-            }
-        }
     }
 
     fn execute_query_with_permission(

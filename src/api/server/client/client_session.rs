@@ -9,6 +9,7 @@ use super::space_context::SpaceContext;
 use super::statistics::StatisticsContext;
 use super::transaction_context::TransactionContext;
 use crate::core::error::QueryResult;
+use crate::core::types::SpaceSummary;
 
 #[derive(Debug)]
 pub struct ClientSession {
@@ -38,12 +39,16 @@ impl ClientSession {
         self.session_context.id()
     }
 
-    pub fn space(&self) -> Option<super::session::SpaceInfo> {
+    pub fn space(&self) -> Option<SpaceSummary> {
         self.space_context.space()
     }
 
-    pub fn set_space(&self, space: super::session::SpaceInfo) {
+    pub fn set_space(&self, space: SpaceSummary) {
         self.space_context.set_space(space);
+    }
+
+    pub fn clear_space(&self) {
+        self.space_context.clear_space();
     }
 
     pub fn space_name(&self) -> Option<String> {
@@ -198,7 +203,7 @@ impl ClientSession {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::server::client::session::SpaceInfo;
+    use crate::core::types::DataType;
 
     #[test]
     fn test_client_session_creation() {
@@ -233,10 +238,7 @@ mod tests {
         assert!(client_session.space().is_none());
         assert!(client_session.space_name().is_none());
 
-        let space_info = SpaceInfo {
-            name: "test_space".to_string(),
-            id: 456,
-        };
+        let space_info = SpaceSummary::new(456, "test_space".to_string(), DataType::BigInt);
         client_session.set_space(space_info.clone());
 
         assert_eq!(client_session.space().expect("space should exist").id, 456);
@@ -252,6 +254,9 @@ mod tests {
                 .expect("space_name should exist"),
             "new_space"
         );
+
+        client_session.clear_space();
+        assert!(client_session.space().is_none());
     }
 
     #[test]

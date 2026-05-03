@@ -2,7 +2,7 @@ use crate::core::types::{EdgeTypeInfo, Index, PropertyDef, SpaceInfo, TagInfo};
 use crate::core::value::Value;
 use crate::core::StorageError;
 use crate::storage::engine::{
-    ByteKey, EDGE_INDEXES_TABLE, EDGE_TYPES_TABLE, EDGE_TYPE_ID_COUNTER_TABLE, SPACES_TABLE,
+    ByteKey, EDGE_INDEXES_TABLE, EDGE_TYPES_TABLE, EDGE_TYPE_ID_COUNTER_TABLE, SPACE_ID_COUNTER_TABLE, SPACES_TABLE,
     SPACE_NAME_INDEX_TABLE, TAGS_TABLE, TAG_ID_COUNTER_TABLE, TAG_INDEXES_TABLE,
 };
 use crate::storage::{FieldDef, Schema};
@@ -88,13 +88,12 @@ impl RedbSchemaManager {
 }
 
 impl super::SchemaManager for RedbSchemaManager {
-    fn create_space(&self, space: &SpaceInfo) -> Result<bool, StorageError> {
+    fn create_space(&self, space: &mut SpaceInfo) -> Result<bool, StorageError> {
         let write_txn = self.db.begin_write().map_err(|e| {
             StorageError::DbError(format!("Failed to start write transaction: {}", e))
         })?;
 
         {
-            // Check name index
             let mut name_index = write_txn.open_table(SPACE_NAME_INDEX_TABLE).map_err(|e| {
                 StorageError::DbError(format!("Failed to open SPACE_NAME_INDEX_TABLE: {}", e))
             })?;
@@ -109,7 +108,48 @@ impl super::SchemaManager for RedbSchemaManager {
                 return Ok(false);
             }
 
-            // Insertion into the master table
+            let mut counter_table = write_txn.open_table(SPACE_ID_COUNTER_TABLE).map_err(|e| {
+                StorageError::DbError(format!("Failed to open SPACE_ID_COUNTER_TABLE: {}", e))
+            })?;
+
+            let next_id = match counter_table.get("space_id").map_err(|e| {
+                StorageError::DbError(format!("Failed to get space counter: {}", e))
+            })? {
+                Some(current) => current.value() + 1,
+                None => {
+                    let spaces_table = write_txn.open_table(SPACES_TABLE).map_err(|e| {
+                        StorageError::DbError(format!("Failed to open SPACES_TABLE: {}", e))
+                    })?;
+
+                    let max_id = spaces_table
+                        .iter()
+                        .map_err(|e| StorageError::DbError(format!("Failed to iterate spaces: {}", e)))?
+                        .filter_map(|result| {
+                            result.ok().and_then(|(key, _)| {
+                                let key_bytes = key.value().0;
+                                if key_bytes.len() >= 8 {
+                                    let id = u64::from_be_bytes([
+                                        key_bytes[0], key_bytes[1], key_bytes[2], key_bytes[3],
+                                        key_bytes[4], key_bytes[5], key_bytes[6], key_bytes[7],
+                                    ]);
+                                    Some(id)
+                                } else {
+                                    None
+                                }
+                            })
+                        })
+                        .max()
+                        .unwrap_or(0);
+                    max_id + 1
+                }
+            };
+
+            counter_table
+                .insert("space_id", next_id)
+                .map_err(|e| StorageError::DbError(format!("Failed to update space counter: {}", e)))?;
+
+            space.space_id = next_id;
+
             let mut spaces_table = write_txn.open_table(SPACES_TABLE).map_err(|e| {
                 StorageError::DbError(format!("Failed to open SPACES_TABLE: {}", e))
             })?;
@@ -121,7 +161,6 @@ impl super::SchemaManager for RedbSchemaManager {
                 .insert(space_key, space_value)
                 .map_err(|e| StorageError::DbError(format!("Failed to insert space: {}", e)))?;
 
-            // Insert name index
             let id_value = ByteKey(space.space_id.to_be_bytes().to_vec());
             name_index.insert(name_key, id_value).map_err(|e| {
                 StorageError::DbError(format!("Failed to insert name index: {}", e))

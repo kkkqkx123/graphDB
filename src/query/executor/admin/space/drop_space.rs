@@ -63,7 +63,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropSpaceExecutor
                     Ok(ExecutionResult::Success)
                 } else {
                     Ok(ExecutionResult::Error(format!(
-                        "Space '{}' not found",
+                        "Space '{}' not found. Use 'SHOW SPACES' to list available spaces.",
                         self.space_name
                     )))
                 }

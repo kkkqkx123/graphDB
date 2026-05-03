@@ -27,13 +27,13 @@ impl<S: StorageClient> SchemaApi<S> {
     /// - `name': name of the space
     /// - `config`: space configuration
     pub fn create_space(&self, name: &str, config: SpaceConfig) -> CoreResult<()> {
-        let space_info = SpaceInfo::new(name.to_string())
+        let mut space_info = SpaceInfo::new(name.to_string())
             .with_vid_type(config.vid_type)
             .with_comment(config.comment);
 
         let mut storage = self.storage.lock();
         storage
-            .create_space(&space_info)
+            .create_space(&mut space_info)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
         log::info!("Created graph space successfully: {}", name);

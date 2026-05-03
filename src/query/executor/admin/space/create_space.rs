@@ -4,8 +4,7 @@
 
 use std::sync::Arc;
 
-use crate::core::types::DataType;
-use crate::core::types::SpaceInfo;
+use crate::core::types::{DataType, EngineType, SpaceInfo, SpaceStatus};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
@@ -20,28 +19,37 @@ impl SpaceInfo {
             _ => DataType::String,
         };
 
-        // Use the automatically generated Space ID.
-        let space_id = crate::core::types::generate_space_id();
+        let engine_type = match executor_info.engine_type.as_str() {
+            "MEMORY" => EngineType::Memory,
+            _ => EngineType::Redb,
+        };
 
         Self {
-            space_id,
+            space_id: 0,
             space_name: executor_info.space_name.clone(),
             vid_type,
             tags: Vec::new(),
             edge_types: Vec::new(),
             version: crate::core::types::MetadataVersion::default(),
-            comment: None,
+            comment: executor_info.comment.clone(),
             storage_path: None,
             isolation_level: crate::core::types::IsolationLevel::default(),
+            partition_num: executor_info.partition_num,
+            replica_factor: executor_info.replica_factor,
+            engine_type,
+            status: SpaceStatus::Online,
         }
     }
 }
 
-/// Graph space information (used internally by the actuator)
 #[derive(Debug, Clone)]
 pub struct ExecutorSpaceInfo {
     pub space_name: String,
     pub vid_type: String,
+    pub partition_num: i32,
+    pub replica_factor: i32,
+    pub engine_type: String,
+    pub comment: Option<String>,
 }
 
 impl ExecutorSpaceInfo {
@@ -49,6 +57,10 @@ impl ExecutorSpaceInfo {
         Self {
             space_name,
             vid_type: "FIXED_STRING(32)".to_string(),
+            partition_num: 100,
+            replica_factor: 1,
+            engine_type: "REDB".to_string(),
+            comment: None,
         }
     }
 
@@ -56,11 +68,28 @@ impl ExecutorSpaceInfo {
         self.vid_type = vid_type;
         self
     }
+
+    pub fn with_partition_num(mut self, partition_num: i32) -> Self {
+        self.partition_num = partition_num;
+        self
+    }
+
+    pub fn with_replica_factor(mut self, replica_factor: i32) -> Self {
+        self.replica_factor = replica_factor;
+        self
+    }
+
+    pub fn with_engine_type(mut self, engine_type: String) -> Self {
+        self.engine_type = engine_type;
+        self
+    }
+
+    pub fn with_comment(mut self, comment: Option<String>) -> Self {
+        self.comment = comment;
+        self
+    }
 }
 
-/// Create a graph space executor
-///
-/// This executor is responsible for creating new graph spaces in the storage layer.
 #[derive(Debug)]
 pub struct CreateSpaceExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -69,7 +98,6 @@ pub struct CreateSpaceExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> CreateSpaceExecutor<S> {
-    /// Create a new instance of the CreateSpaceExecutor class.
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -83,7 +111,6 @@ impl<S: StorageClient> CreateSpaceExecutor<S> {
         }
     }
 
-    /// Create a CreateSpaceExecutor with the IF NOT EXISTS option
     pub fn with_if_not_exists(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -103,8 +130,8 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateSpaceExecut
         let storage = self.get_storage();
         let mut storage_guard = storage.lock();
 
-        let metadata_space_info = SpaceInfo::from_executor(&self.space_info);
-        let result = storage_guard.create_space(&metadata_space_info);
+        let mut metadata_space_info = SpaceInfo::from_executor(&self.space_info);
+        let result = storage_guard.create_space(&mut metadata_space_info);
 
         match result {
             Ok(true) => Ok(ExecutionResult::Success),

@@ -84,7 +84,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescSpaceExecutor
                 Ok(ExecutionResult::DataSet(dataset))
             }
             Ok(None) => Ok(ExecutionResult::Error(format!(
-                "Space '{}' not found",
+                "Space '{}' not found. Use 'SHOW SPACES' to list available spaces.",
                 self.space_name
             ))),
             Err(e) => Ok(ExecutionResult::Error(format!(

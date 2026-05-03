@@ -90,7 +90,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
                 self.dedup_dataset(&mut dataset)?;
                 Ok(ExecutionResult::DataSet(dataset))
             }
-            ExecutionResult::Empty | ExecutionResult::Success => Ok(input),
+            ExecutionResult::Empty | ExecutionResult::Success | ExecutionResult::SpaceSwitched(_) => Ok(input),
             ExecutionResult::Error(msg) => Err(crate::query::QueryError::ExecutionError(msg)),
         }
     }

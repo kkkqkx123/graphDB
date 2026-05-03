@@ -77,6 +77,10 @@ pub const TAG_ID_COUNTER_TABLE: TableDefinition<ByteKey, ByteKey> =
 pub const EDGE_TYPE_ID_COUNTER_TABLE: TableDefinition<ByteKey, ByteKey> =
     TableDefinition::new("edge_type_id_counters");
 
+// Space ID Counter Table - Used to generate unique space IDs with O(1) complexity
+pub const SPACE_ID_COUNTER_TABLE: TableDefinition<&str, u64> =
+    TableDefinition::new("space_id_counter");
+
 // Space/Tag/Edge Name Index Table – Used for the mapping from names to IDs
 pub const SPACE_NAME_INDEX_TABLE: TableDefinition<ByteKey, ByteKey> =
     TableDefinition::new("space_name_index");

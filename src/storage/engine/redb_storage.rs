@@ -405,7 +405,7 @@ impl StorageClient for RedbStorage {
     }
 
     // ==================== Space Operations ====================
-    fn create_space(&mut self, space: &SpaceInfo) -> Result<bool, StorageError> {
+    fn create_space(&mut self, space: &mut SpaceInfo) -> Result<bool, StorageError> {
         self.state.schema_manager.create_space(space)
     }
 

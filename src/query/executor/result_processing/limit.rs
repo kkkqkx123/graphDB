@@ -77,7 +77,7 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
                 self.apply_limits(&mut data_set)?;
                 Ok(data_set)
             }
-            ExecutionResult::Empty | ExecutionResult::Success => Ok(DataSet::new()),
+            ExecutionResult::Empty | ExecutionResult::Success | ExecutionResult::SpaceSwitched(_) => Ok(DataSet::new()),
             ExecutionResult::Error(msg) => Err(DBError::Query(
                 crate::core::error::QueryError::ExecutionError(msg),
             )),

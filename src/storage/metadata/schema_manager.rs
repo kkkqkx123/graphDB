@@ -3,7 +3,7 @@ use crate::core::StorageError;
 use crate::storage::metadata::Schema;
 
 pub trait SchemaManager: Send + Sync + std::fmt::Debug {
-    fn create_space(&self, space: &SpaceInfo) -> Result<bool, StorageError>;
+    fn create_space(&self, space: &mut SpaceInfo) -> Result<bool, StorageError>;
     fn drop_space(&self, space_name: &str) -> Result<bool, StorageError>;
     fn get_space(&self, space_name: &str) -> Result<Option<SpaceInfo>, StorageError>;
     fn get_space_by_id(&self, space_id: u64) -> Result<Option<SpaceInfo>, StorageError>;
