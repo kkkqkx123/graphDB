@@ -32,8 +32,8 @@ fn test_create_tag_index_metadata() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
@@ -72,8 +72,8 @@ fn test_create_tag_index_duplicate() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
@@ -105,8 +105,8 @@ fn test_drop_tag_index_metadata() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
@@ -142,8 +142,8 @@ fn test_list_tag_indexes() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
@@ -197,8 +197,8 @@ fn test_drop_tag_indexes_by_tag() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
@@ -252,8 +252,8 @@ fn test_create_edge_index_metadata() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let edge_info = knows_edge_type_info();
     assert_ok(get_storage(&storage).create_edge_type("test_space", &edge_info));
@@ -292,8 +292,8 @@ fn test_drop_edge_index_metadata() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let edge_info = knows_edge_type_info();
     assert_ok(get_storage(&storage).create_edge_type("test_space", &edge_info));
@@ -329,8 +329,8 @@ fn test_list_edge_indexes() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let edge_info = knows_edge_type_info();
     assert_ok(get_storage(&storage).create_edge_type("test_space", &edge_info));
@@ -390,8 +390,8 @@ fn test_update_vertex_indexes() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
@@ -440,8 +440,8 @@ fn test_update_edge_indexes() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let edge_info = knows_edge_type_info();
     assert_ok(get_storage(&storage).create_edge_type("test_space", &edge_info));
@@ -491,8 +491,8 @@ fn test_delete_vertex_indexes() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
@@ -541,8 +541,8 @@ fn test_delete_edge_indexes() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let edge_info = knows_edge_type_info();
     assert_ok(get_storage(&storage).create_edge_type("test_space", &edge_info));
@@ -594,8 +594,8 @@ fn test_index_exact_query() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
@@ -650,8 +650,8 @@ fn test_index_query_multiple_matches() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
@@ -702,8 +702,8 @@ fn test_index_query_no_match() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
@@ -749,8 +749,8 @@ fn test_index_status_active() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
@@ -789,8 +789,8 @@ fn test_unique_index() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
@@ -828,8 +828,8 @@ fn test_composite_index() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
@@ -975,8 +975,8 @@ fn test_index_range_query_with_boundaries() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
@@ -1044,8 +1044,8 @@ fn test_scan_type_unique() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
@@ -1105,8 +1105,8 @@ fn test_scan_type_range() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
@@ -1148,8 +1148,8 @@ fn test_scan_type_full() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let space_info = create_test_space("test_space");
-    assert_ok(get_storage(&storage).create_space(&space_info));
+    let mut space_info = create_test_space("test_space");
+    assert_ok(get_storage(&storage).create_space(&mut space_info));
 
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));

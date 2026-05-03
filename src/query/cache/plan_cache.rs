@@ -19,7 +19,6 @@ use moka::sync::Cache;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crate::core::error::{DBError, DBResult};
 use crate::query::planning::plan::ExecutionPlan;
 
 use super::config::{CachePriority, PlanCacheConfig};

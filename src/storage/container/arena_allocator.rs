@@ -6,7 +6,7 @@
 use std::alloc::{alloc, dealloc, Layout};
 use std::cell::UnsafeCell;
 use std::ptr::NonNull;
-use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::types::{ContainerError, ContainerResult};
 

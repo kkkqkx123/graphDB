@@ -128,10 +128,10 @@ fn test_validator_match_basic() {
     let storage = test_storage.storage();
 
     // Creating a Graph Space and Schema
-    let space_info = common::storage_helpers::create_test_space("validator_test_space");
+    let mut space_info = common::storage_helpers::create_test_space("validator_test_space");
     {
         let mut storage_guard = storage.lock();
-        assert_ok(storage_guard.create_space(&space_info));
+        assert_ok(storage_guard.create_space(&mut space_info));
     }
 
     // parse query
@@ -197,10 +197,10 @@ fn test_planner_match_statement() {
     let storage = test_storage.storage();
 
     // Creating a graph space
-    let space_info = common::storage_helpers::create_test_space("planner_test_space");
+    let mut space_info = common::storage_helpers::create_test_space("planner_test_space");
     {
         let mut storage_guard = storage.lock();
-        assert_ok(storage_guard.create_space(&space_info));
+        assert_ok(storage_guard.create_space(&mut space_info));
     }
 
     // parse query
@@ -268,8 +268,8 @@ fn test_pipeline_manager_use_space() {
     // Create the space first
     {
         let mut storage_guard = storage.lock();
-        let space_info = common::storage_helpers::create_test_space("use_test_space");
-        let _ = storage_guard.create_space(&space_info);
+        let mut space_info = common::storage_helpers::create_test_space("use_test_space");
+        let _ = storage_guard.create_space(&mut space_info);
     }
 
     let mut pipeline_manager = QueryPipelineManager::with_optimizer(

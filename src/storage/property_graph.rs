@@ -10,6 +10,7 @@ use crate::core::{DataType, StorageError, StorageResult, Value};
 
 use super::edge::{EdgeDirection, EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, EdgeTable, PropertyDef as EdgePropertyDef};
 use super::vertex::{LabelId, PropertyDef as VertexPropertyDef, Timestamp, VertexId, VertexRecord, VertexSchema, VertexTable};
+use super::vertex::vertex_table::VertexIterator;
 
 #[derive(Debug, Clone)]
 pub struct PropertyGraphConfig {
@@ -415,7 +416,7 @@ impl PropertyGraph {
         Some(edge_table.in_edges(dst_internal as VertexId, ts))
     }
 
-    pub fn scan_vertices(&self, label: LabelId, ts: Timestamp) -> Option<super::vertex::VertexIterator> {
+    pub fn scan_vertices(&self, label: LabelId, ts: Timestamp) -> Option<VertexIterator> {
         if !self.is_open {
             return None;
         }

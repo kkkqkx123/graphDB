@@ -147,7 +147,7 @@ fn test_cte_cache_decision_maker() {
     let maker = CteCacheDecisionMaker::new(cache);
 
     let decision = maker.decide("WITH cte AS (SELECT 1) SELECT * FROM cte", 1000, 50.0);
-    assert!(decision.should_cache || !decision.should_cache);
+    assert!(!decision.reason.is_empty());
 }
 
 #[test]

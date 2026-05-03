@@ -25,7 +25,7 @@ impl Column {
             data_type,
             nullable,
             data: Vec::new(),
-            null_bitmap: if nullable { Some(BitVec::new()) } else { None },
+            null_bitmap: if nullable { Some(Vec::new()) } else { None },
             row_count: 0,
         }
     }
@@ -38,7 +38,7 @@ impl Column {
             data_type,
             nullable,
             data: Vec::with_capacity(capacity * element_size),
-            null_bitmap: if nullable { Some(BitVec::with_capacity(capacity)) } else { None },
+            null_bitmap: if nullable { Some(Vec::with_capacity(capacity)) } else { None },
             row_count: 0,
         }
     }
@@ -73,7 +73,7 @@ impl Column {
                     if row_idx >= bitmap.len() {
                         bitmap.resize(row_idx + 1, false);
                     }
-                    bitmap.set(row_idx, false);
+                    bitmap[row_idx] = false;
                 }
             }
             None => {
@@ -84,7 +84,7 @@ impl Column {
                     if row_idx >= bitmap.len() {
                         bitmap.resize(row_idx + 1, false);
                     }
-                    bitmap.set(row_idx, true);
+                    bitmap[row_idx] = true;
                 }
             }
         }

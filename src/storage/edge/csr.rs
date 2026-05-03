@@ -4,14 +4,25 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use super::{ImmutableNbr, Nbr, VertexId, EdgeId, Timestamp, INVALID_TIMESTAMP, MAX_TIMESTAMP};
+use super::{ImmutableNbr, VertexId, EdgeId, Timestamp};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Csr {
     offsets: Vec<u32>,
     edges: Vec<ImmutableNbr>,
     edge_count: AtomicU64,
     vertex_capacity: usize,
+}
+
+impl Clone for Csr {
+    fn clone(&self) -> Self {
+        Self {
+            offsets: self.offsets.clone(),
+            edges: self.edges.clone(),
+            edge_count: AtomicU64::new(self.edge_count.load(Ordering::Relaxed)),
+            vertex_capacity: self.vertex_capacity,
+        }
+    }
 }
 
 impl Csr {

@@ -16,8 +16,9 @@ use graphdb::api::server::permission::GOD_SPACE_ID;
 use graphdb::api::server::session::ClientSession;
 use graphdb::api::server::{
     Authenticator, PasswordAuthenticator, Permission, PermissionChecker, PermissionManager,
-    RoleType, Session, SpaceInfo,
+    RoleType, Session,
 };
+use graphdb::core::types::SpaceInfo;
 use graphdb::config::AuthConfig;
 
 // ==================== PermissionManager 核心测试 ====================
@@ -788,10 +789,11 @@ fn test_client_session_space_info() {
 
     // Setting Space
     let space_info = SpaceInfo {
-        name: "test_space".to_string(),
-        id: 1,
+        space_name: "test_space".to_string(),
+        space_id: 1,
+        ..Default::default()
     };
-    client_session.set_space(space_info.clone());
+    client_session.set_space(space_info.clone().into());
 
     // Verify Space Information
     let space = client_session.space();

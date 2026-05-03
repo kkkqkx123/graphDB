@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use super::{StorageError, StorageResult};
+use crate::storage::{StorageError, StorageResult};
 
 #[derive(Debug, Clone)]
 pub struct IdIndexer<K>

@@ -5,7 +5,7 @@
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use super::{EdgeDirection, EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, LabelId, MutableCsr, PropertyTable, Timestamp, VertexId, INVALID_EDGE_ID, INVALID_TIMESTAMP};
+use super::{EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, LabelId, MutableCsr, PropertyTable, Timestamp, VertexId};
 use crate::core::{DataType, StorageError, StorageResult, Value};
 
 #[derive(Debug, Clone)]

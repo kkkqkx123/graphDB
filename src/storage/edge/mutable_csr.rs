@@ -299,7 +299,7 @@ pub struct MutableCsrEdgeIterator<'a> {
 impl<'a> MutableCsrEdgeIterator<'a> {
     pub fn new(csr: &'a MutableCsr, src: VertexId, ts: Timestamp) -> Self {
         let src_idx = src as usize;
-        let edges = if src_idx < csr.vertex_capacity {
+        let edges: &'a [Nbr] = if src_idx < csr.vertex_capacity {
             &csr.adj_lists[src_idx]
         } else {
             &[]
