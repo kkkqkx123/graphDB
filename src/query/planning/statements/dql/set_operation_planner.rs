@@ -10,7 +10,6 @@
 use std::sync::Arc;
 
 use crate::query::parser::ast::{SetOperationStmt, SetOperationType, Stmt};
-use crate::query::planning::plan::core::node_id_generator::next_node_id;
 use crate::query::planning::plan::core::nodes::{IntersectNode, MinusNode, UnionNode};
 use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planning::planner::{Planner, PlannerEnum, PlannerError, ValidatedStatement};

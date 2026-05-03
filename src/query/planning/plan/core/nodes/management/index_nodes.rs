@@ -8,7 +8,7 @@ define_plan_node! {
     pub struct CreateTagIndexNode {
         info: IndexManageInfo,
     }
-    enum: CreateTagIndex
+    manage_enum: IndexManageNode::CreateTagIndex as IndexManage
     input: ZeroInputNode
 }
 
@@ -40,7 +40,7 @@ define_plan_node! {
         space_name: String,
         index_name: String,
     }
-    enum: DropTagIndex
+    manage_enum: IndexManageNode::DropTagIndex as IndexManage
     input: ZeroInputNode
 }
 
@@ -69,7 +69,7 @@ define_plan_node! {
         space_name: String,
         index_name: String,
     }
-    enum: DescTagIndex
+    manage_enum: IndexManageNode::DescTagIndex as IndexManage
     input: ZeroInputNode
 }
 
@@ -97,7 +97,7 @@ define_plan_node! {
     pub struct ShowTagIndexesNode {
         space_name: String,
     }
-    enum: ShowTagIndexes
+    manage_enum: IndexManageNode::ShowTagIndexes as IndexManage
     input: ZeroInputNode
 }
 
@@ -120,7 +120,7 @@ define_plan_node! {
     pub struct CreateEdgeIndexNode {
         info: IndexManageInfo,
     }
-    enum: CreateEdgeIndex
+    manage_enum: IndexManageNode::CreateEdgeIndex as IndexManage
     input: ZeroInputNode
 }
 
@@ -152,7 +152,7 @@ define_plan_node! {
         space_name: String,
         index_name: String,
     }
-    enum: DropEdgeIndex
+    manage_enum: IndexManageNode::DropEdgeIndex as IndexManage
     input: ZeroInputNode
 }
 
@@ -181,7 +181,7 @@ define_plan_node! {
         space_name: String,
         index_name: String,
     }
-    enum: DescEdgeIndex
+    manage_enum: IndexManageNode::DescEdgeIndex as IndexManage
     input: ZeroInputNode
 }
 
@@ -209,7 +209,7 @@ define_plan_node! {
     pub struct ShowEdgeIndexesNode {
         space_name: String,
     }
-    enum: ShowEdgeIndexes
+    manage_enum: IndexManageNode::ShowEdgeIndexes as IndexManage
     input: ZeroInputNode
 }
 
@@ -233,7 +233,7 @@ define_plan_node! {
         space_name: String,
         index_name: String,
     }
-    enum: RebuildTagIndex
+    manage_enum: IndexManageNode::RebuildTagIndex as IndexManage
     input: ZeroInputNode
 }
 
@@ -262,7 +262,7 @@ define_plan_node! {
         space_name: String,
         index_name: String,
     }
-    enum: RebuildEdgeIndex
+    manage_enum: IndexManageNode::RebuildEdgeIndex as IndexManage
     input: ZeroInputNode
 }
 
@@ -323,7 +323,7 @@ define_plan_node! {
         space_name: String,
         index_name: String,
     }
-    enum: ShowCreateIndex
+    manage_enum: IndexManageNode::ShowCreateIndex as IndexManage
     input: ZeroInputNode
 }
 
@@ -351,7 +351,7 @@ define_plan_node! {
     pub struct ShowIndexesNode {
         space_name: String,
     }
-    enum: ShowIndexes
+    manage_enum: IndexManageNode::ShowIndexes as IndexManage
     input: ZeroInputNode
 }
 

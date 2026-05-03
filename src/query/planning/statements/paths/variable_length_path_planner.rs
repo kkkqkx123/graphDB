@@ -15,7 +15,6 @@ use std::collections::HashSet;
 use crate::core::types::graph_schema::EdgeDirection;
 use crate::core::Value;
 use crate::query::parser::ast::pattern::{EdgeRange, RepetitionType};
-use crate::query::planning::plan::core::node_id_generator::next_node_id;
 
 pub type PlannerError = String;
 

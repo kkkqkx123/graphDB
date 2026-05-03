@@ -8,8 +8,7 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 
 use crate::core::error::QueryError;
-use crate::query::executor::base::ExecutionContext;
-use crate::query::executor::base::ExecutorEnum;
+use crate::query::executor::base::{ExecutionContext, ExecutorEnum, VectorManageExecutor};
 use crate::query::executor::data_access::{
     CreateVectorIndexExecutor, DropVectorIndexExecutor, VectorLookupExecutor, VectorMatchExecutor,
     VectorSearchExecutor,
@@ -88,7 +87,7 @@ impl<S: StorageClient + Send + 'static> VectorSearchBuilder<S> {
             context.expression_context().clone(),
             coordinator,
         );
-        Ok(ExecutorEnum::CreateVectorIndex(executor))
+        Ok(ExecutorEnum::VectorManage(VectorManageExecutor::Create(executor)))
     }
 
     /// Build DropVectorIndex executor
@@ -113,7 +112,7 @@ impl<S: StorageClient + Send + 'static> VectorSearchBuilder<S> {
             context.expression_context().clone(),
             coordinator,
         );
-        Ok(ExecutorEnum::DropVectorIndex(executor))
+        Ok(ExecutorEnum::VectorManage(VectorManageExecutor::Drop(executor)))
     }
 
     /// Build VectorLookup executor

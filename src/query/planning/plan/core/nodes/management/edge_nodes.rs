@@ -9,7 +9,7 @@ define_plan_node! {
     pub struct CreateEdgeNode {
         info: EdgeManageInfo,
     }
-    enum: CreateEdge
+    manage_enum: EdgeManageNode::Create as EdgeManage
     input: ZeroInputNode
 }
 
@@ -40,7 +40,7 @@ define_plan_node! {
     pub struct AlterEdgeNode {
         info: EdgeAlterInfo,
     }
-    enum: AlterEdge
+    manage_enum: EdgeManageNode::Alter as EdgeManage
     input: ZeroInputNode
 }
 
@@ -72,7 +72,7 @@ define_plan_node! {
         space_name: String,
         edge_name: String,
     }
-    enum: DescEdge
+    manage_enum: EdgeManageNode::Desc as EdgeManage
     input: ZeroInputNode
 }
 
@@ -102,7 +102,7 @@ define_plan_node! {
         edge_name: String,
         if_exists: bool,
     }
-    enum: DropEdge
+    manage_enum: EdgeManageNode::Drop as EdgeManage
     input: ZeroInputNode
 }
 
@@ -140,7 +140,7 @@ define_plan_node! {
     pub struct ShowEdgesNode {
         space_name: String,
     }
-    enum: ShowEdges
+    manage_enum: EdgeManageNode::Show as EdgeManage
     input: ZeroInputNode
 }
 
@@ -164,7 +164,7 @@ define_plan_node! {
         space_name: String,
         edge_name: String,
     }
-    enum: ShowCreateEdge
+    manage_enum: EdgeManageNode::ShowCreate as EdgeManage
     input: ZeroInputNode
 }
 

@@ -68,7 +68,8 @@ impl PlanNode for CreateFulltextIndexNode {
     fn into_enum(
         self,
     ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::CreateFulltextIndex(self)
+        use crate::query::planning::plan::core::nodes::management::manage_node_enums::FulltextManageNode;
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::FulltextManage(FulltextManageNode::Create(self))
     }
 }
 
@@ -118,7 +119,8 @@ impl PlanNode for DropFulltextIndexNode {
     fn into_enum(
         self,
     ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::DropFulltextIndex(self)
+        use crate::query::planning::plan::core::nodes::management::manage_node_enums::FulltextManageNode;
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::FulltextManage(FulltextManageNode::Drop(self))
     }
 }
 
@@ -168,7 +170,8 @@ impl PlanNode for AlterFulltextIndexNode {
     fn into_enum(
         self,
     ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::AlterFulltextIndex(self)
+        use crate::query::planning::plan::core::nodes::management::manage_node_enums::FulltextManageNode;
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::FulltextManage(FulltextManageNode::Alter(self))
     }
 }
 
@@ -218,7 +221,8 @@ impl PlanNode for ShowFulltextIndexNode {
     fn into_enum(
         self,
     ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::ShowFulltextIndex(self)
+        use crate::query::planning::plan::core::nodes::management::manage_node_enums::FulltextManageNode;
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::FulltextManage(FulltextManageNode::Show(self))
     }
 }
 
@@ -264,7 +268,8 @@ impl PlanNode for DescribeFulltextIndexNode {
     fn into_enum(
         self,
     ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::DescribeFulltextIndex(self)
+        use crate::query::planning::plan::core::nodes::management::manage_node_enums::FulltextManageNode;
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::FulltextManage(FulltextManageNode::Describe(self))
     }
 }
 

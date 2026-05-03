@@ -7,9 +7,6 @@ use std::borrow::Cow;
 use super::plan_node_enum::PlanNodeEnum;
 use super::plan_node_traits::{MultipleInputNode, PlanNode, SingleInputNode};
 
-/// Generate a macro for the `match` branch of `PlanNodeEnum` (including default values)
-///
-/// This macro generates matches for all node types, automatically calls the specified methods, and returns default values for management nodes.
 macro_rules! match_all_nodes_with_default {
     ($self:expr, $method:ident, $default:expr) => {
         match $self {
@@ -63,22 +60,25 @@ macro_rules! match_all_nodes_with_default {
             PlanNodeEnum::BFSShortest(node) => node.$method(),
             PlanNodeEnum::AllPaths(node) => node.$method(),
             PlanNodeEnum::ShortestPath(node) => node.$method(),
-            // The management node returns the default value.
+            PlanNodeEnum::SpaceManage(node) => node.$method(),
+            PlanNodeEnum::TagManage(node) => node.$method(),
+            PlanNodeEnum::EdgeManage(node) => node.$method(),
+            PlanNodeEnum::IndexManage(node) => node.$method(),
+            PlanNodeEnum::UserManage(node) => node.$method(),
+            PlanNodeEnum::FulltextManage(node) => node.$method(),
+            PlanNodeEnum::VectorManage(node) => node.$method(),
             _ => $default,
         }
     };
 }
 
 impl PlanNodeEnum {
-    /// Obtaining the unique ID of a node
     pub fn id(&self) -> i64 {
         match_all_nodes_with_default!(self, id, 0)
     }
 
-    /// Obtain the name of the node type.
     pub fn name(&self) -> &'static str {
         match self {
-            // Basic node types
             PlanNodeEnum::Start(_) => "Start",
             PlanNodeEnum::Project(_) => "Project",
             PlanNodeEnum::Sort(_) => "Sort",
@@ -127,93 +127,43 @@ impl PlanNodeEnum {
             PlanNodeEnum::AllPaths(_) => "AllPaths",
             PlanNodeEnum::ShortestPath(_) => "ShortestPath",
 
-            // Management node - Space
-            PlanNodeEnum::CreateSpace(_) => "CreateSpace",
-            PlanNodeEnum::DropSpace(_) => "DropSpace",
-            PlanNodeEnum::DescSpace(_) => "DescSpace",
-            PlanNodeEnum::ShowSpaces(_) => "ShowSpaces",
-            PlanNodeEnum::SwitchSpace(_) => "SwitchSpace",
-            PlanNodeEnum::AlterSpace(_) => "AlterSpace",
-            PlanNodeEnum::ClearSpace(_) => "ClearSpace",
+            PlanNodeEnum::SpaceManage(node) => node.name(),
+            PlanNodeEnum::TagManage(node) => node.name(),
+            PlanNodeEnum::EdgeManage(node) => node.name(),
+            PlanNodeEnum::IndexManage(node) => node.name(),
+            PlanNodeEnum::UserManage(node) => node.name(),
+            PlanNodeEnum::FulltextManage(node) => node.name(),
+            PlanNodeEnum::VectorManage(node) => node.name(),
 
-            // Management node - Tag
-            PlanNodeEnum::CreateTag(_) => "CreateTag",
-            PlanNodeEnum::AlterTag(_) => "AlterTag",
-            PlanNodeEnum::DescTag(_) => "DescTag",
-            PlanNodeEnum::DropTag(_) => "DropTag",
-            PlanNodeEnum::ShowTags(_) => "ShowTags",
-            PlanNodeEnum::ShowCreateTag(_) => "ShowCreateTag",
-
-            // Management node - Edge
-            PlanNodeEnum::CreateEdge(_) => "CreateEdge",
-            PlanNodeEnum::AlterEdge(_) => "AlterEdge",
-            PlanNodeEnum::DescEdge(_) => "DescEdge",
-            PlanNodeEnum::DropEdge(_) => "DropEdge",
-            PlanNodeEnum::ShowEdges(_) => "ShowEdges",
-
-            // Management node - Index
-            PlanNodeEnum::CreateTagIndex(_) => "CreateTagIndex",
-            PlanNodeEnum::DropTagIndex(_) => "DropTagIndex",
-            PlanNodeEnum::DescTagIndex(_) => "DescTagIndex",
-            PlanNodeEnum::ShowTagIndexes(_) => "ShowTagIndexes",
-            PlanNodeEnum::RebuildTagIndex(_) => "RebuildTagIndex",
-            PlanNodeEnum::CreateEdgeIndex(_) => "CreateEdgeIndex",
-            PlanNodeEnum::DropEdgeIndex(_) => "DropEdgeIndex",
-            PlanNodeEnum::DescEdgeIndex(_) => "DescEdgeIndex",
-            PlanNodeEnum::ShowEdgeIndexes(_) => "ShowEdgeIndexes",
-            PlanNodeEnum::RebuildEdgeIndex(_) => "RebuildEdgeIndex",
-
-            // Management node - User
-            PlanNodeEnum::CreateUser(_) => "CreateUser",
-            PlanNodeEnum::AlterUser(_) => "AlterUser",
-            PlanNodeEnum::DropUser(_) => "DropUser",
-            PlanNodeEnum::ChangePassword(_) => "ChangePassword",
-            PlanNodeEnum::GrantRole(_) => "GrantRole",
-            PlanNodeEnum::RevokeRole(_) => "RevokeRole",
-
-            // Management node - Stats
             PlanNodeEnum::ShowStats(_) => "ShowStats",
-
-            // Management node - Insert
             PlanNodeEnum::InsertVertices(_) => "InsertVertices",
             PlanNodeEnum::InsertEdges(_) => "InsertEdges",
-
-            // Management node - Remove
             PlanNodeEnum::Remove(_) => "Remove",
-
-            // Management node - Update
             PlanNodeEnum::Update(_) => "Update",
             PlanNodeEnum::UpdateVertices(_) => "UpdateVertices",
             PlanNodeEnum::UpdateEdges(_) => "UpdateEdges",
-
-            // Management node - Delete
             PlanNodeEnum::DeleteVertices(_) => "DeleteVertices",
             PlanNodeEnum::DeleteEdges(_) => "DeleteEdges",
             PlanNodeEnum::DeleteTags(_) => "DeleteTags",
             PlanNodeEnum::DeleteIndex(_) => "DeleteIndex",
-
-            // Management node - Set operations
             PlanNodeEnum::Minus(_) => "Minus",
             PlanNodeEnum::Intersect(_) => "Intersect",
-
-            // Management node - FullOuterJoin
             PlanNodeEnum::FullOuterJoin(_) => "FullOuterJoin",
-
-            // Management node - EdgeIndexScan
             PlanNodeEnum::EdgeIndexScan(_) => "EdgeIndexScan",
-
-            // Management node - DataModification
-            // Already covered above
-
-            // Default case (should not reach here if all variants are covered)
-            _ => "Unknown",
+            PlanNodeEnum::PipeDeleteVertices(_) => "PipeDeleteVertices",
+            PlanNodeEnum::PipeDeleteEdges(_) => "PipeDeleteEdges",
+            PlanNodeEnum::Materialize(_) => "Materialize",
+            PlanNodeEnum::FulltextSearch(_) => "FulltextSearch",
+            PlanNodeEnum::FulltextLookup(_) => "FulltextLookup",
+            PlanNodeEnum::MatchFulltext(_) => "MatchFulltext",
+            PlanNodeEnum::VectorSearch(_) => "VectorSearch",
+            PlanNodeEnum::VectorLookup(_) => "VectorLookup",
+            PlanNodeEnum::VectorMatch(_) => "VectorMatch",
         }
     }
 
-    /// Obtain the output variables of the node.
     pub fn output_var(&self) -> Option<&str> {
         match self {
-            // Basic node types – These nodes implement the PlanNode trait.
             PlanNodeEnum::Start(node) => node.output_var(),
             PlanNodeEnum::Project(node) => node.output_var(),
             PlanNodeEnum::Sort(node) => node.output_var(),
@@ -256,27 +206,20 @@ impl PlanNodeEnum {
             PlanNodeEnum::AllPaths(node) => node.output_var(),
             PlanNodeEnum::ShortestPath(node) => node.output_var(),
 
-            // Management Node – No output variables
             _ => None,
         }
     }
 
-    /// Obtain a list of column names.
     pub fn col_names(&self) -> &[String] {
         match_all_nodes_with_default!(self, col_names, &[])
     }
 
-    /// Obtain the list of dependent nodes of a node.
     pub fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.dependencies_ref().iter().map(|&n| n.clone()).collect()
     }
 
-    /// Get references to dependent nodes without cloning
-    ///
-    /// Uses Cow to avoid allocation for common cases (0, 1, or 2 dependencies)
     pub fn dependencies_ref(&self) -> Cow<'_, [&PlanNodeEnum]> {
         match self {
-            // ========== Zero-input nodes ==========
             PlanNodeEnum::Start(_)
             | PlanNodeEnum::GetVertices(_)
             | PlanNodeEnum::GetEdges(_)
@@ -294,9 +237,25 @@ impl PlanNodeEnum {
             | PlanNodeEnum::Select(_)
             | PlanNodeEnum::BeginTransaction(_)
             | PlanNodeEnum::Commit(_)
-            | PlanNodeEnum::Rollback(_) => Cow::Borrowed(&[]),
+            | PlanNodeEnum::Rollback(_)
+            | PlanNodeEnum::SpaceManage(_)
+            | PlanNodeEnum::TagManage(_)
+            | PlanNodeEnum::EdgeManage(_)
+            | PlanNodeEnum::IndexManage(_)
+            | PlanNodeEnum::UserManage(_)
+            | PlanNodeEnum::FulltextManage(_)
+            | PlanNodeEnum::VectorManage(_)
+            | PlanNodeEnum::ShowStats(_)
+            | PlanNodeEnum::InsertVertices(_)
+            | PlanNodeEnum::InsertEdges(_)
+            | PlanNodeEnum::DeleteVertices(_)
+            | PlanNodeEnum::DeleteEdges(_)
+            | PlanNodeEnum::DeleteTags(_)
+            | PlanNodeEnum::DeleteIndex(_)
+            | PlanNodeEnum::Update(_)
+            | PlanNodeEnum::UpdateVertices(_)
+            | PlanNodeEnum::UpdateEdges(_) => Cow::Borrowed(&[]),
 
-            // ========== Single input nodes ==========
             PlanNodeEnum::Project(node) => Cow::Owned(vec![node.input()]),
             PlanNodeEnum::Sort(node) => Cow::Owned(vec![node.input()]),
             PlanNodeEnum::Limit(node) => Cow::Owned(vec![node.input()]),
@@ -313,7 +272,6 @@ impl PlanNodeEnum {
             PlanNodeEnum::Assign(node) => Cow::Owned(vec![node.input()]),
             PlanNodeEnum::Traverse(node) => Cow::Owned(vec![node.input()]),
 
-            // ========== Dual-input nodes (Joins) ==========
             PlanNodeEnum::InnerJoin(node) => {
                 Cow::Owned(vec![node.left_input(), node.right_input()])
             }
@@ -331,23 +289,37 @@ impl PlanNodeEnum {
                 Cow::Owned(vec![node.left_input(), node.right_input()])
             }
 
-            // ========== Multi-input nodes ==========
-            // These nodes store inputs in a Vec, so we need to convert to Vec<&PlanNodeEnum>
             PlanNodeEnum::Expand(node) => Cow::Owned(node.inputs().iter().collect::<Vec<_>>()),
             PlanNodeEnum::ExpandAll(node) => Cow::Owned(node.inputs().iter().collect::<Vec<_>>()),
             PlanNodeEnum::AppendVertices(node) => {
                 Cow::Owned(node.inputs().iter().collect::<Vec<_>>())
             }
 
-            // ========== Other nodes ==========
             PlanNodeEnum::Loop(_) => Cow::Borrowed(&[]),
 
-            // Management nodes: No input dependencies
-            _ => Cow::Borrowed(&[]),
+            PlanNodeEnum::PipeDeleteVertices(node) => Cow::Owned(vec![node.input()]),
+            PlanNodeEnum::PipeDeleteEdges(node) => Cow::Owned(vec![node.input()]),
+            PlanNodeEnum::Remove(node) => Cow::Owned(vec![node.input()]),
+            PlanNodeEnum::Materialize(node) => Cow::Owned(vec![node.input()]),
+
+            PlanNodeEnum::Minus(node) => Cow::Owned(vec![node.input(), node.minus_input()]),
+            PlanNodeEnum::Intersect(node) => Cow::Owned(vec![node.input(), node.intersect_input()]),
+
+            PlanNodeEnum::RightJoin(_)
+            | PlanNodeEnum::SemiJoin(_)
+            | PlanNodeEnum::BiExpand(_)
+            | PlanNodeEnum::BiTraverse(_)
+            | PlanNodeEnum::Apply(_) => Cow::Borrowed(&[]),
+
+            PlanNodeEnum::FulltextSearch(_)
+            | PlanNodeEnum::FulltextLookup(_)
+            | PlanNodeEnum::MatchFulltext(_)
+            | PlanNodeEnum::VectorSearch(_)
+            | PlanNodeEnum::VectorLookup(_)
+            | PlanNodeEnum::VectorMatch(_) => Cow::Borrowed(&[]),
         }
     }
 
-    /// Retrieve the first dependent node (if it exists).
     pub fn first_dependency(&self) -> Option<PlanNodeEnum> {
         let deps = self.dependencies();
         if deps.is_empty() {
@@ -357,10 +329,8 @@ impl PlanNodeEnum {
         }
     }
 
-    /// Setting the output variables of the node
     pub fn set_output_var(&mut self, var: String) {
         match self {
-            // Basic node types – These nodes implement the PlanNode trait.
             PlanNodeEnum::Start(node) => node.set_output_var(var),
             PlanNodeEnum::Project(node) => node.set_output_var(var),
             PlanNodeEnum::Sort(node) => node.set_output_var(var),
@@ -402,59 +372,6 @@ impl PlanNodeEnum {
             PlanNodeEnum::BFSShortest(node) => node.set_output_var(var),
             PlanNodeEnum::AllPaths(node) => node.set_output_var(var),
             PlanNodeEnum::ShortestPath(node) => node.set_output_var(var),
-
-            // Management node: There is no need to set any output variables.
-            _ => {}
-        }
-    }
-
-    /// Set column names
-    pub fn set_col_names(&mut self, names: Vec<String>) {
-        match self {
-            // Basic node types – These nodes implement the PlanNode trait.
-            PlanNodeEnum::Start(node) => node.set_col_names(names),
-            PlanNodeEnum::Project(node) => node.set_col_names(names),
-            PlanNodeEnum::Sort(node) => node.set_col_names(names),
-            PlanNodeEnum::Limit(node) => node.set_col_names(names),
-            PlanNodeEnum::TopN(node) => node.set_col_names(names),
-            PlanNodeEnum::Sample(node) => node.set_col_names(names),
-            PlanNodeEnum::InnerJoin(node) => node.set_col_names(names),
-            PlanNodeEnum::LeftJoin(node) => node.set_col_names(names),
-            PlanNodeEnum::CrossJoin(node) => node.set_col_names(names),
-            PlanNodeEnum::HashInnerJoin(node) => node.set_col_names(names),
-            PlanNodeEnum::HashLeftJoin(node) => node.set_col_names(names),
-            PlanNodeEnum::IndexScan(node) => node.set_col_names(names),
-            PlanNodeEnum::GetVertices(node) => node.set_col_names(names),
-            PlanNodeEnum::GetEdges(node) => node.set_col_names(names),
-            PlanNodeEnum::GetNeighbors(node) => node.set_col_names(names),
-            PlanNodeEnum::ScanVertices(node) => node.set_col_names(names),
-            PlanNodeEnum::ScanEdges(node) => node.set_col_names(names),
-            PlanNodeEnum::Expand(node) => node.set_col_names(names),
-            PlanNodeEnum::ExpandAll(node) => node.set_col_names(names),
-            PlanNodeEnum::Traverse(node) => node.set_col_names(names),
-            PlanNodeEnum::AppendVertices(node) => node.set_col_names(names),
-            PlanNodeEnum::Filter(node) => node.set_col_names(names),
-            PlanNodeEnum::Aggregate(node) => node.set_col_names(names),
-            PlanNodeEnum::Argument(node) => node.set_col_names(names),
-            PlanNodeEnum::Loop(node) => node.set_col_names(names),
-            PlanNodeEnum::PassThrough(node) => node.set_col_names(names),
-            PlanNodeEnum::Select(node) => node.set_col_names(names),
-            PlanNodeEnum::BeginTransaction(node) => node.set_col_names(names),
-            PlanNodeEnum::Commit(node) => node.set_col_names(names),
-            PlanNodeEnum::Rollback(node) => node.set_col_names(names),
-            PlanNodeEnum::DataCollect(node) => node.set_col_names(names),
-            PlanNodeEnum::Dedup(node) => node.set_col_names(names),
-            PlanNodeEnum::PatternApply(node) => node.set_col_names(names),
-            PlanNodeEnum::RollUpApply(node) => node.set_col_names(names),
-            PlanNodeEnum::Union(node) => node.set_col_names(names),
-            PlanNodeEnum::Unwind(node) => node.set_col_names(names),
-            PlanNodeEnum::Assign(node) => node.set_col_names(names),
-            PlanNodeEnum::MultiShortestPath(node) => node.set_col_names(names),
-            PlanNodeEnum::BFSShortest(node) => node.set_col_names(names),
-            PlanNodeEnum::AllPaths(node) => node.set_col_names(names),
-            PlanNodeEnum::ShortestPath(node) => node.set_col_names(names),
-
-            // Management Node: There is no need to set column names.
             _ => {}
         }
     }

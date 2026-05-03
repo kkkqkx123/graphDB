@@ -14,7 +14,7 @@ use std::sync::Arc;
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::ExpressionMeta;
 use crate::core::{Expression, Value};
-use crate::query::parser::ast::{Assignment, EdgeDirection, MergeStmt, Pattern, SetClause, Stmt};
+use crate::query::parser::ast::{MergeStmt, Pattern, SetClause, Stmt};
 use crate::query::planning::plan::core::node_id_generator::next_node_id;
 use crate::query::planning::plan::core::nodes::{
     ArgumentNode, InsertEdgesNode, InsertVerticesNode, SelectNode, TagInsertSpec, UpdateNode,

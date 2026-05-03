@@ -11,7 +11,7 @@
 //! Test cases: TC-FT-EDGE-001 ~ TC-FT-EDGE-015
 
 use super::common::{
-    assert_search_result_count, generate_test_docs, FulltextTestContext,
+    assert_search_result_count, FulltextTestContext,
 };
 use graphdb::search::EngineType;
 

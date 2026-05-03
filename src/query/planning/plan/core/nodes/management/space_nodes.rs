@@ -8,7 +8,7 @@ define_plan_node! {
     pub struct CreateSpaceNode {
         info: SpaceManageInfo,
     }
-    enum: CreateSpace
+    manage_enum: SpaceManageNode::Create as SpaceManage
     input: ZeroInputNode
 }
 
@@ -31,7 +31,7 @@ define_plan_node! {
     pub struct DropSpaceNode {
         space_name: String,
     }
-    enum: DropSpace
+    manage_enum: SpaceManageNode::Drop as SpaceManage
     input: ZeroInputNode
 }
 
@@ -54,7 +54,7 @@ define_plan_node! {
     pub struct DescSpaceNode {
         space_name: String,
     }
-    enum: DescSpace
+    manage_enum: SpaceManageNode::Desc as SpaceManage
     input: ZeroInputNode
 }
 
@@ -76,7 +76,7 @@ impl DescSpaceNode {
 define_plan_node! {
     pub struct ShowSpacesNode {
     }
-    enum: ShowSpaces
+    manage_enum: SpaceManageNode::Show as SpaceManage
     input: ZeroInputNode
 }
 
@@ -94,7 +94,7 @@ define_plan_node! {
     pub struct SwitchSpaceNode {
         space_name: String,
     }
-    enum: SwitchSpace
+    manage_enum: SpaceManageNode::Switch as SpaceManage
     input: ZeroInputNode
 }
 
@@ -118,7 +118,7 @@ define_plan_node! {
         space_name: String,
         options: Vec<SpaceAlterOption>,
     }
-    enum: AlterSpace
+    manage_enum: SpaceManageNode::Alter as SpaceManage
     input: ZeroInputNode
 }
 
@@ -146,7 +146,7 @@ define_plan_node! {
     pub struct ClearSpaceNode {
         space_name: String,
     }
-    enum: ClearSpace
+    manage_enum: SpaceManageNode::Clear as SpaceManage
     input: ZeroInputNode
 }
 
@@ -175,7 +175,7 @@ define_plan_node! {
     pub struct ShowCreateSpaceNode {
         space_name: String,
     }
-    enum: ShowCreateSpace
+    manage_enum: SpaceManageNode::ShowCreate as SpaceManage
     input: ZeroInputNode
 }
 

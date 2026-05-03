@@ -1,5 +1,6 @@
 pub mod edge_nodes;
 pub mod index_nodes;
+pub mod manage_node_enums;
 pub mod space_nodes;
 pub mod stats_nodes;
 pub mod tag_nodes;
@@ -14,6 +15,10 @@ pub use index_nodes::{
     DropEdgeIndexNode, DropTagIndexNode, IndexManageInfo, RebuildEdgeIndexNode,
     RebuildTagIndexNode, ShowCreateIndexNode, ShowEdgeIndexesNode, ShowIndexesNode,
     ShowTagIndexesNode,
+};
+pub use manage_node_enums::{
+    EdgeManageNode, FulltextManageNode, IndexManageNode, SpaceManageNode, TagManageNode,
+    UserManageNode, VectorManageNode,
 };
 pub use space_nodes::{
     AlterSpaceNode, ClearSpaceNode, CreateSpaceNode, DescSpaceNode, DropSpaceNode,

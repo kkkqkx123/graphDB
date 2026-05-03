@@ -10,7 +10,6 @@
 //! - Variable schema tracking for planning
 
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use crate::core::Value;
 

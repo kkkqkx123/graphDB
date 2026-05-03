@@ -2,50 +2,29 @@
 //!
 //! This document defines the PlanNodeEnum enumeration, which includes all possible types of planning nodes.
 //! Use macros to generate template code in order to reduce repetition.
+//!
+//! # Refactoring: Management Node Parameterization
+//! Management nodes (DDL/DCL) have been grouped into category-based sub-enums
+//! to reduce the total variant count from 90+ to ~50. Each management category
+//! (Space, Tag, Edge, Index, User, Fulltext, Vector) is now a single variant
+//! that wraps its corresponding sub-enum.
 
-use std::collections::HashSet;
-
-use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
-    PlanNode, SingleInputNode,
-};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::query::planning::plan::core::nodes::data_modification::{
     DeleteEdgesNode, DeleteIndexNode, DeleteTagsNode, DeleteVerticesNode, InsertEdgesNode,
     InsertVerticesNode, PipeDeleteEdgesNode, PipeDeleteVerticesNode, UpdateEdgesNode,
     UpdateNode, UpdateVerticesNode,
 };
-use crate::query::planning::plan::core::nodes::management::edge_nodes::{
-    AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowCreateEdgeNode, ShowEdgesNode,
-};
-use crate::query::planning::plan::core::nodes::management::index_nodes::{
-    CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,
-    DropEdgeIndexNode, DropTagIndexNode, RebuildEdgeIndexNode, RebuildTagIndexNode,
-    ShowCreateIndexNode, ShowEdgeIndexesNode, ShowIndexesNode, ShowTagIndexesNode,
-};
-use crate::query::planning::plan::core::nodes::management::space_nodes::{
-    AlterSpaceNode, ClearSpaceNode, CreateSpaceNode, DescSpaceNode, DropSpaceNode,
-    ShowCreateSpaceNode, ShowSpacesNode, SwitchSpaceNode,
+use crate::query::planning::plan::core::nodes::management::manage_node_enums::{
+    EdgeManageNode, FulltextManageNode, IndexManageNode, SpaceManageNode, TagManageNode,
+    UserManageNode, VectorManageNode,
 };
 use crate::query::planning::plan::core::nodes::management::stats_nodes::ShowStatsNode;
-use crate::query::planning::plan::core::nodes::management::tag_nodes::{
-    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowCreateTagNode, ShowTagsNode,
-};
-use crate::query::planning::plan::core::nodes::management::user_nodes::{
-    AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode,
-    ShowRolesNode, ShowUsersNode,
-};
 use crate::query::planning::plan::core::nodes::search::fulltext::data_access::{
     FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
 };
-use crate::query::planning::plan::core::nodes::search::fulltext::management::{
-    AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
-    DropFulltextIndexNode, ShowFulltextIndexNode,
-};
 use crate::query::planning::plan::core::nodes::search::vector::data_access::{
     VectorLookupNode, VectorMatchNode, VectorSearchNode,
-};
-use crate::query::planning::plan::core::nodes::search::vector::management::{
-    CreateVectorIndexNode, DropVectorIndexNode,
 };
 
 // Import and re-export all specific node types.
@@ -85,10 +64,58 @@ pub use crate::query::planning::plan::core::nodes::traversal::path_algorithms::{
 pub use crate::query::planning::plan::core::nodes::traversal::traversal_node::{
     AppendVerticesNode, BiExpandNode, BiTraverseNode, ExpandAllNode, ExpandNode, TraverseNode,
 };
+// Re-export management sub-enums for external use
+pub use crate::query::planning::plan::core::nodes::management::manage_node_enums::{
+    EdgeManageNode as EdgeManageNodeEnum, FulltextManageNode as FulltextManageNodeEnum,
+    IndexManageNode as IndexManageNodeEnum, SpaceManageNode as SpaceManageNodeEnum,
+    TagManageNode as TagManageNodeEnum, UserManageNode as UserManageNodeEnum,
+    VectorManageNode as VectorManageNodeEnum,
+};
+// Re-export individual management node types for backward compatibility
+pub use crate::query::planning::plan::core::nodes::management::edge_nodes::{
+    AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, EdgeAlterInfo, EdgeManageInfo,
+    ShowCreateEdgeNode, ShowEdgesNode,
+};
+pub use crate::query::planning::plan::core::nodes::management::index_nodes::{
+    CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,
+    DropEdgeIndexNode, DropTagIndexNode, IndexManageInfo, RebuildEdgeIndexNode,
+    RebuildTagIndexNode, ShowCreateIndexNode, ShowEdgeIndexesNode, ShowIndexesNode,
+    ShowTagIndexesNode,
+};
+pub use crate::query::planning::plan::core::nodes::management::space_nodes::{
+    AlterSpaceNode, ClearSpaceNode, CreateSpaceNode, DescSpaceNode, DropSpaceNode,
+    ShowCreateSpaceNode, ShowSpacesNode, SpaceAlterOption, SpaceManageInfo, SwitchSpaceNode,
+};
+pub use crate::query::planning::plan::core::nodes::management::stats_nodes::{ShowStatsNode as ShowStatsNodeType, ShowStatsType};
+pub use crate::query::planning::plan::core::nodes::management::tag_nodes::{
+    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowCreateTagNode, ShowTagsNode,
+    TagAlterInfo, TagManageInfo,
+};
+pub use crate::query::planning::plan::core::nodes::management::user_nodes::{
+    AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode,
+    ShowRolesNode, ShowUsersNode,
+};
+pub use crate::query::planning::plan::core::nodes::search::fulltext::management::{
+    AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
+    DropFulltextIndexNode, ShowFulltextIndexNode,
+};
+pub use crate::query::planning::plan::core::nodes::search::vector::management::{
+    CreateVectorIndexNode, DropVectorIndexNode,
+};
 
 /// The PlanNode enumeration includes all possible node types.
 ///
 /// This enumeration avoids the performance overhead associated with dynamic distribution.
+///
+/// # Management Node Parameterization
+/// Management nodes are grouped into category-based sub-enums:
+/// - `SpaceManage(SpaceManageNode)` - Space DDL operations
+/// - `TagManage(TagManageNode)` - Tag DDL operations
+/// - `EdgeManage(EdgeManageNode)` - Edge DDL operations
+/// - `IndexManage(IndexManageNode)` - Index DDL operations
+/// - `UserManage(UserManageNode)` - User DDL operations
+/// - `FulltextManage(FulltextManageNode)` - Fulltext index DDL operations
+/// - `VectorManage(VectorManageNode)` - Vector index DDL operations
 #[derive(Debug, Clone)]
 pub enum PlanNodeEnum {
     // Access Node
@@ -159,62 +186,14 @@ pub enum PlanNodeEnum {
     AllPaths(AllPathsNode),
     ShortestPath(ShortestPathNode),
 
-    // Management Node – Space
-    CreateSpace(CreateSpaceNode),
-    DropSpace(DropSpaceNode),
-    DescSpace(DescSpaceNode),
-    ShowSpaces(ShowSpacesNode),
-    ShowCreateSpace(ShowCreateSpaceNode),
-    SwitchSpace(SwitchSpaceNode),
-    AlterSpace(AlterSpaceNode),
-    ClearSpace(ClearSpaceNode),
-
-    // Management Node – Tags
-    CreateTag(CreateTagNode),
-    AlterTag(AlterTagNode),
-    DescTag(DescTagNode),
-    DropTag(DropTagNode),
-    ShowTags(ShowTagsNode),
-    ShowCreateTag(ShowCreateTagNode),
-
-    // Management Node – Edge Type
-    CreateEdge(CreateEdgeNode),
-    AlterEdge(AlterEdgeNode),
-    DescEdge(DescEdgeNode),
-    DropEdge(DropEdgeNode),
-    ShowEdges(ShowEdgesNode),
-    ShowCreateEdge(ShowCreateEdgeNode),
-
-    // Management Node – Index
-    CreateTagIndex(CreateTagIndexNode),
-    DropTagIndex(DropTagIndexNode),
-    DescTagIndex(DescTagIndexNode),
-    ShowTagIndexes(ShowTagIndexesNode),
-    RebuildTagIndex(RebuildTagIndexNode),
-    CreateEdgeIndex(CreateEdgeIndexNode),
-    DropEdgeIndex(DropEdgeIndexNode),
-    DescEdgeIndex(DescEdgeIndexNode),
-    ShowEdgeIndexes(ShowEdgeIndexesNode),
-    RebuildEdgeIndex(RebuildEdgeIndexNode),
-    ShowIndexes(ShowIndexesNode),
-    ShowCreateIndex(ShowCreateIndexNode),
-
-    // Management Node – Fulltext Index
-    CreateFulltextIndex(CreateFulltextIndexNode),
-    DropFulltextIndex(DropFulltextIndexNode),
-    AlterFulltextIndex(AlterFulltextIndexNode),
-    ShowFulltextIndex(ShowFulltextIndexNode),
-    DescribeFulltextIndex(DescribeFulltextIndexNode),
-
-    // Management Node – User
-    CreateUser(CreateUserNode),
-    AlterUser(AlterUserNode),
-    DropUser(DropUserNode),
-    ChangePassword(ChangePasswordNode),
-    GrantRole(GrantRoleNode),
-    RevokeRole(RevokeRoleNode),
-    ShowUsers(ShowUsersNode),
-    ShowRoles(ShowRolesNode),
+    // ========== Management Nodes (parameterized) ==========
+    SpaceManage(SpaceManageNode),
+    TagManage(TagManageNode),
+    EdgeManage(EdgeManageNode),
+    IndexManage(IndexManageNode),
+    UserManage(UserManageNode),
+    FulltextManage(FulltextManageNode),
+    VectorManage(VectorManageNode),
 
     // Management Node – Data
     InsertVertices(InsertVerticesNode),
@@ -239,8 +218,6 @@ pub enum PlanNodeEnum {
 
     // Vector Search Nodes
     VectorSearch(VectorSearchNode),
-    CreateVectorIndex(CreateVectorIndexNode),
-    DropVectorIndex(DropVectorIndexNode),
     VectorLookup(VectorLookupNode),
     VectorMatch(VectorMatchNode),
 }
@@ -310,56 +287,14 @@ crate::define_enum_is_methods! {
     (BFSShortest, is_bfs_shortest),
     (AllPaths, is_all_paths),
     (ShortestPath, is_shortest_path),
-    // Management Node – Space
-    (CreateSpace, is_create_space),
-    (DropSpace, is_drop_space),
-    (DescSpace, is_desc_space),
-    (ShowSpaces, is_show_spaces),
-    (ShowCreateSpace, is_show_create_space),
-    (SwitchSpace, is_switch_space),
-    (AlterSpace, is_alter_space),
-    (ClearSpace, is_clear_space),
-    // Management Node – Tags
-    (CreateTag, is_create_tag),
-    (AlterTag, is_alter_tag),
-    (DescTag, is_desc_tag),
-    (DropTag, is_drop_tag),
-    (ShowTags, is_show_tags),
-    // Management Node – Edge Type
-    (CreateEdge, is_create_edge),
-    (AlterEdge, is_alter_edge),
-    (DescEdge, is_desc_edge),
-    (DropEdge, is_drop_edge),
-    (ShowEdges, is_show_edges),
-    (ShowCreateEdge, is_show_create_edge),
-    // Management Node – Index
-    (CreateTagIndex, is_create_tag_index),
-    (DropTagIndex, is_drop_tag_index),
-    (DescTagIndex, is_desc_tag_index),
-    (ShowTagIndexes, is_show_tag_indexes),
-    (RebuildTagIndex, is_rebuild_tag_index),
-    (CreateEdgeIndex, is_create_edge_index),
-    (DropEdgeIndex, is_drop_edge_index),
-    (DescEdgeIndex, is_desc_edge_index),
-    (ShowEdgeIndexes, is_show_edge_indexes),
-    (RebuildEdgeIndex, is_rebuild_edge_index),
-    (ShowIndexes, is_show_indexes),
-    (ShowCreateIndex, is_show_create_index),
-    // Management Node – Fulltext Index
-    (CreateFulltextIndex, is_create_fulltext_index),
-    (DropFulltextIndex, is_drop_fulltext_index),
-    (AlterFulltextIndex, is_alter_fulltext_index),
-    (ShowFulltextIndex, is_show_fulltext_index),
-    (DescribeFulltextIndex, is_describe_fulltext_index),
-    // Management Node – User
-    (CreateUser, is_create_user),
-    (AlterUser, is_alter_user),
-    (DropUser, is_drop_user),
-    (ChangePassword, is_change_password),
-    (GrantRole, is_grant_role),
-    (RevokeRole, is_revoke_role),
-    (ShowUsers, is_show_users),
-    (ShowRoles, is_show_roles),
+    // Management Node (parameterized)
+    (SpaceManage, is_space_manage),
+    (TagManage, is_tag_manage),
+    (EdgeManage, is_edge_manage),
+    (IndexManage, is_index_manage),
+    (UserManage, is_user_manage),
+    (FulltextManage, is_fulltext_manage),
+    (VectorManage, is_vector_manage),
     // Management Node – Data
     (InsertVertices, is_insert_vertices),
     (InsertEdges, is_insert_edges),
@@ -380,8 +315,6 @@ crate::define_enum_is_methods! {
     (MatchFulltext, is_match_fulltext),
     // Vector Search Nodes
     (VectorSearch, is_vector_search),
-    (CreateVectorIndex, is_create_vector_index),
-    (DropVectorIndex, is_drop_vector_index),
     (VectorLookup, is_vector_lookup),
     (VectorMatch, is_vector_match),
 }
@@ -444,56 +377,14 @@ crate::define_enum_as_methods! {
     (BFSShortest, as_bfs_shortest, BFSShortestNode),
     (AllPaths, as_all_paths, AllPathsNode),
     (ShortestPath, as_shortest_path, ShortestPathNode),
-    // Management Node – Space
-    (CreateSpace, as_create_space, CreateSpaceNode),
-    (DropSpace, as_drop_space, DropSpaceNode),
-    (DescSpace, as_desc_space, DescSpaceNode),
-    (ShowSpaces, as_show_spaces, ShowSpacesNode),
-    (ShowCreateSpace, as_show_create_space, ShowCreateSpaceNode),
-    (SwitchSpace, as_switch_space, SwitchSpaceNode),
-    (AlterSpace, as_alter_space, AlterSpaceNode),
-    (ClearSpace, as_clear_space, ClearSpaceNode),
-    // Management Node – Tags
-    (CreateTag, as_create_tag, CreateTagNode),
-    (AlterTag, as_alter_tag, AlterTagNode),
-    (DescTag, as_desc_tag, DescTagNode),
-    (DropTag, as_drop_tag, DropTagNode),
-    (ShowTags, as_show_tags, ShowTagsNode),
-    // Management Node – Edge Type
-    (CreateEdge, as_create_edge, CreateEdgeNode),
-    (AlterEdge, as_alter_edge, AlterEdgeNode),
-    (DescEdge, as_desc_edge, DescEdgeNode),
-    (DropEdge, as_drop_edge, DropEdgeNode),
-    (ShowEdges, as_show_edges, ShowEdgesNode),
-    (ShowCreateEdge, as_show_create_edge, ShowCreateEdgeNode),
-    // Management Node – Index
-    (CreateTagIndex, as_create_tag_index, CreateTagIndexNode),
-    (DropTagIndex, as_drop_tag_index, DropTagIndexNode),
-    (DescTagIndex, as_desc_tag_index, DescTagIndexNode),
-    (ShowTagIndexes, as_show_tag_indexes, ShowTagIndexesNode),
-    (RebuildTagIndex, as_rebuild_tag_index, RebuildTagIndexNode),
-    (CreateEdgeIndex, as_create_edge_index, CreateEdgeIndexNode),
-    (DropEdgeIndex, as_drop_edge_index, DropEdgeIndexNode),
-    (DescEdgeIndex, as_desc_edge_index, DescEdgeIndexNode),
-    (ShowEdgeIndexes, as_show_edge_indexes, ShowEdgeIndexesNode),
-    (RebuildEdgeIndex, as_rebuild_edge_index, RebuildEdgeIndexNode),
-    (ShowIndexes, as_show_indexes, ShowIndexesNode),
-    (ShowCreateIndex, as_show_create_index, ShowCreateIndexNode),
-    // Management Node – Fulltext Index
-    (CreateFulltextIndex, as_create_fulltext_index, CreateFulltextIndexNode),
-    (DropFulltextIndex, as_drop_fulltext_index, DropFulltextIndexNode),
-    (AlterFulltextIndex, as_alter_fulltext_index, AlterFulltextIndexNode),
-    (ShowFulltextIndex, as_show_fulltext_index, ShowFulltextIndexNode),
-    (DescribeFulltextIndex, as_describe_fulltext_index, DescribeFulltextIndexNode),
-    // Management Node – User
-    (CreateUser, as_create_user, CreateUserNode),
-    (AlterUser, as_alter_user, AlterUserNode),
-    (DropUser, as_drop_user, DropUserNode),
-    (ChangePassword, as_change_password, ChangePasswordNode),
-    (GrantRole, as_grant_role, GrantRoleNode),
-    (RevokeRole, as_revoke_role, RevokeRoleNode),
-    (ShowUsers, as_show_users, ShowUsersNode),
-    (ShowRoles, as_show_roles, ShowRolesNode),
+    // Management Node (parameterized)
+    (SpaceManage, as_space_manage, SpaceManageNode),
+    (TagManage, as_tag_manage, TagManageNode),
+    (EdgeManage, as_edge_manage, EdgeManageNode),
+    (IndexManage, as_index_manage, IndexManageNode),
+    (UserManage, as_user_manage, UserManageNode),
+    (FulltextManage, as_fulltext_manage, FulltextManageNode),
+    (VectorManage, as_vector_manage, VectorManageNode),
     // Management Node – Data
     (InsertVertices, as_insert_vertices, InsertVerticesNode),
     (InsertEdges, as_insert_edges, InsertEdgesNode),
@@ -514,8 +405,6 @@ crate::define_enum_as_methods! {
     (MatchFulltext, as_match_fulltext, MatchFulltextNode),
     // Vector Search Nodes
     (VectorSearch, as_vector_search, VectorSearchNode),
-    (CreateVectorIndex, as_create_vector_index, CreateVectorIndexNode),
-    (DropVectorIndex, as_drop_vector_index, DropVectorIndexNode),
     (VectorLookup, as_vector_lookup, VectorLookupNode),
     (VectorMatch, as_vector_match, VectorMatchNode),
 }
@@ -578,56 +467,14 @@ crate::define_enum_as_mut_methods! {
     (BFSShortest, as_bfs_shortest_mut, BFSShortestNode),
     (AllPaths, as_all_paths_mut, AllPathsNode),
     (ShortestPath, as_shortest_path_mut, ShortestPathNode),
-    // Management Node – Space
-    (CreateSpace, as_create_space_mut, CreateSpaceNode),
-    (DropSpace, as_drop_space_mut, DropSpaceNode),
-    (DescSpace, as_desc_space_mut, DescSpaceNode),
-    (ShowSpaces, as_show_spaces_mut, ShowSpacesNode),
-    (ShowCreateSpace, as_show_create_space_mut, ShowCreateSpaceNode),
-    (SwitchSpace, as_switch_space_mut, SwitchSpaceNode),
-    (AlterSpace, as_alter_space_mut, AlterSpaceNode),
-    (ClearSpace, as_clear_space_mut, ClearSpaceNode),
-    // Management Node – Tags
-    (CreateTag, as_create_tag_mut, CreateTagNode),
-    (AlterTag, as_alter_tag_mut, AlterTagNode),
-    (DescTag, as_desc_tag_mut, DescTagNode),
-    (DropTag, as_drop_tag_mut, DropTagNode),
-    (ShowTags, as_show_tags_mut, ShowTagsNode),
-    // Management Node – Edge Type
-    (CreateEdge, as_create_edge_mut, CreateEdgeNode),
-    (AlterEdge, as_alter_edge_mut, AlterEdgeNode),
-    (DescEdge, as_desc_edge_mut, DescEdgeNode),
-    (DropEdge, as_drop_edge_mut, DropEdgeNode),
-    (ShowEdges, as_show_edges_mut, ShowEdgesNode),
-    (ShowCreateEdge, as_show_create_edge_mut, ShowCreateEdgeNode),
-    // Management Node – Index
-    (CreateTagIndex, as_create_tag_index_mut, CreateTagIndexNode),
-    (DropTagIndex, as_drop_tag_index_mut, DropTagIndexNode),
-    (DescTagIndex, as_desc_tag_index_mut, DescTagIndexNode),
-    (ShowTagIndexes, as_show_tag_indexes_mut, ShowTagIndexesNode),
-    (RebuildTagIndex, as_rebuild_tag_index_mut, RebuildTagIndexNode),
-    (CreateEdgeIndex, as_create_edge_index_mut, CreateEdgeIndexNode),
-    (DropEdgeIndex, as_drop_edge_index_mut, DropEdgeIndexNode),
-    (DescEdgeIndex, as_desc_edge_index_mut, DescEdgeIndexNode),
-    (ShowEdgeIndexes, as_show_edge_indexes_mut, ShowEdgeIndexesNode),
-    (RebuildEdgeIndex, as_rebuild_edge_index_mut, RebuildEdgeIndexNode),
-    (ShowIndexes, as_show_indexes_mut, ShowIndexesNode),
-    (ShowCreateIndex, as_show_create_index_mut, ShowCreateIndexNode),
-    // Management Node – Fulltext Index
-    (CreateFulltextIndex, as_create_fulltext_index_mut, CreateFulltextIndexNode),
-    (DropFulltextIndex, as_drop_fulltext_index_mut, DropFulltextIndexNode),
-    (AlterFulltextIndex, as_alter_fulltext_index_mut, AlterFulltextIndexNode),
-    (ShowFulltextIndex, as_show_fulltext_index_mut, ShowFulltextIndexNode),
-    (DescribeFulltextIndex, as_describe_fulltext_index_mut, DescribeFulltextIndexNode),
-    // Management Node – User
-    (CreateUser, as_create_user_mut, CreateUserNode),
-    (AlterUser, as_alter_user_mut, AlterUserNode),
-    (DropUser, as_drop_user_mut, DropUserNode),
-    (ChangePassword, as_change_password_mut, ChangePasswordNode),
-    (GrantRole, as_grant_role_mut, GrantRoleNode),
-    (RevokeRole, as_revoke_role_mut, RevokeRoleNode),
-    (ShowUsers, as_show_users_mut, ShowUsersNode),
-    (ShowRoles, as_show_roles_mut, ShowRolesNode),
+    // Management Node (parameterized)
+    (SpaceManage, as_space_manage_mut, SpaceManageNode),
+    (TagManage, as_tag_manage_mut, TagManageNode),
+    (EdgeManage, as_edge_manage_mut, EdgeManageNode),
+    (IndexManage, as_index_manage_mut, IndexManageNode),
+    (UserManage, as_user_manage_mut, UserManageNode),
+    (FulltextManage, as_fulltext_manage_mut, FulltextManageNode),
+    (VectorManage, as_vector_manage_mut, VectorManageNode),
     // Management Node – Data
     (InsertVertices, as_insert_vertices_mut, InsertVerticesNode),
     (InsertEdges, as_insert_edges_mut, InsertEdgesNode),
@@ -640,7 +487,7 @@ crate::define_enum_as_mut_methods! {
     (Update, as_update_mut, UpdateNode),
     (UpdateVertices, as_update_vertices_mut, UpdateVerticesNode),
     (UpdateEdges, as_update_edges_mut, UpdateEdgesNode),
-    // Statistical nodes
+    // Statistical node
     (ShowStats, as_show_stats_mut, ShowStatsNode),
     // Full-text Search Nodes
     (FulltextSearch, as_fulltext_search_mut, FulltextSearchNode),
@@ -648,8 +495,6 @@ crate::define_enum_as_mut_methods! {
     (MatchFulltext, as_match_fulltext_mut, MatchFulltextNode),
     // Vector Search Nodes
     (VectorSearch, as_vector_search_mut, VectorSearchNode),
-    (CreateVectorIndex, as_create_vector_index_mut, CreateVectorIndexNode),
-    (DropVectorIndex, as_drop_vector_index_mut, DropVectorIndexNode),
     (VectorLookup, as_vector_lookup_mut, VectorLookupNode),
     (VectorMatch, as_vector_match_mut, VectorMatchNode),
 }
@@ -717,56 +562,14 @@ crate::define_enum_type_name! {
     (BFSShortest, "BFSShortest"),
     (AllPaths, "AllPaths"),
     (ShortestPath, "ShortestPath"),
-    // Management Node – Space
-    (CreateSpace, "CreateSpace"),
-    (DropSpace, "DropSpace"),
-    (DescSpace, "DescSpace"),
-    (ShowSpaces, "ShowSpaces"),
-    (ShowCreateSpace, "ShowCreateSpace"),
-    (SwitchSpace, "SwitchSpace"),
-    (AlterSpace, "AlterSpace"),
-    (ClearSpace, "ClearSpace"),
-    // Management Node - Tags
-    (CreateTag, "CreateTag"),
-    (AlterTag, "AlterTag"),
-    (DescTag, "DescTag"),
-    (DropTag, "DropTag"),
-    (ShowTags, "ShowTags"),
-    // Management Node – Edge Type
-    (CreateEdge, "CreateEdge"),
-    (AlterEdge, "AlterEdge"),
-    (DescEdge, "DescEdge"),
-    (DropEdge, "DropEdge"),
-    (ShowEdges, "ShowEdges"),
-    (ShowCreateEdge, "ShowCreateEdge"),
-    // Management Node – Index
-    (CreateTagIndex, "CreateTagIndex"),
-    (DropTagIndex, "DropTagIndex"),
-    (DescTagIndex, "DescTagIndex"),
-    (ShowTagIndexes, "ShowTagIndexes"),
-    (RebuildTagIndex, "RebuildTagIndex"),
-    (CreateEdgeIndex, "CreateEdgeIndex"),
-    (DropEdgeIndex, "DropEdgeIndex"),
-    (DescEdgeIndex, "DescEdgeIndex"),
-    (ShowEdgeIndexes, "ShowEdgeIndexes"),
-    (RebuildEdgeIndex, "RebuildEdgeIndex"),
-    (ShowIndexes, "ShowIndexes"),
-    (ShowCreateIndex, "ShowCreateIndex"),
-    // Management Node – Fulltext Index
-    (CreateFulltextIndex, "CreateFulltextIndex"),
-    (DropFulltextIndex, "DropFulltextIndex"),
-    (AlterFulltextIndex, "AlterFulltextIndex"),
-    (ShowFulltextIndex, "ShowFulltextIndex"),
-    (DescribeFulltextIndex, "DescribeFulltextIndex"),
-    // Management Node – User
-    (CreateUser, "CreateUser"),
-    (AlterUser, "AlterUser"),
-    (DropUser, "DropUser"),
-    (ChangePassword, "ChangePassword"),
-    (GrantRole, "GrantRole"),
-    (RevokeRole, "RevokeRole"),
-    (ShowUsers, "ShowUsers"),
-    (ShowRoles, "ShowRoles"),
+    // Management Node (parameterized)
+    (SpaceManage, "SpaceManage"),
+    (TagManage, "TagManage"),
+    (EdgeManage, "EdgeManage"),
+    (IndexManage, "IndexManage"),
+    (UserManage, "UserManage"),
+    (FulltextManage, "FulltextManage"),
+    (VectorManage, "VectorManage"),
     // Management Node – Data
     (InsertVertices, "InsertVertices"),
     (InsertEdges, "InsertEdges"),
@@ -779,23 +582,19 @@ crate::define_enum_type_name! {
     (Update, "Update"),
     (UpdateVertices, "UpdateVertices"),
     (UpdateEdges, "UpdateEdges"),
-    // Statistical node
+    // Statistical nodes
     (ShowStats, "ShowStats"),
-    // Show Create Tag node
-    (ShowCreateTag, "ShowCreateTag"),
     // Full-text Search Nodes
     (FulltextSearch, "FulltextSearch"),
     (FulltextLookup, "FulltextLookup"),
     (MatchFulltext, "MatchFulltext"),
     // Vector Search Nodes
     (VectorSearch, "VectorSearch"),
-    (CreateVectorIndex, "CreateVectorIndex"),
-    (DropVectorIndex, "DropVectorIndex"),
     (VectorLookup, "VectorLookup"),
     (VectorMatch, "VectorMatch"),
 }
 
-// Use macros to generate the `category` method.
+// Use macros to generate the category method.
 crate::define_enum_category! {
     PlanNodeEnum,
     // Access node
@@ -858,53 +657,15 @@ crate::define_enum_category! {
     (BFSShortest, PlanNodeCategory::Algorithm),
     (AllPaths, PlanNodeCategory::Algorithm),
     (ShortestPath, PlanNodeCategory::Algorithm),
-    // Management Node
-    (CreateSpace, PlanNodeCategory::Management),
-    (DropSpace, PlanNodeCategory::Management),
-    (DescSpace, PlanNodeCategory::Management),
-    (ShowSpaces, PlanNodeCategory::Management),
-    (ShowCreateSpace, PlanNodeCategory::Management),
-    (SwitchSpace, PlanNodeCategory::Management),
-    (AlterSpace, PlanNodeCategory::Management),
-    (ClearSpace, PlanNodeCategory::Management),
-    (CreateTag, PlanNodeCategory::Management),
-    (AlterTag, PlanNodeCategory::Management),
-    (DescTag, PlanNodeCategory::Management),
-    (DropTag, PlanNodeCategory::Management),
-    (ShowTags, PlanNodeCategory::Management),
-    (CreateEdge, PlanNodeCategory::Management),
-    (AlterEdge, PlanNodeCategory::Management),
-    (DescEdge, PlanNodeCategory::Management),
-    (DropEdge, PlanNodeCategory::Management),
-    (ShowEdges, PlanNodeCategory::Management),
-    (ShowCreateEdge, PlanNodeCategory::Management),
-    (CreateTagIndex, PlanNodeCategory::Management),
-    (DropTagIndex, PlanNodeCategory::Management),
-    (DescTagIndex, PlanNodeCategory::Management),
-    (ShowTagIndexes, PlanNodeCategory::Management),
-    (RebuildTagIndex, PlanNodeCategory::Management),
-    (CreateEdgeIndex, PlanNodeCategory::Management),
-    (DropEdgeIndex, PlanNodeCategory::Management),
-    (DescEdgeIndex, PlanNodeCategory::Management),
-    (ShowEdgeIndexes, PlanNodeCategory::Management),
-    (RebuildEdgeIndex, PlanNodeCategory::Management),
-    (ShowIndexes, PlanNodeCategory::Management),
-    (ShowCreateIndex, PlanNodeCategory::Management),
-    // Management Node – Fulltext Index
-    (CreateFulltextIndex, PlanNodeCategory::Management),
-    (DropFulltextIndex, PlanNodeCategory::Management),
-    (AlterFulltextIndex, PlanNodeCategory::Management),
-    (ShowFulltextIndex, PlanNodeCategory::Management),
-    (DescribeFulltextIndex, PlanNodeCategory::Management),
-    // Management Node – User
-    (CreateUser, PlanNodeCategory::Management),
-    (AlterUser, PlanNodeCategory::Management),
-    (DropUser, PlanNodeCategory::Management),
-    (ChangePassword, PlanNodeCategory::Management),
-    (GrantRole, PlanNodeCategory::Management),
-    (RevokeRole, PlanNodeCategory::Management),
-    (ShowUsers, PlanNodeCategory::Management),
-    (ShowRoles, PlanNodeCategory::Management),
+    // Management Node (parameterized)
+    (SpaceManage, PlanNodeCategory::Management),
+    (TagManage, PlanNodeCategory::Management),
+    (EdgeManage, PlanNodeCategory::Management),
+    (IndexManage, PlanNodeCategory::Management),
+    (UserManage, PlanNodeCategory::Management),
+    (FulltextManage, PlanNodeCategory::Management),
+    (VectorManage, PlanNodeCategory::Management),
+    // Management Node – Data
     (InsertVertices, PlanNodeCategory::Management),
     (InsertEdges, PlanNodeCategory::Management),
     (DeleteVertices, PlanNodeCategory::Management),
@@ -916,16 +677,14 @@ crate::define_enum_category! {
     (Update, PlanNodeCategory::Management),
     (UpdateVertices, PlanNodeCategory::Management),
     (UpdateEdges, PlanNodeCategory::Management),
+    // Statistical nodes
     (ShowStats, PlanNodeCategory::Management),
-    (ShowCreateTag, PlanNodeCategory::Management),
     // Full-text Search Nodes
     (FulltextSearch, PlanNodeCategory::DataAccess),
     (FulltextLookup, PlanNodeCategory::DataAccess),
     (MatchFulltext, PlanNodeCategory::DataAccess),
     // Vector Search Nodes
     (VectorSearch, PlanNodeCategory::DataAccess),
-    (CreateVectorIndex, PlanNodeCategory::Management),
-    (DropVectorIndex, PlanNodeCategory::Management),
     (VectorLookup, PlanNodeCategory::DataAccess),
     (VectorMatch, PlanNodeCategory::DataAccess),
 }
@@ -993,50 +752,14 @@ crate::define_enum_describe! {
     (BFSShortest, "BFSShortest"),
     (AllPaths, "AllPaths"),
     (ShortestPath, "ShortestPath"),
-    // Management Node – Space
-    (CreateSpace, "CreateSpace"),
-    (DropSpace, "DropSpace"),
-    (DescSpace, "DescSpace"),
-    (ShowSpaces, "ShowSpaces"),
-    (ShowCreateSpace, "ShowCreateSpace"),
-    (SwitchSpace, "SwitchSpace"),
-    (AlterSpace, "AlterSpace"),
-    (ClearSpace, "ClearSpace"),
-    // Management Node – Tags
-    (CreateTag, "CreateTag"),
-    (AlterTag, "AlterTag"),
-    (DescTag, "DescTag"),
-    (DropTag, "DropTag"),
-    (ShowTags, "ShowTags"),
-    // Management Node – Edge Type
-    (CreateEdge, "CreateEdge"),
-    (AlterEdge, "AlterEdge"),
-    (DescEdge, "DescEdge"),
-    (DropEdge, "DropEdge"),
-    (ShowEdges, "ShowEdges"),
-    (ShowCreateEdge, "ShowCreateEdge"),
-    // Management Node – Index
-    (CreateTagIndex, "CreateTagIndex"),
-    (DropTagIndex, "DropTagIndex"),
-    (DescTagIndex, "DescTagIndex"),
-    (ShowTagIndexes, "ShowTagIndexes"),
-    (RebuildTagIndex, "RebuildTagIndex"),
-    (CreateEdgeIndex, "CreateEdgeIndex"),
-    (DropEdgeIndex, "DropEdgeIndex"),
-    (DescEdgeIndex, "DescEdgeIndex"),
-    (ShowEdgeIndexes, "ShowEdgeIndexes"),
-    (RebuildEdgeIndex, "RebuildEdgeIndex"),
-    (ShowIndexes, "ShowIndexes"),
-    (ShowCreateIndex, "ShowCreateIndex"),
-    // Management Node – User
-    (CreateUser, "CreateUser"),
-    (AlterUser, "AlterUser"),
-    (DropUser, "DropUser"),
-    (ChangePassword, "ChangePassword"),
-    (GrantRole, "GrantRole"),
-    (RevokeRole, "RevokeRole"),
-    (ShowUsers, "ShowUsers"),
-    (ShowRoles, "ShowRoles"),
+    // Management Node (parameterized)
+    (SpaceManage, "SpaceManage"),
+    (TagManage, "TagManage"),
+    (EdgeManage, "EdgeManage"),
+    (IndexManage, "IndexManage"),
+    (UserManage, "UserManage"),
+    (FulltextManage, "FulltextManage"),
+    (VectorManage, "VectorManage"),
     // Management Node – Data
     (InsertVertices, "InsertVertices"),
     (InsertEdges, "InsertEdges"),
@@ -1049,851 +772,42 @@ crate::define_enum_describe! {
     (Update, "Update"),
     (UpdateVertices, "UpdateVertices"),
     (UpdateEdges, "UpdateEdges"),
-    // Statistical node
+    // Statistical nodes
     (ShowStats, "ShowStats"),
-    // Management Node – Fulltext
-    (CreateFulltextIndex, "CreateFulltextIndex"),
-    (DropFulltextIndex, "DropFulltextIndex"),
-    (AlterFulltextIndex, "AlterFulltextIndex"),
-    (ShowFulltextIndex, "ShowFulltextIndex"),
-    (DescribeFulltextIndex, "DescribeFulltextIndex"),
+    // Full-text Search Nodes
     (FulltextSearch, "FulltextSearch"),
     (FulltextLookup, "FulltextLookup"),
     (MatchFulltext, "MatchFulltext"),
     // Vector Search Nodes
     (VectorSearch, "VectorSearch"),
-    (CreateVectorIndex, "CreateVectorIndex"),
-    (DropVectorIndex, "DropVectorIndex"),
     (VectorLookup, "VectorLookup"),
     (VectorMatch, "VectorMatch"),
-    // Show Create Tag node
-    (ShowCreateTag, "ShowCreateTag"),
 }
 
 impl PlanNodeEnum {
-    /// Node cloning
-    pub fn clone_plan_node(&self) -> PlanNodeEnum {
-        self.clone()
-    }
-
-    /// Determine whether a node is an access node.
-    pub fn is_access(&self) -> bool {
-        matches!(
-            self,
-            PlanNodeEnum::Start(_)
-                | PlanNodeEnum::ScanVertices(_)
-                | PlanNodeEnum::ScanEdges(_)
-                | PlanNodeEnum::EdgeIndexScan(_)
-                | PlanNodeEnum::GetVertices(_)
-                | PlanNodeEnum::GetEdges(_)
-                | PlanNodeEnum::GetNeighbors(_)
-                | PlanNodeEnum::IndexScan(_)
-        )
-    }
-
-    /// Determine whether a node is an operation node.
-    pub fn is_operation(&self) -> bool {
-        matches!(
-            self,
-            PlanNodeEnum::Filter(_)
-                | PlanNodeEnum::Project(_)
-                | PlanNodeEnum::Aggregate(_)
-                | PlanNodeEnum::Sort(_)
-                | PlanNodeEnum::Limit(_)
-                | PlanNodeEnum::TopN(_)
-                | PlanNodeEnum::Sample(_)
-                | PlanNodeEnum::Dedup(_)
-        )
-    }
-
-    /// Determine whether a node is a connecting node.
-    pub fn is_join(&self) -> bool {
-        matches!(
-            self,
-            PlanNodeEnum::InnerJoin(_)
-                | PlanNodeEnum::LeftJoin(_)
-                | PlanNodeEnum::CrossJoin(_)
-                | PlanNodeEnum::HashInnerJoin(_)
-                | PlanNodeEnum::HashLeftJoin(_)
-                | PlanNodeEnum::FullOuterJoin(_)
-        )
-    }
-
-    /// Determine whether a node is a traversable node.
-    pub fn is_traversal(&self) -> bool {
-        matches!(
-            self,
-            PlanNodeEnum::Expand(_)
-                | PlanNodeEnum::ExpandAll(_)
-                | PlanNodeEnum::Traverse(_)
-                | PlanNodeEnum::AppendVertices(_)
-        )
-    }
-
-    /// Determine whether a node is a control flow node.
-    pub fn is_control_flow(&self) -> bool {
-        matches!(
-            self,
-            PlanNodeEnum::Argument(_)
-                | PlanNodeEnum::Loop(_)
-                | PlanNodeEnum::PassThrough(_)
-                | PlanNodeEnum::Select(_)
-        )
-    }
-
-    /// Determine whether a node is a data processing node.
-    pub fn is_data_processing(&self) -> bool {
-        matches!(
-            self,
-            PlanNodeEnum::DataCollect(_)
-                | PlanNodeEnum::Union(_)
-                | PlanNodeEnum::Minus(_)
-                | PlanNodeEnum::Intersect(_)
-                | PlanNodeEnum::Unwind(_)
-                | PlanNodeEnum::Assign(_)
-                | PlanNodeEnum::PatternApply(_)
-                | PlanNodeEnum::RollUpApply(_)
-        )
-    }
-
-    /// Determine whether a node is an algorithm node.
-    pub fn is_algorithm(&self) -> bool {
-        matches!(
-            self,
-            PlanNodeEnum::ShortestPath(_)
-                | PlanNodeEnum::AllPaths(_)
-                | PlanNodeEnum::MultiShortestPath(_)
-                | PlanNodeEnum::BFSShortest(_)
-        )
-    }
-
-    /// Determine whether a node is a management node.
+    /// Check if this node is any management node (parameterized or data modification)
     pub fn is_management(&self) -> bool {
         matches!(
             self,
-            PlanNodeEnum::CreateSpace(_)
-                | PlanNodeEnum::DropSpace(_)
-                | PlanNodeEnum::DescSpace(_)
-                | PlanNodeEnum::ShowSpaces(_)
-                | PlanNodeEnum::CreateTag(_)
-                | PlanNodeEnum::AlterTag(_)
-                | PlanNodeEnum::DescTag(_)
-                | PlanNodeEnum::DropTag(_)
-                | PlanNodeEnum::ShowTags(_)
-                | PlanNodeEnum::ShowCreateTag(_)
-                | PlanNodeEnum::CreateEdge(_)
-                | PlanNodeEnum::AlterEdge(_)
-                | PlanNodeEnum::DescEdge(_)
-                | PlanNodeEnum::DropEdge(_)
-                | PlanNodeEnum::ShowEdges(_)
-                | PlanNodeEnum::CreateTagIndex(_)
-                | PlanNodeEnum::DropTagIndex(_)
-                | PlanNodeEnum::DescTagIndex(_)
-                | PlanNodeEnum::ShowTagIndexes(_)
-                | PlanNodeEnum::CreateEdgeIndex(_)
-                | PlanNodeEnum::DropEdgeIndex(_)
-                | PlanNodeEnum::DescEdgeIndex(_)
-                | PlanNodeEnum::ShowEdgeIndexes(_)
-                | PlanNodeEnum::RebuildTagIndex(_)
-                | PlanNodeEnum::RebuildEdgeIndex(_)
-                | PlanNodeEnum::CreateUser(_)
-                | PlanNodeEnum::AlterUser(_)
-                | PlanNodeEnum::DropUser(_)
-                | PlanNodeEnum::ChangePassword(_)
+            PlanNodeEnum::SpaceManage(_)
+                | PlanNodeEnum::TagManage(_)
+                | PlanNodeEnum::EdgeManage(_)
+                | PlanNodeEnum::IndexManage(_)
+                | PlanNodeEnum::UserManage(_)
+                | PlanNodeEnum::FulltextManage(_)
+                | PlanNodeEnum::VectorManage(_)
                 | PlanNodeEnum::InsertVertices(_)
                 | PlanNodeEnum::InsertEdges(_)
-                | PlanNodeEnum::CreateFulltextIndex(_)
-                | PlanNodeEnum::DropFulltextIndex(_)
-                | PlanNodeEnum::AlterFulltextIndex(_)
-                | PlanNodeEnum::ShowFulltextIndex(_)
-                | PlanNodeEnum::DescribeFulltextIndex(_)
+                | PlanNodeEnum::DeleteVertices(_)
+                | PlanNodeEnum::DeleteEdges(_)
+                | PlanNodeEnum::DeleteTags(_)
+                | PlanNodeEnum::DeleteIndex(_)
+                | PlanNodeEnum::PipeDeleteVertices(_)
+                | PlanNodeEnum::PipeDeleteEdges(_)
+                | PlanNodeEnum::Update(_)
+                | PlanNodeEnum::UpdateVertices(_)
+                | PlanNodeEnum::UpdateEdges(_)
+                | PlanNodeEnum::ShowStats(_)
         )
     }
-
-    /// Determine whether a node is a query node.
-    pub fn is_query_node(&self) -> bool {
-        matches!(
-            self,
-            PlanNodeEnum::GetVertices(_)
-                | PlanNodeEnum::GetEdges(_)
-                | PlanNodeEnum::GetNeighbors(_)
-                | PlanNodeEnum::Expand(_)
-                | PlanNodeEnum::ExpandAll(_)
-                | PlanNodeEnum::Traverse(_)
-                | PlanNodeEnum::AppendVertices(_)
-                | PlanNodeEnum::ScanVertices(_)
-                | PlanNodeEnum::ScanEdges(_)
-                | PlanNodeEnum::FulltextSearch(_)
-                | PlanNodeEnum::FulltextLookup(_)
-                | PlanNodeEnum::MatchFulltext(_)
-        )
-    }
-
-    /// Determine if a node is a data processing node
-    pub fn is_data_processing_node(&self) -> bool {
-        matches!(
-            self,
-            PlanNodeEnum::Filter(_)
-                | PlanNodeEnum::Union(_)
-                | PlanNodeEnum::Project(_)
-                | PlanNodeEnum::Unwind(_)
-                | PlanNodeEnum::Sort(_)
-                | PlanNodeEnum::TopN(_)
-                | PlanNodeEnum::Limit(_)
-                | PlanNodeEnum::Aggregate(_)
-                | PlanNodeEnum::Dedup(_)
-                | PlanNodeEnum::DataCollect(_)
-                | PlanNodeEnum::InnerJoin(_)
-                | PlanNodeEnum::LeftJoin(_)
-                | PlanNodeEnum::CrossJoin(_)
-                | PlanNodeEnum::RollUpApply(_)
-                | PlanNodeEnum::PatternApply(_)
-                | PlanNodeEnum::Argument(_)
-        )
-    }
-
-    /// Determine if a node is a control flow node
-    pub fn is_control_flow_node(&self) -> bool {
-        matches!(
-            self,
-            PlanNodeEnum::Select(_)
-                | PlanNodeEnum::Loop(_)
-                | PlanNodeEnum::PassThrough(_)
-                | PlanNodeEnum::Start(_)
-        )
-    }
-}
-
-impl PlanNodeEnum {
-    /// Estimate memory usage for this node (in bytes)
-    /// This is a recursive estimation that includes all child nodes
-    /// Note: This method may count shared subtrees multiple times.
-    /// For deduplicated estimation, use `estimate_memory_dedup`.
-    pub fn estimate_memory(&self) -> usize {
-        let base_size = std::mem::size_of::<PlanNodeEnum>();
-
-        match self {
-            // ZeroInputNode: Only the node structure itself
-            PlanNodeEnum::Start(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::CreateSpace(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DropSpace(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DescSpace(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowSpaces(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowCreateSpace(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::CreateTag(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::AlterTag(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DescTag(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DropTag(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowTags(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowCreateTag(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::CreateEdge(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::AlterEdge(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DescEdge(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DropEdge(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowEdges(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowCreateEdge(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::CreateTagIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DropTagIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DescTagIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowTagIndexes(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::CreateEdgeIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DropEdgeIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DescEdgeIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowEdgeIndexes(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::RebuildTagIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::RebuildEdgeIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowIndexes(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowCreateIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::CreateUser(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::AlterUser(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DropUser(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ChangePassword(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::GrantRole(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::RevokeRole(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowUsers(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowRoles(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::SwitchSpace(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::AlterSpace(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ClearSpace(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowStats(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::InsertVertices(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::InsertEdges(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DeleteVertices(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DeleteEdges(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DeleteTags(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DeleteIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::PipeDeleteVertices(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::PipeDeleteEdges(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::Update(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::UpdateVertices(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::UpdateEdges(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::CreateFulltextIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DropFulltextIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::AlterFulltextIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowFulltextIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DescribeFulltextIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::IndexScan(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ScanVertices(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ScanEdges(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::EdgeIndexScan(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::GetVertices(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::GetEdges(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::GetNeighbors(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShortestPath(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::AllPaths(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::BFSShortest(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::MultiShortestPath(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::FulltextSearch(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::FulltextLookup(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::MatchFulltext(node) => base_size + estimate_node_memory(node),
-
-            // SingleInputNode: Node structure + child node
-            PlanNodeEnum::Project(node) => {
-                base_size + estimate_node_memory(node) + Self::estimate_input_memory(node.input())
-            }
-            PlanNodeEnum::Filter(node) => {
-                base_size + estimate_node_memory(node) + Self::estimate_input_memory(node.input())
-            }
-            PlanNodeEnum::Sort(node) => {
-                base_size + estimate_node_memory(node) + Self::estimate_input_memory(node.input())
-            }
-            PlanNodeEnum::Limit(node) => {
-                base_size + estimate_node_memory(node) + Self::estimate_input_memory(node.input())
-            }
-            PlanNodeEnum::TopN(node) => {
-                base_size + estimate_node_memory(node) + Self::estimate_input_memory(node.input())
-            }
-            PlanNodeEnum::Sample(node) => {
-                base_size + estimate_node_memory(node) + Self::estimate_input_memory(node.input())
-            }
-            PlanNodeEnum::Dedup(node) => {
-                base_size + estimate_node_memory(node) + Self::estimate_input_memory(node.input())
-            }
-            PlanNodeEnum::DataCollect(node) => {
-                base_size + estimate_node_memory(node) + Self::estimate_input_memory(node.input())
-            }
-            PlanNodeEnum::Aggregate(node) => {
-                base_size + estimate_node_memory(node) + Self::estimate_input_memory(node.input())
-            }
-            PlanNodeEnum::Unwind(node) => {
-                base_size + estimate_node_memory(node) + Self::estimate_input_memory(node.input())
-            }
-            PlanNodeEnum::Assign(node) => {
-                base_size + estimate_node_memory(node) + Self::estimate_input_memory(node.input())
-            }
-            PlanNodeEnum::PatternApply(node) => {
-                base_size + estimate_node_memory(node) + Self::estimate_input_memory(node.input())
-            }
-            PlanNodeEnum::RollUpApply(node) => {
-                base_size + estimate_node_memory(node) + Self::estimate_input_memory(node.input())
-            }
-            PlanNodeEnum::Remove(node) => {
-                base_size + estimate_node_memory(node) + Self::estimate_input_memory(node.input())
-            }
-            PlanNodeEnum::Materialize(node) => {
-                base_size + estimate_node_memory(node) + Self::estimate_input_memory(node.input())
-            }
-            PlanNodeEnum::Traverse(node) => {
-                base_size + estimate_node_memory(node) + Self::estimate_input_memory(node.input())
-            }
-
-            // BinaryInputNode: Node structure + two child nodes
-            PlanNodeEnum::InnerJoin(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + Self::estimate_input_memory(node.left_input())
-                    + Self::estimate_input_memory(node.right_input())
-            }
-            PlanNodeEnum::LeftJoin(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + Self::estimate_input_memory(node.left_input())
-                    + Self::estimate_input_memory(node.right_input())
-            }
-            PlanNodeEnum::CrossJoin(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + Self::estimate_input_memory(node.left_input())
-                    + Self::estimate_input_memory(node.right_input())
-            }
-            PlanNodeEnum::HashInnerJoin(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + Self::estimate_input_memory(node.left_input())
-                    + Self::estimate_input_memory(node.right_input())
-            }
-            PlanNodeEnum::HashLeftJoin(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + Self::estimate_input_memory(node.left_input())
-                    + Self::estimate_input_memory(node.right_input())
-            }
-            PlanNodeEnum::FullOuterJoin(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + Self::estimate_input_memory(node.left_input())
-                    + Self::estimate_input_memory(node.right_input())
-            }
-            PlanNodeEnum::RightJoin(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + Self::estimate_input_memory(node.left_input())
-                    + Self::estimate_input_memory(node.right_input())
-            }
-            PlanNodeEnum::SemiJoin(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + Self::estimate_input_memory(node.left_input())
-                    + Self::estimate_input_memory(node.right_input())
-            }
-
-            // MultipleInputNode: Node structure + multiple child nodes
-            PlanNodeEnum::Expand(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node
-                        .dependencies()
-                        .iter()
-                        .map(Self::estimate_input_memory)
-                        .sum::<usize>()
-            }
-            PlanNodeEnum::ExpandAll(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node
-                        .dependencies()
-                        .iter()
-                        .map(Self::estimate_input_memory)
-                        .sum::<usize>()
-            }
-            PlanNodeEnum::AppendVertices(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node
-                        .dependencies()
-                        .iter()
-                        .map(Self::estimate_input_memory)
-                        .sum::<usize>()
-            }
-            PlanNodeEnum::BiExpand(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + Self::estimate_input_memory(node.left_input())
-                    + Self::estimate_input_memory(node.right_input())
-            }
-            PlanNodeEnum::BiTraverse(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + Self::estimate_input_memory(node.left_input())
-                    + Self::estimate_input_memory(node.right_input())
-            }
-            PlanNodeEnum::Apply(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + Self::estimate_input_memory(node.left_input())
-                    + Self::estimate_input_memory(node.right_input())
-            }
-            PlanNodeEnum::Union(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node
-                        .dependencies()
-                        .iter()
-                        .map(Self::estimate_input_memory)
-                        .sum::<usize>()
-            }
-            PlanNodeEnum::Minus(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node
-                        .dependencies()
-                        .iter()
-                        .map(Self::estimate_input_memory)
-                        .sum::<usize>()
-            }
-            PlanNodeEnum::Intersect(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node
-                        .dependencies()
-                        .iter()
-                        .map(Self::estimate_input_memory)
-                        .sum::<usize>()
-            }
-
-            // ControlFlowNode
-            PlanNodeEnum::Argument(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::Loop(node) => {
-                let mut total = base_size + estimate_node_memory(node);
-                if let Some(body) = node.body() {
-                    total += Self::estimate_input_memory(body.as_ref());
-                }
-                total
-            }
-            PlanNodeEnum::PassThrough(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::Select(node) => {
-                let mut total = base_size + estimate_node_memory(node);
-                if let Some(if_branch) = node.if_branch() {
-                    total += Self::estimate_input_memory(if_branch.as_ref());
-                }
-                if let Some(else_branch) = node.else_branch() {
-                    total += Self::estimate_input_memory(else_branch.as_ref());
-                }
-                total
-            }
-            // Transaction Control Nodes
-            PlanNodeEnum::BeginTransaction(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::Commit(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::Rollback(node) => base_size + estimate_node_memory(node),
-            // Vector Search Nodes
-            PlanNodeEnum::VectorSearch(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::CreateVectorIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DropVectorIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::VectorLookup(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::VectorMatch(node) => base_size + estimate_node_memory(node),
-        }
-    }
-
-    /// Estimate memory with deduplication for shared subtrees
-    /// This method uses a HashSet to track visited node IDs, ensuring each node
-    /// is only counted once even if referenced multiple times via Arc.
-    pub fn estimate_memory_dedup(&self) -> usize {
-        let mut visited = HashSet::new();
-        self.estimate_memory_internal(&mut visited)
-    }
-
-    /// Internal method for recursive estimation with deduplication
-    fn estimate_memory_internal(&self, visited: &mut HashSet<i64>) -> usize {
-        // Check if we've already visited this node
-        if !visited.insert(self.id()) {
-            return 0; // Already counted, only Arc overhead would be counted by caller
-        }
-
-        let base_size = std::mem::size_of::<PlanNodeEnum>();
-
-        match self {
-            // ZeroInputNode: Only the node structure itself
-            PlanNodeEnum::Start(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::CreateSpace(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DropSpace(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DescSpace(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowSpaces(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowCreateSpace(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::CreateTag(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::AlterTag(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DescTag(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DropTag(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowTags(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowCreateTag(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::CreateEdge(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::AlterEdge(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DescEdge(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DropEdge(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowEdges(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowCreateEdge(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::CreateTagIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DropTagIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DescTagIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowTagIndexes(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::CreateEdgeIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DropEdgeIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DescEdgeIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowEdgeIndexes(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::RebuildTagIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::RebuildEdgeIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowIndexes(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowCreateIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::CreateUser(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::AlterUser(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DropUser(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ChangePassword(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::GrantRole(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::RevokeRole(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowUsers(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowRoles(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::SwitchSpace(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::AlterSpace(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ClearSpace(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowStats(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::InsertVertices(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::InsertEdges(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DeleteVertices(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DeleteEdges(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DeleteTags(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DeleteIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::PipeDeleteVertices(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::PipeDeleteEdges(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::Update(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::UpdateVertices(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::UpdateEdges(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::CreateFulltextIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DropFulltextIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::AlterFulltextIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShowFulltextIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DescribeFulltextIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::IndexScan(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ScanVertices(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ScanEdges(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::EdgeIndexScan(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::GetVertices(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::GetEdges(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::GetNeighbors(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::ShortestPath(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::AllPaths(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::BFSShortest(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::MultiShortestPath(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::FulltextSearch(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::FulltextLookup(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::MatchFulltext(node) => base_size + estimate_node_memory(node),
-
-            // SingleInputNode: Node structure + child node
-            PlanNodeEnum::Project(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::Filter(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::Sort(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::Limit(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::TopN(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::Sample(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::Dedup(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::DataCollect(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::Aggregate(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::Unwind(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::Assign(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::PatternApply(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::RollUpApply(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::Remove(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::Materialize(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::Traverse(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.input().estimate_memory_internal(visited)
-            }
-
-            // BinaryInputNode: Node structure + two child nodes
-            PlanNodeEnum::InnerJoin(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.left_input().estimate_memory_internal(visited)
-                    + node.right_input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::LeftJoin(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.left_input().estimate_memory_internal(visited)
-                    + node.right_input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::CrossJoin(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.left_input().estimate_memory_internal(visited)
-                    + node.right_input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::HashInnerJoin(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.left_input().estimate_memory_internal(visited)
-                    + node.right_input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::HashLeftJoin(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.left_input().estimate_memory_internal(visited)
-                    + node.right_input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::FullOuterJoin(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.left_input().estimate_memory_internal(visited)
-                    + node.right_input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::RightJoin(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.left_input().estimate_memory_internal(visited)
-                    + node.right_input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::SemiJoin(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.left_input().estimate_memory_internal(visited)
-                    + node.right_input().estimate_memory_internal(visited)
-            }
-
-            // MultipleInputNode: Node structure + multiple child nodes
-            PlanNodeEnum::Expand(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node
-                        .dependencies()
-                        .iter()
-                        .map(|dep| dep.estimate_memory_internal(visited))
-                        .sum::<usize>()
-            }
-            PlanNodeEnum::ExpandAll(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node
-                        .dependencies()
-                        .iter()
-                        .map(|dep| dep.estimate_memory_internal(visited))
-                        .sum::<usize>()
-            }
-            PlanNodeEnum::AppendVertices(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node
-                        .dependencies()
-                        .iter()
-                        .map(|dep| dep.estimate_memory_internal(visited))
-                        .sum::<usize>()
-            }
-            PlanNodeEnum::BiExpand(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.left_input().estimate_memory_internal(visited)
-                    + node.right_input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::BiTraverse(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.left_input().estimate_memory_internal(visited)
-                    + node.right_input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::Apply(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node.left_input().estimate_memory_internal(visited)
-                    + node.right_input().estimate_memory_internal(visited)
-            }
-            PlanNodeEnum::Union(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node
-                        .dependencies()
-                        .iter()
-                        .map(|dep| dep.estimate_memory_internal(visited))
-                        .sum::<usize>()
-            }
-            PlanNodeEnum::Minus(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node
-                        .dependencies()
-                        .iter()
-                        .map(|dep| dep.estimate_memory_internal(visited))
-                        .sum::<usize>()
-            }
-            PlanNodeEnum::Intersect(node) => {
-                base_size
-                    + estimate_node_memory(node)
-                    + node
-                        .dependencies()
-                        .iter()
-                        .map(|dep| dep.estimate_memory_internal(visited))
-                        .sum::<usize>()
-            }
-
-            // ControlFlowNode
-            PlanNodeEnum::Argument(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::Loop(node) => {
-                let mut total = base_size + estimate_node_memory(node);
-                if let Some(body) = node.body() {
-                    total += body.as_ref().estimate_memory_internal(visited);
-                }
-                total
-            }
-            PlanNodeEnum::PassThrough(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::Select(node) => {
-                let mut total = base_size + estimate_node_memory(node);
-                if let Some(if_branch) = node.if_branch() {
-                    total += if_branch.as_ref().estimate_memory_internal(visited);
-                }
-                if let Some(else_branch) = node.else_branch() {
-                    total += else_branch.as_ref().estimate_memory_internal(visited);
-                }
-                total
-            }
-            // Transaction Control Nodes
-            PlanNodeEnum::BeginTransaction(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::Commit(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::Rollback(node) => base_size + estimate_node_memory(node),
-            // Vector Search Nodes
-            PlanNodeEnum::VectorSearch(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::CreateVectorIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::DropVectorIndex(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::VectorLookup(node) => base_size + estimate_node_memory(node),
-            PlanNodeEnum::VectorMatch(node) => base_size + estimate_node_memory(node),
-        }
-    }
-
-    /// Estimate memory for an input reference (Arc<PlanNodeEnum>)
-    fn estimate_input_memory(input: &PlanNodeEnum) -> usize {
-        let arc_overhead = std::mem::size_of::<std::sync::Arc<PlanNodeEnum>>();
-        let node_memory = input.estimate_memory();
-        arc_overhead + node_memory
-    }
-}
-
-/// Estimate memory for a node that implements MemoryEstimatable
-fn estimate_node_memory<T: MemoryEstimatable>(node: &T) -> usize {
-    node.estimate_memory()
 }

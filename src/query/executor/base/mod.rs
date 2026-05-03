@@ -17,6 +17,7 @@ pub mod execution_result;
 pub mod executor_base;
 pub mod executor_enum;
 pub mod executor_stats;
+pub mod manage_executor_enums;
 pub mod result_processor;
 
 pub use config::{
@@ -31,6 +32,10 @@ pub use executor_base::{
 };
 pub use executor_enum::ExecutorEnum;
 pub use executor_stats::ExecutorStats;
+pub use manage_executor_enums::{
+    EdgeManageExecutor, FulltextManageExecutor, IndexManageExecutor, SpaceManageExecutor,
+    TagManageExecutor, UserManageExecutor, VectorManageExecutor,
+};
 pub use result_processor::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 
 pub use crate::core::types::EdgeDirection;

@@ -9,7 +9,7 @@ define_plan_node! {
     pub struct CreateTagNode {
         info: TagManageInfo,
     }
-    enum: CreateTag
+    manage_enum: TagManageNode::Create as TagManage
     input: ZeroInputNode
 }
 
@@ -40,7 +40,7 @@ define_plan_node! {
     pub struct AlterTagNode {
         info: TagAlterInfo,
     }
-    enum: AlterTag
+    manage_enum: TagManageNode::Alter as TagManage
     input: ZeroInputNode
 }
 
@@ -72,7 +72,7 @@ define_plan_node! {
         space_name: String,
         tag_name: String,
     }
-    enum: DescTag
+    manage_enum: TagManageNode::Desc as TagManage
     input: ZeroInputNode
 }
 
@@ -102,7 +102,7 @@ define_plan_node! {
         tag_name: String,
         if_exists: bool,
     }
-    enum: DropTag
+    manage_enum: TagManageNode::Drop as TagManage
     input: ZeroInputNode
 }
 
@@ -140,7 +140,7 @@ define_plan_node! {
     pub struct ShowTagsNode {
         space_name: String,
     }
-    enum: ShowTags
+    manage_enum: TagManageNode::Show as TagManage
     input: ZeroInputNode
 }
 
@@ -224,7 +224,7 @@ define_plan_node! {
         space_name: String,
         tag_name: String,
     }
-    enum: ShowCreateTag
+    manage_enum: TagManageNode::ShowCreate as TagManage
     input: ZeroInputNode
 }
 

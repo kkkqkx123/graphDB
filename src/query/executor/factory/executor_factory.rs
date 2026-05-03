@@ -324,156 +324,193 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 ControlFlowBuilder::build_data_collect(node, storage, context)
             }
 
-            // Manage Executor – Space Management
-            PlanNodeEnum::CreateSpace(node) => {
-                AdminBuilder::build_create_space(node, storage, context)
-            }
-            PlanNodeEnum::DropSpace(node) => AdminBuilder::build_drop_space(node, storage, context),
-            PlanNodeEnum::DescSpace(node) => AdminBuilder::build_desc_space(node, storage, context),
-            PlanNodeEnum::ShowSpaces(node) => {
-                AdminBuilder::build_show_spaces(node, storage, context)
-            }
-            PlanNodeEnum::ShowCreateSpace(node) => {
-                AdminBuilder::build_show_create_space(node, storage, context)
-            }
+            // Manage Executor – Space Management (parameterized)
+            PlanNodeEnum::SpaceManage(space_node) => match space_node {
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::SpaceManageNode::Create(node) => {
+                    AdminBuilder::build_create_space(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::SpaceManageNode::Drop(node) => {
+                    AdminBuilder::build_drop_space(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::SpaceManageNode::Desc(node) => {
+                    AdminBuilder::build_desc_space(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::SpaceManageNode::Show(node) => {
+                    AdminBuilder::build_show_spaces(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::SpaceManageNode::ShowCreate(node) => {
+                    AdminBuilder::build_show_create_space(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::SpaceManageNode::Switch(node) => {
+                    AdminBuilder::build_switch_space(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::SpaceManageNode::Alter(node) => {
+                    AdminBuilder::build_alter_space(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::SpaceManageNode::Clear(node) => {
+                    AdminBuilder::build_clear_space(node, storage, context)
+                }
+            },
 
-            // Manage Executor – Tag Management
-            PlanNodeEnum::CreateTag(node) => AdminBuilder::build_create_tag(node, storage, context),
-            PlanNodeEnum::AlterTag(node) => AdminBuilder::build_alter_tag(node, storage, context),
-            PlanNodeEnum::DescTag(node) => AdminBuilder::build_desc_tag(node, storage, context),
-            PlanNodeEnum::DropTag(node) => AdminBuilder::build_drop_tag(node, storage, context),
-            PlanNodeEnum::ShowTags(node) => AdminBuilder::build_show_tags(node, storage, context),
-            PlanNodeEnum::ShowCreateTag(node) => {
-                AdminBuilder::build_show_create_tag(node, storage, context)
-            }
+            // Manage Executor – Tag Management (parameterized)
+            PlanNodeEnum::TagManage(tag_node) => match tag_node {
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::TagManageNode::Create(node) => {
+                    AdminBuilder::build_create_tag(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::TagManageNode::Alter(node) => {
+                    AdminBuilder::build_alter_tag(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::TagManageNode::Desc(node) => {
+                    AdminBuilder::build_desc_tag(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::TagManageNode::Drop(node) => {
+                    AdminBuilder::build_drop_tag(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::TagManageNode::Show(node) => {
+                    AdminBuilder::build_show_tags(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::TagManageNode::ShowCreate(node) => {
+                    AdminBuilder::build_show_create_tag(node, storage, context)
+                }
+            },
 
-            // Manage Executor – Edge Management
-            PlanNodeEnum::CreateEdge(node) => {
-                AdminBuilder::build_create_edge(node, storage, context)
-            }
-            PlanNodeEnum::AlterEdge(node) => AdminBuilder::build_alter_edge(node, storage, context),
-            PlanNodeEnum::DescEdge(node) => AdminBuilder::build_desc_edge(node, storage, context),
-            PlanNodeEnum::DropEdge(node) => AdminBuilder::build_drop_edge(node, storage, context),
-            PlanNodeEnum::ShowEdges(node) => AdminBuilder::build_show_edges(node, storage, context),
-            PlanNodeEnum::ShowCreateEdge(node) => {
-                AdminBuilder::build_show_create_edge(node, storage, context)
-            }
+            // Manage Executor – Edge Management (parameterized)
+            PlanNodeEnum::EdgeManage(edge_node) => match edge_node {
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::EdgeManageNode::Create(node) => {
+                    AdminBuilder::build_create_edge(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::EdgeManageNode::Alter(node) => {
+                    AdminBuilder::build_alter_edge(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::EdgeManageNode::Desc(node) => {
+                    AdminBuilder::build_desc_edge(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::EdgeManageNode::Drop(node) => {
+                    AdminBuilder::build_drop_edge(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::EdgeManageNode::Show(node) => {
+                    AdminBuilder::build_show_edges(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::EdgeManageNode::ShowCreate(node) => {
+                    AdminBuilder::build_show_create_edge(node, storage, context)
+                }
+            },
 
-            // Manage Executor – Tag Index Management
-            PlanNodeEnum::CreateTagIndex(node) => {
-                AdminBuilder::build_create_tag_index(node, storage, context)
-            }
-            PlanNodeEnum::DropTagIndex(node) => {
-                AdminBuilder::build_drop_tag_index(node, storage, context)
-            }
-            PlanNodeEnum::DescTagIndex(node) => {
-                AdminBuilder::build_desc_tag_index(node, storage, context)
-            }
-            PlanNodeEnum::ShowTagIndexes(node) => {
-                AdminBuilder::build_show_tag_indexes(node, storage, context)
-            }
-            PlanNodeEnum::RebuildTagIndex(node) => {
-                AdminBuilder::build_rebuild_tag_index(node, storage, context)
-            }
+            // Manage Executor – Index Management (parameterized)
+            PlanNodeEnum::IndexManage(index_node) => match index_node {
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::IndexManageNode::CreateTagIndex(node) => {
+                    AdminBuilder::build_create_tag_index(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::IndexManageNode::DropTagIndex(node) => {
+                    AdminBuilder::build_drop_tag_index(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::IndexManageNode::DescTagIndex(node) => {
+                    AdminBuilder::build_desc_tag_index(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::IndexManageNode::ShowTagIndexes(node) => {
+                    AdminBuilder::build_show_tag_indexes(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::IndexManageNode::RebuildTagIndex(node) => {
+                    AdminBuilder::build_rebuild_tag_index(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::IndexManageNode::CreateEdgeIndex(node) => {
+                    AdminBuilder::build_create_edge_index(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::IndexManageNode::DropEdgeIndex(node) => {
+                    AdminBuilder::build_drop_edge_index(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::IndexManageNode::DescEdgeIndex(node) => {
+                    AdminBuilder::build_desc_edge_index(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::IndexManageNode::ShowEdgeIndexes(node) => {
+                    AdminBuilder::build_show_edge_indexes(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::IndexManageNode::RebuildEdgeIndex(node) => {
+                    AdminBuilder::build_rebuild_edge_index(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::IndexManageNode::ShowIndexes(node) => {
+                    AdminBuilder::build_show_indexes(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::IndexManageNode::ShowCreateIndex(node) => {
+                    AdminBuilder::build_show_create_index(node, storage, context)
+                }
+            },
 
-            // Manage Executor – Edge Index Management
-            PlanNodeEnum::CreateEdgeIndex(node) => {
-                AdminBuilder::build_create_edge_index(node, storage, context)
-            }
-            PlanNodeEnum::DropEdgeIndex(node) => {
-                AdminBuilder::build_drop_edge_index(node, storage, context)
-            }
-            PlanNodeEnum::DescEdgeIndex(node) => {
-                AdminBuilder::build_desc_edge_index(node, storage, context)
-            }
-            PlanNodeEnum::ShowEdgeIndexes(node) => {
-                AdminBuilder::build_show_edge_indexes(node, storage, context)
-            }
-            PlanNodeEnum::RebuildEdgeIndex(node) => {
-                AdminBuilder::build_rebuild_edge_index(node, storage, context)
-            }
-            PlanNodeEnum::ShowIndexes(node) => {
-                AdminBuilder::build_show_indexes(node, storage, context)
-            }
-            PlanNodeEnum::ShowCreateIndex(node) => {
-                AdminBuilder::build_show_create_index(node, storage, context)
-            }
+            // Manage Executor – User Management (parameterized)
+            PlanNodeEnum::UserManage(user_node) => match user_node {
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::UserManageNode::Create(node) => {
+                    AdminBuilder::build_create_user(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::UserManageNode::Drop(node) => {
+                    AdminBuilder::build_drop_user(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::UserManageNode::Alter(node) => {
+                    AdminBuilder::build_alter_user(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::UserManageNode::ChangePassword(node) => {
+                    AdminBuilder::build_change_password(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::UserManageNode::GrantRole(node) => {
+                    AdminBuilder::build_grant_role(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::UserManageNode::RevokeRole(node) => {
+                    AdminBuilder::build_revoke_role(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::UserManageNode::ShowUsers(node) => {
+                    AdminBuilder::build_show_users(node, storage, context)
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::UserManageNode::ShowRoles(node) => {
+                    AdminBuilder::build_show_roles(node, storage, context)
+                }
+            },
 
-            // Manage Executor – User Management
-            PlanNodeEnum::CreateUser(node) => {
-                AdminBuilder::build_create_user(node, storage, context)
-            }
-            PlanNodeEnum::DropUser(node) => AdminBuilder::build_drop_user(node, storage, context),
-            PlanNodeEnum::AlterUser(node) => AdminBuilder::build_alter_user(node, storage, context),
-            PlanNodeEnum::ChangePassword(node) => {
-                AdminBuilder::build_change_password(node, storage, context)
-            }
-            PlanNodeEnum::GrantRole(node) => AdminBuilder::build_grant_role(node, storage, context),
-            PlanNodeEnum::RevokeRole(node) => {
-                AdminBuilder::build_revoke_role(node, storage, context)
-            }
-            PlanNodeEnum::ShowUsers(node) => {
-                AdminBuilder::build_show_users(node, storage, context)
-            }
-            PlanNodeEnum::ShowRoles(node) => {
-                AdminBuilder::build_show_roles(node, storage, context)
-            }
+            // Manage Executor – Fulltext Index Management (parameterized)
+            PlanNodeEnum::FulltextManage(fulltext_node) => match fulltext_node {
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::FulltextManageNode::Create(node) => {
+                    FulltextSearchBuilder::build_create_fulltext_index(
+                        node, storage, context, self.sync_manager.as_ref(),
+                    )
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::FulltextManageNode::Drop(node) => {
+                    FulltextSearchBuilder::build_drop_fulltext_index(
+                        node, storage, context, self.sync_manager.as_ref(),
+                    )
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::FulltextManageNode::Alter(node) => {
+                    FulltextSearchBuilder::build_alter_fulltext_index(
+                        node, storage, context, self.sync_manager.as_ref(),
+                    )
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::FulltextManageNode::Show(node) => {
+                    FulltextSearchBuilder::build_show_fulltext_index(
+                        node, storage, context, self.sync_manager.as_ref(),
+                    )
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::FulltextManageNode::Describe(node) => {
+                    FulltextSearchBuilder::build_describe_fulltext_index(
+                        node, storage, context, self.sync_manager.as_ref(),
+                    )
+                }
+            },
 
-            // Manage Executor – Space Management (Supplementary)
-            PlanNodeEnum::SwitchSpace(node) => {
-                AdminBuilder::build_switch_space(node, storage, context)
-            }
-            PlanNodeEnum::AlterSpace(node) => {
-                AdminBuilder::build_alter_space(node, storage, context)
-            }
-            PlanNodeEnum::ClearSpace(node) => {
-                AdminBuilder::build_clear_space(node, storage, context)
-            }
+            // Manage Executor – Vector Index Management (parameterized)
+            PlanNodeEnum::VectorManage(vector_node) => match vector_node {
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::VectorManageNode::Create(node) => {
+                    VectorSearchBuilder::build_create_vector_index(
+                        node, storage, context, self.sync_manager.as_ref(),
+                    )
+                }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::VectorManageNode::Drop(node) => {
+                    VectorSearchBuilder::build_drop_vector_index(
+                        node, storage, context, self.sync_manager.as_ref(),
+                    )
+                }
+            },
 
             // Management Executor – Query Management
             PlanNodeEnum::ShowStats(node) => AdminBuilder::build_show_stats(node, storage, context),
 
-            // Full-text Search Executors
-            PlanNodeEnum::CreateFulltextIndex(node) => {
-                FulltextSearchBuilder::build_create_fulltext_index(
-                    node,
-                    storage,
-                    context,
-                    self.sync_manager.as_ref(),
-                )
-            }
-            PlanNodeEnum::DropFulltextIndex(node) => {
-                FulltextSearchBuilder::build_drop_fulltext_index(
-                    node,
-                    storage,
-                    context,
-                    self.sync_manager.as_ref(),
-                )
-            }
-            PlanNodeEnum::AlterFulltextIndex(node) => {
-                FulltextSearchBuilder::build_alter_fulltext_index(
-                    node,
-                    storage,
-                    context,
-                    self.sync_manager.as_ref(),
-                )
-            }
-            PlanNodeEnum::ShowFulltextIndex(node) => {
-                FulltextSearchBuilder::build_show_fulltext_index(
-                    node,
-                    storage,
-                    context,
-                    self.sync_manager.as_ref(),
-                )
-            }
-            PlanNodeEnum::DescribeFulltextIndex(node) => {
-                FulltextSearchBuilder::build_describe_fulltext_index(
-                    node,
-                    storage,
-                    context,
-                    self.sync_manager.as_ref(),
-                )
-            }
+            // Full-text Search Executors (data access)
             PlanNodeEnum::FulltextSearch(node) => FulltextSearchBuilder::build_fulltext_search(
                 node,
                 storage,
@@ -493,22 +530,8 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 self.sync_manager.as_ref(),
             ),
 
-            // Vector Search Executors
+            // Vector Search Executors (data access)
             PlanNodeEnum::VectorSearch(node) => VectorSearchBuilder::build_vector_search(
-                node,
-                storage,
-                context,
-                self.sync_manager.as_ref(),
-            ),
-            PlanNodeEnum::CreateVectorIndex(node) => {
-                VectorSearchBuilder::build_create_vector_index(
-                    node,
-                    storage,
-                    context,
-                    self.sync_manager.as_ref(),
-                )
-            }
-            PlanNodeEnum::DropVectorIndex(node) => VectorSearchBuilder::build_drop_vector_index(
                 node,
                 storage,
                 context,

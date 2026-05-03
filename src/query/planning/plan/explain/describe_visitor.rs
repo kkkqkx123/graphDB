@@ -32,22 +32,9 @@ use crate::query::planning::plan::core::nodes::join::join_node::{
     CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode,
     LeftJoinNode,
 };
-use crate::query::planning::plan::core::nodes::management::edge_nodes::{
-    AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
-};
-use crate::query::planning::plan::core::nodes::management::index_nodes::{
-    CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,
-    DropEdgeIndexNode, DropTagIndexNode, RebuildEdgeIndexNode, RebuildTagIndexNode,
-    ShowEdgeIndexesNode, ShowTagIndexesNode,
-};
-use crate::query::planning::plan::core::nodes::management::space_nodes::{
-    CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode,
-};
-use crate::query::planning::plan::core::nodes::management::tag_nodes::{
-    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode,
-};
-use crate::query::planning::plan::core::nodes::management::user_nodes::{
-    AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode,
+use crate::query::planning::plan::core::nodes::management::manage_node_enums::{
+    EdgeManageNode, FulltextManageNode, IndexManageNode, SpaceManageNode, TagManageNode,
+    UserManageNode, VectorManageNode,
 };
 use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
 use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
@@ -258,35 +245,36 @@ impl PlanNodeVisitor for DescribeVisitor {
         visit_start => "Start", StartNode,
         visit_argument => "Argument", ArgumentNode,
         visit_pass_through => "PassThrough", PassThroughNode,
-        visit_create_space => "CreateSpace", CreateSpaceNode,
-        visit_drop_space => "DropSpace", DropSpaceNode,
-        visit_desc_space => "DescSpace", DescSpaceNode,
-        visit_show_spaces => "ShowSpaces", ShowSpacesNode,
-        visit_create_tag => "CreateTag", CreateTagNode,
-        visit_alter_tag => "AlterTag", AlterTagNode,
-        visit_desc_tag => "DescTag", DescTagNode,
-        visit_drop_tag => "DropTag", DropTagNode,
-        visit_show_tags => "ShowTags", ShowTagsNode,
-        visit_create_edge => "CreateEdge", CreateEdgeNode,
-        visit_alter_edge => "AlterEdge", AlterEdgeNode,
-        visit_desc_edge => "DescEdge", DescEdgeNode,
-        visit_drop_edge => "DropEdge", DropEdgeNode,
-        visit_show_edges => "ShowEdges", ShowEdgesNode,
-        visit_create_tag_index => "CreateTagIndex", CreateTagIndexNode,
-        visit_drop_tag_index => "DropTagIndex", DropTagIndexNode,
-        visit_desc_tag_index => "DescTagIndex", DescTagIndexNode,
-        visit_show_tag_indexes => "ShowTagIndexes", ShowTagIndexesNode,
-        visit_create_edge_index => "CreateEdgeIndex", CreateEdgeIndexNode,
-        visit_drop_edge_index => "DropEdgeIndex", DropEdgeIndexNode,
-        visit_desc_edge_index => "DescEdgeIndex", DescEdgeIndexNode,
-        visit_show_edge_indexes => "ShowEdgeIndexes", ShowEdgeIndexesNode,
-        visit_rebuild_tag_index => "RebuildTagIndex", RebuildTagIndexNode,
-        visit_rebuild_edge_index => "RebuildEdgeIndex", RebuildEdgeIndexNode,
-        visit_create_user => "CreateUser", CreateUserNode,
-        visit_alter_user => "AlterUser", AlterUserNode,
-        visit_drop_user => "DropUser", DropUserNode,
-        visit_change_password => "ChangePassword", ChangePasswordNode,
     );
+
+    // Management nodes (parameterized sub-enums)
+    fn visit_space_manage(&mut self, node: &SpaceManageNode) {
+        self.create_description(node.node_name(), node);
+    }
+
+    fn visit_tag_manage(&mut self, node: &TagManageNode) {
+        self.create_description(node.node_name(), node);
+    }
+
+    fn visit_edge_manage(&mut self, node: &EdgeManageNode) {
+        self.create_description(node.node_name(), node);
+    }
+
+    fn visit_index_manage(&mut self, node: &IndexManageNode) {
+        self.create_description(node.node_name(), node);
+    }
+
+    fn visit_user_manage(&mut self, node: &UserManageNode) {
+        self.create_description(node.node_name(), node);
+    }
+
+    fn visit_fulltext_manage(&mut self, node: &FulltextManageNode) {
+        self.create_description(node.node_name(), node);
+    }
+
+    fn visit_vector_manage(&mut self, node: &VectorManageNode) {
+        self.create_description(node.node_name(), node);
+    }
 
     // ==========================================
     // Single-input nodes (simple, no extra descriptions)

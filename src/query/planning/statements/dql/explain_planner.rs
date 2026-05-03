@@ -4,7 +4,7 @@
 //! These statements plan the inner query and mark the plan for
 //! explain/profile execution mode at the executor layer.
 
-use crate::query::parser::ast::stmt::{ExplainFormat, ExplainStmt, ProfileStmt, Stmt};
+use crate::query::parser::ast::stmt::{ExplainFormat, Stmt};
 use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::{Planner, PlannerEnum, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;

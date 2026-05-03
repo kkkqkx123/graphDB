@@ -9,10 +9,13 @@ use crate::query::planning::plan::core::nodes::management::space_nodes::{
     CreateSpaceNode, SpaceManageInfo,
 };
 use crate::query::planning::plan::core::nodes::management::tag_nodes::TagAlterInfo;
+use crate::query::planning::plan::core::nodes::management::manage_node_enums::{
+    EdgeManageNode, IndexManageNode, SpaceManageNode, TagManageNode,
+};
 use crate::query::planning::plan::core::nodes::{
     AlterEdgeNode, AlterTagNode, CreateEdgeNode, CreateTagNode, EdgeManageInfo, ShowCreateEdgeNode,
     ShowCreateIndexNode, ShowCreateSpaceNode, ShowCreateTagNode, ShowEdgesNode, ShowIndexesNode,
-    ShowRolesNode, ShowTagsNode, TagManageInfo,
+    ShowTagsNode, TagManageInfo,
 };
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id, AlterSpaceNode, ClearSpaceNode, PlanNodeEnum, ShowSpacesNode,
@@ -48,39 +51,39 @@ impl MaintainPlanner {
             }
             ShowTarget::Tags => {
                 let show_tags_node = ShowTagsNode::new(next_node_id(), self.current_space(validated));
-                PlanNodeEnum::ShowTags(show_tags_node)
+                PlanNodeEnum::TagManage(TagManageNode::Show(show_tags_node))
             }
             ShowTarget::Edges => {
                 let show_edges_node = ShowEdgesNode::new(next_node_id(), self.current_space(validated));
-                PlanNodeEnum::ShowEdges(show_edges_node)
+                PlanNodeEnum::EdgeManage(EdgeManageNode::Show(show_edges_node))
             }
             ShowTarget::Spaces => {
                 let show_spaces_node = ShowSpacesNode::new(next_node_id());
-                PlanNodeEnum::ShowSpaces(show_spaces_node)
+                PlanNodeEnum::SpaceManage(SpaceManageNode::Show(show_spaces_node))
             }
             ShowTarget::Users => {
                 let show_users_node = ShowUsersNode::new(next_node_id());
-                PlanNodeEnum::ShowUsers(show_users_node)
+                PlanNodeEnum::UserManage(crate::query::planning::plan::core::nodes::management::manage_node_enums::UserManageNode::ShowUsers(show_users_node))
             }
             ShowTarget::Roles => {
-                let show_roles_node = ShowRolesNode::new(next_node_id(), self.current_space(validated));
-                PlanNodeEnum::ShowRoles(show_roles_node)
+                let show_roles_node = crate::query::planning::plan::core::nodes::ShowRolesNode::new(next_node_id(), self.current_space(validated));
+                PlanNodeEnum::UserManage(crate::query::planning::plan::core::nodes::management::manage_node_enums::UserManageNode::ShowRoles(show_roles_node))
             }
             ShowTarget::Indexes => {
                 let show_indexes_node = ShowIndexesNode::new(next_node_id(), self.current_space(validated));
-                PlanNodeEnum::ShowIndexes(show_indexes_node)
+                PlanNodeEnum::IndexManage(IndexManageNode::ShowIndexes(show_indexes_node))
             }
             ShowTarget::Tag(_) => {
                 let show_tags_node = ShowTagsNode::new(next_node_id(), self.current_space(validated));
-                PlanNodeEnum::ShowTags(show_tags_node)
+                PlanNodeEnum::TagManage(TagManageNode::Show(show_tags_node))
             }
             ShowTarget::Edge(_) => {
                 let show_edges_node = ShowEdgesNode::new(next_node_id(), self.current_space(validated));
-                PlanNodeEnum::ShowEdges(show_edges_node)
+                PlanNodeEnum::EdgeManage(EdgeManageNode::Show(show_edges_node))
             }
             ShowTarget::Index(_) => {
                 let show_indexes_node = ShowIndexesNode::new(next_node_id(), self.current_space(validated));
-                PlanNodeEnum::ShowIndexes(show_indexes_node)
+                PlanNodeEnum::IndexManage(IndexManageNode::ShowIndexes(show_indexes_node))
             }
         }
     }
@@ -94,19 +97,19 @@ impl MaintainPlanner {
         match &show_create_stmt.target {
             crate::query::parser::ast::stmt::ShowCreateTarget::Tag(tag_name) => {
                 let node = ShowCreateTagNode::new(next_node_id(), current_space, tag_name.clone());
-                PlanNodeEnum::ShowCreateTag(node)
+                PlanNodeEnum::TagManage(TagManageNode::ShowCreate(node))
             }
             crate::query::parser::ast::stmt::ShowCreateTarget::Space(space_name) => {
                 let node = ShowCreateSpaceNode::new(next_node_id(), space_name.clone());
-                PlanNodeEnum::ShowCreateSpace(node)
+                PlanNodeEnum::SpaceManage(SpaceManageNode::ShowCreate(node))
             }
             crate::query::parser::ast::stmt::ShowCreateTarget::Edge(edge_name) => {
                 let node = ShowCreateEdgeNode::new(next_node_id(), current_space, edge_name.clone());
-                PlanNodeEnum::ShowCreateEdge(node)
+                PlanNodeEnum::EdgeManage(EdgeManageNode::ShowCreate(node))
             }
             crate::query::parser::ast::stmt::ShowCreateTarget::Index(index_name) => {
                 let node = ShowCreateIndexNode::new(next_node_id(), current_space, index_name.clone());
-                PlanNodeEnum::ShowCreateIndex(node)
+                PlanNodeEnum::IndexManage(IndexManageNode::ShowCreateIndex(node))
             }
         }
     }
@@ -138,7 +141,7 @@ impl MaintainPlanner {
                                 next_node_id(),
                                 index_info,
                             );
-                        PlanNodeEnum::CreateTagIndex(node)
+                        PlanNodeEnum::IndexManage(IndexManageNode::CreateTagIndex(node))
                     }
                     IndexType::Edge => {
                         let node =
@@ -146,7 +149,7 @@ impl MaintainPlanner {
                                 next_node_id(),
                                 index_info,
                             );
-                        PlanNodeEnum::CreateEdgeIndex(node)
+                        PlanNodeEnum::IndexManage(IndexManageNode::CreateEdgeIndex(node))
                     }
                 };
                 Ok(Some(plan_node))
@@ -154,7 +157,7 @@ impl MaintainPlanner {
             CreateTarget::Space { name, vid_type, .. } => {
                 let space_info = SpaceManageInfo::new(name.clone()).with_vid_type(vid_type.clone());
                 let node = CreateSpaceNode::new(next_node_id(), space_info);
-                Ok(Some(PlanNodeEnum::CreateSpace(node)))
+                Ok(Some(PlanNodeEnum::SpaceManage(SpaceManageNode::Create(node))))
             }
             CreateTarget::Tag {
                 name, properties, ..
@@ -164,7 +167,7 @@ impl MaintainPlanner {
                     .with_properties(properties.clone())
                     .with_if_not_exists(create_stmt.if_not_exists);
                 let node = CreateTagNode::new(next_node_id(), tag_info);
-                Ok(Some(PlanNodeEnum::CreateTag(node)))
+                Ok(Some(PlanNodeEnum::TagManage(TagManageNode::Create(node))))
             }
             CreateTarget::EdgeType {
                 name, properties, ..
@@ -174,7 +177,7 @@ impl MaintainPlanner {
                     .with_properties(properties.clone())
                     .with_if_not_exists(create_stmt.if_not_exists);
                 let node = CreateEdgeNode::new(next_node_id(), edge_info);
-                Ok(Some(PlanNodeEnum::CreateEdge(node)))
+                Ok(Some(PlanNodeEnum::EdgeManage(EdgeManageNode::Create(node))))
             }
             CreateTarget::Node { .. } | CreateTarget::Edge { .. } | CreateTarget::Path { .. } => {
                 Ok(None)
@@ -199,7 +202,7 @@ impl MaintainPlanner {
                     })
                     .unwrap_or_default();
                 let node = AlterSpaceNode::new(next_node_id(), space_name.clone(), options);
-                PlanNodeEnum::AlterSpace(node)
+                PlanNodeEnum::SpaceManage(SpaceManageNode::Alter(node))
             }
             AlterTarget::Tag {
                 tag_name,
@@ -219,7 +222,7 @@ impl MaintainPlanner {
                 }
 
                 let node = AlterTagNode::new(next_node_id(), alter_info);
-                PlanNodeEnum::AlterTag(node)
+                PlanNodeEnum::TagManage(TagManageNode::Alter(node))
             }
             AlterTarget::Edge {
                 edge_name,
@@ -239,7 +242,7 @@ impl MaintainPlanner {
                 }
 
                 let node = AlterEdgeNode::new(next_node_id(), alter_info);
-                PlanNodeEnum::AlterEdge(node)
+                PlanNodeEnum::EdgeManage(EdgeManageNode::Alter(node))
             }
         }
     }
@@ -262,7 +265,7 @@ impl MaintainPlanner {
                     effective_space,
                     tag_name.clone(),
                 );
-                PlanNodeEnum::DescTag(node)
+                PlanNodeEnum::TagManage(TagManageNode::Desc(node))
             }
             crate::query::parser::ast::stmt::DescTarget::Edge {
                 space_name,
@@ -278,14 +281,14 @@ impl MaintainPlanner {
                     effective_space,
                     edge_name.clone(),
                 );
-                PlanNodeEnum::DescEdge(node)
+                PlanNodeEnum::EdgeManage(EdgeManageNode::Desc(node))
             }
             crate::query::parser::ast::stmt::DescTarget::Space(space_name) => {
                 let node = crate::query::planning::plan::core::nodes::DescSpaceNode::new(
                     next_node_id(),
                     space_name.clone(),
                 );
-                PlanNodeEnum::DescSpace(node)
+                PlanNodeEnum::SpaceManage(SpaceManageNode::Desc(node))
             }
         }
     }
@@ -302,7 +305,7 @@ impl MaintainPlanner {
                     tag_names[0].clone(),
                 )
                 .with_if_exists(drop_stmt.if_exists);
-                PlanNodeEnum::DropTag(node)
+                PlanNodeEnum::TagManage(TagManageNode::Drop(node))
             }
             DropTarget::Edges(edge_names) if !edge_names.is_empty() => {
                 let node = crate::query::planning::plan::core::nodes::DropEdgeNode::new(
@@ -311,14 +314,14 @@ impl MaintainPlanner {
                     edge_names[0].clone(),
                 )
                 .with_if_exists(drop_stmt.if_exists);
-                PlanNodeEnum::DropEdge(node)
+                PlanNodeEnum::EdgeManage(EdgeManageNode::Drop(node))
             }
             DropTarget::Space(space_name) => {
                 let node = crate::query::planning::plan::core::nodes::DropSpaceNode::new(
                     next_node_id(),
                     space_name.clone(),
                 );
-                PlanNodeEnum::DropSpace(node)
+                PlanNodeEnum::SpaceManage(SpaceManageNode::Drop(node))
             }
             DropTarget::TagIndex { space_name, index_name } => {
                 let node = crate::query::planning::plan::core::nodes::DropTagIndexNode::new(
@@ -326,7 +329,7 @@ impl MaintainPlanner {
                     space_name.clone(),
                     index_name.clone(),
                 );
-                PlanNodeEnum::DropTagIndex(node)
+                PlanNodeEnum::IndexManage(IndexManageNode::DropTagIndex(node))
             }
             DropTarget::EdgeIndex { space_name, index_name } => {
                 let node = crate::query::planning::plan::core::nodes::DropEdgeIndexNode::new(
@@ -334,7 +337,7 @@ impl MaintainPlanner {
                     space_name.clone(),
                     index_name.clone(),
                 );
-                PlanNodeEnum::DropEdgeIndex(node)
+                PlanNodeEnum::IndexManage(IndexManageNode::DropEdgeIndex(node))
             }
             DropTarget::Tags(_) => {
                 let node = crate::query::planning::plan::core::nodes::DropTagNode::new(
@@ -343,7 +346,7 @@ impl MaintainPlanner {
                     String::new(),
                 )
                 .with_if_exists(drop_stmt.if_exists);
-                PlanNodeEnum::DropTag(node)
+                PlanNodeEnum::TagManage(TagManageNode::Drop(node))
             }
             DropTarget::Edges(_) => {
                 let node = crate::query::planning::plan::core::nodes::DropEdgeNode::new(
@@ -352,7 +355,7 @@ impl MaintainPlanner {
                     String::new(),
                 )
                 .with_if_exists(drop_stmt.if_exists);
-                PlanNodeEnum::DropEdge(node)
+                PlanNodeEnum::EdgeManage(EdgeManageNode::Drop(node))
             }
         }
     }
@@ -386,7 +389,7 @@ impl Planner for MaintainPlanner {
 
             Stmt::ClearSpace(clear_stmt) => {
                 let node = ClearSpaceNode::new(next_node_id(), clear_stmt.space_name.clone());
-                PlanNodeEnum::ClearSpace(node)
+                PlanNodeEnum::SpaceManage(SpaceManageNode::Clear(node))
             }
 
             Stmt::Desc(desc_stmt) => self.plan_desc(desc_stmt, validated),

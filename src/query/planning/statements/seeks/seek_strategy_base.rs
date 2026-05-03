@@ -17,7 +17,6 @@ use crate::core::types::expr::visitor_checkers::PropertyContainsChecker;
 use crate::core::types::Expression;
 use crate::core::Value;
 use crate::query::optimizer::cost::{CostModelConfig, SelectivityEstimator};
-use crate::query::optimizer::stats::StatisticsManager;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SeekStrategyType {

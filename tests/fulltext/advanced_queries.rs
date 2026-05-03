@@ -10,8 +10,7 @@
 //! Test cases: TC-FT-ADV-001 ~ TC-FT-ADV-010
 
 use super::common::{
-    assert_search_result_contains, assert_search_result_count, assert_search_result_not_contains,
-    FulltextTestContext,
+    assert_search_result_contains, FulltextTestContext,
 };
 use graphdb::search::EngineType;
 

@@ -12,8 +12,7 @@ use crate::query::executor::admin::{
     AlterFulltextIndexExecutor, CreateFulltextIndexConfig, CreateFulltextIndexExecutor,
     DescribeFulltextIndexExecutor, DropFulltextIndexExecutor, ShowFulltextIndexExecutor,
 };
-use crate::query::executor::base::ExecutionContext;
-use crate::query::executor::base::ExecutorEnum;
+use crate::query::executor::base::{ExecutionContext, ExecutorEnum, FulltextManageExecutor};
 use crate::query::executor::data_access::{
     FulltextScanConfig, FulltextScanExecutor, FulltextSearchExecutor, MatchFulltextExecutor,
 };
@@ -70,7 +69,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             context.expression_context().clone(),
             fulltext_manager,
         );
-        Ok(ExecutorEnum::CreateFulltextIndex(executor))
+        Ok(ExecutorEnum::FulltextManage(FulltextManageExecutor::Create(executor)))
     }
 
     /// Build DropFulltextIndex executor
@@ -95,7 +94,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             context.expression_context().clone(),
             fulltext_manager,
         );
-        Ok(ExecutorEnum::DropFulltextIndex(executor))
+        Ok(ExecutorEnum::FulltextManage(FulltextManageExecutor::Drop(executor)))
     }
 
     /// Build AlterFulltextIndex executor
@@ -117,7 +116,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             context.expression_context().clone(),
             fulltext_manager,
         );
-        Ok(ExecutorEnum::AlterFulltextIndex(executor))
+        Ok(ExecutorEnum::FulltextManage(FulltextManageExecutor::Alter(executor)))
     }
 
     /// Build ShowFulltextIndex executor
@@ -137,7 +136,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             context.expression_context().clone(),
             fulltext_manager,
         );
-        Ok(ExecutorEnum::ShowFulltextIndex(executor))
+        Ok(ExecutorEnum::FulltextManage(FulltextManageExecutor::Show(executor)))
     }
 
     /// Build DescribeFulltextIndex executor
@@ -161,7 +160,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             context.expression_context().clone(),
             fulltext_manager,
         );
-        Ok(ExecutorEnum::DescribeFulltextIndex(executor))
+        Ok(ExecutorEnum::FulltextManage(FulltextManageExecutor::Describe(executor)))
     }
 
     /// Build FulltextSearch executor

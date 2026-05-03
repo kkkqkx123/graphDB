@@ -14,7 +14,7 @@ use crate::query::optimizer::heuristic::context::RewriteContext;
 use crate::query::optimizer::heuristic::plan_rewriter::PlanRewriter;
 use crate::query::optimizer::heuristic::result::RewriteResult;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
-    MultipleInputNode, SingleInputNode,
+    MultipleInputNode, PlanNodeClonable, SingleInputNode,
 };
 use crate::query::planning::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor;
 use crate::query::planning::plan::PlanNodeEnum;
@@ -53,22 +53,9 @@ use crate::query::planning::plan::core::nodes::data_modification::{
     DeleteEdgesNode, DeleteVerticesNode, InsertEdgesNode, InsertVerticesNode, UpdateEdgesNode,
     UpdateNode, UpdateVerticesNode,
 };
-use crate::query::planning::plan::core::nodes::management::edge_nodes::{
-    AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
-};
-use crate::query::planning::plan::core::nodes::management::index_nodes::{
-    CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,
-    DropEdgeIndexNode, DropTagIndexNode, RebuildEdgeIndexNode, RebuildTagIndexNode,
-    ShowEdgeIndexesNode, ShowTagIndexesNode,
-};
-use crate::query::planning::plan::core::nodes::management::space_nodes::{
-    CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode, SwitchSpaceNode,
-};
-use crate::query::planning::plan::core::nodes::management::tag_nodes::{
-    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowCreateTagNode, ShowTagsNode,
-};
-use crate::query::planning::plan::core::nodes::management::user_nodes::{
-    AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode,
+use crate::query::planning::plan::core::nodes::management::manage_node_enums::{
+    EdgeManageNode, FulltextManageNode, IndexManageNode, SpaceManageNode, TagManageNode,
+    UserManageNode, VectorManageNode,
 };
 use crate::query::planning::plan::core::nodes::RemoveNode;
 
@@ -248,36 +235,6 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
         visit_argument => ArgumentNode, Argument,
         visit_pass_through => PassThroughNode, PassThrough,
         visit_start => StartNode, Start,
-        visit_create_space => CreateSpaceNode, CreateSpace,
-        visit_drop_space => DropSpaceNode, DropSpace,
-        visit_desc_space => DescSpaceNode, DescSpace,
-        visit_show_spaces => ShowSpacesNode, ShowSpaces,
-        visit_switch_space => SwitchSpaceNode, SwitchSpace,
-        visit_create_tag => CreateTagNode, CreateTag,
-        visit_alter_tag => AlterTagNode, AlterTag,
-        visit_desc_tag => DescTagNode, DescTag,
-        visit_drop_tag => DropTagNode, DropTag,
-        visit_show_tags => ShowTagsNode, ShowTags,
-        visit_show_create_tag => ShowCreateTagNode, ShowCreateTag,
-        visit_create_edge => CreateEdgeNode, CreateEdge,
-        visit_alter_edge => AlterEdgeNode, AlterEdge,
-        visit_desc_edge => DescEdgeNode, DescEdge,
-        visit_drop_edge => DropEdgeNode, DropEdge,
-        visit_show_edges => ShowEdgesNode, ShowEdges,
-        visit_create_tag_index => CreateTagIndexNode, CreateTagIndex,
-        visit_drop_tag_index => DropTagIndexNode, DropTagIndex,
-        visit_desc_tag_index => DescTagIndexNode, DescTagIndex,
-        visit_show_tag_indexes => ShowTagIndexesNode, ShowTagIndexes,
-        visit_create_edge_index => CreateEdgeIndexNode, CreateEdgeIndex,
-        visit_drop_edge_index => DropEdgeIndexNode, DropEdgeIndex,
-        visit_desc_edge_index => DescEdgeIndexNode, DescEdgeIndex,
-        visit_show_edge_indexes => ShowEdgeIndexesNode, ShowEdgeIndexes,
-        visit_rebuild_tag_index => RebuildTagIndexNode, RebuildTagIndex,
-        visit_rebuild_edge_index => RebuildEdgeIndexNode, RebuildEdgeIndex,
-        visit_create_user => CreateUserNode, CreateUser,
-        visit_alter_user => AlterUserNode, AlterUser,
-        visit_drop_user => DropUserNode, DropUser,
-        visit_change_password => ChangePasswordNode, ChangePassword,
         visit_index_scan => IndexScanNode, IndexScan,
         visit_insert_vertices => InsertVerticesNode, InsertVertices,
         visit_insert_edges => InsertEdgesNode, InsertEdges,
@@ -287,6 +244,35 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
         visit_delete_vertices => DeleteVerticesNode, DeleteVertices,
         visit_delete_edges => DeleteEdgesNode, DeleteEdges,
     );
+
+    // Management nodes (parameterized sub-enums)
+    fn visit_space_manage(&mut self, node: &SpaceManageNode) -> Self::Result {
+        Ok(PlanNodeEnum::SpaceManage(node.clone()))
+    }
+
+    fn visit_tag_manage(&mut self, node: &TagManageNode) -> Self::Result {
+        Ok(PlanNodeEnum::TagManage(node.clone()))
+    }
+
+    fn visit_edge_manage(&mut self, node: &EdgeManageNode) -> Self::Result {
+        Ok(PlanNodeEnum::EdgeManage(node.clone()))
+    }
+
+    fn visit_index_manage(&mut self, node: &IndexManageNode) -> Self::Result {
+        Ok(PlanNodeEnum::IndexManage(node.clone()))
+    }
+
+    fn visit_user_manage(&mut self, node: &UserManageNode) -> Self::Result {
+        Ok(PlanNodeEnum::UserManage(node.clone()))
+    }
+
+    fn visit_fulltext_manage(&mut self, node: &FulltextManageNode) -> Self::Result {
+        Ok(PlanNodeEnum::FulltextManage(node.clone()))
+    }
+
+    fn visit_vector_manage(&mut self, node: &VectorManageNode) -> Self::Result {
+        Ok(PlanNodeEnum::VectorManage(node.clone()))
+    }
 
     // Multi-input nodes (using dependencies)
     impl_multi_input_deps_rewrite!(

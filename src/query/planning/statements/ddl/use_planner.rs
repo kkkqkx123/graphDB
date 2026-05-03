@@ -7,6 +7,7 @@ use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
     nodes::{ArgumentNode, SwitchSpaceNode},
 };
+use crate::query::planning::plan::core::nodes::management::manage_node_enums::SpaceManageNode;
 use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
@@ -49,7 +50,7 @@ impl Planner for UsePlanner {
         // Create a SwitchSpace node
         let switch_space_node = SwitchSpaceNode::new(next_node_id(), use_stmt.space.clone());
 
-        let final_node = PlanNodeEnum::SwitchSpace(switch_space_node);
+        let final_node = PlanNodeEnum::SpaceManage(SpaceManageNode::Switch(switch_space_node));
 
         // Create a SubPlan
         let sub_plan = SubPlan::new(Some(final_node), Some(arg_node_enum));

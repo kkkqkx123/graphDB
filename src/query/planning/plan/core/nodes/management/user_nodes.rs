@@ -11,7 +11,7 @@ define_plan_node! {
         password: String,
         role: String,
     }
-    enum: CreateUser
+    manage_enum: UserManageNode::Create as UserManage
     input: ZeroInputNode
 }
 
@@ -51,7 +51,7 @@ define_plan_node! {
         new_role: Option<String>,
         is_locked: Option<bool>,
     }
-    enum: AlterUser
+    manage_enum: UserManageNode::Alter as UserManage
     input: ZeroInputNode
 }
 
@@ -94,7 +94,7 @@ define_plan_node! {
     pub struct DropUserNode {
         username: String,
     }
-    enum: DropUser
+    manage_enum: UserManageNode::Drop as UserManage
     input: ZeroInputNode
 }
 
@@ -117,7 +117,7 @@ define_plan_node! {
     pub struct ChangePasswordNode {
         password_info: PasswordInfo,
     }
-    enum: ChangePassword
+    manage_enum: UserManageNode::ChangePassword as UserManage
     input: ZeroInputNode
 }
 
@@ -142,7 +142,7 @@ define_plan_node! {
         space_name: String,
         role: String,
     }
-    enum: GrantRole
+    manage_enum: UserManageNode::GrantRole as UserManage
     input: ZeroInputNode
 }
 
@@ -176,7 +176,7 @@ define_plan_node! {
         username: String,
         space_name: String,
     }
-    enum: RevokeRole
+    manage_enum: UserManageNode::RevokeRole as UserManage
     input: ZeroInputNode
 }
 
@@ -202,7 +202,7 @@ impl RevokeRoleNode {
 
 define_plan_node! {
     pub struct ShowUsersNode {}
-    enum: ShowUsers
+    manage_enum: UserManageNode::ShowUsers as UserManage
     input: ZeroInputNode
 }
 
@@ -220,7 +220,7 @@ define_plan_node! {
     pub struct ShowRolesNode {
         space_name: String,
     }
-    enum: ShowRoles
+    manage_enum: UserManageNode::ShowRoles as UserManage
     input: ZeroInputNode
 }
 

@@ -3,6 +3,7 @@
 
 use crate::query::parser::ast::Stmt;
 use crate::query::planning::plan::core::{ArgumentNode, PlanNodeEnum};
+use crate::query::planning::plan::core::nodes::management::manage_node_enums::UserManageNode;
 use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
@@ -37,7 +38,7 @@ impl Planner for UserManagementPlanner {
                 if let Some(ref role) = create_stmt.role {
                     node = node.with_role(role.clone());
                 }
-                PlanNodeEnum::CreateUser(node)
+                PlanNodeEnum::UserManage(UserManageNode::Create(node))
             }
             Stmt::AlterUser(alter_stmt) => {
                 let mut node = crate::query::planning::plan::core::nodes::AlterUserNode::new(
@@ -50,14 +51,14 @@ impl Planner for UserManagementPlanner {
                 if let Some(locked) = alter_stmt.is_locked {
                     node = node.with_locked(locked);
                 }
-                PlanNodeEnum::AlterUser(node)
+                PlanNodeEnum::UserManage(UserManageNode::Alter(node))
             }
             Stmt::DropUser(drop_stmt) => {
                 let node = crate::query::planning::plan::core::nodes::DropUserNode::new(
                     3,
                     drop_stmt.username.clone(),
                 );
-                PlanNodeEnum::DropUser(node)
+                PlanNodeEnum::UserManage(UserManageNode::Drop(node))
             }
             Stmt::ChangePassword(change_stmt) => {
                 let password_info = crate::core::types::PasswordInfo {
@@ -70,7 +71,7 @@ impl Planner for UserManagementPlanner {
                     4,
                     password_info,
                 );
-                PlanNodeEnum::ChangePassword(node)
+                PlanNodeEnum::UserManage(UserManageNode::ChangePassword(node))
             }
             Stmt::Grant(grant_stmt) => {
                 let node = crate::query::planning::plan::core::nodes::GrantRoleNode::new(
@@ -79,7 +80,7 @@ impl Planner for UserManagementPlanner {
                     grant_stmt.space_name.clone(),
                     format!("{:?}", grant_stmt.role).to_lowercase(),
                 );
-                PlanNodeEnum::GrantRole(node)
+                PlanNodeEnum::UserManage(UserManageNode::GrantRole(node))
             }
             Stmt::Revoke(revoke_stmt) => {
                 let node = crate::query::planning::plan::core::nodes::RevokeRoleNode::new(
@@ -87,7 +88,7 @@ impl Planner for UserManagementPlanner {
                     revoke_stmt.username.clone(),
                     revoke_stmt.space_name.clone(),
                 );
-                PlanNodeEnum::RevokeRole(node)
+                PlanNodeEnum::UserManage(UserManageNode::RevokeRole(node))
             }
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(format!(

@@ -6,38 +6,16 @@ use crate::query::planning::plan::core::nodes::data_modification::{
     InsertVerticesNode, PipeDeleteEdgesNode, PipeDeleteVerticesNode, UpdateEdgesNode,
     UpdateNode, UpdateVerticesNode,
 };
-use crate::query::planning::plan::core::nodes::management::edge_nodes::{
-    AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowCreateEdgeNode, ShowEdgesNode,
-};
-use crate::query::planning::plan::core::nodes::management::index_nodes::{
-    CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,
-    DropEdgeIndexNode, DropTagIndexNode, RebuildEdgeIndexNode, RebuildTagIndexNode,
-    ShowCreateIndexNode, ShowEdgeIndexesNode, ShowIndexesNode, ShowTagIndexesNode,
-};
-use crate::query::planning::plan::core::nodes::management::space_nodes::{
-    AlterSpaceNode, ClearSpaceNode, CreateSpaceNode, DescSpaceNode, DropSpaceNode,
-    ShowCreateSpaceNode, ShowSpacesNode, SwitchSpaceNode,
+use crate::query::planning::plan::core::nodes::management::manage_node_enums::{
+    EdgeManageNode, FulltextManageNode, IndexManageNode, SpaceManageNode, TagManageNode,
+    UserManageNode, VectorManageNode,
 };
 use crate::query::planning::plan::core::nodes::management::stats_nodes::ShowStatsNode;
-use crate::query::planning::plan::core::nodes::management::tag_nodes::{
-    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowCreateTagNode, ShowTagsNode,
-};
-use crate::query::planning::plan::core::nodes::management::user_nodes::{
-    AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode,
-    ShowRolesNode, ShowUsersNode,
-};
 use crate::query::planning::plan::core::nodes::search::fulltext::data_access::{
     FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
 };
-use crate::query::planning::plan::core::nodes::search::fulltext::management::{
-    AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
-    DropFulltextIndexNode, ShowFulltextIndexNode,
-};
 use crate::query::planning::plan::core::nodes::search::vector::data_access::{
     VectorLookupNode, VectorMatchNode, VectorSearchNode,
-};
-use crate::query::planning::plan::core::nodes::search::vector::management::{
-    CreateVectorIndexNode, DropVectorIndexNode,
 };
 
 pub use crate::query::planning::plan::core::nodes::access::graph_scan_node::{
@@ -75,7 +53,6 @@ pub use crate::query::planning::plan::core::nodes::traversal::traversal_node::{
     AppendVerticesNode, BiExpandNode, BiTraverseNode, ExpandAllNode, ExpandNode, TraverseNode,
 };
 
-/// Macro for generating the default method of the PlanNode visitor
 macro_rules! impl_visitor_methods {
     ($($name:ident, $node_type:ty, $visit_method:ident);* $(;)?) => {
         $(
@@ -87,11 +64,9 @@ macro_rules! impl_visitor_methods {
     };
 }
 
-/// The PlanNode visitor trait – Using generics to avoid dynamic distribution
 pub trait PlanNodeVisitor {
     type Result;
 
-    /// Default access method
     fn visit_default(&mut self) -> Self::Result;
 
     impl_visitor_methods!(
@@ -174,78 +149,24 @@ pub trait PlanNodeVisitor {
     );
 
     impl_visitor_methods!(
-        CreateSpace, CreateSpaceNode, visit_create_space;
-        DropSpace, DropSpaceNode, visit_drop_space;
-        DescSpace, DescSpaceNode, visit_desc_space;
-        ShowSpaces, ShowSpacesNode, visit_show_spaces;
-        ShowCreateSpace, ShowCreateSpaceNode, visit_show_create_space;
+        SpaceManage, SpaceManageNode, visit_space_manage;
+        TagManage, TagManageNode, visit_tag_manage;
+        EdgeManage, EdgeManageNode, visit_edge_manage;
+        IndexManage, IndexManageNode, visit_index_manage;
+        UserManage, UserManageNode, visit_user_manage;
+        FulltextManage, FulltextManageNode, visit_fulltext_manage;
+        VectorManage, VectorManageNode, visit_vector_manage;
     );
 
     impl_visitor_methods!(
-        CreateTag, CreateTagNode, visit_create_tag;
-        AlterTag, AlterTagNode, visit_alter_tag;
-        DescTag, DescTagNode, visit_desc_tag;
-        DropTag, DropTagNode, visit_drop_tag;
-        ShowTags, ShowTagsNode, visit_show_tags;
-        ShowCreateTag, ShowCreateTagNode, visit_show_create_tag;
-    );
-
-    impl_visitor_methods!(
-        CreateEdge, CreateEdgeNode, visit_create_edge;
-        AlterEdge, AlterEdgeNode, visit_alter_edge;
-        DescEdge, DescEdgeNode, visit_desc_edge;
-        DropEdge, DropEdgeNode, visit_drop_edge;
-        ShowEdges, ShowEdgesNode, visit_show_edges;
-        ShowCreateEdge, ShowCreateEdgeNode, visit_show_create_edge;
-    );
-
-    impl_visitor_methods!(
-        CreateTagIndex, CreateTagIndexNode, visit_create_tag_index;
-        DropTagIndex, DropTagIndexNode, visit_drop_tag_index;
-        DescTagIndex, DescTagIndexNode, visit_desc_tag_index;
-        ShowTagIndexes, ShowTagIndexesNode, visit_show_tag_indexes;
-    );
-
-    impl_visitor_methods!(
-        CreateEdgeIndex, CreateEdgeIndexNode, visit_create_edge_index;
-        DropEdgeIndex, DropEdgeIndexNode, visit_drop_edge_index;
-        DescEdgeIndex, DescEdgeIndexNode, visit_desc_edge_index;
-        ShowEdgeIndexes, ShowEdgeIndexesNode, visit_show_edge_indexes;
-    );
-
-    impl_visitor_methods!(
-        RebuildTagIndex, RebuildTagIndexNode, visit_rebuild_tag_index;
-        RebuildEdgeIndex, RebuildEdgeIndexNode, visit_rebuild_edge_index;
-        ShowIndexes, ShowIndexesNode, visit_show_indexes;
-        ShowCreateIndex, ShowCreateIndexNode, visit_show_create_index;
-    );
-
-    impl_visitor_methods!(
-        CreateUser, CreateUserNode, visit_create_user;
-        AlterUser, AlterUserNode, visit_alter_user;
-        DropUser, DropUserNode, visit_drop_user;
-        ChangePassword, ChangePasswordNode, visit_change_password;
-    );
-
-    // Added a new method named `visitor` for managing nodes.
-    impl_visitor_methods!(
-        GrantRole, GrantRoleNode, visit_grant_role;
-        RevokeRole, RevokeRoleNode, visit_revoke_role;
-        ShowUsers, ShowUsersNode, visit_show_users;
-        ShowRoles, ShowRolesNode, visit_show_roles;
-        SwitchSpace, SwitchSpaceNode, visit_switch_space;
-        AlterSpace, AlterSpaceNode, visit_alter_space;
-        ClearSpace, ClearSpaceNode, visit_clear_space;
         ShowStats, ShowStatsNode, visit_show_stats;
     );
 
-    // Insert nodes
     impl_visitor_methods!(
         InsertVertices, InsertVerticesNode, visit_insert_vertices;
         InsertEdges, InsertEdgesNode, visit_insert_edges;
     );
 
-    // Delete nodes
     impl_visitor_methods!(
         DeleteVertices, DeleteVerticesNode, visit_delete_vertices;
         DeleteEdges, DeleteEdgesNode, visit_delete_edges;
@@ -253,40 +174,28 @@ pub trait PlanNodeVisitor {
         DeleteIndex, DeleteIndexNode, visit_delete_index;
     );
 
-    // Pipe Delete nodes
     impl_visitor_methods!(
         PipeDeleteVertices, PipeDeleteVerticesNode, visit_pipe_delete_vertices;
         PipeDeleteEdges, PipeDeleteEdgesNode, visit_pipe_delete_edges;
     );
 
-    // Update nodes
     impl_visitor_methods!(
         Update, UpdateNode, visit_update;
         UpdateVertices, UpdateVerticesNode, visit_update_vertices;
         UpdateEdges, UpdateEdgesNode, visit_update_edges;
     );
 
-    // Full-text Search nodes
     impl_visitor_methods!(
-        CreateFulltextIndex, CreateFulltextIndexNode, visit_create_fulltext_index;
-        DropFulltextIndex, DropFulltextIndexNode, visit_drop_fulltext_index;
-        AlterFulltextIndex, AlterFulltextIndexNode, visit_alter_fulltext_index;
-        ShowFulltextIndex, ShowFulltextIndexNode, visit_show_fulltext_index;
-        DescribeFulltextIndex, DescribeFulltextIndexNode, visit_describe_fulltext_index;
         FulltextSearch, FulltextSearchNode, visit_fulltext_search;
         FulltextLookup, FulltextLookupNode, visit_fulltext_lookup;
         MatchFulltext, MatchFulltextNode, visit_match_fulltext;
-        // Vector Search Nodes
         VectorSearch, VectorSearchNode, visit_vector_search;
-        CreateVectorIndex, CreateVectorIndexNode, visit_create_vector_index;
-        DropVectorIndex, DropVectorIndexNode, visit_drop_vector_index;
         VectorLookup, VectorLookupNode, visit_vector_lookup;
         VectorMatch, VectorMatchNode, visit_vector_match;
     );
 }
 
 impl PlanNodeEnum {
-    /// Zero-Cost Visitor Pattern
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
         V: PlanNodeVisitor,
@@ -345,47 +254,14 @@ impl PlanNodeEnum {
             PlanNodeEnum::AllPaths(node) => visitor.visit_all_paths(node),
             PlanNodeEnum::ShortestPath(node) => visitor.visit_shortest_path(node),
 
-            PlanNodeEnum::CreateSpace(node) => visitor.visit_create_space(node),
-            PlanNodeEnum::DropSpace(node) => visitor.visit_drop_space(node),
-            PlanNodeEnum::DescSpace(node) => visitor.visit_desc_space(node),
-            PlanNodeEnum::ShowSpaces(node) => visitor.visit_show_spaces(node),
-            PlanNodeEnum::ShowCreateSpace(node) => visitor.visit_show_create_space(node),
-            PlanNodeEnum::CreateTag(node) => visitor.visit_create_tag(node),
-            PlanNodeEnum::AlterTag(node) => visitor.visit_alter_tag(node),
-            PlanNodeEnum::DescTag(node) => visitor.visit_desc_tag(node),
-            PlanNodeEnum::DropTag(node) => visitor.visit_drop_tag(node),
-            PlanNodeEnum::ShowTags(node) => visitor.visit_show_tags(node),
-            PlanNodeEnum::ShowCreateTag(node) => visitor.visit_show_create_tag(node),
-            PlanNodeEnum::CreateEdge(node) => visitor.visit_create_edge(node),
-            PlanNodeEnum::AlterEdge(node) => visitor.visit_alter_edge(node),
-            PlanNodeEnum::DescEdge(node) => visitor.visit_desc_edge(node),
-            PlanNodeEnum::DropEdge(node) => visitor.visit_drop_edge(node),
-            PlanNodeEnum::ShowEdges(node) => visitor.visit_show_edges(node),
-            PlanNodeEnum::ShowCreateEdge(node) => visitor.visit_show_create_edge(node),
-            PlanNodeEnum::CreateTagIndex(node) => visitor.visit_create_tag_index(node),
-            PlanNodeEnum::DropTagIndex(node) => visitor.visit_drop_tag_index(node),
-            PlanNodeEnum::DescTagIndex(node) => visitor.visit_desc_tag_index(node),
-            PlanNodeEnum::ShowTagIndexes(node) => visitor.visit_show_tag_indexes(node),
-            PlanNodeEnum::CreateEdgeIndex(node) => visitor.visit_create_edge_index(node),
-            PlanNodeEnum::DropEdgeIndex(node) => visitor.visit_drop_edge_index(node),
-            PlanNodeEnum::DescEdgeIndex(node) => visitor.visit_desc_edge_index(node),
-            PlanNodeEnum::ShowEdgeIndexes(node) => visitor.visit_show_edge_indexes(node),
-            PlanNodeEnum::RebuildTagIndex(node) => visitor.visit_rebuild_tag_index(node),
-            PlanNodeEnum::RebuildEdgeIndex(node) => visitor.visit_rebuild_edge_index(node),
-            PlanNodeEnum::ShowIndexes(node) => visitor.visit_show_indexes(node),
-            PlanNodeEnum::ShowCreateIndex(node) => visitor.visit_show_create_index(node),
-            PlanNodeEnum::CreateUser(node) => visitor.visit_create_user(node),
-            PlanNodeEnum::AlterUser(node) => visitor.visit_alter_user(node),
-            PlanNodeEnum::DropUser(node) => visitor.visit_drop_user(node),
-            PlanNodeEnum::ChangePassword(node) => visitor.visit_change_password(node),
-            // Add a new management node.
-            PlanNodeEnum::GrantRole(node) => visitor.visit_grant_role(node),
-            PlanNodeEnum::RevokeRole(node) => visitor.visit_revoke_role(node),
-            PlanNodeEnum::ShowUsers(node) => visitor.visit_show_users(node),
-            PlanNodeEnum::ShowRoles(node) => visitor.visit_show_roles(node),
-            PlanNodeEnum::SwitchSpace(node) => visitor.visit_switch_space(node),
-            PlanNodeEnum::AlterSpace(node) => visitor.visit_alter_space(node),
-            PlanNodeEnum::ClearSpace(node) => visitor.visit_clear_space(node),
+            PlanNodeEnum::SpaceManage(node) => visitor.visit_space_manage(node),
+            PlanNodeEnum::TagManage(node) => visitor.visit_tag_manage(node),
+            PlanNodeEnum::EdgeManage(node) => visitor.visit_edge_manage(node),
+            PlanNodeEnum::IndexManage(node) => visitor.visit_index_manage(node),
+            PlanNodeEnum::UserManage(node) => visitor.visit_user_manage(node),
+            PlanNodeEnum::FulltextManage(node) => visitor.visit_fulltext_manage(node),
+            PlanNodeEnum::VectorManage(node) => visitor.visit_vector_manage(node),
+
             PlanNodeEnum::ShowStats(node) => visitor.visit_show_stats(node),
             PlanNodeEnum::InsertVertices(node) => visitor.visit_insert_vertices(node),
             PlanNodeEnum::InsertEdges(node) => visitor.visit_insert_edges(node),
@@ -398,21 +274,11 @@ impl PlanNodeEnum {
             PlanNodeEnum::Update(node) => visitor.visit_update(node),
             PlanNodeEnum::UpdateVertices(node) => visitor.visit_update_vertices(node),
             PlanNodeEnum::UpdateEdges(node) => visitor.visit_update_edges(node),
-            // Full-text Search Nodes
-            PlanNodeEnum::CreateFulltextIndex(node) => visitor.visit_create_fulltext_index(node),
-            PlanNodeEnum::DropFulltextIndex(node) => visitor.visit_drop_fulltext_index(node),
-            PlanNodeEnum::AlterFulltextIndex(node) => visitor.visit_alter_fulltext_index(node),
-            PlanNodeEnum::ShowFulltextIndex(node) => visitor.visit_show_fulltext_index(node),
-            PlanNodeEnum::DescribeFulltextIndex(node) => {
-                visitor.visit_describe_fulltext_index(node)
-            }
+
             PlanNodeEnum::FulltextSearch(node) => visitor.visit_fulltext_search(node),
             PlanNodeEnum::FulltextLookup(node) => visitor.visit_fulltext_lookup(node),
             PlanNodeEnum::MatchFulltext(node) => visitor.visit_match_fulltext(node),
-            // Vector Search Nodes
             PlanNodeEnum::VectorSearch(node) => visitor.visit_vector_search(node),
-            PlanNodeEnum::CreateVectorIndex(node) => visitor.visit_create_vector_index(node),
-            PlanNodeEnum::DropVectorIndex(node) => visitor.visit_drop_vector_index(node),
             PlanNodeEnum::VectorLookup(node) => visitor.visit_vector_lookup(node),
             PlanNodeEnum::VectorMatch(node) => visitor.visit_vector_match(node),
         }
