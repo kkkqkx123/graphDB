@@ -16,186 +16,14 @@
 //! - Applications use Prepared Statements
 
 use moka::sync::Cache;
-use parking_lot::RwLock;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::core::error::{DBError, DBResult};
 use crate::query::planning::plan::ExecutionPlan;
 
-/// Cache priority levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
-pub enum CachePriority {
-    Low = 0,
-    #[default]
-    Normal = 1,
-    High = 2,
-    Critical = 3,
-}
-
-/// TTL configuration
-#[derive(Debug, Clone)]
-pub struct TtlConfig {
-    pub base_ttl_seconds: u64,
-    pub adaptive: bool,
-    pub min_ttl_seconds: u64,
-    pub max_ttl_seconds: u64,
-}
-
-impl Default for TtlConfig {
-    fn default() -> Self {
-        Self {
-            base_ttl_seconds: 3600,
-            adaptive: true,
-            min_ttl_seconds: 300,
-            max_ttl_seconds: 86400,
-        }
-    }
-}
-
-/// Priority configuration
-#[derive(Debug, Clone)]
-pub struct PriorityConfig {
-    pub enable_priority: bool,
-    pub track_execution_time: bool,
-}
-
-impl Default for PriorityConfig {
-    fn default() -> Self {
-        Self {
-            enable_priority: true,
-            track_execution_time: true,
-        }
-    }
-}
-
-/// Query Plan Cache Configuration
-#[derive(Debug, Clone)]
-pub struct PlanCacheConfig {
-    /// Maximum number of cache entries
-    pub max_entries: usize,
-    /// Memory budget (bytes)
-    pub memory_budget: usize,
-    /// Maximum weight (bytes), takes precedence over max_entries
-    /// If None, use memory_budget
-    pub max_weight: Option<u64>,
-    /// Whether to enable parameterized query support
-    pub enable_parameterized: bool,
-    /// TTL configuration
-    pub ttl_config: TtlConfig,
-    /// Priority configuration
-    pub priority_config: PriorityConfig,
-}
-
-impl Default for PlanCacheConfig {
-    fn default() -> Self {
-        Self {
-            max_entries: 1000,
-            memory_budget: 50 * 1024 * 1024,
-            max_weight: None,
-            enable_parameterized: true,
-            ttl_config: TtlConfig::default(),
-            priority_config: PriorityConfig::default(),
-        }
-    }
-}
-
-/// Cached query plan entries
-#[derive(Debug, Clone)]
-pub struct CachedPlan {
-    /// Query template (parameterized form)
-    pub query_template: String,
-    /// implementation plan
-    pub plan: ExecutionPlan,
-    /// Parameter location information (for parameter binding)
-    pub param_positions: Vec<ParamPosition>,
-    /// Creation time
-    pub created_at: Instant,
-    /// Last access time
-    pub last_accessed: Instant,
-    /// Number of visits
-    pub access_count: u64,
-    /// Average execution time (milliseconds)
-    pub avg_execution_time_ms: f64,
-    /// Number of executions
-    pub execution_count: u64,
-    /// Cache priority
-    pub priority: CachePriority,
-    /// Plan complexity score (for eviction decisions)
-    pub complexity_score: u32,
-    /// Estimated compute cost (milliseconds)
-    pub estimated_compute_cost: u64,
-    /// Current TTL
-    pub current_ttl: Duration,
-}
-
-impl CachedPlan {
-    /// Estimate memory usage (bytes)
-    pub fn estimate_memory(&self) -> usize {
-        let mut total = 0;
-
-        // Query template string (String struct + heap allocation)
-        total += std::mem::size_of::<String>();
-        total += self.query_template.capacity();
-
-        // Parameter position information (Vec struct + elements)
-        total += std::mem::size_of::<Vec<ParamPosition>>();
-        for pos in &self.param_positions {
-            total += std::mem::size_of::<ParamPosition>();
-            if let Some(ref name) = pos.name {
-                total += std::mem::size_of::<String>();
-                total += name.capacity();
-            }
-        }
-
-        // Execution plan (recursive estimation)
-        total += self.estimate_plan_memory(&self.plan);
-
-        // Other fields (basic types)
-        total += std::mem::size_of::<Instant>() * 2;
-        total += std::mem::size_of::<u64>() * 3;
-        total += std::mem::size_of::<f64>() * 2;
-        total += std::mem::size_of::<CachePriority>();
-        total += std::mem::size_of::<u32>();
-        total += std::mem::size_of::<Duration>();
-
-        total
-    }
-
-    /// Estimate memory usage for execution plan
-    fn estimate_plan_memory(&self, plan: &ExecutionPlan) -> usize {
-        let base_size = std::mem::size_of::<ExecutionPlan>();
-        let overhead = 1024;
-
-        // Estimate format string
-        let format_size = plan.format.len();
-
-        // Estimate root node if present
-        let root_size = if let Some(ref root) = plan.root {
-            self.estimate_node_memory(root)
-        } else {
-            0
-        };
-
-        base_size + overhead + format_size + root_size
-    }
-
-    /// Estimate memory usage for plan node
-    fn estimate_node_memory(&self, node: &crate::query::planning::plan::PlanNodeEnum) -> usize {
-        let base_size = std::mem::size_of::<crate::query::planning::plan::PlanNodeEnum>();
-        let overhead = 512;
-
-        // Recursively estimate children
-        let children_size: usize = node
-            .children()
-            .iter()
-            .map(|child| self.estimate_node_memory(child))
-            .sum();
-
-        base_size + overhead + children_size
-    }
-}
+use super::config::{CachePriority, PlanCacheConfig};
+use super::stats::{MetricsRecorder, PlanCacheStats};
 
 /// Parameter location information
 #[derive(Debug, Clone)]
@@ -249,106 +77,107 @@ impl PlanCacheKey {
     }
 }
 
-/// Query Plan Cache Statistics using metrics crate
-#[derive(Debug, Clone, Default)]
-pub struct PlanCacheMetrics {
-    // Metrics are registered globally
-}
-
-impl PlanCacheMetrics {
-    /// Create new metrics
-    pub fn new() -> Self {
-        Self {}
-    }
-
-    pub fn record_hit(&self) {
-        metrics::counter!("graphdb_plan_cache_hits_total").increment(1);
-    }
-
-    pub fn record_miss(&self) {
-        metrics::counter!("graphdb_plan_cache_misses_total").increment(1);
-    }
-
-    pub fn record_eviction(&self) {
-        metrics::counter!("graphdb_plan_cache_evictions_total").increment(1);
-    }
-
-    pub fn record_expiration(&self) {
-        metrics::counter!("graphdb_plan_cache_expirations_total").increment(1);
-    }
-
-    pub fn update_entries(&self, count: usize) {
-        metrics::gauge!("graphdb_plan_cache_entries").set(count as f64);
-    }
-
-    pub fn update_bytes(&self, bytes: usize) {
-        metrics::gauge!("graphdb_plan_cache_bytes").set(bytes as f64);
-    }
-
-    /// hit rate (approximate, using global metrics)
-    pub fn hit_rate(&self) -> f64 {
-        // Note: This is a simplified version; actual implementation would need to track values
-        0.0 // Placeholder - in production would use actual metrics values
-    }
-}
-
-/// Legacy Query Plan Cache Statistics (for backward compatibility)
+/// Cached query plan entries
 #[derive(Debug, Clone)]
-pub struct PlanCacheStats {
-    /// Number of hits
-    pub hits: Arc<AtomicU64>,
-    /// Number of missed hits
-    pub misses: Arc<AtomicU64>,
-    /// Number of eliminations
-    pub evictions: Arc<AtomicU64>,
-    /// Number of expiration dates
-    pub expirations: Arc<AtomicU64>,
-    /// Number of current cache entries
-    pub current_entries: Arc<AtomicUsize>,
-    /// Average query template size (bytes)
-    pub avg_query_template_bytes: Arc<RwLock<usize>>,
-    /// Total query template size (bytes)
-    pub total_query_template_bytes: Arc<AtomicUsize>,
+pub struct CachedPlan {
+    /// Query template (parameterized form)
+    pub query_template: String,
+    /// implementation plan
+    pub plan: ExecutionPlan,
+    /// Parameter location information (for parameter binding)
+    pub param_positions: Vec<ParamPosition>,
+    /// Creation time
+    pub created_at: Instant,
+    /// Last access time
+    pub last_accessed: Instant,
+    /// Number of visits
+    pub access_count: u64,
+    /// Average execution time (milliseconds)
+    pub avg_execution_time_ms: f64,
+    /// Number of executions
+    pub execution_count: u64,
+    /// Cache priority
+    pub priority: CachePriority,
+    /// Plan complexity score (for eviction decisions)
+    pub complexity_score: u32,
+    /// Estimated compute cost (milliseconds)
+    pub estimated_compute_cost: u64,
+    /// Current TTL
+    pub current_ttl: Duration,
+    /// Dependent tables (for invalidation)
+    pub dependent_tables: Vec<String>,
 }
 
-impl Default for PlanCacheStats {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+impl CachedPlan {
+    /// Estimate memory usage (bytes)
+    pub fn estimate_memory(&self) -> usize {
+        let mut total = 0;
 
-impl PlanCacheStats {
-    /// Create new statistics
-    pub fn new() -> Self {
-        Self {
-            hits: Arc::new(AtomicU64::new(0)),
-            misses: Arc::new(AtomicU64::new(0)),
-            evictions: Arc::new(AtomicU64::new(0)),
-            expirations: Arc::new(AtomicU64::new(0)),
-            current_entries: Arc::new(AtomicUsize::new(0)),
-            avg_query_template_bytes: Arc::new(RwLock::new(0)),
-            total_query_template_bytes: Arc::new(AtomicUsize::new(0)),
+        total += std::mem::size_of::<String>();
+        total += self.query_template.capacity();
+
+        total += std::mem::size_of::<Vec<ParamPosition>>();
+        for pos in &self.param_positions {
+            total += std::mem::size_of::<ParamPosition>();
+            if let Some(ref name) = pos.name {
+                total += std::mem::size_of::<String>();
+                total += name.capacity();
+            }
         }
+
+        total += self.estimate_plan_memory(&self.plan);
+
+        total += std::mem::size_of::<Instant>() * 2;
+        total += std::mem::size_of::<u64>() * 3;
+        total += std::mem::size_of::<f64>() * 2;
+        total += std::mem::size_of::<CachePriority>();
+        total += std::mem::size_of::<u32>();
+        total += std::mem::size_of::<Duration>();
+
+        total += std::mem::size_of::<Vec<String>>();
+        for table in &self.dependent_tables {
+            total += std::mem::size_of::<String>();
+            total += table.capacity();
+        }
+
+        total
     }
 
-    /// hit rate
-    pub fn hit_rate(&self) -> f64 {
-        let hits = self.hits.load(Ordering::Relaxed);
-        let misses = self.misses.load(Ordering::Relaxed);
-        let total = hits + misses;
-        if total == 0 {
-            0.0
+    /// Estimate memory usage for execution plan
+    fn estimate_plan_memory(&self, plan: &ExecutionPlan) -> usize {
+        let base_size = std::mem::size_of::<ExecutionPlan>();
+        let format_size = plan.format.len();
+
+        let root_size = if let Some(ref root) = plan.root {
+            self.estimate_node_memory(root)
         } else {
-            hits as f64 / total as f64
-        }
+            0
+        };
+
+        base_size + format_size + root_size
     }
 
-    /// Estimate total memory footprint (based on average template size and number of entries)
-    pub fn estimated_memory_bytes(&self) -> usize {
-        const PER_ENTRY_OVERHEAD: usize = 1024;
-        let total_bytes = self.total_query_template_bytes.load(Ordering::Relaxed);
-        let entries = self.current_entries.load(Ordering::Relaxed);
-        total_bytes + (entries * PER_ENTRY_OVERHEAD)
+    /// Estimate memory usage for plan node
+    fn estimate_node_memory(&self, node: &crate::query::planning::plan::PlanNodeEnum) -> usize {
+        let base_size = std::mem::size_of::<crate::query::planning::plan::PlanNodeEnum>();
+
+        let children_size: usize = node
+            .children()
+            .iter()
+            .map(|child| self.estimate_node_memory(child))
+            .sum();
+
+        base_size + children_size
+    }
+
+    /// Calculate cache value score (for eviction decisions)
+    pub fn value_score(&self) -> f64 {
+        let frequency_score = self.access_count as f64 * 0.4;
+        let cost_score = (self.estimated_compute_cost as f64 / 1000.0) * 0.3;
+        let priority_score = (self.priority as i32 as f64) * 0.2;
+        let size_penalty = (self.query_template.len() as f64 / 1024.0) * 0.1;
+
+        frequency_score + cost_score + priority_score - size_penalty
     }
 }
 
@@ -360,15 +189,17 @@ pub struct QueryPlanCache {
     cache: Cache<PlanCacheKey, Arc<CachedPlan>>,
     /// Configuration
     config: PlanCacheConfig,
-    /// Statistical information using metrics crate
-    metrics: Arc<PlanCacheMetrics>,
+    /// Statistics
+    stats: Arc<PlanCacheStats>,
+    /// Metrics recorder
+    metrics: MetricsRecorder,
 }
 
 impl std::fmt::Debug for QueryPlanCache {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("QueryPlanCache")
             .field("config", &self.config)
-            .field("metrics", &self.metrics)
+            .field("stats", &self.stats.snapshot())
             .finish()
     }
 }
@@ -376,12 +207,7 @@ impl std::fmt::Debug for QueryPlanCache {
 impl QueryPlanCache {
     /// Create a new query plan cache.
     pub fn new(config: PlanCacheConfig) -> Self {
-        Self::with_metrics(config, PlanCacheMetrics::new())
-    }
-
-    /// Create a new query plan cache with custom metrics.
-    pub fn with_metrics(config: PlanCacheConfig, metrics: PlanCacheMetrics) -> Self {
-        let max_weight = config.max_weight.unwrap_or(config.memory_budget as u64);
+        let max_weight = config.effective_max_weight();
 
         let cache = Cache::builder()
             .weigher(|_key, value: &Arc<CachedPlan>| -> u32 {
@@ -392,11 +218,13 @@ impl QueryPlanCache {
             .time_to_live(Duration::from_secs(config.ttl_config.base_ttl_seconds))
             .build();
 
-        let metrics = Arc::new(metrics);
+        let stats = Arc::new(PlanCacheStats::new(config.memory_budget));
+        let metrics = MetricsRecorder::new("graphdb_plan_cache");
 
         Self {
             cache,
             config,
+            stats,
             metrics,
         }
     }
@@ -413,24 +241,24 @@ impl QueryPlanCache {
         let key = PlanCacheKey::from_query(query);
 
         if let Some(plan) = self.cache.get(&key) {
-            // Hash collision detection: Verifying whether the query text matches a certain value.
             if plan.query_template != query {
-                // A hash collision occurred; the event was logged, and None was returned.
                 log::warn!(
                     "Query plan cache hash collision detected: hash={}, expected_query={}, cached_query={}",
                     key.hash,
                     query,
                     plan.query_template
                 );
+                self.stats.counters.record_miss();
                 self.metrics.record_miss();
                 return None;
             }
 
-            // Update the access statistics.
+            self.stats.counters.record_hit();
             self.metrics.record_hit();
             return Some(plan);
         }
 
+        self.stats.counters.record_miss();
         self.metrics.record_miss();
         None
     }
@@ -442,6 +270,17 @@ impl QueryPlanCache {
     /// - `plan`: Execution plan
     /// - `param_positions`: Information about the positions of the parameters
     pub fn put(&self, query: &str, plan: ExecutionPlan, param_positions: Vec<ParamPosition>) {
+        self.put_with_tables(query, plan, param_positions, Vec::new());
+    }
+
+    /// Put the plan in the cache with dependent tables.
+    pub fn put_with_tables(
+        &self,
+        query: &str,
+        plan: ExecutionPlan,
+        param_positions: Vec<ParamPosition>,
+        dependent_tables: Vec<String>,
+    ) {
         let key = PlanCacheKey::from_query(query);
         let query_bytes = query.len();
 
@@ -468,16 +307,20 @@ impl QueryPlanCache {
             complexity_score,
             estimated_compute_cost,
             current_ttl,
+            dependent_tables,
         });
 
         let is_update = self.cache.contains_key(&key);
         self.cache.insert(key, cached_plan);
 
         if !is_update {
+            self.stats.record_query_size(query_bytes);
             self.metrics.update_bytes(query_bytes);
         }
 
         let current_entries = self.cache.entry_count() as usize;
+        let current_memory = self.estimate_current_memory();
+        self.stats.memory.update(current_memory, current_entries);
         self.metrics.update_entries(current_entries);
     }
 
@@ -494,16 +337,131 @@ impl QueryPlanCache {
         }
     }
 
-    /// Calculate complexity score for a plan
-    fn calculate_complexity_score(&self, _plan: &ExecutionPlan) -> u32 {
+    /// Calculate complexity score for a plan based on actual plan structure
+    fn calculate_complexity_score(&self, plan: &ExecutionPlan) -> u32 {
         let mut score = 0u32;
 
-        score += 10;
-        score += 5;
-        score += 20;
-        score += 15;
-        score += 30;
-        score += 25;
+        if let Some(ref root) = plan.root {
+            score += self.node_complexity_score(root);
+        }
+
+        score += (plan.format.len() / 100) as u32;
+
+        score
+    }
+
+    /// Calculate complexity score for a plan node
+    fn node_complexity_score(&self, node: &crate::query::planning::plan::PlanNodeEnum) -> u32 {
+        use crate::query::planning::plan::PlanNodeEnum;
+
+        let mut score = match node {
+            // Access nodes
+            PlanNodeEnum::Start(_) => 0,
+            PlanNodeEnum::GetVertices(_) => 10,
+            PlanNodeEnum::GetEdges(_) => 10,
+            PlanNodeEnum::GetNeighbors(_) => 15,
+            PlanNodeEnum::ScanVertices(_) => 15,
+            PlanNodeEnum::ScanEdges(_) => 15,
+            PlanNodeEnum::EdgeIndexScan(_) => 20,
+            PlanNodeEnum::IndexScan(_) => 20,
+
+            // Operation nodes
+            PlanNodeEnum::Project(_) => 10,
+            PlanNodeEnum::Filter(_) => 20,
+            PlanNodeEnum::Sort(_) => 30,
+            PlanNodeEnum::Limit(_) => 5,
+            PlanNodeEnum::TopN(_) => 35,
+            PlanNodeEnum::Sample(_) => 15,
+            PlanNodeEnum::Dedup(_) => 20,
+            PlanNodeEnum::Aggregate(_) => 40,
+
+            // Join nodes
+            PlanNodeEnum::InnerJoin(_) => 50,
+            PlanNodeEnum::LeftJoin(_) => 50,
+            PlanNodeEnum::RightJoin(_) => 50,
+            PlanNodeEnum::CrossJoin(_) => 45,
+            PlanNodeEnum::HashInnerJoin(_) => 55,
+            PlanNodeEnum::HashLeftJoin(_) => 55,
+            PlanNodeEnum::FullOuterJoin(_) => 60,
+            PlanNodeEnum::SemiJoin(_) => 40,
+
+            // Traversal nodes
+            PlanNodeEnum::Expand(_) => 25,
+            PlanNodeEnum::ExpandAll(_) => 30,
+            PlanNodeEnum::Traverse(_) => 35,
+            PlanNodeEnum::AppendVertices(_) => 20,
+            PlanNodeEnum::BiExpand(_) => 30,
+            PlanNodeEnum::BiTraverse(_) => 35,
+
+            // Control flow nodes
+            PlanNodeEnum::Argument(_) => 5,
+            PlanNodeEnum::Loop(_) => 50,
+            PlanNodeEnum::PassThrough(_) => 5,
+            PlanNodeEnum::Select(_) => 25,
+
+            // Transaction nodes
+            PlanNodeEnum::BeginTransaction(_) => 10,
+            PlanNodeEnum::Commit(_) => 10,
+            PlanNodeEnum::Rollback(_) => 10,
+
+            // Data processing nodes
+            PlanNodeEnum::DataCollect(_) => 15,
+            PlanNodeEnum::Remove(_) => 15,
+            PlanNodeEnum::PatternApply(_) => 35,
+            PlanNodeEnum::RollUpApply(_) => 35,
+            PlanNodeEnum::Union(_) => 25,
+            PlanNodeEnum::Minus(_) => 30,
+            PlanNodeEnum::Intersect(_) => 30,
+            PlanNodeEnum::Unwind(_) => 15,
+            PlanNodeEnum::Materialize(_) => 20,
+            PlanNodeEnum::Assign(_) => 10,
+            PlanNodeEnum::Apply(_) => 30,
+
+            // Algorithm nodes
+            PlanNodeEnum::MultiShortestPath(_) => 60,
+            PlanNodeEnum::BFSShortest(_) => 50,
+            PlanNodeEnum::AllPaths(_) => 55,
+            PlanNodeEnum::ShortestPath(_) => 55,
+
+            // Management nodes
+            PlanNodeEnum::SpaceManage(_) => 10,
+            PlanNodeEnum::TagManage(_) => 10,
+            PlanNodeEnum::EdgeManage(_) => 10,
+            PlanNodeEnum::IndexManage(_) => 10,
+            PlanNodeEnum::UserManage(_) => 10,
+            PlanNodeEnum::FulltextManage(_) => 10,
+            PlanNodeEnum::VectorManage(_) => 10,
+
+            // Data modification nodes
+            PlanNodeEnum::InsertVertices(_) => 25,
+            PlanNodeEnum::InsertEdges(_) => 25,
+            PlanNodeEnum::DeleteVertices(_) => 20,
+            PlanNodeEnum::DeleteEdges(_) => 20,
+            PlanNodeEnum::DeleteTags(_) => 20,
+            PlanNodeEnum::DeleteIndex(_) => 15,
+            PlanNodeEnum::PipeDeleteVertices(_) => 25,
+            PlanNodeEnum::PipeDeleteEdges(_) => 25,
+            PlanNodeEnum::Update(_) => 25,
+            PlanNodeEnum::UpdateVertices(_) => 25,
+            PlanNodeEnum::UpdateEdges(_) => 25,
+
+            // Stats nodes
+            PlanNodeEnum::ShowStats(_) => 10,
+
+            // Full-text search nodes
+            PlanNodeEnum::FulltextSearch(_) => 30,
+            PlanNodeEnum::FulltextLookup(_) => 25,
+            PlanNodeEnum::MatchFulltext(_) => 30,
+
+            // Vector search nodes
+            PlanNodeEnum::VectorSearch(_) => 35,
+            PlanNodeEnum::VectorLookup(_) => 30,
+            PlanNodeEnum::VectorMatch(_) => 35,
+        };
+
+        for child in node.children() {
+            score += self.node_complexity_score(child);
+        }
 
         score
     }
@@ -514,27 +472,12 @@ impl QueryPlanCache {
         (complexity as u64 * 10).max(100)
     }
 
-    /// Update TTL adaptively based on access patterns
-    #[allow(dead_code)]
-    fn update_ttl(&self, entry: &mut CachedPlan) {
-        if !self.config.ttl_config.adaptive {
-            return;
-        }
-
-        let hit_rate =
-            entry.access_count as f64 / (entry.created_at.elapsed().as_secs() as f64 / 60.0 + 1.0);
-
-        if hit_rate > 10.0 {
-            entry.current_ttl = Duration::from_secs(
-                (entry.current_ttl.as_secs() as f64 * 1.5)
-                    .min(self.config.ttl_config.max_ttl_seconds as f64) as u64,
-            );
-        } else if hit_rate < 1.0 {
-            entry.current_ttl = Duration::from_secs(
-                (entry.current_ttl.as_secs() as f64 * 0.8)
-                    .max(self.config.ttl_config.min_ttl_seconds as f64) as u64,
-            );
-        }
+    /// Estimate current memory usage
+    fn estimate_current_memory(&self) -> usize {
+        self.cache
+            .iter()
+            .map(|entry| entry.1.estimate_memory())
+            .sum()
     }
 
     /// Record the statistics on the execution of the plan.
@@ -546,11 +489,9 @@ impl QueryPlanCache {
         let key = PlanCacheKey::from_query(query);
 
         if let Some(plan) = self.cache.get(&key) {
-            // Update the average execution time (Exponential Moving Average)
-            let alpha = 0.1; // Smoothing factor
+            let alpha = 0.1;
             let new_avg = plan.avg_execution_time_ms * (1.0 - alpha) + execution_time_ms * alpha;
 
-            // Create updated plan with new stats
             let updated_plan = Arc::new(CachedPlan {
                 execution_count: plan.execution_count + 1,
                 avg_execution_time_ms: new_avg,
@@ -573,8 +514,9 @@ impl QueryPlanCache {
         let removed = self.cache.remove(&key).is_some();
 
         if removed {
-            self.metrics
-                .update_entries(self.cache.entry_count() as usize);
+            self.stats.counters.record_eviction();
+            self.metrics.record_eviction();
+            self.update_stats();
         }
 
         removed
@@ -585,9 +527,7 @@ impl QueryPlanCache {
         self.cache
             .iter()
             .map(|(k, v)| {
-                let value_score = v.access_count as f64 * 0.5
-                    + v.estimated_compute_cost as f64 * 0.3
-                    - v.query_template.len() as f64 * 0.2;
+                let value_score = v.value_score();
                 (k.clone(), value_score, v.query_template.len())
             })
             .collect()
@@ -596,6 +536,7 @@ impl QueryPlanCache {
     /// Increment eviction count (internal use)
     pub fn increment_eviction_count(&self, count: u64) {
         for _ in 0..count {
+            self.stats.counters.record_eviction();
             self.metrics.record_eviction();
         }
     }
@@ -603,19 +544,25 @@ impl QueryPlanCache {
     /// Clear all caches.
     pub fn clear(&self) {
         self.cache.invalidate_all();
+        self.stats.reset();
         self.metrics.update_entries(0);
         self.metrics.update_bytes(0);
     }
 
     /// Obtain statistical information
-    pub fn metrics(&self) -> Arc<PlanCacheMetrics> {
-        self.metrics.clone()
+    pub fn stats(&self) -> Arc<PlanCacheStats> {
+        self.stats.clone()
+    }
+
+    /// Get statistics snapshot
+    pub fn stats_snapshot(&self) -> super::stats::PlanCacheStatsSnapshot {
+        self.stats.snapshot()
     }
 
     /// Clean up expired entries.
     /// Note: moka handles TTL automatically, so this is a no-op
     pub fn cleanup_expired(&self) {
-        // moka handles TTL automatically, no manual cleanup needed
+        // moka handles TTL automatically
     }
 
     /// Get the number of cached entries
@@ -626,6 +573,19 @@ impl QueryPlanCache {
     /// Check whether the cache is empty.
     pub fn is_empty(&self) -> bool {
         self.cache.entry_count() == 0
+    }
+
+    /// Get the configuration
+    pub fn config(&self) -> &PlanCacheConfig {
+        &self.config
+    }
+
+    /// Update internal statistics
+    fn update_stats(&self) {
+        let current_entries = self.cache.entry_count() as usize;
+        let current_memory = self.estimate_current_memory();
+        self.stats.memory.update(current_memory, current_entries);
+        self.metrics.update_entries(current_entries);
     }
 }
 
@@ -663,55 +623,40 @@ impl ParameterizedQueryHandler {
         let mut positions = Vec::new();
 
         for (idx, cap) in self.placeholder_pattern.captures_iter(query).enumerate() {
-            let mat = cap.get(0).expect("Regex capture group should not be empty");
-            let param_str = &cap[1];
+            let full_match = cap.get(0).expect("Full match should exist");
+            let param_str = cap.get(1).expect("Parameter group should exist").as_str();
 
-            // Determine if it is a positional or named parameter
-            let (name, index) = if let Ok(num) = param_str.parse::<usize>() {
-                (None, num.saturating_sub(1)) // $1 corresponds to index 0
+            let (index, name) = if param_str.chars().all(|c| c.is_ascii_digit()) {
+                (param_str.parse::<usize>().unwrap_or(idx), None)
             } else {
-                (Some(param_str.to_string()), idx)
+                (idx, Some(param_str.to_string()))
             };
 
             positions.push(ParamPosition {
                 index,
                 name,
-                position: mat.start(),
-                expected_type: None, // Types are determined during the validation phase
+                position: full_match.start(),
+                expected_type: None,
             });
         }
 
         positions
     }
 
-    /// Binding parameters to a query template
+    /// Parameterize the query (replace parameters with placeholders)
     ///
     /// # Parameters
-    /// - `template`: query template
-    /// - `params`: parameter values
+    /// - `query`: query text
     ///
     /// # Returns
-    /// Full query after binding
-    pub fn bind_params(&self, template: &str, params: &[crate::core::Value]) -> DBResult<String> {
-        let positions = self.extract_params(template);
+    /// (parameterized query, parameter list)
+    pub fn parameterize(&self, query: &str) -> (String, Vec<ParamPosition>) {
+        let positions = self.extract_params(query);
+        let parameterized = self.placeholder_pattern
+            .replace_all(query, "?")
+            .to_string();
 
-        if positions.len() != params.len() {
-            return Err(DBError::Validation(format!(
-                "Parameter count mismatch: expected {}, actual {}",
-                positions.len(),
-                params.len()
-            )));
-        }
-
-        let mut result = template.to_string();
-        let param_strings: Vec<String> = params.iter().map(|v| format!("{}", v)).collect();
-
-        // Replacement from back to front to avoid positional shifts
-        for (pos, value) in positions.iter().zip(param_strings.iter()).rev() {
-            result.replace_range(pos.position..pos.position + 2, value);
-        }
-
-        Ok(result)
+        (parameterized, positions)
     }
 }
 
@@ -726,37 +671,57 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_plan_cache_creation() {
+    fn test_plan_cache_key() {
+        let key1 = PlanCacheKey::from_query("SELECT * FROM users");
+        let key2 = PlanCacheKey::from_query("SELECT * FROM users");
+        let key3 = PlanCacheKey::from_query("SELECT * FROM posts");
+
+        assert_eq!(key1, key2);
+        assert_ne!(key1, key3);
+    }
+
+    #[test]
+    fn test_plan_cache_key_verify() {
+        let key = PlanCacheKey::from_query("SELECT * FROM users");
+        assert!(key.verify_query("SELECT * FROM users"));
+        assert!(!key.verify_query("SELECT * FROM posts"));
+    }
+
+    #[test]
+    fn test_parameterized_query_handler() {
+        let handler = ParameterizedQueryHandler::new();
+
+        let params = handler.extract_params("SELECT * FROM users WHERE id = $1 AND name = $name");
+
+        assert_eq!(params.len(), 2);
+        assert_eq!(params[0].index, 1);
+        assert!(params[0].name.is_none());
+        assert_eq!(params[1].index, 1);
+        assert_eq!(params[1].name, Some("name".to_string()));
+    }
+
+    #[test]
+    fn test_parameterized_query_handler_parameterize() {
+        let handler = ParameterizedQueryHandler::new();
+
+        let (parameterized, params) = handler.parameterize("SELECT * FROM users WHERE id = $1");
+
+        assert_eq!(parameterized, "SELECT * FROM users WHERE id = ?");
+        assert_eq!(params.len(), 1);
+    }
+
+    #[test]
+    fn test_query_plan_cache_basic() {
         let cache = QueryPlanCache::default();
+
         assert!(cache.is_empty());
         assert_eq!(cache.len(), 0);
     }
 
     #[test]
-    fn test_plan_cache_key() {
-        let key1 = PlanCacheKey::from_query("MATCH (n) RETURN n");
-        let key2 = PlanCacheKey::from_query("MATCH (n) RETURN n");
-        let key3 = PlanCacheKey::from_query("MATCH (m) RETURN m");
-
-        assert_eq!(key1.hash, key2.hash);
-        assert_ne!(key1.hash, key3.hash);
-    }
-
-    #[test]
-    fn test_cache_metrics() {
-        let cache = QueryPlanCache::default();
-        let _metrics = cache.metrics();
-        // Metrics are now recorded via global metrics crate
-        // Testing the metrics recording is done through integration tests
-    }
-
-    #[test]
-    fn test_param_handler_creation() {
-        let handler = ParameterizedQueryHandler::new();
-        let positions = handler.extract_params("SELECT * FROM t WHERE id = $1 AND name = $2");
-
-        assert_eq!(positions.len(), 2);
-        assert_eq!(positions[0].index, 0);
-        assert_eq!(positions[1].index, 1);
+    fn test_cache_priority_ordering() {
+        assert!(CachePriority::Critical > CachePriority::High);
+        assert!(CachePriority::High > CachePriority::Normal);
+        assert!(CachePriority::Normal > CachePriority::Low);
     }
 }

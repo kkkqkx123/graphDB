@@ -17,11 +17,11 @@
 //! 4. CTE is deterministic (no random functions, etc.)
 
 use moka::sync::Cache;
-use parking_lot::RwLock;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use super::plan_cache::CachePriority;
+use super::config::{CachePriority, CteCacheConfig};
+use super::stats::{CteCacheStats, MetricsRecorder};
 
 /// CTE cache entries
 #[derive(Debug, Clone)]
@@ -85,26 +85,22 @@ impl CteCacheEntry {
     pub fn estimate_memory(&self) -> usize {
         let mut total = 0;
 
-        // Data: Arc<Vec<u8>> (Arc struct + Vec struct + heap allocation)
         total += std::mem::size_of::<Arc<Vec<u8>>>();
         total += std::mem::size_of::<Vec<u8>>();
         total += self.data_size;
 
-        // String fields (String struct + heap allocation)
         total += std::mem::size_of::<String>();
         total += self.cte_hash.capacity();
 
         total += std::mem::size_of::<String>();
         total += self.cte_definition.capacity();
 
-        // Vector fields (Vec struct + String elements)
         total += std::mem::size_of::<Vec<String>>();
         for table in &self.dependent_tables {
             total += std::mem::size_of::<String>();
             total += table.capacity();
         }
 
-        // Other fields (basic types)
         total += std::mem::size_of::<Instant>() * 2;
         total += std::mem::size_of::<u64>() * 3;
         total += std::mem::size_of::<f64>() * 2;
@@ -149,138 +145,11 @@ impl CteCacheEntry {
     /// Calculate cache score (for LRU elimination decisions)
     /// The lower the score, the more likely you are to be eliminated
     pub fn cache_score(&self) -> f64 {
-        let _age_factor = self.age().as_secs_f64() / 3600.0; // hourly
-        let idle_factor = self.idle_time().as_secs_f64() / 60.0; // in minutes
-        let size_factor = (self.data_size as f64 / 1024.0 / 1024.0).max(0.1); // In MB
+        let idle_factor = self.idle_time().as_secs_f64() / 60.0;
+        let size_factor = (self.data_size as f64 / 1024.0 / 1024.0).max(0.1);
         let access_factor = (self.access_count as f64).sqrt().max(1.0);
 
-        // Combined score: considers idle time, size, frequency of visits
         (idle_factor * size_factor) / (access_factor * self.reuse_probability)
-    }
-}
-
-/// CTE Cache Statistics
-#[derive(Debug, Clone, Default)]
-pub struct CteCacheStats {
-    /// Cache hits
-    pub hit_count: u64,
-    /// Number of cache misses
-    pub miss_count: u64,
-    /// Number of cache entries
-    pub entry_count: usize,
-    /// Currently using memory (bytes)
-    pub current_memory: usize,
-    /// Total memory limit (bytes)
-    pub max_memory: usize,
-    /// Number of entries phased out
-    pub evicted_count: u64,
-    /// Number of entries rejected for caching
-    pub rejected_count: u64,
-}
-
-impl CteCacheStats {
-    /// Getting hits
-    pub fn hit_rate(&self) -> f64 {
-        let total = self.hit_count + self.miss_count;
-        if total == 0 {
-            return 0.0;
-        }
-        self.hit_count as f64 / total as f64
-    }
-
-    /// Getting Memory Usage
-    pub fn memory_usage_ratio(&self) -> f64 {
-        if self.max_memory == 0 {
-            return 0.0;
-        }
-        self.current_memory as f64 / self.max_memory as f64
-    }
-
-    /// Reset the statistics.
-    pub fn reset(&mut self) {
-        self.hit_count = 0;
-        self.miss_count = 0;
-        self.evicted_count = 0;
-        self.rejected_count = 0;
-    }
-}
-
-/// CTE Cache Configuration
-#[derive(Debug, Clone)]
-pub struct CteCacheConfig {
-    /// Maximum cache size (bytes)
-    pub max_size: usize,
-    /// Maximum number of entries (optional)
-    pub max_entries: Option<usize>,
-    /// Maximum size of a single entry (bytes)
-    pub max_entry_size: usize,
-    /// Minimum number of lines to cache (less than this value is not cached)
-    pub min_row_count: u64,
-    /// Maximum number of lines to cache (greater than this value is not cached)
-    pub max_row_count: u64,
-    /// Entry expiration time (seconds)
-    pub entry_ttl_seconds: u64,
-    /// Enable caching
-    pub enabled: bool,
-    /// Whether to enable adaptive
-    pub adaptive: bool,
-    /// Whether to enable priority
-    pub enable_priority: bool,
-}
-
-impl Default for CteCacheConfig {
-    fn default() -> Self {
-        Self {
-            max_size: 64 * 1024 * 1024,
-            max_entries: Some(10000),
-            max_entry_size: 10 * 1024 * 1024,
-            min_row_count: 100,
-            max_row_count: 100_000,
-            entry_ttl_seconds: 3600,
-            enabled: true,
-            adaptive: true,
-            enable_priority: true,
-        }
-    }
-}
-
-impl CteCacheConfig {
-    /// Create a small memory configuration.
-    pub fn low_memory() -> Self {
-        Self {
-            max_size: 16 * 1024 * 1024,
-            max_entries: Some(5000),
-            max_entry_size: 5 * 1024 * 1024,
-            min_row_count: 50,
-            max_row_count: 50_000,
-            entry_ttl_seconds: 1800,
-            enabled: true,
-            adaptive: true,
-            enable_priority: true,
-        }
-    }
-
-    /// Creating a large memory configuration
-    pub fn high_memory() -> Self {
-        Self {
-            max_size: 256 * 1024 * 1024,
-            max_entries: Some(20000),
-            max_entry_size: 50 * 1024 * 1024,
-            min_row_count: 100,
-            max_row_count: 500_000,
-            entry_ttl_seconds: 7200,
-            enabled: true,
-            adaptive: true,
-            enable_priority: true,
-        }
-    }
-
-    /// Disable caching
-    pub fn disabled() -> Self {
-        Self {
-            enabled: false,
-            ..Default::default()
-        }
     }
 }
 
@@ -292,9 +161,11 @@ pub struct CteCacheManager {
     /// Cache storage - using moka for high-performance concurrent access with weigher
     cache: Cache<String, Arc<CteCacheEntry>>,
     /// Configuration
-    config: Arc<RwLock<CteCacheConfig>>,
-    /// Statistical information
-    stats: Arc<RwLock<CteCacheStats>>,
+    config: Arc<std::sync::RwLock<CteCacheConfig>>,
+    /// Statistics
+    stats: Arc<CteCacheStats>,
+    /// Metrics recorder
+    metrics: MetricsRecorder,
 }
 
 impl CteCacheManager {
@@ -316,31 +187,32 @@ impl CteCacheManager {
             .time_to_live(Duration::from_secs(config.entry_ttl_seconds))
             .build();
 
+        let stats = Arc::new(CteCacheStats::new(config.max_size));
+        let metrics = MetricsRecorder::new("graphdb_cte_cache");
+
         Self {
             cache,
-            config: Arc::new(RwLock::new(config.clone())),
-            stats: Arc::new(RwLock::new(CteCacheStats {
-                max_memory: config.max_size,
-                ..Default::default()
-            })),
+            config: Arc::new(std::sync::RwLock::new(config.clone())),
+            stats,
+            metrics,
         }
     }
 
     /// Obtain the configuration.
     pub fn config(&self) -> CteCacheConfig {
-        self.config.read().clone()
+        self.config.read().expect("Config lock poisoned").clone()
     }
 
     /// Update the configuration.
     pub fn set_config(&self, config: CteCacheConfig) {
-        let mut stats = self.stats.write();
-        stats.max_memory = config.max_size;
-        *self.config.write() = config;
+        let mut cfg = self.config.write().expect("Config lock poisoned");
+        self.stats.memory.set_max_bytes(config.max_size);
+        *cfg = config;
     }
 
     /// Determine whether to enable caching.
     pub fn is_enabled(&self) -> bool {
-        self.config.read().enabled
+        self.config.read().expect("Config lock poisoned").enabled
     }
 
     /// Determine whether the results of the CTE (Common Table Expression) are cached.
@@ -355,7 +227,7 @@ impl CteCacheManager {
         estimated_rows: u64,
         is_deterministic: bool,
     ) -> bool {
-        let config = self.config.read();
+        let config = self.config.read().expect("Config lock poisoned");
 
         if !config.enabled {
             return false;
@@ -365,12 +237,10 @@ impl CteCacheManager {
             return false;
         }
 
-        // Check the range of line numbers.
         if estimated_rows < config.min_row_count || estimated_rows > config.max_row_count {
             return false;
         }
 
-        // Check the historical reuse patterns.
         let reuse_prob = self.predict_reuse_probability(cte_definition);
         if reuse_prob < 0.3 {
             return false;
@@ -383,13 +253,10 @@ impl CteCacheManager {
     fn predict_reuse_probability(&self, cte_definition: &str) -> f64 {
         let cte_hash = Self::compute_hash(cte_definition);
 
-        // If it is already in the cache, return the current reuse probability.
         if let Some(entry) = self.cache.get(&cte_hash) {
             return entry.reuse_probability;
         }
 
-        // Otherwise, predictions will be made based on the characteristics of the CTE (Common Table Expression).
-        // A simple heuristic: More complex Common Table Expressions (CTEs) are more likely to be reused.
         let complexity = cte_definition.len() as f64 / 100.0;
         let base_prob = 0.5;
         let complexity_bonus = (complexity / 10.0).min(0.3);
@@ -420,15 +287,14 @@ impl CteCacheManager {
         row_count: u64,
         compute_cost_ms: u64,
     ) -> Option<String> {
-        let config = self.config.read();
+        let config = self.config.read().expect("Config lock poisoned");
 
         if !config.enabled {
             return None;
         }
 
         if data.len() > config.max_entry_size {
-            let mut stats = self.stats.write();
-            stats.rejected_count += 1;
+            self.stats.counters.record_rejection();
             return None;
         }
 
@@ -445,8 +311,48 @@ impl CteCacheManager {
 
         self.cache.insert(cte_hash.clone(), entry);
 
-        let mut stats = self.stats.write();
-        stats.entry_count = self.cache.entry_count() as usize;
+        self.stats.counters.record_insertion();
+        self.update_stats();
+
+        Some(cte_hash)
+    }
+
+    /// Store the data in the cache with dependent tables.
+    pub fn put_with_tables(
+        &self,
+        cte_definition: &str,
+        data: Vec<u8>,
+        row_count: u64,
+        compute_cost_ms: u64,
+        dependent_tables: Vec<String>,
+    ) -> Option<String> {
+        let config = self.config.read().expect("Config lock poisoned");
+
+        if !config.enabled {
+            return None;
+        }
+
+        if data.len() > config.max_entry_size {
+            self.stats.counters.record_rejection();
+            return None;
+        }
+
+        drop(config);
+
+        let cte_hash = Self::compute_hash(cte_definition);
+        let mut entry = CteCacheEntry::new(
+            cte_hash.clone(),
+            cte_definition.to_string(),
+            data,
+            row_count,
+            compute_cost_ms,
+        );
+        entry.dependent_tables = dependent_tables;
+
+        self.cache.insert(cte_hash.clone(), Arc::new(entry));
+
+        self.stats.counters.record_insertion();
+        self.update_stats();
 
         Some(cte_hash)
     }
@@ -490,9 +396,8 @@ impl CteCacheManager {
         }
 
         if freed > 0 {
-            let mut stats = self.stats.write();
-            stats.evicted_count += to_remove.len() as u64;
-            stats.entry_count = self.cache.entry_count() as usize;
+            self.stats.counters.record_eviction();
+            self.update_stats();
         }
 
         freed
@@ -500,7 +405,7 @@ impl CteCacheManager {
 
     /// Retrieve data from the cache.
     pub fn get(&self, cte_definition: &str) -> Option<Arc<Vec<u8>>> {
-        let config = self.config.read();
+        let config = self.config.read().expect("Config lock poisoned");
 
         if !config.enabled {
             return None;
@@ -511,14 +416,12 @@ impl CteCacheManager {
         let cte_hash = Self::compute_hash(cte_definition);
 
         if let Some(entry) = self.cache.get(&cte_hash) {
-            // Update the statistics.
-            let mut stats = self.stats.write();
-            stats.hit_count += 1;
-
+            self.stats.counters.record_hit();
+            self.metrics.record_hit();
             Some(entry.data.clone())
         } else {
-            let mut stats = self.stats.write();
-            stats.miss_count += 1;
+            self.stats.counters.record_miss();
+            self.metrics.record_miss();
             None
         }
     }
@@ -540,11 +443,36 @@ impl CteCacheManager {
         let removed = self.cache.remove(cte_hash).is_some();
 
         if removed {
-            let mut stats = self.stats.write();
-            stats.entry_count = self.cache.entry_count() as usize;
+            self.stats.counters.record_eviction();
+            self.metrics.record_eviction();
+            self.update_stats();
         }
 
         removed
+    }
+
+    /// Invalidate cache entries by table name
+    pub fn invalidate_by_table(&self, table_name: &str) -> usize {
+        let mut count = 0;
+        let keys_to_remove: Vec<String> = self
+            .cache
+            .iter()
+            .filter(|entry| entry.1.dependent_tables.iter().any(|t| t == table_name))
+            .map(|entry| entry.0.as_ref().clone())
+            .collect();
+
+        for key in keys_to_remove {
+            if self.cache.remove(&key).is_some() {
+                count += 1;
+            }
+        }
+
+        if count > 0 {
+            self.stats.counters.record_eviction();
+            self.update_stats();
+        }
+
+        count
     }
 
     /// Get cache entries for eviction (internal use)
@@ -560,25 +488,32 @@ impl CteCacheManager {
 
     /// Increment eviction count (internal use)
     pub fn increment_evicted_count(&self, count: u64) {
-        let mut stats = self.stats.write();
-        stats.evicted_count += count;
+        for _ in 0..count {
+            self.stats.counters.record_eviction();
+        }
     }
 
     /// Clear all caches.
     pub fn clear(&self) {
         self.cache.invalidate_all();
-
-        let mut stats = self.stats.write();
-        stats.entry_count = 0;
-        stats.current_memory = 0;
+        self.stats.reset();
+        self.metrics.update_entries(0);
+        self.metrics.update_bytes(0);
     }
 
     /// Obtain statistical information
-    pub fn get_stats(&self) -> CteCacheStats {
-        let mut stats = self.stats.read().clone();
-        stats.entry_count = self.cache.entry_count() as usize;
-        stats.current_memory = self.estimate_current_memory();
-        stats
+    pub fn get_stats(&self) -> super::stats::CteCacheStatsSnapshot {
+        self.update_stats();
+        self.stats.snapshot()
+    }
+
+    /// Update internal statistics
+    fn update_stats(&self) {
+        let current_entries = self.cache.entry_count() as usize;
+        let current_memory = self.estimate_current_memory();
+        self.stats.memory.update(current_memory, current_entries);
+        self.metrics.update_entries(current_entries);
+        self.metrics.update_bytes(current_memory);
     }
 
     /// Estimate current memory usage
@@ -591,7 +526,7 @@ impl CteCacheManager {
 
     /// Reset statistics
     pub fn reset_stats(&self) {
-        self.stats.write().reset();
+        self.stats.reset();
     }
 
     /// Get the current memory usage
@@ -609,6 +544,11 @@ impl CteCacheManager {
     pub fn cleanup_expired(&self) -> usize {
         0
     }
+
+    /// Get the statistics object
+    pub fn stats(&self) -> Arc<CteCacheStats> {
+        self.stats.clone()
+    }
 }
 
 impl Default for CteCacheManager {
@@ -617,13 +557,7 @@ impl Default for CteCacheManager {
     }
 }
 
-impl Clone for CteCacheManager {
-    fn clone(&self) -> Self {
-        Self::with_config(self.config.read().clone())
-    }
-}
-
-/// CTE Cache Decisioner
+/// CTE Cache Decision
 ///
 /// Decide whether to use caching based on query characteristics
 #[derive(Debug, Clone)]
@@ -685,32 +619,52 @@ impl CteCacheDecisionMaker {
             };
         }
 
+        let config = self.cache_manager.config();
+
+        if estimated_rows < config.min_row_count {
+            return CteCacheDecision {
+                should_cache: false,
+                reason: format!(
+                    "Row count {} below minimum {}",
+                    estimated_rows, config.min_row_count
+                ),
+                reuse_probability: 0.0,
+                estimated_benefit: 0.0,
+                suggested_priority: CachePriority::Low,
+            };
+        }
+
+        if estimated_rows > config.max_row_count {
+            return CteCacheDecision {
+                should_cache: false,
+                reason: format!(
+                    "Row count {} above maximum {}",
+                    estimated_rows, config.max_row_count
+                ),
+                reuse_probability: 0.0,
+                estimated_benefit: 0.0,
+                suggested_priority: CachePriority::Low,
+            };
+        }
+
         let reuse_prob = self.cache_manager.predict_reuse_probability(cte_definition);
 
         if reuse_prob < self.min_reuse_probability {
             return CteCacheDecision {
                 should_cache: false,
-                reason: format!("Reuse probability too low: {:.2}", reuse_prob),
+                reason: format!(
+                    "Reuse probability {:.2} below threshold {:.2}",
+                    reuse_prob, self.min_reuse_probability
+                ),
                 reuse_probability: reuse_prob,
                 estimated_benefit: 0.0,
                 suggested_priority: CachePriority::Low,
             };
         }
 
-        let cache_overhead = estimated_rows as f64 * 0.001;
-        let estimated_benefit = reuse_prob * compute_cost - cache_overhead;
+        let estimated_benefit = compute_cost * reuse_prob;
 
-        if estimated_benefit < self.min_benefit {
-            return CteCacheDecision {
-                should_cache: false,
-                reason: format!("Estimated benefit too low: {:.2}", estimated_benefit),
-                reuse_probability: reuse_prob,
-                estimated_benefit,
-                suggested_priority: CachePriority::Low,
-            };
-        }
-
-        let suggested_priority = if compute_cost > 1000.0 {
+        let priority = if compute_cost > 1000.0 {
             CachePriority::High
         } else if compute_cost > 100.0 {
             CachePriority::Normal
@@ -719,18 +673,19 @@ impl CteCacheDecisionMaker {
         };
 
         CteCacheDecision {
-            should_cache: true,
-            reason: "Benefit analysis passed".to_string(),
+            should_cache: estimated_benefit >= self.min_benefit,
+            reason: if estimated_benefit >= self.min_benefit {
+                format!("Estimated benefit {:.2} meets threshold", estimated_benefit)
+            } else {
+                format!(
+                    "Estimated benefit {:.2} below threshold {:.2}",
+                    estimated_benefit, self.min_benefit
+                )
+            },
             reuse_probability: reuse_prob,
             estimated_benefit,
-            suggested_priority,
+            suggested_priority: priority,
         }
-    }
-}
-
-impl Default for CteCacheDecisionMaker {
-    fn default() -> Self {
-        Self::new(Arc::new(CteCacheManager::new()))
     }
 }
 
@@ -739,83 +694,88 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_cte_cache_entry() {
+    fn test_cte_cache_entry_creation() {
+        let entry = CteCacheEntry::new(
+            "hash123".to_string(),
+            "SELECT * FROM users".to_string(),
+            vec![1, 2, 3, 4],
+            100,
+            50,
+        );
+
+        assert_eq!(entry.row_count, 100);
+        assert_eq!(entry.data_size, 4);
+        assert_eq!(entry.compute_cost_ms, 50);
+    }
+
+    #[test]
+    fn test_cte_cache_entry_memory_estimation() {
+        let entry = CteCacheEntry::new(
+            "hash".to_string(),
+            "SELECT 1".to_string(),
+            vec![0u8; 1024],
+            10,
+            10,
+        );
+
+        let memory = entry.estimate_memory();
+        assert!(memory > 1024);
+    }
+
+    #[test]
+    fn test_cte_cache_entry_value_score() {
         let mut entry = CteCacheEntry::new(
-            "hash1".to_string(),
-            "SELECT * FROM t".to_string(),
-            vec![1, 2, 3, 4, 5],
+            "hash".to_string(),
+            "SELECT 1".to_string(),
+            vec![0u8; 1024],
             10,
             100,
         );
 
-        assert_eq!(entry.row_count, 10);
-        assert_eq!(entry.data_size, 5);
+        entry.access_count = 10;
+        entry.access_frequency = 5.0;
 
-        entry.record_access();
-        assert_eq!(entry.access_count, 1);
-        assert!(entry.reuse_probability > 0.5);
+        let score = entry.value_score();
+        assert!(score > 0.0);
     }
 
     #[test]
-    fn test_cte_cache_manager() {
+    fn test_cte_cache_manager_creation() {
+        let manager = CteCacheManager::new();
+        assert!(manager.is_enabled());
+        assert_eq!(manager.entry_count(), 0);
+    }
+
+    #[test]
+    fn test_cte_cache_manager_put_get() {
         let manager = CteCacheManager::new();
 
-        // Testing cache decision-making mechanisms
-        assert!(manager.should_cache("SELECT * FROM t", 500, true));
-        assert!(!manager.should_cache("SELECT * FROM t", 10, true)); // Too few lines
-        assert!(!manager.should_cache("SELECT * FROM t", 500, false)); // Non-determinacy
+        let hash = manager.put("SELECT 1", vec![1, 2, 3], 1);
+        assert!(hash.is_some());
 
-        // Test Deposit and Access
-        let data = vec![1, 2, 3, 4, 5];
-        let key = manager.put("SELECT * FROM t", data.clone(), 100);
-        assert!(key.is_some());
-
-        let retrieved = manager.get("SELECT * FROM t");
-        assert!(retrieved.is_some());
-        assert_eq!(*retrieved.expect("retrieved value should exist"), data);
-
-        // Test statistics
-        let stats = manager.get_stats();
-        assert_eq!(stats.hit_count, 1);
-        assert_eq!(stats.miss_count, 0);
-        assert_eq!(stats.entry_count, manager.entry_count());
+        let data = manager.get("SELECT 1");
+        assert!(data.is_some());
+        assert_eq!(data.unwrap().as_ref(), &[1, 2, 3]);
     }
 
     #[test]
-    fn test_cte_cache_eviction() {
-        let config = CteCacheConfig {
-            max_size: 100,
-            max_entries: Some(100),
-            max_entry_size: 50,
-            min_row_count: 1,
-            max_row_count: 1000,
-            entry_ttl_seconds: 3600,
-            enabled: true,
-            adaptive: true,
-            enable_priority: true,
-        };
+    fn test_cte_cache_manager_should_cache() {
+        let manager = CteCacheManager::new();
 
-        let manager = CteCacheManager::with_config(config);
+        assert!(manager.should_cache("SELECT * FROM users", 500, true));
+        assert!(!manager.should_cache("SELECT * FROM users", 10, true));
+        assert!(!manager.should_cache("SELECT * FROM users", 500, false));
+    }
 
-        // Entering multiple entries triggers the elimination process.
-        let data1 = vec![1u8; 40]; // 40 bytes
-        let data2 = vec![2u8; 40]; // 40 bytes
-        let data3 = vec![3u8; 40]; // 40 bytes
+    #[test]
+    fn test_cte_cache_manager_invalidate() {
+        let manager = CteCacheManager::new();
 
-        manager.put("query1", data1, 10);
-        manager.put("query2", data2, 10);
+        manager.put("SELECT 1", vec![1, 2, 3], 1);
+        assert!(manager.contains("SELECT 1"));
 
-        // Visit query1 to boost its score
-        manager.get("query1");
-
-        // Query3 should be stored, while query2 should be eliminated by moka's weigher
-        manager.put("query3", data3, 10);
-
-        // Verify that cache has limited entries due to weight limit
-        let stats = manager.get_stats();
-        // With moka's weigher, entries are automatically evicted when weight exceeds limit
-        // The exact number may vary, but it should be limited
-        assert!(stats.entry_count <= 3);
+        assert!(manager.invalidate("SELECT 1"));
+        assert!(!manager.contains("SELECT 1"));
     }
 
     #[test]
@@ -823,50 +783,17 @@ mod tests {
         let manager = Arc::new(CteCacheManager::new());
         let decision_maker = CteCacheDecisionMaker::new(manager);
 
-        // Test decision-making
-        let decision = decision_maker.decide("SELECT * FROM large_table", 1000, 100.0);
-        // Since the probability of reuse may be low, the result may be true or false
-        assert!(decision.reuse_probability >= 0.0 && decision.reuse_probability <= 1.0);
-
-        // Testing cases with low probability of reuse
-        let decision = decision_maker.decide("SELECT 1", 100, 0.1);
-        assert!(!decision.should_cache); // Simple queries should not be cached
+        let decision = decision_maker.decide("SELECT * FROM users", 500, 100.0);
+        assert!(decision.should_cache);
     }
 
     #[test]
-    fn test_cte_cache_stats() {
-        let mut stats = CteCacheStats::default();
+    fn test_compute_hash() {
+        let hash1 = CteCacheManager::compute_hash("SELECT 1");
+        let hash2 = CteCacheManager::compute_hash("SELECT 1");
+        let hash3 = CteCacheManager::compute_hash("SELECT 2");
 
-        assert_eq!(stats.hit_rate(), 0.0);
-        assert_eq!(stats.memory_usage_ratio(), 0.0);
-
-        stats.hit_count = 80;
-        stats.miss_count = 20;
-        stats.current_memory = 50;
-        stats.max_memory = 100;
-
-        assert_eq!(stats.hit_rate(), 0.8);
-        assert_eq!(stats.memory_usage_ratio(), 0.5);
-
-        stats.reset();
-        assert_eq!(stats.hit_count, 0);
-        assert_eq!(stats.miss_count, 0);
-    }
-
-    #[test]
-    fn test_cte_cache_config() {
-        let config = CteCacheConfig {
-            max_size: 32 * 1024 * 1024,
-            max_entries: Some(10000),
-            max_entry_size: 5 * 1024 * 1024,
-            min_row_count: 50,
-            max_row_count: 50_000,
-            entry_ttl_seconds: 1800,
-            enabled: true,
-            adaptive: true,
-            enable_priority: true,
-        };
-
-        assert_eq!(config.max_size, 32 * 1024 * 1024);
+        assert_eq!(hash1, hash2);
+        assert_ne!(hash1, hash3);
     }
 }

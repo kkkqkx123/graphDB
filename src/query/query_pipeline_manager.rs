@@ -163,8 +163,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     }
 
     /// Obtain metrics on the query plan cache
-    pub fn plan_cache_metrics(&self) -> std::sync::Arc<crate::query::cache::PlanCacheMetrics> {
-        self.plan_cache.metrics()
+    pub fn plan_cache_metrics(&self) -> Arc<crate::query::cache::PlanCacheStats> {
+        self.plan_cache.stats()
     }
 
     /// Clear query plan cache.

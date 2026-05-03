@@ -7,176 +7,68 @@
 //!
 //! # Design Goals
 //!
-//! Centralized management of all caches facilitates configuration and monitoring.
+//! 1. Centralized management of all caches facilitates configuration and monitoring.
 //! 2. Unified memory budget management
 //! 3. Shared caching strategies (LRU, TTL, etc.)
 //! 4. Unified collection of statistics and indicators
+//! 5. Cache invalidation on data changes
+//!
+//! # Module Structure
+//!
+//! - `config`: Unified configuration for all cache types
+//! - `stats`: Unified statistics collection and reporting
+//! - `invalidation`: Cache invalidation strategies
+//! - `plan_cache`: Query plan cache (Prepared Statement style)
+//! - `cte_cache`: CTE result cache
+//! - `manager`: Unified cache manager
+//! - `warmup`: Cache warmup functionality
 
-// Submodule
+// Submodules
+pub mod config;
 pub mod cte_cache;
-pub mod global_manager;
+pub mod invalidation;
+pub mod manager;
 pub mod plan_cache;
+pub mod stats;
 pub mod warmup;
 
-// Reexport the plan cache type.
+// Re-export config types
+pub use config::{
+    CacheAllocations, CacheManagerConfig, CachePriority, CteCacheConfig, PlanCacheConfig,
+    PriorityConfig, TtlConfig,
+};
+
+// Re-export stats types
+pub use stats::{
+    CacheCounters, CteCacheStats, CteCacheStatsSnapshot, GlobalCacheStatsSnapshot,
+    MemoryStats, MetricsRecorder, PlanCacheStats, PlanCacheStatsSnapshot,
+};
+
+// Re-export invalidation types
+pub use invalidation::{
+    CacheInvalidator, DataChangeEvent, DataChangeType, DependencyTracker, InvalidationManager,
+    InvalidationStats, InvalidationStrategy, TableBasedInvalidation,
+};
+
+// Re-export the plan cache types
 pub use plan_cache::{
-    CachePriority, CachedPlan, ParamPosition, ParameterizedQueryHandler, PlanCacheConfig,
-    PlanCacheKey, PlanCacheMetrics, PlanCacheStats, QueryPlanCache,
+    CachedPlan, ParamPosition, ParameterizedQueryHandler, PlanCacheKey, QueryPlanCache,
 };
 
-// Re-export the CTE cache type
+// Re-export the CTE cache types
 pub use cte_cache::{
-    CteCacheConfig, CteCacheDecision, CteCacheDecisionMaker, CteCacheEntry, CteCacheManager,
-    CteCacheStats,
+    CteCacheDecision, CteCacheDecisionMaker, CteCacheEntry, CteCacheManager,
 };
 
-// Re-export the global cache manager type
-pub use global_manager::{CacheAllocations, GlobalCacheManager, GlobalCacheStats};
+// Re-export the manager types
+pub use manager::{
+    CacheManager, CacheStatsSummary, GlobalCacheManager, GlobalCacheStats,
+};
 
-// Re-export the warmup module type
-pub use warmup::{CacheWarmer, QueryStats, WarmupConfig, WarmupError, WarmupResult};
-
-use std::sync::Arc;
-
-/// Unified Cache Manager
-///
-/// Centralized management of all types of caches, with a unified configuration and monitoring interface available.
-#[derive(Debug, Clone)]
-pub struct CacheManager {
-    /// Query plan cache
-    plan_cache: Arc<QueryPlanCache>,
-    /// CTE result caching
-    cte_cache: Arc<CteCacheManager>,
-    /// Global cache manager (optional)
-    global_manager: Option<Arc<GlobalCacheManager>>,
-}
-
-impl CacheManager {
-    /// Create a new cache manager.
-    pub fn new() -> Self {
-        Self {
-            plan_cache: Arc::new(QueryPlanCache::default()),
-            cte_cache: Arc::new(CteCacheManager::default()),
-            global_manager: None,
-        }
-    }
-
-    /// Create using the configuration.
-    pub fn with_config(plan_config: PlanCacheConfig, cte_config: CteCacheConfig) -> Self {
-        Self {
-            plan_cache: Arc::new(QueryPlanCache::new(plan_config)),
-            cte_cache: Arc::new(CteCacheManager::with_config(cte_config)),
-            global_manager: None,
-        }
-    }
-
-    /// Create with global cache manager
-    pub fn with_global_manager(global_manager: Arc<GlobalCacheManager>) -> Self {
-        let plan_cache = global_manager.plan_cache();
-        let cte_cache = global_manager.cte_cache();
-
-        Self {
-            plan_cache,
-            cte_cache,
-            global_manager: Some(global_manager),
-        }
-    }
-
-    /// Obtain the query plan cache
-    pub fn plan_cache(&self) -> Arc<QueryPlanCache> {
-        self.plan_cache.clone()
-    }
-
-    /// Obtaining the CTE cache
-    pub fn cte_cache(&self) -> Arc<CteCacheManager> {
-        self.cte_cache.clone()
-    }
-
-    /// Get the global cache manager if available
-    pub fn global_manager(&self) -> Option<Arc<GlobalCacheManager>> {
-        self.global_manager.clone()
-    }
-
-    /// Get the total memory usage (in bytes).
-    pub fn total_memory_usage(&self) -> usize {
-        if let Some(global) = &self.global_manager {
-            global.total_memory_usage()
-        } else {
-            // Using metrics-based approach - approximate memory usage
-            let cte_stats = self.cte_cache.get_stats();
-            cte_stats.current_memory
-        }
-    }
-
-    /// Clear all caches.
-    pub fn clear_all(&self) {
-        self.plan_cache.clear();
-        self.cte_cache.clear();
-
-        if let Some(global) = &self.global_manager {
-            global.clear_all();
-        }
-    }
-
-    /// Obtain a summary of cache statistics.
-    pub fn stats_summary(&self) -> CacheStatsSummary {
-        let cte_stats = self.cte_cache.get_stats();
-
-        CacheStatsSummary {
-            // Plan cache metrics now use global metrics crate
-            plan_cache_entries: 0, // Would need to read from global metrics registry
-            plan_cache_hit_rate: 0.0, // Would need to calculate from global metrics
-            cte_cache_entries: cte_stats.entry_count,
-            cte_cache_hit_rate: cte_stats.hit_rate(),
-            total_memory_bytes: cte_stats.current_memory,
-        }
-    }
-
-    /// Update memory usage statistics
-    pub fn update_memory_usage(&self) {
-        if let Some(global) = &self.global_manager {
-            global.update_memory_usage();
-        }
-    }
-}
-
-impl Default for CacheManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Cache statistics summary
-#[derive(Debug, Clone)]
-pub struct CacheStatsSummary {
-    /// Number of planned cache entries
-    pub plan_cache_entries: usize,
-    /// Plan Cache Hit Rate
-    pub plan_cache_hit_rate: f64,
-    /// Number of CTE (Common Table Expression) cache entries
-    pub cte_cache_entries: usize,
-    /// CTE Cache Hit Rate
-    pub cte_cache_hit_rate: f64,
-    /// Total memory usage (in bytes)
-    pub total_memory_bytes: usize,
-}
-
-impl CacheStatsSummary {
-    /// Of course! Please provide the text you would like to have translated.
-    pub fn format(&self) -> String {
-        format!(
-            "Cache Statistics:\n\
-             - Plan Cache: {} entries, {:.2}% hit rate\n\
-             - CTE Cache: {} entries, {:.2}% hit rate\n\
-             - Total Memory: {:.2} MB",
-            self.plan_cache_entries,
-            self.plan_cache_hit_rate * 100.0,
-            self.cte_cache_entries,
-            self.cte_cache_hit_rate * 100.0,
-            self.total_memory_bytes as f64 / 1024.0 / 1024.0
-        )
-    }
-}
+// Re-export the warmup module types
+pub use warmup::{
+    CacheWarmer, QueryStats, WarmupConfig, WarmupCte, WarmupError, WarmupQuery, WarmupResult,
+};
 
 #[cfg(test)]
 mod tests {
@@ -190,52 +82,72 @@ mod tests {
 
     #[test]
     fn test_cache_manager_with_config() {
-        let plan_config = PlanCacheConfig {
-            max_entries: 500,
-            memory_budget: 25 * 1024 * 1024,
-            max_weight: None,
-            enable_parameterized: true,
-            ttl_config: plan_cache::TtlConfig {
-                base_ttl_seconds: 1800,
-                adaptive: true,
-                min_ttl_seconds: 300,
-                max_ttl_seconds: 86400,
-            },
-            priority_config: plan_cache::PriorityConfig {
-                enable_priority: true,
-                track_execution_time: true,
-            },
+        let config = CacheManagerConfig {
+            total_budget: 256 * 1024 * 1024,
+            ..Default::default()
         };
 
-        let cte_config = CteCacheConfig {
-            max_size: 32 * 1024 * 1024,
-            max_entries: Some(10000),
-            max_entry_size: 5 * 1024 * 1024,
-            min_row_count: 50,
-            max_row_count: 50_000,
-            entry_ttl_seconds: 1800,
-            enabled: true,
-            adaptive: true,
-            enable_priority: true,
-        };
+        let manager = CacheManager::with_config(config);
+        assert_eq!(manager.total_budget(), 256 * 1024 * 1024);
+    }
 
-        let manager = CacheManager::with_config(plan_config, cte_config);
-        assert_eq!(manager.total_memory_usage(), 0);
+    #[test]
+    fn test_cache_manager_presets() {
+        let minimal = CacheManager::minimal();
+        assert_eq!(minimal.total_budget(), 32 * 1024 * 1024);
+
+        let balanced = CacheManager::balanced();
+        assert_eq!(balanced.total_budget(), 128 * 1024 * 1024);
+
+        let high_perf = CacheManager::high_performance();
+        assert_eq!(high_perf.total_budget(), 512 * 1024 * 1024);
     }
 
     #[test]
     fn test_cache_stats_summary() {
-        let summary = CacheStatsSummary {
-            plan_cache_entries: 100,
-            plan_cache_hit_rate: 0.85,
-            cte_cache_entries: 50,
-            cte_cache_hit_rate: 0.75,
-            total_memory_bytes: 1024 * 1024 * 10, // 10MB
+        let snapshot = GlobalCacheStatsSnapshot {
+            plan_cache: PlanCacheStatsSnapshot {
+                entry_count: 100,
+                hit_rate: 0.85,
+                ..Default::default()
+            },
+            cte_cache: CteCacheStatsSnapshot {
+                entry_count: 50,
+                hit_rate: 0.75,
+                ..Default::default()
+            },
+            total_memory: 10 * 1024 * 1024,
+            total_budget: 100 * 1024 * 1024,
+            ..Default::default()
         };
+
+        let summary = CacheStatsSummary::from_snapshot(&snapshot);
+
+        assert_eq!(summary.plan_cache_entries, 100);
+        assert_eq!(summary.cte_cache_entries, 50);
+        assert!((summary.plan_cache_hit_rate - 0.85).abs() < 0.01);
 
         let formatted = summary.format();
         assert!(formatted.contains("Plan Cache: 100 entries"));
         assert!(formatted.contains("85.00% hit rate"));
-        assert!(formatted.contains("10.00 MB"));
+    }
+
+    #[test]
+    fn test_data_change_event() {
+        let event = DataChangeEvent::insert("users");
+        assert_eq!(event.table_name, "users");
+        assert_eq!(event.change_type, DataChangeType::Insert);
+    }
+
+    #[test]
+    fn test_config_validation() {
+        let config = CacheManagerConfig::default();
+        assert!(config.validate().is_ok());
+
+        let invalid = CacheManagerConfig {
+            total_budget: 0,
+            ..Default::default()
+        };
+        assert!(invalid.validate().is_err());
     }
 }
