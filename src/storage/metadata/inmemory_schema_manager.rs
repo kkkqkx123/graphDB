@@ -42,6 +42,21 @@ fn edge_type_info_to_schema(edge_type_name: &str, edge_info: &EdgeTypeInfo) -> S
     }
 }
 
+const SCHEMA_FORMAT_VERSION: u32 = 1;
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct SchemaSnapshot {
+    version: u32,
+    spaces: Vec<SpaceInfo>,
+    tags: Vec<(u64, TagInfo)>,
+    edge_types: Vec<(u64, EdgeTypeInfo)>,
+    tag_indexes: Vec<(u64, Index)>,
+    edge_indexes: Vec<(u64, Index)>,
+    space_id_counter: u64,
+    tag_id_counters: Vec<(u64, u32)>,
+    edge_type_id_counters: Vec<(u64, u32)>,
+}
+
 #[derive(Debug, Clone)]
 struct SpaceData {
     info: SpaceInfo,
@@ -404,6 +419,152 @@ impl super::SchemaManager for InMemorySchemaManager {
             .filter(|((sid, _), _)| *sid == space_info.space_id)
             .map(|(_, data)| data.info.clone())
             .collect())
+    }
+
+    fn save_schema(&self, path: &std::path::Path) -> Result<(), StorageError> {
+        use std::fs::{self, File};
+        use std::io::Write;
+
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|e| StorageError::IOError(e.to_string()))?;
+        }
+
+        let spaces: Vec<SpaceInfo> = self.spaces.read().values().map(|d| d.info.clone()).collect();
+        
+        let tags: Vec<(u64, TagInfo)> = self.tags.read()
+            .iter()
+            .map(|((space_id, _), data)| (*space_id, data.info.clone()))
+            .collect();
+
+        let edge_types: Vec<(u64, EdgeTypeInfo)> = self.edge_types.read()
+            .iter()
+            .map(|((space_id, _), data)| (*space_id, data.info.clone()))
+            .collect();
+
+        let tag_indexes: Vec<(u64, Index)> = self.tag_indexes.read()
+            .iter()
+            .map(|((space_id, _), data)| (*space_id, data.info.clone()))
+            .collect();
+
+        let edge_indexes: Vec<(u64, Index)> = self.edge_indexes.read()
+            .iter()
+            .map(|((space_id, _), data)| (*space_id, data.info.clone()))
+            .collect();
+
+        let space_id_counter = self.space_id_counter.load(std::sync::atomic::Ordering::SeqCst);
+
+        let tag_id_counters: Vec<(u64, u32)> = self.tag_id_counter.read()
+            .iter()
+            .map(|(k, v)| (*k, v.load(std::sync::atomic::Ordering::SeqCst)))
+            .collect();
+
+        let edge_type_id_counters: Vec<(u64, u32)> = self.edge_type_id_counter.read()
+            .iter()
+            .map(|(k, v)| (*k, v.load(std::sync::atomic::Ordering::SeqCst)))
+            .collect();
+
+        let snapshot = SchemaSnapshot {
+            version: SCHEMA_FORMAT_VERSION,
+            spaces,
+            tags,
+            edge_types,
+            tag_indexes,
+            edge_indexes,
+            space_id_counter,
+            tag_id_counters,
+            edge_type_id_counters,
+        };
+
+        let json = serde_json::to_string_pretty(&snapshot)
+            .map_err(|e| StorageError::SerializeError(e.to_string()))?;
+
+        let mut file = File::create(path)
+            .map_err(|e| StorageError::IOError(e.to_string()))?;
+        
+        file.write_all(json.as_bytes())
+            .map_err(|e| StorageError::IOError(e.to_string()))?;
+
+        Ok(())
+    }
+
+    fn load_schema(&mut self, path: &std::path::Path) -> Result<(), StorageError> {
+        use std::fs::File;
+        use std::io::Read;
+
+        if !path.exists() {
+            return Ok(());
+        }
+
+        let mut file = File::open(path)
+            .map_err(|e| StorageError::IOError(e.to_string()))?;
+
+        let mut json = String::new();
+        file.read_to_string(&mut json)
+            .map_err(|e| StorageError::IOError(e.to_string()))?;
+
+        let snapshot: SchemaSnapshot = serde_json::from_str(&json)
+            .map_err(|e| StorageError::DeserializeError(e.to_string()))?;
+
+        if snapshot.version > SCHEMA_FORMAT_VERSION {
+            return Err(StorageError::DeserializeError(format!(
+                "Schema version {} is newer than supported version {}",
+                snapshot.version, SCHEMA_FORMAT_VERSION
+            )));
+        }
+
+        self.spaces.write().clear();
+        self.space_name_index.write().clear();
+        self.tags.write().clear();
+        self.edge_types.write().clear();
+        self.tag_indexes.write().clear();
+        self.edge_indexes.write().clear();
+
+        for space in snapshot.spaces {
+            let space_id = space.space_id;
+            self.space_name_index.write().insert(space.space_name.clone(), space_id);
+            self.spaces.write().insert(space_id, SpaceData { info: space });
+        }
+
+        for (space_id, tag) in snapshot.tags {
+            let tag_id = tag.tag_id;
+            self.tags.write().insert((space_id, tag_id), TagData { info: tag });
+        }
+
+        for (space_id, edge_type) in snapshot.edge_types {
+            let edge_type_id = edge_type.edge_type_id;
+            self.edge_types.write().insert((space_id, edge_type_id), EdgeTypeData { info: edge_type });
+        }
+
+        for (space_id, index) in snapshot.tag_indexes {
+            let index_name = index.name.clone();
+            self.tag_indexes.write().insert((space_id, index_name), IndexData { info: index });
+        }
+
+        for (space_id, index) in snapshot.edge_indexes {
+            let index_name = index.name.clone();
+            self.edge_indexes.write().insert((space_id, index_name), IndexData { info: index });
+        }
+
+        self.space_id_counter.store(snapshot.space_id_counter, std::sync::atomic::Ordering::SeqCst);
+
+        {
+            let mut counters = self.tag_id_counter.write();
+            counters.clear();
+            for (space_id, counter) in snapshot.tag_id_counters {
+                counters.insert(space_id, std::sync::atomic::AtomicU32::new(counter));
+            }
+        }
+
+        {
+            let mut counters = self.edge_type_id_counter.write();
+            counters.clear();
+            for (space_id, counter) in snapshot.edge_type_id_counters {
+                counters.insert(space_id, std::sync::atomic::AtomicU32::new(counter));
+            }
+        }
+
+        Ok(())
     }
 }
 

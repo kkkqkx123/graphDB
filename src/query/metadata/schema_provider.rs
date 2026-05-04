@@ -478,6 +478,14 @@ mod tests {
         ) -> Result<Vec<crate::core::types::Index>, StorageError> {
             Ok(vec![])
         }
+
+        fn save_schema(&self, _path: &std::path::Path) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn load_schema(&mut self, _path: &std::path::Path) -> Result<(), StorageError> {
+            Ok(())
+        }
     }
 
     #[test]

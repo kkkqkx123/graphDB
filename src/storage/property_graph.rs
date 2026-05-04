@@ -15,15 +15,26 @@ use crate::transaction::undo_log::{PropertyValue, UndoLogError, UndoLogResult, U
 use crate::transaction::wal::types::{ColumnId, EdgeId as TxnEdgeId, LabelId as TxnLabelId, Timestamp, VertexId as TxnVertexId};
 use crate::transaction::wal::writer::WalWriter;
 
+use super::cache::{
+    BlockCache, BlockId, CacheConfig, CachedEdge, CachedVertex, EdgeCacheKey, RecordCache,
+    RecordCacheConfig, RecordCacheStats, SharedBlockCache, SharedRecordCache, TableType,
+    VertexCacheKey,
+};
 use super::edge::{EdgeDirection, EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, EdgeTable, PropertyDef as EdgePropertyDef};
+use super::memory::{MemoryConfig, MemoryTracker, SharedMemoryTracker};
 use super::vertex::{LabelId, PropertyDef as VertexPropertyDef, Timestamp as StorageTimestamp, VertexId, VertexRecord, VertexSchema, VertexTable};
 use super::vertex::vertex_table::VertexIterator;
+
+const DATA_FORMAT_VERSION: u32 = 1;
 
 #[derive(Debug, Clone)]
 pub struct PropertyGraphConfig {
     pub initial_vertex_capacity: usize,
     pub initial_edge_capacity: usize,
     pub work_dir: PathBuf,
+    pub enable_cache: bool,
+    pub cache_memory: usize,
+    pub memory_config: MemoryConfig,
 }
 
 impl Default for PropertyGraphConfig {
@@ -32,7 +43,23 @@ impl Default for PropertyGraphConfig {
             initial_vertex_capacity: 4096,
             initial_edge_capacity: 4096,
             work_dir: PathBuf::from("./data"),
+            enable_cache: true,
+            cache_memory: 256 * 1024 * 1024,
+            memory_config: MemoryConfig::default(),
         }
+    }
+}
+
+impl PropertyGraphConfig {
+    pub fn with_cache(mut self, enable: bool, cache_memory: usize) -> Self {
+        self.enable_cache = enable;
+        self.cache_memory = cache_memory;
+        self
+    }
+
+    pub fn with_memory_config(mut self, config: MemoryConfig) -> Self {
+        self.memory_config = config;
+        self
     }
 }
 
@@ -47,6 +74,9 @@ pub struct PropertyGraph {
     is_open: bool,
     wal_writer: Option<Arc<RwLock<Box<dyn WalWriter>>>>,
     wal_enabled: bool,
+    cache: Option<SharedBlockCache>,
+    record_cache: Option<SharedRecordCache>,
+    memory_tracker: Option<SharedMemoryTracker>,
 }
 
 impl std::fmt::Debug for PropertyGraph {
@@ -62,6 +92,8 @@ impl std::fmt::Debug for PropertyGraph {
             .field("is_open", &self.is_open)
             .field("wal_writer", &self.wal_writer.as_ref().map(|_| "WalWriter"))
             .field("wal_enabled", &self.wal_enabled)
+            .field("cache", &self.cache.as_ref().map(|c: &Arc<BlockCache>| c.stats()))
+            .field("memory_tracker", &self.memory_tracker.as_ref().map(|t: &Arc<MemoryTracker>| t.stats()))
             .finish()
     }
 }
@@ -72,6 +104,26 @@ impl PropertyGraph {
     }
 
     pub fn with_config(config: PropertyGraphConfig) -> Self {
+        let cache = if config.enable_cache {
+            Some(Arc::new(BlockCache::with_memory(config.cache_memory)))
+        } else {
+            None
+        };
+
+        let memory_tracker = Arc::new(MemoryTracker::new(config.memory_config.clone()));
+
+        let record_cache = if config.enable_cache {
+            let record_cache_config = RecordCacheConfig {
+                max_memory: config.cache_memory / 2,
+                shard_count: 8,
+            };
+            Some(Arc::new(
+                RecordCache::with_config(record_cache_config).with_memory_tracker(memory_tracker.clone()),
+            ))
+        } else {
+            None
+        };
+
         Self {
             vertex_tables: HashMap::new(),
             edge_tables: HashMap::new(),
@@ -83,6 +135,9 @@ impl PropertyGraph {
             is_open: true,
             wal_writer: None,
             wal_enabled: false,
+            cache,
+            record_cache,
+            memory_tracker: Some(memory_tracker),
         }
     }
 
@@ -99,6 +154,39 @@ impl PropertyGraph {
 
     pub fn wal_enabled(&self) -> bool {
         self.wal_enabled
+    }
+
+    pub fn cache(&self) -> Option<&SharedBlockCache> {
+        self.cache.as_ref()
+    }
+
+    pub fn record_cache(&self) -> Option<&SharedRecordCache> {
+        self.record_cache.as_ref()
+    }
+
+    pub fn memory_tracker(&self) -> Option<&SharedMemoryTracker> {
+        self.memory_tracker.as_ref()
+    }
+
+    pub fn cache_stats(&self) -> Option<super::cache::CacheStats> {
+        self.cache.as_ref().map(|c: &Arc<BlockCache>| c.stats())
+    }
+
+    pub fn record_cache_stats(&self) -> Option<RecordCacheStats> {
+        self.record_cache.as_ref().map(|c: &Arc<RecordCache>| c.stats())
+    }
+
+    pub fn memory_stats(&self) -> Option<super::memory::MemoryStats> {
+        self.memory_tracker.as_ref().map(|t: &Arc<MemoryTracker>| t.stats())
+    }
+
+    pub fn clear_cache(&self) {
+        if let Some(ref cache) = self.cache {
+            cache.clear();
+        }
+        if let Some(ref record_cache) = self.record_cache {
+            record_cache.clear();
+        }
     }
 
     fn write_wal(&self, _op_type: u8, _data: &[u8]) -> StorageResult<()> {
@@ -287,7 +375,33 @@ impl PropertyGraph {
             return None;
         }
 
-        self.vertex_tables.get(&label)?.get(external_id, ts)
+        let table = self.vertex_tables.get(&label)?;
+        let internal_id = table.get_internal_id(external_id, ts)?;
+
+        if let Some(ref record_cache) = self.record_cache {
+            let cache_key = VertexCacheKey::new(label, internal_id);
+            if let Some(cached) = record_cache.get_vertex(&cache_key) {
+                return Some(VertexRecord {
+                    internal_id: cached.internal_id,
+                    vid: cached.internal_id as u64,
+                    properties: cached.properties,
+                });
+            }
+        }
+
+        let record = table.get_by_internal_id(internal_id, ts)?;
+
+        if let Some(ref record_cache) = self.record_cache {
+            let cache_key = VertexCacheKey::new(label, internal_id);
+            let cached = CachedVertex {
+                internal_id: record.internal_id,
+                external_id: external_id.to_string(),
+                properties: record.properties.clone(),
+            };
+            record_cache.insert_vertex(cache_key, cached);
+        }
+
+        Some(record)
     }
 
     pub fn get_vertex_by_internal_id(
@@ -300,7 +414,31 @@ impl PropertyGraph {
             return None;
         }
 
-        self.vertex_tables.get(&label)?.get_by_internal_id(internal_id, ts)
+        if let Some(ref record_cache) = self.record_cache {
+            let cache_key = VertexCacheKey::new(label, internal_id);
+            if let Some(cached) = record_cache.get_vertex(&cache_key) {
+                return Some(VertexRecord {
+                    internal_id: cached.internal_id,
+                    vid: cached.internal_id as u64,
+                    properties: cached.properties,
+                });
+            }
+        }
+
+        let table = self.vertex_tables.get(&label)?;
+        let record = table.get_by_internal_id(internal_id, ts)?;
+
+        if let Some(ref record_cache) = self.record_cache {
+            let cache_key = VertexCacheKey::new(label, internal_id);
+            let cached = CachedVertex {
+                internal_id: record.internal_id,
+                external_id: String::new(),
+                properties: record.properties.clone(),
+            };
+            record_cache.insert_vertex(cache_key, cached);
+        }
+
+        Some(record)
     }
 
     pub fn delete_vertex(
@@ -316,6 +454,13 @@ impl PropertyGraph {
         let table = self.vertex_tables
             .get_mut(&label)
             .ok_or_else(|| StorageError::LabelNotFound(format!("vertex label {}", label)))?;
+
+        if let Some(internal_id) = table.get_internal_id(external_id, ts) {
+            if let Some(ref record_cache) = self.record_cache {
+                let cache_key = VertexCacheKey::new(label, internal_id);
+                record_cache.remove_vertex(&cache_key);
+            }
+        }
 
         table.delete(external_id, ts)
     }
@@ -338,6 +483,11 @@ impl PropertyGraph {
 
         let internal_id = table.get_internal_id(external_id, ts)
             .ok_or(StorageError::VertexNotFound)?;
+
+        if let Some(ref record_cache) = self.record_cache {
+            let cache_key = VertexCacheKey::new(label, internal_id);
+            record_cache.remove_vertex(&cache_key);
+        }
 
         table.update_property(internal_id, property_name, value, ts)
     }
@@ -396,7 +546,20 @@ impl PropertyGraph {
         let key = (src_label, dst_label, edge_label);
         let edge_table = self.edge_tables.get(&key)?;
 
-        edge_table.get_edge(src_internal as VertexId, dst_internal as VertexId, ts)
+        let record = edge_table.get_edge(src_internal as VertexId, dst_internal as VertexId, ts)?;
+
+        if let Some(ref record_cache) = self.record_cache {
+            let cache_key = EdgeCacheKey::new(edge_label, src_internal as u64, dst_internal as u64, record.edge_id);
+            let cached = CachedEdge {
+                edge_id: record.edge_id,
+                src_vid: src_internal as u64,
+                dst_vid: dst_internal as u64,
+                properties: record.properties.clone(),
+            };
+            record_cache.insert_edge(cache_key, cached);
+        }
+
+        Some(record)
     }
 
     pub fn delete_edge(
@@ -426,6 +589,13 @@ impl PropertyGraph {
         let edge_table = self.edge_tables
             .get_mut(&key)
             .ok_or_else(|| StorageError::LabelNotFound(format!("edge label {}", edge_label)))?;
+
+        if let Some(ref record_cache) = self.record_cache {
+            if let Some(nbr) = edge_table.get_edge_nbr(src_internal as VertexId, dst_internal as VertexId, ts) {
+                let cache_key = EdgeCacheKey::new(edge_label, src_internal as u64, dst_internal as u64, nbr.edge_id);
+                record_cache.remove_edge(&cache_key);
+            }
+        }
 
         edge_table.delete_edge(src_internal as VertexId, dst_internal as VertexId, ts)
     }
@@ -559,9 +729,16 @@ impl PropertyGraph {
 
     pub fn flush(&self) -> StorageResult<()> {
         use std::fs;
+        use std::io::Write;
 
         let data_dir = self.config.work_dir.join("data");
         fs::create_dir_all(&data_dir)?;
+
+        let version_file = data_dir.join("version");
+        let mut file = fs::File::create(&version_file)
+            .map_err(|e| StorageError::IOError(format!("Failed to create version file: {}", e)))?;
+        writeln!(file, "{}", DATA_FORMAT_VERSION)
+            .map_err(|e| StorageError::IOError(format!("Failed to write version file: {}", e)))?;
 
         let vertex_dir = data_dir.join("vertices");
         fs::create_dir_all(&vertex_dir)?;
@@ -590,8 +767,26 @@ impl PropertyGraph {
 
     pub fn load(&mut self) -> StorageResult<()> {
         use std::fs;
+        use std::io::Read;
 
         let data_dir = self.config.work_dir.join("data");
+
+        let version_file = data_dir.join("version");
+        if version_file.exists() {
+            let mut file = fs::File::open(&version_file)
+                .map_err(|e| StorageError::IOError(format!("Failed to open version file: {}", e)))?;
+            let mut content = String::new();
+            file.read_to_string(&mut content)
+                .map_err(|e| StorageError::IOError(format!("Failed to read version file: {}", e)))?;
+            let version: u32 = content.trim().parse()
+                .map_err(|e| StorageError::DeserializeError(format!("Invalid version format: {}", e)))?;
+            if version > DATA_FORMAT_VERSION {
+                return Err(StorageError::DeserializeError(format!(
+                    "Data format version {} is newer than supported version {}",
+                    version, DATA_FORMAT_VERSION
+                )));
+            }
+        }
 
         let vertex_dir = data_dir.join("vertices");
         if vertex_dir.exists() {
@@ -646,8 +841,131 @@ impl PropertyGraph {
     }
 
     pub fn checkpoint(&mut self) -> StorageResult<()> {
-        self.flush()?;
+        self.create_checkpoint()
+    }
+
+    fn temp_checkpoint_dir(work_dir: &Path) -> PathBuf {
+        work_dir.join("temp_checkpoint")
+    }
+
+    fn checkpoint_dir(work_dir: &Path) -> PathBuf {
+        work_dir.join("checkpoint")
+    }
+
+    pub fn create_checkpoint(&mut self) -> StorageResult<()> {
+        use std::fs;
+
+        let temp_dir = Self::temp_checkpoint_dir(&self.config.work_dir);
+        let checkpoint_dir = Self::checkpoint_dir(&self.config.work_dir);
+
+        if temp_dir.exists() {
+            fs::remove_dir_all(&temp_dir)
+                .map_err(|e| StorageError::IOError(format!("Failed to remove temp checkpoint dir: {}", e)))?;
+        }
+        fs::create_dir_all(&temp_dir)
+            .map_err(|e| StorageError::IOError(format!("Failed to create temp checkpoint dir: {}", e)))?;
+
+        let data_dir = temp_dir.join("data");
+        fs::create_dir_all(&data_dir)?;
+
+        let vertex_dir = data_dir.join("vertices");
+        fs::create_dir_all(&vertex_dir)?;
+
+        for (label_id, table) in &self.vertex_tables {
+            let table_dir = vertex_dir.join(format!("label_{}", label_id));
+            table.flush(&table_dir)?;
+        }
+
+        let edge_dir = data_dir.join("edges");
+        fs::create_dir_all(&edge_dir)?;
+
+        for ((src_label, dst_label, edge_label), table) in &self.edge_tables {
+            let table_dir = edge_dir.join(format!("{}_{}_{}", src_label, dst_label, edge_label));
+            table.flush(&table_dir)?;
+        }
+
+        if let Some(ref wal_writer) = self.wal_writer {
+            let mut writer = wal_writer.write();
+            writer.sync()
+                .map_err(|e| StorageError::WalError(format!("Failed to sync WAL: {:?}", e)))?;
+        }
+
+        if checkpoint_dir.exists() {
+            fs::remove_dir_all(&checkpoint_dir)
+                .map_err(|e| StorageError::IOError(format!("Failed to remove old checkpoint dir: {}", e)))?;
+        }
+
+        fs::rename(&temp_dir, &checkpoint_dir)
+            .map_err(|e| StorageError::IOError(format!("Failed to move checkpoint: {}", e)))?;
+
         Ok(())
+    }
+
+    pub fn restore_checkpoint(&mut self) -> StorageResult<()> {
+        use std::fs;
+
+        let checkpoint_dir = Self::checkpoint_dir(&self.config.work_dir);
+        
+        if !checkpoint_dir.exists() {
+            return Err(StorageError::NotFound(format!("Checkpoint directory not found: {:?}", checkpoint_dir)));
+        }
+
+        let data_dir = checkpoint_dir.join("data");
+
+        let vertex_dir = data_dir.join("vertices");
+        if vertex_dir.exists() {
+            for entry in fs::read_dir(&vertex_dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    if let Some(dir_name) = path.file_name() {
+                        if let Some(name_str) = dir_name.to_str() {
+                            if let Some(label_str) = name_str.strip_prefix("label_") {
+                                if let Ok(label_id) = label_str.parse::<LabelId>() {
+                                    if let Some(table) = self.vertex_tables.get_mut(&label_id) {
+                                        table.load(&path)?;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let edge_dir = data_dir.join("edges");
+        if edge_dir.exists() {
+            for entry in fs::read_dir(&edge_dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    if let Some(dir_name) = path.file_name() {
+                        if let Some(name_str) = dir_name.to_str() {
+                            let parts: Vec<&str> = name_str.splitn(3, '_').collect();
+                            if parts.len() == 3 {
+                                if let (Ok(src_label), Ok(dst_label), Ok(edge_label)) = (
+                                    parts[0].parse::<LabelId>(),
+                                    parts[1].parse::<LabelId>(),
+                                    parts[2].parse::<LabelId>(),
+                                ) {
+                                    let key = (src_label, dst_label, edge_label);
+                                    if let Some(table) = self.edge_tables.get_mut(&key) {
+                                        table.load(&path)?;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        self.is_open = true;
+        Ok(())
+    }
+
+    pub fn has_checkpoint(&self) -> bool {
+        Self::checkpoint_dir(&self.config.work_dir).exists()
     }
 }
 

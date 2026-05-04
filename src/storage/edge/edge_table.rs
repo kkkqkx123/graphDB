@@ -203,6 +203,13 @@ impl EdgeTable {
         })
     }
 
+    pub fn get_edge_nbr(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> Option<super::Nbr> {
+        if !self.is_open {
+            return None;
+        }
+        self.out_csr.get_edge(src, dst, ts).copied()
+    }
+
     pub fn get_edge_by_id(&self, edge_id: EdgeId, ts: Timestamp) -> Option<EdgeRecord> {
         if !self.is_open {
             return None;

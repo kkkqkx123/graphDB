@@ -48,6 +48,15 @@ impl TestStorage {
         })
     }
 
+    /// Creating a Test Storage Instance with a specific path
+    pub fn new_with_path(path: PathBuf) -> DBResult<Self> {
+        let storage = Arc::new(Mutex::new(GraphStorage::new_with_path(path)?));
+        Ok(Self {
+            storage,
+            temp_path: PathBuf::new(),
+        })
+    }
+
     /// Getting a Reference to a Storage Instance
     pub fn storage(&self) -> Arc<Mutex<GraphStorage>> {
         self.storage.clone()

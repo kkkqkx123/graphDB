@@ -75,6 +75,10 @@ pub enum StorageError {
     InvalidOperation(String),
     #[error("WAL error: {0}")]
     WalError(String),
+    #[error("Compression error: {0}")]
+    CompressError(String),
+    #[error("Decompression error: {0}")]
+    DecompressError(String),
 }
 
 impl StorageError {

@@ -1,4 +1,5 @@
 pub mod api;
+pub mod cache;
 pub mod container;
 pub mod edge;
 pub mod engine;
@@ -7,9 +8,11 @@ pub mod extend;
 pub mod graph_storage;
 pub mod index;
 pub mod iterator;
+pub mod memory;
 pub mod metadata;
 pub mod monitoring;
 pub mod operations;
+pub mod persistence;
 pub mod property_graph;
 pub mod shared_state;
 pub mod vertex;
@@ -22,6 +25,8 @@ pub use api::{
     StorageClient, StorageStats, UpdateInfo, UpdateOp, UpdateTarget,
 };
 
+pub use cache::{BlockCache, BlockId, CacheConfig, CacheStats, TableType};
+
 pub use engine::{PlanContext, RuntimeContext, StorageEnv};
 
 pub use entity::{EdgeStorage, SyncStorage, UserStorage, VertexStorage};
@@ -30,6 +35,7 @@ pub use extend::FulltextStorage;
 
 pub use index::*;
 pub use iterator::*;
+pub use memory::{MemoryConfig, MemoryConfigBuilder, MemoryLevel, MemoryStats, MemoryTracker, NullBitmap};
 pub use metadata::*;
 pub use operations::*;
 pub use shared_state::{StorageInner, StorageSharedState};
@@ -53,6 +59,10 @@ pub use edge::{
 };
 
 pub use property_graph::{PropertyGraph, PropertyGraphConfig};
+
+pub use persistence::{
+    CompressionType, Compressor, DirtyPageTracker, FlushConfig, FlushManager, FlushTask, PageId,
+};
 
 pub use graph_storage::GraphStorage;
 

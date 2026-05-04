@@ -502,10 +502,44 @@ impl StorageClient for GraphStorage {
     }
 
     fn load_from_disk(&mut self) -> Result<(), StorageError> {
+        let work_dir = match &self.work_dir {
+            Some(path) => path,
+            None => return Err(StorageError::StorageError("Work directory not set".to_string())),
+        };
+
+        let schema_path = work_dir.join("schema").join("schema.json");
+        if schema_path.exists() {
+            Arc::get_mut(&mut self.schema_manager)
+                .ok_or_else(|| StorageError::StorageError("Cannot mutate schema manager".to_string()))?
+                .load_schema(&schema_path)?;
+        }
+
+        let data_dir = work_dir.join("data");
+        if data_dir.exists() {
+            self.graph.write().load()?;
+        }
+
         Ok(())
     }
 
     fn save_to_disk(&self) -> Result<(), StorageError> {
+        let work_dir = match &self.work_dir {
+            Some(path) => path,
+            None => return Err(StorageError::StorageError("Work directory not set".to_string())),
+        };
+
+        std::fs::create_dir_all(work_dir)
+            .map_err(|e| StorageError::IOError(e.to_string()))?;
+
+        let schema_dir = work_dir.join("schema");
+        std::fs::create_dir_all(&schema_dir)
+            .map_err(|e| StorageError::IOError(e.to_string()))?;
+        
+        let schema_path = schema_dir.join("schema.json");
+        self.schema_manager.save_schema(&schema_path)?;
+
+        self.graph.read().flush()?;
+
         Ok(())
     }
 

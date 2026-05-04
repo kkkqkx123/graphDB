@@ -238,6 +238,14 @@ mod tests {
         fn list_edge_indexes(&self, _space: &str) -> Result<Vec<Index>, StorageError> {
             Ok(vec![])
         }
+
+        fn save_schema(&self, _path: &std::path::Path) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn load_schema(&mut self, _path: &std::path::Path) -> Result<(), StorageError> {
+            Ok(())
+        }
     }
 
     // ==================== Space Existence Validation Tests ====================

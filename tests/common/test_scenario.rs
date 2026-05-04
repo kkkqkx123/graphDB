@@ -37,7 +37,7 @@ impl TestScenario {
         let optimizer = Arc::new(OptimizerEngine::default());
         let schema_manager = {
             let storage_guard = storage.lock();
-            storage_guard.state().schema_manager.clone()
+            storage_guard.get_schema_manager()
         };
         let pipeline =
             QueryPipelineManager::with_optimizer(storage.clone(), stats_manager, optimizer)

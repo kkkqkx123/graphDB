@@ -38,6 +38,8 @@ futures = "0.3"
 tracing = "0.1"
 metrics = "0.23"
 memmap2 = "0.9"
+snap = { version = "1.1", optional = true }
+zstd = { version = "0.13", optional = true }
 
 axum = { version = "0.8", features = ["macros"], optional = true }
 tower = { version = "0.5", optional = true }
@@ -74,13 +76,16 @@ tonic-build = { version = "0.12", optional = true }
 prost-build = { version = "0.13", optional = true }
 
 [features]
-default = ["server", "fulltext-search", "qdrant", "c-api", "grpc"]
+default = ["server", "fulltext-search", "qdrant", "c-api", "grpc", "compression"]
 qdrant = ["dep:vector-client"]
 embedded = []
 c-api = ["embedded", "dep:cbindgen"]
 server = ["dep:axum", "dep:tower", "dep:tower-http", "dep:http", "dep:sqlx", "dep:async-trait"]
 grpc = ["server", "dep:tonic", "dep:prost", "dep:tonic-build", "dep:prost-build"]
 fulltext-search = ["dep:bm25-service", "dep:inversearch-service", "dep:tantivy"]
+compression = ["compression-snappy", "compression-zstd"]
+compression-snappy = ["dep:snap"]
+compression-zstd = ["dep:zstd"]
 
 [profile.dev]
 opt-level = 0

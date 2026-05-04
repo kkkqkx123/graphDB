@@ -1,6 +1,7 @@
 use crate::core::types::{EdgeTypeInfo, Index, SpaceInfo, TagInfo};
 use crate::core::StorageError;
 use crate::storage::metadata::Schema;
+use std::path::Path;
 
 pub trait SchemaManager: Send + Sync + std::fmt::Debug {
     fn create_space(&self, space: &mut SpaceInfo) -> Result<bool, StorageError>;
@@ -31,4 +32,7 @@ pub trait SchemaManager: Send + Sync + std::fmt::Debug {
 
     fn list_tag_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError>;
     fn list_edge_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError>;
+
+    fn save_schema(&self, path: &Path) -> Result<(), StorageError>;
+    fn load_schema(&mut self, path: &Path) -> Result<(), StorageError>;
 }
