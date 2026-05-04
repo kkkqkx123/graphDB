@@ -12,10 +12,8 @@ use crate::storage::index::{IndexDataManager, RedbIndexDataManager};
 use crate::storage::metadata::{IndexMetadataManager, Schema, SchemaManager};
 use crate::storage::operations::{ScanResult, VertexReader, VertexWriter};
 use crate::storage::property_graph::PropertyGraph;
-use crate::storage::vertex::{LabelId, PropertyDef, Timestamp, VertexRecord, VertexSchema};
+use crate::storage::vertex::{LabelId, Timestamp, VertexRecord};
 use crate::transaction::version_manager::VersionManager;
-use crate::sync::coordinator::ChangeType;
-use crate::transaction::wal::types::Timestamp as WalTimestamp;
 
 const INVALID_TIMESTAMP: Timestamp = u32::MAX;
 
@@ -136,7 +134,7 @@ impl VertexStorage {
 
         Vertex {
             vid: Box::new(self.string_id_to_value(&record.vid.to_string())),
-            id: record.vid,
+            id: record.vid as i64,
             tags: vec![tag],
             properties: std::collections::HashMap::new(),
         }
@@ -227,13 +225,12 @@ impl VertexStorage {
         INVALID_TIMESTAMP - 1
     }
 
-    pub fn insert_vertex(
+    pub fn insert_vertex_impl(
         &self,
         space: &str,
         space_id: u64,
         vertex: Vertex,
     ) -> Result<Value, StorageError> {
-        let txn_id = self.get_current_txn_id();
         let vid = vertex.vid.clone();
         let external_id = self.value_to_string_id(&vid)?;
 
@@ -257,7 +254,7 @@ impl VertexStorage {
         }
 
         for tag in &vertex.tags {
-            let indexes = self.index_data_manager.list_tag_indexes(space_id)?;
+            let indexes = self.schema_manager.list_tag_indexes(space)?;
 
             for index in indexes {
                 if index.schema_name == tag.name {
@@ -278,39 +275,15 @@ impl VertexStorage {
                     }
                 }
             }
-
-            if let Some(sync_manager) = self.get_sync_manager() {
-                let props: Vec<(String, Value)> = tag
-                    .properties
-                    .iter()
-                    .map(|(k, v)| (k.clone(), v.clone()))
-                    .collect();
-
-                if !props.is_empty() {
-                    sync_manager
-                        .on_vertex_change_with_txn(
-                            txn_id,
-                            space_id,
-                            &tag.name,
-                            &vid,
-                            &props,
-                            ChangeType::Insert,
-                        )
-                        .map_err(|e| {
-                            StorageError::DbError(format!("Failed to sync vertex insert: {}", e))
-                        })?;
-                }
-            }
         }
 
-        Ok(vid)
+        Ok(*vid)
     }
 
-    pub fn update_vertex(&self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
+    pub fn update_vertex_impl(&self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
         let vid = vertex.vid.clone();
-        let txn_id = self.get_current_txn_id();
 
-        let old_vertex = self.get_vertex(space, &vid)?;
+        let _old_vertex = self.get_vertex(space, &vid)?;
 
         {
             let external_id = self.value_to_string_id(&vid)?;
@@ -329,48 +302,21 @@ impl VertexStorage {
             let ts = self.get_write_timestamp();
 
             let mut graph = self.graph.write();
-            graph.update_vertex_properties(label_id, &external_id, &properties, ts)?;
-        }
-
-        if let Some(sync_manager) = self.get_sync_manager() {
-            if let Some(old_v) = old_vertex {
-                let changed_props = self.detect_changed_properties(&old_v, &vertex);
-                if !changed_props.is_empty() {
-                    let space_id = self.get_space_id(space)?;
-                    let tag_name = vertex
-                        .tags
-                        .first()
-                        .map(|t| t.name.as_str())
-                        .unwrap_or("default");
-
-                    sync_manager
-                        .on_vertex_change_with_txn(
-                            txn_id,
-                            space_id,
-                            tag_name,
-                            &vid,
-                            &changed_props,
-                            ChangeType::Update,
-                        )
-                        .map_err(|e| {
-                            StorageError::DbError(format!("Failed to sync vertex update: {}", e))
-                        })?;
-                }
+            for (prop_name, prop_value) in &properties {
+                graph.update_vertex_property(label_id, &external_id, prop_name, prop_value, ts)?;
             }
         }
 
         Ok(())
     }
 
-    pub fn delete_vertex(
+    pub fn delete_vertex_impl(
         &self,
         space: &str,
         space_id: u64,
         id: &Value,
     ) -> Result<(), StorageError> {
-        let txn_id = self.get_current_txn_id();
-
-        let old_vertex = self.get_vertex(space, id)?;
+        let _old_vertex = self.get_vertex(space, id)?;
 
         {
             let external_id = self.value_to_string_id(id)?;
@@ -384,35 +330,15 @@ impl VertexStorage {
 
         self.index_data_manager.delete_vertex_indexes(space_id, id)?;
 
-        if let Some(sync_manager) = self.get_sync_manager() {
-            if let Some(vertex) = old_vertex {
-                if let Some(tag) = vertex.tags.first() {
-                    sync_manager
-                        .on_vertex_change_with_txn(
-                            txn_id,
-                            space_id,
-                            &tag.name,
-                            id,
-                            &[],
-                            ChangeType::Delete,
-                        )
-                        .map_err(|e| {
-                            StorageError::DbError(format!("Failed to sync vertex delete: {}", e))
-                        })?;
-                }
-            }
-        }
-
         Ok(())
     }
 
-    pub fn batch_insert_vertices(
+    pub fn batch_insert_vertices_impl(
         &self,
         space: &str,
-        space_id: u64,
+        _space_id: u64,
         vertices: Vec<Vertex>,
     ) -> Result<Vec<Value>, StorageError> {
-        let txn_id = self.get_current_txn_id();
         let mut ids = Vec::with_capacity(vertices.len());
 
         for vertex in &vertices {
@@ -441,41 +367,10 @@ impl VertexStorage {
             }
         }
 
-        if let Some(sync_manager) = self.get_sync_manager() {
-            for vertex in &vertices {
-                let vid = vertex.vid.clone();
-                for tag in &vertex.tags {
-                    let props: Vec<(String, Value)> = tag
-                        .properties
-                        .iter()
-                        .map(|(k, v)| (k.clone(), v.clone()))
-                        .collect();
-
-                    if !props.is_empty() {
-                        sync_manager
-                            .on_vertex_change_with_txn(
-                                txn_id,
-                                space_id,
-                                &tag.name,
-                                &vid,
-                                &props,
-                                ChangeType::Insert,
-                            )
-                            .map_err(|e| {
-                                StorageError::DbError(format!(
-                                    "Failed to sync vertex insert in batch: {}",
-                                    e
-                                ))
-                            })?;
-                    }
-                }
-            }
-        }
-
-        Ok(ids)
+        Ok(ids.into_iter().map(|v| *v).collect())
     }
 
-    pub fn delete_tags(
+    pub fn delete_tags_impl(
         &self,
         space: &str,
         space_id: u64,
@@ -499,8 +394,6 @@ impl VertexStorage {
         space_id: u64,
         info: &InsertVertexInfo,
     ) -> Result<bool, StorageError> {
-        let txn_id = self.get_current_txn_id();
-
         let tag_name = info.tag_name.clone();
         let _tag_info = self
             .schema_manager
@@ -527,23 +420,6 @@ impl VertexStorage {
             &info.props,
         )?;
 
-        if let Some(sync_manager) = self.get_sync_manager() {
-            if !info.props.is_empty() {
-                sync_manager
-                    .on_vertex_change_with_txn(
-                        txn_id,
-                        space_id,
-                        &tag_name,
-                        &info.vertex_id,
-                        &info.props,
-                        ChangeType::Insert,
-                    )
-                    .map_err(|e| {
-                        StorageError::DbError(format!("Failed to sync vertex data insert: {}", e))
-                    })?;
-            }
-        }
-
         Ok(true)
     }
 
@@ -553,9 +429,7 @@ impl VertexStorage {
         space_id: u64,
         vertex_id: &Value,
     ) -> Result<bool, StorageError> {
-        let txn_id = self.get_current_txn_id();
-
-        let old_vertex = self.get_vertex(space, vertex_id)?;
+        let _old_vertex = self.get_vertex(space, vertex_id)?;
 
         self.index_data_manager
             .delete_vertex_indexes(space_id, vertex_id)?;
@@ -567,28 +441,6 @@ impl VertexStorage {
             let mut graph = self.graph.write();
             if let Some(label_id) = graph.get_vertex_label_id("default") {
                 graph.delete_vertex(label_id, &external_id, ts)?;
-            }
-        }
-
-        if let Some(sync_manager) = self.get_sync_manager() {
-            if let Some(vertex) = old_vertex {
-                if let Some(tag) = vertex.tags.first() {
-                    sync_manager
-                        .on_vertex_change_with_txn(
-                            txn_id,
-                            space_id,
-                            &tag.name,
-                            vertex_id,
-                            &[],
-                            ChangeType::Delete,
-                        )
-                        .map_err(|e| {
-                            StorageError::DbError(format!(
-                                "Failed to sync vertex data delete: {}",
-                                e
-                            ))
-                        })?;
-                }
             }
         }
 
@@ -664,7 +516,9 @@ impl VertexStorage {
             let ts = self.get_write_timestamp();
 
             let mut graph = self.graph.write();
-            graph.update_vertex_properties(label_id, &external_id, &properties, ts)?;
+            for (prop_name, prop_value) in &properties {
+                graph.update_vertex_property(label_id, &external_id, prop_name, prop_value, ts)?;
+            }
         }
         Ok(())
     }
@@ -773,16 +627,16 @@ impl VertexReader for VertexStorage {
 impl VertexWriter for VertexStorage {
     fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<Value, StorageError> {
         let space_id = self.get_space_id(space)?;
-        self.insert_vertex(space, space_id, vertex)
+        self.insert_vertex_impl(space, space_id, vertex)
     }
 
     fn update_vertex(&mut self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
-        self.update_vertex(space, vertex)
+        self.update_vertex_impl(space, vertex)
     }
 
     fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
         let space_id = self.get_space_id(space)?;
-        self.delete_vertex(space, space_id, id)
+        self.delete_vertex_impl(space, space_id, id)
     }
 
     fn batch_insert_vertices(
@@ -791,7 +645,7 @@ impl VertexWriter for VertexStorage {
         vertices: Vec<Vertex>,
     ) -> Result<Vec<Value>, StorageError> {
         let space_id = self.get_space_id(space)?;
-        self.batch_insert_vertices(space, space_id, vertices)
+        self.batch_insert_vertices_impl(space, space_id, vertices)
     }
 
     fn delete_tags(
@@ -801,6 +655,6 @@ impl VertexWriter for VertexStorage {
         tag_names: &[String],
     ) -> Result<usize, StorageError> {
         let space_id = self.get_space_id(space)?;
-        self.delete_tags(space, space_id, vertex_id, tag_names)
+        self.delete_tags_impl(space, space_id, vertex_id, tag_names)
     }
 }

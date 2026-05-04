@@ -29,6 +29,7 @@ impl Default for PropertyGraphConfig {
     }
 }
 
+#[derive(Debug)]
 pub struct PropertyGraph {
     vertex_tables: HashMap<LabelId, VertexTable>,
     edge_tables: HashMap<(LabelId, LabelId, LabelId), EdgeTable>,

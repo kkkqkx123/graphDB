@@ -73,7 +73,7 @@ impl IndexMetadataManager for InMemoryIndexMetadataManager {
 
     fn drop_tag_indexes_by_tag(&self, space_id: u64, tag_name: &str) -> Result<(), StorageError> {
         let mut indexes = self.tag_indexes.write();
-        indexes.retain(|(_, index)| !(index.space_id == space_id && index.schema_name == tag_name));
+        indexes.retain(|_, index| !(index.space_id == space_id && index.schema_name == tag_name));
         Ok(())
     }
 
@@ -119,7 +119,7 @@ impl IndexMetadataManager for InMemoryIndexMetadataManager {
         edge_type: &str,
     ) -> Result<(), StorageError> {
         let mut indexes = self.edge_indexes.write();
-        indexes.retain(|(_, index)| !(index.space_id == space_id && index.schema_name == edge_type));
+        indexes.retain(|_, index| !(index.space_id == space_id && index.schema_name == edge_type));
         Ok(())
     }
 }

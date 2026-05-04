@@ -64,6 +64,7 @@ impl PropertyRow {
     }
 }
 
+#[derive(Debug)]
 pub struct PropertyTable {
     schema: Vec<PropertySchema>,
     name_to_index: HashMap<String, usize>,

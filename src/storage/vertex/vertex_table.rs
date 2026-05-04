@@ -31,6 +31,7 @@ pub enum MemoryLevel {
     HugePagePreferred,
 }
 
+#[derive(Debug)]
 pub struct VertexTable {
     label: LabelId,
     label_name: String,

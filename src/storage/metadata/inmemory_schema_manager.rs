@@ -1,12 +1,12 @@
 use crate::core::types::{EdgeTypeInfo, Index, PropertyDef, SpaceInfo, TagInfo};
-use crate::core::value::Value;
 use crate::core::StorageError;
 use crate::storage::{FieldDef, Schema};
-use oxicode::{decode_from_slice, encode_to_vec};
 use parking_lot::RwLock;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
+
+use super::SchemaManager;
 
 fn tag_info_to_schema(tag_name: &str, tag_info: &TagInfo) -> Schema {
     let fields: BTreeMap<String, FieldDef> = tag_info
@@ -104,7 +104,7 @@ impl InMemorySchemaManager {
     fn get_next_tag_id(&self, space_id: u64) -> i32 {
         let counters = self.tag_id_counter.read();
         if let Some(counter) = counters.get(&space_id) {
-            counter.fetch_add(1, Ordering::SeqCst) + 1
+            (counter.fetch_add(1, Ordering::SeqCst) + 1) as i32
         } else {
             drop(counters);
             let mut counters = self.tag_id_counter.write();
@@ -116,7 +116,7 @@ impl InMemorySchemaManager {
     fn get_next_edge_type_id(&self, space_id: u64) -> i32 {
         let counters = self.edge_type_id_counter.read();
         if let Some(counter) = counters.get(&space_id) {
-            counter.fetch_add(1, Ordering::SeqCst) + 1
+            (counter.fetch_add(1, Ordering::SeqCst) + 1) as i32
         } else {
             drop(counters);
             let mut counters = self.edge_type_id_counter.write();

@@ -320,7 +320,6 @@ impl GraphDatabase<MockStorage> {
         })?;
 
         let storage = Arc::new(Mutex::new(storage));
-        let db = storage.lock().get_db().clone();
 
         let txn_manager_config = TransactionManagerConfig::default();
         let txn_manager = Arc::new(TransactionManager::new(txn_manager_config));

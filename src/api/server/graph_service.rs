@@ -8,7 +8,7 @@ use crate::core::stats::StatsManager;
 use crate::core::{MetricType, Permission};
 use crate::query::executor::ExecutionResult;
 use crate::query::DataSet;
-use crate::storage::{GraphStorage, StorageClient};
+use crate::storage::{GraphStorage, InMemorySchemaManager, StorageClient};
 use crate::transaction::TransactionManager;
 use log::{info, warn};
 use parking_lot::Mutex;
@@ -93,18 +93,11 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         // Use core layer QueryApi instead of directly using QueryPipelineManager
         // Support vector search with metadata provider if enabled
-        // Get schema_manager from storage using the trait method
-        // Try to get schema_manager from storage, with fallback to downcasting for GraphStorage
-        let schema_manager = storage.get_schema_manager().or_else(|| {
-            storage
-                .as_any()
-                .downcast_ref::<GraphStorage>()
-                .map(|graph_storage| {
-                    let mgr: Arc<dyn crate::storage::metadata::SchemaManager + Send + Sync> = 
-                        graph_storage.get_schema_manager();
-                    mgr
-                })
-        });
+        // Get schema_manager from storage by downcasting to GraphStorage
+        let schema_manager: Option<Arc<InMemorySchemaManager>> = storage
+            .as_any()
+            .downcast_ref::<GraphStorage>()
+            .map(|graph_storage| graph_storage.get_schema_manager());
 
         let (query_api, vector_api) = if config.vector.enabled {
             match QueryApi::with_vector_search(

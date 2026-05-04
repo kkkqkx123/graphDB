@@ -13,7 +13,7 @@ use crate::core::types::{
 };
 use crate::core::{Edge, EdgeDirection, NullType, RoleType, StorageError, StorageResult, Value, Vertex};
 use crate::storage::api::{StorageClient, StorageStats};
-use crate::storage::metadata::{InMemorySchemaManager, Schema};
+use crate::storage::metadata::{InMemorySchemaManager, InMemoryIndexMetadataManager, Schema, SchemaManager, IndexMetadataManager};
 use crate::storage::property_graph::{PropertyGraph, PropertyGraphConfig};
 use crate::storage::shared_state::{StorageInner, StorageSharedState};
 use crate::transaction::version_manager::VersionManager;
@@ -23,6 +23,7 @@ use crate::transaction::context::TransactionContext;
 pub struct GraphStorage {
     graph: Arc<RwLock<PropertyGraph>>,
     schema_manager: Arc<InMemorySchemaManager>,
+    index_metadata_manager: Arc<InMemoryIndexMetadataManager>,
     version_manager: Arc<VersionManager>,
     state: Arc<StorageInner>,
     current_txn_context: Arc<Mutex<Option<Arc<TransactionContext>>>>,
@@ -43,6 +44,7 @@ impl GraphStorage {
         let config = PropertyGraphConfig::default();
         let graph = Arc::new(RwLock::new(PropertyGraph::with_config(config)));
         let schema_manager = Arc::new(InMemorySchemaManager::new());
+        let index_metadata_manager = Arc::new(InMemoryIndexMetadataManager::new());
         let version_manager = Arc::new(VersionManager::new());
 
         let state = Arc::new(StorageInner::new(graph.clone(), version_manager.clone()));
@@ -50,6 +52,7 @@ impl GraphStorage {
         Ok(Self {
             graph,
             schema_manager,
+            index_metadata_manager,
             version_manager,
             state,
             current_txn_context: Arc::new(Mutex::new(None)),
@@ -65,6 +68,7 @@ impl GraphStorage {
         };
         let graph = Arc::new(RwLock::new(PropertyGraph::with_config(config)));
         let schema_manager = Arc::new(InMemorySchemaManager::new());
+        let index_metadata_manager = Arc::new(InMemoryIndexMetadataManager::new());
         let version_manager = Arc::new(VersionManager::new());
 
         let state = Arc::new(StorageInner::new(graph.clone(), version_manager.clone()));
@@ -72,6 +76,7 @@ impl GraphStorage {
         Ok(Self {
             graph,
             schema_manager,
+            index_metadata_manager,
             version_manager,
             state,
             current_txn_context: Arc::new(Mutex::new(None)),
@@ -105,7 +110,7 @@ impl GraphStorage {
             self.graph.clone(),
             self.version_manager.clone(),
             self.schema_manager.clone(),
-            self.schema_manager.clone(),
+            self.index_metadata_manager.clone(),
         )
     }
 }

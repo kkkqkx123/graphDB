@@ -23,6 +23,7 @@ impl Default for EdgeTableConfig {
     }
 }
 
+#[derive(Debug)]
 pub struct EdgeTable {
     label: LabelId,
     label_name: String,
@@ -328,6 +329,33 @@ impl EdgeTable {
 
     pub fn edge_count(&self) -> u64 {
         self.out_csr.edge_count()
+    }
+
+    pub fn scan(&self, ts: Timestamp) -> Vec<EdgeRecord> {
+        if !self.is_open {
+            return Vec::new();
+        }
+
+        let mut edges = Vec::new();
+        for src in 0..self.out_csr.vertex_capacity() {
+            for nbr in self.out_csr.edges_of(src as VertexId, ts) {
+                let properties = if nbr.prop_offset > 0 {
+                    self.properties.get(nbr.prop_offset)
+                        .map(|props| props.into_iter().filter_map(|(k, v)| v.map(|v| (k, v))).collect())
+                        .unwrap_or_default()
+                } else {
+                    Vec::new()
+                };
+
+                edges.push(EdgeRecord {
+                    edge_id: nbr.edge_id,
+                    src_vid: src as VertexId,
+                    dst_vid: nbr.neighbor,
+                    properties,
+                });
+            }
+        }
+        edges
     }
 
     pub fn add_property(&mut self, name: String, data_type: DataType, nullable: bool) -> StorageResult<()> {

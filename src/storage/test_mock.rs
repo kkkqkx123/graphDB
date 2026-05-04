@@ -32,8 +32,7 @@ pub struct MockStorage {
 #[cfg(test)]
 impl MockStorage {
     pub fn new() -> Result<Self, StorageError> {
-        let config = PropertyGraphConfig::default();
-        let graph = PropertyGraph::new(config);
+        let graph = PropertyGraph::new();
         Ok(Self {
             graph: Arc::new(RwLock::new(graph)),
         })
