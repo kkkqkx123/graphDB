@@ -2,14 +2,14 @@
 
 ## 项目概述
 
-**NeuG**（发音 "new-gee"）是由阿里巴巴 GraphScope 团队开发的**图数据库引擎**，面向 **HTAP（混合事务/分析处理）** 工作负载。当前版本 **0.1.1**，使用 **C++20** 编写，采用 **CMake** 构建系统，基于 **Apache License 2.0** 开源。
+**NeuG**是由阿里巴巴 GraphScope 团队开发的**图数据库引擎**，面向 **HTAP（混合事务/分析处理）** 工作负载。当前版本 **0.1.1**，使用 **C++20** 编写，采用 **CMake** 构建系统，基于 **Apache License 2.0** 开源。
 
 ### 双模式架构
 
-| 模式 | 用途 | 优化方向 |
-|------|------|----------|
-| **嵌入模式 (Embedded Mode)** | 分析型工作负载 | 批量数据加载、复杂模式匹配、图分析 |
-| **服务模式 (Service Mode)** | 事务型工作负载 | 实时应用、并发用户访问（HTTP/BRPC） |
+| 模式                         | 用途           | 优化方向                            |
+| ---------------------------- | -------------- | ----------------------------------- |
+| **嵌入模式 (Embedded Mode)** | 分析型工作负载 | 批量数据加载、复杂模式匹配、图分析  |
+| **服务模式 (Service Mode)**  | 事务型工作负载 | 实时应用、并发用户访问（HTTP/BRPC） |
 
 ### 核心特性
 
@@ -64,6 +64,7 @@ src/main/
 ```
 
 **核心职责**：
+
 - `NeugDB`：管理数据库打开/关闭、WAL 重放、Checkpoint/Compaction
 - `Connection`：提供查询接口，支持 read/insert/update/schema 访问模式
 - `QueryProcessor`：查询编译与执行管线，含查询缓存
@@ -110,6 +111,7 @@ src/compiler/
 ```
 
 **编译管线**：
+
 ```
 Cypher 字符串 → Parser(ANTLR) → 解析树 → Transformer → 已解析语句
     → Binder → 绑定语句 → Planner → 逻辑计划
@@ -170,6 +172,7 @@ src/storages/
 ```
 
 **存储设计**：
+
 - **CSR 分层**：Immutable CSR（快照层）+ Mutable CSR（增量层）
 - **内存映射**：mmap 容器支持高效 I/O（sync-to-disk / mmap / hugepages 三级）
 - **页面大小**：4KB（`NEUG_PAGE_SIZE_LOG2=12`）
@@ -195,6 +198,7 @@ src/transaction/
 ```
 
 **事务设计**：
+
 - **MVCC**：基于时间戳的快照隔离
 - **WAL**：预写式日志保证崩溃恢复
 - **Undo Log**：支持事务回滚
@@ -239,21 +243,21 @@ src/utils/
 
 `proto/` 目录定义了查询的**中间表示（IR）**：
 
-| 文件 | 用途 |
-|------|------|
-| `basic_type.proto` | 原始类型（int/bool/float/double、字符串、时间类型、数组/元组/映射） |
-| `common.proto` | 共享类型：Value、NameOrId、数组 |
-| `type.proto` | IrDataType（统一类型系统）、GraphDataType |
-| `expr.proto` | 表达式树：逻辑/算术运算、变量、属性、case、函数、UDF |
-| `schema.proto` | 模式定义：LabelMeta、ColumnMeta、EntityMeta、RelationMeta |
-| `algebra.proto` | **逻辑计划算子**：Project、Select、Join、Union、GroupBy 等 |
-| `physical.proto` | **物理计划算子**：逻辑算子 + DML + DDL + 管理操作 |
-| `cypher_ddl.proto` | DDL 操作：创建/删除/重命名顶点/边模式和属性 |
-| `cypher_dml.proto` | DML 操作：数据源、导出、批量插入、设置、删除 |
-| `stored_procedure.proto` | 存储过程定义 |
-| `http_svc.proto` | HTTP 服务：GetSchema、GetServiceStatus、PostCypherQuery |
-| `response.proto` | 查询响应：类型化数组、QueryResponse |
-| `error.proto` | 错误码（1000-9999）：权限、版本、锁、损坏、编译、事务、模式等 |
+| 文件                     | 用途                                                                |
+| ------------------------ | ------------------------------------------------------------------- |
+| `basic_type.proto`       | 原始类型（int/bool/float/double、字符串、时间类型、数组/元组/映射） |
+| `common.proto`           | 共享类型：Value、NameOrId、数组                                     |
+| `type.proto`             | IrDataType（统一类型系统）、GraphDataType                           |
+| `expr.proto`             | 表达式树：逻辑/算术运算、变量、属性、case、函数、UDF                |
+| `schema.proto`           | 模式定义：LabelMeta、ColumnMeta、EntityMeta、RelationMeta           |
+| `algebra.proto`          | **逻辑计划算子**：Project、Select、Join、Union、GroupBy 等          |
+| `physical.proto`         | **物理计划算子**：逻辑算子 + DML + DDL + 管理操作                   |
+| `cypher_ddl.proto`       | DDL 操作：创建/删除/重命名顶点/边模式和属性                         |
+| `cypher_dml.proto`       | DML 操作：数据源、导出、批量插入、设置、删除                        |
+| `stored_procedure.proto` | 存储过程定义                                                        |
+| `http_svc.proto`         | HTTP 服务：GetSchema、GetServiceStatus、PostCypherQuery             |
+| `response.proto`         | 查询响应：类型化数组、QueryResponse                                 |
+| `error.proto`            | 错误码（1000-9999）：权限、版本、锁、损坏、编译、事务、模式等       |
 
 ---
 
@@ -277,26 +281,26 @@ extension/
 
 ## 第三方依赖
 
-| 库 | 用途 |
-|----|------|
-| Apache Arrow | 列式数据交换、Parquet/CSV 支持 |
-| Protobuf | IR 序列化、RPC |
-| ANTLR4 | Cypher 查询解析 |
-| glog/gflags | 日志和命令行参数 |
-| mimalloc | 高性能内存分配器 |
-| OpenSSL | 加密（HTTPS、认证） |
-| yaml-cpp | YAML 配置解析 |
-| RE2 | 正则表达式引擎 |
-| utf8proc | Unicode 字符串处理 |
-| RapidJSON | JSON 解析 |
-| pybind11 | Python 绑定 |
-| BRPC（可选） | HTTP 服务框架 |
-| LevelDB（可选） | HTTP 服务元数据存储 |
-| flat_hash_map / parallel-hashmap | 高性能哈希表 |
-| date (Howard Hinnant) | 日期时间处理 |
-| expected | std::expected 风格错误处理 |
-| fast_float | 快速数字解析 |
-| glob | 文件通配匹配 |
+| 库                               | 用途                           |
+| -------------------------------- | ------------------------------ |
+| Apache Arrow                     | 列式数据交换、Parquet/CSV 支持 |
+| Protobuf                         | IR 序列化、RPC                 |
+| ANTLR4                           | Cypher 查询解析                |
+| glog/gflags                      | 日志和命令行参数               |
+| mimalloc                         | 高性能内存分配器               |
+| OpenSSL                          | 加密（HTTPS、认证）            |
+| yaml-cpp                         | YAML 配置解析                  |
+| RE2                              | 正则表达式引擎                 |
+| utf8proc                         | Unicode 字符串处理             |
+| RapidJSON                        | JSON 解析                      |
+| pybind11                         | Python 绑定                    |
+| BRPC（可选）                     | HTTP 服务框架                  |
+| LevelDB（可选）                  | HTTP 服务元数据存储            |
+| flat_hash_map / parallel-hashmap | 高性能哈希表                   |
+| date (Howard Hinnant)            | 日期时间处理                   |
+| expected                         | std::expected 风格错误处理     |
+| fast_float                       | 快速数字解析                   |
+| glob                             | 文件通配匹配                   |
 
 ---
 
@@ -359,37 +363,38 @@ extension/
 
 ## 核心设计模式
 
-| 模式 | 描述 |
-|------|------|
-| **对象库聚合** | 所有子模块构建为 OBJECT 库，聚合为单一 `libneug` 共享库 |
+| 模式                   | 描述                                                        |
+| ---------------------- | ----------------------------------------------------------- |
+| **对象库聚合**         | 所有子模块构建为 OBJECT 库，聚合为单一 `libneug` 共享库     |
 | **Protobuf 为中心 IR** | 逻辑/物理计划均定义为 Protobuf 消息，支持序列化和跨语言兼容 |
-| **MVCC + 时间戳** | 基于时间戳的快照隔离并发控制 |
-| **CSR 图存储** | 压缩稀疏行格式 + 不可变（快照）/可变（增量）分层 |
-| **内存映射存储** | mmap 容器实现高效 I/O，支持三级内存策略 |
-| **Pipeline 执行** | 算子链式连接为 Pipeline，实现向量化执行 |
-| **动态扩展** | 运行时扩展加载 + 表函数注册（DuckDB 风格） |
-| **Arena 分配器** | 自定义内存分配器 + mmap 批量分配 |
-| **WAL 持久化** | 预写式日志保障崩溃恢复 |
-| **双模式运行** | 嵌入模式（直接库调用）vs 服务模式（HTTP/BRPC 服务器） |
+| **MVCC + 时间戳**      | 基于时间戳的快照隔离并发控制                                |
+| **CSR 图存储**         | 压缩稀疏行格式 + 不可变（快照）/可变（增量）分层            |
+| **内存映射存储**       | mmap 容器实现高效 I/O，支持三级内存策略                     |
+| **Pipeline 执行**      | 算子链式连接为 Pipeline，实现向量化执行                     |
+| **动态扩展**           | 运行时扩展加载 + 表函数注册（DuckDB 风格）                  |
+| **Arena 分配器**       | 自定义内存分配器 + mmap 批量分配                            |
+| **WAL 持久化**         | 预写式日志保障崩溃恢复                                      |
+| **双模式运行**         | 嵌入模式（直接库调用）vs 服务模式（HTTP/BRPC 服务器）       |
 
 ---
 
 ## 构建选项
 
-| 选项 | 默认值 | 说明 |
-|------|--------|------|
-| `BUILD_COMPILER` | ON | 构建 Cypher 编译器 |
-| `BUILD_HTTP_SERVER` | OFF | 启用 HTTP 服务模式（BRPC + LevelDB） |
-| `BUILD_EXECUTABLES` | OFF | 构建可执行工具 |
-| `BUILD_TEST` | OFF | 构建测试套件 |
-| `BUILD_PYTHON` | ON | 构建 Python 绑定（pybind11） |
-| `BUILD_EXTENSIONS` | "" | 扩展列表（如 `json;parquet`） |
-| `WITH_MIMALLOC` | ON | 使用 mimalloc 分配器 |
-| `ENABLE_BACKTRACES` | OFF | 启用 cpptrace 栈回溯 |
-| `ENABLE_GCOV` | OFF | 启用代码覆盖率 |
-| `ENABLE_LTO` | OFF | 链接时优化 |
+| 选项                | 默认值 | 说明                                 |
+| ------------------- | ------ | ------------------------------------ |
+| `BUILD_COMPILER`    | ON     | 构建 Cypher 编译器                   |
+| `BUILD_HTTP_SERVER` | OFF    | 启用 HTTP 服务模式（BRPC + LevelDB） |
+| `BUILD_EXECUTABLES` | OFF    | 构建可执行工具                       |
+| `BUILD_TEST`        | OFF    | 构建测试套件                         |
+| `BUILD_PYTHON`      | ON     | 构建 Python 绑定（pybind11）         |
+| `BUILD_EXTENSIONS`  | ""     | 扩展列表（如 `json;parquet`）        |
+| `WITH_MIMALLOC`     | ON     | 使用 mimalloc 分配器                 |
+| `ENABLE_BACKTRACES` | OFF    | 启用 cpptrace 栈回溯                 |
+| `ENABLE_GCOV`       | OFF    | 启用代码覆盖率                       |
+| `ENABLE_LTO`        | OFF    | 链接时优化                           |
 
 **关键性能参数**：
+
 - `NEUG_PAGE_SIZE_LOG2=12`（页面大小 4KB）
 - `NEUG_VECTOR_CAPACITY_LOG2=11`（向量容量 2048）
 - `NEUG_NODE_GROUP_SIZE_LOG2=17`（节点组大小 131072）
@@ -414,15 +419,15 @@ tests/
 
 ## 关键文件索引
 
-| 路径 | 作用 |
-|------|------|
-| `CMakeLists.txt` | 主构建配置 |
-| `src/CMakeLists.txt` | 子模块构建、libneug 链接 |
-| `include/neug/neug.h` | 公共 API 入口 |
-| `src/main/neug_db.cpp` | 数据库核心实现 |
-| `src/main/query_processor.cpp` | 查询处理管线 |
-| `src/storages/graph/property_graph.cpp` | 图存储核心 |
-| `src/execution/execute/pipeline.cc` | Pipeline 执行引擎 |
-| `src/transaction/version_manager.cpp` | MVCC 版本管理 |
-| `proto/algebra.proto` | 逻辑计划定义 |
-| `proto/physical.proto` | 物理计划定义 |
+| 路径                                    | 作用                     |
+| --------------------------------------- | ------------------------ |
+| `CMakeLists.txt`                        | 主构建配置               |
+| `src/CMakeLists.txt`                    | 子模块构建、libneug 链接 |
+| `include/neug/neug.h`                   | 公共 API 入口            |
+| `src/main/neug_db.cpp`                  | 数据库核心实现           |
+| `src/main/query_processor.cpp`          | 查询处理管线             |
+| `src/storages/graph/property_graph.cpp` | 图存储核心               |
+| `src/execution/execute/pipeline.cc`     | Pipeline 执行引擎        |
+| `src/transaction/version_manager.cpp`   | MVCC 版本管理            |
+| `proto/algebra.proto`                   | 逻辑计划定义             |
+| `proto/physical.proto`                  | 物理计划定义             |

@@ -105,6 +105,83 @@ impl std::fmt::Display for DataType {
     }
 }
 
+impl DataType {
+    pub fn as_u8(&self) -> u8 {
+        match self {
+            DataType::Empty => 0,
+            DataType::Null => 1,
+            DataType::Bool => 2,
+            DataType::SmallInt => 3,
+            DataType::Int => 4,
+            DataType::BigInt => 5,
+            DataType::Float => 6,
+            DataType::Double => 7,
+            DataType::Decimal128 => 8,
+            DataType::String => 9,
+            DataType::Date => 10,
+            DataType::Time => 11,
+            DataType::DateTime => 12,
+            DataType::Vertex => 13,
+            DataType::Edge => 14,
+            DataType::Path => 15,
+            DataType::List => 16,
+            DataType::Map => 17,
+            DataType::Set => 18,
+            DataType::Geography => 19,
+            DataType::DataSet => 20,
+            DataType::FixedString(_) => 21,
+            DataType::VID => 22,
+            DataType::Blob => 23,
+            DataType::Timestamp => 24,
+            DataType::Vector => 25,
+            DataType::VectorDense(_) => 26,
+            DataType::VectorSparse(_) => 27,
+            DataType::Json => 28,
+            DataType::JsonB => 29,
+            DataType::Uuid => 30,
+            DataType::Interval => 31,
+        }
+    }
+
+    pub fn from_u8(value: u8) -> Self {
+        match value {
+            0 => DataType::Empty,
+            1 => DataType::Null,
+            2 => DataType::Bool,
+            3 => DataType::SmallInt,
+            4 => DataType::Int,
+            5 => DataType::BigInt,
+            6 => DataType::Float,
+            7 => DataType::Double,
+            8 => DataType::Decimal128,
+            9 => DataType::String,
+            10 => DataType::Date,
+            11 => DataType::Time,
+            12 => DataType::DateTime,
+            13 => DataType::Vertex,
+            14 => DataType::Edge,
+            15 => DataType::Path,
+            16 => DataType::List,
+            17 => DataType::Map,
+            18 => DataType::Set,
+            19 => DataType::Geography,
+            20 => DataType::DataSet,
+            21 => DataType::FixedString(0),
+            22 => DataType::VID,
+            23 => DataType::Blob,
+            24 => DataType::Timestamp,
+            25 => DataType::Vector,
+            26 => DataType::VectorDense(0),
+            27 => DataType::VectorSparse(0),
+            28 => DataType::Json,
+            29 => DataType::JsonB,
+            30 => DataType::Uuid,
+            31 => DataType::Interval,
+            _ => DataType::Empty,
+        }
+    }
+}
+
 // Exporting Base Schema Types from Atomic Modules
 pub use self::edge::EdgeTypeInfo;
 pub use self::index::{Index, IndexConfig, IndexField, IndexStatus, IndexType};

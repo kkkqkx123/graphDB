@@ -218,6 +218,140 @@ impl PropertyTable {
     pub fn get_schema(&self, name: &str) -> Option<&PropertySchema> {
         self.name_to_index.get(name).and_then(|&idx| self.schema.get(idx))
     }
+
+    pub fn dump(&self) -> Vec<u8> {
+        let mut result = Vec::new();
+
+        result.extend_from_slice(&(self.schema.len() as u32).to_le_bytes());
+        for prop in &self.schema {
+            let name_bytes = prop.name.as_bytes();
+            result.extend_from_slice(&(name_bytes.len() as u32).to_le_bytes());
+            result.extend_from_slice(name_bytes);
+            result.extend_from_slice(&(prop.prop_id as i32).to_le_bytes());
+            result.push(prop.data_type.as_u8());
+            result.push(if prop.nullable { 1 } else { 0 });
+        }
+
+        result.extend_from_slice(&(self.rows.len() as u32).to_le_bytes());
+        for row in &self.rows {
+            result.extend_from_slice(&(row.values.len() as u32).to_le_bytes());
+            for value in &row.values {
+                if let Some(v) = value {
+                    result.push(1);
+                    result.extend_from_slice(&v.to_bytes());
+                } else {
+                    result.push(0);
+                }
+            }
+        }
+
+        result.extend_from_slice(&(self.free_list.len() as u32).to_le_bytes());
+        for offset in &self.free_list {
+            result.extend_from_slice(&offset.to_le_bytes());
+        }
+
+        result.extend_from_slice(&self.next_offset.to_le_bytes());
+
+        result
+    }
+
+    pub fn load(&mut self, data: &[u8]) {
+        if data.is_empty() {
+            return;
+        }
+
+        let mut offset = 0;
+
+        if offset + 4 > data.len() {
+            return;
+        }
+        let schema_len = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
+        offset += 4;
+
+        self.schema.clear();
+        self.name_to_index.clear();
+
+        for _ in 0..schema_len {
+            if offset + 4 > data.len() {
+                break;
+            }
+            let name_len = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
+            offset += 4;
+
+            if offset + name_len > data.len() {
+                break;
+            }
+            let name = String::from_utf8_lossy(&data[offset..offset + name_len]).to_string();
+            offset += name_len;
+
+            if offset + 5 > data.len() {
+                break;
+            }
+            let prop_id = i32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
+            offset += 4;
+            let data_type = DataType::from_u8(data[offset]);
+            offset += 1;
+            let nullable = data[offset] == 1;
+            offset += 1;
+
+            let prop_schema = PropertySchema::new(name.clone(), prop_id, data_type).nullable(nullable);
+            self.name_to_index.insert(name, self.schema.len());
+            self.schema.push(prop_schema);
+        }
+
+        if offset + 4 > data.len() {
+            return;
+        }
+        let rows_len = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
+        offset += 4;
+
+        self.rows.clear();
+
+        for _ in 0..rows_len {
+            if offset + 4 > data.len() {
+                break;
+            }
+            let values_len = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
+            offset += 4;
+
+            let mut row = PropertyRow::new(values_len);
+            for i in 0..values_len {
+                if offset >= data.len() {
+                    break;
+                }
+                let has_value = data[offset] == 1;
+                offset += 1;
+
+                if has_value {
+                    if let Some((value, bytes_read)) = Value::from_bytes(&data[offset..]) {
+                        row.values[i] = Some(value);
+                        offset += bytes_read;
+                    }
+                }
+            }
+            self.rows.push(row);
+        }
+
+        if offset + 4 > data.len() {
+            return;
+        }
+        let free_list_len = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
+        offset += 4;
+
+        self.free_list.clear();
+        for _ in 0..free_list_len {
+            if offset + 4 > data.len() {
+                break;
+            }
+            let free_offset = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
+            offset += 4;
+            self.free_list.push(free_offset);
+        }
+
+        if offset + 4 <= data.len() {
+            self.next_offset = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
+        }
+    }
 }
 
 impl Default for PropertyTable {

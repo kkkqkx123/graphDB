@@ -124,6 +124,18 @@ impl MutableCsr {
         false
     }
 
+    pub fn find_deleted_edge(&self, src: VertexId, dst: VertexId) -> Option<EdgeId> {
+        let src_idx = src as usize;
+        if src_idx >= self.vertex_capacity {
+            return None;
+        }
+
+        self.adj_lists[src_idx]
+            .iter()
+            .find(|nbr| nbr.neighbor == dst && nbr.timestamp == INVALID_TIMESTAMP)
+            .map(|nbr| nbr.edge_id)
+    }
+
     pub fn edges_of(&self, src: VertexId, ts: Timestamp) -> Vec<&Nbr> {
         let src_idx = src as usize;
         if src_idx >= self.vertex_capacity {
@@ -240,6 +252,72 @@ impl MutableCsr {
 
     pub fn iter_edges(&self, src: VertexId, ts: Timestamp) -> MutableCsrEdgeIterator {
         MutableCsrEdgeIterator::new(self, src, ts)
+    }
+
+    pub fn dump(&self) -> Vec<u8> {
+        let mut result = Vec::new();
+
+        result.extend_from_slice(&(self.vertex_capacity as u64).to_le_bytes());
+        result.extend_from_slice(&self.edge_count.load(Ordering::Relaxed).to_le_bytes());
+
+        for adj_list in &self.adj_lists {
+            result.extend_from_slice(&(adj_list.len() as u32).to_le_bytes());
+            for nbr in adj_list {
+                result.extend_from_slice(&nbr.neighbor.to_le_bytes());
+                result.extend_from_slice(&nbr.edge_id.to_le_bytes());
+                result.extend_from_slice(&nbr.prop_offset.to_le_bytes());
+                result.extend_from_slice(&nbr.timestamp.to_le_bytes());
+            }
+        }
+
+        result
+    }
+
+    pub fn load(&mut self, data: &[u8]) {
+        if data.len() < 16 {
+            return;
+        }
+
+        let mut offset = 0;
+
+        let vertex_capacity = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
+        offset += 8;
+
+        let edge_count = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
+        offset += 8;
+
+        self.vertex_capacity = vertex_capacity;
+        self.adj_lists = vec![Vec::new(); vertex_capacity];
+        self.edge_count.store(edge_count, Ordering::Relaxed);
+
+        for adj_list in &mut self.adj_lists {
+            if offset + 4 > data.len() {
+                break;
+            }
+            let list_len = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
+            offset += 4;
+
+            for _ in 0..list_len {
+                if offset + 24 > data.len() {
+                    break;
+                }
+                let neighbor = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
+                offset += 8;
+                let edge_id = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
+                offset += 8;
+                let prop_offset = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
+                offset += 4;
+                let timestamp = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
+                offset += 4;
+
+                adj_list.push(Nbr {
+                    neighbor,
+                    edge_id,
+                    prop_offset,
+                    timestamp,
+                });
+            }
+        }
     }
 }
 

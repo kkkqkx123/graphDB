@@ -10,7 +10,6 @@ use crate::core::types::{InsertVertexInfo, TagInfo, UpdateInfo, UpdateOp};
 use crate::core::{StorageError, Value, Vertex};
 use crate::storage::index::{IndexDataManager, RedbIndexDataManager};
 use crate::storage::metadata::{IndexMetadataManager, Schema, SchemaManager};
-use crate::storage::operations::{ScanResult, VertexReader, VertexWriter};
 use crate::storage::property_graph::PropertyGraph;
 use crate::storage::vertex::{LabelId, Timestamp, VertexRecord};
 use crate::transaction::version_manager::VersionManager;
@@ -147,15 +146,22 @@ impl VertexStorage {
         let graph = self.graph.read();
         let ts = self.get_read_timestamp();
 
-        if let Some(label) = label_id {
+        let result = if let Some(label) = label_id {
             if let Some(table) = graph.get_vertex_table(label) {
                 if let Some(record) = table.get(&external_id, ts) {
-                    return Ok(Some(self.vertex_record_to_vertex(&record, "default")));
+                    Some(self.vertex_record_to_vertex(&record, "default"))
+                } else {
+                    None
                 }
+            } else {
+                None
             }
-        }
+        } else {
+            None
+        };
 
-        Ok(None)
+        self.release_read_timestamp();
+        Ok(result)
     }
 
     pub fn scan_vertices(&self, space: &str) -> Result<Vec<Vertex>, StorageError> {
@@ -170,6 +176,7 @@ impl VertexStorage {
             }
         }
 
+        self.release_read_timestamp();
         Ok(vertices)
     }
 
@@ -183,7 +190,10 @@ impl VertexStorage {
 
         let label_id = match graph.get_vertex_label_id(tag) {
             Some(id) => id,
-            None => return Ok(Vec::new()),
+            None => {
+                self.release_read_timestamp();
+                return Ok(Vec::new());
+            }
         };
 
         let mut vertices = Vec::new();
@@ -194,6 +204,7 @@ impl VertexStorage {
             }
         }
 
+        self.release_read_timestamp();
         Ok(vertices)
     }
 
@@ -218,14 +229,22 @@ impl VertexStorage {
     }
 
     fn get_read_timestamp(&self) -> Timestamp {
-        INVALID_TIMESTAMP - 1
+        self.version_manager.acquire_read_timestamp()
+    }
+
+    fn release_read_timestamp(&self) {
+        self.version_manager.release_read_timestamp();
     }
 
     fn get_write_timestamp(&self) -> Timestamp {
-        INVALID_TIMESTAMP - 1
+        self.version_manager.acquire_insert_timestamp()
     }
 
-    pub fn insert_vertex_impl(
+    fn release_write_timestamp(&self, ts: Timestamp) {
+        self.version_manager.release_insert_timestamp(ts);
+    }
+
+    pub fn insert_vertex(
         &self,
         space: &str,
         space_id: u64,
@@ -277,10 +296,11 @@ impl VertexStorage {
             }
         }
 
+        self.release_write_timestamp(ts);
         Ok(*vid)
     }
 
-    pub fn update_vertex_impl(&self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
+    pub fn update_vertex(&self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
         let vid = vertex.vid.clone();
 
         let _old_vertex = self.get_vertex(space, &vid)?;
@@ -305,12 +325,14 @@ impl VertexStorage {
             for (prop_name, prop_value) in &properties {
                 graph.update_vertex_property(label_id, &external_id, prop_name, prop_value, ts)?;
             }
+
+            self.release_write_timestamp(ts);
         }
 
         Ok(())
     }
 
-    pub fn delete_vertex_impl(
+    pub fn delete_vertex(
         &self,
         space: &str,
         space_id: u64,
@@ -326,6 +348,8 @@ impl VertexStorage {
             if let Some(label_id) = graph.get_vertex_label_id("default") {
                 graph.delete_vertex(label_id, &external_id, ts)?;
             }
+
+            self.release_write_timestamp(ts);
         }
 
         self.index_data_manager.delete_vertex_indexes(space_id, id)?;
@@ -333,7 +357,7 @@ impl VertexStorage {
         Ok(())
     }
 
-    pub fn batch_insert_vertices_impl(
+    pub fn batch_insert_vertices(
         &self,
         space: &str,
         _space_id: u64,
@@ -365,12 +389,14 @@ impl VertexStorage {
 
                 graph.insert_vertex(label_id, &external_id, &properties, ts)?;
             }
+
+            self.release_write_timestamp(ts);
         }
 
         Ok(ids.into_iter().map(|v| *v).collect())
     }
 
-    pub fn delete_tags_impl(
+    pub fn delete_tags(
         &self,
         space: &str,
         space_id: u64,
@@ -420,6 +446,7 @@ impl VertexStorage {
             &info.props,
         )?;
 
+        self.release_write_timestamp(ts);
         Ok(true)
     }
 
@@ -442,6 +469,8 @@ impl VertexStorage {
             if let Some(label_id) = graph.get_vertex_label_id("default") {
                 graph.delete_vertex(label_id, &external_id, ts)?;
             }
+
+            self.release_write_timestamp(ts);
         }
 
         Ok(true)
@@ -515,10 +544,14 @@ impl VertexStorage {
             let label_id = self.get_label_id(space, tag)?;
             let ts = self.get_write_timestamp();
 
-            let mut graph = self.graph.write();
-            for (prop_name, prop_value) in &properties {
-                graph.update_vertex_property(label_id, &external_id, prop_name, prop_value, ts)?;
+            {
+                let mut graph = self.graph.write();
+                for (prop_name, prop_value) in &properties {
+                    graph.update_vertex_property(label_id, &external_id, prop_name, prop_value, ts)?;
+                }
             }
+
+            self.release_write_timestamp(ts);
         }
         Ok(())
     }
@@ -595,66 +628,4 @@ impl VertexStorage {
     }
 }
 
-impl VertexReader for VertexStorage {
-    fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
-        self.get_vertex(space, id)
-    }
 
-    fn scan_vertices(&self, space: &str) -> Result<ScanResult<Vertex>, StorageError> {
-        self.scan_vertices(space).map(ScanResult::new)
-    }
-
-    fn scan_vertices_by_tag(
-        &self,
-        space: &str,
-        tag_name: &str,
-    ) -> Result<ScanResult<Vertex>, StorageError> {
-        self.scan_vertices_by_tag(space, tag_name).map(ScanResult::new)
-    }
-
-    fn scan_vertices_by_prop(
-        &self,
-        space: &str,
-        tag_name: &str,
-        prop_name: &str,
-        value: &Value,
-    ) -> Result<ScanResult<Vertex>, StorageError> {
-        self.scan_vertices_by_prop(space, tag_name, prop_name, value)
-            .map(ScanResult::new)
-    }
-}
-
-impl VertexWriter for VertexStorage {
-    fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<Value, StorageError> {
-        let space_id = self.get_space_id(space)?;
-        self.insert_vertex_impl(space, space_id, vertex)
-    }
-
-    fn update_vertex(&mut self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
-        self.update_vertex_impl(space, vertex)
-    }
-
-    fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
-        let space_id = self.get_space_id(space)?;
-        self.delete_vertex_impl(space, space_id, id)
-    }
-
-    fn batch_insert_vertices(
-        &mut self,
-        space: &str,
-        vertices: Vec<Vertex>,
-    ) -> Result<Vec<Value>, StorageError> {
-        let space_id = self.get_space_id(space)?;
-        self.batch_insert_vertices_impl(space, space_id, vertices)
-    }
-
-    fn delete_tags(
-        &mut self,
-        space: &str,
-        vertex_id: &Value,
-        tag_names: &[String],
-    ) -> Result<usize, StorageError> {
-        let space_id = self.get_space_id(space)?;
-        self.delete_tags_impl(space, space_id, vertex_id, tag_names)
-    }
-}

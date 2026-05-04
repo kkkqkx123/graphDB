@@ -5,20 +5,26 @@
 //! - VecPairIterator: Simple KV Pair Iterator
 //! - Predicate: Predicate down-propagation optimization
 //! - Row: Row data type alias (Vec<Value>)
+//! - EdgeTableIterator: Lazy iterator over edges in an EdgeTable
+//! - PropertyGraphVertexIterator: Iterator over all vertices in a PropertyGraph
 //!
 //! Attention:
 //! - Use the core::result::iterator module for query result iterators.
 //! - Combined iterator operations (filter, map, take, skip) should use the Rust standard iterator
 //! - or the implementation in the core::result::combinators module
 
+pub mod edge_iter;
 pub mod predicate;
 pub mod storage_iter;
+pub mod vertex_iter;
 
+pub use edge_iter::{EdgeTableIterator, EdgeTableRangeIterator};
 pub use predicate::{
     CompareOp, CompoundPredicate, Expression, LogicalOp, PredicateEnum, PredicateOptimizer,
     PushdownResult, SimplePredicate,
 };
 pub use storage_iter::{StorageIterator, VecPairIterator};
+pub use vertex_iter::{PropertyGraphVertexIterator, VertexTableRangeIterator};
 
 use crate::core::Value;
 

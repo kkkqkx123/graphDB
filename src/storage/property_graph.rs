@@ -4,12 +4,19 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::RwLock;
+use std::sync::Arc;
+
+use parking_lot::RwLock;
 
 use crate::core::{DataType, StorageError, StorageResult, Value};
+use crate::core::value::null::NullType;
+use crate::transaction::insert_transaction::{InsertTarget, InsertTransactionError, InsertTransactionResult};
+use crate::transaction::undo_log::{PropertyValue, UndoLogError, UndoLogResult, UndoTarget};
+use crate::transaction::wal::types::{ColumnId, EdgeId as TxnEdgeId, LabelId as TxnLabelId, Timestamp, VertexId as TxnVertexId};
+use crate::transaction::wal::writer::WalWriter;
 
 use super::edge::{EdgeDirection, EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, EdgeTable, PropertyDef as EdgePropertyDef};
-use super::vertex::{LabelId, PropertyDef as VertexPropertyDef, Timestamp, VertexId, VertexRecord, VertexSchema, VertexTable};
+use super::vertex::{LabelId, PropertyDef as VertexPropertyDef, Timestamp as StorageTimestamp, VertexId, VertexRecord, VertexSchema, VertexTable};
 use super::vertex::vertex_table::VertexIterator;
 
 #[derive(Debug, Clone)]
@@ -29,7 +36,6 @@ impl Default for PropertyGraphConfig {
     }
 }
 
-#[derive(Debug)]
 pub struct PropertyGraph {
     vertex_tables: HashMap<LabelId, VertexTable>,
     edge_tables: HashMap<(LabelId, LabelId, LabelId), EdgeTable>,
@@ -39,6 +45,25 @@ pub struct PropertyGraph {
     edge_label_counter: LabelId,
     config: PropertyGraphConfig,
     is_open: bool,
+    wal_writer: Option<Arc<RwLock<Box<dyn WalWriter>>>>,
+    wal_enabled: bool,
+}
+
+impl std::fmt::Debug for PropertyGraph {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PropertyGraph")
+            .field("vertex_tables", &self.vertex_tables)
+            .field("edge_tables", &self.edge_tables)
+            .field("vertex_label_names", &self.vertex_label_names)
+            .field("edge_label_names", &self.edge_label_names)
+            .field("vertex_label_counter", &self.vertex_label_counter)
+            .field("edge_label_counter", &self.edge_label_counter)
+            .field("config", &self.config)
+            .field("is_open", &self.is_open)
+            .field("wal_writer", &self.wal_writer.as_ref().map(|_| "WalWriter"))
+            .field("wal_enabled", &self.wal_enabled)
+            .finish()
+    }
 }
 
 impl PropertyGraph {
@@ -56,7 +81,37 @@ impl PropertyGraph {
             edge_label_counter: 0,
             config,
             is_open: true,
+            wal_writer: None,
+            wal_enabled: false,
         }
+    }
+
+    pub fn with_wal(mut self, wal_writer: Arc<RwLock<Box<dyn WalWriter>>>) -> Self {
+        self.wal_writer = Some(wal_writer);
+        self.wal_enabled = true;
+        self
+    }
+
+    pub fn set_wal_writer(&mut self, wal_writer: Arc<RwLock<Box<dyn WalWriter>>>) {
+        self.wal_writer = Some(wal_writer);
+        self.wal_enabled = true;
+    }
+
+    pub fn wal_enabled(&self) -> bool {
+        self.wal_enabled
+    }
+
+    fn write_wal(&self, _op_type: u8, _data: &[u8]) -> StorageResult<()> {
+        if !self.wal_enabled {
+            return Ok(());
+        }
+
+        if let Some(ref wal_writer) = self.wal_writer {
+            let mut writer = wal_writer.write();
+            writer.append(_data)
+                .map_err(|e| StorageError::WalError(format!("Failed to write WAL: {:?}", e)))?;
+        }
+        Ok(())
     }
 
     pub fn open<P: AsRef<Path>>(path: P) -> StorageResult<Self> {
@@ -501,11 +556,542 @@ impl PropertyGraph {
         self.vertex_label_counter = 0;
         self.edge_label_counter = 0;
     }
+
+    pub fn flush(&self) -> StorageResult<()> {
+        use std::fs;
+
+        let data_dir = self.config.work_dir.join("data");
+        fs::create_dir_all(&data_dir)?;
+
+        let vertex_dir = data_dir.join("vertices");
+        fs::create_dir_all(&vertex_dir)?;
+
+        for (label_id, table) in &self.vertex_tables {
+            let table_dir = vertex_dir.join(format!("label_{}", label_id));
+            table.flush(&table_dir)?;
+        }
+
+        let edge_dir = data_dir.join("edges");
+        fs::create_dir_all(&edge_dir)?;
+
+        for ((src_label, dst_label, edge_label), table) in &self.edge_tables {
+            let table_dir = edge_dir.join(format!("{}_{}_{}", src_label, dst_label, edge_label));
+            table.flush(&table_dir)?;
+        }
+
+        if let Some(ref wal_writer) = self.wal_writer {
+            let mut writer = wal_writer.write();
+            writer.sync()
+                .map_err(|e| StorageError::WalError(format!("Failed to sync WAL: {:?}", e)))?;
+        }
+
+        Ok(())
+    }
+
+    pub fn load(&mut self) -> StorageResult<()> {
+        use std::fs;
+
+        let data_dir = self.config.work_dir.join("data");
+
+        let vertex_dir = data_dir.join("vertices");
+        if vertex_dir.exists() {
+            for entry in fs::read_dir(&vertex_dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    if let Some(dir_name) = path.file_name() {
+                        if let Some(name_str) = dir_name.to_str() {
+                            if let Some(label_str) = name_str.strip_prefix("label_") {
+                                if let Ok(label_id) = label_str.parse::<LabelId>() {
+                                    if let Some(table) = self.vertex_tables.get_mut(&label_id) {
+                                        table.load(&path)?;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let edge_dir = data_dir.join("edges");
+        if edge_dir.exists() {
+            for entry in fs::read_dir(&edge_dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    if let Some(dir_name) = path.file_name() {
+                        if let Some(name_str) = dir_name.to_str() {
+                            let parts: Vec<&str> = name_str.splitn(3, '_').collect();
+                            if parts.len() == 3 {
+                                if let (Ok(src_label), Ok(dst_label), Ok(edge_label)) = (
+                                    parts[0].parse::<LabelId>(),
+                                    parts[1].parse::<LabelId>(),
+                                    parts[2].parse::<LabelId>(),
+                                ) {
+                                    let key = (src_label, dst_label, edge_label);
+                                    if let Some(table) = self.edge_tables.get_mut(&key) {
+                                        table.load(&path)?;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        self.is_open = true;
+        Ok(())
+    }
+
+    pub fn checkpoint(&mut self) -> StorageResult<()> {
+        self.flush()?;
+        Ok(())
+    }
 }
 
 impl Default for PropertyGraph {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+fn value_to_bytes(value: &Value) -> Vec<u8> {
+    match value {
+        Value::Null(_) | Value::Empty => vec![0],
+        Value::Bool(v) => {
+            let mut buf = vec![1];
+            buf.extend_from_slice(&[*v as u8]);
+            buf
+        }
+        Value::Int(v) => {
+            let mut buf = vec![2];
+            buf.extend_from_slice(&v.to_le_bytes());
+            buf
+        }
+        Value::BigInt(v) => {
+            let mut buf = vec![3];
+            buf.extend_from_slice(&v.to_le_bytes());
+            buf
+        }
+        Value::Float(v) => {
+            let mut buf = vec![4];
+            buf.extend_from_slice(&v.to_le_bytes());
+            buf
+        }
+        Value::Double(v) => {
+            let mut buf = vec![5];
+            buf.extend_from_slice(&v.to_le_bytes());
+            buf
+        }
+        Value::String(v) => {
+            let mut buf = vec![6];
+            let bytes = v.as_bytes();
+            buf.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
+            buf.extend_from_slice(bytes);
+            buf
+        }
+        Value::Blob(v) => {
+            let mut buf = vec![7];
+            buf.extend_from_slice(&(v.len() as u32).to_le_bytes());
+            buf.extend_from_slice(v);
+            buf
+        }
+        _ => vec![0],
+    }
+}
+
+fn bytes_to_value(data: &[u8]) -> Option<Value> {
+    if data.is_empty() {
+        return None;
+    }
+    match data[0] {
+        0 => Some(Value::Null(NullType::Null)),
+        1 => data.get(1).map(|&v| Value::Bool(v != 0)),
+        2 => data.get(1..9)
+            .map(|b| i32::from_le_bytes(b.try_into().unwrap_or([0; 4])))
+            .map(Value::Int),
+        3 => data.get(1..9)
+            .map(|b| i64::from_le_bytes(b.try_into().unwrap_or([0; 8])))
+            .map(Value::BigInt),
+        4 => data.get(1..9)
+            .map(|b| f32::from_le_bytes(b.try_into().unwrap_or([0; 4])))
+            .map(Value::Float),
+        5 => data.get(1..9)
+            .map(|b| f64::from_le_bytes(b.try_into().unwrap_or([0; 8])))
+            .map(Value::Double),
+        6 => {
+            if data.len() < 5 {
+                return None;
+            }
+            let len = u32::from_le_bytes([data[1], data[2], data[3], data[4]]) as usize;
+            data.get(5..5 + len)
+                .and_then(|b| std::str::from_utf8(b).ok())
+                .map(|s| Value::String(s.to_string()))
+        }
+        7 => {
+            if data.len() < 5 {
+                return None;
+            }
+            let len = u32::from_le_bytes([data[1], data[2], data[3], data[4]]) as usize;
+            data.get(5..5 + len).map(|b| Value::Blob(b.to_vec()))
+        }
+        _ => None,
+    }
+}
+
+fn property_value_to_value(pv: PropertyValue) -> Value {
+    match pv {
+        PropertyValue::Int(v) => Value::BigInt(v),
+        PropertyValue::Float(v) => Value::Double(v),
+        PropertyValue::String(v) => Value::String(v),
+        PropertyValue::Bytes(v) => Value::Blob(v),
+        PropertyValue::Bool(v) => Value::Bool(v),
+        PropertyValue::Null => Value::Null(NullType::Null),
+    }
+}
+
+fn value_to_property_value(value: &Value) -> PropertyValue {
+    match value {
+        Value::BigInt(v) => PropertyValue::Int(*v),
+        Value::Double(v) => PropertyValue::Float(*v),
+        Value::String(v) => PropertyValue::String(v.clone()),
+        Value::Blob(v) => PropertyValue::Bytes(v.clone()),
+        Value::Bool(v) => PropertyValue::Bool(*v),
+        Value::Null(_) | Value::Empty => PropertyValue::Null,
+        _ => PropertyValue::Null,
+    }
+}
+
+impl InsertTarget for PropertyGraph {
+    fn add_vertex(
+        &mut self,
+        label: TxnLabelId,
+        oid: &[u8],
+        properties: &[(String, Vec<u8>)],
+        ts: Timestamp,
+    ) -> InsertTransactionResult<TxnVertexId> {
+        let external_id = std::str::from_utf8(oid)
+            .map_err(|e| InsertTransactionError::SerializationError(e.to_string()))?;
+
+        let props: Vec<(String, Value)> = properties
+            .iter()
+            .filter_map(|(k, v)| {
+                bytes_to_value(v).map(|val| (k.clone(), val))
+            })
+            .collect();
+
+        let internal_id = self.insert_vertex(label as LabelId, external_id, &props, ts)
+            .map_err(|e| InsertTransactionError::SchemaError(e.to_string()))?;
+
+        Ok(internal_id as TxnVertexId)
+    }
+
+    fn add_edge(
+        &mut self,
+        src_label: TxnLabelId,
+        src_vid: TxnVertexId,
+        dst_label: TxnLabelId,
+        dst_vid: TxnVertexId,
+        edge_label: TxnLabelId,
+        properties: &[(String, Vec<u8>)],
+        ts: Timestamp,
+    ) -> InsertTransactionResult<EdgeId> {
+        let src_label_id = src_label as LabelId;
+        let dst_label_id = dst_label as LabelId;
+        let src_table = self.vertex_tables.get(&src_label_id)
+            .ok_or_else(|| InsertTransactionError::LabelNotFound(src_label))?;
+        let dst_table = self.vertex_tables.get(&dst_label_id)
+            .ok_or_else(|| InsertTransactionError::LabelNotFound(dst_label))?;
+
+        let src_external = src_table.get_external_id(src_vid as u32)
+            .ok_or(InsertTransactionError::VertexNotFound(src_vid))?;
+        let dst_external = dst_table.get_external_id(dst_vid as u32)
+            .ok_or(InsertTransactionError::VertexNotFound(dst_vid))?;
+
+        let props: Vec<(String, Value)> = properties
+            .iter()
+            .filter_map(|(k, v)| {
+                bytes_to_value(v).map(|val| (k.clone(), val))
+            })
+            .collect();
+
+        let edge_id = self.insert_edge(
+            edge_label as LabelId,
+            src_label as LabelId,
+            &src_external,
+            dst_label as LabelId,
+            &dst_external,
+            &props,
+            ts,
+        ).map_err(|e| InsertTransactionError::SchemaError(e.to_string()))?;
+
+        Ok(edge_id)
+    }
+
+    fn get_vertex_id(
+        &self,
+        label: TxnLabelId,
+        oid: &[u8],
+        ts: Timestamp,
+    ) -> Option<TxnVertexId> {
+        let external_id = std::str::from_utf8(oid).ok()?;
+        let label_id = label as LabelId;
+        self.vertex_tables.get(&label_id)?
+            .get_internal_id(external_id, ts)
+            .map(|id| id as TxnVertexId)
+    }
+
+    fn get_vertex_oid(
+        &self,
+        label: TxnLabelId,
+        vid: TxnVertexId,
+        ts: Timestamp,
+    ) -> Option<Vec<u8>> {
+        let label_id = label as LabelId;
+        self.vertex_tables.get(&label_id)?
+            .get_external_id(vid as u32)
+            .map(|s| s.into_bytes())
+    }
+
+    fn get_vertex_property_types(&self, label: TxnLabelId) -> Vec<String> {
+        let label_id = label as LabelId;
+        self.vertex_tables
+            .get(&label_id)
+            .map(|t| t.schema().properties.iter().map(|p| p.name.clone()).collect())
+            .unwrap_or_default()
+    }
+
+    fn get_edge_property_types(&self, _src_label: TxnLabelId, _dst_label: TxnLabelId, edge_label: TxnLabelId) -> Vec<String> {
+        let edge_label_id = edge_label as LabelId;
+        self.edge_tables
+            .values()
+            .find(|t| t.label() == edge_label_id)
+            .map(|t| t.schema().properties.iter().map(|p| p.name.clone()).collect())
+            .unwrap_or_default()
+    }
+
+    fn vertex_label_num(&self) -> usize {
+        self.vertex_tables.len()
+    }
+
+    fn lid_num(&self, label: TxnLabelId) -> usize {
+        let label_id = label as LabelId;
+        self.vertex_tables
+            .get(&label_id)
+            .map(|t| t.total_count())
+            .unwrap_or(0)
+    }
+}
+
+impl UndoTarget for PropertyGraph {
+    fn delete_vertex_type(&mut self, label: TxnLabelId) -> UndoLogResult<()> {
+        let label_id = label as LabelId;
+        let label_name = self.vertex_tables
+            .get(&label_id)
+            .map(|t| t.label_name().to_string());
+
+        if let Some(name) = label_name {
+            self.vertex_label_names.remove(&name);
+        }
+
+        self.vertex_tables.remove(&label_id);
+
+        let keys_to_remove: Vec<_> = self.edge_tables
+            .keys()
+            .filter(|(src, dst, _)| *src == label_id || *dst == label_id)
+            .cloned()
+            .collect();
+
+        for key in keys_to_remove {
+            self.edge_tables.remove(&key);
+        }
+
+        Ok(())
+    }
+
+    fn delete_edge_type(&mut self, src_label: TxnLabelId, dst_label: TxnLabelId, edge_label: TxnLabelId) -> UndoLogResult<()> {
+        let key = (src_label as LabelId, dst_label as LabelId, edge_label as LabelId);
+        self.edge_tables.remove(&key);
+        Ok(())
+    }
+
+    fn delete_vertex(&mut self, label: TxnLabelId, vid: TxnVertexId, ts: Timestamp) -> UndoLogResult<()> {
+        let label_id = label as LabelId;
+        if let Some(table) = self.vertex_tables.get_mut(&label_id) {
+            table.delete_by_internal_id(vid as u32, ts)
+                .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
+        }
+        Ok(())
+    }
+
+    fn delete_edge(
+        &mut self,
+        src_label: TxnLabelId,
+        src_vid: TxnVertexId,
+        dst_label: TxnLabelId,
+        dst_vid: TxnVertexId,
+        edge_label: TxnLabelId,
+        _oe_offset: i32,
+        _ie_offset: i32,
+        ts: Timestamp,
+    ) -> UndoLogResult<()> {
+        let key = (src_label as LabelId, dst_label as LabelId, edge_label as LabelId);
+        if let Some(table) = self.edge_tables.get_mut(&key) {
+            table.delete_edge(src_vid as VertexId, dst_vid as VertexId, ts)
+                .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
+        }
+        Ok(())
+    }
+
+    fn undo_update_vertex_property(
+        &mut self,
+        label: TxnLabelId,
+        vid: TxnVertexId,
+        col_id: ColumnId,
+        value: PropertyValue,
+        ts: Timestamp,
+    ) -> UndoLogResult<()> {
+        let label_id = label as LabelId;
+        if let Some(table) = self.vertex_tables.get_mut(&label_id) {
+            let schema = table.schema();
+            let prop_name = schema.properties.get(col_id as usize)
+                .map(|p| p.name.clone())
+                .ok_or_else(|| UndoLogError::PropertyNotFound(format!("column {}", col_id)))?;
+
+            let val = property_value_to_value(value);
+            table.update_property(vid as u32, &prop_name, &val, ts)
+                .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
+        }
+        Ok(())
+    }
+
+    fn undo_update_edge_property(
+        &mut self,
+        src_label: TxnLabelId,
+        src_vid: TxnVertexId,
+        dst_label: TxnLabelId,
+        dst_vid: TxnVertexId,
+        edge_label: TxnLabelId,
+        _oe_offset: i32,
+        _ie_offset: i32,
+        col_id: ColumnId,
+        value: PropertyValue,
+        ts: Timestamp,
+    ) -> UndoLogResult<()> {
+        let key = (src_label as LabelId, dst_label as LabelId, edge_label as LabelId);
+        if let Some(table) = self.edge_tables.get_mut(&key) {
+            let schema = table.schema();
+            let prop_name = schema.properties.get(col_id as usize)
+                .map(|p| p.name.clone())
+                .ok_or_else(|| UndoLogError::PropertyNotFound(format!("column {}", col_id)))?;
+
+            let val = property_value_to_value(value);
+            table.update_edge_property(src_vid as VertexId, dst_vid as VertexId, &prop_name, &val, ts)
+                .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
+        }
+        Ok(())
+    }
+
+    fn revert_delete_vertex(&mut self, label: TxnLabelId, vid: TxnVertexId, ts: Timestamp) -> UndoLogResult<()> {
+        let label_id = label as LabelId;
+        if let Some(table) = self.vertex_tables.get_mut(&label_id) {
+            table.revert_delete(vid as u32, ts)
+                .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
+        }
+        Ok(())
+    }
+
+    fn revert_delete_edge(
+        &mut self,
+        src_label: TxnLabelId,
+        src_vid: TxnVertexId,
+        dst_label: TxnLabelId,
+        dst_vid: TxnVertexId,
+        edge_label: TxnLabelId,
+        _oe_offset: i32,
+        _ie_offset: i32,
+        ts: Timestamp,
+    ) -> UndoLogResult<()> {
+        let key = (src_label as LabelId, dst_label as LabelId, edge_label as LabelId);
+        if let Some(table) = self.edge_tables.get_mut(&key) {
+            table.revert_delete_edge(src_vid as VertexId, dst_vid as VertexId, ts)
+                .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
+        }
+        Ok(())
+    }
+
+    fn revert_delete_vertex_properties(&mut self, label_name: &str, prop_names: &[String]) -> UndoLogResult<()> {
+        if let Some(label_id) = self.vertex_label_names.get(label_name).copied() {
+            if let Some(table) = self.vertex_tables.get_mut(&label_id) {
+                for prop_name in prop_names {
+                    let prop_def = VertexPropertyDef::new(prop_name.clone(), DataType::String);
+                    table.add_property(prop_def)
+                        .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn revert_delete_edge_properties(&mut self, _src_label: &str, _dst_label: &str, edge_label: &str, prop_names: &[String]) -> UndoLogResult<()> {
+        if let Some(label_id) = self.edge_label_names.get(edge_label).copied() {
+            for table in self.edge_tables.values_mut() {
+                if table.label() == label_id {
+                    for prop_name in prop_names {
+                        table.add_property(prop_name.clone(), DataType::String, true)
+                            .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn revert_delete_vertex_label(&mut self, label_name: &str) -> UndoLogResult<()> {
+        let label_id = self.vertex_label_counter;
+        self.vertex_label_counter += 1;
+
+        let schema = VertexSchema {
+            label_id,
+            label_name: label_name.to_string(),
+            properties: vec![VertexPropertyDef::new("id".to_string(), DataType::String)],
+            primary_key_index: 0,
+        };
+
+        let table = VertexTable::new(label_id, label_name.to_string(), schema);
+        self.vertex_tables.insert(label_id, table);
+        self.vertex_label_names.insert(label_name.to_string(), label_id);
+
+        Ok(())
+    }
+
+    fn revert_delete_edge_label(&mut self, src_label: &str, dst_label: &str, edge_label: &str) -> UndoLogResult<()> {
+        let src_label_id = self.vertex_label_names.get(src_label).copied()
+            .ok_or_else(|| UndoLogError::LabelNotFound(0))?;
+        let dst_label_id = self.vertex_label_names.get(dst_label).copied()
+            .ok_or_else(|| UndoLogError::LabelNotFound(0))?;
+
+        let label_id = self.edge_label_counter;
+        self.edge_label_counter += 1;
+
+        let schema = EdgeSchema {
+            label_id,
+            label_name: edge_label.to_string(),
+            src_label: src_label_id,
+            dst_label: dst_label_id,
+            properties: vec![],
+            oe_strategy: EdgeStrategy::Multiple,
+            ie_strategy: EdgeStrategy::Multiple,
+        };
+
+        let table = EdgeTable::new(schema);
+        let key = (src_label_id, dst_label_id, label_id);
+        self.edge_tables.insert(key, table);
+        self.edge_label_names.insert(edge_label.to_string(), label_id);
+
+        Ok(())
     }
 }
 

@@ -232,6 +232,21 @@ impl Column {
         }
         self.row_count = new_count;
     }
+
+    pub fn data(&self) -> &[u8] {
+        &self.data
+    }
+
+    pub fn null_bitmap(&self) -> Option<&Vec<bool>> {
+        self.null_bitmap.as_ref()
+    }
+
+    pub fn load_data(&mut self, data: Vec<u8>, null_bitmap: Option<Vec<bool>>) {
+        self.data = data;
+        self.null_bitmap = null_bitmap;
+        let element_size = Self::element_size(&self.data_type);
+        self.row_count = self.data.len() / element_size.max(1);
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -331,6 +346,21 @@ impl ColumnStore {
 
     pub fn column_names(&self) -> Vec<&str> {
         self.columns.iter().map(|c| c.name.as_str()).collect()
+    }
+
+    pub fn load_column(&mut self, name: &str, data: Vec<u8>, null_bitmap: Option<Vec<bool>>) -> StorageResult<()> {
+        if let Some(col) = self.get_column_mut(name) {
+            col.load_data(data, null_bitmap);
+            Ok(())
+        } else {
+            Err(StorageError::ColumnNotFound(name.to_string()))
+        }
+    }
+
+    pub fn iter_columns(&self) -> impl Iterator<Item = (&String, &Column)> {
+        self.name_to_index.iter().filter_map(|(name, &idx)| {
+            self.columns.get(idx).map(|col| (name, col))
+        })
     }
 }
 

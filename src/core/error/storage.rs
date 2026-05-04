@@ -73,6 +73,8 @@ pub enum StorageError {
     InvalidOffset(u32),
     #[error("Invalid operation: {0}")]
     InvalidOperation(String),
+    #[error("WAL error: {0}")]
+    WalError(String),
 }
 
 impl StorageError {

@@ -371,6 +371,51 @@ impl EdgeTable {
         Ok(())
     }
 
+    pub fn update_edge_property(
+        &mut self,
+        src: VertexId,
+        dst: VertexId,
+        prop_name: &str,
+        value: &Value,
+        ts: Timestamp,
+    ) -> StorageResult<bool> {
+        if !self.is_open {
+            return Err(StorageError::StorageNotOpen);
+        }
+
+        if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
+            self.properties.set_property(nbr.prop_offset, prop_name, Some(value.clone()))?;
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
+    pub fn revert_delete_edge(
+        &mut self,
+        src: VertexId,
+        dst: VertexId,
+        ts: Timestamp,
+    ) -> StorageResult<bool> {
+        if !self.is_open {
+            return Err(StorageError::StorageNotOpen);
+        }
+
+        let edge_id = self.out_csr.find_deleted_edge(src, dst);
+
+        if let Some(eid) = edge_id {
+            let reverted_out = self.out_csr.revert_delete(src, eid, ts);
+            let reverted_in = if self.schema.ie_strategy != EdgeStrategy::None {
+                self.in_csr.revert_delete(dst, eid, ts)
+            } else {
+                false
+            };
+            return Ok(reverted_out || reverted_in);
+        }
+
+        Ok(false)
+    }
+
     pub fn label(&self) -> LabelId {
         self.label
     }
@@ -395,6 +440,22 @@ impl EdgeTable {
         self.is_open
     }
 
+    pub fn vertex_capacity(&self) -> usize {
+        self.out_csr.vertex_capacity()
+    }
+
+    pub fn edges_of(&self, src: VertexId, ts: Timestamp) -> Vec<super::Nbr> {
+        if !self.is_open {
+            return Vec::new();
+        }
+        self.out_csr.edges_of(src, ts).into_iter().cloned().collect()
+    }
+
+    pub fn get_properties(&self, prop_offset: u32) -> Option<Vec<(String, Value)>> {
+        self.properties.get(prop_offset)
+            .map(|props| props.into_iter().filter_map(|(k, v)| v.map(|v| (k, v))).collect())
+    }
+
     pub fn compact(&mut self) {
         self.out_csr.compact();
         self.in_csr.compact();
@@ -405,6 +466,148 @@ impl EdgeTable {
         self.in_csr.clear();
         self.properties.clear();
         self.edge_id_counter.store(0, Ordering::Relaxed);
+    }
+
+    pub fn flush<P: AsRef<Path>>(&self, path: P) -> StorageResult<()> {
+        use std::fs::{self, File};
+        use std::io::Write;
+
+        let path = path.as_ref();
+        fs::create_dir_all(path)?;
+
+        let meta_path = path.join("meta.bin");
+        let mut meta_file = File::create(&meta_path)?;
+
+        meta_file.write_all(&self.label.to_le_bytes())?;
+        meta_file.write_all(&self.src_label.to_le_bytes())?;
+        meta_file.write_all(&self.dst_label.to_le_bytes())?;
+
+        let label_name_bytes = self.label_name.as_bytes();
+        meta_file.write_all(&(label_name_bytes.len() as u32).to_le_bytes())?;
+        meta_file.write_all(label_name_bytes)?;
+
+        let edge_id = self.edge_id_counter.load(Ordering::Relaxed);
+        meta_file.write_all(&edge_id.to_le_bytes())?;
+
+        let out_csr_path = path.join("out_csr.bin");
+        self.flush_csr(&self.out_csr, &out_csr_path)?;
+
+        let in_csr_path = path.join("in_csr.bin");
+        self.flush_csr(&self.in_csr, &in_csr_path)?;
+
+        let props_path = path.join("properties.bin");
+        self.flush_properties(&props_path)?;
+
+        Ok(())
+    }
+
+    fn flush_csr(&self, csr: &MutableCsr, path: &Path) -> StorageResult<()> {
+        use std::fs::File;
+        use std::io::Write;
+
+        let mut file = File::create(path)?;
+
+        let data = csr.dump();
+        file.write_all(&(data.len() as u64).to_le_bytes())?;
+        file.write_all(&data)?;
+
+        Ok(())
+    }
+
+    fn flush_properties(&self, path: &Path) -> StorageResult<()> {
+        use std::fs::File;
+        use std::io::Write;
+
+        let mut file = File::create(path)?;
+
+        let data = self.properties.dump();
+        file.write_all(&(data.len() as u64).to_le_bytes())?;
+        file.write_all(&data)?;
+
+        Ok(())
+    }
+
+    pub fn load<P: AsRef<Path>>(&mut self, path: P) -> StorageResult<()> {
+        use std::fs::File;
+        use std::io::Read;
+
+        let path = path.as_ref();
+
+        let meta_path = path.join("meta.bin");
+        let mut meta_file = File::open(&meta_path)?;
+
+        let mut label_bytes = [0u8; 2];
+        meta_file.read_exact(&mut label_bytes)?;
+        self.label = u16::from_le_bytes(label_bytes);
+
+        let mut src_label_bytes = [0u8; 2];
+        meta_file.read_exact(&mut src_label_bytes)?;
+        self.src_label = u16::from_le_bytes(src_label_bytes);
+
+        let mut dst_label_bytes = [0u8; 2];
+        meta_file.read_exact(&mut dst_label_bytes)?;
+        self.dst_label = u16::from_le_bytes(dst_label_bytes);
+
+        let mut label_name_len_bytes = [0u8; 4];
+        meta_file.read_exact(&mut label_name_len_bytes)?;
+        let label_name_len = u32::from_le_bytes(label_name_len_bytes) as usize;
+
+        let mut label_name_bytes = vec![0u8; label_name_len];
+        meta_file.read_exact(&mut label_name_bytes)?;
+        self.label_name = String::from_utf8(label_name_bytes)
+            .map_err(|e| StorageError::DeserializeError(e.to_string()))?;
+
+        let mut edge_id_bytes = [0u8; 8];
+        meta_file.read_exact(&mut edge_id_bytes)?;
+        self.edge_id_counter.store(u64::from_le_bytes(edge_id_bytes), Ordering::Relaxed);
+
+        let out_csr_path = path.join("out_csr.bin");
+        Self::load_csr_static(&mut self.out_csr, &out_csr_path)?;
+
+        let in_csr_path = path.join("in_csr.bin");
+        Self::load_csr_static(&mut self.in_csr, &in_csr_path)?;
+
+        let props_path = path.join("properties.bin");
+        self.load_properties(&props_path)?;
+
+        self.is_open = true;
+        Ok(())
+    }
+
+    fn load_csr_static(csr: &mut MutableCsr, path: &Path) -> StorageResult<()> {
+        use std::fs::File;
+        use std::io::Read;
+
+        let mut file = File::open(path)?;
+
+        let mut len_bytes = [0u8; 8];
+        file.read_exact(&mut len_bytes)?;
+        let len = u64::from_le_bytes(len_bytes) as usize;
+
+        let mut data = vec![0u8; len];
+        file.read_exact(&mut data)?;
+
+        csr.load(&data);
+
+        Ok(())
+    }
+
+    fn load_properties(&mut self, path: &Path) -> StorageResult<()> {
+        use std::fs::File;
+        use std::io::Read;
+
+        let mut file = File::open(path)?;
+
+        let mut len_bytes = [0u8; 8];
+        file.read_exact(&mut len_bytes)?;
+        let len = u64::from_le_bytes(len_bytes) as usize;
+
+        let mut data = vec![0u8; len];
+        file.read_exact(&mut data)?;
+
+        self.properties.load(&data);
+
+        Ok(())
     }
 }
 

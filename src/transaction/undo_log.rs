@@ -3,9 +3,6 @@
 //! Provides transaction rollback support through undo log entries.
 //! Each undo log entry can reverse a specific operation during transaction abort.
 
-use std::collections::HashMap;
-use std::sync::Arc;
-
 use super::wal::types::{ColumnId, EdgeId, LabelId, Timestamp, VertexId};
 
 /// Undo log error

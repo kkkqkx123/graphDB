@@ -41,7 +41,7 @@ pub struct VertexRecord {
     pub properties: Vec<(String, crate::core::Value)>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct VertexSchema {
     pub label_id: LabelId,
     pub label_name: String,
@@ -49,7 +49,7 @@ pub struct VertexSchema {
     pub primary_key_index: usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PropertyDef {
     pub name: String,
     pub data_type: crate::core::DataType,

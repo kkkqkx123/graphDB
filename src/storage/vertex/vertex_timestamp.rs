@@ -162,6 +162,30 @@ impl VertexTimestamp {
         self.end_ts.truncate(write_idx);
         self.deleted.truncate(write_idx);
     }
+
+    pub fn dump(&self) -> Vec<Timestamp> {
+        let mut result = Vec::with_capacity(self.start_ts.len() * 2 + self.deleted.len());
+        for i in 0..self.start_ts.len() {
+            result.push(self.start_ts[i]);
+            result.push(self.end_ts[i]);
+            result.push(if self.deleted[i] { 1u32 } else { 0u32 });
+        }
+        result
+    }
+
+    pub fn load(&mut self, data: &[Timestamp]) {
+        self.clear();
+        let count = data.len() / 3;
+        self.start_ts.reserve(count);
+        self.end_ts.reserve(count);
+        self.deleted.reserve(count);
+
+        for i in 0..count {
+            self.start_ts.push(data[i * 3]);
+            self.end_ts.push(data[i * 3 + 1]);
+            self.deleted.push(data[i * 3 + 2] == 1);
+        }
+    }
 }
 
 impl Default for VertexTimestamp {
