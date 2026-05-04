@@ -14,7 +14,7 @@ use crate::storage::metadata::{IndexMetadataManager, Schema, SchemaManager};
 use crate::storage::operations::{EdgeReader, EdgeWriter, ScanResult};
 use crate::storage::property_graph::PropertyGraph;
 use crate::storage::vertex::VertexId;
-use crate::storage::version_manager::VersionManager;
+use crate::transaction::version_manager::VersionManager;
 use crate::sync::coordinator::ChangeType;
 
 const INVALID_TIMESTAMP: Timestamp = u32::MAX;

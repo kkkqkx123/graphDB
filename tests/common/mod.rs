@@ -20,8 +20,8 @@ pub mod validation_helpers;
 pub mod c_api_helpers;
 
 use graphdb::core::error::DBResult;
-use graphdb::storage::metadata::redb_schema_manager::RedbSchemaManager;
-use graphdb::storage::RedbStorage;
+use graphdb::storage::metadata::InMemorySchemaManager;
+use graphdb::storage::GraphStorage;
 use parking_lot::Mutex;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -31,7 +31,7 @@ use std::sync::Arc;
 /// Ensure that each test has a separate storage environment using a temporary folder in the project directory.
 /// Automatic cleanup of temporary directories after testing
 pub struct TestStorage {
-    storage: Arc<Mutex<RedbStorage>>,
+    storage: Arc<Mutex<GraphStorage>>,
     temp_path: PathBuf,
 }
 
@@ -41,7 +41,7 @@ impl TestStorage {
         let temp_dir = tempfile::tempdir()?;
         let db_path = temp_dir.path().join("test.db");
 
-        let storage = Arc::new(Mutex::new(RedbStorage::new_with_path(db_path)?));
+        let storage = Arc::new(Mutex::new(GraphStorage::new_with_path(db_path)?));
         Ok(Self {
             storage,
             temp_path: temp_dir.path().to_path_buf(),
@@ -49,14 +49,14 @@ impl TestStorage {
     }
 
     /// Getting a Reference to a Storage Instance
-    pub fn storage(&self) -> Arc<Mutex<RedbStorage>> {
+    pub fn storage(&self) -> Arc<Mutex<GraphStorage>> {
         self.storage.clone()
     }
 
     /// Getting the Schema Manager from Storage
-    pub fn schema_manager(&self) -> Arc<RedbSchemaManager> {
+    pub fn schema_manager(&self) -> Arc<InMemorySchemaManager> {
         let storage = self.storage.lock();
-        storage.state().schema_manager.clone()
+        storage.get_schema_manager()
     }
 }
 

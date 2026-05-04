@@ -22,8 +22,8 @@ use std::sync::Arc;
 
 // Auxiliary function: Retrieve accessible storage
 fn get_storage(
-    storage: &Arc<Mutex<graphdb::storage::RedbStorage>>,
-) -> parking_lot::MutexGuard<'_, graphdb::storage::RedbStorage> {
+    storage: &Arc<Mutex<graphdb::storage::GraphStorage>>,
+) -> parking_lot::MutexGuard<'_, graphdb::storage::GraphStorage> {
     storage.lock()
 }
 
@@ -645,14 +645,14 @@ fn test_storage_concurrent_space_creation() {
 
 #[test]
 fn test_storage_space_id_persistence_after_restart() {
-    use graphdb::storage::RedbStorage;
+    use graphdb::storage::GraphStorage;
     use tempfile::TempDir;
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let db_path = temp_dir.path().join("test.db");
 
     let id1 = {
-        let mut storage = RedbStorage::new_with_path(db_path.clone())
+        let mut storage = GraphStorage::new_with_path(db_path.clone())
             .expect("Failed to create storage");
         let mut space1 = create_test_space("space_1");
         storage.create_space(&mut space1).expect("Failed to create space_1");
@@ -662,7 +662,7 @@ fn test_storage_space_id_persistence_after_restart() {
     assert!(id1 > 0, "Space ID should be greater than 0");
 
     let id2 = {
-        let mut storage = RedbStorage::new_with_path(db_path)
+        let mut storage = GraphStorage::new_with_path(db_path)
             .expect("Failed to reopen storage");
         let mut space2 = create_test_space("space_2");
         storage.create_space(&mut space2).expect("Failed to create space_2");

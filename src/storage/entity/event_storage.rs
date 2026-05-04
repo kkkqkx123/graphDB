@@ -56,13 +56,13 @@ impl<S: StorageClient> SyncStorage<S> {
 
     /// Get the current transaction ID from storage context
     fn get_current_txn_id(&self) -> crate::transaction::types::TransactionId {
-        // Try to get transaction context from RedbStorage
-        if let Some(redb_storage) = self
+        // Try to get transaction context from GraphStorage
+        if let Some(graph_storage) = self
             .inner
             .as_any()
-            .downcast_ref::<crate::storage::RedbStorage>()
+            .downcast_ref::<crate::storage::GraphStorage>()
         {
-            if let Some(ctx) = redb_storage.get_transaction_context() {
+            if let Some(ctx) = graph_storage.get_transaction_context() {
                 return ctx.id;
             }
         }
@@ -119,7 +119,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
         self
     }
 
-    fn get_schema_manager(&self) -> Option<Arc<RedbSchemaManager>> {
+    fn get_schema_manager(&self) -> Option<Arc<dyn crate::storage::metadata::SchemaManager + Send + Sync>> {
         self.inner.get_schema_manager()
     }
 

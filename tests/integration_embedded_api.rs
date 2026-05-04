@@ -22,11 +22,11 @@ use graphdb::api::embedded::{
     QueryResult, ResultMetadata, Row, SyncMode, TransactionConfig,
 };
 use graphdb::core::{Edge, Value, Vertex};
-use graphdb::storage::RedbStorage;
+use graphdb::storage::GraphStorage;
 
 /// Test the database wrapper to keep the temporary catalog valid
 struct TestDatabase {
-    db: GraphDatabase<RedbStorage>,
+    db: GraphDatabase<GraphStorage>,
     _temp_dir: tempfile::TempDir,
 }
 

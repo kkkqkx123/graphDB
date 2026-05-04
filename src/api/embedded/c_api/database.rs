@@ -9,14 +9,14 @@ use crate::api::embedded::c_api::types::{
     graphdb_t, GRAPHDB_OPEN_CREATE, GRAPHDB_OPEN_READONLY, GRAPHDB_OPEN_READWRITE,
 };
 use crate::api::embedded::{DatabaseConfig, GraphDatabase};
-use crate::storage::RedbStorage;
+use crate::storage::GraphStorage;
 use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::ptr;
 use std::sync::Arc;
 
 /// Database handle internal structure
 pub struct GraphDbHandle {
-    pub(crate) inner: Arc<GraphDatabase<RedbStorage>>,
+    pub(crate) inner: Arc<GraphDatabase<GraphStorage>>,
     pub(crate) last_error: Option<CString>,
 }
 

@@ -20,7 +20,6 @@ use graphdb::transaction::{
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use tempfile::TempDir;
 
 /// Test transaction isolation - repeatable read
 #[test]
@@ -58,15 +57,7 @@ fn test_transaction_read_committed_only() {
 /// Test concurrent read-only transactions using TransactionManager directly
 #[tokio::test]
 async fn test_concurrent_readonly_transactions() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = Arc::new(TransactionManager::new(TransactionManagerConfig::default()));
 
     let mut handles = vec![];
 
@@ -102,15 +93,7 @@ async fn test_concurrent_readonly_transactions() {
 /// Test write transaction exclusivity using TransactionManager
 #[tokio::test]
 async fn test_write_transaction_exclusivity() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn1 = manager
         .begin_transaction(TransactionOptions::default())
@@ -132,15 +115,7 @@ async fn test_write_transaction_exclusivity() {
 /// Test concurrent read and write operations using TransactionManager
 #[tokio::test]
 async fn test_concurrent_read_write() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = Arc::new(TransactionManager::new(TransactionManagerConfig::default()));
 
     let write_handle = {
         let manager = Arc::clone(&manager);

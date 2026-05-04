@@ -4,6 +4,7 @@ pub mod edge;
 pub mod engine;
 pub mod entity;
 pub mod extend;
+pub mod graph_storage;
 pub mod index;
 pub mod iterator;
 pub mod metadata;
@@ -52,6 +53,8 @@ pub use edge::{
 };
 
 pub use property_graph::{PropertyGraph, PropertyGraphConfig};
+
+pub use graph_storage::GraphStorage;
 
 #[cfg(test)]
 pub use test_mock::*;

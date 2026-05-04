@@ -1,8 +1,8 @@
 //! Write Lock Timeout and Transaction Cleanup Tests
 //!
 //! Test coverage for the fixes addressing e2e test timeout failures:
-//! - Write lock timeout for redb begin_write() in TransactionManager
-//! - Write lock timeout for redb begin_write() in WriteTxnExecutor
+//! - Write lock timeout in TransactionManager
+//! - Write transaction exclusivity
 //! - Transaction cleanup mechanism for expired/stuck transactions
 //! - Recovery after write lock timeout
 //! - Transaction context cleanup on query failure
@@ -13,7 +13,6 @@ use graphdb::transaction::{
 };
 use std::sync::Arc;
 use std::time::Duration;
-use tempfile::TempDir;
 use tokio::time::{sleep, timeout};
 
 /// Test that TransactionManagerConfig has write_lock_timeout field with default
@@ -36,13 +35,7 @@ fn test_write_lock_timeout_config_custom() {
 /// Test that write transaction can be acquired when no other write is active
 #[tokio::test]
 async fn test_write_lock_acquired_successfully() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
@@ -58,13 +51,7 @@ async fn test_write_lock_acquired_successfully() {
 /// when another write transaction is active (not blocking indefinitely)
 #[tokio::test]
 async fn test_write_conflict_does_not_block_indefinitely() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn1 = manager
         .begin_transaction(TransactionOptions::default())
@@ -95,13 +82,7 @@ async fn test_write_conflict_does_not_block_indefinitely() {
 /// Test that after committing a write transaction, a new write can be acquired
 #[tokio::test]
 async fn test_write_lock_released_after_commit() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn1 = manager
         .begin_transaction(TransactionOptions::default())
@@ -125,13 +106,7 @@ async fn test_write_lock_released_after_commit() {
 /// Test that after rolling back a write transaction, a new write can be acquired
 #[test]
 fn test_write_lock_released_after_rollback() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn1 = manager
         .begin_transaction(TransactionOptions::default())
@@ -153,13 +128,7 @@ fn test_write_lock_released_after_rollback() {
 /// Test that expired transactions are cleaned up and no longer block writes
 #[tokio::test]
 async fn test_cleanup_expired_transactions_releases_write_lock() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let options = TransactionOptions::new().with_timeout(Duration::from_millis(50));
     let txn_id = manager
@@ -190,13 +159,7 @@ async fn test_cleanup_expired_transactions_releases_write_lock() {
 /// Test that multiple expired transactions are cleaned up
 #[tokio::test]
 async fn test_cleanup_multiple_expired_transactions() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Begin a write transaction, then read-only transactions
     let write_txn = manager
@@ -227,13 +190,7 @@ async fn test_cleanup_multiple_expired_transactions() {
 /// This directly addresses the e2e test timeout issue
 #[tokio::test]
 async fn test_sequential_writes_complete_quickly() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let result = timeout(Duration::from_secs(30), async {
         for i in 0..10 {
@@ -258,16 +215,7 @@ async fn test_sequential_writes_complete_quickly() {
 /// Test that read-only transactions can run concurrently with each other
 #[tokio::test]
 async fn test_concurrent_read_only_transactions() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = Arc::new(TransactionManager::new(TransactionManagerConfig::default()));
 
     let result = timeout(Duration::from_secs(30), async {
         let mut handles = vec![];
@@ -299,17 +247,11 @@ async fn test_concurrent_read_only_transactions() {
 /// when another write is active
 #[tokio::test]
 async fn test_short_write_lock_timeout_fails_quickly() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
     let config = TransactionManagerConfig {
         write_lock_timeout: Duration::from_millis(100),
         ..Default::default()
     };
-    let manager = TransactionManager::new(db, config);
+    let manager = TransactionManager::new(config);
 
     let _txn1 = manager
         .begin_transaction(TransactionOptions::default())
@@ -333,13 +275,7 @@ async fn test_short_write_lock_timeout_fails_quickly() {
 /// begin -> commit -> begin -> rollback -> begin -> commit
 #[tokio::test]
 async fn test_transaction_lifecycle_after_errors() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // begin -> commit
     let txn1 = manager
@@ -371,13 +307,7 @@ async fn test_transaction_lifecycle_after_errors() {
 /// Test that cleanup_expired_transactions doesn't affect active transactions
 #[tokio::test]
 async fn test_cleanup_does_not_affect_active_transactions() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::new().with_timeout(Duration::from_secs(300)))
@@ -399,13 +329,7 @@ async fn test_cleanup_does_not_affect_active_transactions() {
 /// Test rapid begin/commit cycles with cleanup between each
 #[tokio::test]
 async fn test_rapid_cycles_with_cleanup() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     for _ in 0..20 {
         let txn_id = manager

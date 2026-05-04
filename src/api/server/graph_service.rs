@@ -8,8 +8,7 @@ use crate::core::stats::StatsManager;
 use crate::core::{MetricType, Permission};
 use crate::query::executor::ExecutionResult;
 use crate::query::DataSet;
-use crate::storage::StorageClient;
-use crate::storage::RedbStorage;
+use crate::storage::{GraphStorage, StorageClient};
 use crate::transaction::TransactionManager;
 use log::{info, warn};
 use parking_lot::Mutex;
@@ -19,11 +18,11 @@ use vector_client::VectorManager;
 
 /// RAII guard to ensure transaction context is always cleared from storage.
 struct TransactionContextGuard<'a> {
-    storage: Option<&'a RedbStorage>,
+    storage: Option<&'a GraphStorage>,
 }
 
 impl<'a> TransactionContextGuard<'a> {
-    fn new(storage: Option<&'a RedbStorage>) -> Self {
+    fn new(storage: Option<&'a GraphStorage>) -> Self {
         Self { storage }
     }
 }
@@ -95,14 +94,16 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         // Use core layer QueryApi instead of directly using QueryPipelineManager
         // Support vector search with metadata provider if enabled
         // Get schema_manager from storage using the trait method
-        // Try to get schema_manager from storage, with fallback to downcasting for RedbStorage
+        // Try to get schema_manager from storage, with fallback to downcasting for GraphStorage
         let schema_manager = storage.get_schema_manager().or_else(|| {
-            // Try to downcast to RedbStorage to get schema_manager
             storage
                 .as_any()
-                .downcast_ref::<RedbStorage>()
-                .map(|redb_storage| redb_storage.get_schema_manager())
-                .flatten()
+                .downcast_ref::<GraphStorage>()
+                .map(|graph_storage| {
+                    let mgr: Arc<dyn crate::storage::metadata::SchemaManager + Send + Sync> = 
+                        graph_storage.get_schema_manager();
+                    mgr
+                })
         });
 
         let (query_api, vector_api) = if config.vector.enabled {
@@ -327,15 +328,15 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             None
         };
 
-        let redb_storage = self.storage.as_any().downcast_ref::<RedbStorage>();
+        let graph_storage = self.storage.as_any().downcast_ref::<GraphStorage>();
         if let Some(ref ctx) = txn_context {
-            if let Some(storage) = redb_storage {
+            if let Some(storage) = graph_storage {
                 storage.set_transaction_context(Some(ctx.clone()));
             }
         }
 
         // RAII guard ensures transaction context is cleared even if query panics
-        let _guard = TransactionContextGuard::new(redb_storage);
+        let _guard = TransactionContextGuard::new(graph_storage);
 
         // Use core layer QueryApi to execute query
         let query_request = crate::api::core::QueryRequest {

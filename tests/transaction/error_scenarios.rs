@@ -18,35 +18,25 @@ use graphdb::transaction::{
 };
 use std::sync::Arc;
 use std::time::Duration;
-use tempfile::TempDir;
 use tokio::time::sleep;
 
 /// Test transaction not found error
 #[tokio::test]
 async fn test_error_transaction_not_found() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
-
-    // Try to get context for non-existent transaction
     let result = manager.get_context(99999);
     assert!(
         matches!(result, Err(TransactionError::TransactionNotFound(99999))),
         "Expected TransactionNotFound error"
     );
 
-    // Try to commit non-existent transaction
     let result = manager.commit_transaction(99999).await;
     assert!(
         matches!(result, Err(TransactionError::TransactionNotFound(99999))),
         "Expected TransactionNotFound error on commit"
     );
 
-    // Try to rollback non-existent transaction
     let result = manager.rollback_transaction(99999);
     assert!(
         matches!(result, Err(TransactionError::TransactionNotFound(99999))),
@@ -57,13 +47,7 @@ async fn test_error_transaction_not_found() {
 /// Test invalid state transitions
 #[tokio::test]
 async fn test_error_invalid_state_transition() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
@@ -71,12 +55,10 @@ async fn test_error_invalid_state_transition() {
 
     let context = manager.get_context(txn_id).expect("Failed to get context");
 
-    // Transition to Committing
     context
         .transition_to(TransactionState::Committing)
         .expect("Failed to transition to Committing");
 
-    // Try invalid transition from Committing to Aborting
     let result = context.transition_to(TransactionState::Aborting);
     assert!(
         matches!(
@@ -89,12 +71,10 @@ async fn test_error_invalid_state_transition() {
         "Expected InvalidStateTransition error"
     );
 
-    // Complete the commit
     context
         .transition_to(TransactionState::Committed)
         .expect("Failed to transition to Committed");
 
-    // Try transition from Committed (terminal state)
     let result = context.transition_to(TransactionState::Active);
     assert!(
         matches!(
@@ -111,13 +91,7 @@ async fn test_error_invalid_state_transition() {
 /// Test invalid state for commit/abort
 #[tokio::test]
 async fn test_error_invalid_state_for_commit_abort() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
@@ -125,12 +99,10 @@ async fn test_error_invalid_state_for_commit_abort() {
 
     let context = manager.get_context(txn_id).expect("Failed to get context");
 
-    // Transition to Committing manually
     context
         .transition_to(TransactionState::Committing)
         .expect("Failed to transition");
 
-    // Try to check if can execute (should fail)
     let result = context.can_execute();
     assert!(
         matches!(result, Err(TransactionError::InvalidStateForCommit(_))),
@@ -141,26 +113,18 @@ async fn test_error_invalid_state_for_commit_abort() {
 /// Test savepoint not found error
 #[tokio::test]
 async fn test_error_savepoint_not_found() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
         .expect("Failed to begin transaction");
 
-    // Try to rollback to non-existent savepoint
     let result = manager.rollback_to_savepoint(txn_id, 99999);
     assert!(
         matches!(result, Err(TransactionError::SavepointNotFound(99999))),
         "Expected SavepointNotFound error"
     );
 
-    // Try to release non-existent savepoint
     let result = manager.release_savepoint(txn_id, 99999);
     assert!(
         matches!(result, Err(TransactionError::SavepointNotFound(99999))),
@@ -176,33 +140,23 @@ async fn test_error_savepoint_not_found() {
 /// Test write transaction conflict
 #[tokio::test]
 async fn test_error_write_transaction_conflict() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
-
-    // Begin first write transaction
     let txn1 = manager
         .begin_transaction(TransactionOptions::default())
         .expect("Failed to begin first transaction");
 
-    // Try to begin second write transaction (should fail)
     let result = manager.begin_transaction(TransactionOptions::default());
     assert!(
         matches!(result, Err(TransactionError::WriteTransactionConflict)),
         "Expected WriteTransactionConflict error"
     );
 
-    // Commit first transaction
     manager
         .commit_transaction(txn1)
         .await
         .expect("Failed to commit transaction");
 
-    // Now we can begin a new write transaction
     let txn2 = manager
         .begin_transaction(TransactionOptions::default())
         .expect("Should be able to begin transaction after commit");
@@ -216,21 +170,13 @@ async fn test_error_write_transaction_conflict() {
 /// Test too many transactions error
 #[test]
 fn test_error_too_many_transactions() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    // Configure with very low limit
     let config = TransactionManagerConfig {
         max_concurrent_transactions: 2,
         ..Default::default()
     };
 
-    let manager = TransactionManager::new(db, config);
+    let manager = TransactionManager::new(config);
 
-    // Begin two read-only transactions (should succeed)
     let txn1 = manager
         .begin_transaction(TransactionOptions::new().read_only())
         .expect("Failed to begin transaction 1");
@@ -238,14 +184,12 @@ fn test_error_too_many_transactions() {
         .begin_transaction(TransactionOptions::new().read_only())
         .expect("Failed to begin transaction 2");
 
-    // Third transaction should fail
     let result = manager.begin_transaction(TransactionOptions::new().read_only());
     assert!(
         matches!(result, Err(TransactionError::TooManyTransactions)),
         "Expected TooManyTransactions error"
     );
 
-    // Cleanup
     manager
         .rollback_transaction(txn1)
         .expect("Failed to rollback txn1");
@@ -257,24 +201,15 @@ fn test_error_too_many_transactions() {
 /// Test transaction timeout error
 #[tokio::test]
 async fn test_error_transaction_timeout() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
-
-    // Begin transaction with very short timeout
     let options = TransactionOptions::new().with_timeout(Duration::from_millis(50));
     let txn_id = manager
         .begin_transaction(options)
         .expect("Failed to begin transaction");
 
-    // Wait for timeout
     sleep(Duration::from_millis(100)).await;
 
-    // Try to commit expired transaction
     let result = manager.commit_transaction(txn_id).await;
     assert!(
         matches!(result, Err(TransactionError::TransactionTimeout)),
@@ -286,13 +221,7 @@ async fn test_error_transaction_timeout() {
 /// Test transaction expired error on operations
 #[tokio::test]
 async fn test_error_transaction_expired() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let options = TransactionOptions::new().with_timeout(Duration::from_millis(50));
     let txn_id = manager
@@ -301,10 +230,8 @@ async fn test_error_transaction_expired() {
 
     let context = manager.get_context(txn_id).expect("Failed to get context");
 
-    // Wait for expiration
     sleep(Duration::from_millis(100)).await;
 
-    // Try to check if can execute (should fail with expired)
     let result = context.can_execute();
     assert!(
         matches!(result, Err(TransactionError::TransactionExpired)),
@@ -315,13 +242,7 @@ async fn test_error_transaction_expired() {
 /// Test read-only transaction errors
 #[tokio::test]
 async fn test_error_readonly_transaction() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let options = TransactionOptions::new().read_only();
     let txn_id = manager
@@ -330,10 +251,8 @@ async fn test_error_readonly_transaction() {
 
     let context = manager.get_context(txn_id).expect("Failed to get context");
 
-    // Verify read-only flag is set
     assert!(context.read_only);
 
-    // Commit should succeed for read-only
     manager
         .commit_transaction(txn_id)
         .await
@@ -343,25 +262,17 @@ async fn test_error_readonly_transaction() {
 /// Test double commit attempt
 #[tokio::test]
 async fn test_error_double_commit() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
         .expect("Failed to begin transaction");
 
-    // First commit should succeed
     manager
         .commit_transaction(txn_id)
         .await
         .expect("First commit should succeed");
 
-    // Second commit should fail (transaction not found)
     let result = manager.commit_transaction(txn_id).await;
     assert!(
         matches!(result, Err(TransactionError::TransactionNotFound(_))),
@@ -372,24 +283,16 @@ async fn test_error_double_commit() {
 /// Test double rollback attempt
 #[tokio::test]
 async fn test_error_double_rollback() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
         .expect("Failed to begin transaction");
 
-    // First rollback should succeed
     manager
         .rollback_transaction(txn_id)
         .expect("First rollback should succeed");
 
-    // Second rollback should fail (transaction not found)
     let result = manager.rollback_transaction(txn_id);
     assert!(
         matches!(result, Err(TransactionError::TransactionNotFound(_))),
@@ -400,24 +303,16 @@ async fn test_error_double_rollback() {
 /// Test commit after rollback attempt
 #[tokio::test]
 async fn test_error_commit_after_rollback() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
         .expect("Failed to begin transaction");
 
-    // Rollback
     manager
         .rollback_transaction(txn_id)
         .expect("Rollback should succeed");
 
-    // Commit after rollback should fail
     let result = manager.commit_transaction(txn_id).await;
     assert!(
         matches!(result, Err(TransactionError::TransactionNotFound(_))),
@@ -428,18 +323,10 @@ async fn test_error_commit_after_rollback() {
 /// Test shutdown error
 #[test]
 fn test_error_shutdown() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
-
-    // Shutdown the manager
     manager.shutdown();
 
-    // Try to begin transaction after shutdown
     let result = manager.begin_transaction(TransactionOptions::default());
     assert!(
         matches!(result, Err(TransactionError::Internal(_))),
@@ -450,23 +337,15 @@ fn test_error_shutdown() {
 /// Test no savepoints in transaction error
 #[tokio::test]
 async fn test_error_no_savepoints() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
         .expect("Failed to begin transaction");
 
-    // Get active savepoints (should be empty)
     let savepoints = manager.get_active_savepoints(txn_id);
     assert!(savepoints.is_empty());
 
-    // Find non-existent savepoint
     let found = manager.find_savepoint_by_name(txn_id, "non_existent");
     assert!(found.is_none());
 
@@ -489,19 +368,16 @@ fn test_transaction_state_display() {
 /// Test transaction state helpers
 #[test]
 fn test_transaction_state_helpers() {
-    // Active state
     assert!(TransactionState::Active.can_execute());
     assert!(TransactionState::Active.can_commit());
     assert!(TransactionState::Active.can_abort());
     assert!(!TransactionState::Active.is_terminal());
 
-    // Committed state
     assert!(!TransactionState::Committed.can_execute());
     assert!(!TransactionState::Committed.can_commit());
     assert!(!TransactionState::Committed.can_abort());
     assert!(TransactionState::Committed.is_terminal());
 
-    // Aborted state
     assert!(!TransactionState::Aborted.can_execute());
     assert!(!TransactionState::Aborted.can_commit());
     assert!(!TransactionState::Aborted.can_abort());
@@ -527,19 +403,12 @@ fn test_error_formatting() {
 /// Test retry with non-retryable error
 #[tokio::test]
 async fn test_retry_non_retryable_error() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let retry_config = graphdb::transaction::RetryConfig::new()
         .with_max_retries(3)
         .with_initial_delay(Duration::from_millis(10));
 
-    // Test with non-retryable error (should fail immediately)
     let result: Result<&str, _> = manager
         .execute_with_retry(
             TransactionOptions::default(),
@@ -557,23 +426,15 @@ async fn test_retry_non_retryable_error() {
 /// Test retry with retryable error
 #[tokio::test]
 async fn test_retry_retryable_error() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let retry_config = graphdb::transaction::RetryConfig::new()
         .with_max_retries(2)
         .with_initial_delay(Duration::from_millis(10));
 
-    // Counter for retry attempts
     let attempts = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
     let attempts_clone = attempts.clone();
 
-    // Test with retryable error that eventually succeeds
     let result: Result<&str, _> = manager
         .execute_with_retry(
             TransactionOptions::default(),
@@ -600,17 +461,9 @@ async fn test_retry_retryable_error() {
 /// Test batch commit with invalid transaction
 #[tokio::test]
 async fn test_batch_commit_invalid_transaction() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
-
-    // Try to batch commit with non-existent transaction IDs
     let result = manager.commit_batch(vec![99999, 99998]).await;
-    // The batch commit should fail because transactions don't exist
     assert!(
         result.is_err(),
         "Batch commit with invalid transactions should fail"

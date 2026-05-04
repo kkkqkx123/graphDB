@@ -7,19 +7,12 @@
 //! - Idle timeout
 
 use graphdb::transaction::{TransactionManager, TransactionManagerConfig, TransactionOptions};
-use std::sync::Arc;
 use std::time::Duration;
-use tempfile::TempDir;
 
 /// Test transaction with timeout handling
 #[tokio::test]
 async fn test_transaction_timeout_handling() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let options = TransactionOptions::new().with_timeout(Duration::from_millis(50));
 
@@ -39,12 +32,7 @@ async fn test_transaction_timeout_handling() {
 /// Test transaction with query timeout
 #[tokio::test]
 async fn test_transaction_query_timeout() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let options = TransactionOptions::new().with_query_timeout(Duration::from_secs(5));
 
@@ -66,12 +54,7 @@ async fn test_transaction_query_timeout() {
 /// Test transaction with statement timeout
 #[tokio::test]
 async fn test_transaction_statement_timeout() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let options = TransactionOptions::new().with_statement_timeout(Duration::from_secs(1));
 
@@ -93,12 +76,7 @@ async fn test_transaction_statement_timeout() {
 /// Test transaction with idle timeout
 #[tokio::test]
 async fn test_transaction_idle_timeout() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let options = TransactionOptions::new().with_idle_timeout(Duration::from_secs(30));
 

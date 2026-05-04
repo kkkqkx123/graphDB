@@ -54,7 +54,7 @@ impl std::fmt::Display for CompressionAlgorithm {
 /// Configures the storage engine behavior and performance characteristics.
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct StorageConfig {
-    /// Storage engine type (redb, rocksdb, etc.)
+    /// Storage engine type (propertygraph, rocksdb, etc.)
     #[serde(default)]
     pub engine: StorageEngine,
 

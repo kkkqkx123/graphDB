@@ -11,7 +11,7 @@ use crate::query::parser::ast::stmt::{Ast, MatchStmt, OrderByClause, ReturnClaus
 use crate::query::parser::ast::{Pattern, Stmt};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryContext;
-use crate::storage::metadata::inmemory_schema_manager::InMemorySchemaManager;
+use crate::storage::metadata::InMemorySchemaManager;
 use crate::storage::metadata::schema_manager::SchemaManager;
 
 use crate::query::validator::strategies::ExpressionValidationStrategy;
@@ -60,7 +60,7 @@ pub struct MatchValidator {
     /// User-defined variables
     user_defined_vars: Vec<String>,
     /// Schema manager for validation
-    schema_manager: Option<Arc<RedbSchemaManager>>,
+    schema_manager: Option<Arc<InMemorySchemaManager>>,
     /// Space name for schema validation
     space_name: Option<String>,
 }
@@ -91,7 +91,7 @@ impl MatchValidator {
     }
 
     /// Set schema manager
-    pub fn with_schema_manager(mut self, schema_manager: Arc<RedbSchemaManager>) -> Self {
+    pub fn with_schema_manager(mut self, schema_manager: Arc<InMemorySchemaManager>) -> Self {
         self.schema_manager = Some(schema_manager);
         self
     }
@@ -102,7 +102,7 @@ impl MatchValidator {
     }
 
     /// Set schema manager
-    pub fn set_schema_manager(&mut self, schema_manager: Arc<RedbSchemaManager>) {
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<InMemorySchemaManager>) {
         self.schema_manager = Some(schema_manager);
     }
 

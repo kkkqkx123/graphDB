@@ -31,7 +31,7 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::storage::metadata::inmemory_schema_manager::InMemorySchemaManager;
+use crate::storage::metadata::InMemorySchemaManager;
 use crate::storage::metadata::schema_manager::SchemaManager;
 
 /// Verified creation information
@@ -90,7 +90,7 @@ pub struct ValidatedPathCreate {
 #[derive(Debug)]
 pub struct EdgeValidationContext<'a> {
     pub space_name: &'a str,
-    pub schema_manager: &'a RedbSchemaManager,
+    pub schema_manager: &'a InMemorySchemaManager,
     pub missing_edge_types: &'a mut Vec<String>,
 }
 
@@ -117,7 +117,7 @@ pub struct EdgeDefinition<'a> {
 #[derive(Debug)]
 pub struct CreateValidator {
     // Schema management
-    schema_manager: Option<Arc<RedbSchemaManager>>,
+    schema_manager: Option<Arc<InMemorySchemaManager>>,
     // Should the Schema be created automatically?
     auto_create_schema: bool,
     // Input column definition
@@ -153,13 +153,13 @@ impl CreateValidator {
     }
 
     /// Setting up SchemaManager (builder pattern)
-    pub fn with_schema_manager(mut self, schema_manager: Arc<RedbSchemaManager>) -> Self {
+    pub fn with_schema_manager(mut self, schema_manager: Arc<InMemorySchemaManager>) -> Self {
         self.schema_manager = Some(schema_manager);
         self
     }
 
     /// Set schema manager (mutable reference)
-    pub fn set_schema_manager(&mut self, schema_manager: Arc<RedbSchemaManager>) {
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<InMemorySchemaManager>) {
         self.schema_manager = Some(schema_manager);
     }
 
@@ -302,7 +302,7 @@ impl CreateValidator {
         &self,
         patterns: &[Pattern],
         space_name: &str,
-        schema_manager: &RedbSchemaManager,
+        schema_manager: &InMemorySchemaManager,
         missing_tags: &mut Vec<String>,
         missing_edge_types: &mut Vec<String>,
     ) -> Result<Vec<ValidatedPattern>, ValidationError> {
@@ -351,7 +351,7 @@ impl CreateValidator {
         &self,
         node: &NodePattern,
         space_name: &str,
-        schema_manager: &RedbSchemaManager,
+        schema_manager: &InMemorySchemaManager,
         missing_tags: &mut Vec<String>,
     ) -> Result<ValidatedNodeCreate, ValidationError> {
         // Verify the tags.
@@ -388,7 +388,7 @@ impl CreateValidator {
         &self,
         edge: &EdgePattern,
         space_name: &str,
-        schema_manager: &RedbSchemaManager,
+        schema_manager: &InMemorySchemaManager,
         missing_edge_types: &mut Vec<String>,
     ) -> Result<ValidatedEdgeCreate, ValidationError> {
         // Verify the edge type (select the first edge type)
@@ -433,7 +433,7 @@ impl CreateValidator {
         &self,
         path: &PathPattern,
         space_name: &str,
-        schema_manager: &RedbSchemaManager,
+        schema_manager: &InMemorySchemaManager,
         missing_tags: &mut Vec<String>,
         missing_edge_types: &mut Vec<String>,
     ) -> Result<ValidatedPathCreate, ValidationError> {
@@ -489,7 +489,7 @@ impl CreateValidator {
         labels: &[String],
         properties: &Option<ContextualExpression>,
         space_name: &str,
-        schema_manager: &RedbSchemaManager,
+        schema_manager: &InMemorySchemaManager,
         missing_tags: &mut Vec<String>,
     ) -> Result<ValidatedPattern, ValidationError> {
         // Verify the tags.

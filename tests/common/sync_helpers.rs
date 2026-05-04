@@ -6,7 +6,7 @@ use graphdb::core::types::{DataType, PropertyDef, SpaceInfo, TagInfo};
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Value, Vertex};
 use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager, SyncConfig};
-use graphdb::storage::RedbStorage;
+use graphdb::storage::GraphStorage;
 use graphdb::storage::StorageClient;
 use graphdb::sync::batch::BatchConfig;
 use graphdb::sync::coordinator::{ChangeType, SyncCoordinator};
@@ -18,7 +18,7 @@ use tempfile::TempDir;
 
 /// Test harness for sync module testing
 pub struct SyncTestHarness {
-    pub storage: RedbStorage,
+    pub storage: GraphStorage,
     pub sync_manager: Arc<SyncManager>,
     pub sync_coordinator: Arc<SyncCoordinator>,
     pub temp_dir: TempDir,
@@ -34,7 +34,7 @@ impl SyncTestHarness {
         let index_path = temp_dir.path().join("test_index");
 
         // Create storage
-        let storage = RedbStorage::new_with_path(db_path)?;
+        let storage = GraphStorage::new_with_path(db_path)?;
 
         // Create fulltext index manager
         let config = FulltextConfig {

@@ -445,7 +445,7 @@ pub struct TransactionManagerConfig {
     pub max_concurrent_transactions: usize,
     /// Whether to automatically cleanup expired transactions
     pub auto_cleanup: bool,
-    /// Timeout for acquiring redb write lock when beginning a write transaction.
+    /// Timeout for acquiring storage write lock when beginning a write transaction.
     /// If the write lock cannot be acquired within this duration, the begin operation fails.
     pub write_lock_timeout: Duration,
 }

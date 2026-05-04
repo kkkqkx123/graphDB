@@ -14,9 +14,7 @@ use graphdb::transaction::{
     DurabilityLevel, IsolationLevel, RetryConfig, TransactionConfig, TransactionManager,
     TransactionManagerConfig, TransactionOptions,
 };
-use std::sync::Arc;
 use std::time::Duration;
-use tempfile::TempDir;
 
 /// Test TransactionManagerConfig default values
 #[test]
@@ -149,17 +147,6 @@ fn test_retry_config_builder() {
     assert_eq!(config.max_delay, Duration::from_secs(30));
 }
 
-/// Test DurabilityLevel conversion to redb::Durability
-#[test]
-fn test_durability_level_conversion() {
-    let none: redb::Durability = DurabilityLevel::None.into();
-    let immediate: redb::Durability = DurabilityLevel::Immediate.into();
-
-    // Verify conversion produces correct redb types
-    assert!(matches!(none, redb::Durability::None));
-    assert!(matches!(immediate, redb::Durability::Immediate));
-}
-
 /// Test DurabilityLevel equality
 #[test]
 fn test_durability_level_equality() {
@@ -180,12 +167,6 @@ fn test_isolation_level() {
 /// Test TransactionManager with custom config
 #[tokio::test]
 async fn test_manager_with_custom_config() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
     let config = TransactionManagerConfig {
         default_timeout: Duration::from_secs(60),
         max_concurrent_transactions: 100,
@@ -193,7 +174,7 @@ async fn test_manager_with_custom_config() {
         write_lock_timeout: Duration::from_secs(10),
     };
 
-    let manager = TransactionManager::new(db, config);
+    let manager = TransactionManager::new(config);
 
     // Verify config is stored correctly
     let stored_config = manager.config();
@@ -215,13 +196,7 @@ async fn test_manager_with_custom_config() {
 /// Test transaction with various timeout combinations
 #[tokio::test]
 async fn test_transaction_timeout_combinations() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Test with only transaction timeout
     let options1 = TransactionOptions::new().with_timeout(Duration::from_secs(30));
@@ -261,13 +236,7 @@ async fn test_transaction_timeout_combinations() {
 /// Test read-only transaction options
 #[tokio::test]
 async fn test_readonly_transaction_options() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Test read-only with various options
     let options = TransactionOptions::new()
@@ -292,13 +261,7 @@ async fn test_readonly_transaction_options() {
 /// Test high-performance write options
 #[tokio::test]
 async fn test_high_performance_write_options() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Test with None durability for high performance
     let options = TransactionOptions::new().with_durability(DurabilityLevel::None);
@@ -319,13 +282,7 @@ async fn test_high_performance_write_options() {
 /// Test repeatable read isolation options
 #[tokio::test]
 async fn test_repeatable_read_options() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let options =
         TransactionOptions::new().with_isolation_level(IsolationLevel::RepeatableRead);
@@ -426,13 +383,7 @@ fn test_manager_config_clone() {
 /// Test edge case: zero timeout
 #[tokio::test]
 async fn test_zero_timeout() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Zero timeout should immediately expire
     let options = TransactionOptions::new().with_timeout(Duration::from_secs(0));
@@ -454,13 +405,7 @@ async fn test_zero_timeout() {
 /// Test edge case: very long timeout
 #[tokio::test]
 async fn test_very_long_timeout() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Very long timeout (1 hour)
     let options = TransactionOptions::new().with_timeout(Duration::from_secs(3600));

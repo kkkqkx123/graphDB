@@ -392,18 +392,8 @@ async fn test_mixed_api_transaction_consistency() {
         TransactionManager, TransactionManagerConfig, TransactionOptions,
     };
     use std::sync::Arc;
-    use tempfile::TempDir;
 
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = Arc::new(TransactionManager::new(TransactionManagerConfig::default()));
 
     // Start transaction via direct API
     let txn_id = manager

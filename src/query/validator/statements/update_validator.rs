@@ -17,7 +17,7 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::storage::metadata::inmemory_schema_manager::InMemorySchemaManager;
+use crate::storage::metadata::InMemorySchemaManager;
 use crate::storage::metadata::schema_manager::SchemaManager;
 
 /// Verified update information
@@ -75,7 +75,7 @@ impl UpdateValidator {
         }
     }
 
-    pub fn with_schema_manager(mut self, schema_manager: Arc<RedbSchemaManager>) -> Self {
+    pub fn with_schema_manager(mut self, schema_manager: Arc<InMemorySchemaManager>) -> Self {
         self.schema_validator = Some(SchemaValidator::new(schema_manager));
         self
     }
@@ -942,7 +942,7 @@ mod tests {
     #[test]
     fn test_validate_with_schema() {
         // This test requires a complete database and Schema setup; therefore, it will be skipped for now.
-        // Using RedbSchemaManager requires an actual storage backend.
+        // Using InMemorySchemaManager requires an actual storage backend.
         let mut validator = UpdateValidator::new();
 
         let stmt = create_update_stmt(

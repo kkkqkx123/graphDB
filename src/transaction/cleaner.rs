@@ -100,7 +100,7 @@ impl TransactionCleaner {
             }
         }
 
-        // Note: The new transaction architecture doesn't use redb write transactions directly.
+        // Note: The new transaction architecture doesn't use storage write transactions directly.
         // Cleanup is handled by the transaction context itself.
 
         self.stats.decrement_active();
@@ -146,8 +146,7 @@ impl TransactionCleaner {
             }
         }
 
-        // Note: The new transaction architecture doesn't use redb write transactions directly.
-        // Cleanup is handled by the transaction context itself.
+        // Note: The transaction architecture handles cleanup via the transaction context directly.
 
         self.stats.decrement_active();
         self.stats.increment_aborted();

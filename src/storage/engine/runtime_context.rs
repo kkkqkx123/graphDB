@@ -5,24 +5,24 @@
 //! - PlanContext
 //! - RuntimeContext
 
-use crate::storage::engine::RedbStorage;
-use crate::storage::metadata::RedbSchemaManager;
+use crate::storage::graph_storage::GraphStorage;
+use crate::storage::metadata::InMemorySchemaManager;
 use std::sync::Arc;
 
 /// storage environment
 #[derive(Clone)]
 pub struct StorageEnv {
     /// storage engine
-    pub storage_engine: Arc<RedbStorage>,
+    pub storage_engine: Arc<GraphStorage>,
     /// Schema Manager
-    pub schema_manager: Arc<RedbSchemaManager>,
+    pub schema_manager: Arc<InMemorySchemaManager>,
 }
 
 impl std::fmt::Debug for StorageEnv {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("StorageEnv")
-            .field("storage_engine", &"<RedbStorage>")
-            .field("schema_manager", &"<RedbSchemaManager>")
+            .field("storage_engine", &"<GraphStorage>")
+            .field("schema_manager", &"<InMemorySchemaManager>")
             .finish()
     }
 }
@@ -65,10 +65,10 @@ impl RuntimeContext {
 impl RuntimeContext {
     /// Creating a simple runtime context (for scenarios where a full PlanContext is not required)
     pub fn new_simple() -> Arc<Self> {
-        let storage = Arc::new(RedbStorage::new().expect("Failed to create RedbStorage"));
+        let storage = Arc::new(GraphStorage::new().expect("Failed to create GraphStorage"));
         let storage_env = Arc::new(StorageEnv {
             storage_engine: storage.clone(),
-            schema_manager: storage.state().schema_manager.clone(),
+            schema_manager: storage.get_schema_manager(),
         });
 
         let plan_context = Arc::new(PlanContext {

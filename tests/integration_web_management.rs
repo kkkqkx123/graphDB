@@ -19,7 +19,7 @@ mod common;
 /// Test helper to create a test web state with temporary storage
 /// Returns the web state and a valid session ID for testing
 async fn create_test_web_state() -> (
-    graphdb::api::server::web::WebState<graphdb::storage::RedbStorage>,
+    graphdb::api::server::web::WebState<graphdb::storage::GraphStorage>,
     i64,
 ) {
     use graphdb::api::server::graph_service::GraphService;
@@ -27,7 +27,7 @@ async fn create_test_web_state() -> (
     use graphdb::api::server::http::HttpServer;
     use graphdb::api::server::web::{storage::SqliteStorage, WebState};
     use graphdb::config::Config;
-    use graphdb::storage::RedbStorage;
+    use graphdb::storage::GraphStorage;
     use graphdb::transaction::{TransactionManager, TransactionManagerConfig};
     use parking_lot::Mutex;
     use tempfile::tempdir;
@@ -37,7 +37,7 @@ async fn create_test_web_state() -> (
     let db_path = temp_dir.path().join("test.db");
 
     // Create storage
-    let storage = RedbStorage::new_with_path(db_path).unwrap();
+    let storage = GraphStorage::new_with_path(db_path).unwrap();
     let storage_arc = Arc::new(storage.clone());
     let storage_mutex = Arc::new(Mutex::new(storage));
 
@@ -48,10 +48,7 @@ async fn create_test_web_state() -> (
     let graph_service = GraphService::new_for_test(config.clone(), storage_arc.clone()).await;
 
     // Create transaction manager
-    let txn_manager = Arc::new(TransactionManager::new(
-        Arc::new(redb::Database::create(temp_dir.path().join("txn.db")).unwrap()),
-        TransactionManagerConfig::default(),
-    ));
+    let txn_manager = Arc::new(TransactionManager::new(TransactionManagerConfig::default()));
 
     // Create HTTP server
     let http_server = Arc::new(HttpServer::new(

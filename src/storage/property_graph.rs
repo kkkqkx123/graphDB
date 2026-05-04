@@ -467,6 +467,18 @@ impl PropertyGraph {
         self.edge_tables.get(&(src_label, dst_label, edge_label))
     }
 
+    pub fn get_edge_table_by_label(&self, edge_label: LabelId) -> Option<&EdgeTable> {
+        self.edge_tables.values().find(|t| t.label() == edge_label)
+    }
+
+    pub fn edge_tables(&self) -> impl Iterator<Item = (&(LabelId, LabelId, LabelId), &EdgeTable)> {
+        self.edge_tables.iter()
+    }
+
+    pub fn vertex_tables(&self) -> impl Iterator<Item = (&LabelId, &VertexTable)> {
+        self.vertex_tables.iter()
+    }
+
     pub fn is_open(&self) -> bool {
         self.is_open
     }

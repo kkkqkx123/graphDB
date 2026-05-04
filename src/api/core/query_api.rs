@@ -9,7 +9,7 @@ use crate::query::metadata::{
     CachedMetadataProvider, MetadataProvider, VectorIndexMetadataProvider,
 };
 use crate::query::{OptimizerEngine, QueryPipelineManager};
-use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use crate::storage::metadata::InMemorySchemaManager;
 use crate::storage::StorageClient;
 use crate::sync::vector_sync::VectorSyncCoordinator;
 use crate::sync::SyncManager;
@@ -54,7 +54,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     /// Create a new QueryApi instance with schema manager support
     pub fn with_schema_manager(
         storage: Arc<Mutex<S>>,
-        schema_manager: Arc<RedbSchemaManager>,
+        schema_manager: Arc<InMemorySchemaManager>,
     ) -> Self {
         let stats_manager = Arc::new(StatsManager::new());
         let optimizer_engine = Arc::new(OptimizerEngine::default());
@@ -72,7 +72,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     pub async fn with_vector_search(
         storage: Arc<Mutex<S>>,
         vector_config: VectorClientConfig,
-        schema_manager: Option<Arc<RedbSchemaManager>>,
+        schema_manager: Option<Arc<InMemorySchemaManager>>,
     ) -> Result<Self, String> {
         let stats_manager = Arc::new(StatsManager::new());
         let optimizer_engine = Arc::new(OptimizerEngine::default());

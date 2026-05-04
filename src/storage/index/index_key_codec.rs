@@ -4,8 +4,29 @@
 //! Support for both forward and reverse indexing key formats for vertices and edges.
 
 use crate::core::{StorageError, Value};
-use crate::storage::engine::ByteKey;
 use oxicode::{decode_from_slice, encode_to_vec};
+
+/// Byte key wrapper for index keys
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ByteKey(pub Vec<u8>);
+
+impl AsRef<[u8]> for ByteKey {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl From<Vec<u8>> for ByteKey {
+    fn from(v: Vec<u8>) -> Self {
+        ByteKey(v)
+    }
+}
+
+impl From<ByteKey> for Vec<u8> {
+    fn from(key: ByteKey) -> Self {
+        key.0
+    }
+}
 
 /// Index key type identifier
 pub const KEY_TYPE_VERTEX_REVERSE: u8 = 0x01;

@@ -16,10 +16,12 @@ use super::common;
 
 use common::test_scenario::TestScenario;
 use graphdb::core::Value;
+use graphdb::transaction::{
+    TransactionManager, TransactionManagerConfig, TransactionOptions,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use tempfile::TempDir;
 use tokio::time::{sleep, timeout};
 
 /// Test transaction with vertex insert persistence
@@ -169,7 +171,6 @@ fn test_storage_multiple_operations_atomicity() {
         .assert_success()
         .exec_ddl("CREATE EDGE IF NOT EXISTS WORKS_AT")
         .assert_success()
-        // Multiple operations in sequence
         .exec_dml(
             "INSERT VERTEX Person(name, age) VALUES \
             1:('Alice', 30), \
@@ -186,7 +187,6 @@ fn test_storage_multiple_operations_atomicity() {
             3->100",
         )
         .assert_success()
-        // Verify all operations persisted
         .assert_vertex_count("Person", 3)
         .assert_vertex_count("Company", 1)
         .assert_edge_count("WORKS_AT", 3);
@@ -209,12 +209,9 @@ fn test_storage_cascading_delete() {
         .assert_edge_exists(1, 2, "KNOWS")
         .assert_edge_exists(2, 3, "KNOWS")
         .assert_edge_exists(3, 1, "KNOWS")
-        // Delete vertex and verify edges are also removed
         .exec_dml("DELETE VERTEX 1")
         .assert_success()
         .assert_vertex_not_exists(1, "Person")
-        // Note: Depending on implementation, edges may or may not be automatically deleted
-        // This test verifies the basic behavior
         .assert_vertex_exists(2, "Person")
         .assert_vertex_exists(3, "Person");
 }
@@ -260,7 +257,6 @@ fn test_storage_large_batch_insert() {
         .exec_ddl("CREATE TAG IF NOT EXISTS Item(id INT, name STRING)")
         .assert_success();
 
-    // Insert 15 items in batches
     for batch in 0..3 {
         let mut values = Vec::new();
         for i in 0..5 {
@@ -277,7 +273,6 @@ fn test_storage_large_batch_insert() {
             .assert_success();
     }
 
-    // Verify all items were inserted
     scenario
         .assert_vertex_count("Item", 15);
 }
@@ -296,10 +291,8 @@ fn test_storage_complex_graph_pattern() {
         .assert_success()
         .exec_ddl("CREATE EDGE IF NOT EXISTS MANAGES")
         .assert_success()
-        // Create company
         .exec_dml("INSERT VERTEX Company(name) VALUES 100:('TechCorp')")
         .assert_success()
-        // Create employees
         .exec_dml(
             "INSERT VERTEX Person(name) VALUES \
             1:('CEO'), \
@@ -309,7 +302,6 @@ fn test_storage_complex_graph_pattern() {
             5:('Employee2')",
         )
         .assert_success()
-        // Create relationships
         .exec_dml(
             "INSERT EDGE WORKS_AT VALUES \
             1->100, 2->100, 3->100, 4->100, 5->100",
@@ -321,7 +313,6 @@ fn test_storage_complex_graph_pattern() {
             2->4, 3->5",
         )
         .assert_success()
-        // Verify counts
         .assert_vertex_count("Person", 5)
         .assert_vertex_count("Company", 1)
         .assert_edge_count("WORKS_AT", 5)
@@ -334,21 +325,16 @@ fn test_storage_tag_alteration() {
     TestScenario::new()
         .expect("Failed to create test scenario")
         .setup_space("test_space")
-        // Create initial tag
         .exec_ddl("CREATE TAG IF NOT EXISTS Product(name STRING)")
         .assert_success()
-        // Insert data
         .exec_dml("INSERT VERTEX Product(name) VALUES 1:('ProductA'), 2:('ProductB')")
         .assert_success()
-        // Alter tag to add new property
         .exec_ddl("ALTER TAG Product ADD (price INT, category STRING)")
         .assert_success()
-        // Insert new data with all properties
         .exec_dml(
             "INSERT VERTEX Product(name, price, category) VALUES 3:('ProductC', 100, 'Electronics')",
         )
         .assert_success()
-        // Verify all vertices exist
         .assert_vertex_count("Product", 3);
 }
 
@@ -367,10 +353,8 @@ fn test_storage_edge_alteration() {
         .exec_dml("INSERT EDGE KNOWS VALUES 1->2")
         .assert_success()
         .assert_edge_exists(1, 2, "KNOWS")
-        // Alter edge to add property
         .exec_ddl("ALTER EDGE KNOWS ADD (since INT)")
         .assert_success()
-        // Insert new edge with property
         .exec_dml("INSERT VERTEX Person(name) VALUES 3:('Charlie')")
         .assert_success()
         .exec_dml("INSERT EDGE KNOWS(since) VALUES 2->3:(2023)")
@@ -393,7 +377,6 @@ fn test_storage_query_after_dml() {
             3:('Charlie', 35)",
         )
         .assert_success()
-        // Query to verify data
         .query("MATCH (v:Person) WHERE v.age >= 30 RETURN v.name")
         .assert_result_count(2)
         .query("MATCH (v:Person) WHERE v.name STARTS WITH 'A' RETURN v.name")
@@ -410,7 +393,6 @@ fn test_storage_update_and_query() {
         .assert_success()
         .exec_dml("INSERT VERTEX Counter(value) VALUES 1:(0)")
         .assert_success()
-        // Update and verify
         .exec_dml("UPDATE 1 SET value = 10")
         .assert_success()
         .assert_vertex_props(
@@ -418,7 +400,6 @@ fn test_storage_update_and_query() {
             "Counter",
             HashMap::from([("value", Value::Int(10))]),
         )
-        // Update again
         .exec_dml("UPDATE 1 SET value = 20")
         .assert_success()
         .assert_vertex_props(
@@ -431,22 +412,8 @@ fn test_storage_update_and_query() {
 /// Test transaction with concurrent read operations
 #[tokio::test]
 async fn test_storage_concurrent_reads() {
-    use graphdb::transaction::{
-        TransactionManager, TransactionManagerConfig, TransactionOptions,
-    };
+    let manager = Arc::new(TransactionManager::new(TransactionManagerConfig::default()));
 
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
-
-    // Create multiple read-only transactions concurrently
     let mut handles = vec![];
     for i in 0..5 {
         let manager_clone = Arc::clone(&manager);
@@ -456,7 +423,6 @@ async fn test_storage_concurrent_reads() {
                 .begin_transaction(options)
                 .expect("Failed to begin transaction");
 
-            // Simulate read work
             sleep(Duration::from_millis(10)).await;
 
             manager_clone
@@ -469,7 +435,6 @@ async fn test_storage_concurrent_reads() {
         handles.push(handle);
     }
 
-    // All should complete without deadlock
     let result = timeout(Duration::from_secs(30), async {
         for handle in handles {
             handle.await.expect("Task should complete");
@@ -486,32 +451,18 @@ async fn test_storage_concurrent_reads() {
 /// Test transaction with storage error recovery
 #[tokio::test]
 async fn test_storage_error_recovery() {
-    use graphdb::transaction::{
-        TransactionManager, TransactionManagerConfig, TransactionOptions,
-    };
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
-
-    // Begin transaction
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
         .expect("Failed to begin transaction");
 
-    // Rollback transaction (simulating error recovery)
     manager
         .rollback_transaction(txn_id)
         .expect("Failed to rollback transaction");
 
-    // Verify transaction is no longer active
     assert!(!manager.is_transaction_active(txn_id));
 
-    // Should be able to begin new transaction after rollback
     let txn_id2 = manager
         .begin_transaction(TransactionOptions::default())
         .expect("Failed to begin new transaction after rollback");
@@ -520,218 +471,4 @@ async fn test_storage_error_recovery() {
         .commit_transaction(txn_id2)
         .await
         .expect("Failed to commit second transaction");
-}
-
-/// Test that TransactionManager with storage_inner properly cleans up context on commit
-#[tokio::test]
-async fn test_transaction_manager_with_storage_inner_cleanup_on_commit() {
-    use graphdb::storage::shared_state::StorageInner;
-    use graphdb::storage::{RedbReader, RedbWriter};
-    use graphdb::transaction::{
-        TransactionManager, TransactionManagerConfig, TransactionOptions,
-    };
-
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db_path = temp_dir.path().join("test.db");
-    let db = Arc::new(
-        redb::Database::create(&db_path).expect("Failed to create database"),
-    );
-
-    // Create a StorageInner to track transaction context
-    let reader = RedbReader::new(db.clone()).expect("Failed to create reader");
-    let writer = RedbWriter::new(db.clone()).expect("Failed to create writer");
-    let storage_inner = Arc::new(StorageInner::new(reader, writer));
-
-    let manager = TransactionManager::with_storage_inner(
-        db.clone(),
-        TransactionManagerConfig::default(),
-        storage_inner.clone(),
-    );
-
-    // Begin transaction - should set context
-    let txn_id = manager
-        .begin_transaction(TransactionOptions::default())
-        .expect("Failed to begin transaction");
-
-    // Verify context is set
-    assert!(
-        storage_inner.get_transaction_context().is_some(),
-        "Transaction context should be set after begin"
-    );
-
-    // Commit transaction - should clear context
-    manager
-        .commit_transaction(txn_id)
-        .await
-        .expect("Failed to commit transaction");
-
-    // Verify context is cleared
-    assert!(
-        storage_inner.get_transaction_context().is_none(),
-        "Transaction context should be cleared after commit"
-    );
-}
-
-/// Test that TransactionManager with storage_inner properly cleans up context on rollback
-#[test]
-fn test_transaction_manager_with_storage_inner_cleanup_on_rollback() {
-    use graphdb::storage::shared_state::StorageInner;
-    use graphdb::storage::{RedbReader, RedbWriter};
-    use graphdb::transaction::{
-        TransactionManager, TransactionManagerConfig, TransactionOptions,
-    };
-
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db_path = temp_dir.path().join("test.db");
-    let db = Arc::new(
-        redb::Database::create(&db_path).expect("Failed to create database"),
-    );
-
-    // Create a StorageInner to track transaction context
-    let reader = RedbReader::new(db.clone()).expect("Failed to create reader");
-    let writer = RedbWriter::new(db.clone()).expect("Failed to create writer");
-    let storage_inner = Arc::new(StorageInner::new(reader, writer));
-
-    let manager = TransactionManager::with_storage_inner(
-        db.clone(),
-        TransactionManagerConfig::default(),
-        storage_inner.clone(),
-    );
-
-    // Begin transaction - should set context
-    let txn_id = manager
-        .begin_transaction(TransactionOptions::default())
-        .expect("Failed to begin transaction");
-
-    // Verify context is set
-    assert!(
-        storage_inner.get_transaction_context().is_some(),
-        "Transaction context should be set after begin"
-    );
-
-    // Rollback transaction - should clear context
-    manager
-        .rollback_transaction(txn_id)
-        .expect("Failed to rollback transaction");
-
-    // Verify context is cleared
-    assert!(
-        storage_inner.get_transaction_context().is_none(),
-        "Transaction context should be cleared after rollback"
-    );
-}
-
-/// Test that TransactionManager with storage_inner properly cleans up context on cleanup_expired_transactions
-#[tokio::test]
-async fn test_transaction_manager_with_storage_inner_cleanup_on_expired() {
-    use graphdb::storage::shared_state::StorageInner;
-    use graphdb::storage::{RedbReader, RedbWriter};
-    use graphdb::transaction::{
-        TransactionManager, TransactionManagerConfig, TransactionOptions,
-    };
-
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db_path = temp_dir.path().join("test.db");
-    let db = Arc::new(
-        redb::Database::create(&db_path).expect("Failed to create database"),
-    );
-
-    // Create a StorageInner to track transaction context
-    let reader = RedbReader::new(db.clone()).expect("Failed to create reader");
-    let writer = RedbWriter::new(db.clone()).expect("Failed to create writer");
-    let storage_inner = Arc::new(StorageInner::new(reader, writer));
-
-    let manager = TransactionManager::with_storage_inner(
-        db.clone(),
-        TransactionManagerConfig::default(),
-        storage_inner.clone(),
-    );
-
-    // Begin transaction with very short timeout
-    let options = TransactionOptions::new().with_timeout(Duration::from_millis(50));
-    let txn_id = manager
-        .begin_transaction(options)
-        .expect("Failed to begin transaction");
-
-    // Verify context is set
-    assert!(
-        storage_inner.get_transaction_context().is_some(),
-        "Transaction context should be set after begin"
-    );
-
-    // Wait for expiration
-    sleep(Duration::from_millis(100)).await;
-
-    // Cleanup expired transactions
-    manager.cleanup_expired_transactions();
-
-    // Verify transaction is no longer active
-    assert!(
-        !manager.is_transaction_active(txn_id),
-        "Expired transaction should be cleaned up"
-    );
-
-    // Verify context is cleared
-    assert!(
-        storage_inner.get_transaction_context().is_none(),
-        "Transaction context should be cleared after expired cleanup"
-    );
-}
-
-/// Test that sequential write transactions work correctly with storage_inner
-#[tokio::test]
-async fn test_sequential_writes_with_storage_inner() {
-    use graphdb::storage::shared_state::StorageInner;
-    use graphdb::storage::{RedbReader, RedbWriter};
-    use graphdb::transaction::{
-        TransactionManager, TransactionManagerConfig, TransactionOptions,
-    };
-
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db_path = temp_dir.path().join("test.db");
-    let db = Arc::new(
-        redb::Database::create(&db_path).expect("Failed to create database"),
-    );
-
-    let reader = RedbReader::new(db.clone()).expect("Failed to create reader");
-    let writer = RedbWriter::new(db.clone()).expect("Failed to create writer");
-    let storage_inner = Arc::new(StorageInner::new(reader, writer));
-
-    let manager = TransactionManager::with_storage_inner(
-        db.clone(),
-        TransactionManagerConfig::default(),
-        storage_inner.clone(),
-    );
-
-    // Run multiple sequential write transactions
-    for i in 0..5 {
-        let txn_id = manager
-            .begin_transaction(TransactionOptions::default())
-            .expect("Failed to begin transaction");
-
-        // Verify context is set for current transaction
-        let ctx = storage_inner.get_transaction_context();
-        assert!(
-            ctx.is_some(),
-            "Transaction context should be set for transaction {}",
-            i
-        );
-        assert_eq!(
-            ctx.unwrap().id,
-            txn_id,
-            "Context should match current transaction ID"
-        );
-
-        manager
-            .commit_transaction(txn_id)
-            .await
-            .expect("Failed to commit transaction");
-
-        // Verify context is cleared after commit
-        assert!(
-            storage_inner.get_transaction_context().is_none(),
-            "Transaction context should be cleared after commit of transaction {}",
-            i
-        );
-    }
 }

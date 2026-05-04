@@ -13,7 +13,7 @@ use crate::storage::metadata::{IndexMetadataManager, Schema, SchemaManager};
 use crate::storage::operations::{ScanResult, VertexReader, VertexWriter};
 use crate::storage::property_graph::PropertyGraph;
 use crate::storage::vertex::{LabelId, PropertyDef, Timestamp, VertexRecord, VertexSchema};
-use crate::storage::version_manager::VersionManager;
+use crate::transaction::version_manager::VersionManager;
 use crate::sync::coordinator::ChangeType;
 use crate::transaction::wal::types::Timestamp as WalTimestamp;
 

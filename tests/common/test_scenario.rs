@@ -6,7 +6,7 @@ use graphdb::core::error::DBResult;
 use graphdb::core::Value;
 use graphdb::query::executor::base::ExecutionResult;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use graphdb::storage::RedbStorage;
+use graphdb::storage::GraphStorage;
 use graphdb::storage::StorageClient;
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -16,8 +16,8 @@ use crate::common::TestStorage;
 
 /// Test scenario builder for fluent test writing
 pub struct TestScenario {
-    storage: Arc<Mutex<RedbStorage>>,
-    pipeline: QueryPipelineManager<RedbStorage>,
+    storage: Arc<Mutex<GraphStorage>>,
+    pipeline: QueryPipelineManager<GraphStorage>,
     last_result: Option<ExecutionResult>,
     last_error: Option<String>,
     current_space: Option<graphdb::core::types::SpaceInfo>,

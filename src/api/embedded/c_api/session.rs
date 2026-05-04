@@ -12,13 +12,13 @@ use crate::api::embedded::c_api::types::{
     graphdb_session_t, graphdb_t, graphdb_trace_callback, graphdb_update_hook_callback,
 };
 use crate::api::embedded::Session;
-use crate::storage::RedbStorage;
+use crate::storage::GraphStorage;
 use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::ptr;
 
 /// Internal structure of the session handler
 pub struct GraphDbSessionHandle {
-    pub(crate) inner: Session<RedbStorage>,
+    pub(crate) inner: Session<GraphStorage>,
     pub(crate) last_error: Option<CString>,
     /// Busy wait timeout (in milliseconds)
     pub(crate) busy_timeout_ms: u32,
@@ -51,7 +51,7 @@ unsafe impl Sync for GraphDbSessionHandle {}
 
 impl GraphDbSessionHandle {
     /// Create a new session handle.
-    pub(crate) fn new(inner: Session<RedbStorage>) -> Self {
+    pub(crate) fn new(inner: Session<GraphStorage>) -> Self {
         Self {
             inner,
             last_error: None,

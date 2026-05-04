@@ -23,7 +23,6 @@ use graphdb::transaction::{
 };
 use std::sync::Arc;
 use std::time::Duration;
-use tempfile::TempDir;
 use tokio::time::{sleep, timeout};
 
 /// Test that verifies no deadlock occurs with concurrent read-only transaction operations
@@ -31,16 +30,7 @@ use tokio::time::{sleep, timeout};
 /// Note: Uses read-only transactions since write transactions cannot be concurrent
 #[tokio::test]
 async fn test_no_deadlock_concurrent_transactions() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = Arc::new(TransactionManager::new(TransactionManagerConfig::default()));
 
     let mut handles = vec![];
 
@@ -87,16 +77,7 @@ async fn test_no_deadlock_concurrent_transactions() {
 /// This test ensures we're not using block_on in async contexts
 #[tokio::test]
 async fn test_proper_async_pattern() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Test that commit_transaction is properly async
     let txn_id = manager
@@ -125,16 +106,7 @@ async fn test_proper_async_pattern() {
 /// Write transactions cannot be concurrent, but should not deadlock
 #[tokio::test]
 async fn test_write_transaction_serialization() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Sequential write transactions
     for i in 0..5 {
@@ -160,16 +132,7 @@ async fn test_nested_async_operations() {
     use std::pin::Pin;
     use std::future::Future;
 
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = Arc::new(TransactionManager::new(TransactionManagerConfig::default()));
 
     fn inner_operation(
         manager: Arc<TransactionManager>,
@@ -204,16 +167,7 @@ async fn test_nested_async_operations() {
 /// Test transaction timeout handling without deadlock
 #[tokio::test]
 async fn test_transaction_timeout_no_deadlock() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Begin transaction with short timeout
     let txn_id = manager
@@ -234,16 +188,7 @@ async fn test_transaction_timeout_no_deadlock() {
 /// This test verifies no resource leak occurs
 #[tokio::test]
 async fn test_rapid_transaction_cycles() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Perform rapid transaction cycles
     for i in 0..10 {
@@ -271,16 +216,7 @@ async fn test_rapid_transaction_cycles() {
 /// Note: Uses only read-only transactions since write transactions cannot be concurrent
 #[tokio::test]
 async fn test_no_spawn_blocking_pattern() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = Arc::new(TransactionManager::new(TransactionManagerConfig::default()));
 
     // If spawn_blocking were used with block_on, this would deadlock
     // with enough concurrent operations
@@ -326,16 +262,7 @@ async fn test_no_spawn_blocking_pattern() {
 /// Test transaction manager shutdown with pending operations
 #[tokio::test]
 async fn test_shutdown_with_pending_transactions() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Create several transactions
     let txn1 = manager
@@ -357,16 +284,7 @@ async fn test_shutdown_with_pending_transactions() {
 /// Test mixed read and write transaction patterns
 #[tokio::test]
 async fn test_mixed_read_write_patterns() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = Arc::new(TransactionManager::new(TransactionManagerConfig::default()));
 
     // Pattern: Write followed by multiple reads
     for _ in 0..3 {
@@ -421,16 +339,7 @@ async fn test_mixed_read_write_patterns() {
 /// This verifies the fix for nested lock acquisition in info()
 #[tokio::test]
 async fn test_info_no_nested_locks() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = Arc::new(TransactionManager::new(TransactionManagerConfig::default()));
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
@@ -470,16 +379,7 @@ async fn test_info_no_nested_locks() {
 /// This verifies the fix where operation_log_len() is called before savepoint_manager lock
 #[tokio::test]
 async fn test_create_savepoint_no_nested_locks() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
@@ -507,16 +407,7 @@ async fn test_create_savepoint_no_nested_locks() {
 /// This verifies the fix where locks are acquired and released in sequence
 #[tokio::test]
 async fn test_rollback_to_savepoint_no_nested_locks() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
@@ -567,16 +458,7 @@ async fn test_rollback_to_savepoint_no_nested_locks() {
 /// Note: Each thread uses its own transaction (read-only) to avoid race conditions
 #[tokio::test]
 async fn test_concurrent_savepoint_operations() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = Arc::new(TransactionManager::new(TransactionManagerConfig::default()));
 
     // Spawn multiple tasks that perform savepoint operations
     // Each task uses its own read-only transaction to avoid race conditions
@@ -634,16 +516,7 @@ async fn test_concurrent_savepoint_operations() {
 /// This verifies that info() doesn't interfere with savepoint operations
 #[tokio::test]
 async fn test_concurrent_info_and_savepoint() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = Arc::new(TransactionManager::new(TransactionManagerConfig::default()));
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
@@ -704,16 +577,7 @@ async fn test_concurrent_info_and_savepoint() {
 /// This stress tests the lock acquisition pattern
 #[tokio::test]
 async fn test_rapid_savepoint_cycles() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
@@ -745,16 +609,7 @@ async fn test_rapid_savepoint_cycles() {
 /// (using read-only transactions for true concurrency)
 #[tokio::test]
 async fn test_concurrent_transactions_savepoints() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("Failed to create database"),
-    );
-
-    let manager = Arc::new(TransactionManager::new(
-        db,
-        TransactionManagerConfig::default(),
-    ));
+    let manager = Arc::new(TransactionManager::new(TransactionManagerConfig::default()));
 
     let mut handles = vec![];
 

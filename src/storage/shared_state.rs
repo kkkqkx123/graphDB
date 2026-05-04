@@ -1,7 +1,6 @@
 //! Storage layer shared state module
 //!
 //! Aggregates all states that need to be shared across storage layer components.
-//! This version uses PropertyGraph instead of redb.
 
 use std::sync::Arc;
 use parking_lot::RwLock;
@@ -9,7 +8,7 @@ use parking_lot::RwLock;
 use crate::search::manager::FulltextIndexManager;
 use crate::storage::metadata::{IndexMetadataManager, SchemaManager};
 use crate::storage::property_graph::PropertyGraph;
-use crate::storage::version_manager::VersionManager;
+use crate::transaction::version_manager::VersionManager;
 use crate::sync::SyncManager;
 use crate::transaction::context::TransactionContext;
 

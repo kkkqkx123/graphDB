@@ -8,7 +8,7 @@ use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::session::{GraphDatabaseInner, Session};
 use crate::core::Value;
 use crate::search::{FulltextConfig, FulltextIndexManager, SyncFailurePolicy};
-use crate::storage::{RedbStorage, StorageClient};
+use crate::storage::{GraphStorage, StorageClient};
 use crate::sync::{SyncConfig, SyncManager};
 use crate::transaction::{TransactionManager, TransactionManagerConfig};
 use parking_lot::Mutex;
@@ -55,7 +55,7 @@ pub struct GraphDatabase<S: StorageClient + Clone + 'static> {
     config: DatabaseConfig,
 }
 
-impl GraphDatabase<RedbStorage> {
+impl GraphDatabase<GraphStorage> {
     /// Open or create a database (in file mode).
     ///
     /// # Parameters
@@ -89,14 +89,14 @@ impl GraphDatabase<RedbStorage> {
     /// - Return error on failure
     pub fn open_with_config(config: DatabaseConfig) -> CoreResult<Self> {
         let storage = if config.is_memory() {
-            RedbStorage::new().map_err(|e| {
+            GraphStorage::new().map_err(|e| {
                 CoreError::StorageError(format!("Failed to initialize memory store: {}", e))
             })?
         } else {
             let path = config
                 .path()
                 .ok_or_else(|| CoreError::StorageError("Database path is empty".to_string()))?;
-            RedbStorage::new_with_path(path.to_path_buf()).map_err(|e| {
+            GraphStorage::new_with_path(path.to_path_buf()).map_err(|e| {
                 CoreError::StorageError(format!("Failed to initialize storage: {}", e))
             })?
         };

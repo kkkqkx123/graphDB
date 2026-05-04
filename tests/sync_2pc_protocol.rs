@@ -17,14 +17,14 @@ fn create_harness_with_paths(
     index_path: &Path,
 ) -> Result<SyncTestHarness, Box<dyn std::error::Error>> {
     use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager, SyncConfig};
-    use graphdb::storage::RedbStorage;
+    use graphdb::storage::GraphStorage;
     use graphdb::sync::batch::BatchConfig;
     use graphdb::sync::coordinator::SyncCoordinator;
     use graphdb::sync::manager::SyncManager;
     use std::time::Duration;
 
     // Create storage
-    let storage = RedbStorage::new_with_path(db_path.to_path_buf())?;
+    let storage = GraphStorage::new_with_path(db_path.to_path_buf())?;
 
     // Create fulltext index manager
     let config = FulltextConfig {

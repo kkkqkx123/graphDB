@@ -10,7 +10,7 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::storage::metadata::inmemory_schema_manager::InMemorySchemaManager;
+use crate::storage::metadata::InMemorySchemaManager;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -54,7 +54,7 @@ impl ReturnValidator {
     }
 
     /// Create a new instance with schema manager
-    pub fn with_schema_manager(schema_manager: Arc<RedbSchemaManager>) -> Self {
+    pub fn with_schema_manager(schema_manager: Arc<InMemorySchemaManager>) -> Self {
         Self {
             items: Vec::new(),
             distinct: false,
@@ -72,7 +72,7 @@ impl ReturnValidator {
     }
 
     /// Set schema manager
-    pub fn set_schema_manager(&mut self, schema_manager: Arc<RedbSchemaManager>) {
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<InMemorySchemaManager>) {
         self.schema_validator = Some(SchemaValidator::new(schema_manager));
     }
 

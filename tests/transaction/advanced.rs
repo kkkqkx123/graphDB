@@ -29,9 +29,7 @@ use graphdb::transaction::{
 };
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 use std::time::Duration;
-use tempfile::TempDir;
 
 /// Test savepoint functionality
 #[test]
@@ -102,12 +100,7 @@ fn test_transaction_durability_levels() {
 /// Test transaction abort and recovery
 #[tokio::test]
 async fn test_transaction_abort_recovery() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
@@ -125,12 +118,7 @@ async fn test_transaction_abort_recovery() {
 /// Test transaction statistics
 #[tokio::test]
 async fn test_transaction_statistics() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let initial_stats = manager.stats();
     let initial_total = initial_stats.total_transactions.load(Ordering::Relaxed);
@@ -165,12 +153,7 @@ async fn test_transaction_statistics() {
 /// Test transaction cleanup on drop
 #[tokio::test]
 async fn test_transaction_cleanup() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     for i in 0..5 {
         let txn_id = manager
@@ -282,12 +265,7 @@ fn test_transaction_string_operations() {
 /// Test savepoint create and rollback
 #[tokio::test]
 async fn test_savepoint_rollback() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
@@ -320,12 +298,7 @@ async fn test_savepoint_rollback() {
 /// Test multiple savepoints and rollback to intermediate point
 #[tokio::test]
 async fn test_savepoint_multiple_rollback() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
@@ -367,12 +340,7 @@ async fn test_savepoint_multiple_rollback() {
 /// Test transaction retry mechanism
 #[tokio::test]
 async fn test_transaction_retry() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let retry_config = RetryConfig::new()
         .with_max_retries(2)
@@ -393,12 +361,7 @@ async fn test_transaction_retry() {
 /// Test transaction retry with non-retryable error
 #[tokio::test]
 async fn test_transaction_retry_non_retryable() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let retry_config = RetryConfig::new()
         .with_max_retries(3)
@@ -422,12 +385,7 @@ async fn test_transaction_retry_non_retryable() {
 /// Test batch commit of multiple transactions
 #[tokio::test]
 async fn test_batch_commit() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Begin multiple transactions sequentially (write transactions cannot be concurrent)
     let txn1 = manager
@@ -458,12 +416,7 @@ async fn test_batch_commit() {
 /// Test transaction metrics
 #[tokio::test]
 async fn test_transaction_metrics() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Begin and commit a transaction
     let txn_id = manager
@@ -483,17 +436,12 @@ async fn test_transaction_metrics() {
 /// Test max concurrent transactions limit
 #[test]
 fn test_max_concurrent_transactions() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
     let config = TransactionManagerConfig {
         max_concurrent_transactions: 2,
         ..Default::default()
     };
 
-    let manager = TransactionManager::new(db, config);
+    let manager = TransactionManager::new(config);
 
     // Begin two readonly transactions
     let txn1 = manager
@@ -518,12 +466,7 @@ fn test_max_concurrent_transactions() {
 /// Test cleanup of expired transactions
 #[test]
 fn test_cleanup_expired_transactions() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Begin a transaction with very short timeout
     let txn_id = manager
@@ -552,12 +495,7 @@ fn test_cleanup_expired_transactions() {
 /// Test shutdown functionality
 #[test]
 fn test_shutdown() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Begin multiple transactions
     let txn1 = manager
@@ -588,12 +526,7 @@ fn test_shutdown() {
 /// Test list active transactions and get transaction info
 #[tokio::test]
 async fn test_transaction_info_and_list() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create database"),
-    );
-
-    let manager = TransactionManager::new(db, TransactionManagerConfig::default());
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Begin readonly transactions (can be concurrent)
     let txn1 = manager

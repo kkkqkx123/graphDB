@@ -15,22 +15,22 @@ use graphdb::config::Config;
 use graphdb::core::stats::StatsManager;
 use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use graphdb::storage::engine::redb_storage::RedbStorage;
+use graphdb::storage::GraphStorage;
 use graphdb::storage::entity::event_storage::SyncStorage;
 use graphdb::storage::api::StorageClient;
 use std::sync::Arc;
 use vector_client::VectorClientConfig;
 
-/// Test that GraphService can be created with SyncStorage<RedbStorage>
+/// Test that GraphService can be created with SyncStorage<GraphStorage>
 #[tokio::test]
 async fn test_graph_service_creation_with_sync_storage() {
     let config = Config::default();
 
-    // Create SyncStorage<RedbStorage>
+    // Create SyncStorage<GraphStorage>
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let db_path = temp_dir.path().join("test.db");
     let storage = Arc::new(SyncStorage::new(
-        RedbStorage::new_with_path(db_path).expect("Failed to create storage"),
+        GraphStorage::new_with_path(db_path).expect("Failed to create storage"),
     ));
 
     // Create GraphService - this should work with our fix
@@ -43,9 +43,9 @@ async fn test_graph_service_creation_with_sync_storage() {
     );
 }
 
-/// Test QueryApi creation with schema_manager from RedbStorage
+/// Test QueryApi creation with schema_manager from GraphStorage
 #[test]
-fn test_query_api_with_redb_storage_schema_manager() {
+fn test_query_api_with_graph_storage_schema_manager() {
     let test_storage = TestStorage::new().expect("Failed to create test storage");
     let storage = test_storage.storage();
     let schema_manager = test_storage.schema_manager();
@@ -113,10 +113,10 @@ fn test_vector_config_default_is_disabled() {
 fn test_sync_storage_inner_access() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let db_path = temp_dir.path().join("test.db");
-    let redb_storage = RedbStorage::new_with_path(db_path).expect("Failed to create storage");
+    let storage = GraphStorage::new_with_path(db_path).expect("Failed to create storage");
 
     // Create SyncStorage
-    let sync_storage = SyncStorage::new(redb_storage);
+    let sync_storage = SyncStorage::new(storage);
 
     // Access inner storage
     let inner = sync_storage.inner();
@@ -129,24 +129,24 @@ fn test_sync_storage_inner_access() {
 /// Test StorageClient trait method get_schema_manager
 #[test]
 fn test_storage_client_get_schema_manager() {
-    // Test with RedbStorage
+    // Test with GraphStorage
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let db_path = temp_dir.path().join("test.db");
-    let redb_storage = RedbStorage::new_with_path(db_path).expect("Failed to create storage");
+    let storage = GraphStorage::new_with_path(db_path).expect("Failed to create storage");
 
     // get_schema_manager should return Some
-    let schema_manager = redb_storage.get_schema_manager();
+    let schema_manager = storage.get_schema_manager();
     assert!(
         schema_manager.is_some(),
-        "RedbStorage should return Some schema_manager"
+        "GraphStorage should return Some schema_manager"
     );
 
-    // Test with SyncStorage<RedbStorage>
-    let sync_storage = SyncStorage::new(redb_storage);
+    // Test with SyncStorage<GraphStorage>
+    let sync_storage = SyncStorage::new(storage);
     let schema_manager = sync_storage.get_schema_manager();
     assert!(
         schema_manager.is_some(),
-        "SyncStorage<RedbStorage> should return Some schema_manager"
+        "SyncStorage<GraphStorage> should return Some schema_manager"
     );
 }
 

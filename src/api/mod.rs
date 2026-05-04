@@ -32,9 +32,8 @@ use crate::api::server::GraphService;
 use crate::config::Config;
 use crate::core::error::DBResult;
 use crate::storage::api::StorageClient;
-use crate::storage::engine::DefaultStorage;
 use crate::storage::entity::SyncStorage;
-use crate::storage::RedbStorage;
+use crate::storage::GraphStorage;
 use crate::transaction::{TransactionManager, TransactionManagerConfig};
 
 /// Start the service using the configuration file path (deprecated; please use start_service_with_config).
@@ -65,7 +64,7 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
         config.log_file()
     );
 
-    let inner_storage = Arc::new(DefaultStorage::new()?);
+    let inner_storage = Arc::new(GraphStorage::new()?);
     info!("Storage initialized (memory mode)");
 
     // 如果配置启用了全文索引或向量索引，初始化 SyncManager
@@ -205,7 +204,7 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
     };
 
     let graph_service =
-        GraphService::<SyncStorage<DefaultStorage>>::new_with_transaction_manager(
+        GraphService::<SyncStorage<GraphStorage>>::new_with_transaction_manager(
             config.clone(),
             storage.clone(),
             transaction_manager.clone(),
@@ -244,14 +243,14 @@ pub async fn execute_query(query_str: &str) -> DBResult<()> {
     info!("Executing query: {}", query_str);
 
     let config = crate::config::Config::default();
-    let inner_storage = Arc::new(DefaultStorage::new()?);
+    let inner_storage = Arc::new(GraphStorage::new()?);
 
     // Initialize storage (simplified version without fulltext index)
     let sync_storage = SyncStorage::new((*inner_storage).clone());
     let storage = Arc::new(sync_storage);
 
     let graph_service =
-        GraphService::<SyncStorage<DefaultStorage>>::new_for_test(config, storage).await;
+        GraphService::<SyncStorage<GraphStorage>>::new_for_test(config, storage).await;
 
     let session = match graph_service
         .get_session_manager()
