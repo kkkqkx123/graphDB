@@ -4,6 +4,12 @@
 
 use std::fmt;
 
+/// Default huge page size (2MB)
+pub const DEFAULT_HUGE_PAGE_SIZE: usize = 2 * 1024 * 1024;
+
+/// Minimum allocation size to consider using huge pages (1MB)
+pub const DEFAULT_HUGE_PAGE_THRESHOLD: usize = 1024 * 1024;
+
 /// Memory level for storage operations
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum MemoryLevel {
@@ -14,6 +20,23 @@ pub enum MemoryLevel {
     SyncToFile,
     /// Prefer huge pages for large allocations (Linux only)
     HugePagePreferred,
+}
+
+impl MemoryLevel {
+    /// Check if this level prefers huge pages
+    pub fn prefers_huge_pages(&self) -> bool {
+        matches!(self, MemoryLevel::HugePagePreferred)
+    }
+
+    /// Check if this level requires disk persistence
+    pub fn requires_persistence(&self) -> bool {
+        matches!(self, MemoryLevel::SyncToFile)
+    }
+
+    /// Check if this is pure in-memory mode
+    pub fn is_in_memory(&self) -> bool {
+        matches!(self, MemoryLevel::InMemory)
+    }
 }
 
 /// Memory configuration for the storage engine
@@ -33,6 +56,12 @@ pub struct MemoryConfig {
     pub enable_stall: bool,
     /// Stall threshold ratio (0.0 - 1.0, when to start stalling)
     pub stall_threshold: f32,
+    /// Huge page size in bytes (Linux only, default 2MB)
+    pub huge_page_size: usize,
+    /// Whether to fall back to regular pages if huge pages unavailable
+    pub huge_page_fallback: bool,
+    /// Minimum allocation size to use huge pages (default 1MB)
+    pub huge_page_threshold: usize,
 }
 
 impl Default for MemoryConfig {
@@ -45,6 +74,9 @@ impl Default for MemoryConfig {
             memory_level: MemoryLevel::default(),
             enable_stall: true,
             stall_threshold: 0.9,
+            huge_page_size: DEFAULT_HUGE_PAGE_SIZE,
+            huge_page_fallback: true,
+            huge_page_threshold: DEFAULT_HUGE_PAGE_THRESHOLD,
         }
     }
 }
@@ -105,6 +137,18 @@ impl MemoryConfig {
             ));
         }
 
+        if self.huge_page_size == 0 || (self.huge_page_size & (self.huge_page_size - 1)) != 0 {
+            return Err(MemoryConfigError::InvalidHugePageSize(
+                "Huge page size must be a power of 2 and greater than 0".to_string(),
+            ));
+        }
+
+        if self.huge_page_threshold == 0 {
+            return Err(MemoryConfigError::InvalidHugePageThreshold(
+                "Huge page threshold must be greater than 0".to_string(),
+            ));
+        }
+
         Ok(())
     }
 
@@ -131,6 +175,27 @@ impl MemoryConfig {
     /// Check if the configuration enables stalling
     pub fn is_stall_enabled(&self) -> bool {
         self.enable_stall
+    }
+
+    /// Check if huge pages should be used for an allocation of the given size
+    pub fn should_use_huge_pages(&self, allocation_size: usize) -> bool {
+        self.memory_level.prefers_huge_pages() && allocation_size >= self.huge_page_threshold
+    }
+
+    /// Get the huge page size
+    pub fn get_huge_page_size(&self) -> usize {
+        self.huge_page_size
+    }
+
+    /// Check if huge page fallback is enabled
+    pub fn is_huge_page_fallback_enabled(&self) -> bool {
+        self.huge_page_fallback
+    }
+
+    /// Align a size to the huge page boundary
+    pub fn align_to_huge_page(&self, size: usize) -> usize {
+        let mask = self.huge_page_size - 1;
+        (size + mask) & !mask
     }
 }
 
@@ -176,6 +241,21 @@ impl MemoryConfigBuilder {
         self
     }
 
+    pub fn huge_page_size(mut self, size: usize) -> Self {
+        self.config.huge_page_size = size;
+        self
+    }
+
+    pub fn huge_page_fallback(mut self, fallback: bool) -> Self {
+        self.config.huge_page_fallback = fallback;
+        self
+    }
+
+    pub fn huge_page_threshold(mut self, threshold: usize) -> Self {
+        self.config.huge_page_threshold = threshold;
+        self
+    }
+
     pub fn build(self) -> Result<MemoryConfig, MemoryConfigError> {
         self.config.validate()?;
         Ok(self.config)
@@ -191,6 +271,10 @@ pub enum MemoryConfigError {
     InvalidRatio(String),
     /// Invalid stall threshold
     InvalidThreshold(String),
+    /// Invalid huge page size
+    InvalidHugePageSize(String),
+    /// Invalid huge page threshold
+    InvalidHugePageThreshold(String),
 }
 
 impl fmt::Display for MemoryConfigError {
@@ -202,6 +286,12 @@ impl fmt::Display for MemoryConfigError {
             MemoryConfigError::InvalidRatio(msg) => write!(f, "Invalid ratio: {}", msg),
             MemoryConfigError::InvalidThreshold(msg) => {
                 write!(f, "Invalid threshold: {}", msg)
+            }
+            MemoryConfigError::InvalidHugePageSize(msg) => {
+                write!(f, "Invalid huge page size: {}", msg)
+            }
+            MemoryConfigError::InvalidHugePageThreshold(msg) => {
+                write!(f, "Invalid huge page threshold: {}", msg)
             }
         }
     }
@@ -221,6 +311,8 @@ mod tests {
         assert_eq!(config.vertex_memory_ratio, 0.4);
         assert_eq!(config.edge_memory_ratio, 0.4);
         assert_eq!(config.cache_memory_ratio, 0.2);
+        assert_eq!(config.huge_page_size, DEFAULT_HUGE_PAGE_SIZE);
+        assert!(config.huge_page_fallback);
     }
 
     #[test]
@@ -253,5 +345,70 @@ mod tests {
 
         assert_eq!(config.max_total_memory, 2 * 1024 * 1024 * 1024);
         assert_eq!(config.max_vertex_memory(), 1024 * 1024 * 1024);
+    }
+
+    #[test]
+    fn test_memory_level_helpers() {
+        assert!(MemoryLevel::HugePagePreferred.prefers_huge_pages());
+        assert!(!MemoryLevel::InMemory.prefers_huge_pages());
+        assert!(!MemoryLevel::SyncToFile.prefers_huge_pages());
+
+        assert!(MemoryLevel::SyncToFile.requires_persistence());
+        assert!(!MemoryLevel::InMemory.requires_persistence());
+
+        assert!(MemoryLevel::InMemory.is_in_memory());
+        assert!(!MemoryLevel::SyncToFile.is_in_memory());
+    }
+
+    #[test]
+    fn test_huge_page_config() {
+        let config = MemoryConfigBuilder::default()
+            .memory_level(MemoryLevel::HugePagePreferred)
+            .huge_page_size(1024 * 1024)
+            .huge_page_fallback(false)
+            .huge_page_threshold(512 * 1024)
+            .build()
+            .unwrap();
+
+        assert!(config.should_use_huge_pages(1024 * 1024));
+        assert!(!config.should_use_huge_pages(256 * 1024));
+        assert_eq!(config.get_huge_page_size(), 1024 * 1024);
+        assert!(!config.is_huge_page_fallback_enabled());
+    }
+
+    #[test]
+    fn test_huge_page_alignment() {
+        let config = MemoryConfig::default();
+
+        assert_eq!(config.align_to_huge_page(1), DEFAULT_HUGE_PAGE_SIZE);
+        assert_eq!(
+            config.align_to_huge_page(DEFAULT_HUGE_PAGE_SIZE),
+            DEFAULT_HUGE_PAGE_SIZE
+        );
+        assert_eq!(
+            config.align_to_huge_page(DEFAULT_HUGE_PAGE_SIZE + 1),
+            DEFAULT_HUGE_PAGE_SIZE * 2
+        );
+    }
+
+    #[test]
+    fn test_invalid_huge_page_size() {
+        let config = MemoryConfigBuilder::default()
+            .huge_page_size(0)
+            .build();
+        assert!(config.is_err());
+
+        let config = MemoryConfigBuilder::default()
+            .huge_page_size(1000)
+            .build();
+        assert!(config.is_err());
+    }
+
+    #[test]
+    fn test_invalid_huge_page_threshold() {
+        let config = MemoryConfigBuilder::default()
+            .huge_page_threshold(0)
+            .build();
+        assert!(config.is_err());
     }
 }

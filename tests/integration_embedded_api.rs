@@ -316,7 +316,7 @@ async fn test_transaction_commit() {
 
     let txn = session.begin_transaction().expect("开始事务失败");
     assert!(txn.is_active());
-    txn.commit().await.expect("提交事务失败");
+    txn.commit().expect("提交事务失败");
 }
 
 #[tokio::test]
@@ -327,7 +327,7 @@ async fn test_transaction_rollback() {
 
     let txn = session.begin_transaction().expect("开始事务失败");
     assert!(txn.is_active());
-    txn.rollback().await.expect("回滚事务失败");
+    txn.rollback().expect("回滚事务失败");
 }
 
 #[test]
@@ -393,7 +393,6 @@ async fn test_session_with_transaction() {
 
     let result = session
         .with_transaction(|_txn| Ok::<_, graphdb::api::core::CoreError>(42))
-        .await
         .expect("事务执行失败");
 
     assert_eq!(result, 42);
@@ -405,13 +404,12 @@ async fn test_session_with_transaction_rollback_on_error() {
     let db = &test_db.db;
     let session = db.session().expect("创建会话失败");
 
-    let result = session
+    let result: Result<i32, graphdb::api::CoreError> = session
         .with_transaction(|_txn| {
             Err::<i32, _>(graphdb::api::core::CoreError::Internal(
                 "测试错误".to_string(),
             ))
-        })
-        .await;
+        });
 
     assert!(result.is_err());
 }

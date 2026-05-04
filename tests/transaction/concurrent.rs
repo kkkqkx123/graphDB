@@ -6,9 +6,6 @@
 //! - Concurrent read and write operations
 //! - Transaction isolation - repeatable read
 //! - Read committed data only
-//!
-//! Note: Tests use low concurrency (3-5 tasks) to verify correctness
-//! without high load stress testing.
 
 use super::common;
 
@@ -77,7 +74,6 @@ async fn test_concurrent_readonly_transactions() {
 
             manager_clone
                 .commit_transaction(txn_id)
-                .await
                 .expect("Failed to commit transaction");
 
             println!("Read-only transaction {} completed", i);
@@ -91,8 +87,8 @@ async fn test_concurrent_readonly_transactions() {
 }
 
 /// Test write transaction exclusivity using TransactionManager
-#[tokio::test]
-async fn test_write_transaction_exclusivity() {
+#[test]
+fn test_write_transaction_exclusivity() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn1 = manager
@@ -108,7 +104,6 @@ async fn test_write_transaction_exclusivity() {
 
     manager
         .commit_transaction(txn1)
-        .await
         .expect("Failed to commit transaction");
 }
 
@@ -126,7 +121,6 @@ async fn test_concurrent_read_write() {
             tokio::time::sleep(Duration::from_millis(50)).await;
             manager
                 .commit_transaction(txn_id)
-                .await
                 .expect("Failed to commit transaction");
         })
     };
@@ -142,12 +136,106 @@ async fn test_concurrent_read_write() {
                 .expect("Failed to begin read transaction");
             manager
                 .commit_transaction(txn_id)
-                .await
                 .expect("Failed to commit read transaction");
         })
     };
 
     let (r1, r2) = tokio::join!(write_handle, read_handle);
-    r1.expect("Write task failed");
-    r2.expect("Read task failed");
+    assert!(r1.is_ok() && r2.is_ok());
+}
+
+/// Test sequential write transactions
+#[test]
+fn test_sequential_write_transactions() {
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
+
+    for i in 0..5 {
+        let txn_id = manager
+            .begin_transaction(TransactionOptions::default())
+            .expect("Failed to begin transaction");
+
+        manager
+            .commit_transaction(txn_id)
+            .expect("Failed to commit transaction");
+
+        println!("Write transaction {} completed", i);
+    }
+}
+
+/// Test mixed read/write transactions
+#[test]
+fn test_mixed_read_write_transactions() {
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
+
+    // Write transaction
+    let write_txn = manager
+        .begin_transaction(TransactionOptions::default())
+        .expect("Failed to begin write transaction");
+    manager
+        .commit_transaction(write_txn)
+        .expect("Failed to commit write transaction");
+
+    // Read transaction
+    let read_txn = manager
+        .begin_transaction(TransactionOptions::new().read_only())
+        .expect("Failed to begin read transaction");
+    manager
+        .commit_transaction(read_txn)
+        .expect("Failed to commit read transaction");
+
+    // Another write transaction
+    let write_txn2 = manager
+        .begin_transaction(TransactionOptions::default())
+        .expect("Failed to begin second write transaction");
+    manager
+        .commit_transaction(write_txn2)
+        .expect("Failed to commit second write transaction");
+}
+
+/// Test transaction abort releases lock
+#[test]
+fn test_abort_releases_lock() {
+    let manager = TransactionManager::new(TransactionManagerConfig::default());
+
+    let txn1 = manager
+        .begin_transaction(TransactionOptions::default())
+        .expect("Failed to begin first transaction");
+
+    manager
+        .abort_transaction(txn1)
+        .expect("Failed to abort transaction");
+
+    let txn2 = manager
+        .begin_transaction(TransactionOptions::default())
+        .expect("Should be able to begin transaction after abort");
+
+    manager
+        .commit_transaction(txn2)
+        .expect("Failed to commit transaction");
+}
+
+/// Test multiple concurrent read transactions
+#[tokio::test]
+async fn test_multiple_concurrent_reads() {
+    let manager = Arc::new(TransactionManager::new(TransactionManagerConfig::default()));
+
+    let mut handles = vec![];
+
+    for _ in 0..5 {
+        let manager_clone = Arc::clone(&manager);
+        let handle = tokio::spawn(async move {
+            let txn_id = manager_clone
+                .begin_transaction(TransactionOptions::new().read_only())
+                .expect("Failed to begin transaction");
+
+            manager_clone
+                .commit_transaction(txn_id)
+                .expect("Failed to commit transaction");
+        });
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.await.expect("Task should complete");
+    }
 }

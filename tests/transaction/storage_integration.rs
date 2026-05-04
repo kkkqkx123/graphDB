@@ -427,7 +427,6 @@ async fn test_storage_concurrent_reads() {
 
             manager_clone
                 .commit_transaction(txn_id)
-                .await
                 .expect("Failed to commit transaction");
 
             println!("Read transaction {} completed", i);
@@ -449,8 +448,8 @@ async fn test_storage_concurrent_reads() {
 }
 
 /// Test transaction with storage error recovery
-#[tokio::test]
-async fn test_storage_error_recovery() {
+#[test]
+fn test_storage_error_recovery() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
@@ -458,17 +457,16 @@ async fn test_storage_error_recovery() {
         .expect("Failed to begin transaction");
 
     manager
-        .rollback_transaction(txn_id)
-        .expect("Failed to rollback transaction");
+        .abort_transaction(txn_id)
+        .expect("Failed to abort transaction");
 
     assert!(!manager.is_transaction_active(txn_id));
 
     let txn_id2 = manager
         .begin_transaction(TransactionOptions::default())
-        .expect("Failed to begin new transaction after rollback");
+        .expect("Failed to begin new transaction after abort");
 
     manager
         .commit_transaction(txn_id2)
-        .await
         .expect("Failed to commit second transaction");
 }

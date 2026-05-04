@@ -121,8 +121,8 @@ fn test_sync_storage_inner_access() {
     // Access inner storage
     let inner = sync_storage.inner();
 
-    // Verify we can access schema_manager from inner storage
-    let _schema_manager = inner.state().schema_manager.clone();
+    // Verify we can access graph from inner storage
+    let _graph = inner.state().graph.clone();
     // If we get here without panic, the access works
 }
 
@@ -134,12 +134,9 @@ fn test_storage_client_get_schema_manager() {
     let db_path = temp_dir.path().join("test.db");
     let storage = GraphStorage::new_with_path(db_path).expect("Failed to create storage");
 
-    // get_schema_manager should return Some
-    let schema_manager = storage.get_schema_manager();
-    assert!(
-        schema_manager.is_some(),
-        "GraphStorage should return Some schema_manager"
-    );
+    // get_schema_manager should return Arc<InMemorySchemaManager>
+    let _schema_manager = storage.get_schema_manager();
+    // If we get here without panic, the access works
 
     // Test with SyncStorage<GraphStorage>
     let sync_storage = SyncStorage::new(storage);

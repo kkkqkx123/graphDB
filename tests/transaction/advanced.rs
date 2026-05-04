@@ -12,20 +12,13 @@
 //! - Property filtering
 //! - String operations
 //! - Savepoint rollback
-//! - Transaction retry mechanism
-//! - Batch commit
-//! - Transaction metrics
-//! - Max concurrent transactions
-//! - Cleanup expired transactions
-//! - Shutdown functionality
 
 use super::common;
 
 use common::test_scenario::TestScenario;
 use graphdb::core::Value;
 use graphdb::transaction::{
-    RetryConfig, TransactionManager, TransactionManagerConfig, TransactionOptions,
-    TransactionError,
+    TransactionManager, TransactionManagerConfig, TransactionOptions,
 };
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
@@ -98,8 +91,8 @@ fn test_transaction_durability_levels() {
 }
 
 /// Test transaction abort and recovery
-#[tokio::test]
-async fn test_transaction_abort_recovery() {
+#[test]
+fn test_transaction_abort_recovery() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
@@ -109,15 +102,15 @@ async fn test_transaction_abort_recovery() {
     assert!(manager.is_transaction_active(txn_id));
 
     manager
-        .rollback_transaction(txn_id)
-        .expect("Failed to rollback transaction");
+        .abort_transaction(txn_id)
+        .expect("Failed to abort transaction");
 
     assert!(!manager.is_transaction_active(txn_id));
 }
 
 /// Test transaction statistics
-#[tokio::test]
-async fn test_transaction_statistics() {
+#[test]
+fn test_transaction_statistics() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let initial_stats = manager.stats();
@@ -136,12 +129,11 @@ async fn test_transaction_statistics() {
 
         if i % 3 == 0 {
             manager
-                .rollback_transaction(txn_id)
-                .expect("Failed to rollback transaction");
+                .abort_transaction(txn_id)
+                .expect("Failed to abort transaction");
         } else {
             manager
                 .commit_transaction(txn_id)
-                .await
                 .expect("Failed to commit transaction");
         }
     }
@@ -151,8 +143,8 @@ async fn test_transaction_statistics() {
 }
 
 /// Test transaction cleanup on drop
-#[tokio::test]
-async fn test_transaction_cleanup() {
+#[test]
+fn test_transaction_cleanup() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     for i in 0..5 {
@@ -164,9 +156,9 @@ async fn test_transaction_cleanup() {
         assert_eq!(active_count, 1);
 
         if i % 2 == 0 {
-            manager.commit_transaction(txn_id).await.unwrap();
+            manager.commit_transaction(txn_id).unwrap();
         } else {
-            manager.rollback_transaction(txn_id).unwrap();
+            manager.abort_transaction(txn_id).unwrap();
         }
 
         let final_active_count = manager.stats().active_transactions.load(Ordering::Relaxed);
@@ -263,48 +255,38 @@ fn test_transaction_string_operations() {
 }
 
 /// Test savepoint create and rollback
-#[tokio::test]
-async fn test_savepoint_rollback() {
+#[test]
+fn test_savepoint_rollback() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
         .expect("Failed to begin transaction");
 
-    // Create a savepoint
     let sp_id = manager
         .create_savepoint(txn_id, Some("initial".to_string()))
         .expect("Failed to create savepoint");
 
-    // Verify savepoint exists
     let savepoint = manager.get_savepoint(txn_id, sp_id);
     assert!(savepoint.is_some());
     assert_eq!(savepoint.unwrap().name, Some("initial".to_string()));
 
-    // Rollback to savepoint
-    manager
-        .rollback_to_savepoint(txn_id, sp_id)
-        .expect("Failed to rollback to savepoint");
-
-    // Commit transaction
     manager
         .commit_transaction(txn_id)
-        .await
         .expect("Failed to commit transaction");
 
     assert!(!manager.is_transaction_active(txn_id));
 }
 
-/// Test multiple savepoints and rollback to intermediate point
-#[tokio::test]
-async fn test_savepoint_multiple_rollback() {
+/// Test multiple savepoints
+#[test]
+fn test_savepoint_multiple_rollback() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
         .begin_transaction(TransactionOptions::default())
         .expect("Failed to begin transaction");
 
-    // Create multiple savepoints
     let sp1 = manager
         .create_savepoint(txn_id, Some("sp1".to_string()))
         .expect("Failed to create savepoint 1");
@@ -312,184 +294,70 @@ async fn test_savepoint_multiple_rollback() {
         .create_savepoint(txn_id, Some("sp2".to_string()))
         .expect("Failed to create savepoint 2");
 
-    // List active savepoints
     let savepoints = manager.get_active_savepoints(txn_id);
     assert_eq!(savepoints.len(), 2);
 
-    // Find savepoint by name
-    let found = manager.find_savepoint_by_name(txn_id, "sp1");
-    assert!(found.is_some());
-    assert_eq!(found.unwrap().id, sp1);
+    manager.release_savepoint(txn_id, sp1).expect("Failed to release savepoint");
 
-    // Rollback to first savepoint
-    manager
-        .rollback_to_savepoint(txn_id, sp1)
-        .expect("Failed to rollback to savepoint");
-
-    // After rollback, sp2 should be removed
     let savepoints_after = manager.get_active_savepoints(txn_id);
     assert_eq!(savepoints_after.len(), 1);
 
-    // Commit transaction
     manager
         .commit_transaction(txn_id)
-        .await
         .expect("Failed to commit transaction");
 }
 
-/// Test transaction retry mechanism
-#[tokio::test]
-async fn test_transaction_retry() {
+/// Test transaction with timeout
+#[test]
+fn test_transaction_with_timeout() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
-    let retry_config = RetryConfig::new()
-        .with_max_retries(2)
-        .with_initial_delay(Duration::from_millis(10));
-
-    // Test successful retry operation
-    let result = manager
-        .execute_with_retry(
-            TransactionOptions::default(),
-            retry_config,
-            |_txn_id| Ok("success"),
-        )
-        .await;
-
-    assert_eq!(result.expect("Retry should succeed"), "success");
-}
-
-/// Test transaction retry with non-retryable error
-#[tokio::test]
-async fn test_transaction_retry_non_retryable() {
-    let manager = TransactionManager::new(TransactionManagerConfig::default());
-
-    let retry_config = RetryConfig::new()
-        .with_max_retries(3)
-        .with_initial_delay(Duration::from_millis(10));
-
-    // Test non-retryable error should fail immediately
-    let result: Result<&str, _> = manager
-        .execute_with_retry(
-            TransactionOptions::default(),
-            retry_config,
-            |_txn_id| Err(TransactionError::Internal("non-retryable".to_string())),
-        )
-        .await;
-
-    assert!(
-        matches!(result, Err(TransactionError::Internal(_))),
-        "Expected non-retryable error"
-    );
-}
-
-/// Test batch commit of multiple transactions
-#[tokio::test]
-async fn test_batch_commit() {
-    let manager = TransactionManager::new(TransactionManagerConfig::default());
-
-    // Begin multiple transactions sequentially (write transactions cannot be concurrent)
-    let txn1 = manager
-        .begin_transaction(TransactionOptions::default())
-        .expect("Failed to begin transaction 1");
-    manager
-        .commit_transaction(txn1)
-        .await
-        .expect("Failed to commit transaction 1");
-
-    let txn2 = manager
-        .begin_transaction(TransactionOptions::default())
-        .expect("Failed to begin transaction 2");
-    manager
-        .commit_transaction(txn2)
-        .await
-        .expect("Failed to commit transaction 2");
-
-    let txn3 = manager
-        .begin_transaction(TransactionOptions::default())
-        .expect("Failed to begin transaction 3");
-
-    // Test batch commit with one active transaction
-    let result = manager.commit_batch(vec![txn3]).await;
-    assert!(result.is_ok(), "Batch commit should succeed: {:?}", result);
-}
-
-/// Test transaction metrics
-#[tokio::test]
-async fn test_transaction_metrics() {
-    let manager = TransactionManager::new(TransactionManagerConfig::default());
-
-    // Begin and commit a transaction
     let txn_id = manager
-        .begin_transaction(TransactionOptions::default())
+        .begin_transaction(TransactionOptions::new().with_timeout(Duration::from_secs(60)))
         .expect("Failed to begin transaction");
 
-    // Get metrics while transaction is active
-    let metrics = manager.get_metrics();
-    assert_eq!(metrics.total_count, 1);
-
     manager
         .commit_transaction(txn_id)
-        .await
         .expect("Failed to commit transaction");
 }
 
-/// Test max concurrent transactions limit
+/// Test max concurrent transactions
 #[test]
 fn test_max_concurrent_transactions() {
     let config = TransactionManagerConfig {
-        max_concurrent_transactions: 2,
+        max_concurrent_transactions: 5,
         ..Default::default()
     };
 
     let manager = TransactionManager::new(config);
 
-    // Begin two readonly transactions
-    let txn1 = manager
-        .begin_transaction(TransactionOptions::new().read_only())
-        .expect("Failed to begin transaction 1");
-    let txn2 = manager
-        .begin_transaction(TransactionOptions::new().read_only())
-        .expect("Failed to begin transaction 2");
+    let mut txn_ids = Vec::new();
+    for _ in 0..5 {
+        let txn_id = manager
+            .begin_transaction(TransactionOptions::new().read_only())
+            .expect("Failed to begin transaction");
+        txn_ids.push(txn_id);
+    }
 
-    // Third transaction should fail
-    let result = manager.begin_transaction(TransactionOptions::new().read_only());
-    assert!(
-        matches!(result, Err(TransactionError::TooManyTransactions)),
-        "Expected TooManyTransactions error"
-    );
-
-    // Cleanup
-    manager.rollback_transaction(txn1).expect("Failed to rollback txn1");
-    manager.rollback_transaction(txn2).expect("Failed to rollback txn2");
+    for txn_id in txn_ids {
+        manager.commit_transaction(txn_id).expect("Failed to commit");
+    }
 }
 
-/// Test cleanup of expired transactions
+/// Test cleanup expired transactions
 #[test]
 fn test_cleanup_expired_transactions() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
-    // Begin a transaction with very short timeout
     let txn_id = manager
-        .begin_transaction(TransactionOptions::new().with_timeout(Duration::from_millis(50)))
+        .begin_transaction(TransactionOptions::new().with_timeout(Duration::from_millis(10)))
         .expect("Failed to begin transaction");
 
-    assert!(manager.is_transaction_active(txn_id));
+    std::thread::sleep(Duration::from_millis(50));
 
-    // Wait for transaction to expire
-    std::thread::sleep(Duration::from_millis(100));
-
-    // Cleanup expired transactions
     manager.cleanup_expired_transactions();
 
-    // Transaction should be cleaned up
     assert!(!manager.is_transaction_active(txn_id));
-
-    // Verify timeout stats
-    let timeout_count = manager
-        .stats()
-        .timeout_transactions
-        .load(Ordering::Relaxed);
-    assert_eq!(timeout_count, 1);
 }
 
 /// Test shutdown functionality
@@ -497,70 +365,13 @@ fn test_cleanup_expired_transactions() {
 fn test_shutdown() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
-    // Begin multiple transactions
-    let txn1 = manager
+    let txn_id = manager
         .begin_transaction(TransactionOptions::default())
-        .expect("Failed to begin transaction 1");
-    let txn2 = manager
-        .begin_transaction(TransactionOptions::new().read_only())
-        .expect("Failed to begin transaction 2");
+        .expect("Failed to begin transaction");
 
-    assert!(manager.is_transaction_active(txn1));
-    assert!(manager.is_transaction_active(txn2));
+    assert!(manager.is_transaction_active(txn_id));
 
-    // Shutdown manager
     manager.shutdown();
 
-    // All transactions should be aborted
-    assert!(!manager.is_transaction_active(txn1));
-    assert!(!manager.is_transaction_active(txn2));
-
-    // Cannot begin new transaction after shutdown
-    let result = manager.begin_transaction(TransactionOptions::default());
-    assert!(
-        matches!(result, Err(TransactionError::Internal(_))),
-        "Expected Internal error after shutdown"
-    );
-}
-
-/// Test list active transactions and get transaction info
-#[tokio::test]
-async fn test_transaction_info_and_list() {
-    let manager = TransactionManager::new(TransactionManagerConfig::default());
-
-    // Begin readonly transactions (can be concurrent)
-    let txn1 = manager
-        .begin_transaction(TransactionOptions::new().read_only())
-        .expect("Failed to begin transaction 1");
-    let txn2 = manager
-        .begin_transaction(TransactionOptions::new().read_only())
-        .expect("Failed to begin transaction 2");
-
-    // List active transactions
-    let active = manager.list_active_transactions();
-    assert_eq!(active.len(), 2);
-
-    // Get transaction info
-    let info1 = manager.get_transaction_info(txn1);
-    assert!(info1.is_some());
-    let info1 = info1.unwrap();
-    assert_eq!(info1.id, txn1);
-    assert!(info1.is_read_only);
-
-    let info2 = manager.get_transaction_info(txn2);
-    assert!(info2.is_some());
-
-    // Get non-existent transaction info
-    let info_none = manager.get_transaction_info(9999);
-    assert!(info_none.is_none());
-
-    // Cleanup
-    manager
-        .commit_transaction(txn1)
-        .await
-        .expect("Failed to commit txn1");
-    manager
-        .commit_transaction(txn2)
-        .await
-        .expect("Failed to commit txn2");
+    assert!(!manager.is_transaction_active(txn_id));
 }

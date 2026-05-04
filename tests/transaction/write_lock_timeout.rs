@@ -33,8 +33,8 @@ fn test_write_lock_timeout_config_custom() {
 }
 
 /// Test that write transaction can be acquired when no other write is active
-#[tokio::test]
-async fn test_write_lock_acquired_successfully() {
+#[test]
+fn test_write_lock_acquired_successfully() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
@@ -43,45 +43,34 @@ async fn test_write_lock_acquired_successfully() {
 
     manager
         .commit_transaction(txn_id)
-        .await
         .expect("Should commit successfully");
 }
 
 /// Test that a second write transaction is rejected with WriteTransactionConflict
 /// when another write transaction is active (not blocking indefinitely)
-#[tokio::test]
-async fn test_write_conflict_does_not_block_indefinitely() {
+#[test]
+fn test_write_conflict_does_not_block_indefinitely() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn1 = manager
         .begin_transaction(TransactionOptions::default())
         .expect("Should begin first write transaction");
 
-    let result = timeout(Duration::from_secs(5), async {
-        manager.begin_transaction(TransactionOptions::default())
-    })
-    .await;
+    let result = manager.begin_transaction(TransactionOptions::default());
 
     assert!(
-        result.is_ok(),
-        "begin_transaction should return quickly (not block indefinitely)"
-    );
-
-    let inner_result = result.expect("Should have result");
-    assert!(
-        inner_result.is_err(),
+        result.is_err(),
         "Second write transaction should fail with WriteTransactionConflict"
     );
 
     manager
         .commit_transaction(txn1)
-        .await
         .expect("Should commit first transaction");
 }
 
 /// Test that after committing a write transaction, a new write can be acquired
-#[tokio::test]
-async fn test_write_lock_released_after_commit() {
+#[test]
+fn test_write_lock_released_after_commit() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn1 = manager
@@ -90,7 +79,6 @@ async fn test_write_lock_released_after_commit() {
 
     manager
         .commit_transaction(txn1)
-        .await
         .expect("Should commit first transaction");
 
     let txn2 = manager
@@ -99,7 +87,6 @@ async fn test_write_lock_released_after_commit() {
 
     manager
         .commit_transaction(txn2)
-        .await
         .expect("Should commit second transaction");
 }
 
@@ -113,7 +100,7 @@ fn test_write_lock_released_after_rollback() {
         .expect("Should begin first write transaction");
 
     manager
-        .rollback_transaction(txn1)
+        .abort_transaction(txn1)
         .expect("Should rollback first transaction");
 
     let txn2 = manager
@@ -121,7 +108,7 @@ fn test_write_lock_released_after_rollback() {
         .expect("Should acquire write lock after rollback");
 
     manager
-        .rollback_transaction(txn2)
+        .abort_transaction(txn2)
         .expect("Should rollback second transaction");
 }
 
@@ -152,7 +139,6 @@ async fn test_cleanup_expired_transactions_releases_write_lock() {
 
     manager
         .commit_transaction(txn2)
-        .await
         .expect("Should commit new transaction");
 }
 
@@ -182,34 +168,25 @@ async fn test_cleanup_multiple_expired_transactions() {
     assert!(!manager.is_transaction_active(read2), "Read txn 2 should be cleaned up");
 
     manager
-        .rollback_transaction(write_txn)
+        .abort_transaction(write_txn)
         .expect("Should rollback write transaction");
 }
 
 /// Test that sequential write transactions complete within reasonable time
 /// This directly addresses the e2e test timeout issue
-#[tokio::test]
-async fn test_sequential_writes_complete_quickly() {
+#[test]
+fn test_sequential_writes_complete_quickly() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
-    let result = timeout(Duration::from_secs(30), async {
-        for i in 0..10 {
-            let txn_id = manager
-                .begin_transaction(TransactionOptions::default())
-                .unwrap_or_else(|_| panic!("Should begin transaction {}", i));
+    for i in 0..10 {
+        let txn_id = manager
+            .begin_transaction(TransactionOptions::default())
+            .unwrap_or_else(|_| panic!("Should begin transaction {}", i));
 
-            manager
-                .commit_transaction(txn_id)
-                .await
-                .unwrap_or_else(|_| panic!("Should commit transaction {}", i));
-        }
-    })
-    .await;
-
-    assert!(
-        result.is_ok(),
-        "10 sequential write transactions should complete within 30 seconds"
-    );
+        manager
+            .commit_transaction(txn_id)
+            .unwrap_or_else(|_| panic!("Should commit transaction {}", i));
+    }
 }
 
 /// Test that read-only transactions can run concurrently with each other
@@ -227,7 +204,6 @@ async fn test_concurrent_read_only_transactions() {
                     .expect("Should begin read transaction");
                 sleep(Duration::from_millis(10)).await;
                 mgr.commit_transaction(txn_id)
-                    .await
                     .expect("Should commit read transaction");
             }));
         }
@@ -245,8 +221,8 @@ async fn test_concurrent_read_only_transactions() {
 
 /// Test that write transactions with short write_lock_timeout fail quickly
 /// when another write is active
-#[tokio::test]
-async fn test_short_write_lock_timeout_fails_quickly() {
+#[test]
+fn test_short_write_lock_timeout_fails_quickly() {
     let config = TransactionManagerConfig {
         write_lock_timeout: Duration::from_millis(100),
         ..Default::default()
@@ -273,8 +249,8 @@ async fn test_short_write_lock_timeout_fails_quickly() {
 
 /// Test that the transaction manager properly handles the lifecycle:
 /// begin -> commit -> begin -> rollback -> begin -> commit
-#[tokio::test]
-async fn test_transaction_lifecycle_after_errors() {
+#[test]
+fn test_transaction_lifecycle_after_errors() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // begin -> commit
@@ -283,7 +259,6 @@ async fn test_transaction_lifecycle_after_errors() {
         .expect("Should begin txn1");
     manager
         .commit_transaction(txn1)
-        .await
         .expect("Should commit txn1");
 
     // begin -> rollback
@@ -291,7 +266,7 @@ async fn test_transaction_lifecycle_after_errors() {
         .begin_transaction(TransactionOptions::default())
         .expect("Should begin txn2");
     manager
-        .rollback_transaction(txn2)
+        .abort_transaction(txn2)
         .expect("Should rollback txn2");
 
     // begin -> commit (should still work after rollback)
@@ -300,13 +275,12 @@ async fn test_transaction_lifecycle_after_errors() {
         .expect("Should begin txn3 after rollback");
     manager
         .commit_transaction(txn3)
-        .await
         .expect("Should commit txn3");
 }
 
 /// Test that cleanup_expired_transactions doesn't affect active transactions
-#[tokio::test]
-async fn test_cleanup_does_not_affect_active_transactions() {
+#[test]
+fn test_cleanup_does_not_affect_active_transactions() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let txn_id = manager
@@ -322,13 +296,12 @@ async fn test_cleanup_does_not_affect_active_transactions() {
 
     manager
         .commit_transaction(txn_id)
-        .await
         .expect("Should commit active transaction");
 }
 
 /// Test rapid begin/commit cycles with cleanup between each
-#[tokio::test]
-async fn test_rapid_cycles_with_cleanup() {
+#[test]
+fn test_rapid_cycles_with_cleanup() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     for _ in 0..20 {
@@ -337,7 +310,6 @@ async fn test_rapid_cycles_with_cleanup() {
             .expect("Should begin transaction");
         manager
             .commit_transaction(txn_id)
-            .await
             .expect("Should commit transaction");
         manager.cleanup_expired_transactions();
     }

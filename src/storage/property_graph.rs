@@ -22,6 +22,7 @@ use super::cache::{
 };
 use super::edge::{EdgeDirection, EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, EdgeTable, PropertyDef as EdgePropertyDef};
 use super::memory::{MemoryConfig, MemoryTracker, SharedMemoryTracker};
+use super::persistence::{CompressionType, DirtyPageTracker, FlushConfig, FlushManager, PageId, TableType as PersistenceTableType};
 use super::vertex::{LabelId, PropertyDef as VertexPropertyDef, Timestamp as StorageTimestamp, VertexId, VertexRecord, VertexSchema, VertexTable};
 use super::vertex::vertex_table::VertexIterator;
 
@@ -35,6 +36,10 @@ pub struct PropertyGraphConfig {
     pub enable_cache: bool,
     pub cache_memory: usize,
     pub memory_config: MemoryConfig,
+    pub flush_threshold: usize,
+    pub flush_interval_secs: u64,
+    pub compression: CompressionType,
+    pub enable_incremental_flush: bool,
 }
 
 impl Default for PropertyGraphConfig {
@@ -46,6 +51,10 @@ impl Default for PropertyGraphConfig {
             enable_cache: true,
             cache_memory: 256 * 1024 * 1024,
             memory_config: MemoryConfig::default(),
+            flush_threshold: 1000,
+            flush_interval_secs: 60,
+            compression: CompressionType::Zstd { level: 3 },
+            enable_incremental_flush: true,
         }
     }
 }
@@ -59,6 +68,17 @@ impl PropertyGraphConfig {
 
     pub fn with_memory_config(mut self, config: MemoryConfig) -> Self {
         self.memory_config = config;
+        self
+    }
+
+    pub fn with_flush_config(mut self, threshold: usize, interval_secs: u64) -> Self {
+        self.flush_threshold = threshold;
+        self.flush_interval_secs = interval_secs;
+        self
+    }
+
+    pub fn with_compression(mut self, compression: CompressionType) -> Self {
+        self.compression = compression;
         self
     }
 }
@@ -77,6 +97,8 @@ pub struct PropertyGraph {
     cache: Option<SharedBlockCache>,
     record_cache: Option<SharedRecordCache>,
     memory_tracker: Option<SharedMemoryTracker>,
+    dirty_tracker: Option<Arc<DirtyPageTracker>>,
+    flush_manager: Option<Arc<FlushManager>>,
 }
 
 impl std::fmt::Debug for PropertyGraph {
@@ -124,6 +146,28 @@ impl PropertyGraph {
             None
         };
 
+        let dirty_tracker = if config.enable_incremental_flush {
+            Some(Arc::new(DirtyPageTracker::new(
+                config.flush_threshold,
+                std::time::Duration::from_secs(config.flush_interval_secs),
+            )))
+        } else {
+            None
+        };
+
+        let flush_manager = if config.enable_incremental_flush {
+            let flush_config = FlushConfig {
+                flush_threshold: config.flush_threshold,
+                flush_interval: std::time::Duration::from_secs(config.flush_interval_secs),
+                compression: config.compression.clone(),
+                background_flush_enabled: true,
+                work_dir: config.work_dir.clone(),
+            };
+            Some(Arc::new(FlushManager::new(flush_config)))
+        } else {
+            None
+        };
+
         Self {
             vertex_tables: HashMap::new(),
             edge_tables: HashMap::new(),
@@ -138,6 +182,8 @@ impl PropertyGraph {
             cache,
             record_cache,
             memory_tracker: Some(memory_tracker),
+            dirty_tracker,
+            flush_manager,
         }
     }
 
@@ -186,6 +232,114 @@ impl PropertyGraph {
         }
         if let Some(ref record_cache) = self.record_cache {
             record_cache.clear();
+        }
+    }
+
+    pub fn dirty_tracker(&self) -> Option<&Arc<DirtyPageTracker>> {
+        self.dirty_tracker.as_ref()
+    }
+
+    pub fn flush_manager(&self) -> Option<&Arc<FlushManager>> {
+        self.flush_manager.as_ref()
+    }
+
+    pub fn get_dirty_page_count(&self) -> usize {
+        self.dirty_tracker.as_ref().map(|t| t.get_dirty_page_count()).unwrap_or(0)
+    }
+
+    pub fn should_flush(&self) -> bool {
+        self.dirty_tracker.as_ref().map(|t| t.should_flush()).unwrap_or(false)
+    }
+
+    fn mark_vertex_dirty(&self, label_id: LabelId) {
+        if let Some(ref tracker) = self.dirty_tracker {
+            let page_id = PageId {
+                table_type: PersistenceTableType::Vertex,
+                label_id,
+                block_number: 0,
+            };
+            tracker.mark_dirty(page_id);
+        }
+    }
+
+    fn mark_edge_dirty(&self, src_label: LabelId, dst_label: LabelId, edge_label: LabelId) {
+        if let Some(ref tracker) = self.dirty_tracker {
+            let page_id = PageId {
+                table_type: PersistenceTableType::Edge,
+                label_id: edge_label,
+                block_number: ((src_label as u64) << 32) | (dst_label as u64),
+            };
+            tracker.mark_dirty(page_id);
+        }
+    }
+
+    pub fn flush_dirty_pages(&self) -> StorageResult<Vec<PageId>> {
+        if let Some(ref tracker) = self.dirty_tracker {
+            let pages = tracker.flush_and_reset();
+            if !pages.is_empty() {
+                self.flush_pages(&pages)?;
+            }
+            Ok(pages)
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    fn flush_pages(&self, pages: &[PageId]) -> StorageResult<()> {
+        use std::fs;
+        
+        let data_dir = self.config.work_dir.join("data");
+        fs::create_dir_all(&data_dir)
+            .map_err(|e| StorageError::IOError(e.to_string()))?;
+
+        for page_id in pages {
+            match page_id.table_type {
+                PersistenceTableType::Vertex => {
+                    let vertex_dir = data_dir.join("vertices");
+                    fs::create_dir_all(&vertex_dir)
+                        .map_err(|e| StorageError::IOError(e.to_string()))?;
+                    
+                    let table_dir = vertex_dir.join(format!("label_{}", page_id.label_id));
+                    if let Some(table) = self.vertex_tables.get(&page_id.label_id) {
+                        table.flush(&table_dir)?;
+                    }
+                }
+                PersistenceTableType::Edge => {
+                    let edge_dir = data_dir.join("edges");
+                    fs::create_dir_all(&edge_dir)
+                        .map_err(|e| StorageError::IOError(e.to_string()))?;
+                    
+                    let src_label = (page_id.block_number >> 32) as LabelId;
+                    let dst_label = page_id.block_number as LabelId;
+                    let key = (src_label, dst_label, page_id.label_id);
+                    let table_dir = edge_dir.join(format!("{}_{}_{}", src_label, dst_label, page_id.label_id));
+                    if let Some(table) = self.edge_tables.get(&key) {
+                        table.flush(&table_dir)?;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(ref wal_writer) = self.wal_writer {
+            let mut writer = wal_writer.write();
+            writer.sync()
+                .map_err(|e| StorageError::WalError(format!("Failed to sync WAL: {:?}", e)))?;
+        }
+
+        Ok(())
+    }
+
+    pub fn start_background_flush(&self) -> StorageResult<()> {
+        if let Some(ref flush_manager) = self.flush_manager {
+            flush_manager.start_background_flush()?;
+        }
+        Ok(())
+    }
+
+    pub fn stop_background_flush(&self) {
+        if let Some(ref flush_manager) = self.flush_manager {
+            flush_manager.stop_background_flush();
         }
     }
 
@@ -362,7 +516,11 @@ impl PropertyGraph {
             .get_mut(&label)
             .ok_or_else(|| StorageError::LabelNotFound(format!("vertex label {}", label)))?;
 
-        table.insert(external_id, properties, ts)
+        let result = table.insert(external_id, properties, ts);
+        if result.is_ok() {
+            self.mark_vertex_dirty(label);
+        }
+        result
     }
 
     pub fn get_vertex(
@@ -462,7 +620,11 @@ impl PropertyGraph {
             }
         }
 
-        table.delete(external_id, ts)
+        let result = table.delete(external_id, ts);
+        if result.is_ok() {
+            self.mark_vertex_dirty(label);
+        }
+        result
     }
 
     pub fn update_vertex_property(
@@ -521,7 +683,11 @@ impl PropertyGraph {
             .get_mut(&key)
             .ok_or_else(|| StorageError::LabelNotFound(format!("edge label {}", edge_label)))?;
 
-        edge_table.insert_edge(src_internal as VertexId, dst_internal as VertexId, properties, ts)
+        let result = edge_table.insert_edge(src_internal as VertexId, dst_internal as VertexId, properties, ts);
+        if result.is_ok() {
+            self.mark_edge_dirty(src_label, dst_label, edge_label);
+        }
+        result
     }
 
     pub fn get_edge(
@@ -597,7 +763,11 @@ impl PropertyGraph {
             }
         }
 
-        edge_table.delete_edge(src_internal as VertexId, dst_internal as VertexId, ts)
+        let result = edge_table.delete_edge(src_internal as VertexId, dst_internal as VertexId, ts);
+        if result.is_ok() {
+            self.mark_edge_dirty(src_label, dst_label, edge_label);
+        }
+        result
     }
 
     pub fn out_edges(

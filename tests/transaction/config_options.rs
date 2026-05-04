@@ -165,8 +165,8 @@ fn test_isolation_level() {
 }
 
 /// Test TransactionManager with custom config
-#[tokio::test]
-async fn test_manager_with_custom_config() {
+#[test]
+fn test_manager_with_custom_config() {
     let config = TransactionManagerConfig {
         default_timeout: Duration::from_secs(60),
         max_concurrent_transactions: 100,
@@ -189,13 +189,12 @@ async fn test_manager_with_custom_config() {
 
     manager
         .commit_transaction(txn_id)
-        .await
         .expect("Failed to commit transaction");
 }
 
 /// Test transaction with various timeout combinations
-#[tokio::test]
-async fn test_transaction_timeout_combinations() {
+#[test]
+fn test_transaction_timeout_combinations() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Test with only transaction timeout
@@ -208,7 +207,6 @@ async fn test_transaction_timeout_combinations() {
     assert!(!context1.is_expired());
     manager
         .commit_transaction(txn1)
-        .await
         .expect("Failed to commit transaction 1");
 
     // Test with all timeouts set
@@ -229,13 +227,12 @@ async fn test_transaction_timeout_combinations() {
 
     manager
         .commit_transaction(txn2)
-        .await
         .expect("Failed to commit transaction 2");
 }
 
 /// Test read-only transaction options
-#[tokio::test]
-async fn test_readonly_transaction_options() {
+#[test]
+fn test_readonly_transaction_options() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Test read-only with various options
@@ -254,13 +251,12 @@ async fn test_readonly_transaction_options() {
 
     manager
         .commit_transaction(txn_id)
-        .await
         .expect("Failed to commit read-only transaction");
 }
 
 /// Test high-performance write options
-#[tokio::test]
-async fn test_high_performance_write_options() {
+#[test]
+fn test_high_performance_write_options() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Test with None durability for high performance
@@ -275,13 +271,12 @@ async fn test_high_performance_write_options() {
 
     manager
         .commit_transaction(txn_id)
-        .await
         .expect("Failed to commit transaction");
 }
 
 /// Test repeatable read isolation options
-#[tokio::test]
-async fn test_repeatable_read_options() {
+#[test]
+fn test_repeatable_read_options() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let options =
@@ -296,7 +291,6 @@ async fn test_repeatable_read_options() {
 
     manager
         .commit_transaction(txn_id)
-        .await
         .expect("Failed to commit transaction");
 }
 
@@ -398,13 +392,13 @@ async fn test_zero_timeout() {
     assert!(context.is_expired());
 
     // Commit should fail with timeout
-    let result = manager.commit_transaction(txn_id).await;
+    let result = manager.commit_transaction(txn_id);
     assert!(result.is_err());
 }
 
 /// Test edge case: very long timeout
-#[tokio::test]
-async fn test_very_long_timeout() {
+#[test]
+fn test_very_long_timeout() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     // Very long timeout (1 hour)
@@ -418,6 +412,5 @@ async fn test_very_long_timeout() {
 
     manager
         .commit_transaction(txn_id)
-        .await
         .expect("Failed to commit transaction");
 }

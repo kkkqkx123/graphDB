@@ -416,10 +416,8 @@ async fn test_mixed_api_transaction_consistency() {
 
     assert!(result.is_ok(), "Mixed API operation should not timeout");
 
-    // Commit via direct API
     manager
         .commit_transaction(txn_id)
-        .await
         .expect("Failed to commit transaction");
 }
 
