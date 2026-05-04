@@ -91,7 +91,7 @@ impl TransactionCleaner {
 
         let txn_id = context.id;
         if let Some(ref sync_manager) = self.sync_manager {
-            if let Err(e) = futures::executor::block_on(sync_manager.rollback_transaction(txn_id)) {
+            if let Err(e) = sync_manager.rollback_transaction_sync(txn_id) {
                 log::warn!(
                     "Index sync rollback failed for transaction {:?}: {}",
                     txn_id,
@@ -99,9 +99,6 @@ impl TransactionCleaner {
                 );
             }
         }
-
-        // Note: The new transaction architecture doesn't use storage write transactions directly.
-        // Cleanup is handled by the transaction context itself.
 
         self.stats.decrement_active();
         self.stats.increment_aborted();
@@ -137,7 +134,7 @@ impl TransactionCleaner {
 
         let txn_id = context.id;
         if let Some(ref sync_manager) = self.sync_manager {
-            if let Err(e) = futures::executor::block_on(sync_manager.rollback_transaction(txn_id)) {
+            if let Err(e) = sync_manager.rollback_transaction_sync(txn_id) {
                 log::warn!(
                     "Index sync rollback failed for transaction {:?}: {}",
                     txn_id,
@@ -145,8 +142,6 @@ impl TransactionCleaner {
                 );
             }
         }
-
-        // Note: The transaction architecture handles cleanup via the transaction context directly.
 
         self.stats.decrement_active();
         self.stats.increment_aborted();

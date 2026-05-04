@@ -2,12 +2,19 @@
 //!
 //! Provides timestamp management for MVCC (Multi-Version Concurrency Control)
 //! based transaction isolation.
+//!
+//! ## Concurrency Model
+//!
+//! This module uses `parking_lot::Condvar` for efficient waiting instead of
+//! spin-wait loops. This reduces CPU usage during contention and provides
+//! proper timeout support.
 
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicI32, AtomicU32, Ordering};
-use std::sync::{Arc, Mutex, RwLock};
-use std::thread;
-use std::time::Duration;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+use parking_lot::{Condvar, Mutex, RwLock};
 
 use super::wal::types::Timestamp;
 
@@ -52,30 +59,27 @@ impl BitSet {
     fn set(&self, index: u32) {
         let word = index as usize / 64;
         let bit = index as usize % 64;
-        if let Ok(mut data) = self.data.write() {
-            if word < data.len() {
-                data[word] |= 1u64 << bit;
-            }
+        let mut data = self.data.write();
+        if word < data.len() {
+            data[word] |= 1u64 << bit;
         }
     }
 
     fn reset(&self, index: u32) {
         let word = index as usize / 64;
         let bit = index as usize % 64;
-        if let Ok(mut data) = self.data.write() {
-            if word < data.len() {
-                data[word] &= !(1u64 << bit);
-            }
+        let mut data = self.data.write();
+        if word < data.len() {
+            data[word] &= !(1u64 << bit);
         }
     }
 
     fn test(&self, index: u32) -> bool {
         let word = index as usize / 64;
         let bit = index as usize % 64;
-        if let Ok(data) = self.data.read() {
-            if word < data.len() {
-                return (data[word] & (1u64 << bit)) != 0;
-            }
+        let data = self.data.read();
+        if word < data.len() {
+            return (data[word] & (1u64 << bit)) != 0;
         }
         false
     }
@@ -83,24 +87,22 @@ impl BitSet {
     fn atomic_reset_with_ret(&self, index: u32) -> bool {
         let word = index as usize / 64;
         let bit = index as usize % 64;
-        if let Ok(mut data) = self.data.write() {
-            if word < data.len() {
-                let mask = 1u64 << bit;
-                let was_set = (data[word] & mask) != 0;
-                if was_set {
-                    data[word] &= !mask;
-                    return true;
-                }
+        let mut data = self.data.write();
+        if word < data.len() {
+            let mask = 1u64 << bit;
+            let was_set = (data[word] & mask) != 0;
+            if was_set {
+                data[word] &= !mask;
+                return true;
             }
         }
         false
     }
 
     fn reset_all(&self) {
-        if let Ok(mut data) = self.data.write() {
-            for word in data.iter_mut() {
-                *word = 0;
-            }
+        let mut data = self.data.write();
+        for word in data.iter_mut() {
+            *word = 0;
         }
     }
 }
@@ -118,6 +120,8 @@ pub struct VersionManagerConfig {
     pub thread_num: i32,
     /// Wait timeout for acquiring timestamps
     pub wait_timeout: Duration,
+    /// Timeout for acquiring update timestamp (exclusive access)
+    pub update_acquire_timeout: Duration,
 }
 
 impl Default for VersionManagerConfig {
@@ -127,7 +131,8 @@ impl Default for VersionManagerConfig {
             max_concurrent_inserts: 100,
             max_concurrent_updates: 1,
             thread_num: 1,
-            wait_timeout: Duration::from_secs(30),
+            wait_timeout: Duration::from_secs(5),
+            update_acquire_timeout: Duration::from_secs(10),
         }
     }
 }
@@ -151,12 +156,24 @@ impl VersionManagerConfig {
         self.thread_num = num;
         self
     }
+
+    pub fn with_update_acquire_timeout(mut self, timeout: Duration) -> Self {
+        self.update_acquire_timeout = timeout;
+        self
+    }
 }
 
 /// MVCC Version Manager
 ///
 /// Manages timestamps for read, insert, and update transactions.
 /// Implements snapshot isolation through timestamp-based versioning.
+///
+/// ## Concurrency Control
+///
+/// Uses `parking_lot::Condvar` for efficient waiting:
+/// - Read/Insert transactions wait on condvar when max concurrency reached
+/// - Update transactions wait for exclusive access with configurable timeout
+/// - All waiting threads are notified when resources become available
 pub struct VersionManager {
     /// Next write timestamp
     write_ts: AtomicU32,
@@ -170,8 +187,10 @@ pub struct VersionManager {
     thread_num: AtomicI32,
     /// Timestamp buffer for tracking completed transactions
     buffer: BitSet,
-    /// Lock for timestamp updates
+    /// Lock for timestamp updates and condvar waiting
     lock: Mutex<()>,
+    /// Condition variable for efficient waiting
+    condvar: Condvar,
     /// Configuration
     config: VersionManagerConfig,
 }
@@ -193,6 +212,7 @@ impl VersionManager {
             thread_num: AtomicI32::new(thread_num),
             buffer: BitSet::new(RING_BUF_SIZE as usize),
             lock: Mutex::new(()),
+            condvar: Condvar::new(),
             config,
         }
     }
@@ -227,43 +247,101 @@ impl VersionManager {
     ///
     /// Returns a timestamp that represents a consistent snapshot
     /// of the database at that point in time.
+    /// Uses Condvar for efficient waiting when max concurrency is reached.
     pub fn acquire_read_timestamp(&self) -> Timestamp {
+        let mut guard = self.lock.lock();
         loop {
-            let pr = self.pending_reqs.fetch_add(1, Ordering::SeqCst);
+            let pr = self.pending_reqs.load(Ordering::SeqCst);
             if pr >= 0 {
+                self.pending_reqs.fetch_add(1, Ordering::SeqCst);
                 return self.read_ts.load(Ordering::SeqCst);
             }
-            self.pending_reqs.fetch_sub(1, Ordering::SeqCst);
+            self.condvar.wait(&mut guard);
+        }
+    }
 
-            thread::sleep(Duration::from_micros(100));
+    /// Acquire a read timestamp with timeout
+    ///
+    /// Returns None if timeout is reached before acquiring.
+    pub fn acquire_read_timestamp_with_timeout(&self, timeout: Duration) -> Option<Timestamp> {
+        let start = Instant::now();
+        let mut guard = self.lock.lock();
+        loop {
+            let pr = self.pending_reqs.load(Ordering::SeqCst);
+            if pr >= 0 {
+                self.pending_reqs.fetch_add(1, Ordering::SeqCst);
+                return Some(self.read_ts.load(Ordering::SeqCst));
+            }
+
+            let elapsed = start.elapsed();
+            if elapsed >= timeout {
+                return None;
+            }
+
+            let remaining = timeout - elapsed;
+            let result = self.condvar.wait_for(&mut guard, remaining);
+            if result.timed_out() {
+                return None;
+            }
         }
     }
 
     /// Release a read timestamp
+    ///
+    /// Notifies waiting threads that a slot may be available.
     pub fn release_read_timestamp(&self) {
         self.pending_reqs.fetch_sub(1, Ordering::SeqCst);
+        self.condvar.notify_all();
     }
 
     /// Acquire an insert timestamp
     ///
     /// Returns a unique timestamp for an insert transaction.
+    /// Uses Condvar for efficient waiting when max concurrency is reached.
     pub fn acquire_insert_timestamp(&self) -> Timestamp {
+        let mut guard = self.lock.lock();
         loop {
-            let pr = self.pending_reqs.fetch_add(1, Ordering::SeqCst);
+            let pr = self.pending_reqs.load(Ordering::SeqCst);
             if pr >= 0 {
+                self.pending_reqs.fetch_add(1, Ordering::SeqCst);
                 return self.write_ts.fetch_add(1, Ordering::SeqCst);
             }
-            self.pending_reqs.fetch_sub(1, Ordering::SeqCst);
+            self.condvar.wait(&mut guard);
+        }
+    }
 
-            thread::sleep(Duration::from_micros(100));
+    /// Acquire an insert timestamp with timeout
+    ///
+    /// Returns None if timeout is reached before acquiring.
+    pub fn acquire_insert_timestamp_with_timeout(&self, timeout: Duration) -> Option<Timestamp> {
+        let start = Instant::now();
+        let mut guard = self.lock.lock();
+        loop {
+            let pr = self.pending_reqs.load(Ordering::SeqCst);
+            if pr >= 0 {
+                self.pending_reqs.fetch_add(1, Ordering::SeqCst);
+                return Some(self.write_ts.fetch_add(1, Ordering::SeqCst));
+            }
+
+            let elapsed = start.elapsed();
+            if elapsed >= timeout {
+                return None;
+            }
+
+            let remaining = timeout - elapsed;
+            let result = self.condvar.wait_for(&mut guard, remaining);
+            if result.timed_out() {
+                return None;
+            }
         }
     }
 
     /// Release an insert timestamp
     ///
     /// Updates the read timestamp if this was the next expected timestamp.
+    /// Notifies waiting threads that resources may be available.
     pub fn release_insert_timestamp(&self, ts: Timestamp) {
-        let _guard = self.lock.lock().unwrap();
+        let _guard = self.lock.lock();
 
         if ts == self.read_ts.load(Ordering::SeqCst) + 1 {
             while self.buffer.atomic_reset_with_ret((ts + 1) & RING_INDEX_MASK) {
@@ -275,29 +353,65 @@ impl VersionManager {
         }
 
         self.pending_reqs.fetch_sub(1, Ordering::SeqCst);
+        drop(_guard);
+        self.condvar.notify_all();
     }
 
     /// Acquire an update timestamp
     ///
     /// Update transactions require exclusive access and will block
     /// until all other transactions complete.
+    /// Uses the configured update_acquire_timeout as the maximum wait time.
     pub fn acquire_update_timestamp(&self) -> VersionManagerResult<Timestamp> {
-        let mut expected = 0;
-        while self
-            .pending_update_reqs
-            .compare_exchange_weak(0, 1, Ordering::SeqCst, Ordering::SeqCst)
-            .is_err()
-        {
-            expected = 0;
-            thread::sleep(Duration::from_micros(100));
+        self.acquire_update_timestamp_with_timeout(self.config.update_acquire_timeout)
+    }
+
+    /// Acquire an update timestamp with explicit timeout
+    ///
+    /// Returns an error if timeout is reached before acquiring exclusive access.
+    pub fn acquire_update_timestamp_with_timeout(&self, timeout: Duration) -> VersionManagerResult<Timestamp> {
+        let start = Instant::now();
+        let mut guard = self.lock.lock();
+
+        // Phase 1: Acquire update lock (only one update transaction at a time)
+        while self.pending_update_reqs.compare_exchange(
+            0,
+            1,
+            Ordering::SeqCst,
+            Ordering::SeqCst,
+        ).is_err() {
+            let elapsed = start.elapsed();
+            if elapsed >= timeout {
+                return Err(VersionManagerError::Timeout);
+            }
+
+            let remaining = timeout - elapsed;
+            let result = self.condvar.wait_for(&mut guard, remaining);
+            if result.timed_out() {
+                return Err(VersionManagerError::Timeout);
+            }
         }
 
-        let pr = self
-            .pending_reqs
-            .fetch_sub(self.thread_num.load(Ordering::SeqCst), Ordering::SeqCst);
-        if pr != 0 {
-            while self.pending_reqs.load(Ordering::SeqCst) != -self.thread_num.load(Ordering::SeqCst) {
-                thread::sleep(Duration::from_micros(100));
+        // Phase 2: Wait for all other transactions to complete
+        let thread_num = self.thread_num.load(Ordering::SeqCst);
+        self.pending_reqs.fetch_sub(thread_num, Ordering::SeqCst);
+
+        let target = -thread_num;
+        while self.pending_reqs.load(Ordering::SeqCst) != target {
+            let elapsed = start.elapsed();
+            if elapsed >= timeout {
+                // Rollback: restore state and return error
+                self.pending_reqs.fetch_add(thread_num, Ordering::SeqCst);
+                self.pending_update_reqs.store(0, Ordering::SeqCst);
+                return Err(VersionManagerError::Timeout);
+            }
+
+            let remaining = timeout - elapsed;
+            let result = self.condvar.wait_for(&mut guard, remaining);
+            if result.timed_out() {
+                self.pending_reqs.fetch_add(thread_num, Ordering::SeqCst);
+                self.pending_update_reqs.store(0, Ordering::SeqCst);
+                return Err(VersionManagerError::Timeout);
             }
         }
 
@@ -305,8 +419,10 @@ impl VersionManager {
     }
 
     /// Release an update timestamp
+    ///
+    /// Notifies waiting threads that exclusive access has been released.
     pub fn release_update_timestamp(&self, ts: Timestamp) {
-        let _guard = self.lock.lock().unwrap();
+        let _guard = self.lock.lock();
 
         if ts == self.read_ts.load(Ordering::SeqCst) + 1 {
             self.read_ts.store(ts, Ordering::SeqCst);
@@ -317,11 +433,14 @@ impl VersionManager {
         self.pending_reqs
             .fetch_add(self.thread_num.load(Ordering::SeqCst), Ordering::SeqCst);
         self.pending_update_reqs.store(0, Ordering::SeqCst);
+        drop(_guard);
+        self.condvar.notify_all();
     }
 
     /// Revert an update timestamp (for aborted transactions)
     ///
     /// Returns true if the timestamp was successfully reverted.
+    /// Notifies waiting threads that exclusive access has been released.
     pub fn revert_update_timestamp(&self, ts: Timestamp) -> bool {
         let expected = ts + 1;
         if self
@@ -332,6 +451,7 @@ impl VersionManager {
             self.pending_reqs
                 .fetch_add(self.thread_num.load(Ordering::SeqCst), Ordering::SeqCst);
             self.pending_update_reqs.store(0, Ordering::SeqCst);
+            self.condvar.notify_all();
             return true;
         }
         false

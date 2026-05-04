@@ -6,6 +6,16 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use oxicode::{Encode, Decode};
+use crc32fast::Hasher;
+
+/// WAL magic number for file identification
+pub const WAL_MAGIC: u32 = 0x47524150; // "GRAP" in hex
+
+/// WAL format version
+pub const WAL_VERSION: u32 = 1;
+
+/// WAL file header size
+pub const WAL_FILE_HEADER_SIZE: usize = 64;
 
 /// Timestamp type for MVCC
 pub type Timestamp = u32;
@@ -93,7 +103,77 @@ impl fmt::Display for WalOpType {
     }
 }
 
-/// WAL header
+/// WAL file header (written at the beginning of each WAL file)
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct WalFileHeader {
+    /// Magic number for file identification
+    pub magic: u32,
+    /// Format version
+    pub version: u32,
+    /// Checkpoint sequence number
+    pub checkpoint_seq: u64,
+    /// Random salt-1 for validation
+    pub salt1: u32,
+    /// Random salt-2 for validation
+    pub salt2: u32,
+    /// Creation timestamp (Unix epoch)
+    pub created_at: u64,
+    /// Thread ID that created this file
+    pub thread_id: u32,
+    /// Reserved for future use
+    pub reserved: [u8; 28],
+}
+
+impl WalFileHeader {
+    pub const SIZE: usize = WAL_FILE_HEADER_SIZE;
+
+    pub fn new(thread_id: u32, checkpoint_seq: u64) -> Self {
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        
+        Self {
+            magic: WAL_MAGIC,
+            version: WAL_VERSION,
+            checkpoint_seq,
+            salt1: rng.gen(),
+            salt2: rng.gen(),
+            created_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0),
+            thread_id,
+            reserved: [0; 28],
+        }
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe {
+            std::slice::from_raw_parts(
+                self as *const WalFileHeader as *const u8,
+                std::mem::size_of::<WalFileHeader>(),
+            )
+        }
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() < Self::SIZE {
+            return None;
+        }
+        let header: WalFileHeader = unsafe { std::ptr::read(bytes.as_ptr() as *const WalFileHeader) };
+        Some(header)
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.magic == WAL_MAGIC
+    }
+
+    pub fn salts(&self) -> (u32, u32) {
+        (self.salt1, self.salt2)
+    }
+}
+
+/// WAL header (for each WAL entry)
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct WalHeader {
@@ -103,14 +183,16 @@ pub struct WalHeader {
     pub op_type: u8,
     /// Is this an update operation (vs insert)
     pub is_update: bool,
-    /// Reserved
-    pub reserved: [u8; 2],
+    /// Flags for future use
+    pub flags: u16,
     /// Transaction timestamp
     pub timestamp: Timestamp,
+    /// CRC32 checksum of header (excluding this field) + payload
+    pub checksum: u32,
 }
 
 impl WalHeader {
-    pub const SIZE: usize = 12;
+    pub const SIZE: usize = 16;
 
     pub fn new(op_type: WalOpType, timestamp: Timestamp, length: u32) -> Self {
         let is_update = matches!(
@@ -131,9 +213,45 @@ impl WalHeader {
             length,
             op_type: op_type as u8,
             is_update,
-            reserved: [0; 2],
+            flags: 0,
             timestamp,
+            checksum: 0,
         }
+    }
+
+    pub fn with_checksum(mut self, payload: &[u8]) -> Self {
+        let mut hasher = Hasher::new();
+        hasher.update(&self.length.to_le_bytes());
+        hasher.update(&[self.op_type, self.is_update as u8]);
+        hasher.update(&self.flags.to_le_bytes());
+        hasher.update(&self.timestamp.to_le_bytes());
+        hasher.update(payload);
+        self.checksum = hasher.finalize();
+        self
+    }
+
+    pub fn verify_checksum(&self, payload: &[u8]) -> bool {
+        let mut hasher = Hasher::new();
+        hasher.update(&self.length.to_le_bytes());
+        hasher.update(&[self.op_type, self.is_update as u8]);
+        hasher.update(&self.flags.to_le_bytes());
+        hasher.update(&self.timestamp.to_le_bytes());
+        hasher.update(payload);
+        hasher.finalize() == self.checksum
+    }
+
+    pub fn with_compression(mut self, compression: WalCompression) -> Self {
+        self.flags = (self.flags & !wal_flags::COMPRESSION_MASK) 
+            | (compression.flag_byte() as u16);
+        self
+    }
+
+    pub fn compression(&self) -> WalCompression {
+        WalCompression::from_flag_byte((self.flags & wal_flags::COMPRESSION_MASK) as u8)
+    }
+
+    pub fn is_compressed(&self) -> bool {
+        self.compression() != WalCompression::None
     }
 
     pub fn as_bytes(&self) -> &[u8] {
@@ -166,6 +284,12 @@ pub enum WalError {
     #[error("Invalid header")]
     InvalidHeader,
 
+    #[error("Invalid file header")]
+    InvalidFileHeader,
+
+    #[error("Checksum mismatch: expected {expected}, got {actual}")]
+    ChecksumMismatch { expected: u32, actual: u32 },
+
     #[error("Serialization error: {0}")]
     SerializationError(String),
 
@@ -180,6 +304,12 @@ pub enum WalError {
 
     #[error("WAL is closed")]
     Closed,
+
+    #[error("Unsupported WAL version: {0}")]
+    UnsupportedVersion(u32),
+
+    #[error("Recovery aborted: {0}")]
+    RecoveryAborted(String),
 }
 
 impl From<std::io::Error> for WalError {
@@ -196,6 +326,53 @@ impl From<oxicode::Error> for WalError {
 
 /// WAL result type
 pub type WalResult<T> = Result<T, WalError>;
+
+/// WAL recovery mode
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum WalRecoveryMode {
+    /// Abort recovery if any corruption is found
+    AbortOnCorruption,
+    /// Skip corrupted entries and continue recovery
+    #[default]
+    SkipCorruption,
+    /// Only use WAL for recovery (ignore other state)
+    WalOnly,
+    /// Error if WAL file is missing
+    ErrorIfMissing,
+}
+
+/// WAL compression type
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum WalCompression {
+    #[default]
+    None,
+    Snappy,
+    Zstd,
+}
+
+impl WalCompression {
+    pub fn flag_byte(&self) -> u8 {
+        match self {
+            WalCompression::None => 0,
+            WalCompression::Snappy => 1,
+            WalCompression::Zstd => 2,
+        }
+    }
+
+    pub fn from_flag_byte(byte: u8) -> Self {
+        match byte & 0x0F {
+            1 => WalCompression::Snappy,
+            2 => WalCompression::Zstd,
+            _ => WalCompression::None,
+        }
+    }
+}
+
+/// WAL header flags
+pub mod wal_flags {
+    pub const COMPRESSION_MASK: u16 = 0x000F;
+    pub const COMPRESSED: u16 = 0x0001;
+}
 
 /// WAL content unit (parsed WAL entry)
 #[derive(Debug, Clone)]
@@ -317,6 +494,18 @@ pub struct WalConfig {
     pub max_file_size: usize,
     /// Whether to sync after each write
     pub sync_on_write: bool,
+    /// Enable group commit for better throughput
+    pub group_commit_enabled: bool,
+    /// Delay in microseconds for group commit batching
+    pub group_commit_delay_us: u64,
+    /// Maximum batch size for group commit
+    pub group_commit_batch_size: usize,
+    /// Recovery mode
+    pub recovery_mode: WalRecoveryMode,
+    /// Compression type
+    pub compression: WalCompression,
+    /// Enable checksum verification
+    pub checksum_enabled: bool,
 }
 
 impl Default for WalConfig {
@@ -325,6 +514,12 @@ impl Default for WalConfig {
             truncate_size: 4 * 1024 * 1024, // 4MB
             max_file_size: 64 * 1024 * 1024, // 64MB
             sync_on_write: true,
+            group_commit_enabled: true,
+            group_commit_delay_us: 100, // 100 microseconds
+            group_commit_batch_size: 1024,
+            recovery_mode: WalRecoveryMode::default(),
+            compression: WalCompression::default(),
+            checksum_enabled: true,
         }
     }
 }
@@ -346,6 +541,28 @@ impl WalConfig {
 
     pub fn with_sync_on_write(mut self, sync: bool) -> Self {
         self.sync_on_write = sync;
+        self
+    }
+
+    pub fn with_group_commit(mut self, enabled: bool, delay_us: u64, batch_size: usize) -> Self {
+        self.group_commit_enabled = enabled;
+        self.group_commit_delay_us = delay_us;
+        self.group_commit_batch_size = batch_size;
+        self
+    }
+
+    pub fn with_recovery_mode(mut self, mode: WalRecoveryMode) -> Self {
+        self.recovery_mode = mode;
+        self
+    }
+
+    pub fn with_compression(mut self, compression: WalCompression) -> Self {
+        self.compression = compression;
+        self
+    }
+
+    pub fn with_checksum(mut self, enabled: bool) -> Self {
+        self.checksum_enabled = enabled;
         self
     }
 }
@@ -385,5 +602,46 @@ mod tests {
         let parsed = WalHeader::from_bytes(bytes).unwrap();
         assert_eq!(parsed.length, 50);
         assert_eq!(parsed.timestamp, 999);
+    }
+
+    #[test]
+    fn test_wal_header_checksum() {
+        let payload = b"test_payload_data";
+        let header = WalHeader::new(WalOpType::InsertVertex, 12345, payload.len() as u32)
+            .with_checksum(payload);
+        
+        assert!(header.verify_checksum(payload));
+        
+        let corrupted_payload = b"corrupted_data";
+        assert!(!header.verify_checksum(corrupted_payload));
+    }
+
+    #[test]
+    fn test_wal_file_header() {
+        let header = WalFileHeader::new(1, 0);
+        assert!(header.is_valid());
+        assert_eq!(header.thread_id, 1);
+        assert_eq!(header.checkpoint_seq, 0);
+        
+        let bytes = header.as_bytes();
+        assert_eq!(bytes.len(), WalFileHeader::SIZE);
+        
+        let parsed = WalFileHeader::from_bytes(bytes).unwrap();
+        assert!(parsed.is_valid());
+        assert_eq!(parsed.thread_id, 1);
+    }
+
+    #[test]
+    fn test_wal_config() {
+        let config = WalConfig::new()
+            .with_checksum(true)
+            .with_group_commit(true, 200, 512)
+            .with_recovery_mode(WalRecoveryMode::AbortOnCorruption);
+        
+        assert!(config.checksum_enabled);
+        assert!(config.group_commit_enabled);
+        assert_eq!(config.group_commit_delay_us, 200);
+        assert_eq!(config.group_commit_batch_size, 512);
+        assert_eq!(config.recovery_mode, WalRecoveryMode::AbortOnCorruption);
     }
 }

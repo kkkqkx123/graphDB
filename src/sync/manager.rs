@@ -313,6 +313,59 @@ impl SyncManager {
         Ok(())
     }
 
+    // ===== Synchronous Wrappers for Transaction Operations =====
+    //
+    // These methods provide synchronous access to async transaction operations.
+    // They automatically detect the runtime context and handle appropriately:
+    // - In tokio context: Uses `block_in_place` to avoid blocking the executor
+    // - Outside tokio: Uses `futures::executor::block_on`
+
+    /// Synchronous wrapper for `prepare_transaction`
+    ///
+    /// Automatically detects tokio runtime context and handles appropriately.
+    pub fn prepare_transaction_sync(
+        &self,
+        txn_id: crate::transaction::types::TransactionId,
+    ) -> Result<(), SyncError> {
+        self.execute_sync(|| self.prepare_transaction(txn_id))
+    }
+
+    /// Synchronous wrapper for `commit_transaction`
+    ///
+    /// Automatically detects tokio runtime context and handles appropriately.
+    pub fn commit_transaction_sync(
+        &self,
+        txn_id: crate::transaction::types::TransactionId,
+    ) -> Result<(), SyncError> {
+        self.execute_sync(|| self.commit_transaction(txn_id))
+    }
+
+    /// Synchronous wrapper for `rollback_transaction`
+    ///
+    /// Automatically detects tokio runtime context and handles appropriately.
+    pub fn rollback_transaction_sync(
+        &self,
+        txn_id: crate::transaction::types::TransactionId,
+    ) -> Result<(), SyncError> {
+        self.execute_sync(|| self.rollback_transaction(txn_id))
+    }
+
+    /// Execute an async operation synchronously with proper runtime detection
+    fn execute_sync<F, Fut, T>(&self, f: F) -> Result<T, SyncError>
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = Result<T, SyncError>>,
+    {
+        #[cfg(feature = "tokio")]
+        {
+            if let Ok(handle) = tokio::runtime::Handle::try_current() {
+                return tokio::task::block_in_place(|| handle.block_on(f()));
+            }
+        }
+
+        futures::executor::block_on(f())
+    }
+
     /// Commit vector index transaction
     pub async fn commit_vector_transaction(
         &self,

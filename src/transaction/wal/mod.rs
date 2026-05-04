@@ -44,18 +44,23 @@
 //! }
 //! ```
 
+pub mod checkpoint;
 pub mod parser;
 pub mod types;
 pub mod writer;
 
-pub use parser::{LocalWalParser, WalEntry, WalEntryIter, WalParser, WalParserFactory};
+pub use checkpoint::{Checkpoint, CheckpointManager};
+pub use parser::{
+    LocalWalParser, WalEntry, WalEntryIter, WalParser, WalParserFactory, ParsedWalEntry,
+};
 pub use types::{
     ColumnId, CreateEdgeTypeRedo, CreateVertexTypeRedo, DeleteEdgeRedo, DeleteVertexRedo,
     EdgeId, InsertEdgeRedo, InsertVertexRedo, LabelId, Timestamp, UpdateEdgePropRedo,
-    UpdateVertexPropRedo, UpdateWalUnit, WalConfig, WalContentUnit, WalError, WalHeader,
-    WalOpType, WalResult, VertexId,
+    UpdateVertexPropRedo, UpdateWalUnit, WalCompression, WalConfig, WalContentUnit, WalError,
+    WalFileHeader, WalHeader, WalOpType, WalRecoveryMode, WalResult, VertexId,
+    WAL_FILE_HEADER_SIZE, WAL_MAGIC, WAL_VERSION,
 };
-pub use writer::{DummyWalWriter, LocalWalWriter, WalWriter, WalWriterFactory};
+pub use writer::{DummyWalWriter, GroupCommitManager, LocalWalWriter, WalWriter, WalWriterFactory};
 
 #[cfg(test)]
 mod tests {
