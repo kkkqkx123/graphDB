@@ -12,6 +12,7 @@ pub mod memory;
 pub mod metadata;
 pub mod monitoring;
 pub mod operations;
+pub mod page;
 pub mod persistence;
 pub mod property_graph;
 pub mod shared_state;
@@ -62,6 +63,13 @@ pub use property_graph::{PropertyGraph, PropertyGraphConfig};
 
 pub use persistence::{
     CompressionType, Compressor, DirtyPageTracker, FlushConfig, FlushManager, FlushTask, PageId,
+};
+
+pub use page::{
+    FlatCsr, FlatCsrEdgeIterator, FlatCsrIterator, MigrationConfig, MigrationStats, Page,
+    PageHeader, PageManager, PageManagerStats, PageType, StorageMigrator, StoragePageId,
+    DELETED_TIMESTAMP, EDGE_RECORD_SIZE, INVALID_TIMESTAMP, PAGE_DATA_SIZE, PAGE_HEADER_SIZE,
+    PAGE_SIZE, VERTEX_RECORD_SIZE, verify_migration,
 };
 
 pub use graph_storage::GraphStorage;
