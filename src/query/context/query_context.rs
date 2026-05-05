@@ -1,22 +1,6 @@
 //! Query context
 //!
 //! Manage the context information throughout the entire lifecycle of queries, from parsing and validation to planning and execution.
-//!
-//! # Explanation of the refactoring:
-//!
-//! The context of the expressions has been merged into Ast and is no longer stored separately in QueryContext.
-//! Access the expression context through the ValidatedStatement.
-//!
-//! # Architecture Optimization
-//!
-//! QueryContext now consists of multiple specialized contexts.
-//! QueryRequestContext: The context of the query request (session information, request parameters)
-//! QueryExecutionManager: The query execution manager (responsible for executing the plan and managing termination signals).
-//!
-//! # Optimization Note (2024-03-27)
-//! Previously used QueryResourceContext and QuerySpaceContext have been inlined into QueryContext
-//! to reduce indirection and simplify the architecture. These contexts had few fields and were
-//! always used together with QueryContext, making the separation unnecessary overhead.
 
 use std::sync::Arc;
 
@@ -36,26 +20,13 @@ use super::{QueryExecutionManager, QueryRequestContext};
 /// Possession of the Query Execution Manager (execution plan, termination flags)
 /// ID generation for query execution
 /// Spatial information management (space info, character set)
-///
-/// # Design changes
-///
-/// Using the Composite Pattern, the QueryContext is broken down into multiple specialized contexts.
-/// Remove the `expr_context` field; the expression context is now stored in the Ast (Abstract Syntax Tree).
-/// Remove the Clone implementation and force the use of Arc<QueryContext>.
-/// Remove the `validation_info` field; the validation information is now only stored in the `ValidatedStatement`.
-/// Inlined resource_context and space_context fields directly into QueryContext (optimization).
 pub struct QueryContext {
     /// Query request context
     rctx: Arc<QueryRequestContext>,
-
     /// Query Execution Manager
     execution_manager: QueryExecutionManager,
-
-    // Inlined from QueryResourceContext
     /// ID Generator for query execution
     id_gen: IdGenerator,
-
-    // Inlined from QuerySpaceContext
     /// Current space information
     space_info: Option<SpaceInfo>,
     /// Character set information

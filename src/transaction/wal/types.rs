@@ -3,6 +3,7 @@
 //! Type definitions for Write-Ahead Log
 
 use std::fmt;
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use oxicode::{Encode, Decode};
@@ -11,14 +12,106 @@ use crc32fast::Hasher;
 /// WAL magic number for file identification
 pub const WAL_MAGIC: u32 = 0x47524150; // "GRAP" in hex
 
-/// WAL format version
-pub const WAL_VERSION: u32 = 1;
+/// WAL format version (incremented for LSN support)
+pub const WAL_VERSION: u32 = 2;
 
 /// WAL file header size
 pub const WAL_FILE_HEADER_SIZE: usize = 64;
 
+/// WAL entry header size (updated to include LSN fields)
+pub const WAL_HEADER_SIZE: usize = 40;
+
+/// WAL block size for alignment (32KB, following RocksDB convention)
+pub const WAL_BLOCK_SIZE: usize = 32 * 1024;
+
+/// Maximum payload size for a single WAL record (before fragmentation)
+/// Records larger than this will be split into multiple fragments
+pub const WAL_MAX_RECORD_SIZE: usize = WAL_BLOCK_SIZE - WAL_HEADER_SIZE;
+
+/// Calculate padding needed to align to block boundary
+pub fn block_padding_needed(current_offset: usize) -> usize {
+    let remainder = current_offset % WAL_BLOCK_SIZE;
+    if remainder == 0 {
+        0
+    } else {
+        WAL_BLOCK_SIZE - remainder
+    }
+}
+
+/// Check if offset is aligned to block boundary
+pub fn is_block_aligned(offset: usize) -> bool {
+    offset % WAL_BLOCK_SIZE == 0
+}
+
+/// Align offset up to next block boundary
+pub fn align_to_block(offset: usize) -> usize {
+    (offset + WAL_BLOCK_SIZE - 1) / WAL_BLOCK_SIZE * WAL_BLOCK_SIZE
+}
+
+/// Calculate the number of blocks needed for a given size
+pub fn blocks_needed(size: usize) -> usize {
+    (size + WAL_BLOCK_SIZE - 1) / WAL_BLOCK_SIZE
+}
+
 /// Timestamp type for MVCC
 pub type Timestamp = u32;
+
+/// Transaction ID type
+pub type TransactionId = u64;
+
+/// Page ID type for full page writes
+pub type PageId = u64;
+
+/// LSN (Log Sequence Number) - monotonically increasing byte offset
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Encode, Decode)]
+pub struct Lsn(pub u64);
+
+impl Lsn {
+    pub const ZERO: Lsn = Lsn(0);
+    pub const MAX: Lsn = Lsn(u64::MAX);
+
+    pub fn new(value: u64) -> Self {
+        Self(value)
+    }
+
+    pub fn increment(&mut self, bytes: u64) -> Self {
+        let old = *self;
+        self.0 += bytes;
+        old
+    }
+
+    pub fn as_u64(&self) -> u64 {
+        self.0
+    }
+
+    pub fn offset_in_file(&self, file_start_lsn: Lsn) -> u64 {
+        self.0.saturating_sub(file_start_lsn.0)
+    }
+}
+
+impl Default for Lsn {
+    fn default() -> Self {
+        Self::ZERO
+    }
+}
+
+impl fmt::Display for Lsn {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LSN({:#018x})", self.0)
+    }
+}
+
+impl From<u64> for Lsn {
+    fn from(value: u64) -> Self {
+        Self(value)
+    }
+}
+
+impl From<Lsn> for u64 {
+    fn from(lsn: Lsn) -> Self {
+        lsn.0
+    }
+}
 
 /// Label ID type
 pub type LabelId = u16;
@@ -52,6 +145,7 @@ pub enum WalOpType {
     DeleteEdgeProp = 13,
     RenameVertexProp = 14,
     RenameEdgeProp = 15,
+    FullPageWrite = 16,
 }
 
 impl TryFrom<u8> for WalOpType {
@@ -75,6 +169,7 @@ impl TryFrom<u8> for WalOpType {
             13 => Ok(WalOpType::DeleteEdgeProp),
             14 => Ok(WalOpType::RenameVertexProp),
             15 => Ok(WalOpType::RenameEdgeProp),
+            16 => Ok(WalOpType::FullPageWrite),
             _ => Err(WalError::InvalidOpType(value)),
         }
     }
@@ -99,6 +194,7 @@ impl fmt::Display for WalOpType {
             WalOpType::DeleteEdgeProp => write!(f, "DeleteEdgeProp"),
             WalOpType::RenameVertexProp => write!(f, "RenameVertexProp"),
             WalOpType::RenameEdgeProp => write!(f, "RenameEdgeProp"),
+            WalOpType::FullPageWrite => write!(f, "FullPageWrite"),
         }
     }
 }
@@ -113,6 +209,8 @@ pub struct WalFileHeader {
     pub version: u32,
     /// Checkpoint sequence number
     pub checkpoint_seq: u64,
+    /// Starting LSN for this file
+    pub start_lsn: u64,
     /// Random salt-1 for validation
     pub salt1: u32,
     /// Random salt-2 for validation
@@ -122,13 +220,13 @@ pub struct WalFileHeader {
     /// Thread ID that created this file
     pub thread_id: u32,
     /// Reserved for future use
-    pub reserved: [u8; 28],
+    pub reserved: [u8; 20],
 }
 
 impl WalFileHeader {
     pub const SIZE: usize = WAL_FILE_HEADER_SIZE;
 
-    pub fn new(thread_id: u32, checkpoint_seq: u64) -> Self {
+    pub fn new(thread_id: u32, checkpoint_seq: u64, start_lsn: Lsn) -> Self {
         use rand::Rng;
         let mut rng = rand::thread_rng();
         
@@ -136,6 +234,7 @@ impl WalFileHeader {
             magic: WAL_MAGIC,
             version: WAL_VERSION,
             checkpoint_seq,
+            start_lsn: start_lsn.0,
             salt1: rng.gen(),
             salt2: rng.gen(),
             created_at: std::time::SystemTime::now()
@@ -143,7 +242,7 @@ impl WalFileHeader {
                 .map(|d| d.as_secs())
                 .unwrap_or(0),
             thread_id,
-            reserved: [0; 28],
+            reserved: [0; 20],
         }
     }
 
@@ -171,6 +270,10 @@ impl WalFileHeader {
     pub fn salts(&self) -> (u32, u32) {
         (self.salt1, self.salt2)
     }
+
+    pub fn start_lsn(&self) -> Lsn {
+        Lsn(self.start_lsn)
+    }
 }
 
 /// WAL header (for each WAL entry)
@@ -183,16 +286,45 @@ pub struct WalHeader {
     pub op_type: u8,
     /// Is this an update operation (vs insert)
     pub is_update: bool,
+    /// Record type (Full, First, Middle, Last) for fragmentation support
+    pub record_type: RecordType,
     /// Flags for future use
     pub flags: u16,
     /// Transaction timestamp
     pub timestamp: Timestamp,
+    /// Current LSN (Log Sequence Number)
+    pub lsn: u64,
+    /// Previous LSN for backward traversal
+    pub prev_lsn: u64,
     /// CRC32 checksum of header (excluding this field) + payload
     pub checksum: u32,
 }
 
+/// Record type for fragmentation support
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[repr(u8)]
+pub enum RecordType {
+    #[default]
+    Full = 0,
+    First = 1,
+    Middle = 2,
+    Last = 3,
+}
+
+impl RecordType {
+    pub fn from_u8(value: u8) -> Self {
+        match value {
+            0 => RecordType::Full,
+            1 => RecordType::First,
+            2 => RecordType::Middle,
+            3 => RecordType::Last,
+            _ => RecordType::Full,
+        }
+    }
+}
+
 impl WalHeader {
-    pub const SIZE: usize = 16;
+    pub const SIZE: usize = WAL_HEADER_SIZE;
 
     pub fn new(op_type: WalOpType, timestamp: Timestamp, length: u32) -> Self {
         let is_update = matches!(
@@ -213,18 +345,34 @@ impl WalHeader {
             length,
             op_type: op_type as u8,
             is_update,
+            record_type: RecordType::Full,
             flags: 0,
             timestamp,
+            lsn: 0,
+            prev_lsn: 0,
             checksum: 0,
         }
+    }
+
+    pub fn with_lsn(mut self, lsn: Lsn, prev_lsn: Lsn) -> Self {
+        self.lsn = lsn.0;
+        self.prev_lsn = prev_lsn.0;
+        self
+    }
+
+    pub fn with_record_type(mut self, record_type: RecordType) -> Self {
+        self.record_type = record_type;
+        self
     }
 
     pub fn with_checksum(mut self, payload: &[u8]) -> Self {
         let mut hasher = Hasher::new();
         hasher.update(&self.length.to_le_bytes());
-        hasher.update(&[self.op_type, self.is_update as u8]);
+        hasher.update(&[self.op_type, self.is_update as u8, self.record_type as u8]);
         hasher.update(&self.flags.to_le_bytes());
         hasher.update(&self.timestamp.to_le_bytes());
+        hasher.update(&self.lsn.to_le_bytes());
+        hasher.update(&self.prev_lsn.to_le_bytes());
         hasher.update(payload);
         self.checksum = hasher.finalize();
         self
@@ -233,9 +381,11 @@ impl WalHeader {
     pub fn verify_checksum(&self, payload: &[u8]) -> bool {
         let mut hasher = Hasher::new();
         hasher.update(&self.length.to_le_bytes());
-        hasher.update(&[self.op_type, self.is_update as u8]);
+        hasher.update(&[self.op_type, self.is_update as u8, self.record_type as u8]);
         hasher.update(&self.flags.to_le_bytes());
         hasher.update(&self.timestamp.to_le_bytes());
+        hasher.update(&self.lsn.to_le_bytes());
+        hasher.update(&self.prev_lsn.to_le_bytes());
         hasher.update(payload);
         hasher.finalize() == self.checksum
     }
@@ -252,6 +402,18 @@ impl WalHeader {
 
     pub fn is_compressed(&self) -> bool {
         self.compression() != WalCompression::None
+    }
+
+    pub fn lsn(&self) -> Lsn {
+        Lsn(self.lsn)
+    }
+
+    pub fn prev_lsn(&self) -> Lsn {
+        Lsn(self.prev_lsn)
+    }
+
+    pub fn is_fragmented(&self) -> bool {
+        self.record_type != RecordType::Full
     }
 
     pub fn as_bytes(&self) -> &[u8] {
@@ -310,6 +472,9 @@ pub enum WalError {
 
     #[error("Recovery aborted: {0}")]
     RecoveryAborted(String),
+
+    #[error("Invalid operation: {0}")]
+    InvalidOperation(String),
 }
 
 impl From<std::io::Error> for WalError {
@@ -346,7 +511,6 @@ pub enum WalRecoveryMode {
 pub enum WalCompression {
     #[default]
     None,
-    Snappy,
     Zstd,
 }
 
@@ -354,16 +518,71 @@ impl WalCompression {
     pub fn flag_byte(&self) -> u8 {
         match self {
             WalCompression::None => 0,
-            WalCompression::Snappy => 1,
             WalCompression::Zstd => 2,
         }
     }
 
     pub fn from_flag_byte(byte: u8) -> Self {
         match byte & 0x0F {
-            1 => WalCompression::Snappy,
             2 => WalCompression::Zstd,
             _ => WalCompression::None,
+        }
+    }
+}
+
+/// Compression level configuration
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CompressionLevel {
+    /// Compression algorithm
+    pub algorithm: WalCompression,
+    /// Compression level (algorithm-specific)
+    /// - Snappy: Not used (always uses default)
+    /// - Zstd: 1-22 (1=fastest, 22=best compression, 3=default)
+    pub level: u8,
+}
+
+impl Default for CompressionLevel {
+    fn default() -> Self {
+        Self {
+            algorithm: WalCompression::None,
+            level: 3,
+        }
+    }
+}
+
+impl CompressionLevel {
+    pub fn none() -> Self {
+        Self {
+            algorithm: WalCompression::None,
+            level: 0,
+        }
+    }
+
+    pub fn zstd(level: u8) -> Self {
+        Self {
+            algorithm: WalCompression::Zstd,
+            level: level.clamp(1, 22),
+        }
+    }
+
+    pub fn zstd_default() -> Self {
+        Self {
+            algorithm: WalCompression::Zstd,
+            level: 3,
+        }
+    }
+
+    pub fn zstd_fast() -> Self {
+        Self {
+            algorithm: WalCompression::Zstd,
+            level: 1,
+        }
+    }
+
+    pub fn zstd_best() -> Self {
+        Self {
+            algorithm: WalCompression::Zstd,
+            level: 22,
         }
     }
 }
@@ -409,6 +628,49 @@ impl UpdateWalUnit {
             timestamp,
             content: WalContentUnit::new(data),
         }
+    }
+}
+
+/// Full page write header for torn page protection
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+pub struct FullPageWriteHeader {
+    /// Page ID being written
+    pub page_id: PageId,
+    /// LSN of the page before modification
+    pub page_lsn: Lsn,
+    /// LSN of this full page write record
+    pub record_lsn: Lsn,
+    /// Size of the page data
+    pub page_size: u32,
+    /// Checksum of the page data
+    pub page_checksum: u32,
+    /// Flags for future use
+    pub flags: u16,
+}
+
+impl FullPageWriteHeader {
+    pub fn new(page_id: PageId, page_lsn: Lsn, record_lsn: Lsn, page_size: u32) -> Self {
+        Self {
+            page_id,
+            page_lsn,
+            record_lsn,
+            page_size,
+            page_checksum: 0,
+            flags: 0,
+        }
+    }
+
+    pub fn with_checksum(mut self, checksum: u32) -> Self {
+        self.page_checksum = checksum;
+        self
+    }
+
+    pub fn serialize(&self) -> Vec<u8> {
+        oxicode::encode_to_vec(self).unwrap_or_default()
+    }
+
+    pub fn deserialize(data: &[u8]) -> Option<Self> {
+        oxicode::decode_from_slice(data).ok().map(|(v, _)| v)
     }
 }
 
@@ -485,6 +747,50 @@ pub struct DeleteEdgeRedo {
     pub edge_label: LabelId,
 }
 
+/// Sync policy for WAL writes
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SyncPolicy {
+    /// Never sync - fastest but least durable (data loss on power failure)
+    Never,
+    /// Sync after every write - slowest but most durable
+    #[default]
+    EveryWrite,
+    /// Sync periodically with specified interval
+    Periodic {
+        interval_ms: u64,
+    },
+    /// Sync after N writes (batch sync)
+    Batch {
+        batch_size: usize,
+    },
+    /// Sync after group commit (combines with group commit feature)
+    GroupCommit,
+}
+
+impl SyncPolicy {
+    pub fn periodic(interval: Duration) -> Self {
+        SyncPolicy::Periodic {
+            interval_ms: interval.as_millis() as u64,
+        }
+    }
+
+    pub fn batch(batch_size: usize) -> Self {
+        SyncPolicy::Batch { batch_size }
+    }
+
+    pub fn requires_sync(&self, write_count: usize, last_sync_time: Duration) -> bool {
+        match self {
+            SyncPolicy::Never => false,
+            SyncPolicy::EveryWrite => true,
+            SyncPolicy::Periodic { interval_ms } => {
+                last_sync_time.as_millis() as u64 >= *interval_ms
+            }
+            SyncPolicy::Batch { batch_size } => write_count >= *batch_size,
+            SyncPolicy::GroupCommit => false,
+        }
+    }
+}
+
 /// WAL configuration
 #[derive(Debug, Clone)]
 pub struct WalConfig {
@@ -492,8 +798,8 @@ pub struct WalConfig {
     pub truncate_size: usize,
     /// Maximum WAL file size before rotation
     pub max_file_size: usize,
-    /// Whether to sync after each write
-    pub sync_on_write: bool,
+    /// Sync policy for WAL writes
+    pub sync_policy: SyncPolicy,
     /// Enable group commit for better throughput
     pub group_commit_enabled: bool,
     /// Delay in microseconds for group commit batching
@@ -504,8 +810,18 @@ pub struct WalConfig {
     pub recovery_mode: WalRecoveryMode,
     /// Compression type
     pub compression: WalCompression,
+    /// Compression level configuration
+    pub compression_level: CompressionLevel,
     /// Enable checksum verification
     pub checksum_enabled: bool,
+    /// Maximum parallel threads for recovery
+    pub max_parallel_recovery_threads: usize,
+    /// Enable full page writes for crash recovery
+    pub full_page_writes: bool,
+    /// Enable circular buffer mode
+    pub circular_buffer: bool,
+    /// Circular buffer size in bytes (only used when circular_buffer is true)
+    pub circular_buffer_size: usize,
 }
 
 impl Default for WalConfig {
@@ -513,13 +829,18 @@ impl Default for WalConfig {
         Self {
             truncate_size: 4 * 1024 * 1024, // 4MB
             max_file_size: 64 * 1024 * 1024, // 64MB
-            sync_on_write: true,
+            sync_policy: SyncPolicy::default(),
             group_commit_enabled: true,
             group_commit_delay_us: 100, // 100 microseconds
             group_commit_batch_size: 1024,
             recovery_mode: WalRecoveryMode::default(),
             compression: WalCompression::default(),
+            compression_level: CompressionLevel::default(),
             checksum_enabled: true,
+            max_parallel_recovery_threads: 4,
+            full_page_writes: false,
+            circular_buffer: false,
+            circular_buffer_size: 64 * 1024 * 1024, // 64MB default
         }
     }
 }
@@ -539,8 +860,17 @@ impl WalConfig {
         self
     }
 
+    pub fn with_sync_policy(mut self, policy: SyncPolicy) -> Self {
+        self.sync_policy = policy;
+        self
+    }
+
     pub fn with_sync_on_write(mut self, sync: bool) -> Self {
-        self.sync_on_write = sync;
+        self.sync_policy = if sync {
+            SyncPolicy::EveryWrite
+        } else {
+            SyncPolicy::Never
+        };
         self
     }
 
@@ -558,11 +888,41 @@ impl WalConfig {
 
     pub fn with_compression(mut self, compression: WalCompression) -> Self {
         self.compression = compression;
+        self.compression_level = CompressionLevel {
+            algorithm: compression,
+            level: self.compression_level.level,
+        };
+        self
+    }
+
+    pub fn with_compression_level(mut self, level: CompressionLevel) -> Self {
+        self.compression = level.algorithm;
+        self.compression_level = level;
         self
     }
 
     pub fn with_checksum(mut self, enabled: bool) -> Self {
         self.checksum_enabled = enabled;
+        self
+    }
+
+    pub fn with_parallel_recovery(mut self, threads: usize) -> Self {
+        self.max_parallel_recovery_threads = threads;
+        self
+    }
+
+    pub fn with_full_page_writes(mut self, enabled: bool) -> Self {
+        self.full_page_writes = enabled;
+        self
+    }
+
+    pub fn with_circular_buffer(mut self, enabled: bool) -> Self {
+        self.circular_buffer = enabled;
+        self
+    }
+
+    pub fn with_circular_buffer_size(mut self, size: usize) -> Self {
+        self.circular_buffer_size = size;
         self
     }
 }
@@ -572,12 +932,35 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_lsn() {
+        let mut lsn = Lsn::new(100);
+        assert_eq!(lsn.as_u64(), 100);
+        
+        let old = lsn.increment(50);
+        assert_eq!(old.as_u64(), 100);
+        assert_eq!(lsn.as_u64(), 150);
+        
+        let display = format!("{}", lsn);
+        assert!(display.contains("LSN"));
+    }
+
+    #[test]
     fn test_wal_header() {
         let header = WalHeader::new(WalOpType::InsertVertex, 12345, 100);
         assert_eq!(header.length, 100);
         assert_eq!(header.timestamp, 12345);
         assert_eq!(header.op_type, WalOpType::InsertVertex as u8);
         assert!(!header.is_update);
+        assert_eq!(header.record_type, RecordType::Full);
+    }
+
+    #[test]
+    fn test_wal_header_with_lsn() {
+        let header = WalHeader::new(WalOpType::InsertVertex, 12345, 100)
+            .with_lsn(Lsn::new(1000), Lsn::new(900));
+        
+        assert_eq!(header.lsn().as_u64(), 1000);
+        assert_eq!(header.prev_lsn().as_u64(), 900);
     }
 
     #[test]
@@ -608,6 +991,7 @@ mod tests {
     fn test_wal_header_checksum() {
         let payload = b"test_payload_data";
         let header = WalHeader::new(WalOpType::InsertVertex, 12345, payload.len() as u32)
+            .with_lsn(Lsn::new(100), Lsn::new(0))
             .with_checksum(payload);
         
         assert!(header.verify_checksum(payload));
@@ -618,10 +1002,11 @@ mod tests {
 
     #[test]
     fn test_wal_file_header() {
-        let header = WalFileHeader::new(1, 0);
+        let header = WalFileHeader::new(1, 0, Lsn::new(1000));
         assert!(header.is_valid());
         assert_eq!(header.thread_id, 1);
         assert_eq!(header.checkpoint_seq, 0);
+        assert_eq!(header.start_lsn().as_u64(), 1000);
         
         let bytes = header.as_bytes();
         assert_eq!(bytes.len(), WalFileHeader::SIZE);
@@ -629,6 +1014,7 @@ mod tests {
         let parsed = WalFileHeader::from_bytes(bytes).unwrap();
         assert!(parsed.is_valid());
         assert_eq!(parsed.thread_id, 1);
+        assert_eq!(parsed.start_lsn().as_u64(), 1000);
     }
 
     #[test]
@@ -636,12 +1022,57 @@ mod tests {
         let config = WalConfig::new()
             .with_checksum(true)
             .with_group_commit(true, 200, 512)
-            .with_recovery_mode(WalRecoveryMode::AbortOnCorruption);
+            .with_recovery_mode(WalRecoveryMode::AbortOnCorruption)
+            .with_sync_policy(SyncPolicy::Batch { batch_size: 100 })
+            .with_parallel_recovery(8);
         
         assert!(config.checksum_enabled);
         assert!(config.group_commit_enabled);
         assert_eq!(config.group_commit_delay_us, 200);
         assert_eq!(config.group_commit_batch_size, 512);
         assert_eq!(config.recovery_mode, WalRecoveryMode::AbortOnCorruption);
+        assert_eq!(config.max_parallel_recovery_threads, 8);
+    }
+
+    #[test]
+    fn test_sync_policy() {
+        assert!(SyncPolicy::EveryWrite.requires_sync(0, Duration::ZERO));
+        assert!(!SyncPolicy::Never.requires_sync(100, Duration::ZERO));
+        assert!(SyncPolicy::Batch { batch_size: 10 }.requires_sync(10, Duration::ZERO));
+        assert!(!SyncPolicy::Batch { batch_size: 10 }.requires_sync(5, Duration::ZERO));
+    }
+
+    #[test]
+    fn test_record_type() {
+        assert_eq!(RecordType::from_u8(0), RecordType::Full);
+        assert_eq!(RecordType::from_u8(1), RecordType::First);
+        assert_eq!(RecordType::from_u8(2), RecordType::Middle);
+        assert_eq!(RecordType::from_u8(3), RecordType::Last);
+    }
+
+    #[test]
+    fn test_block_alignment() {
+        assert_eq!(WAL_BLOCK_SIZE, 32 * 1024);
+
+        assert_eq!(block_padding_needed(0), 0);
+        assert_eq!(block_padding_needed(WAL_BLOCK_SIZE), 0);
+        assert_eq!(block_padding_needed(WAL_BLOCK_SIZE / 2), WAL_BLOCK_SIZE / 2);
+        assert_eq!(block_padding_needed(100), WAL_BLOCK_SIZE - 100);
+
+        assert!(is_block_aligned(0));
+        assert!(is_block_aligned(WAL_BLOCK_SIZE));
+        assert!(is_block_aligned(WAL_BLOCK_SIZE * 2));
+        assert!(!is_block_aligned(100));
+        assert!(!is_block_aligned(WAL_BLOCK_SIZE - 1));
+
+        assert_eq!(align_to_block(0), 0);
+        assert_eq!(align_to_block(1), WAL_BLOCK_SIZE);
+        assert_eq!(align_to_block(WAL_BLOCK_SIZE), WAL_BLOCK_SIZE);
+        assert_eq!(align_to_block(WAL_BLOCK_SIZE + 1), WAL_BLOCK_SIZE * 2);
+
+        assert_eq!(blocks_needed(0), 0);
+        assert_eq!(blocks_needed(1), 1);
+        assert_eq!(blocks_needed(WAL_BLOCK_SIZE), 1);
+        assert_eq!(blocks_needed(WAL_BLOCK_SIZE + 1), 2);
     }
 }

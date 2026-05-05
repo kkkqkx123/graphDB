@@ -5,13 +5,15 @@
 use std::fs::{File, OpenOptions};
 use std::io::{Seek, SeekFrom, Write};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::collections::VecDeque;
+use std::time::{Duration, Instant};
 
 use super::types::{
-    WalCompression, WalConfig, WalError, WalFileHeader, WalHeader, WalOpType, WalResult,
-    WAL_FILE_HEADER_SIZE,
+    Lsn, RecordType, SyncPolicy, WalCompression, WalConfig, WalError, WalFileHeader, WalHeader,
+    WalOpType, WalResult, WAL_BLOCK_SIZE, WAL_FILE_HEADER_SIZE, WAL_HEADER_SIZE,
+    WAL_MAX_RECORD_SIZE,
 };
 
 /// WAL writer trait
@@ -149,6 +151,12 @@ pub struct LocalWalWriter {
     version: u32,
     /// Checkpoint sequence number
     checkpoint_seq: u64,
+    /// Current LSN (Log Sequence Number)
+    current_lsn: AtomicU64,
+    /// Last synced LSN
+    last_synced_lsn: AtomicU64,
+    /// Starting LSN for current file
+    file_start_lsn: Lsn,
     /// Configuration
     config: WalConfig,
     /// Is open flag
@@ -157,6 +165,10 @@ pub struct LocalWalWriter {
     file_header: Option<WalFileHeader>,
     /// Group commit manager
     group_commit: Option<Arc<GroupCommitManager>>,
+    /// Write count since last sync (for batch sync policy)
+    write_count: AtomicU64,
+    /// Last sync time (for periodic sync policy)
+    last_sync_time: Mutex<Option<Instant>>,
 }
 
 impl LocalWalWriter {
@@ -171,10 +183,15 @@ impl LocalWalWriter {
             file_used: 0,
             version: 0,
             checkpoint_seq: 0,
+            current_lsn: AtomicU64::new(0),
+            last_synced_lsn: AtomicU64::new(0),
+            file_start_lsn: Lsn::ZERO,
             config: WalConfig::default(),
             is_open: AtomicBool::new(false),
             file_header: None,
             group_commit: None,
+            write_count: AtomicU64::new(0),
+            last_sync_time: Mutex::new(None),
         }
     }
 
@@ -198,10 +215,15 @@ impl LocalWalWriter {
             file_used: 0,
             version: 0,
             checkpoint_seq: 0,
+            current_lsn: AtomicU64::new(0),
+            last_synced_lsn: AtomicU64::new(0),
+            file_start_lsn: Lsn::ZERO,
             config,
             is_open: AtomicBool::new(false),
             file_header: None,
             group_commit,
+            write_count: AtomicU64::new(0),
+            last_sync_time: Mutex::new(None),
         }
     }
 
@@ -234,7 +256,8 @@ impl LocalWalWriter {
 
     /// Write WAL file header
     fn write_file_header(&mut self) -> WalResult<()> {
-        let header = WalFileHeader::new(self.thread_id, self.checkpoint_seq);
+        let current_lsn = Lsn::new(self.current_lsn.load(Ordering::SeqCst));
+        let header = WalFileHeader::new(self.thread_id, self.checkpoint_seq, current_lsn);
         let header_bytes = header.as_bytes();
         
         let file = self.file.as_mut().ok_or(WalError::Closed)?;
@@ -243,12 +266,13 @@ impl LocalWalWriter {
         file.sync_all()?;
         
         self.file_header = Some(header);
+        self.file_start_lsn = current_lsn;
         self.file_used = WAL_FILE_HEADER_SIZE;
         
         Ok(())
     }
 
-    /// Append a WAL entry with checksum
+    /// Append a WAL entry with checksum and LSN
     pub fn append_entry(
         &mut self,
         op_type: WalOpType,
@@ -260,18 +284,111 @@ impl LocalWalWriter {
         }
 
         let (final_payload, compression) = self.compress_payload(payload)?;
+
+        if final_payload.len() > WAL_MAX_RECORD_SIZE {
+            return self.append_fragmented_entry(op_type, timestamp, &final_payload, compression);
+        }
+
+        self.append_single_entry(op_type, timestamp, &final_payload, compression)
+    }
+
+    /// Append a single (non-fragmented) WAL entry
+    fn append_single_entry(
+        &mut self,
+        op_type: WalOpType,
+        timestamp: u32,
+        payload: &[u8],
+        compression: WalCompression,
+    ) -> WalResult<bool> {
+        let prev_lsn = Lsn::new(self.current_lsn.load(Ordering::SeqCst));
+        let entry_size = WAL_HEADER_SIZE + payload.len();
+        let new_lsn = Lsn::new(prev_lsn.as_u64() + entry_size as u64);
+
         let header = if self.config.checksum_enabled {
-            WalHeader::new(op_type, timestamp, final_payload.len() as u32)
-                .with_checksum(&final_payload)
+            WalHeader::new(op_type, timestamp, payload.len() as u32)
+                .with_lsn(new_lsn, prev_lsn)
+                .with_record_type(RecordType::Full)
+                .with_checksum(payload)
                 .with_compression(compression)
         } else {
-            WalHeader::new(op_type, timestamp, final_payload.len() as u32)
+            WalHeader::new(op_type, timestamp, payload.len() as u32)
+                .with_lsn(new_lsn, prev_lsn)
+                .with_record_type(RecordType::Full)
                 .with_compression(compression)
         };
+
+        self.write_entry(&header, payload, new_lsn)
+    }
+
+    /// Append a fragmented WAL entry (for large payloads)
+    fn append_fragmented_entry(
+        &mut self,
+        op_type: WalOpType,
+        timestamp: u32,
+        payload: &[u8],
+        compression: WalCompression,
+    ) -> WalResult<bool> {
+        let total_chunks = (payload.len() + WAL_MAX_RECORD_SIZE - 1) / WAL_MAX_RECORD_SIZE;
+        let mut offset = 0;
+        let mut chunk_index = 0;
+        let mut first_lsn = Lsn::ZERO;
+
+        while offset < payload.len() {
+            let chunk_end = (offset + WAL_MAX_RECORD_SIZE).min(payload.len());
+            let chunk_data = &payload[offset..chunk_end];
+            let chunk_size = chunk_data.len();
+
+            let prev_lsn = Lsn::new(self.current_lsn.load(Ordering::SeqCst));
+            let entry_size = WAL_HEADER_SIZE + chunk_size;
+            let new_lsn = Lsn::new(prev_lsn.as_u64() + entry_size as u64);
+
+            if chunk_index == 0 {
+                first_lsn = new_lsn;
+            }
+
+            let record_type = if total_chunks == 1 {
+                RecordType::Full
+            } else if chunk_index == 0 {
+                RecordType::First
+            } else if chunk_index == total_chunks - 1 {
+                RecordType::Last
+            } else {
+                RecordType::Middle
+            };
+
+            let header = if self.config.checksum_enabled {
+                WalHeader::new(op_type, timestamp, chunk_size as u32)
+                    .with_lsn(new_lsn, prev_lsn)
+                    .with_record_type(record_type)
+                    .with_checksum(chunk_data)
+                    .with_compression(compression)
+            } else {
+                WalHeader::new(op_type, timestamp, chunk_size as u32)
+                    .with_lsn(new_lsn, prev_lsn)
+                    .with_record_type(record_type)
+                    .with_compression(compression)
+            };
+
+            self.write_entry(&header, chunk_data, new_lsn)?;
+
+            offset = chunk_end;
+            chunk_index += 1;
+        }
+
+        Ok(true)
+    }
+
+    /// Write a single entry to the file
+    fn write_entry(
+        &mut self,
+        header: &WalHeader,
+        payload: &[u8],
+        new_lsn: Lsn,
+    ) -> WalResult<bool> {
         let header_bytes = header.as_bytes();
 
         let file = self.file.as_mut().ok_or(WalError::Closed)?;
-        let total_len = header_bytes.len() + final_payload.len();
+        let total_len = header_bytes.len() + payload.len();
 
         let expected_size = self.file_used + total_len;
         if expected_size > self.file_size {
@@ -283,14 +400,60 @@ impl LocalWalWriter {
 
         file.seek(SeekFrom::Start(self.file_used as u64))?;
         file.write_all(header_bytes)?;
-        file.write_all(&final_payload)?;
+        file.write_all(payload)?;
         self.file_used += total_len;
 
-        if self.config.sync_on_write {
-            file.sync_data()?;
+        self.current_lsn.store(new_lsn.as_u64(), Ordering::SeqCst);
+
+        let write_count = self.write_count.fetch_add(1, Ordering::SeqCst) + 1;
+        let should_sync = match &self.config.sync_policy {
+            SyncPolicy::Never => false,
+            SyncPolicy::EveryWrite => true,
+            SyncPolicy::Periodic { interval_ms } => {
+                let last_sync = self
+                    .last_sync_time
+                    .lock()
+                    .map(|guard| *guard)
+                    .unwrap_or(None);
+                if let Some(last) = last_sync {
+                    last.elapsed().as_millis() as u64 >= *interval_ms
+                } else {
+                    true
+                }
+            }
+            SyncPolicy::Batch { batch_size } => write_count as usize >= *batch_size,
+            SyncPolicy::GroupCommit => false,
+        };
+
+        if should_sync {
+            Self::do_sync_internal(
+                file,
+                &self.current_lsn,
+                &self.last_synced_lsn,
+                &self.write_count,
+                &self.last_sync_time,
+            )?;
         }
 
         Ok(true)
+    }
+
+    /// Perform sync operation (internal helper)
+    fn do_sync_internal(
+        file: &File,
+        current_lsn: &AtomicU64,
+        last_synced_lsn: &AtomicU64,
+        write_count: &AtomicU64,
+        last_sync_time: &Mutex<Option<Instant>>,
+    ) -> WalResult<()> {
+        file.sync_data()?;
+        let lsn = current_lsn.load(Ordering::SeqCst);
+        last_synced_lsn.store(lsn, Ordering::SeqCst);
+        write_count.store(0, Ordering::SeqCst);
+        if let Ok(mut guard) = last_sync_time.lock() {
+            *guard = Some(Instant::now());
+        }
+        Ok(())
     }
 
     /// Compress payload if compression is enabled
@@ -300,28 +463,13 @@ impl LocalWalWriter {
         }
 
         match self.config.compression {
-            WalCompression::Snappy => {
-                #[cfg(feature = "compression-snappy")]
-                {
-                    let compressed = snap::raw::Encoder::new()
-                        .compress_vec(payload)
-                        .map_err(|e| WalError::SerializationError(e.to_string()))?;
-                    
-                    if compressed.len() < payload.len() {
-                        return Ok((compressed, WalCompression::Snappy));
-                    }
-                }
-                Ok((payload.to_vec(), WalCompression::None))
-            }
             WalCompression::Zstd => {
-                #[cfg(feature = "compression-zstd")]
-                {
-                    let compressed = zstd::encode_all(payload, 0)
-                        .map_err(|e| WalError::SerializationError(e.to_string()))?;
-                    
-                    if compressed.len() < payload.len() {
-                        return Ok((compressed, WalCompression::Zstd));
-                    }
+                let level = self.config.compression_level.level as i32;
+                let compressed = zstd::encode_all(payload, level)
+                    .map_err(|e| WalError::SerializationError(e.to_string()))?;
+                
+                if compressed.len() < payload.len() {
+                    return Ok((compressed, WalCompression::Zstd));
                 }
                 Ok((payload.to_vec(), WalCompression::None))
             }
@@ -332,32 +480,9 @@ impl LocalWalWriter {
     /// Decompress payload
     pub fn decompress_payload(payload: &[u8], compression: WalCompression) -> WalResult<Vec<u8>> {
         match compression {
-            WalCompression::Snappy => {
-                #[cfg(feature = "compression-snappy")]
-                {
-                    snap::raw::Decoder::new()
-                        .decompress_vec(payload)
-                        .map_err(|e| WalError::DeserializationError(e.to_string()))
-                }
-                #[cfg(not(feature = "compression-snappy"))]
-                {
-                    Err(WalError::DeserializationError(
-                        "Snappy compression not enabled".to_string(),
-                    ))
-                }
-            }
             WalCompression::Zstd => {
-                #[cfg(feature = "compression-zstd")]
-                {
-                    zstd::decode_all(payload)
-                        .map_err(|e| WalError::DeserializationError(e.to_string()))
-                }
-                #[cfg(not(feature = "compression-zstd"))]
-                {
-                    Err(WalError::DeserializationError(
-                        "Zstd compression not enabled".to_string(),
-                    ))
-                }
+                zstd::decode_all(payload)
+                    .map_err(|e| WalError::DeserializationError(e.to_string()))
             }
             WalCompression::None => Ok(payload.to_vec()),
         }
@@ -374,16 +499,23 @@ impl LocalWalWriter {
         
         for (op_type, timestamp, payload) in entries {
             let (final_payload, compression) = self.compress_payload(payload)?;
+            
+            let prev_lsn = Lsn::new(self.current_lsn.load(Ordering::SeqCst) + total_len as u64);
+            let entry_size = WAL_HEADER_SIZE + final_payload.len();
+            let new_lsn = Lsn::new(prev_lsn.as_u64() + entry_size as u64);
+            
             let header = if self.config.checksum_enabled {
                 WalHeader::new(*op_type, *timestamp, final_payload.len() as u32)
+                    .with_lsn(new_lsn, prev_lsn)
                     .with_checksum(&final_payload)
                     .with_compression(compression)
             } else {
                 WalHeader::new(*op_type, *timestamp, final_payload.len() as u32)
+                    .with_lsn(new_lsn, prev_lsn)
                     .with_compression(compression)
             };
             
-            total_len += WalHeader::SIZE + final_payload.len();
+            total_len += WAL_HEADER_SIZE + final_payload.len();
             compressed_entries.push((header, final_payload));
         }
 
@@ -405,9 +537,34 @@ impl LocalWalWriter {
         }
         
         self.file_used += total_len;
+        
+        let new_lsn = self.current_lsn.load(Ordering::SeqCst) + total_len as u64;
+        self.current_lsn.store(new_lsn, Ordering::SeqCst);
+        
         file.sync_data()?;
+        self.last_synced_lsn.store(new_lsn, Ordering::SeqCst);
 
         Ok(true)
+    }
+
+    /// Get current LSN
+    pub fn current_lsn(&self) -> Lsn {
+        Lsn::new(self.current_lsn.load(Ordering::SeqCst))
+    }
+
+    /// Get last synced LSN
+    pub fn last_synced_lsn(&self) -> Lsn {
+        Lsn::new(self.last_synced_lsn.load(Ordering::SeqCst))
+    }
+
+    /// Get file start LSN
+    pub fn file_start_lsn(&self) -> Lsn {
+        self.file_start_lsn
+    }
+
+    /// Set current LSN (for recovery)
+    pub fn set_current_lsn(&self, lsn: Lsn) {
+        self.current_lsn.store(lsn.as_u64(), Ordering::SeqCst);
     }
 
     /// Get current file size
@@ -433,6 +590,44 @@ impl LocalWalWriter {
     /// Get the file header
     pub fn file_header(&self) -> Option<&WalFileHeader> {
         self.file_header.as_ref()
+    }
+
+    /// Append a full page write record for torn page protection
+    pub fn append_full_page_write(
+        &mut self,
+        page_id: super::types::PageId,
+        page_lsn: Lsn,
+        page_data: &[u8],
+        timestamp: u32,
+    ) -> WalResult<bool> {
+        if !self.is_open.load(Ordering::SeqCst) {
+            return Err(WalError::Closed);
+        }
+
+        if !self.config.full_page_writes {
+            return Err(WalError::InvalidOperation(
+                "Full page writes not enabled".to_string(),
+            ));
+        }
+
+        use super::types::FullPageWriteHeader;
+        use crc32fast::Hasher;
+
+        let record_lsn = Lsn::new(self.current_lsn.load(Ordering::SeqCst));
+        let page_checksum = {
+            let mut hasher = Hasher::new();
+            hasher.update(page_data);
+            hasher.finalize()
+        };
+
+        let fpw_header = FullPageWriteHeader::new(page_id, page_lsn, record_lsn, page_data.len() as u32)
+            .with_checksum(page_checksum);
+
+        let fpw_data = fpw_header.serialize();
+        let mut payload = fpw_data;
+        payload.extend_from_slice(page_data);
+
+        self.append_entry(WalOpType::FullPageWrite, timestamp, &payload)
     }
 
     /// Rotate to a new file if needed
@@ -538,8 +733,37 @@ impl WalWriter for LocalWalWriter {
         file.write_all(data)?;
         self.file_used += data.len();
 
-        if self.config.sync_on_write {
-            file.sync_data()?;
+        let new_lsn = self.current_lsn.load(Ordering::SeqCst) + data.len() as u64;
+        self.current_lsn.store(new_lsn, Ordering::SeqCst);
+
+        let write_count = self.write_count.fetch_add(1, Ordering::SeqCst) + 1;
+        let should_sync = match &self.config.sync_policy {
+            SyncPolicy::Never => false,
+            SyncPolicy::EveryWrite => true,
+            SyncPolicy::Periodic { interval_ms } => {
+                let last_sync = self
+                    .last_sync_time
+                    .lock()
+                    .map(|guard| *guard)
+                    .unwrap_or(None);
+                if let Some(last) = last_sync {
+                    last.elapsed().as_millis() as u64 >= *interval_ms
+                } else {
+                    true
+                }
+            }
+            SyncPolicy::Batch { batch_size } => write_count as usize >= *batch_size,
+            SyncPolicy::GroupCommit => false,
+        };
+
+        if should_sync {
+            Self::do_sync_internal(
+                file,
+                &self.current_lsn,
+                &self.last_synced_lsn,
+                &self.write_count,
+                &self.last_sync_time,
+            )?;
         }
 
         Ok(true)
@@ -548,6 +772,12 @@ impl WalWriter for LocalWalWriter {
     fn sync(&self) -> WalResult<()> {
         if let Some(ref file) = self.file {
             file.sync_all()?;
+            let current_lsn = self.current_lsn.load(Ordering::SeqCst);
+            self.last_synced_lsn.store(current_lsn, Ordering::SeqCst);
+            self.write_count.store(0, Ordering::SeqCst);
+            if let Ok(mut guard) = self.last_sync_time.lock() {
+                *guard = Some(Instant::now());
+            }
         }
         Ok(())
     }
@@ -719,6 +949,113 @@ mod tests {
         assert_eq!(header.thread_id, 42);
         assert_eq!(header.checkpoint_seq, 0);
 
+        writer.close();
+    }
+
+    #[test]
+    fn test_lsn_tracking() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let wal_path = temp_dir.path().to_string_lossy().to_string();
+
+        let config = WalConfig::new()
+            .with_checksum(true)
+            .with_sync_policy(SyncPolicy::EveryWrite);
+        let mut writer = LocalWalWriter::with_config(&wal_path, 0, config);
+        writer.open().expect("Failed to open WAL");
+
+        let initial_lsn = writer.current_lsn();
+        
+        writer
+            .append_entry(WalOpType::InsertVertex, 1, b"payload1")
+            .expect("Failed to append entry");
+        
+        let lsn_after_first = writer.current_lsn();
+        assert!(lsn_after_first > initial_lsn);
+        
+        writer
+            .append_entry(WalOpType::InsertVertex, 2, b"payload2")
+            .expect("Failed to append entry");
+        
+        let lsn_after_second = writer.current_lsn();
+        assert!(lsn_after_second > lsn_after_first);
+        
+        assert_eq!(writer.current_lsn(), writer.last_synced_lsn());
+
+        writer.close();
+    }
+
+    #[test]
+    fn test_sync_policy_batch() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let wal_path = temp_dir.path().to_string_lossy().to_string();
+
+        let config = WalConfig::new()
+            .with_checksum(true)
+            .with_sync_policy(SyncPolicy::Batch { batch_size: 3 });
+        let mut writer = LocalWalWriter::with_config(&wal_path, 0, config);
+        writer.open().expect("Failed to open WAL");
+
+        writer
+            .append_entry(WalOpType::InsertVertex, 1, b"payload1")
+            .expect("Failed to append entry");
+        assert_ne!(writer.current_lsn(), writer.last_synced_lsn());
+
+        writer
+            .append_entry(WalOpType::InsertVertex, 2, b"payload2")
+            .expect("Failed to append entry");
+        assert_ne!(writer.current_lsn(), writer.last_synced_lsn());
+
+        writer
+            .append_entry(WalOpType::InsertVertex, 3, b"payload3")
+            .expect("Failed to append entry");
+        assert_eq!(writer.current_lsn(), writer.last_synced_lsn());
+
+        writer.close();
+    }
+
+    #[test]
+    fn test_sync_policy_never() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let wal_path = temp_dir.path().to_string_lossy().to_string();
+
+        let config = WalConfig::new()
+            .with_checksum(true)
+            .with_sync_policy(SyncPolicy::Never);
+        let mut writer = LocalWalWriter::with_config(&wal_path, 0, config);
+        writer.open().expect("Failed to open WAL");
+
+        for i in 0..10 {
+            writer
+                .append_entry(WalOpType::InsertVertex, i, b"payload")
+                .expect("Failed to append entry");
+        }
+
+        assert_ne!(writer.current_lsn(), writer.last_synced_lsn());
+
+        writer.sync().expect("Failed to sync");
+        assert_eq!(writer.current_lsn(), writer.last_synced_lsn());
+
+        writer.close();
+    }
+
+    #[test]
+    fn test_fragmented_entry() {
+        use super::WAL_MAX_RECORD_SIZE;
+
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let wal_path = temp_dir.path().to_string_lossy().to_string();
+
+        let config = WalConfig::new().with_checksum(true);
+        let mut writer = LocalWalWriter::with_config(&wal_path, 0, config);
+        writer.open().expect("Failed to open WAL");
+
+        let large_payload: Vec<u8> = (0..(WAL_MAX_RECORD_SIZE * 2 + 1000)).map(|i| (i % 256) as u8).collect();
+
+        writer
+            .append_entry(WalOpType::InsertVertex, 1, &large_payload)
+            .expect("Failed to append fragmented entry");
+
+        writer.sync().expect("Failed to sync");
         writer.close();
     }
 }

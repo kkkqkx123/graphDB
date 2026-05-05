@@ -7,7 +7,6 @@ pub mod entity;
 pub mod extend;
 pub mod graph_storage;
 pub mod index;
-pub mod io;
 pub mod iterator;
 pub mod memory;
 pub mod metadata;
@@ -45,8 +44,6 @@ pub use memory::{
 pub use metadata::*;
 pub use operations::*;
 pub use shared_state::{StorageInner, StorageSharedState};
-
-pub use io::{MmapFile, MmapFileError, MmapOptions};
 
 pub use crate::core::StorageError;
 pub use crate::core::StorageResult;

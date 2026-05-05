@@ -28,23 +28,17 @@ impl std::fmt::Display for StorageEngine {
 #[serde(rename_all = "lowercase")]
 pub enum CompressionAlgorithm {
     /// No compression
-    None,
-    /// LZ4 compression
     #[default]
-    Lz4,
+    None,
     /// Zstandard compression
     Zstd,
-    /// Snappy compression
-    Snappy,
 }
 
 impl std::fmt::Display for CompressionAlgorithm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::None => write!(f, "none"),
-            Self::Lz4 => write!(f, "lz4"),
             Self::Zstd => write!(f, "zstd"),
-            Self::Snappy => write!(f, "snappy"),
         }
     }
 }
@@ -223,7 +217,7 @@ mod tests {
     fn test_storage_config_default() {
         let config = StorageConfig::default();
         assert_eq!(config.engine, StorageEngine::PropertyGraph);
-        assert_eq!(config.compression, CompressionAlgorithm::Lz4);
+        assert_eq!(config.compression, CompressionAlgorithm::None);
         assert_eq!(config.compression_level, 3);
         assert_eq!(config.checkpoint_interval_secs, 300);
         assert!(config.auto_statistics);
@@ -272,8 +266,6 @@ mod tests {
     #[test]
     fn test_compression_algorithm_display() {
         assert_eq!(CompressionAlgorithm::None.to_string(), "none");
-        assert_eq!(CompressionAlgorithm::Lz4.to_string(), "lz4");
         assert_eq!(CompressionAlgorithm::Zstd.to_string(), "zstd");
-        assert_eq!(CompressionAlgorithm::Snappy.to_string(), "snappy");
     }
 }

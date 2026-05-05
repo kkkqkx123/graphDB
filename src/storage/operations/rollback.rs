@@ -1,23 +1,30 @@
-//! Operation Log Rollback Module
+//! Transaction Rollback Module
 //!
-//! Provide operation log based rollback function, support transaction save point rollback
+//! Provides rollback functionality for transactions using both OperationLog and UndoLog mechanisms.
+//! The UndoLog-based rollback is the recommended approach for NeuG architecture.
 
 use crate::core::StorageError;
 use crate::transaction::types::OperationLog;
+use crate::transaction::undo_log::{UndoLog, UndoLogManager, UndoTarget};
+use crate::transaction::wal::types::{LabelId, Timestamp};
+
+pub use crate::transaction::undo_log::{
+    CreateVertexTypeUndo, CreateEdgeTypeUndo, InsertVertexUndo, InsertEdgeUndo,
+    UpdateVertexPropUndo, UpdateEdgePropUndo, RemoveVertexUndo, RemoveEdgeUndo,
+    AddVertexPropUndo, AddEdgePropUndo, DeleteVertexPropUndo, DeleteEdgePropUndo,
+    DeleteVertexTypeUndo, DeleteEdgeTypeUndo, RenameVertexPropUndo, RenameEdgePropUndo,
+    PropertyValue, RelatedEdgeInfo,
+};
 
 /// Operation logging context trait
 ///
-/// Define the basic operations required for operation log rollbacks
+/// Define the basic operations required for operation log rollbacks.
+/// This is used for savepoint rollback functionality.
 pub trait OperationLogContext {
-    /// Get operation log length
     fn operation_log_len(&self) -> usize;
-    /// Truncate operation logs to a specified index
     fn truncate_operation_log(&self, index: usize);
-    /// Get the operation log of the specified index
     fn get_operation_log(&self, index: usize) -> Option<OperationLog>;
-    /// Get the operation log for a specified range
     fn get_operation_logs(&self, start: usize, end: usize) -> Vec<OperationLog>;
-    /// Empty operation log
     fn clear_operation_log(&self);
 }
 
@@ -43,30 +50,44 @@ impl OperationLogContext for crate::transaction::context::TransactionContext {
     }
 }
 
-/// Rollback executor trait
+/// Undo log context trait
 ///
-/// Define how to perform the inverse of a single operation
+/// Defines the basic operations required for undo log rollbacks.
+/// This is the primary rollback mechanism for NeuG architecture.
+pub trait UndoLogContext {
+    fn undo_log_len(&self) -> usize;
+    fn add_undo_log(&self, log: Box<dyn UndoLog>);
+    fn execute_undo_logs(&self, target: &mut dyn UndoTarget) -> Result<(), StorageError>;
+    fn clear_undo_logs(&self);
+}
+
+impl UndoLogContext for crate::transaction::context::TransactionContext {
+    fn undo_log_len(&self) -> usize {
+        self.undo_log_len()
+    }
+
+    fn add_undo_log(&self, log: Box<dyn UndoLog>) {
+        self.add_undo_log(log);
+    }
+
+    fn execute_undo_logs(&self, target: &mut dyn UndoTarget) -> Result<(), StorageError> {
+        self.execute_undo_logs(target)
+            .map_err(|e| StorageError::DbError(e.to_string()))
+    }
+
+    fn clear_undo_logs(&self) {
+        self.clear_undo_logs();
+    }
+}
+
+/// Rollback executor trait (legacy)
+///
+/// Define how to perform the inverse of a single operation.
+/// This is kept for backward compatibility but is deprecated in favor of UndoLog.
+#[deprecated(since = "0.2.0", note = "Use UndoLog trait instead")]
 pub trait RollbackExecutor: Send {
-    /// Perform inverse operation (rollback) of a single operation log
-    ///
-    /// # Arguments
-    /// * :: `log` -- log of operations to be rolled back
-    ///
-    /// # Returns
-    /// * `Ok(())` - Rollback successful
-    /// * `Err(StorageError)` - Rollback failed
     fn execute_rollback(&mut self, log: &OperationLog) -> Result<(), StorageError>;
 
-    /// Batch execution of rollback operations
-    ///
-    /// Performs rollback of operation logs in reverse order
-    ///
-    /// # Arguments
-    /// * `logs` - a list of operation logs to be rolled back
-    ///
-    /// # Returns
-    /// * `Ok(())` - Rollback successful
-    /// * `Err(StorageError)` - Rollback failed
     fn execute_rollback_batch(&mut self, logs: &[OperationLog]) -> Result<(), StorageError> {
         for log in logs.iter().rev() {
             self.execute_rollback(log)?;
@@ -75,20 +96,21 @@ pub trait RollbackExecutor: Send {
     }
 }
 
-/// Operation Log Rollback Processor
+/// Operation Log Rollback Processor (legacy)
 ///
-/// Responsible for performing rollback operations based on operation logs
+/// Responsible for performing rollback operations based on operation logs.
+/// This is kept for backward compatibility but is deprecated in favor of UndoLogRollback.
+#[deprecated(since = "0.2.0", note = "Use UndoLogRollback instead")]
 pub struct OperationLogRollback<'a, T: OperationLogContext> {
     ctx: &'a T,
 }
 
+#[allow(deprecated)]
 impl<'a, T: OperationLogContext> OperationLogRollback<'a, T> {
-    /// Creating a new rollback processor
     pub fn new(ctx: &'a T) -> Self {
         Self { ctx }
     }
 
-    /// Rollback to the specified operation log index
     pub fn rollback_to_index(&self, index: usize) -> Result<(), StorageError> {
         let current_len = self.ctx.operation_log_len();
 
@@ -104,7 +126,6 @@ impl<'a, T: OperationLogContext> OperationLogRollback<'a, T> {
         Ok(())
     }
 
-    /// Use the executor to roll back to a specified operation log index
     pub fn execute_rollback_to_index<E: RollbackExecutor>(
         &self,
         index: usize,
@@ -128,20 +149,218 @@ impl<'a, T: OperationLogContext> OperationLogRollback<'a, T> {
         Ok(())
     }
 
-    /// Get operation log length
     pub fn operation_log_len(&self) -> usize {
         self.ctx.operation_log_len()
     }
 
-    /// Get all operation logs
     pub fn get_all_logs(&self) -> Vec<OperationLog> {
         let len = self.ctx.operation_log_len();
         self.ctx.get_operation_logs(0, len)
     }
 
-    /// Empty all operation logs
     pub fn clear_logs(&self) {
         self.ctx.clear_operation_log();
+    }
+}
+
+/// Undo Log Rollback Processor
+///
+/// Primary rollback mechanism for NeuG architecture.
+/// Uses UndoLog entries to reverse operations during transaction abort.
+pub struct UndoLogRollback<'a, T: UndoLogContext> {
+    ctx: &'a T,
+}
+
+impl<'a, T: UndoLogContext> UndoLogRollback<'a, T> {
+    pub fn new(ctx: &'a T) -> Self {
+        Self { ctx }
+    }
+
+    pub fn execute_rollback(
+        &self,
+        target: &mut dyn UndoTarget,
+        ts: Timestamp,
+    ) -> Result<(), StorageError> {
+        self.ctx.execute_undo_logs(target)
+    }
+
+    pub fn undo_log_len(&self) -> usize {
+        self.ctx.undo_log_len()
+    }
+
+    pub fn clear_logs(&self) {
+        self.ctx.clear_undo_logs();
+    }
+
+    pub fn add_log(&self, log: Box<dyn UndoLog>) {
+        self.ctx.add_undo_log(log);
+    }
+}
+
+/// Combined Rollback Processor
+///
+/// Provides both OperationLog and UndoLog rollback capabilities.
+/// Used for transactions that need to support both mechanisms.
+pub struct CombinedRollback<'a, T: OperationLogContext + UndoLogContext> {
+    ctx: &'a T,
+}
+
+impl<'a, T: OperationLogContext + UndoLogContext> CombinedRollback<'a, T> {
+    pub fn new(ctx: &'a T) -> Self {
+        Self { ctx }
+    }
+
+    pub fn execute_undo_rollback(
+        &self,
+        target: &mut dyn UndoTarget,
+        ts: Timestamp,
+    ) -> Result<(), StorageError> {
+        self.ctx.execute_undo_logs(target)
+    }
+
+    pub fn rollback_operation_log_to_index(&self, index: usize) -> Result<(), StorageError> {
+        let current_len = self.ctx.operation_log_len();
+
+        if index > current_len {
+            return Err(StorageError::DbError(format!(
+                "Invalid rollback index: {}, operation log length: {}",
+                index, current_len
+            )));
+        }
+
+        self.ctx.truncate_operation_log(index);
+        Ok(())
+    }
+
+    pub fn operation_log_len(&self) -> usize {
+        self.ctx.operation_log_len()
+    }
+
+    pub fn undo_log_len(&self) -> usize {
+        self.ctx.undo_log_len()
+    }
+
+    pub fn clear_all_logs(&self) {
+        self.ctx.clear_operation_log();
+        self.ctx.clear_undo_logs();
+    }
+}
+
+/// Rollback helper functions
+pub struct RollbackHelper;
+
+impl RollbackHelper {
+    pub fn create_insert_vertex_undo(label: LabelId, vid: u64) -> Box<dyn UndoLog> {
+        Box::new(InsertVertexUndo {
+            v_label: label,
+            vid,
+        })
+    }
+
+    pub fn create_insert_edge_undo(
+        src_label: LabelId,
+        dst_label: LabelId,
+        edge_label: LabelId,
+        src_vid: u64,
+        dst_vid: u64,
+        oe_offset: i32,
+        ie_offset: i32,
+    ) -> Box<dyn UndoLog> {
+        Box::new(InsertEdgeUndo {
+            src_label,
+            dst_label,
+            edge_label,
+            src_vid,
+            dst_vid,
+            oe_offset,
+            ie_offset,
+        })
+    }
+
+    pub fn create_update_vertex_prop_undo(
+        label: LabelId,
+        vid: u64,
+        col_id: i32,
+        old_value: PropertyValue,
+    ) -> Box<dyn UndoLog> {
+        Box::new(UpdateVertexPropUndo {
+            v_label: label,
+            vid,
+            col_id,
+            old_value,
+        })
+    }
+
+    pub fn create_update_edge_prop_undo(
+        src_label: LabelId,
+        src_vid: u64,
+        dst_label: LabelId,
+        dst_vid: u64,
+        edge_label: LabelId,
+        oe_offset: i32,
+        ie_offset: i32,
+        col_id: i32,
+        old_value: PropertyValue,
+    ) -> Box<dyn UndoLog> {
+        Box::new(UpdateEdgePropUndo {
+            src_label,
+            src_vid,
+            dst_label,
+            dst_vid,
+            edge_label,
+            oe_offset,
+            ie_offset,
+            col_id,
+            old_value,
+        })
+    }
+
+    pub fn create_remove_vertex_undo(
+        label: LabelId,
+        vid: u64,
+        related_edges: Vec<(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)>,
+    ) -> Box<dyn UndoLog> {
+        Box::new(RemoveVertexUndo {
+            v_label: label,
+            vid,
+            related_edges,
+        })
+    }
+
+    pub fn create_remove_edge_undo(
+        src_label: LabelId,
+        src_vid: u64,
+        dst_label: LabelId,
+        dst_vid: u64,
+        edge_label: LabelId,
+        oe_offset: i32,
+        ie_offset: i32,
+    ) -> Box<dyn UndoLog> {
+        Box::new(RemoveEdgeUndo {
+            src_label,
+            src_vid,
+            dst_label,
+            dst_vid,
+            edge_label,
+            oe_offset,
+            ie_offset,
+        })
+    }
+
+    pub fn create_create_vertex_type_undo(label: LabelId) -> Box<dyn UndoLog> {
+        Box::new(CreateVertexTypeUndo { vertex_type: label })
+    }
+
+    pub fn create_create_edge_type_undo(
+        src_type: LabelId,
+        dst_type: LabelId,
+        edge_type: LabelId,
+    ) -> Box<dyn UndoLog> {
+        Box::new(CreateEdgeTypeUndo {
+            src_type,
+            dst_type,
+            edge_type,
+        })
     }
 }
 
@@ -149,70 +368,62 @@ impl<'a, T: OperationLogContext> OperationLogRollback<'a, T> {
 mod tests {
     use super::*;
 
-    struct MockContext {
-        logs: std::cell::RefCell<Vec<OperationLog>>,
+    struct MockUndoContext {
+        logs: std::cell::RefCell<UndoLogManager>,
     }
 
-    impl MockContext {
+    impl MockUndoContext {
         fn new() -> Self {
             Self {
-                logs: std::cell::RefCell::new(Vec::new()),
+                logs: std::cell::RefCell::new(UndoLogManager::new()),
             }
-        }
-
-        fn add_log(&self, log: OperationLog) {
-            self.logs.borrow_mut().push(log);
         }
     }
 
-    impl OperationLogContext for MockContext {
-        fn operation_log_len(&self) -> usize {
+    impl UndoLogContext for MockUndoContext {
+        fn undo_log_len(&self) -> usize {
             self.logs.borrow().len()
         }
 
-        fn truncate_operation_log(&self, index: usize) {
-            self.logs.borrow_mut().truncate(index);
+        fn add_undo_log(&self, log: Box<dyn UndoLog>) {
+            self.logs.borrow_mut().add(log);
         }
 
-        fn get_operation_log(&self, index: usize) -> Option<OperationLog> {
-            self.logs.borrow().get(index).cloned()
+        fn execute_undo_logs(&self, _target: &mut dyn UndoTarget) -> Result<(), StorageError> {
+            self.logs.borrow_mut().clear();
+            Ok(())
         }
 
-        fn get_operation_logs(&self, start: usize, end: usize) -> Vec<OperationLog> {
-            let logs = self.logs.borrow();
-            if start >= logs.len() {
-                return Vec::new();
-            }
-            let end = end.min(logs.len());
-            logs[start..end].to_vec()
-        }
-
-        fn clear_operation_log(&self) {
+        fn clear_undo_logs(&self) {
             self.logs.borrow_mut().clear();
         }
     }
 
     #[test]
-    fn test_rollback_to_index() {
-        let ctx = MockContext::new();
-        let rollback = OperationLogRollback::new(&ctx);
+    fn test_undo_log_rollback() {
+        let ctx = MockUndoContext::new();
+        let rollback = UndoLogRollback::new(&ctx);
 
-        ctx.add_log(OperationLog::InsertVertex {
-            space: "test".to_string(),
-            vertex_id: vec![1, 2, 3],
-            previous_state: None,
-        });
+        assert_eq!(rollback.undo_log_len(), 0);
 
-        ctx.add_log(OperationLog::UpdateVertex {
-            space: "test".to_string(),
-            vertex_id: vec![1, 2, 3],
-            previous_data: vec![4, 5, 6],
-        });
+        rollback.add_log(RollbackHelper::create_insert_vertex_undo(1, 100));
+        assert_eq!(rollback.undo_log_len(), 1);
 
-        assert_eq!(rollback.operation_log_len(), 2);
+        rollback.clear_logs();
+        assert_eq!(rollback.undo_log_len(), 0);
+    }
 
-        let result = rollback.rollback_to_index(1);
-        assert!(result.is_ok());
-        assert_eq!(rollback.operation_log_len(), 1);
+    #[test]
+    fn test_rollback_helper() {
+        let undo = RollbackHelper::create_insert_vertex_undo(1, 100);
+        assert!(undo.description().contains("InsertVertexUndo"));
+
+        let undo = RollbackHelper::create_insert_edge_undo(1, 2, 3, 100, 200, 0, 0);
+        assert!(undo.description().contains("InsertEdgeUndo"));
+
+        let undo = RollbackHelper::create_update_vertex_prop_undo(
+            1, 100, 0, PropertyValue::Int(42)
+        );
+        assert!(undo.description().contains("UpdateVertexPropUndo"));
     }
 }

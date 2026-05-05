@@ -472,6 +472,18 @@ impl TransactionContext {
         undo_logs.add(log);
     }
 
+    /// Get undo log length
+    pub fn undo_log_len(&self) -> usize {
+        let undo_logs = self.undo_logs.read();
+        undo_logs.len()
+    }
+
+    /// Clear undo logs
+    pub fn clear_undo_logs(&self) {
+        let mut undo_logs = self.undo_logs.write();
+        undo_logs.clear();
+    }
+
     /// Execute undo logs for rollback
     pub fn execute_undo_logs(&self, target: &mut dyn UndoTarget) -> Result<(), TransactionError> {
         let mut undo_logs = self.undo_logs.write();

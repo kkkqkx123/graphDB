@@ -51,14 +51,17 @@ pub mod writer;
 
 pub use checkpoint::{Checkpoint, CheckpointManager};
 pub use parser::{
-    LocalWalParser, WalEntry, WalEntryIter, WalParser, WalParserFactory, ParsedWalEntry,
+    LocalWalParser, ParallelWalParser, ParsedWalEntry, RecoveryResult, WalEntry, WalEntryIter,
+    WalParser, WalParserFactory,
 };
 pub use types::{
-    ColumnId, CreateEdgeTypeRedo, CreateVertexTypeRedo, DeleteEdgeRedo, DeleteVertexRedo,
-    EdgeId, InsertEdgeRedo, InsertVertexRedo, LabelId, Timestamp, UpdateEdgePropRedo,
-    UpdateVertexPropRedo, UpdateWalUnit, WalCompression, WalConfig, WalContentUnit, WalError,
-    WalFileHeader, WalHeader, WalOpType, WalRecoveryMode, WalResult, VertexId,
-    WAL_FILE_HEADER_SIZE, WAL_MAGIC, WAL_VERSION,
+    align_to_block, block_padding_needed, blocks_needed, is_block_aligned, ColumnId,
+    CompressionLevel, CreateEdgeTypeRedo, CreateVertexTypeRedo, DeleteEdgeRedo, DeleteVertexRedo,
+    EdgeId, FullPageWriteHeader, InsertEdgeRedo, InsertVertexRedo, LabelId, Lsn, PageId,
+    RecordType, SyncPolicy, Timestamp, TransactionId, UpdateEdgePropRedo, UpdateVertexPropRedo,
+    UpdateWalUnit, WalCompression, WalConfig, WalContentUnit, WalError, WalFileHeader, WalHeader,
+    WalOpType, WalRecoveryMode, WalResult, VertexId, WAL_BLOCK_SIZE, WAL_FILE_HEADER_SIZE,
+    WAL_HEADER_SIZE, WAL_MAGIC, WAL_MAX_RECORD_SIZE, WAL_VERSION,
 };
 pub use writer::{DummyWalWriter, GroupCommitManager, LocalWalWriter, WalWriter, WalWriterFactory};
 
@@ -88,5 +91,35 @@ mod tests {
 
         let content = parser.get_insert_wal(1).expect("WAL entry not found");
         assert_eq!(content.as_slice(), b"test_data");
+    }
+
+    #[test]
+    fn test_wal_fragmented_roundtrip() {
+        use WAL_MAX_RECORD_SIZE;
+
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let wal_path = temp_dir.path().to_string_lossy().to_string();
+
+        let large_payload: Vec<u8> = (0..(WAL_MAX_RECORD_SIZE * 2 + 5000))
+            .map(|i| (i % 256) as u8)
+            .collect();
+
+        {
+            let config = WalConfig::new().with_checksum(true);
+            let mut writer = LocalWalWriter::with_config(&wal_path, 0, config);
+            writer.open().expect("Failed to open WAL");
+
+            writer
+                .append_entry(WalOpType::InsertVertex, 1, &large_payload)
+                .expect("Failed to append");
+
+            writer.sync().expect("Failed to sync");
+        }
+
+        let mut parser = LocalWalParser::new();
+        parser.open(&wal_path).expect("Failed to parse WAL");
+
+        let content = parser.get_insert_wal(1).expect("WAL entry not found");
+        assert_eq!(content.as_slice(), large_payload.as_slice());
     }
 }
