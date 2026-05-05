@@ -104,6 +104,7 @@ impl Planner for LookupPlanner {
                 status: crate::core::types::IndexStatus::Active,
                 is_unique: false,
                 comment: None,
+                partial_condition: None,
             });
 
             // Extract filter values from WHERE clause

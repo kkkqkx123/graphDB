@@ -386,6 +386,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             properties: node.info().properties.clone(),
             index_type: IndexType::TagIndex,
             is_unique: false,
+            partial_condition: None,
         });
         let executor = CreateTagIndexExecutor::new(
             node.id(),
@@ -484,6 +485,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             properties: node.info().properties.clone(),
             index_type: IndexType::EdgeIndex,
             is_unique: false,
+            partial_condition: None,
         });
         let executor = CreateEdgeIndexExecutor::new(
             node.id(),

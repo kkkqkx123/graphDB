@@ -7,6 +7,126 @@ use crate::core::Value;
 use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
+/// Comparison operator for partial index conditions
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+pub enum ComparisonOperator {
+    #[serde(rename = "eq")]
+    Equal,
+    #[serde(rename = "ne")]
+    NotEqual,
+    #[serde(rename = "gt")]
+    GreaterThan,
+    #[serde(rename = "gte")]
+    GreaterThanOrEqual,
+    #[serde(rename = "lt")]
+    LessThan,
+    #[serde(rename = "lte")]
+    LessThanOrEqual,
+    #[serde(rename = "in")]
+    In,
+    #[serde(rename = "not_in")]
+    NotIn,
+    #[serde(rename = "is_null")]
+    IsNull,
+    #[serde(rename = "is_not_null")]
+    IsNotNull,
+}
+
+/// Condition for partial index filtering
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+pub struct PartialIndexCondition {
+    pub field: String,
+    pub operator: ComparisonOperator,
+    pub value: Value,
+}
+
+impl PartialIndexCondition {
+    pub fn new(field: String, operator: ComparisonOperator, value: Value) -> Self {
+        Self {
+            field,
+            operator,
+            value,
+        }
+    }
+
+    pub fn eq(field: impl Into<String>, value: Value) -> Self {
+        Self::new(field.into(), ComparisonOperator::Equal, value)
+    }
+
+    pub fn ne(field: impl Into<String>, value: Value) -> Self {
+        Self::new(field.into(), ComparisonOperator::NotEqual, value)
+    }
+
+    pub fn gt(field: impl Into<String>, value: Value) -> Self {
+        Self::new(field.into(), ComparisonOperator::GreaterThan, value)
+    }
+
+    pub fn gte(field: impl Into<String>, value: Value) -> Self {
+        Self::new(field.into(), ComparisonOperator::GreaterThanOrEqual, value)
+    }
+
+    pub fn lt(field: impl Into<String>, value: Value) -> Self {
+        Self::new(field.into(), ComparisonOperator::LessThan, value)
+    }
+
+    pub fn lte(field: impl Into<String>, value: Value) -> Self {
+        Self::new(field.into(), ComparisonOperator::LessThanOrEqual, value)
+    }
+
+    pub fn is_null(field: impl Into<String>) -> Self {
+        Self::new(field.into(), ComparisonOperator::IsNull, Value::Null(crate::core::NullType::Null))
+    }
+
+    pub fn is_not_null(field: impl Into<String>) -> Self {
+        Self::new(field.into(), ComparisonOperator::IsNotNull, Value::Null(crate::core::NullType::Null))
+    }
+
+    /// Evaluate the condition against a value
+    pub fn evaluate(&self, value: &Value) -> bool {
+        match &self.operator {
+            ComparisonOperator::Equal => value == &self.value,
+            ComparisonOperator::NotEqual => value != &self.value,
+            ComparisonOperator::IsNull => matches!(value, Value::Null(_)),
+            ComparisonOperator::IsNotNull => !matches!(value, Value::Null(_)),
+            ComparisonOperator::GreaterThan => {
+                match (value, &self.value) {
+                    (Value::Int(a), Value::Int(b)) => a > b,
+                    (Value::Float(a), Value::Float(b)) => a > b,
+                    (Value::String(a), Value::String(b)) => a > b,
+                    _ => false,
+                }
+            }
+            ComparisonOperator::GreaterThanOrEqual => {
+                match (value, &self.value) {
+                    (Value::Int(a), Value::Int(b)) => a >= b,
+                    (Value::Float(a), Value::Float(b)) => a >= b,
+                    (Value::String(a), Value::String(b)) => a >= b,
+                    _ => false,
+                }
+            }
+            ComparisonOperator::LessThan => {
+                match (value, &self.value) {
+                    (Value::Int(a), Value::Int(b)) => a < b,
+                    (Value::Float(a), Value::Float(b)) => a < b,
+                    (Value::String(a), Value::String(b)) => a < b,
+                    _ => false,
+                }
+            }
+            ComparisonOperator::LessThanOrEqual => {
+                match (value, &self.value) {
+                    (Value::Int(a), Value::Int(b)) => a <= b,
+                    (Value::Float(a), Value::Float(b)) => a <= b,
+                    (Value::String(a), Value::String(b)) => a <= b,
+                    _ => false,
+                }
+            }
+            ComparisonOperator::In | ComparisonOperator::NotIn => {
+                false
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
 pub enum IndexStatus {
     #[serde(rename = "creating")]
@@ -102,6 +222,8 @@ pub struct IndexConfig {
     pub properties: Vec<String>,
     pub index_type: IndexType,
     pub is_unique: bool,
+    /// Optional condition for partial index
+    pub partial_condition: Option<PartialIndexCondition>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
@@ -116,6 +238,8 @@ pub struct Index {
     pub status: IndexStatus,
     pub is_unique: bool,
     pub comment: Option<String>,
+    /// Optional condition for partial index
+    pub partial_condition: Option<PartialIndexCondition>,
 }
 
 impl Index {
@@ -132,6 +256,25 @@ impl Index {
             status: IndexStatus::Active,
             is_unique: config.is_unique,
             comment: None,
+            partial_condition: config.partial_condition,
+        }
+    }
+
+    /// Check if this is a partial index
+    pub fn is_partial(&self) -> bool {
+        self.partial_condition.is_some()
+    }
+
+    /// Check if a value should be indexed based on partial condition
+    pub fn should_index(&self, field_values: &std::collections::HashMap<String, Value>) -> bool {
+        match &self.partial_condition {
+            Some(condition) => {
+                field_values
+                    .get(&condition.field)
+                    .map(|v| condition.evaluate(v))
+                    .unwrap_or(false)
+            }
+            None => true,
         }
     }
 }
@@ -199,6 +342,7 @@ mod tests {
             properties: vec![],
             index_type: IndexType::TagIndex,
             is_unique: false,
+            partial_condition: None,
         };
 
         let index = Index::new(config);

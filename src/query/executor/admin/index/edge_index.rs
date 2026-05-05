@@ -59,6 +59,7 @@ impl From<&EdgeIndexDesc> for Index {
             properties: desc.fields.clone(),
             index_type: IndexType::EdgeIndex,
             is_unique: false,
+            partial_condition: None,
         })
     }
 }

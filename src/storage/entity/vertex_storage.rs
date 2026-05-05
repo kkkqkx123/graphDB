@@ -8,7 +8,7 @@ use parking_lot::RwLock;
 
 use crate::core::types::{InsertVertexInfo, TagInfo, UpdateInfo, UpdateOp};
 use crate::core::{StorageError, Value, Vertex};
-use crate::storage::index::{IndexDataManager, RedbIndexDataManager};
+use crate::storage::index::{IndexDataManager, InMemoryIndexDataManager};
 use crate::storage::metadata::{IndexMetadataManager, Schema, SchemaManager};
 use crate::storage::property_graph::PropertyGraph;
 use crate::storage::vertex::{LabelId, Timestamp, VertexRecord};
@@ -21,7 +21,7 @@ pub struct VertexStorage {
     graph: Arc<RwLock<PropertyGraph>>,
     version_manager: Arc<VersionManager>,
     schema_manager: Arc<dyn SchemaManager + Send + Sync>,
-    index_data_manager: RedbIndexDataManager,
+    index_data_manager: InMemoryIndexDataManager,
     sync_manager: Arc<RwLock<Option<Arc<crate::sync::SyncManager>>>>,
 }
 
@@ -36,7 +36,7 @@ impl VertexStorage {
         graph: Arc<RwLock<PropertyGraph>>,
         version_manager: Arc<VersionManager>,
         schema_manager: Arc<dyn SchemaManager + Send + Sync>,
-        index_data_manager: RedbIndexDataManager,
+        index_data_manager: InMemoryIndexDataManager,
         sync_manager: Arc<RwLock<Option<Arc<crate::sync::SyncManager>>>>,
     ) -> Result<Self, StorageError> {
         Ok(Self {
@@ -285,11 +285,12 @@ impl VertexStorage {
                     }
 
                     if !index_props.is_empty() {
-                        self.index_data_manager.update_vertex_indexes(
+                        self.index_data_manager.update_vertex_indexes_mvcc(
                             space_id,
                             &vid,
                             &index.name,
                             &index_props,
+                            ts,
                         )?;
                     }
                 }
@@ -340,20 +341,20 @@ impl VertexStorage {
     ) -> Result<(), StorageError> {
         let _old_vertex = self.get_vertex(space, id)?;
 
+        let ts = self.get_write_timestamp();
+
         {
             let external_id = self.value_to_string_id(id)?;
-            let ts = self.get_write_timestamp();
 
             let mut graph = self.graph.write();
             if let Some(label_id) = graph.get_vertex_label_id("default") {
                 graph.delete_vertex(label_id, &external_id, ts)?;
             }
-
-            self.release_write_timestamp(ts);
         }
 
-        self.index_data_manager.delete_vertex_indexes(space_id, id)?;
+        self.index_data_manager.delete_vertex_indexes_mvcc(space_id, id, ts)?;
 
+        self.release_write_timestamp(ts);
         Ok(())
     }
 
@@ -439,11 +440,12 @@ impl VertexStorage {
             graph.insert_vertex(label_id, &external_id, &properties, ts)?;
         }
 
-        self.index_data_manager.update_vertex_indexes(
+        self.index_data_manager.update_vertex_indexes_mvcc(
             space_id,
             &info.vertex_id,
             &tag_name,
             &info.props,
+            ts,
         )?;
 
         self.release_write_timestamp(ts);
@@ -458,21 +460,21 @@ impl VertexStorage {
     ) -> Result<bool, StorageError> {
         let _old_vertex = self.get_vertex(space, vertex_id)?;
 
+        let ts = self.get_write_timestamp();
+
         self.index_data_manager
-            .delete_vertex_indexes(space_id, vertex_id)?;
+            .delete_vertex_indexes_mvcc(space_id, vertex_id, ts)?;
 
         {
             let external_id = self.value_to_string_id(vertex_id)?;
-            let ts = self.get_write_timestamp();
 
             let mut graph = self.graph.write();
             if let Some(label_id) = graph.get_vertex_label_id("default") {
                 graph.delete_vertex(label_id, &external_id, ts)?;
             }
-
-            self.release_write_timestamp(ts);
         }
 
+        self.release_write_timestamp(ts);
         Ok(true)
     }
 

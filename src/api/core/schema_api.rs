@@ -365,6 +365,7 @@ impl<S: StorageClient> SchemaApi<S> {
                     status: IndexStatus::Active,
                     is_unique: false,
                     comment: None,
+                    partial_condition: None,
                 };
                 storage.create_tag_index(&space_name, &index)
             }
@@ -380,6 +381,7 @@ impl<S: StorageClient> SchemaApi<S> {
                     status: IndexStatus::Active,
                     is_unique: false,
                     comment: None,
+                    partial_condition: None,
                 };
                 storage.create_edge_index(&space_name, &index)
             }

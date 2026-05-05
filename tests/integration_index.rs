@@ -51,6 +51,7 @@ fn test_create_tag_index_metadata() {
         properties: vec!["name".to_string()],
         index_type: IndexType::TagIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     let result = get_storage(&storage).create_tag_index("test_space", &index);
@@ -91,6 +92,7 @@ fn test_create_tag_index_duplicate() {
         properties: vec!["name".to_string()],
         index_type: IndexType::TagIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
@@ -124,6 +126,7 @@ fn test_drop_tag_index_metadata() {
         properties: vec!["name".to_string()],
         index_type: IndexType::TagIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
@@ -161,6 +164,7 @@ fn test_list_tag_indexes() {
         properties: vec!["name".to_string()],
         index_type: IndexType::TagIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     let index2 = Index::new(graphdb::core::types::IndexConfig {
@@ -172,6 +176,7 @@ fn test_list_tag_indexes() {
         properties: vec!["age".to_string()],
         index_type: IndexType::TagIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index1));
@@ -216,6 +221,7 @@ fn test_drop_tag_indexes_by_tag() {
         properties: vec!["name".to_string()],
         index_type: IndexType::TagIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     let index2 = Index::new(graphdb::core::types::IndexConfig {
@@ -227,6 +233,7 @@ fn test_drop_tag_indexes_by_tag() {
         properties: vec!["age".to_string()],
         index_type: IndexType::TagIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index1));
@@ -271,6 +278,7 @@ fn test_create_edge_index_metadata() {
         properties: vec!["since".to_string()],
         index_type: IndexType::EdgeIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     let result = get_storage(&storage).create_edge_index("test_space", &index);
@@ -311,6 +319,7 @@ fn test_drop_edge_index_metadata() {
         properties: vec!["since".to_string()],
         index_type: IndexType::EdgeIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     assert_ok(get_storage(&storage).create_edge_index("test_space", &index));
@@ -348,6 +357,7 @@ fn test_list_edge_indexes() {
         properties: vec!["since".to_string()],
         index_type: IndexType::EdgeIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     let index2 = Index::new(graphdb::core::types::IndexConfig {
@@ -363,6 +373,7 @@ fn test_list_edge_indexes() {
         properties: vec!["weight".to_string()],
         index_type: IndexType::EdgeIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     assert_ok(get_storage(&storage).create_edge_index("test_space", &index1));
@@ -409,6 +420,7 @@ fn test_update_vertex_indexes() {
         properties: vec!["name".to_string()],
         index_type: IndexType::TagIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
@@ -459,6 +471,7 @@ fn test_update_edge_indexes() {
         properties: vec!["since".to_string()],
         index_type: IndexType::EdgeIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     assert_ok(get_storage(&storage).create_edge_index("test_space", &index));
@@ -510,6 +523,7 @@ fn test_delete_vertex_indexes() {
         properties: vec!["name".to_string()],
         index_type: IndexType::TagIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
@@ -560,6 +574,7 @@ fn test_delete_edge_indexes() {
         properties: vec!["since".to_string()],
         index_type: IndexType::EdgeIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     assert_ok(get_storage(&storage).create_edge_index("test_space", &index));
@@ -613,6 +628,7 @@ fn test_index_exact_query() {
         properties: vec!["name".to_string()],
         index_type: IndexType::TagIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
@@ -665,6 +681,7 @@ fn test_index_query_multiple_matches() {
         properties: vec!["age".to_string()],
         index_type: IndexType::TagIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
@@ -721,6 +738,7 @@ fn test_index_query_no_match() {
         properties: vec!["name".to_string()],
         index_type: IndexType::TagIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
@@ -768,6 +786,7 @@ fn test_index_status_active() {
         properties: vec!["name".to_string()],
         index_type: IndexType::TagIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
@@ -808,6 +827,7 @@ fn test_unique_index() {
         properties: vec!["name".to_string()],
         index_type: IndexType::TagIndex,
         is_unique: true,
+        partial_condition: None,
     });
 
     let result = get_storage(&storage).create_tag_index("test_space", &index);
@@ -846,6 +866,7 @@ fn test_composite_index() {
         properties: vec!["name".to_string(), "age".to_string()],
         index_type: IndexType::TagIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
@@ -990,6 +1011,7 @@ fn test_index_range_query_with_boundaries() {
         properties: vec!["age".to_string()],
         index_type: IndexType::TagIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
@@ -1063,6 +1085,7 @@ fn test_scan_type_unique() {
         properties: vec!["name".to_string()],
         index_type: IndexType::TagIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
@@ -1120,6 +1143,7 @@ fn test_scan_type_range() {
         properties: vec!["age".to_string()],
         index_type: IndexType::TagIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
@@ -1167,6 +1191,7 @@ fn test_scan_type_full() {
         properties: vec!["name".to_string()],
         index_type: IndexType::TagIndex,
         is_unique: false,
+        partial_condition: None,
     });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));

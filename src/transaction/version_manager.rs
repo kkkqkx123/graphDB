@@ -466,6 +466,32 @@ impl VersionManager {
     pub fn is_update_in_progress(&self) -> bool {
         self.pending_update_reqs.load(Ordering::SeqCst) > 0
     }
+
+    /// Get safe GC timestamp
+    ///
+    /// Returns a timestamp such that all versions deleted before this timestamp
+    /// are no longer visible to any active transaction and can be safely garbage collected.
+    ///
+    /// The safe timestamp is the current read_ts, which represents the latest committed
+    /// transaction. Any version deleted before read_ts is guaranteed to be invisible
+    /// to all active transactions (since they all have timestamps >= read_ts).
+    pub fn get_safe_gc_timestamp(&self) -> Timestamp {
+        self.read_ts.load(Ordering::SeqCst)
+    }
+
+    /// Get safe GC timestamp with safety margin
+    ///
+    /// Returns a timestamp that is safely behind the current read_ts by the specified margin.
+    /// This provides additional safety for edge cases where transactions might be
+    /// in the process of acquiring timestamps.
+    pub fn get_safe_gc_timestamp_with_margin(&self, margin: Timestamp) -> Timestamp {
+        let read_ts = self.read_ts.load(Ordering::SeqCst);
+        if read_ts > margin {
+            read_ts - margin
+        } else {
+            0
+        }
+    }
 }
 
 impl Default for VersionManager {

@@ -121,6 +121,7 @@ impl<S: StorageClient + Send + Sync + 'static> CreateIndexExecutor<S> {
             properties: self.properties.clone(),
             index_type: index_type.clone(),
             is_unique: false,
+            partial_condition: None,
         });
 
         match index_type {

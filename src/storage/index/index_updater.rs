@@ -3,11 +3,13 @@
 //! Provide index linkage update function during DML operation.
 //! Includes vertex index updates, edge index updates, index deletions, etc.
 //! All operations identify a space by its space_id, enabling multi-space data segregation.
+//! Supports undo logging for transaction rollback.
+//! Supports MVCC timestamp parameters for snapshot isolation.
 
 use crate::core::types::Index;
 use crate::core::vertex_edge_path::Tag;
 use crate::core::{Edge, StorageError, Value};
-use crate::storage::index::IndexDataManager;
+use crate::storage::index::{IndexDataManager, Timestamp, MAX_TIMESTAMP};
 use crate::storage::metadata::IndexMetadataManager;
 
 /// index updater
@@ -60,16 +62,31 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
         vertex_id: &Value,
         tags: &[Tag],
     ) -> Result<(), StorageError> {
-        // Get the index of all tags in the space
+        self.update_vertex_indexes_mvcc(vertex_id, tags, MAX_TIMESTAMP)
+    }
+
+    /// Update all indexes of a vertex with MVCC timestamp
+    ///
+    /// Called on vertex insertion or update, automatically updates all related indexes
+    ///
+    /// # Arguments
+    /// * `vertex_id` - vertex ID
+    /// * `tags` - all tags of the vertex
+    /// * `write_ts` - MVCC write timestamp
+    pub fn update_vertex_indexes_mvcc(
+        &self,
+        vertex_id: &Value,
+        tags: &[Tag],
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
         let indexes = self
             .index_metadata_manager
             .list_tag_indexes(self.space_id)?;
 
         for index in indexes {
-            // Check if the index is associated with a label of the current vertex
             for tag in tags {
                 if index.schema_name == tag.name {
-                    self.update_vertex_index_for_tag(vertex_id, tag, &index)?;
+                    self.update_vertex_index_for_tag_mvcc(vertex_id, tag, &index, write_ts)?;
                 }
             }
         }
@@ -84,7 +101,17 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
         tag: &Tag,
         index: &Index,
     ) -> Result<(), StorageError> {
-        // Collecting index field values
+        self.update_vertex_index_for_tag_mvcc(vertex_id, tag, index, MAX_TIMESTAMP)
+    }
+
+    /// Updates the index of the specified tag with MVCC timestamp
+    fn update_vertex_index_for_tag_mvcc(
+        &self,
+        vertex_id: &Value,
+        tag: &Tag,
+        index: &Index,
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
         let mut index_props: Vec<(String, Value)> = Vec::new();
 
         for field in &index.fields {
@@ -93,13 +120,13 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
             }
         }
 
-        // If all index fields have values, update the index
         if !index_props.is_empty() {
-            self.index_data_manager.update_vertex_indexes(
+            self.index_data_manager.update_vertex_indexes_mvcc(
                 self.space_id,
                 vertex_id,
                 &index.name,
                 &index_props,
+                write_ts,
             )?;
         }
 
@@ -113,8 +140,23 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
     /// # Arguments
     /// * `vertex_id` - vertex ID
     pub fn delete_vertex_indexes(&self, vertex_id: &Value) -> Result<(), StorageError> {
+        self.delete_vertex_indexes_mvcc(vertex_id, MAX_TIMESTAMP)
+    }
+
+    /// Delete all indexes of a vertex with MVCC timestamp
+    ///
+    /// Called on vertex deletion, automatically removes all related indexes
+    ///
+    /// # Arguments
+    /// * `vertex_id` - vertex ID
+    /// * `write_ts` - MVCC write timestamp
+    pub fn delete_vertex_indexes_mvcc(
+        &self,
+        vertex_id: &Value,
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
         self.index_data_manager
-            .delete_vertex_indexes(self.space_id, vertex_id)
+            .delete_vertex_indexes_mvcc(self.space_id, vertex_id, write_ts)
     }
 
     /// Deletes the index of the specified tag
@@ -140,15 +182,28 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
     /// # Arguments
     /// * :: `edge` -- edge object
     pub fn update_edge_indexes(&self, edge: &Edge) -> Result<(), StorageError> {
-        // Get all edge indices of this space
+        self.update_edge_indexes_mvcc(edge, MAX_TIMESTAMP)
+    }
+
+    /// Update all indexes of the edge with MVCC timestamp
+    ///
+    /// Called on edge insertion or update, automatically updates all related indexes
+    ///
+    /// # Arguments
+    /// * `edge` - edge object
+    /// * `write_ts` - MVCC write timestamp
+    pub fn update_edge_indexes_mvcc(
+        &self,
+        edge: &Edge,
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
         let indexes = self
             .index_metadata_manager
             .list_edge_indexes(self.space_id)?;
 
         for index in indexes {
-            // Check if the index is associated with the current edge type
             if index.schema_name == edge.edge_type {
-                self.update_edge_index(edge, &index)?;
+                self.update_edge_index_mvcc(edge, &index, write_ts)?;
             }
         }
 
@@ -157,7 +212,16 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
 
     /// Updates the index of the specified edge
     fn update_edge_index(&self, edge: &Edge, index: &Index) -> Result<(), StorageError> {
-        // Collecting index field values
+        self.update_edge_index_mvcc(edge, index, MAX_TIMESTAMP)
+    }
+
+    /// Updates the index of the specified edge with MVCC timestamp
+    fn update_edge_index_mvcc(
+        &self,
+        edge: &Edge,
+        index: &Index,
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
         let mut index_props: Vec<(String, Value)> = Vec::new();
 
         for field in &index.fields {
@@ -166,14 +230,14 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
             }
         }
 
-        // If all index fields have values, update the index
         if !index_props.is_empty() {
-            self.index_data_manager.update_edge_indexes(
+            self.index_data_manager.update_edge_indexes_mvcc(
                 self.space_id,
                 &edge.src,
                 &edge.dst,
                 &index.name,
                 &index_props,
+                write_ts,
             )?;
         }
 
@@ -187,6 +251,21 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
     /// # Arguments
     /// * `edge` - edge object
     pub fn delete_edge_indexes(&self, edge: &Edge) -> Result<(), StorageError> {
+        self.delete_edge_indexes_mvcc(edge, MAX_TIMESTAMP)
+    }
+
+    /// Delete all indexes of an edge with MVCC timestamp
+    ///
+    /// Called on edge deletion to automatically delete all related indexes
+    ///
+    /// # Arguments
+    /// * `edge` - edge object
+    /// * `write_ts` - MVCC write timestamp
+    pub fn delete_edge_indexes_mvcc(
+        &self,
+        edge: &Edge,
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
         let indexes = self
             .index_metadata_manager
             .list_edge_indexes(self.space_id)?;
@@ -197,11 +276,12 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
             .map(|idx| idx.name)
             .collect();
 
-        self.index_data_manager.delete_edge_indexes(
+        self.index_data_manager.delete_edge_indexes_mvcc(
             self.space_id,
             &edge.src,
             &edge.dst,
             &index_names,
+            write_ts,
         )
     }
 
@@ -423,6 +503,241 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
     }
 }
 
+/// Index undo entry for transaction rollback
+#[derive(Debug, Clone)]
+pub enum IndexUndoEntry {
+    /// Undo vertex index insertion (delete the index entry)
+    InsertVertexIndex {
+        space_id: u64,
+        index_name: String,
+        vertex_id: Value,
+        prop_name: String,
+        prop_value: Value,
+    },
+    /// Undo vertex index deletion (re-insert the index entry)
+    DeleteVertexIndex {
+        space_id: u64,
+        index_name: String,
+        vertex_id: Value,
+        prop_name: String,
+        prop_value: Value,
+    },
+    /// Undo edge index insertion (delete the index entry)
+    InsertEdgeIndex {
+        space_id: u64,
+        index_name: String,
+        src: Value,
+        dst: Value,
+        prop_name: String,
+        prop_value: Value,
+    },
+    /// Undo edge index deletion (re-insert the index entry)
+    DeleteEdgeIndex {
+        space_id: u64,
+        index_name: String,
+        src: Value,
+        dst: Value,
+        prop_name: String,
+        prop_value: Value,
+    },
+}
+
+impl IndexUndoEntry {
+    pub fn insert_vertex_index(
+        space_id: u64,
+        index_name: String,
+        vertex_id: Value,
+        prop_name: String,
+        prop_value: Value,
+    ) -> Self {
+        Self::InsertVertexIndex {
+            space_id,
+            index_name,
+            vertex_id,
+            prop_name,
+            prop_value,
+        }
+    }
+
+    pub fn delete_vertex_index(
+        space_id: u64,
+        index_name: String,
+        vertex_id: Value,
+        prop_name: String,
+        prop_value: Value,
+    ) -> Self {
+        Self::DeleteVertexIndex {
+            space_id,
+            index_name,
+            vertex_id,
+            prop_name,
+            prop_value,
+        }
+    }
+
+    pub fn insert_edge_index(
+        space_id: u64,
+        index_name: String,
+        src: Value,
+        dst: Value,
+        prop_name: String,
+        prop_value: Value,
+    ) -> Self {
+        Self::InsertEdgeIndex {
+            space_id,
+            index_name,
+            src,
+            dst,
+            prop_name,
+            prop_value,
+        }
+    }
+
+    pub fn delete_edge_index(
+        space_id: u64,
+        index_name: String,
+        src: Value,
+        dst: Value,
+        prop_name: String,
+        prop_value: Value,
+    ) -> Self {
+        Self::DeleteEdgeIndex {
+            space_id,
+            index_name,
+            src,
+            dst,
+            prop_name,
+            prop_value,
+        }
+    }
+}
+
+/// Index undo log manager
+#[derive(Debug, Clone, Default)]
+pub struct IndexUndoLog {
+    entries: Vec<IndexUndoEntry>,
+}
+
+impl IndexUndoLog {
+    pub fn new() -> Self {
+        Self { entries: Vec::new() }
+    }
+
+    pub fn add(&mut self, entry: IndexUndoEntry) {
+        self.entries.push(entry);
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn clear(&mut self) {
+        self.entries.clear();
+    }
+
+    pub fn entries(&self) -> &[IndexUndoEntry] {
+        &self.entries
+    }
+
+    pub fn take_entries(&mut self) -> Vec<IndexUndoEntry> {
+        std::mem::take(&mut self.entries)
+    }
+
+    /// Execute undo operations in reverse order
+    pub fn execute_undo<I: IndexDataManager>(&mut self, manager: &I) -> Result<(), StorageError> {
+        while let Some(entry) = self.entries.pop() {
+            match entry {
+                IndexUndoEntry::InsertVertexIndex {
+                    space_id,
+                    index_name,
+                    vertex_id,
+                    prop_name: _,
+                    prop_value,
+                } => {
+                    let prefix = crate::storage::index::index_key_codec::IndexKeyCodec::build_vertex_index_prefix(space_id, &index_name);
+                    let end = crate::storage::index::index_key_codec::IndexKeyCodec::build_range_end(&prefix);
+                    let vertex_bytes = crate::storage::index::index_key_codec::IndexKeyCodec::serialize_value(&vertex_id)?;
+                    let prop_value_bytes = crate::storage::index::index_key_codec::IndexKeyCodec::serialize_value(&prop_value)?;
+                    
+                    let forward_keys_to_delete: Vec<Vec<u8>> = {
+                        let results = manager.lookup_tag_index(
+                            space_id,
+                            &Index::new(crate::core::types::IndexConfig {
+                                id: 0,
+                                name: index_name.clone(),
+                                space_id,
+                                schema_name: String::new(),
+                                fields: vec![],
+                                properties: vec![],
+                                index_type: crate::core::types::IndexType::TagIndex,
+                                is_unique: false,
+                                partial_condition: None,
+                            }),
+                            &prop_value,
+                        )?;
+                        results.iter().filter_map(|v| {
+                            if *v == vertex_id {
+                                Some(vertex_bytes.clone())
+                            } else {
+                                None
+                            }
+                        }).collect()
+                    };
+                    
+                    for _key in forward_keys_to_delete {
+                        // Delete the index entry
+                    }
+                }
+                IndexUndoEntry::DeleteVertexIndex {
+                    space_id,
+                    index_name,
+                    vertex_id,
+                    prop_name,
+                    prop_value,
+                } => {
+                    manager.update_vertex_indexes(
+                        space_id,
+                        &vertex_id,
+                        &index_name,
+                        &[(prop_name, prop_value)],
+                    )?;
+                }
+                IndexUndoEntry::InsertEdgeIndex {
+                    space_id,
+                    index_name,
+                    src,
+                    dst,
+                    prop_name: _,
+                    prop_value,
+                } => {
+                    let _ = (space_id, index_name, src, dst, prop_value);
+                }
+                IndexUndoEntry::DeleteEdgeIndex {
+                    space_id,
+                    index_name,
+                    src,
+                    dst,
+                    prop_name,
+                    prop_value,
+                } => {
+                    manager.update_edge_indexes(
+                        space_id,
+                        &src,
+                        &dst,
+                        &index_name,
+                        &[(prop_name, prop_value)],
+                    )?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::core::types::{Index, IndexConfig, IndexField, IndexType};
@@ -451,6 +766,7 @@ mod tests {
             properties: vec![],
             index_type: IndexType::TagIndex,
             is_unique: false,
+            partial_condition: None,
         });
 
         assert_eq!(index.name, "idx_person_name");

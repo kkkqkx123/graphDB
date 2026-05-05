@@ -2,7 +2,6 @@ pub mod api;
 pub mod cache;
 pub mod container;
 pub mod edge;
-pub mod engine;
 pub mod entity;
 pub mod extend;
 pub mod graph_storage;
@@ -27,8 +26,6 @@ pub use api::{
 };
 
 pub use cache::{BlockCache, BlockId, CacheConfig, CacheStats, TableType};
-
-pub use engine::{PlanContext, RuntimeContext, StorageEnv};
 
 pub use entity::{EdgeStorage, SyncStorage, UserStorage, VertexStorage};
 

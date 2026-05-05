@@ -32,6 +32,7 @@ mod tests {
             properties: vec!["name".to_string()],
             index_type: IndexType::TagIndex,
             is_unique: false,
+            partial_condition: None,
         };
         let index = Index::new(index_config);
 
@@ -65,6 +66,7 @@ mod tests {
             properties: vec!["name".to_string()],
             index_type: IndexType::TagIndex,
             is_unique: false,
+            partial_condition: None,
         };
         let index = Index::new(index_config);
 
@@ -186,6 +188,7 @@ mod tests {
             properties: vec!["weight".to_string()],
             index_type: IndexType::EdgeIndex,
             is_unique: false,
+            partial_condition: None,
         };
         let index = Index::new(index_config);
 
@@ -219,6 +222,7 @@ mod tests {
             properties: vec!["weight".to_string()],
             index_type: IndexType::EdgeIndex,
             is_unique: false,
+            partial_condition: None,
         };
         let index = Index::new(index_config);
 
@@ -340,6 +344,7 @@ mod tests {
             properties: vec!["name".to_string()],
             index_type: IndexType::TagIndex,
             is_unique: false,
+            partial_condition: None,
         };
         let index = Index::new(index_config);
         let mut executor = CreateTagIndexExecutor::new(
@@ -371,6 +376,7 @@ mod tests {
             properties: vec!["name".to_string()],
             index_type: IndexType::TagIndex,
             is_unique: false,
+            partial_condition: None,
         };
         let index = Index::new(index_config);
         let executor = CreateTagIndexExecutor::new(

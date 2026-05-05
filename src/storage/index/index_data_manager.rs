@@ -3,18 +3,65 @@
 //! Provide update, delete and query functions for indexed data
 //! The management of index metadata is handled by the IndexMetadataManager.
 //! All operations identify a space by its space_id, enabling multi-space data segregation.
+//! Supports persistence through flush/load operations.
+//! Supports MVCC (Multi-Version Concurrency Control) for snapshot isolation.
 
 use crate::core::types::Index;
 use crate::core::vertex_edge_path::Tag;
 use crate::core::Edge;
-use crate::core::{StorageError, Value};
+use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::index::edge_index_manager::EdgeIndexManager;
 use crate::storage::index::index_key_codec::IndexKeyCodec;
 use crate::storage::index::vertex_index_manager::VertexIndexManager;
+use std::path::Path;
 
 pub use crate::storage::index::index_key_codec::{
     KEY_TYPE_EDGE_FORWARD, KEY_TYPE_EDGE_REVERSE, KEY_TYPE_VERTEX_FORWARD, KEY_TYPE_VERTEX_REVERSE,
 };
+
+pub type Timestamp = u32;
+
+pub const INVALID_TIMESTAMP: Timestamp = u32::MAX;
+pub const MAX_TIMESTAMP: Timestamp = u32::MAX - 1;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IndexEntry {
+    pub created_ts: Timestamp,
+    pub deleted_ts: Option<Timestamp>,
+}
+
+impl IndexEntry {
+    pub fn new(created_ts: Timestamp) -> Self {
+        Self {
+            created_ts,
+            deleted_ts: None,
+        }
+    }
+
+    pub fn with_deleted(mut self, deleted_ts: Timestamp) -> Self {
+        self.deleted_ts = Some(deleted_ts);
+        self
+    }
+
+    pub fn is_visible_at(&self, read_ts: Timestamp) -> bool {
+        self.created_ts <= read_ts
+            && self.deleted_ts.map_or(true, |deleted_ts| deleted_ts > read_ts)
+    }
+
+    pub fn is_deleted(&self) -> bool {
+        self.deleted_ts.is_some()
+    }
+
+    pub fn mark_deleted(&mut self, deleted_ts: Timestamp) {
+        self.deleted_ts = Some(deleted_ts);
+    }
+}
+
+impl Default for IndexEntry {
+    fn default() -> Self {
+        Self::new(MAX_TIMESTAMP)
+    }
+}
 
 pub trait IndexDataManager {
     fn update_vertex_indexes(
@@ -23,7 +70,19 @@ pub trait IndexDataManager {
         vertex_id: &Value,
         index_name: &str,
         props: &[(String, Value)],
+    ) -> Result<(), StorageError> {
+        self.update_vertex_indexes_mvcc(space_id, vertex_id, index_name, props, MAX_TIMESTAMP)
+    }
+
+    fn update_vertex_indexes_mvcc(
+        &self,
+        space_id: u64,
+        vertex_id: &Value,
+        index_name: &str,
+        props: &[(String, Value)],
+        write_ts: Timestamp,
     ) -> Result<(), StorageError>;
+
     fn update_edge_indexes(
         &self,
         space_id: u64,
@@ -31,27 +90,84 @@ pub trait IndexDataManager {
         dst: &Value,
         index_name: &str,
         props: &[(String, Value)],
+    ) -> Result<(), StorageError> {
+        self.update_edge_indexes_mvcc(space_id, src, dst, index_name, props, MAX_TIMESTAMP)
+    }
+
+    fn update_edge_indexes_mvcc(
+        &self,
+        space_id: u64,
+        src: &Value,
+        dst: &Value,
+        index_name: &str,
+        props: &[(String, Value)],
+        write_ts: Timestamp,
     ) -> Result<(), StorageError>;
-    fn delete_vertex_indexes(&self, space_id: u64, vertex_id: &Value) -> Result<(), StorageError>;
+
+    fn delete_vertex_indexes(&self, space_id: u64, vertex_id: &Value) -> Result<(), StorageError> {
+        self.delete_vertex_indexes_mvcc(space_id, vertex_id, MAX_TIMESTAMP)
+    }
+
+    fn delete_vertex_indexes_mvcc(
+        &self,
+        space_id: u64,
+        vertex_id: &Value,
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError>;
+
     fn delete_edge_indexes(
         &self,
         space_id: u64,
         src: &Value,
         dst: &Value,
         index_names: &[String],
+    ) -> Result<(), StorageError> {
+        self.delete_edge_indexes_mvcc(space_id, src, dst, index_names, MAX_TIMESTAMP)
+    }
+
+    fn delete_edge_indexes_mvcc(
+        &self,
+        space_id: u64,
+        src: &Value,
+        dst: &Value,
+        index_names: &[String],
+        write_ts: Timestamp,
     ) -> Result<(), StorageError>;
+
     fn lookup_tag_index(
         &self,
         space_id: u64,
         index: &Index,
         value: &Value,
+    ) -> Result<Vec<Value>, StorageError> {
+        self.lookup_tag_index_mvcc(space_id, index, value, MAX_TIMESTAMP)
+    }
+
+    fn lookup_tag_index_mvcc(
+        &self,
+        space_id: u64,
+        index: &Index,
+        value: &Value,
+        read_ts: Timestamp,
     ) -> Result<Vec<Value>, StorageError>;
+
     fn lookup_edge_index(
         &self,
         space_id: u64,
         index: &Index,
         value: &Value,
+    ) -> Result<Vec<Value>, StorageError> {
+        self.lookup_edge_index_mvcc(space_id, index, value, MAX_TIMESTAMP)
+    }
+
+    fn lookup_edge_index_mvcc(
+        &self,
+        space_id: u64,
+        index: &Index,
+        value: &Value,
+        read_ts: Timestamp,
     ) -> Result<Vec<Value>, StorageError>;
+
     fn clear_edge_index(&self, space_id: u64, index_name: &str) -> Result<(), StorageError>;
     fn build_edge_index_entry(
         &self,
@@ -76,12 +192,12 @@ pub trait IndexDataManager {
 }
 
 #[derive(Clone)]
-pub struct RedbIndexDataManager {
+pub struct InMemoryIndexDataManager {
     vertex_manager: VertexIndexManager,
     edge_manager: EdgeIndexManager,
 }
 
-impl RedbIndexDataManager {
+impl InMemoryIndexDataManager {
     pub fn new() -> Self {
         Self {
             vertex_manager: VertexIndexManager::new(),
@@ -96,70 +212,195 @@ impl RedbIndexDataManager {
     pub fn deserialize_value(data: &[u8]) -> Result<Value, StorageError> {
         IndexKeyCodec::deserialize_value(data)
     }
+
+    pub fn flush<P: AsRef<Path>>(&self, path: P) -> StorageResult<()> {
+        let path = path.as_ref();
+        self.vertex_manager.flush(path.join("vertex_index"))?;
+        self.edge_manager.flush(path.join("edge_index"))?;
+        Ok(())
+    }
+
+    pub fn load<P: AsRef<Path>>(&mut self, path: P) -> StorageResult<()> {
+        let path = path.as_ref();
+        self.vertex_manager.load(path.join("vertex_index"))?;
+        self.edge_manager.load(path.join("edge_index"))?;
+        Ok(())
+    }
+
+    pub fn entry_count(&self) -> IndexEntryCount {
+        let (forward, reverse) = self.vertex_manager.entry_count();
+        let (edge_forward, edge_reverse) = self.edge_manager.entry_count();
+        IndexEntryCount {
+            vertex_forward: forward,
+            vertex_reverse: reverse,
+            edge_forward,
+            edge_reverse,
+        }
+    }
+
+    pub fn gc_tombstones(&self, safe_ts: Timestamp) -> Result<GcStats, StorageError> {
+        let vertex_removed = self.vertex_manager.gc_tombstones(safe_ts)?;
+        let edge_removed = self.edge_manager.gc_tombstones(safe_ts)?;
+
+        Ok(GcStats {
+            vertex_entries_removed: vertex_removed,
+            edge_entries_removed: edge_removed,
+        })
+    }
+
+    pub fn gc_tombstones_incremental(
+        &self,
+        safe_ts: Timestamp,
+        batch_size: usize,
+    ) -> Result<GcStats, StorageError> {
+        let vertex_removed = self.vertex_manager.gc_tombstones_incremental(safe_ts, batch_size)?;
+        let remaining = batch_size.saturating_sub(vertex_removed);
+        let edge_removed = if remaining > 0 {
+            self.edge_manager.gc_tombstones_incremental(safe_ts, remaining)?
+        } else {
+            0
+        };
+
+        Ok(GcStats {
+            vertex_entries_removed: vertex_removed,
+            edge_entries_removed: edge_removed,
+        })
+    }
+
+    pub fn tombstone_count(&self) -> usize {
+        self.vertex_manager.tombstone_count() + self.edge_manager.tombstone_count()
+    }
+
+    pub fn clear_all_indexes(&self) -> Result<(), StorageError> {
+        self.vertex_manager.clear_all()?;
+        self.edge_manager.clear_all()?;
+        Ok(())
+    }
+
+    pub fn rebuild_stats(&self) -> RebuildStats {
+        let vertex_estimate = self.vertex_manager.entry_count();
+        let edge_estimate = self.edge_manager.entry_count();
+        RebuildStats {
+            vertex_entries: vertex_estimate.0 + vertex_estimate.1,
+            edge_entries: edge_estimate.0 + edge_estimate.1,
+        }
+    }
 }
 
-impl Default for RedbIndexDataManager {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct RebuildStats {
+    pub vertex_entries: usize,
+    pub edge_entries: usize,
+}
+
+impl RebuildStats {
+    pub fn total_entries(&self) -> usize {
+        self.vertex_entries + self.edge_entries
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.vertex_entries == 0 && self.edge_entries == 0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IndexEntryCount {
+    pub vertex_forward: usize,
+    pub vertex_reverse: usize,
+    pub edge_forward: usize,
+    pub edge_reverse: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct GcStats {
+    pub vertex_entries_removed: usize,
+    pub edge_entries_removed: usize,
+}
+
+impl GcStats {
+    pub fn total_removed(&self) -> usize {
+        self.vertex_entries_removed + self.edge_entries_removed
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.vertex_entries_removed == 0 && self.edge_entries_removed == 0
+    }
+}
+
+impl Default for InMemoryIndexDataManager {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl IndexDataManager for RedbIndexDataManager {
-    fn update_vertex_indexes(
+impl IndexDataManager for InMemoryIndexDataManager {
+    fn update_vertex_indexes_mvcc(
         &self,
         space_id: u64,
         vertex_id: &Value,
         index_name: &str,
         props: &[(String, Value)],
+        write_ts: Timestamp,
     ) -> Result<(), StorageError> {
         self.vertex_manager
-            .update_vertex_indexes(space_id, vertex_id, index_name, props)
+            .update_vertex_indexes_mvcc(space_id, vertex_id, index_name, props, write_ts)
     }
 
-    fn update_edge_indexes(
+    fn update_edge_indexes_mvcc(
         &self,
         space_id: u64,
         src: &Value,
         dst: &Value,
         index_name: &str,
         props: &[(String, Value)],
+        write_ts: Timestamp,
     ) -> Result<(), StorageError> {
         self.edge_manager
-            .update_edge_indexes(space_id, src, dst, index_name, props)
+            .update_edge_indexes_mvcc(space_id, src, dst, index_name, props, write_ts)
     }
 
-    fn delete_vertex_indexes(&self, space_id: u64, vertex_id: &Value) -> Result<(), StorageError> {
+    fn delete_vertex_indexes_mvcc(
+        &self,
+        space_id: u64,
+        vertex_id: &Value,
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
         self.vertex_manager
-            .delete_vertex_indexes(space_id, vertex_id)
+            .delete_vertex_indexes_mvcc(space_id, vertex_id, write_ts)
     }
 
-    fn delete_edge_indexes(
+    fn delete_edge_indexes_mvcc(
         &self,
         space_id: u64,
         src: &Value,
         dst: &Value,
         index_names: &[String],
+        write_ts: Timestamp,
     ) -> Result<(), StorageError> {
         self.edge_manager
-            .delete_edge_indexes(space_id, src, dst, index_names)
+            .delete_edge_indexes_mvcc(space_id, src, dst, index_names, write_ts)
     }
 
-    fn lookup_tag_index(
+    fn lookup_tag_index_mvcc(
         &self,
         space_id: u64,
         index: &Index,
         value: &Value,
+        read_ts: Timestamp,
     ) -> Result<Vec<Value>, StorageError> {
-        self.vertex_manager.lookup_tag_index(space_id, index, value)
+        self.vertex_manager
+            .lookup_tag_index_mvcc(space_id, index, value, read_ts)
     }
 
-    fn lookup_edge_index(
+    fn lookup_edge_index_mvcc(
         &self,
         space_id: u64,
         index: &Index,
         value: &Value,
+        read_ts: Timestamp,
     ) -> Result<Vec<Value>, StorageError> {
-        self.edge_manager.lookup_edge_index(space_id, index, value)
+        self.edge_manager
+            .lookup_edge_index_mvcc(space_id, index, value, read_ts)
     }
 
     fn clear_edge_index(&self, space_id: u64, index_name: &str) -> Result<(), StorageError> {
@@ -241,20 +482,21 @@ mod tests {
             properties: vec![],
             index_type: IndexType::TagIndex,
             is_unique: false,
+            partial_condition: None,
         })
     }
 
     #[test]
     fn test_serialize_deserialize_value() {
         let value = Value::String("test".to_string());
-        let bytes = RedbIndexDataManager::serialize_value(&value).expect("serialize should succeed");
-        let decoded = RedbIndexDataManager::deserialize_value(&bytes).expect("deserialize should succeed");
+        let bytes = InMemoryIndexDataManager::serialize_value(&value).expect("serialize should succeed");
+        let decoded = InMemoryIndexDataManager::deserialize_value(&bytes).expect("deserialize should succeed");
         assert_eq!(value, decoded);
     }
 
     #[test]
     fn test_update_and_lookup_vertex_index() {
-        let manager = RedbIndexDataManager::new();
+        let manager = InMemoryIndexDataManager::new();
 
         let space_id = 1u64;
         let vertex_id = Value::Int(1);

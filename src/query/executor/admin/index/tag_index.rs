@@ -59,6 +59,7 @@ impl From<&TagIndexDesc> for Index {
             properties: desc.fields.clone(),
             index_type: IndexType::TagIndex,
             is_unique: false,
+            partial_condition: None,
         })
     }
 }

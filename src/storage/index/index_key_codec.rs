@@ -263,6 +263,220 @@ impl IndexKeyCodec {
         ByteKey(key)
     }
 
+    /// Build optimized vertex reverse index key (vertex_id first for efficient range delete)
+    /// Format: [space_id: u64] [type: u8=0x05] [vertex_id_len: u32] [vertex_id] [index_name_len: u32] [index_name]
+    pub fn build_vertex_reverse_key_v2(
+        space_id: u64,
+        vertex_id: &Value,
+        index_name: &str,
+    ) -> Result<ByteKey, StorageError> {
+        let vertex_id_bytes = Self::serialize_value(vertex_id)?;
+
+        let mut key = Vec::new();
+        key.extend_from_slice(&space_id.to_le_bytes());
+        key.push(KEY_TYPE_VERTEX_REVERSE);
+        key.extend_from_slice(&(vertex_id_bytes.len() as u32).to_le_bytes());
+        key.extend_from_slice(&vertex_id_bytes);
+        key.extend_from_slice(&(index_name.len() as u32).to_le_bytes());
+        key.extend_from_slice(index_name.as_bytes());
+
+        Ok(ByteKey(key))
+    }
+
+    /// Build prefix for vertex reverse index key by vertex_id (for range delete)
+    /// Format: [space_id: u64] [type: u8=0x05] [vertex_id_len: u32] [vertex_id]
+    pub fn build_vertex_reverse_prefix_v2(
+        space_id: u64,
+        vertex_id: &Value,
+    ) -> Result<ByteKey, StorageError> {
+        let vertex_id_bytes = Self::serialize_value(vertex_id)?;
+
+        let mut key = Vec::new();
+        key.extend_from_slice(&space_id.to_le_bytes());
+        key.push(KEY_TYPE_VERTEX_REVERSE);
+        key.extend_from_slice(&(vertex_id_bytes.len() as u32).to_le_bytes());
+        key.extend_from_slice(&vertex_id_bytes);
+
+        Ok(ByteKey(key))
+    }
+
+    /// Parse optimized vertex reverse index key
+    pub fn parse_vertex_reverse_key_v2(
+        key_bytes: &[u8],
+    ) -> Result<(Vec<u8>, String), StorageError> {
+        if key_bytes.len() < 9 {
+            return Err(StorageError::DbError(
+                "Invalid reverse key v2: too short".to_string(),
+            ));
+        }
+
+        let mut pos = 9;
+
+        if key_bytes.len() < pos + 4 {
+            return Err(StorageError::DbError(
+                "Invalid reverse key v2: missing vertex_id_len".to_string(),
+            ));
+        }
+        let vertex_id_len =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+        pos += 4;
+
+        if key_bytes.len() < pos + vertex_id_len {
+            return Err(StorageError::DbError(
+                "Invalid reverse key v2: vertex_id exceeds key length".to_string(),
+            ));
+        }
+        let vertex_id_bytes = key_bytes[pos..pos + vertex_id_len].to_vec();
+        pos += vertex_id_len;
+
+        if key_bytes.len() < pos + 4 {
+            return Err(StorageError::DbError(
+                "Invalid reverse key v2: missing index_name_len".to_string(),
+            ));
+        }
+        let index_name_len =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+        pos += 4;
+
+        if key_bytes.len() < pos + index_name_len {
+            return Err(StorageError::DbError(
+                "Invalid reverse key v2: index_name exceeds key length".to_string(),
+            ));
+        }
+        let index_name = String::from_utf8(key_bytes[pos..pos + index_name_len].to_vec())
+            .map_err(|e| StorageError::DbError(format!("Invalid index_name encoding: {}", e)))?;
+
+        Ok((vertex_id_bytes, index_name))
+    }
+
+    /// Build optimized edge reverse index key (src first for efficient range delete)
+    /// Format: [space_id: u64] [type: u8=0x06] [src_len: u32] [src] [dst_len: u32] [dst] [index_name_len: u32] [index_name]
+    pub fn build_edge_reverse_key_v2(
+        space_id: u64,
+        src: &Value,
+        dst: &Value,
+        index_name: &str,
+    ) -> Result<ByteKey, StorageError> {
+        let src_bytes = Self::serialize_value(src)?;
+        let dst_bytes = Self::serialize_value(dst)?;
+
+        let mut key = Vec::new();
+        key.extend_from_slice(&space_id.to_le_bytes());
+        key.push(KEY_TYPE_EDGE_REVERSE);
+        key.extend_from_slice(&(src_bytes.len() as u32).to_le_bytes());
+        key.extend_from_slice(&src_bytes);
+        key.extend_from_slice(&(dst_bytes.len() as u32).to_le_bytes());
+        key.extend_from_slice(&dst_bytes);
+        key.extend_from_slice(&(index_name.len() as u32).to_le_bytes());
+        key.extend_from_slice(index_name.as_bytes());
+
+        Ok(ByteKey(key))
+    }
+
+    /// Build prefix for edge reverse index key by src (for range delete)
+    /// Format: [space_id: u64] [type: u8=0x06] [src_len: u32] [src]
+    pub fn build_edge_reverse_prefix_v2(
+        space_id: u64,
+        src: &Value,
+    ) -> Result<ByteKey, StorageError> {
+        let src_bytes = Self::serialize_value(src)?;
+
+        let mut key = Vec::new();
+        key.extend_from_slice(&space_id.to_le_bytes());
+        key.push(KEY_TYPE_EDGE_REVERSE);
+        key.extend_from_slice(&(src_bytes.len() as u32).to_le_bytes());
+        key.extend_from_slice(&src_bytes);
+
+        Ok(ByteKey(key))
+    }
+
+    /// Build prefix for edge reverse index key by src and dst (for exact delete)
+    /// Format: [space_id: u64] [type: u8=0x06] [src_len: u32] [src] [dst_len: u32] [dst]
+    pub fn build_edge_reverse_prefix_v2_with_dst(
+        space_id: u64,
+        src: &Value,
+        dst: &Value,
+    ) -> Result<ByteKey, StorageError> {
+        let src_bytes = Self::serialize_value(src)?;
+        let dst_bytes = Self::serialize_value(dst)?;
+
+        let mut key = Vec::new();
+        key.extend_from_slice(&space_id.to_le_bytes());
+        key.push(KEY_TYPE_EDGE_REVERSE);
+        key.extend_from_slice(&(src_bytes.len() as u32).to_le_bytes());
+        key.extend_from_slice(&src_bytes);
+        key.extend_from_slice(&(dst_bytes.len() as u32).to_le_bytes());
+        key.extend_from_slice(&dst_bytes);
+
+        Ok(ByteKey(key))
+    }
+
+    /// Parse optimized edge reverse index key
+    pub fn parse_edge_reverse_key_v2(
+        key_bytes: &[u8],
+    ) -> Result<(Vec<u8>, Vec<u8>, String), StorageError> {
+        if key_bytes.len() < 9 {
+            return Err(StorageError::DbError(
+                "Invalid edge reverse key v2: too short".to_string(),
+            ));
+        }
+
+        let mut pos = 9;
+
+        if key_bytes.len() < pos + 4 {
+            return Err(StorageError::DbError(
+                "Invalid edge reverse key v2: missing src_len".to_string(),
+            ));
+        }
+        let src_len =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+        pos += 4;
+
+        if key_bytes.len() < pos + src_len {
+            return Err(StorageError::DbError(
+                "Invalid edge reverse key v2: src exceeds key length".to_string(),
+            ));
+        }
+        let src_bytes = key_bytes[pos..pos + src_len].to_vec();
+        pos += src_len;
+
+        if key_bytes.len() < pos + 4 {
+            return Err(StorageError::DbError(
+                "Invalid edge reverse key v2: missing dst_len".to_string(),
+            ));
+        }
+        let dst_len =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+        pos += 4;
+
+        if key_bytes.len() < pos + dst_len {
+            return Err(StorageError::DbError(
+                "Invalid edge reverse key v2: dst exceeds key length".to_string(),
+            ));
+        }
+        let dst_bytes = key_bytes[pos..pos + dst_len].to_vec();
+        pos += dst_len;
+
+        if key_bytes.len() < pos + 4 {
+            return Err(StorageError::DbError(
+                "Invalid edge reverse key v2: missing index_name_len".to_string(),
+            ));
+        }
+        let index_name_len =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+        pos += 4;
+
+        if key_bytes.len() < pos + index_name_len {
+            return Err(StorageError::DbError(
+                "Invalid edge reverse key v2: index_name exceeds key length".to_string(),
+            ));
+        }
+        let index_name = String::from_utf8(key_bytes[pos..pos + index_name_len].to_vec())
+            .map_err(|e| StorageError::DbError(format!("Invalid index_name encoding: {}", e)))?;
+
+        Ok((src_bytes, dst_bytes, index_name))
+    }
+
     /// The end key for constructing a range query (the value that follows the prefix)
     pub fn build_range_end(prefix: &ByteKey) -> ByteKey {
         let mut end = prefix.0.clone();
@@ -322,6 +536,254 @@ impl IndexKeyCodec {
         let src_bytes = key_bytes[pos..pos + src_len].to_vec();
 
         Ok((index_name, src_bytes))
+    }
+
+    // ========================================================================
+    // Composite Index Support
+    // ========================================================================
+
+    /// Build composite vertex index key for multi-field indexes
+    /// Format: [space_id: u64] [type: u8=0x03] [index_name_len: u32] [index_name]
+    ///         [field_count: u32] [field1_len: u32] [field1] ... [fieldN_len: u32] [fieldN]
+    ///         [vertex_id_len: u32] [vertex_id]
+    pub fn build_composite_vertex_index_key(
+        space_id: u64,
+        index_name: &str,
+        field_values: &[Value],
+        vertex_id: &Value,
+    ) -> Result<ByteKey, StorageError> {
+        let vertex_id_bytes = Self::serialize_value(vertex_id)?;
+
+        let mut key = Vec::new();
+        key.extend_from_slice(&space_id.to_le_bytes());
+        key.push(KEY_TYPE_VERTEX_FORWARD);
+        key.extend_from_slice(&(index_name.len() as u32).to_le_bytes());
+        key.extend_from_slice(index_name.as_bytes());
+        key.extend_from_slice(&(field_values.len() as u32).to_le_bytes());
+
+        for value in field_values {
+            let value_bytes = Self::serialize_value(value)?;
+            key.extend_from_slice(&(value_bytes.len() as u32).to_le_bytes());
+            key.extend_from_slice(&value_bytes);
+        }
+
+        key.extend_from_slice(&(vertex_id_bytes.len() as u32).to_le_bytes());
+        key.extend_from_slice(&vertex_id_bytes);
+
+        Ok(ByteKey(key))
+    }
+
+    /// Build composite edge index key for multi-field indexes
+    /// Format: [space_id: u64] [type: u8=0x04] [index_name_len: u32] [index_name]
+    ///         [field_count: u32] [field1_len: u32] [field1] ... [fieldN_len: u32] [fieldN]
+    ///         [src_len: u32] [src] [dst_len: u32] [dst]
+    pub fn build_composite_edge_index_key(
+        space_id: u64,
+        index_name: &str,
+        field_values: &[Value],
+        src: &Value,
+        dst: &Value,
+    ) -> Result<ByteKey, StorageError> {
+        let src_bytes = Self::serialize_value(src)?;
+        let dst_bytes = Self::serialize_value(dst)?;
+
+        let mut key = Vec::new();
+        key.extend_from_slice(&space_id.to_le_bytes());
+        key.push(KEY_TYPE_EDGE_FORWARD);
+        key.extend_from_slice(&(index_name.len() as u32).to_le_bytes());
+        key.extend_from_slice(index_name.as_bytes());
+        key.extend_from_slice(&(field_values.len() as u32).to_le_bytes());
+
+        for value in field_values {
+            let value_bytes = Self::serialize_value(value)?;
+            key.extend_from_slice(&(value_bytes.len() as u32).to_le_bytes());
+            key.extend_from_slice(&value_bytes);
+        }
+
+        key.extend_from_slice(&(src_bytes.len() as u32).to_le_bytes());
+        key.extend_from_slice(&src_bytes);
+        key.extend_from_slice(&(dst_bytes.len() as u32).to_le_bytes());
+        key.extend_from_slice(&dst_bytes);
+
+        Ok(ByteKey(key))
+    }
+
+    /// Parse field values from composite vertex index key
+    /// Returns (field_values, vertex_id)
+    pub fn parse_composite_vertex_index_key(
+        key_bytes: &[u8],
+    ) -> Result<(Vec<Value>, Value), StorageError> {
+        if key_bytes.len() < 9 {
+            return Err(StorageError::DbError(
+                "Invalid composite vertex key: too short".to_string(),
+            ));
+        }
+
+        let mut pos = 9;
+
+        let index_name_len =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+        pos += 4 + index_name_len;
+
+        if key_bytes.len() < pos + 4 {
+            return Err(StorageError::DbError(
+                "Invalid composite vertex key: missing field_count".to_string(),
+            ));
+        }
+        let field_count =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+        pos += 4;
+
+        let mut field_values = Vec::with_capacity(field_count);
+        for _ in 0..field_count {
+            if key_bytes.len() < pos + 4 {
+                return Err(StorageError::DbError(
+                    "Invalid composite vertex key: missing field_len".to_string(),
+                ));
+            }
+            let field_len =
+                u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+            pos += 4;
+
+            if key_bytes.len() < pos + field_len {
+                return Err(StorageError::DbError(
+                    "Invalid composite vertex key: field exceeds key length".to_string(),
+                ));
+            }
+            let field_bytes = &key_bytes[pos..pos + field_len];
+            let value = Self::deserialize_value(field_bytes)?;
+            field_values.push(value);
+            pos += field_len;
+        }
+
+        if key_bytes.len() < pos + 4 {
+            return Err(StorageError::DbError(
+                "Invalid composite vertex key: missing vertex_id_len".to_string(),
+            ));
+        }
+        let vertex_id_len =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+        pos += 4;
+
+        if key_bytes.len() < pos + vertex_id_len {
+            return Err(StorageError::DbError(
+                "Invalid composite vertex key: vertex_id exceeds key length".to_string(),
+            ));
+        }
+        let vertex_id_bytes = &key_bytes[pos..pos + vertex_id_len];
+        let vertex_id = Self::deserialize_value(vertex_id_bytes)?;
+
+        Ok((field_values, vertex_id))
+    }
+
+    /// Parse field values from composite edge index key
+    /// Returns (field_values, src, dst)
+    pub fn parse_composite_edge_index_key(
+        key_bytes: &[u8],
+    ) -> Result<(Vec<Value>, Value, Value), StorageError> {
+        if key_bytes.len() < 9 {
+            return Err(StorageError::DbError(
+                "Invalid composite edge key: too short".to_string(),
+            ));
+        }
+
+        let mut pos = 9;
+
+        let index_name_len =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+        pos += 4 + index_name_len;
+
+        if key_bytes.len() < pos + 4 {
+            return Err(StorageError::DbError(
+                "Invalid composite edge key: missing field_count".to_string(),
+            ));
+        }
+        let field_count =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+        pos += 4;
+
+        let mut field_values = Vec::with_capacity(field_count);
+        for _ in 0..field_count {
+            if key_bytes.len() < pos + 4 {
+                return Err(StorageError::DbError(
+                    "Invalid composite edge key: missing field_len".to_string(),
+                ));
+            }
+            let field_len =
+                u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+            pos += 4;
+
+            if key_bytes.len() < pos + field_len {
+                return Err(StorageError::DbError(
+                    "Invalid composite edge key: field exceeds key length".to_string(),
+                ));
+            }
+            let field_bytes = &key_bytes[pos..pos + field_len];
+            let value = Self::deserialize_value(field_bytes)?;
+            field_values.push(value);
+            pos += field_len;
+        }
+
+        if key_bytes.len() < pos + 4 {
+            return Err(StorageError::DbError(
+                "Invalid composite edge key: missing src_len".to_string(),
+            ));
+        }
+        let src_len =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+        pos += 4;
+
+        if key_bytes.len() < pos + src_len {
+            return Err(StorageError::DbError(
+                "Invalid composite edge key: src exceeds key length".to_string(),
+            ));
+        }
+        let src_bytes = &key_bytes[pos..pos + src_len];
+        let src = Self::deserialize_value(src_bytes)?;
+        pos += src_len;
+
+        if key_bytes.len() < pos + 4 {
+            return Err(StorageError::DbError(
+                "Invalid composite edge key: missing dst_len".to_string(),
+            ));
+        }
+        let dst_len =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+        pos += 4;
+
+        if key_bytes.len() < pos + dst_len {
+            return Err(StorageError::DbError(
+                "Invalid composite edge key: dst exceeds key length".to_string(),
+            ));
+        }
+        let dst_bytes = &key_bytes[pos..pos + dst_len];
+        let dst = Self::deserialize_value(dst_bytes)?;
+
+        Ok((field_values, src, dst))
+    }
+
+    /// Check if an index key is a composite index key
+    pub fn is_composite_key(key_bytes: &[u8]) -> bool {
+        if key_bytes.len() < 9 {
+            return false;
+        }
+
+        let mut pos = 9;
+
+        if key_bytes.len() < pos + 4 {
+            return false;
+        }
+        let index_name_len =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+        pos += 4 + index_name_len;
+
+        if key_bytes.len() < pos + 4 {
+            return false;
+        }
+        let field_count =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+
+        field_count > 1
     }
 }
 

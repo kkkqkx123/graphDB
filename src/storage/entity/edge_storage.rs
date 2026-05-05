@@ -9,7 +9,7 @@ use parking_lot::RwLock;
 use crate::core::types::{EdgeTypeInfo, InsertEdgeInfo};
 use crate::core::{Edge, EdgeDirection, StorageError, Value};
 use crate::storage::edge::{EdgeDirection as CsrEdgeDirection, EdgeRecord, Timestamp};
-use crate::storage::index::{IndexDataManager, RedbIndexDataManager};
+use crate::storage::index::{IndexDataManager, InMemoryIndexDataManager};
 use crate::storage::metadata::{IndexMetadataManager, Schema, SchemaManager};
 use crate::storage::property_graph::PropertyGraph;
 use crate::storage::vertex::VertexId;
@@ -22,7 +22,7 @@ pub struct EdgeStorage {
     graph: Arc<RwLock<PropertyGraph>>,
     version_manager: Arc<VersionManager>,
     schema_manager: Arc<dyn SchemaManager + Send + Sync>,
-    index_data_manager: RedbIndexDataManager,
+    index_data_manager: InMemoryIndexDataManager,
     sync_manager: Arc<RwLock<Option<Arc<crate::sync::SyncManager>>>>,
 }
 
@@ -37,7 +37,7 @@ impl EdgeStorage {
         graph: Arc<RwLock<PropertyGraph>>,
         version_manager: Arc<VersionManager>,
         schema_manager: Arc<dyn SchemaManager + Send + Sync>,
-        index_data_manager: RedbIndexDataManager,
+        index_data_manager: InMemoryIndexDataManager,
         sync_manager: Arc<RwLock<Option<Arc<crate::sync::SyncManager>>>>,
     ) -> Result<Self, StorageError> {
         Ok(Self {
@@ -359,12 +359,13 @@ impl EdgeStorage {
                 }
 
                 if !index_props.is_empty() {
-                    self.index_data_manager.update_edge_indexes(
+                    self.index_data_manager.update_edge_indexes_mvcc(
                         space_id,
                         &edge.src,
                         &edge.dst,
                         &index.name,
                         &index_props,
+                        ts,
                     )?;
                 }
             }
@@ -443,7 +444,7 @@ impl EdgeStorage {
             .map(|idx| idx.name)
             .collect();
         self.index_data_manager
-            .delete_edge_indexes(space_id, src, dst, &index_names)?;
+            .delete_edge_indexes_mvcc(space_id, src, dst, &index_names, ts)?;
 
         self.release_write_timestamp(ts);
         Ok(())
@@ -585,11 +586,12 @@ impl EdgeStorage {
                     .filter(|idx| idx.schema_name == edge.edge_type)
                     .map(|idx| idx.name)
                     .collect();
-                self.index_data_manager.delete_edge_indexes(
+                self.index_data_manager.delete_edge_indexes_mvcc(
                     space_id,
                     &edge.src,
                     &edge.dst,
                     &index_names,
+                    ts,
                 )?;
             }
         }
