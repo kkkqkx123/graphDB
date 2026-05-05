@@ -768,17 +768,17 @@ impl IndexUndoLog {
                     prop_name: _,
                     prop_value,
                 } => {
-                    let prefix = crate::storage::index::index_key_codec::IndexKeyCodec::build_vertex_index_prefix(space_id, &index_name);
+                    let prefix = crate::storage::index::key_codec::KeyBuilder::build_vertex_index_prefix(space_id, &index_name);
                     let end =
-                        crate::storage::index::index_key_codec::IndexKeyCodec::build_range_end(
+                        crate::storage::index::key_codec::KeyBuilder::build_range_end(
                             &prefix,
                         );
                     let vertex_bytes =
-                        crate::storage::index::index_key_codec::IndexKeyCodec::serialize_value(
+                        crate::storage::index::key_codec::serialize_value(
                             &vertex_id,
                         )?;
                     let prop_value_bytes =
-                        crate::storage::index::index_key_codec::IndexKeyCodec::serialize_value(
+                        crate::storage::index::key_codec::serialize_value(
                             &prop_value,
                         )?;
 

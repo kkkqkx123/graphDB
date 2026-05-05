@@ -1,3 +1,14 @@
+//! Index Key Compression
+//!
+//! This module provides compression algorithms for index keys.
+//! Compression can significantly reduce memory usage for large indexes.
+//!
+//! ## Compression Types
+//!
+//! - `Prefix`: Removes common prefixes from keys
+//! - `Dictionary`: Replaces frequent values with shorter IDs
+//! - `Delta`: Stores only differences from a base key
+
 use crate::core::{StorageError, StorageResult};
 use std::collections::HashMap;
 
@@ -23,6 +34,31 @@ impl Default for CompressionConfig {
             min_prefix_length: 4,
             dictionary_threshold: 100,
         }
+    }
+}
+
+impl CompressionConfig {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_compression_type(mut self, compression_type: CompressionType) -> Self {
+        self.compression_type = compression_type;
+        self
+    }
+
+    pub fn with_min_prefix_length(mut self, min_prefix_length: usize) -> Self {
+        self.min_prefix_length = min_prefix_length;
+        self
+    }
+
+    pub fn with_dictionary_threshold(mut self, threshold: usize) -> Self {
+        self.dictionary_threshold = threshold;
+        self
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.compression_type != CompressionType::None
     }
 }
 
@@ -96,6 +132,10 @@ impl PrefixCompressor {
 
     pub fn prefix(&self) -> &[u8] {
         &self.common_prefix
+    }
+
+    pub fn prefix_len(&self) -> usize {
+        self.common_prefix.len()
     }
 }
 
@@ -234,7 +274,6 @@ impl DeltaCompressor {
             return result;
         }
 
-        let delta_len = key.len().saturating_sub(self.base.len());
         let common_len = key.len().min(self.base.len());
         let mut delta_start = 0;
 
@@ -310,6 +349,14 @@ impl DeltaCompressor {
             )),
         }
     }
+
+    pub fn set_base(&mut self, base: Vec<u8>) {
+        self.base = base;
+    }
+
+    pub fn base(&self) -> &[u8] {
+        &self.base
+    }
 }
 
 impl Default for DeltaCompressor {
@@ -332,6 +379,17 @@ impl IndexCompressor {
             prefix_compressor: None,
             dictionary_compressor: None,
         }
+    }
+
+    pub fn with_default() -> Self {
+        Self::new(CompressionConfig::default())
+    }
+
+    pub fn disabled() -> Self {
+        Self::new(CompressionConfig {
+            compression_type: CompressionType::None,
+            ..Default::default()
+        })
     }
 
     pub fn train_keys(&mut self, keys: &[Vec<u8>]) -> StorageResult<()> {
@@ -397,11 +455,19 @@ impl IndexCompressor {
 
         1.0 - (compressed_size as f64 / original_size as f64)
     }
+
+    pub fn is_enabled(&self) -> bool {
+        self.config.is_enabled()
+    }
+
+    pub fn config(&self) -> &CompressionConfig {
+        &self.config
+    }
 }
 
 impl Default for IndexCompressor {
     fn default() -> Self {
-        Self::new(CompressionConfig::default())
+        Self::with_default()
     }
 }
 
@@ -456,11 +522,6 @@ mod tests {
         let compressor = DeltaCompressor::with_base(b"key_prefix_001".to_vec());
 
         let compressed = compressor.compress(b"key_prefix_002");
-        println!(
-            "Original len: {}, Compressed len: {}",
-            b"key_prefix_002".len(),
-            compressed.len()
-        );
 
         let decompressed = compressor
             .decompress(&compressed)
@@ -489,7 +550,17 @@ mod tests {
         let compressed: Vec<Vec<u8>> = keys.iter().map(|k| compressor.compress_key(k)).collect();
         let ratio = compressor.compression_ratio(&keys, &compressed);
 
-        println!("Compression ratio: {:.2}%", ratio * 100.0);
         assert!(ratio > 0.0, "Compression should reduce size");
+    }
+
+    #[test]
+    fn test_compression_config() {
+        let config = CompressionConfig::default();
+        assert_eq!(config.compression_type, CompressionType::Prefix);
+        assert!(config.is_enabled());
+
+        let disabled_config = CompressionConfig::new()
+            .with_compression_type(CompressionType::None);
+        assert!(!disabled_config.is_enabled());
     }
 }

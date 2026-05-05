@@ -4,29 +4,29 @@
 //! This implementation uses in-memory storage with BTreeMap for efficient range queries.
 //! Supports persistence through flush/load operations.
 //! Supports MVCC (Multi-Version Concurrency Control) for snapshot isolation.
+//! Supports optional key compression for memory efficiency.
 
 use crate::core::types::Index;
 use crate::core::{StorageError, StorageResult, Value};
-use crate::storage::index::index_key_codec::IndexKeyCodec;
+use crate::storage::index::key_codec::{
+    deserialize_value, serialize_value, ByteKey, CompressionConfig, IndexCompressor, KeyBuilder,
+    KeyParser,
+};
 use crate::storage::index::{IndexEntry, Timestamp, MAX_TIMESTAMP};
 use parking_lot::RwLock;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
-type IndexKey = Vec<u8>;
+use super::index_types::IndexEstimate;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct IndexEstimate {
-    pub total_entries: usize,
-    pub visible_entries: usize,
-    pub tombstone_entries: usize,
-}
+type IndexKey = Vec<u8>;
 
 #[derive(Clone)]
 pub struct EdgeIndexManager {
     forward_index: Arc<RwLock<BTreeMap<IndexKey, IndexEntry>>>,
     reverse_index: Arc<RwLock<BTreeMap<IndexKey, IndexEntry>>>,
+    compressor: Option<Arc<RwLock<IndexCompressor>>>,
 }
 
 impl EdgeIndexManager {
@@ -34,7 +34,62 @@ impl EdgeIndexManager {
         Self {
             forward_index: Arc::new(RwLock::new(BTreeMap::new())),
             reverse_index: Arc::new(RwLock::new(BTreeMap::new())),
+            compressor: None,
         }
+    }
+
+    pub fn with_compression(config: CompressionConfig) -> Self {
+        Self {
+            forward_index: Arc::new(RwLock::new(BTreeMap::new())),
+            reverse_index: Arc::new(RwLock::new(BTreeMap::new())),
+            compressor: Some(Arc::new(RwLock::new(IndexCompressor::new(config)))),
+        }
+    }
+
+    pub fn is_compression_enabled(&self) -> bool {
+        self.compressor
+            .as_ref()
+            .map(|c| c.read().is_enabled())
+            .unwrap_or(false)
+    }
+
+    fn compress_key(&self, key: &[u8]) -> Vec<u8> {
+        if let Some(ref compressor) = self.compressor {
+            compressor.read().compress_key(key)
+        } else {
+            key.to_vec()
+        }
+    }
+
+    fn decompress_key(&self, compressed: &[u8]) -> StorageResult<Vec<u8>> {
+        if let Some(ref compressor) = self.compressor {
+            compressor.read().decompress_key(compressed)
+        } else {
+            Ok(compressed.to_vec())
+        }
+    }
+
+    pub fn train_compression(&self, keys: &[Vec<u8>]) -> StorageResult<()> {
+        if let Some(ref compressor) = self.compressor {
+            compressor.write().train_keys(keys)?;
+        }
+        Ok(())
+    }
+
+    pub fn compression_ratio(&self) -> Option<f64> {
+        self.compressor.as_ref().and_then(|c| {
+            let c = c.read();
+            if c.is_enabled() {
+                let forward = self.forward_index.read();
+                let original: Vec<Vec<u8>> = forward.keys().map(|k| {
+                    c.decompress_key(k).unwrap_or_else(|_| k.clone())
+                }).collect();
+                let compressed: Vec<Vec<u8>> = forward.keys().cloned().collect();
+                Some(c.compression_ratio(&original, &compressed))
+            } else {
+                None
+            }
+        })
     }
 
     pub fn update_edge_indexes(
@@ -62,14 +117,16 @@ impl EdgeIndexManager {
 
         for (_prop_name, prop_value) in props {
             let index_key =
-                IndexKeyCodec::build_edge_index_key(space_id, index_name, prop_value, src, dst)?;
+                KeyBuilder::build_edge_index_key(space_id, index_name, prop_value, src, dst)?;
 
             let reverse_key =
-                IndexKeyCodec::build_edge_reverse_key_v2(space_id, src, dst, index_name)?;
+                KeyBuilder::build_edge_reverse_key_v2(space_id, src, dst, index_name)?;
 
             let entry = IndexEntry::new(write_ts);
-            forward_entries.push((index_key.0, entry.clone()));
-            reverse_entries.push((reverse_key.0, entry));
+            let compressed_forward = self.compress_key(&index_key.0);
+            let compressed_reverse = self.compress_key(&reverse_key.0);
+            forward_entries.push((compressed_forward, entry.clone()));
+            reverse_entries.push((compressed_reverse, entry));
         }
 
         {
@@ -107,8 +164,8 @@ impl EdgeIndexManager {
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
         let reverse_prefix =
-            IndexKeyCodec::build_edge_reverse_prefix_v2_with_dst(space_id, src, dst)?;
-        let reverse_end = IndexKeyCodec::build_range_end(&reverse_prefix);
+            KeyBuilder::build_edge_reverse_prefix_v2_with_dst(space_id, src, dst)?;
+        let reverse_end = KeyBuilder::build_range_end(&reverse_prefix);
 
         let mut forward_keys_to_delete: Vec<IndexKey> = Vec::new();
         let mut reverse_keys_to_delete: Vec<IndexKey> = Vec::new();
@@ -121,17 +178,17 @@ impl EdgeIndexManager {
                 }
 
                 if let Ok((_src_bytes, _dst_bytes, index_name)) =
-                    IndexKeyCodec::parse_edge_reverse_key_v2(key_bytes)
+                    KeyParser::parse_edge_reverse_key_v2(key_bytes)
                 {
                     if index_names.contains(&index_name) {
                         reverse_keys_to_delete.push(key_bytes.clone());
 
                         let forward_key_start =
-                            IndexKeyCodec::build_edge_index_prefix(space_id, &index_name);
-                        let forward_key_end = IndexKeyCodec::build_range_end(&forward_key_start);
+                            KeyBuilder::build_edge_index_prefix(space_id, &index_name);
+                        let forward_key_end = KeyBuilder::build_range_end(&forward_key_start);
 
-                        let src_bytes = IndexKeyCodec::serialize_value(src)?;
-                        let dst_bytes = IndexKeyCodec::serialize_value(dst)?;
+                        let src_bytes = serialize_value(src)?;
+                        let dst_bytes = serialize_value(dst)?;
                         let forward_index = self.forward_index.read();
                         for (fwd_key_bytes, fwd_entry) in
                             forward_index.range(forward_key_start.0.clone()..forward_key_end.0)
@@ -219,11 +276,11 @@ impl EdgeIndexManager {
         value: &Value,
         read_ts: Timestamp,
     ) -> Result<Vec<Value>, StorageError> {
-        let prefix = IndexKeyCodec::build_edge_index_prefix(space_id, &index.name);
-        let end = IndexKeyCodec::build_range_end(&prefix);
+        let prefix = KeyBuilder::build_edge_index_prefix(space_id, &index.name);
+        let end = KeyBuilder::build_range_end(&prefix);
 
         let mut results = Vec::new();
-        let value_bytes = IndexKeyCodec::serialize_value(value)?;
+        let value_bytes = serialize_value(value)?;
 
         let forward_index = self.forward_index.read();
         for (key_bytes, entry) in forward_index.range(prefix.0.clone()..end.0) {
@@ -255,7 +312,7 @@ impl EdgeIndexManager {
                             let src_start = src_len_start + 4;
                             if key_bytes.len() >= src_start + src_len {
                                 let src_bytes = &key_bytes[src_start..src_start + src_len];
-                                if let Ok(src) = IndexKeyCodec::deserialize_value(src_bytes) {
+                                if let Ok(src) = deserialize_value(src_bytes) {
                                     results.push(src);
                                 }
                             }
@@ -269,8 +326,8 @@ impl EdgeIndexManager {
     }
 
     pub fn clear_edge_index(&self, space_id: u64, index_name: &str) -> Result<(), StorageError> {
-        let prefix = IndexKeyCodec::build_edge_index_prefix(space_id, index_name);
-        let end = IndexKeyCodec::build_range_end(&prefix);
+        let prefix = KeyBuilder::build_edge_index_prefix(space_id, index_name);
+        let end = KeyBuilder::build_range_end(&prefix);
 
         let mut keys_to_delete: Vec<IndexKey> = Vec::new();
 
@@ -321,18 +378,18 @@ impl EdgeIndexManager {
         end_value: &Value,
         read_ts: Timestamp,
     ) -> Result<Vec<Value>, StorageError> {
-        let prefix = IndexKeyCodec::build_edge_index_prefix(space_id, &index.name);
-        let start_bytes = IndexKeyCodec::serialize_value(start_value)?;
-        let end_bytes = IndexKeyCodec::serialize_value(end_value)?;
+        let prefix = KeyBuilder::build_edge_index_prefix(space_id, &index.name);
+        let start_bytes = serialize_value(start_value)?;
+        let end_bytes = serialize_value(end_value)?;
 
-        let range_start = IndexKeyCodec::build_edge_index_key(
+        let range_start = KeyBuilder::build_edge_index_key(
             space_id,
             &index.name,
             start_value,
             &Value::Int(i32::MIN),
             &Value::Int(i32::MIN),
         )?;
-        let range_end = IndexKeyCodec::build_edge_index_key(
+        let range_end = KeyBuilder::build_edge_index_key(
             space_id,
             &index.name,
             end_value,
@@ -384,7 +441,7 @@ impl EdgeIndexManager {
                             let src_start = src_len_start + 4;
                             if key_bytes.len() >= src_start + src_len {
                                 let src_bytes = &key_bytes[src_start..src_start + src_len];
-                                if let Ok(src) = IndexKeyCodec::deserialize_value(src_bytes) {
+                                if let Ok(src) = deserialize_value(src_bytes) {
                                     results.push(src);
                                 }
                             }
@@ -402,8 +459,8 @@ impl EdgeIndexManager {
         space_id: u64,
         index_name: &str,
     ) -> Result<IndexEstimate, StorageError> {
-        let prefix = IndexKeyCodec::build_edge_index_prefix(space_id, index_name);
-        let end = IndexKeyCodec::build_range_end(&prefix);
+        let prefix = KeyBuilder::build_edge_index_prefix(space_id, index_name);
+        let end = KeyBuilder::build_range_end(&prefix);
 
         let forward_index = self.forward_index.read();
         let mut total_entries = 0usize;
@@ -442,8 +499,8 @@ impl EdgeIndexManager {
         limit: usize,
         read_ts: Timestamp,
     ) -> Result<Vec<(Value, Value, Value)>, StorageError> {
-        let prefix = IndexKeyCodec::build_edge_index_prefix(space_id, &index.name);
-        let end = IndexKeyCodec::build_range_end(&prefix);
+        let prefix = KeyBuilder::build_edge_index_prefix(space_id, &index.name);
+        let end = KeyBuilder::build_range_end(&prefix);
 
         let mut results = Vec::with_capacity(limit.min(1000));
         let forward_index = self.forward_index.read();
@@ -469,7 +526,7 @@ impl EdgeIndexManager {
                     let stored_prop_value =
                         &key_bytes[prop_value_start..prop_value_start + prop_value_len];
 
-                    if let Ok(prop_value) = IndexKeyCodec::deserialize_value(stored_prop_value) {
+                    if let Ok(prop_value) = deserialize_value(stored_prop_value) {
                         let src_len_start = prop_value_start + prop_value_len;
                         if key_bytes.len() >= src_len_start + 8 {
                             let src_len = u32::from_le_bytes(
@@ -492,8 +549,8 @@ impl EdgeIndexManager {
                                 if key_bytes.len() >= dst_start + dst_len {
                                     let dst_bytes = &key_bytes[dst_start..dst_start + dst_len];
                                     if let (Ok(src), Ok(dst)) = (
-                                        IndexKeyCodec::deserialize_value(src_bytes),
-                                        IndexKeyCodec::deserialize_value(dst_bytes),
+                                        deserialize_value(src_bytes),
+                                        deserialize_value(dst_bytes),
                                     ) {
                                         results.push((prop_value, src, dst));
                                     }
@@ -836,12 +893,12 @@ impl EdgeIndexManager {
         let mut reverse_entries: Vec<(IndexKey, IndexEntry)> = Vec::with_capacity(props.len());
 
         for (_prop_name, prop_value) in props {
-            let index_key = IndexKeyCodec::build_edge_index_key_native(
+            let index_key = KeyBuilder::build_edge_index_key_native(
                 space_id, index_name, prop_value, src, dst,
             )?;
 
             let reverse_key =
-                IndexKeyCodec::build_edge_reverse_key_native(space_id, src, dst, index_name);
+                KeyBuilder::build_edge_reverse_key_native(space_id, src, dst, index_name);
 
             let entry = IndexEntry::new(write_ts);
             forward_entries.push((index_key.0, entry.clone()));
@@ -885,8 +942,8 @@ impl EdgeIndexManager {
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
         let reverse_prefix =
-            IndexKeyCodec::build_edge_reverse_prefix_native_with_dst(space_id, src, dst);
-        let reverse_end = IndexKeyCodec::build_range_end(&reverse_prefix);
+            KeyBuilder::build_edge_reverse_prefix_native_with_dst(space_id, src, dst);
+        let reverse_end = KeyBuilder::build_range_end(&reverse_prefix);
 
         let mut forward_keys_to_delete: Vec<IndexKey> = Vec::new();
         let mut reverse_keys_to_delete: Vec<IndexKey> = Vec::new();
@@ -899,14 +956,14 @@ impl EdgeIndexManager {
                 }
 
                 if let Ok((_src, _dst, index_name)) =
-                    IndexKeyCodec::parse_edge_reverse_key_native(key_bytes)
+                    KeyParser::parse_edge_reverse_key_native(key_bytes)
                 {
                     if index_names.contains(&index_name) {
                         reverse_keys_to_delete.push(key_bytes.clone());
 
                         let forward_key_start =
-                            IndexKeyCodec::build_edge_index_prefix(space_id, &index_name);
-                        let forward_key_end = IndexKeyCodec::build_range_end(&forward_key_start);
+                            KeyBuilder::build_edge_index_prefix(space_id, &index_name);
+                        let forward_key_end = KeyBuilder::build_range_end(&forward_key_start);
 
                         let forward_index = self.forward_index.read();
                         for (fwd_key_bytes, fwd_entry) in
@@ -917,7 +974,7 @@ impl EdgeIndexManager {
                             }
 
                             if let Ok((stored_src, stored_dst)) =
-                                IndexKeyCodec::parse_edge_ids_from_key_native(fwd_key_bytes)
+                                KeyParser::parse_edge_ids_from_key_native(fwd_key_bytes)
                             {
                                 if stored_src == src && stored_dst == dst {
                                     forward_keys_to_delete.push(fwd_key_bytes.clone());
@@ -969,11 +1026,11 @@ impl EdgeIndexManager {
         value: &Value,
         read_ts: Timestamp,
     ) -> Result<Vec<(u64, u64)>, StorageError> {
-        let prefix = IndexKeyCodec::build_edge_index_prefix(space_id, &index.name);
-        let end = IndexKeyCodec::build_range_end(&prefix);
+        let prefix = KeyBuilder::build_edge_index_prefix(space_id, &index.name);
+        let end = KeyBuilder::build_range_end(&prefix);
 
         let mut results = Vec::new();
-        let value_bytes = IndexKeyCodec::serialize_value(value)?;
+        let value_bytes = serialize_value(value)?;
 
         let forward_index = self.forward_index.read();
         for (key_bytes, entry) in forward_index.range(prefix.0.clone()..end.0) {
@@ -996,7 +1053,7 @@ impl EdgeIndexManager {
 
                     if stored_prop_value == value_bytes.as_slice() {
                         if let Ok((src, dst)) =
-                            IndexKeyCodec::parse_edge_ids_from_key_native(key_bytes)
+                            KeyParser::parse_edge_ids_from_key_native(key_bytes)
                         {
                             results.push((src, dst));
                         }
@@ -1034,12 +1091,12 @@ impl EdgeIndexManager {
         end_value: &Value,
         read_ts: Timestamp,
     ) -> Result<Vec<(u64, u64)>, StorageError> {
-        let start_bytes = IndexKeyCodec::serialize_value(start_value)?;
-        let end_bytes = IndexKeyCodec::serialize_value(end_value)?;
+        let start_bytes = serialize_value(start_value)?;
+        let end_bytes = serialize_value(end_value)?;
 
         let range_start =
-            IndexKeyCodec::build_edge_index_key_native(space_id, &index.name, start_value, 0, 0)?;
-        let range_end = IndexKeyCodec::build_edge_index_key_native(
+            KeyBuilder::build_edge_index_key_native(space_id, &index.name, start_value, 0, 0)?;
+        let range_end = KeyBuilder::build_edge_index_key_native(
             space_id,
             &index.name,
             end_value,
@@ -1055,7 +1112,7 @@ impl EdgeIndexManager {
                 continue;
             }
 
-            let prefix = IndexKeyCodec::build_edge_index_prefix(space_id, &index.name);
+            let prefix = KeyBuilder::build_edge_index_prefix(space_id, &index.name);
             if key_bytes.len() > prefix.0.len() + 4 {
                 let prop_len_start = prefix.0.len();
                 let prop_value_len = u32::from_le_bytes(
@@ -1073,7 +1130,7 @@ impl EdgeIndexManager {
                         && stored_prop_value < end_bytes.as_slice()
                     {
                         if let Ok((src, dst)) =
-                            IndexKeyCodec::parse_edge_ids_from_key_native(key_bytes)
+                            KeyParser::parse_edge_ids_from_key_native(key_bytes)
                         {
                             results.push((src, dst));
                         }

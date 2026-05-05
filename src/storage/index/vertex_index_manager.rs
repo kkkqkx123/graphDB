@@ -4,29 +4,29 @@
 //! This implementation uses in-memory storage with BTreeMap for efficient range queries.
 //! Supports persistence through flush/load operations.
 //! Supports MVCC (Multi-Version Concurrency Control) for snapshot isolation.
+//! Supports optional key compression for memory efficiency.
 
 use crate::core::types::Index;
 use crate::core::{StorageError, StorageResult, Value};
-use crate::storage::index::index_key_codec::IndexKeyCodec;
+use crate::storage::index::key_codec::{
+    deserialize_value, serialize_value, ByteKey, CompressionConfig, IndexCompressor, KeyBuilder,
+    KeyParser,
+};
 use crate::storage::index::{IndexEntry, Timestamp, MAX_TIMESTAMP};
 use parking_lot::RwLock;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
-type IndexKey = Vec<u8>;
+use super::index_types::IndexEstimate;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct IndexEstimate {
-    pub total_entries: usize,
-    pub visible_entries: usize,
-    pub tombstone_entries: usize,
-}
+type IndexKey = Vec<u8>;
 
 #[derive(Clone)]
 pub struct VertexIndexManager {
     forward_index: Arc<RwLock<BTreeMap<IndexKey, IndexEntry>>>,
     reverse_index: Arc<RwLock<BTreeMap<IndexKey, IndexEntry>>>,
+    compressor: Option<Arc<RwLock<IndexCompressor>>>,
 }
 
 impl VertexIndexManager {
@@ -34,7 +34,62 @@ impl VertexIndexManager {
         Self {
             forward_index: Arc::new(RwLock::new(BTreeMap::new())),
             reverse_index: Arc::new(RwLock::new(BTreeMap::new())),
+            compressor: None,
         }
+    }
+
+    pub fn with_compression(config: CompressionConfig) -> Self {
+        Self {
+            forward_index: Arc::new(RwLock::new(BTreeMap::new())),
+            reverse_index: Arc::new(RwLock::new(BTreeMap::new())),
+            compressor: Some(Arc::new(RwLock::new(IndexCompressor::new(config)))),
+        }
+    }
+
+    pub fn is_compression_enabled(&self) -> bool {
+        self.compressor
+            .as_ref()
+            .map(|c| c.read().is_enabled())
+            .unwrap_or(false)
+    }
+
+    fn compress_key(&self, key: &[u8]) -> Vec<u8> {
+        if let Some(ref compressor) = self.compressor {
+            compressor.read().compress_key(key)
+        } else {
+            key.to_vec()
+        }
+    }
+
+    fn decompress_key(&self, compressed: &[u8]) -> StorageResult<Vec<u8>> {
+        if let Some(ref compressor) = self.compressor {
+            compressor.read().decompress_key(compressed)
+        } else {
+            Ok(compressed.to_vec())
+        }
+    }
+
+    pub fn train_compression(&self, keys: &[Vec<u8>]) -> StorageResult<()> {
+        if let Some(ref compressor) = self.compressor {
+            compressor.write().train_keys(keys)?;
+        }
+        Ok(())
+    }
+
+    pub fn compression_ratio(&self) -> Option<f64> {
+        self.compressor.as_ref().and_then(|c| {
+            let c = c.read();
+            if c.is_enabled() {
+                let forward = self.forward_index.read();
+                let original: Vec<Vec<u8>> = forward.keys().map(|k| {
+                    c.decompress_key(k).unwrap_or_else(|_| k.clone())
+                }).collect();
+                let compressed: Vec<Vec<u8>> = forward.keys().cloned().collect();
+                Some(c.compression_ratio(&original, &compressed))
+            } else {
+                None
+            }
+        })
     }
 
     pub fn update_vertex_indexes(
@@ -60,14 +115,16 @@ impl VertexIndexManager {
 
         for (_prop_name, prop_value) in props {
             let index_key =
-                IndexKeyCodec::build_vertex_index_key(space_id, index_name, prop_value, vertex_id)?;
+                KeyBuilder::build_vertex_index_key(space_id, index_name, prop_value, vertex_id)?;
 
             let reverse_key =
-                IndexKeyCodec::build_vertex_reverse_key_v2(space_id, vertex_id, index_name)?;
+                KeyBuilder::build_vertex_reverse_key_v2(space_id, vertex_id, index_name)?;
 
             let entry = IndexEntry::new(write_ts);
-            forward_entries.push((index_key.0, entry.clone()));
-            reverse_entries.push((reverse_key.0, entry));
+            let compressed_forward = self.compress_key(&index_key.0);
+            let compressed_reverse = self.compress_key(&reverse_key.0);
+            forward_entries.push((compressed_forward, entry.clone()));
+            reverse_entries.push((compressed_reverse, entry));
         }
 
         {
@@ -100,8 +157,8 @@ impl VertexIndexManager {
         vertex_id: &Value,
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
-        let reverse_prefix = IndexKeyCodec::build_vertex_reverse_prefix_v2(space_id, vertex_id)?;
-        let reverse_end = IndexKeyCodec::build_range_end(&reverse_prefix);
+        let reverse_prefix = KeyBuilder::build_vertex_reverse_prefix_v2(space_id, vertex_id)?;
+        let reverse_end = KeyBuilder::build_range_end(&reverse_prefix);
 
         let mut forward_keys_to_delete: Vec<IndexKey> = Vec::new();
         let mut reverse_keys_to_delete: Vec<IndexKey> = Vec::new();
@@ -113,20 +170,20 @@ impl VertexIndexManager {
                     reverse_keys_to_delete.push(key_bytes.clone());
 
                     if let Ok((_vertex_id_bytes, index_name)) =
-                        IndexKeyCodec::parse_vertex_reverse_key_v2(key_bytes)
+                        KeyParser::parse_vertex_reverse_key_v2(key_bytes)
                     {
                         let forward_key_start =
-                            IndexKeyCodec::build_vertex_index_prefix(space_id, &index_name);
-                        let forward_key_end = IndexKeyCodec::build_range_end(&forward_key_start);
+                            KeyBuilder::build_vertex_index_prefix(space_id, &index_name);
+                        let forward_key_end = KeyBuilder::build_range_end(&forward_key_start);
 
-                        let vertex_bytes = IndexKeyCodec::serialize_value(vertex_id)?;
+                        let vertex_bytes = serialize_value(vertex_id)?;
                         let forward_index = self.forward_index.read();
                         for (fwd_key_bytes, fwd_entry) in
                             forward_index.range(forward_key_start.0.clone()..forward_key_end.0)
                         {
                             if fwd_entry.is_visible_at(write_ts) {
                                 if let Ok(vid) =
-                                    IndexKeyCodec::parse_vertex_id_from_key(fwd_key_bytes)
+                                    KeyParser::parse_vertex_id_from_key(fwd_key_bytes)
                                 {
                                     if vid == *vertex_id {
                                         let vid_start = fwd_key_bytes.len() - vertex_bytes.len();
@@ -169,8 +226,8 @@ impl VertexIndexManager {
         vertex_id: &Value,
         tag_name: &str,
     ) -> Result<(), StorageError> {
-        let reverse_prefix = IndexKeyCodec::build_vertex_reverse_prefix_v2(space_id, vertex_id)?;
-        let reverse_end = IndexKeyCodec::build_range_end(&reverse_prefix);
+        let reverse_prefix = KeyBuilder::build_vertex_reverse_prefix_v2(space_id, vertex_id)?;
+        let reverse_end = KeyBuilder::build_range_end(&reverse_prefix);
 
         let mut keys_to_delete: Vec<IndexKey> = Vec::new();
 
@@ -178,7 +235,7 @@ impl VertexIndexManager {
             let reverse_index = self.reverse_index.read();
             for (key_bytes, _) in reverse_index.range(reverse_prefix.0.clone()..reverse_end.0) {
                 if let Ok((_vertex_id_bytes, index_name)) =
-                    IndexKeyCodec::parse_vertex_reverse_key_v2(key_bytes)
+                    KeyParser::parse_vertex_reverse_key_v2(key_bytes)
                 {
                     if index_name.starts_with(tag_name) {
                         keys_to_delete.push(key_bytes.clone());
@@ -198,8 +255,8 @@ impl VertexIndexManager {
     }
 
     pub fn clear_tag_index(&self, space_id: u64, index_name: &str) -> Result<(), StorageError> {
-        let prefix = IndexKeyCodec::build_vertex_index_prefix(space_id, index_name);
-        let end = IndexKeyCodec::build_range_end(&prefix);
+        let prefix = KeyBuilder::build_vertex_index_prefix(space_id, index_name);
+        let end = KeyBuilder::build_range_end(&prefix);
 
         let mut keys_to_delete: Vec<IndexKey> = Vec::new();
 
@@ -248,11 +305,11 @@ impl VertexIndexManager {
         value: &Value,
         read_ts: Timestamp,
     ) -> Result<Vec<Value>, StorageError> {
-        let prefix = IndexKeyCodec::build_vertex_index_prefix(space_id, &index.name);
-        let end = IndexKeyCodec::build_range_end(&prefix);
+        let prefix = KeyBuilder::build_vertex_index_prefix(space_id, &index.name);
+        let end = KeyBuilder::build_range_end(&prefix);
 
         let mut results = Vec::new();
-        let value_bytes = IndexKeyCodec::serialize_value(value)?;
+        let value_bytes = serialize_value(value)?;
 
         let forward_index = self.forward_index.read();
         for (key_bytes, entry) in forward_index.range(prefix.0.clone()..end.0) {
@@ -260,7 +317,7 @@ impl VertexIndexManager {
                 continue;
             }
 
-            if let Ok(vertex_id) = IndexKeyCodec::parse_vertex_id_from_key(key_bytes) {
+            if let Ok(vertex_id) = KeyParser::parse_vertex_id_from_key(key_bytes) {
                 if key_bytes.len() > prefix.0.len() + 4 {
                     let prop_len_start = prefix.0.len();
                     let prop_value_len = u32::from_le_bytes(
@@ -303,17 +360,17 @@ impl VertexIndexManager {
         end_value: &Value,
         read_ts: Timestamp,
     ) -> Result<Vec<Value>, StorageError> {
-        let prefix = IndexKeyCodec::build_vertex_index_prefix(space_id, &index.name);
-        let start_bytes = IndexKeyCodec::serialize_value(start_value)?;
-        let end_bytes = IndexKeyCodec::serialize_value(end_value)?;
+        let prefix = KeyBuilder::build_vertex_index_prefix(space_id, &index.name);
+        let start_bytes = serialize_value(start_value)?;
+        let end_bytes = serialize_value(end_value)?;
 
-        let range_start = IndexKeyCodec::build_vertex_index_key(
+        let range_start = KeyBuilder::build_vertex_index_key(
             space_id,
             &index.name,
             start_value,
             &Value::Int(i32::MIN),
         )?;
-        let range_end = IndexKeyCodec::build_vertex_index_key(
+        let range_end = KeyBuilder::build_vertex_index_key(
             space_id,
             &index.name,
             end_value,
@@ -338,7 +395,7 @@ impl VertexIndexManager {
                 continue;
             }
 
-            if let Ok(vertex_id) = IndexKeyCodec::parse_vertex_id_from_key(key_bytes) {
+            if let Ok(vertex_id) = KeyParser::parse_vertex_id_from_key(key_bytes) {
                 if key_bytes.len() > prefix.0.len() + 4 {
                     let prop_len_start = prefix.0.len();
                     let prop_value_len = u32::from_le_bytes(
@@ -370,8 +427,8 @@ impl VertexIndexManager {
         space_id: u64,
         index_name: &str,
     ) -> Result<IndexEstimate, StorageError> {
-        let prefix = IndexKeyCodec::build_vertex_index_prefix(space_id, index_name);
-        let end = IndexKeyCodec::build_range_end(&prefix);
+        let prefix = KeyBuilder::build_vertex_index_prefix(space_id, index_name);
+        let end = KeyBuilder::build_range_end(&prefix);
 
         let forward_index = self.forward_index.read();
         let mut total_entries = 0usize;
@@ -410,8 +467,8 @@ impl VertexIndexManager {
         limit: usize,
         read_ts: Timestamp,
     ) -> Result<Vec<(Value, Value)>, StorageError> {
-        let prefix = IndexKeyCodec::build_vertex_index_prefix(space_id, &index.name);
-        let end = IndexKeyCodec::build_range_end(&prefix);
+        let prefix = KeyBuilder::build_vertex_index_prefix(space_id, &index.name);
+        let end = KeyBuilder::build_range_end(&prefix);
 
         let mut results = Vec::with_capacity(limit.min(1000));
         let forward_index = self.forward_index.read();
@@ -424,7 +481,7 @@ impl VertexIndexManager {
                 continue;
             }
 
-            if let Ok(vertex_id) = IndexKeyCodec::parse_vertex_id_from_key(key_bytes) {
+            if let Ok(vertex_id) = KeyParser::parse_vertex_id_from_key(key_bytes) {
                 if key_bytes.len() > prefix.0.len() + 4 {
                     let prop_len_start = prefix.0.len();
                     let prop_value_len = u32::from_le_bytes(
@@ -437,7 +494,7 @@ impl VertexIndexManager {
                     if prop_value_start + prop_value_len <= key_bytes.len() {
                         let stored_prop_value =
                             &key_bytes[prop_value_start..prop_value_start + prop_value_len];
-                        if let Ok(prop_value) = IndexKeyCodec::deserialize_value(stored_prop_value)
+                        if let Ok(prop_value) = deserialize_value(stored_prop_value)
                         {
                             results.push((prop_value, vertex_id));
                         }
@@ -780,7 +837,7 @@ impl VertexIndexManager {
         field_values: &[Value],
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
-        let index_key = IndexKeyCodec::build_composite_vertex_index_key(
+        let index_key = KeyBuilder::build_composite_vertex_index_key(
             space_id,
             index_name,
             field_values,
@@ -788,7 +845,7 @@ impl VertexIndexManager {
         )?;
 
         let reverse_key =
-            IndexKeyCodec::build_vertex_reverse_key_v2(space_id, vertex_id, index_name)?;
+            KeyBuilder::build_vertex_reverse_key_v2(space_id, vertex_id, index_name)?;
 
         let entry = IndexEntry::new(write_ts);
 
@@ -824,8 +881,8 @@ impl VertexIndexManager {
         field_values: &[Value],
         read_ts: Timestamp,
     ) -> Result<Vec<Value>, StorageError> {
-        let prefix = IndexKeyCodec::build_vertex_index_prefix(space_id, index_name);
-        let end = IndexKeyCodec::build_range_end(&prefix);
+        let prefix = KeyBuilder::build_vertex_index_prefix(space_id, index_name);
+        let end = KeyBuilder::build_range_end(&prefix);
 
         let mut results = Vec::new();
 
@@ -836,7 +893,7 @@ impl VertexIndexManager {
             }
 
             if let Ok((stored_values, vertex_id)) =
-                IndexKeyCodec::parse_composite_vertex_index_key(key_bytes)
+                KeyParser::parse_composite_vertex_index_key(key_bytes)
             {
                 if stored_values.len() == field_values.len() {
                     let matches = stored_values
@@ -864,8 +921,8 @@ impl VertexIndexManager {
         prefix_values: &[Value],
         read_ts: Timestamp,
     ) -> Result<Vec<Value>, StorageError> {
-        let prefix = IndexKeyCodec::build_vertex_index_prefix(space_id, index_name);
-        let end = IndexKeyCodec::build_range_end(&prefix);
+        let prefix = KeyBuilder::build_vertex_index_prefix(space_id, index_name);
+        let end = KeyBuilder::build_range_end(&prefix);
 
         let mut results = Vec::new();
 
@@ -876,7 +933,7 @@ impl VertexIndexManager {
             }
 
             if let Ok((stored_values, vertex_id)) =
-                IndexKeyCodec::parse_composite_vertex_index_key(key_bytes)
+                KeyParser::parse_composite_vertex_index_key(key_bytes)
             {
                 if stored_values.len() >= prefix_values.len() {
                     let matches = stored_values[..prefix_values.len()]
@@ -928,12 +985,12 @@ impl VertexIndexManager {
         let mut reverse_entries: Vec<(IndexKey, IndexEntry)> = Vec::with_capacity(props.len());
 
         for (_prop_name, prop_value) in props {
-            let index_key = IndexKeyCodec::build_vertex_index_key_native(
+            let index_key = KeyBuilder::build_vertex_index_key_native(
                 space_id, index_name, prop_value, vertex_id,
             )?;
 
             let reverse_key =
-                IndexKeyCodec::build_vertex_reverse_key_native(space_id, vertex_id, index_name);
+                KeyBuilder::build_vertex_reverse_key_native(space_id, vertex_id, index_name);
 
             let entry = IndexEntry::new(write_ts);
             forward_entries.push((index_key.0, entry.clone()));
@@ -972,8 +1029,8 @@ impl VertexIndexManager {
         vertex_id: u64,
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
-        let reverse_prefix = IndexKeyCodec::build_vertex_reverse_prefix_native(space_id, vertex_id);
-        let reverse_end = IndexKeyCodec::build_range_end(&reverse_prefix);
+        let reverse_prefix = KeyBuilder::build_vertex_reverse_prefix_native(space_id, vertex_id);
+        let reverse_end = KeyBuilder::build_range_end(&reverse_prefix);
 
         let mut forward_keys_to_delete: Vec<IndexKey> = Vec::new();
         let mut reverse_keys_to_delete: Vec<IndexKey> = Vec::new();
@@ -985,11 +1042,11 @@ impl VertexIndexManager {
                     reverse_keys_to_delete.push(key_bytes.clone());
 
                     if let Ok((_vertex_id, index_name)) =
-                        IndexKeyCodec::parse_vertex_reverse_key_native(key_bytes)
+                        KeyParser::parse_vertex_reverse_key_native(key_bytes)
                     {
                         let forward_key_start =
-                            IndexKeyCodec::build_vertex_index_prefix(space_id, &index_name);
-                        let forward_key_end = IndexKeyCodec::build_range_end(&forward_key_start);
+                            KeyBuilder::build_vertex_index_prefix(space_id, &index_name);
+                        let forward_key_end = KeyBuilder::build_range_end(&forward_key_start);
 
                         let forward_index = self.forward_index.read();
                         for (fwd_key_bytes, fwd_entry) in
@@ -997,7 +1054,7 @@ impl VertexIndexManager {
                         {
                             if fwd_entry.is_visible_at(write_ts) {
                                 if let Ok(vid) =
-                                    IndexKeyCodec::parse_vertex_id_from_key_native(fwd_key_bytes)
+                                    KeyParser::parse_vertex_id_from_key_native(fwd_key_bytes)
                                 {
                                     if vid == vertex_id {
                                         forward_keys_to_delete.push(fwd_key_bytes.clone());
@@ -1049,11 +1106,11 @@ impl VertexIndexManager {
         value: &Value,
         read_ts: Timestamp,
     ) -> Result<Vec<u64>, StorageError> {
-        let prefix = IndexKeyCodec::build_vertex_index_prefix(space_id, &index.name);
-        let end = IndexKeyCodec::build_range_end(&prefix);
+        let prefix = KeyBuilder::build_vertex_index_prefix(space_id, &index.name);
+        let end = KeyBuilder::build_range_end(&prefix);
 
         let mut results = Vec::new();
-        let value_bytes = IndexKeyCodec::serialize_value(value)?;
+        let value_bytes = serialize_value(value)?;
 
         let forward_index = self.forward_index.read();
         for (key_bytes, entry) in forward_index.range(prefix.0.clone()..end.0) {
@@ -1061,7 +1118,7 @@ impl VertexIndexManager {
                 continue;
             }
 
-            if let Ok(vertex_id) = IndexKeyCodec::parse_vertex_id_from_key_native(key_bytes) {
+            if let Ok(vertex_id) = KeyParser::parse_vertex_id_from_key_native(key_bytes) {
                 if key_bytes.len() > prefix.0.len() + 4 {
                     let prop_len_start = prefix.0.len();
                     let prop_value_len = u32::from_le_bytes(
@@ -1112,12 +1169,12 @@ impl VertexIndexManager {
         end_value: &Value,
         read_ts: Timestamp,
     ) -> Result<Vec<u64>, StorageError> {
-        let start_bytes = IndexKeyCodec::serialize_value(start_value)?;
-        let end_bytes = IndexKeyCodec::serialize_value(end_value)?;
+        let start_bytes = serialize_value(start_value)?;
+        let end_bytes = serialize_value(end_value)?;
 
         let range_start =
-            IndexKeyCodec::build_vertex_index_key_native(space_id, &index.name, start_value, 0)?;
-        let range_end = IndexKeyCodec::build_vertex_index_key_native(
+            KeyBuilder::build_vertex_index_key_native(space_id, &index.name, start_value, 0)?;
+        let range_end = KeyBuilder::build_vertex_index_key_native(
             space_id,
             &index.name,
             end_value,
@@ -1132,8 +1189,8 @@ impl VertexIndexManager {
                 continue;
             }
 
-            if let Ok(vertex_id) = IndexKeyCodec::parse_vertex_id_from_key_native(key_bytes) {
-                let prefix = IndexKeyCodec::build_vertex_index_prefix(space_id, &index.name);
+            if let Ok(vertex_id) = KeyParser::parse_vertex_id_from_key_native(key_bytes) {
+                let prefix = KeyBuilder::build_vertex_index_prefix(space_id, &index.name);
                 if key_bytes.len() > prefix.0.len() + 4 {
                     let prop_len_start = prefix.0.len();
                     let prop_value_len = u32::from_le_bytes(

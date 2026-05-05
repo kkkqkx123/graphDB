@@ -13,11 +13,7 @@
 use dashmap::DashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use super::index_types::PrimaryIndex;
-
-pub type VertexId = u64;
-pub type EdgeId = u64;
-pub type PropOffset = u32;
+use super::index_types::{EdgeId, PrimaryIndex, PropOffset, VertexId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EdgeLocation {

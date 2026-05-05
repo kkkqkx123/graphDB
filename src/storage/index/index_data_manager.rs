@@ -11,11 +11,11 @@ use crate::core::vertex_edge_path::Tag;
 use crate::core::Edge;
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::index::edge_index_manager::EdgeIndexManager;
-use crate::storage::index::index_key_codec::IndexKeyCodec;
+use crate::storage::index::key_codec::{deserialize_value, serialize_value};
 use crate::storage::index::vertex_index_manager::VertexIndexManager;
 use std::path::Path;
 
-pub use crate::storage::index::index_key_codec::{
+pub use crate::storage::index::key_codec::{
     KEY_TYPE_EDGE_FORWARD, KEY_TYPE_EDGE_REVERSE, KEY_TYPE_VERTEX_FORWARD, KEY_TYPE_VERTEX_REVERSE,
 };
 
@@ -326,11 +326,11 @@ impl InMemoryIndexDataManager {
     }
 
     pub fn serialize_value(value: &Value) -> Result<Vec<u8>, StorageError> {
-        IndexKeyCodec::serialize_value(value)
+        serialize_value(value)
     }
 
     pub fn deserialize_value(data: &[u8]) -> Result<Value, StorageError> {
-        IndexKeyCodec::deserialize_value(data)
+        deserialize_value(data)
     }
 
     pub fn flush<P: AsRef<Path>>(&self, path: P) -> StorageResult<()> {
